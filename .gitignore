@@ -1,0 +1,10 @@
+node_modules/
+.cache/
+dist/
+lib/
+*.bs.js
+.DS_Store
+*.log
+
+# Bun lockfile — using npm as package manager
+bun.lock
