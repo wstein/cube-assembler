@@ -1,0 +1,18 @@
+{
+  "name": "cube-assembler",
+  "sources": [
+    { "dir": "src", "subdirs": true },
+    { "dir": "test", "subdirs": true, "type": "dev" }
+  ],
+  "bs-dependencies": [],
+  "warnings": {
+    "number": "+a-26-27",
+    "error": false
+  },
+  "package-specs": {
+    "module": "esmodule",
+    "in-source": false
+  },
+  "suffix": ".js",
+  "namespace": "CubeAssembler"
+}
