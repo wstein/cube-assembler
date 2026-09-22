@@ -5,7 +5,7 @@
 ![License: MIT](https://img.shields.io/badge/License-MIT-cyan.svg)
 ![npm](https://img.shields.io/badge/runtime-npm-black)
 ![ReScript](https://img.shields.io/badge/lang-ReScript-e6484f)
-![Tests](https://img.shields.io/badge/tests-64%2F64%20%E2%9C%85-brightgreen)
+![Tests](https://img.shields.io/badge/tests-69%2F69%20%E2%9C%85-brightgreen)
 
 A full-stack library and web app that solves two geometric ambiguities when reconstructing a physical cube from 6 unordered face photographs:
 
@@ -84,7 +84,8 @@ cube-assembler/
     ├── notation.test.ts           23 tests — ReScript Notation module (WRG/URF/Kociemba/Numeric)
     ├── cubeAssembly.test.ts       15 tests — face identity/orientation solver (odd + even sizes)
     ├── notationOutput.test.ts     16 tests — spaced + URF (Kociemba) facelet formats
-    └── imageProcessing.test.ts    10 tests — OKLCH conversion + sticker-color learning
+    ├── imageProcessing.test.ts    10 tests — OKLCH conversion + sticker-color learning
+    └── parity.test.ts             5 tests — server-side corner/edge facelet-index tables
 ```
 
 ---
@@ -244,6 +245,15 @@ For 3×3×3, four necessary and sufficient conditions are checked:
 
 For 2×2, conditions 1 and 2 apply (edges are implicit).
 For 4×4–7×7, structural + color balance + center uniformity checks are applied (full big-cube parity is future work).
+
+`CORNER_FACELETS_3x3`/`EDGE_FACELETS_3x3` (`server/Server.ts`) map each
+corner/edge cubie to its facelet positions on the B (back) face, which is
+viewed from outside the cube — mirrored left/right relative to F. A
+previous version of these tables got that mirroring backwards for the
+UBR/UBL corners and BR/BL edges, which could reject a genuinely valid
+scrambled cube with "Unknown corner color triplet" even though color
+balance and center cores both checked out; see `test/parity.test.ts` for
+the real capture that caught it.
 
 ---
 
