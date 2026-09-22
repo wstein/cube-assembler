@@ -108,7 +108,7 @@ const FACE_DISPLAY_LABEL: Record<string, string> = Object.fromEntries(
 )
 
 const STICKER_HEX: Record<string, string> = {
-  W: '#ffffff', Y: '#ffd500', O: '#ff8c00', R: '#c41e3a', G: '#009e60', B: '#0051ba',
+  W: '#ffffff', O: '#ff8000', G: '#44ee00', R: '#ff0000', B: '#2266ff', Y: '#f4f400',
 }
 
 function confidenceTier(c: number): 'high' | 'medium' | 'low' {
