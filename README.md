@@ -101,7 +101,10 @@ or imported photos and reconstructs its state:
    selector in the capture dialog (changing it mid-session clears any
    already-captured faces, since they'd otherwise mix grid sizes); a
    manual or auto-estimated white balance (gray-world light-source
-   detection) is applied per shot.
+   detection) is applied per shot. Auto mode estimates live while framing
+   face 1, then locks to whatever it was at the moment face 1 was
+   captured — faces 2–6 reuse that same gain instead of each
+   re-estimating from their own (possibly differently-framed) shot.
 2. **Review** — after all 6 faces are captured, a global recalibration
    pass re-clusters all stickers together (k-means, capacity-constrained
    to the physical invariant of exactly N² stickers per color) and a
