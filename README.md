@@ -5,7 +5,7 @@
 ![License: MIT](https://img.shields.io/badge/License-MIT-cyan.svg)
 ![npm](https://img.shields.io/badge/runtime-npm-black)
 ![ReScript](https://img.shields.io/badge/lang-ReScript-e6484f)
-![Tests](https://img.shields.io/badge/tests-51%2F51%20%E2%9C%85-brightgreen)
+![Tests](https://img.shields.io/badge/tests-56%2F56%20%E2%9C%85-brightgreen)
 
 A full-stack library and web app that solves two geometric ambiguities when reconstructing a physical cube from 6 unordered face photographs:
 
@@ -83,7 +83,8 @@ cube-assembler/
 └── test/
     ├── notation.test.ts           23 tests — ReScript Notation module (WRG/URF/Kociemba/Numeric)
     ├── cubeAssembly.test.ts       12 tests — face identity/orientation solver
-    └── notationOutput.test.ts     16 tests — spaced + URF (Kociemba) facelet formats
+    ├── notationOutput.test.ts     16 tests — spaced + URF (Kociemba) facelet formats
+    └── imageProcessing.test.ts    5 tests — unsupervised sticker-color learning
 ```
 
 ---
