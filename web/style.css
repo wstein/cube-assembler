@@ -96,6 +96,51 @@ body {
 }
 
 /* ─────────────────────────────────────────────────────────────────────────────
+   CUBE NET
+   ───────────────────────────────────────────────────────────────────────────── */
+
+.net-region {
+  background: var(--color-bg-secondary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-lg);
+  margin: 0 var(--spacing-lg) var(--spacing-lg);
+}
+
+.net-region h3 {
+  margin: 0 0 var(--spacing-md);
+}
+
+/* Standard cross layout: U on top, L-F-R-B across the middle, D on bottom */
+.cube-net {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-rows: repeat(3, auto);
+  gap: 4px;
+  max-width: 480px;
+  margin: 0 auto;
+}
+
+.net-u { grid-column: 2; grid-row: 1; }
+.net-l { grid-column: 1; grid-row: 2; }
+.net-f { grid-column: 2; grid-row: 2; }
+.net-r { grid-column: 3; grid-row: 2; }
+.net-b { grid-column: 4; grid-row: 2; }
+.net-d { grid-column: 2; grid-row: 3; }
+
+.net-face-grid {
+  display: grid;
+  gap: 1px;
+  background: var(--color-border);
+  border: 1px solid var(--color-border);
+  aspect-ratio: 1;
+}
+
+.net-cell {
+  aspect-ratio: 1;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
    HEADER
    ───────────────────────────────────────────────────────────────────────────── */
 

@@ -756,6 +756,40 @@ function App() {
         </div>
       </div>
 
+      {/* Cube Net */}
+      {cube && (
+        <div class="net-region">
+          <h3>Cube Net</h3>
+          <div class="cube-net">
+            {(
+              [
+                ['U', cube.u, 'net-u'],
+                ['L', cube.l, 'net-l'],
+                ['F', cube.f, 'net-f'],
+                ['R', cube.r, 'net-r'],
+                ['B', cube.b, 'net-b'],
+                ['D', cube.d, 'net-d'],
+              ] as [string, string[], string][]
+            ).map(([label, data, cls]) => (
+              <div class={`net-face ${cls}`} key={label}>
+                <div
+                  class="net-face-grid"
+                  style={{ gridTemplateColumns: `repeat(${puzzleSize}, 1fr)` }}
+                >
+                  {data.map((color, i) => (
+                    <div
+                      class="net-cell"
+                      key={i}
+                      style={{ background: STICKER_HEX[color] || '#888' }}
+                    ></div>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Face Capture Panel */}
       <section class="face-capture-panel">
         <div class="face-capture-header">
