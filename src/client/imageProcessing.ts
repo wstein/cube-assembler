@@ -105,6 +105,150 @@ function getFaceRegion(canvas: HTMLCanvasElement): FaceRegion {
   }
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Grid size auto-detection (2x2 - 7x7)
+//
+// Cube sticker gaps are consistently darker than the stickers themselves, so
+// counting periodic brightness dips along the face region's row/column
+// luminance profile gives a cheap, dependency-free way to guess how many
+// stickers per edge (N) are visible — without any real corner/edge/contour
+// detection. This is inherently a heuristic: confidence and the minimum
+// threshold below are rough starting points, not calibrated against real
+// captures, so treat a detection as a suggestion to confirm, never as
+// something to silently commit.
+// ─────────────────────────────────────────────────────────────────────────────
+
+export interface GridSizeDetection {
+  size: number
+  confidence: number
+}
+
+const MIN_GRID_SIZE = 2
+const MAX_GRID_SIZE = 7
+
+function computeLuminanceProfiles(
+  imageData: ImageData,
+  width: number,
+  height: number
+): { colProfile: number[]; rowProfile: number[] } {
+  const data = imageData.data
+  const colSum = new Float64Array(width)
+  const rowSum = new Float64Array(height)
+
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      const idx = (y * width + x) * 4
+      const lum = 0.299 * data[idx] + 0.587 * data[idx + 1] + 0.114 * data[idx + 2]
+      colSum[x] += lum
+      rowSum[y] += lum
+    }
+  }
+
+  return {
+    colProfile: Array.from(colSum, (v) => v / height),
+    rowProfile: Array.from(rowSum, (v) => v / width),
+  }
+}
+
+interface Valley {
+  pos: number
+  prominence: number
+}
+
+// Finds local minima in the profile whose value is clearly lower than the
+// higher of its nearest local maxima on each side within `lookback` samples
+// (a simplified topographic prominence, bounded to a single-sticker-sized
+// window so it can't straddle more than one real gap).
+function findValleys(profile: number[], lookback: number): Valley[] {
+  const length = profile.length
+  const valleys: Valley[] = []
+
+  for (let i = lookback; i < length - lookback; i++) {
+    const v = profile[i]
+    if (v > profile[i - 1] || v > profile[i + 1]) continue
+
+    let leftMax = -Infinity
+    for (let j = i - lookback; j < i; j++) leftMax = Math.max(leftMax, profile[j])
+    let rightMax = -Infinity
+    for (let j = i + 1; j <= i + lookback; j++) rightMax = Math.max(rightMax, profile[j])
+
+    const prominence = Math.min(leftMax, rightMax) - v
+    if (prominence > 0) valleys.push({ pos: i, prominence })
+  }
+
+  return valleys
+}
+
+// Counts distinct sticker gaps along one profile: keeps valleys with
+// prominence above a fraction of the profile's own dynamic range (so it
+// adapts to lighting instead of using an absolute brightness threshold),
+// then merges valleys that are closer together than a plausible minimum
+// cell size (keeping the more prominent one of each cluster).
+function countGaps(profile: number[]): { count: number; avgProminence: number } {
+  const length = profile.length
+  const lookback = Math.max(2, Math.floor(length / (MAX_GRID_SIZE * 2.5)))
+  const minSeparation = Math.floor(length / (MAX_GRID_SIZE * 2))
+
+  const min = Math.min(...profile)
+  const max = Math.max(...profile)
+  const range = max - min
+  if (range < 1) return { count: 0, avgProminence: 0 }
+
+  const prominenceThreshold = range * 0.12
+  const candidates = findValleys(profile, lookback)
+    .filter((v) => v.prominence >= prominenceThreshold)
+    .sort((a, b) => a.pos - b.pos)
+
+  const kept: Valley[] = []
+  for (const v of candidates) {
+    const last = kept[kept.length - 1]
+    if (last && v.pos - last.pos < minSeparation) {
+      if (v.prominence > last.prominence) kept[kept.length - 1] = v
+    } else {
+      kept.push(v)
+    }
+  }
+
+  const avgProminence = kept.length > 0
+    ? kept.reduce((sum, v) => sum + v.prominence, 0) / kept.length / range
+    : 0
+
+  return { count: kept.length, avgProminence }
+}
+
+/**
+ * Guess the puzzle's grid size (2-7) from sticker-gap spacing within the
+ * same centered face region used for color extraction, by counting distinct
+ * gap valleys in the row/column luminance profiles (gaps = N-1 per axis).
+ * Returns null when the signal is too weak to trust (e.g. poor lighting,
+ * no cube in frame, or the two axes disagree by more than one gap).
+ */
+export function detectGridSize(canvas: HTMLCanvasElement): GridSizeDetection | null {
+  const { imageData, faceWidth, faceHeight } = getFaceRegion(canvas)
+  if (faceWidth < 20 || faceHeight < 20) return null
+
+  const { colProfile, rowProfile } = computeLuminanceProfiles(imageData, faceWidth, faceHeight)
+  // No extra smoothing here: averaging luminance across the full opposite
+  // axis while building each profile already cancels most per-pixel sensor
+  // noise. An additional moving-average pass was tried and measurably
+  // diluted thin gaps at higher N (6x6/7x7), where gap width is a much
+  // smaller fraction of cell size — it caused systematic undercounting.
+  const col = countGaps(colProfile)
+  const row = countGaps(rowProfile)
+
+  if (Math.abs(col.count - row.count) > 1) return null
+
+  const gapCount = Math.round((col.count + row.count) / 2)
+  const size = gapCount + 1
+  if (size < MIN_GRID_SIZE || size > MAX_GRID_SIZE) return null
+
+  const confidence = Math.min(1, ((col.avgProminence + row.avgProminence) / 2) * 2.5)
+  const MIN_CONFIDENCE = 0.25
+  if (confidence < MIN_CONFIDENCE) return null
+
+  return { size, confidence }
+}
+
 export function extractCubeFaceColors(canvas: HTMLCanvasElement, gridSize = 3): ColorDetectionResult {
   const { imageData, faceWidth, faceHeight } = getFaceRegion(canvas)
 
