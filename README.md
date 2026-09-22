@@ -5,7 +5,7 @@
 ![License: MIT](https://img.shields.io/badge/License-MIT-cyan.svg)
 ![npm](https://img.shields.io/badge/runtime-npm-black)
 ![ReScript](https://img.shields.io/badge/lang-ReScript-e6484f)
-![Tests](https://img.shields.io/badge/tests-50%2F50%20%E2%9C%85-brightgreen)
+![Tests](https://img.shields.io/badge/tests-51%2F51%20%E2%9C%85-brightgreen)
 
 A full-stack library and web app that solves two geometric ambiguities when reconstructing a physical cube from 6 unordered face photographs:
 
@@ -83,7 +83,7 @@ cube-assembler/
 └── test/
     ├── notation.test.ts           23 tests — ReScript Notation module (WRG/URF/Kociemba/Numeric)
     ├── cubeAssembly.test.ts       12 tests — face identity/orientation solver
-    └── notationOutput.test.ts     15 tests — spaced + URF facelet formats
+    └── notationOutput.test.ts     16 tests — spaced + URF (Kociemba) facelet formats
 ```
 
 ---
@@ -116,11 +116,13 @@ Manual entry and the notation output panel offer two interchangeable
 formats, toggled with the same switch in both places (see
 `src/client/notationOutput.ts`):
 
-- **Spaced facelets** — 6 space-separated N²-letter blocks in U R F D L B
-  order, e.g. for a 3×3: `WWWWWWWWW RRRRRRRRR GGGGGGGGG YYYYYYYYY OOOOOOOOO
-  BBBBBBBBB`.
-- **URF facelets** — the same letters with no separators, e.g.
-  `WWWWWWWWWRRRRRRRRRGGGGGGGGGYYYYYYYYYOOOOOOOOOBBBBBBBBB`.
+- **Spaced facelets** — 6 space-separated N²-letter blocks of WOGRBY color
+  letters, in U R F D L B order, e.g. for a solved 3×3: `WWWWWWWWW
+  RRRRRRRRR GGGGGGGGG YYYYYYYYY OOOOOOOOO BBBBBBBBB`.
+- **URF facelets** — the standard Kociemba/solver facelet string: one
+  unspaced run of 6·N² URFDLB letters, where each letter names the face
+  whose solved color that sticker matches (not the color itself), e.g. for
+  a solved 3×3: `UUUUUUUUURRRRRRRRRFFFFFFFFFDDDDDDDDDLLLLLLLLLBBBBBBBBB`.
 
 Both are client-only formats, distinct from the ReScript `Notation`
 module described below, which the server-side parity/assembly pipeline

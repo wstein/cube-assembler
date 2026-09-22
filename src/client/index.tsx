@@ -371,7 +371,7 @@ function App() {
         alert(
           notationFormat === 'spaced'
             ? 'Invalid facelets. Must be 6 space-separated blocks of equal, perfect-square length (9 for 3×3, 25 for 5×5, ...) using colors W, O, G, R, B, Y, in U R F D L B order.'
-            : 'Invalid facelets. Must be a single run of 6 equal, perfect-square blocks (54 characters for 3×3, 150 for 5×5, ...) using colors W, O, G, R, B, Y, in U R F D L B order, with no separators.'
+            : 'Invalid facelets. Must be a single run of 6 equal, perfect-square blocks (54 characters for 3×3, 150 for 5×5, ...) using letters U, R, F, D, L, B (the face each sticker matches when solved), in U R F D L B order, with no separators.'
         )
         return
       }
@@ -835,14 +835,14 @@ function App() {
             <label>
               {notationFormat === 'spaced'
                 ? `Enter spaced facelets: 6 blocks of ${puzzleSize * puzzleSize} colors (W, O, G, R, B, Y), space-separated, in U R F D L B order`
-                : `Enter URF facelets: ${puzzleSize * puzzleSize * 6} colors (W, O, G, R, B, Y), no separators, in U R F D L B order`}
+                : `Enter URF facelets: ${puzzleSize * puzzleSize * 6} letters (U, R, F, D, L, B - the face each sticker's color matches when solved), no separators, in U R F D L B order`}
             </label>
             <textarea
               value={manualColorInput}
               onInput={(e) => setManualColorInput(e.currentTarget.value)}
               placeholder={notationFormat === 'spaced'
                 ? Array(6).fill('W'.repeat(puzzleSize * puzzleSize)).join(' ')
-                : 'W'.repeat(puzzleSize * puzzleSize * 6)}
+                : ['U', 'R', 'F', 'D', 'L', 'B'].map((l) => l.repeat(puzzleSize * puzzleSize)).join('')}
               rows={6}
               style={{ width: '100%', marginTop: '0.5rem' }}
             />
