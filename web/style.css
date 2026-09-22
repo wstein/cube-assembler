@@ -723,6 +723,30 @@ textarea {
 }
 
 /* ─────────────────────────────────────────────────────────────────────────────
+   CAPTURE MESSAGE
+   ───────────────────────────────────────────────────────────────────────────── */
+
+.capture-message {
+  padding: var(--spacing-md);
+  margin: var(--spacing-md) 0;
+  border-radius: var(--radius-md);
+  background: var(--color-bg-secondary);
+  border-left: 4px solid var(--color-warning);
+  color: var(--color-text-primary);
+  font-size: 0.9rem;
+}
+
+.capture-message.success {
+  border-left-color: var(--color-success);
+  background: rgba(74, 222, 128, 0.1);
+}
+
+.capture-message.error {
+  border-left-color: var(--color-danger);
+  background: rgba(239, 68, 68, 0.1);
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
    TWISTY PLAYER CONTAINER
    ───────────────────────────────────────────────────────────────────────────── */
 

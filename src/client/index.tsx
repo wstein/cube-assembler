@@ -1,5 +1,8 @@
 import { render, h, Fragment } from 'preact'
 import { useState, useEffect, useRef } from 'preact/hooks'
+import { captureAndProcessFace } from './imageProcessing'
+import { assembleCubeFromFaces, validateFaceColors } from './cubeAssembly'
+import { notationForFormat } from './notationOutput'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
@@ -9,6 +12,12 @@ interface CubeState {
   size: number
   captured: Record<string, boolean>
   colors?: Record<string, string[]>
+}
+
+interface FaceCaptureData {
+  colors: string[][]
+  confidence: number
+  timestamp: number
 }
 
 interface AssemblyResult {
@@ -69,9 +78,11 @@ function App() {
   const [parity, setParity] = useState<any>(null)
   const [webcamOpen, setWebcamOpen] = useState(false)
   const [webcamFace, setWebcamFace] = useState('U')
-  const [capturedFaces, setCapturedFaces] = useState<Record<string, boolean>>({})
+  const [capturedFaces, setCapturedFaces] = useState<Record<string, FaceCaptureData>>({})
+  const [faceConfidence, setFaceConfidence] = useState<Record<string, number>>({})
   const [activeTab, setActiveTab] = useState('WRG')
   const [loading, setLoading] = useState(false)
+  const [captureMessage, setCaptureMessage] = useState('')
   const webcamRef = useRef<HTMLVideoElement>(null)
 
   // ─────────────────────────────────────────────────────────────────────────
@@ -258,18 +269,52 @@ function App() {
     setWebcamOpen(true)
   }
 
-  const handleCapturePhoto = () => {
+  const handleCapturePhoto = async () => {
     if (!webcamRef.current) return
 
-    const canvas = document.createElement('canvas')
-    canvas.width = webcamRef.current.videoWidth
-    canvas.height = webcamRef.current.videoHeight
-    const ctx = canvas.getContext('2d')
-    if (ctx) {
-      ctx.drawImage(webcamRef.current, 0, 0)
-      setCapturedFaces({ ...capturedFaces, [webcamFace]: true })
-      console.log('Photo captured for face:', webcamFace)
-      setWebcamOpen(false)
+    try {
+      setLoading(true)
+      setCaptureMessage('Processing image...')
+
+      const result = captureAndProcessFace(webcamRef.current)
+
+      if (!validateFaceColors(result.colors)) {
+        setCaptureMessage(`❌ Invalid colors detected. Confidence: ${(result.confidence * 100).toFixed(0)}%`)
+        return
+      }
+
+      const newCapturedFaces = {
+        ...capturedFaces,
+        [webcamFace]: {
+          colors: result.colors,
+          confidence: result.confidence,
+          timestamp: Date.now(),
+        },
+      }
+
+      setCapturedFaces(newCapturedFaces)
+      setFaceConfidence({ ...faceConfidence, [webcamFace]: result.confidence })
+
+      setCaptureMessage(`✓ ${webcamFace} face captured (${(result.confidence * 100).toFixed(0)}% confidence)`)
+
+      // Try to assemble cube if all 6 faces are captured
+      const allFacesCaptured = ['U', 'R', 'F', 'D', 'L', 'B'].every(f => f in newCapturedFaces)
+      if (allFacesCaptured) {
+        const faceData: Record<string, string[][]> = {}
+        for (const [face, data] of Object.entries(newCapturedFaces)) {
+          faceData[face] = (data as FaceCaptureData).colors
+        }
+        const cubeState = assembleCubeFromFaces(faceData)
+        setCube(cubeState)
+        await updateParityStatus(cubeState)
+        setCaptureMessage('✓ All faces captured! Cube state ready.')
+        setTimeout(() => setWebcamOpen(false), 1500)
+      }
+    } catch (err) {
+      console.error('Capture error:', err)
+      setCaptureMessage(`❌ Error: ${err instanceof Error ? err.message : 'Unknown error'}`)
+    } finally {
+      setLoading(false)
     }
   }
 
@@ -303,10 +348,7 @@ function App() {
 
   const getTabContent = () => {
     if (!cube) return 'null'
-    if (activeTab === 'WRG') return JSON.stringify(cube, null, 2)
-    if (activeTab === 'URF') return JSON.stringify(cube, null, 2)
-    if (activeTab === 'Flat') return JSON.stringify(cube, null, 2)
-    return JSON.stringify(cube, null, 2)
+    return notationForFormat(cube, activeTab)
   }
 
   return (
@@ -451,10 +493,19 @@ function App() {
               class="webcam-feed"
             />
             <p>Align cube face in center</p>
+            {captureMessage && (
+              <div class={`capture-message ${captureMessage.includes('✓') ? 'success' : captureMessage.includes('❌') ? 'error' : ''}`}>
+                {captureMessage}
+              </div>
+            )}
             <label>Import from image file</label>
             <input type="file" accept="image/*" />
-            <button class="btn btn-primary" onClick={handleCapturePhoto}>
-              Capture Photo
+            <button
+              class="btn btn-primary"
+              onClick={handleCapturePhoto}
+              disabled={loading}
+            >
+              {loading ? '⏳ Processing...' : 'Capture Photo'}
             </button>
 
             <h3>Manual Color Override</h3>
