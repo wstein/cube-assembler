@@ -1,7 +1,7 @@
 import { render, h, Fragment } from 'preact'
 import { useState, useEffect, useRef } from 'preact/hooks'
 import { TwistyPlayer } from 'cubing/twisty'
-import { captureAndProcessFace } from './imageProcessing'
+import { captureAndProcessFace, captureAndProcessImage } from './imageProcessing'
 import { assembleCubeFromFaces, validateFaceColors, createSolvedCube, parseColorInput, toCubeIR } from './cubeAssembly'
 import { notationForFormat, toURFFacelets, fromURFFacelets } from './notationOutput'
 
@@ -86,6 +86,8 @@ function extractCubeFromApplyAlgResult(result: any): any {
     'kPatternData instead of face colors. The cube state was left unchanged.'
   )
 }
+
+const FACE_ORDER = ['U', 'R', 'F', 'D', 'L', 'B']
 
 // ─────────────────────────────────────────────────────────────────────────────
 // App Component
@@ -388,7 +390,55 @@ function App() {
 
   const handleCaptureFace = (face: string) => {
     setWebcamFace(face)
+    setCaptureMessage('')
     setWebcamOpen(true)
+  }
+
+  // Stores a capture result for `face`, assembles the cube once all 6 faces
+  // are in, and otherwise auto-advances the modal to the next uncaptured
+  // face so the user doesn't have to close/reopen it per face.
+  const applyFaceCapture = async (
+    face: string,
+    result: { colors: string[][]; confidence: number }
+  ) => {
+    if (!validateFaceColors(result.colors)) {
+      setCaptureMessage(`❌ Invalid colors detected. Confidence: ${(result.confidence * 100).toFixed(0)}%`)
+      return
+    }
+
+    const newCapturedFaces = {
+      ...capturedFaces,
+      [face]: {
+        colors: result.colors,
+        confidence: result.confidence,
+        timestamp: Date.now(),
+      },
+    }
+
+    setCapturedFaces(newCapturedFaces)
+    setFaceConfidence({ ...faceConfidence, [face]: result.confidence })
+    setCaptureMessage(`✓ ${face} face captured (${(result.confidence * 100).toFixed(0)}% confidence)`)
+
+    const allFacesCaptured = FACE_ORDER.every(f => f in newCapturedFaces)
+    if (allFacesCaptured) {
+      const faceData: Record<string, string[][]> = {}
+      for (const [f, data] of Object.entries(newCapturedFaces)) {
+        faceData[f] = (data as FaceCaptureData).colors
+      }
+      const cubeState = assembleCubeFromFaces(faceData)
+      setCube(cubeState)
+      await updateParityStatus(cubeState)
+      setCaptureMessage('✓ All faces captured! Cube state ready.')
+      setTimeout(() => setWebcamOpen(false), 1200)
+    } else {
+      const nextFace = FACE_ORDER.find(f => !(f in newCapturedFaces))
+      if (nextFace) {
+        setTimeout(() => {
+          setWebcamFace(nextFace)
+          setCaptureMessage('')
+        }, 900)
+      }
+    }
   }
 
   const handleCapturePhoto = async () => {
@@ -397,46 +447,44 @@ function App() {
     try {
       setLoading(true)
       setCaptureMessage('Processing image...')
-
       const result = captureAndProcessFace(webcamRef.current)
-
-      if (!validateFaceColors(result.colors)) {
-        setCaptureMessage(`❌ Invalid colors detected. Confidence: ${(result.confidence * 100).toFixed(0)}%`)
-        return
-      }
-
-      const newCapturedFaces = {
-        ...capturedFaces,
-        [webcamFace]: {
-          colors: result.colors,
-          confidence: result.confidence,
-          timestamp: Date.now(),
-        },
-      }
-
-      setCapturedFaces(newCapturedFaces)
-      setFaceConfidence({ ...faceConfidence, [webcamFace]: result.confidence })
-
-      setCaptureMessage(`✓ ${webcamFace} face captured (${(result.confidence * 100).toFixed(0)}% confidence)`)
-
-      // Try to assemble cube if all 6 faces are captured
-      const allFacesCaptured = ['U', 'R', 'F', 'D', 'L', 'B'].every(f => f in newCapturedFaces)
-      if (allFacesCaptured) {
-        const faceData: Record<string, string[][]> = {}
-        for (const [face, data] of Object.entries(newCapturedFaces)) {
-          faceData[face] = (data as FaceCaptureData).colors
-        }
-        const cubeState = assembleCubeFromFaces(faceData)
-        setCube(cubeState)
-        await updateParityStatus(cubeState)
-        setCaptureMessage('✓ All faces captured! Cube state ready.')
-        setTimeout(() => setWebcamOpen(false), 1500)
-      }
+      await applyFaceCapture(webcamFace, result)
     } catch (err) {
       console.error('Capture error:', err)
       setCaptureMessage(`❌ Error: ${err instanceof Error ? err.message : 'Unknown error'}`)
     } finally {
       setLoading(false)
+    }
+  }
+
+  const handleImportImage = async (e: Event) => {
+    const input = e.currentTarget as HTMLInputElement
+    const file = input.files?.[0]
+    if (!file) return
+
+    try {
+      setLoading(true)
+      setCaptureMessage('Processing image...')
+
+      const url = URL.createObjectURL(file)
+      try {
+        const img = new Image()
+        await new Promise<void>((resolve, reject) => {
+          img.onload = () => resolve()
+          img.onerror = () => reject(new Error('Could not load image file'))
+          img.src = url
+        })
+        const result = captureAndProcessImage(img)
+        await applyFaceCapture(webcamFace, result)
+      } finally {
+        URL.revokeObjectURL(url)
+      }
+    } catch (err) {
+      console.error('Image import error:', err)
+      setCaptureMessage(`❌ Error: ${err instanceof Error ? err.message : 'Unknown error'}`)
+    } finally {
+      setLoading(false)
+      input.value = ''
     }
   }
 
@@ -519,7 +567,7 @@ function App() {
           </div>
         </div>
         <div class="face-grid">
-          {['U', 'R', 'F', 'D', 'L', 'B'].map((face) => (
+          {FACE_ORDER.map((face) => (
             <button
               key={face}
               class={`face-btn ${capturedFaces[face] ? 'captured' : ''}`}
@@ -659,6 +707,22 @@ function App() {
               <h2>Capturing: {webcamFace} Face</h2>
               <button class="modal-close" onClick={() => setWebcamOpen(false)}>×</button>
             </div>
+            <div class="capture-progress">
+              <span class="capture-progress-label">
+                Face {FACE_ORDER.indexOf(webcamFace) + 1} of {FACE_ORDER.length}
+              </span>
+              <div class="capture-progress-dots">
+                {FACE_ORDER.map((face) => (
+                  <span
+                    key={face}
+                    class={`progress-dot ${capturedFaces[face] ? 'done' : ''} ${face === webcamFace ? 'current' : ''}`}
+                    title={`${face} face${capturedFaces[face] ? ' (captured)' : ''}`}
+                  >
+                    {face}
+                  </span>
+                ))}
+              </div>
+            </div>
             <video
               ref={webcamRef}
               autoplay
@@ -671,8 +735,6 @@ function App() {
                 {captureMessage}
               </div>
             )}
-            <label>Import from image file</label>
-            <input type="file" accept="image/*" />
             <button
               class="btn btn-primary"
               onClick={handleCapturePhoto}
@@ -681,12 +743,8 @@ function App() {
               {loading ? '⏳ Processing...' : 'Capture Photo'}
             </button>
 
-            <h3>Manual Color Override</h3>
-            <div class="color-palette">
-              {['W', 'O', 'G', 'R', 'B', 'Y'].map((color) => (
-                <button class="color-btn" key={color} style={{ background: color }} />
-              ))}
-            </div>
+            <label>Import from image file</label>
+            <input type="file" accept="image/*" onChange={handleImportImage} disabled={loading} />
           </div>
         </div>
       )}

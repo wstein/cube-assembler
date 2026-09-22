@@ -162,3 +162,19 @@ export function captureAndProcessFace(
   ctx.drawImage(video, 0, 0)
   return extractCubeFaceColors(canvas)
 }
+
+export function captureAndProcessImage(
+  img: HTMLImageElement
+): { colors: string[][]; confidence: number } {
+  const canvas = document.createElement('canvas')
+  canvas.width = img.naturalWidth
+  canvas.height = img.naturalHeight
+
+  const ctx = canvas.getContext('2d')
+  if (!ctx) {
+    throw new Error('Could not get canvas context')
+  }
+
+  ctx.drawImage(img, 0, 0)
+  return extractCubeFaceColors(canvas)
+}
