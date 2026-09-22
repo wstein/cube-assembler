@@ -5,7 +5,7 @@
 ![License: MIT](https://img.shields.io/badge/License-MIT-cyan.svg)
 ![npm](https://img.shields.io/badge/runtime-npm-black)
 ![ReScript](https://img.shields.io/badge/lang-ReScript-e6484f)
-![Tests](https://img.shields.io/badge/tests-59%2F59%20%E2%9C%85-brightgreen)
+![Tests](https://img.shields.io/badge/tests-64%2F64%20%E2%9C%85-brightgreen)
 
 A full-stack library and web app that solves two geometric ambiguities when reconstructing a physical cube from 6 unordered face photographs:
 
@@ -84,7 +84,7 @@ cube-assembler/
     ├── notation.test.ts           23 tests — ReScript Notation module (WRG/URF/Kociemba/Numeric)
     ├── cubeAssembly.test.ts       15 tests — face identity/orientation solver (odd + even sizes)
     ├── notationOutput.test.ts     16 tests — spaced + URF (Kociemba) facelet formats
-    └── imageProcessing.test.ts    5 tests — unsupervised sticker-color learning
+    └── imageProcessing.test.ts    10 tests — OKLCH conversion + sticker-color learning
 ```
 
 ---
@@ -102,10 +102,15 @@ or imported photos and reconstructs its state:
    manual or auto-estimated white balance (gray-world light-source
    detection) is applied per shot.
 2. **Review** — after all 6 faces are captured, a global recalibration
-   pass re-clusters all 54 stickers together (k-means, capacity-constrained
+   pass re-clusters all stickers together (k-means, capacity-constrained
    to the physical invariant of exactly N² stickers per color) and a
    wizard lets you approve or correct each face's detected colors against
-   its photo.
+   its photo. Every step of color classification — per-sticker sampling,
+   k-means, and confidence scoring — measures color "closeness" in OKLCH
+   (`rgbToOKLCH` in `imageProcessing.ts`), not raw RGB: separating hue
+   from lightness/chroma matters because canonical Red and Orange sit only
+   127 RGB units apart (entirely on the G channel) but are ~23° apart in
+   hue, a far more reliable signal under real lighting variation.
 3. **Orientation solving** — on confirm, `solveFaceOrientations` (in
    `cubeAssembly.ts`) resolves true face identity and each face's
    0°/90°/180°/270° rotation by maximizing valid corner cubies first, edge
