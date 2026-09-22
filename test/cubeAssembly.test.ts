@@ -3,10 +3,12 @@
  * Vitest tests for src/client/cubeAssembly.ts's face-orientation solver.
  *
  * solveFaceOrientations() identifies each of 6 arbitrarily-captured faces
- * by its center sticker color (odd puzzle sizes only) and finds the
- * 0/90/180/270 rotation of each that maximizes valid corner cubies first,
- * edge cubies second - see the "Face identity + orientation solving"
- * comment block in cubeAssembly.ts for the full rationale.
+ * and finds the 0/90/180/270 rotation of each that maximizes valid corner
+ * cubies first, edge cubies second - see the "Face identity + orientation
+ * solving" comment block in cubeAssembly.ts for the full rationale. Odd
+ * sizes (3x3, 5x5, 7x7) get identity for free from each face's fixed
+ * center sticker; even sizes (2x2, 4x4, 6x6) have no such reference and
+ * search for identity jointly with rotation.
  *
  * Run: npx vitest run test/cubeAssembly.test.ts
  */
@@ -104,8 +106,46 @@ describe('solveFaceOrientations', () => {
     expect(result!.faces.B.flat().every((c) => c === 'B')).toBe(true)
   })
 
-  it.each([2, 4, 6])('returns null for even size %i (no fixed center reference)', (size) => {
-    expect(solveFaceOrientations(solvedFaces(size))).toBeNull()
+  describe('even sizes (no fixed center reference - identity searched jointly with rotation)', () => {
+    it.each([2, 4, 6])('resolves a solved %ix%i cube, shuffled and pre-rotated, to full validity', (size) => {
+      // Even sizes have no center to key off, so - unlike the odd-size
+      // "identifies each face" test above - there's no fixed expected
+      // U/R/F/D/L/B identity to assert against; a valid result is any
+      // fully-corner-and-edge-valid labeling.
+      const captured = captureWithRotations(solvedFaces(size), { U: 3, R: 1, F: 2, D: 0, L: 3, B: 1 })
+      const result = solveFaceOrientations(captured)
+      expect(result).not.toBeNull()
+      expect(result!.cornerScore).toBe(8)
+      expect(result!.edgeScore).toBe(12)
+    })
+
+    it('resolves a real one-move scramble (4x4, U turn), shuffled and pre-rotated, to full validity', () => {
+      // This is the regression case for the reported bug: a real capture
+      // of a 4x4 cube, in arbitrary capture order/rotation, must resolve
+      // to a fully valid state - cornerScore 8/8 rules out any corner
+      // showing two opposite-face colors at once (e.g. Orange+Red, which
+      // can never physically occur on the same cubie), which is exactly
+      // what capture-order-as-identity with no rotation solving produced.
+      const captured = captureWithRotations(uTurnedFaces(4), { U: 2, R: 1, F: 3, D: 0, L: 1, B: 2 })
+      const result = solveFaceOrientations(captured)
+      expect(result).not.toBeNull()
+      expect(result!.cornerScore).toBe(8)
+      expect(result!.edgeScore).toBe(12)
+    })
+
+    it('completes a 4x4 search within a reasonable time budget', () => {
+      const captured = captureWithRotations(solvedFaces(4), { U: 1, R: 2, F: 3, D: 0, L: 1, B: 2 })
+      const start = performance.now()
+      solveFaceOrientations(captured)
+      expect(performance.now() - start).toBeLessThan(3000)
+    })
+
+    it('returns null when fewer or more than 6 faces are captured', () => {
+      const six = solvedFaces(4)
+      const { U, ...five } = six
+      expect(solveFaceOrientations(five)).toBeNull()
+      expect(solveFaceOrientations({ ...six, extra: six.U })).toBeNull()
+    })
   })
 
   it('returns null when two captured faces share the same center color', () => {
