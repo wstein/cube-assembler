@@ -677,6 +677,9 @@ textarea {
   width: 100%;
   height: 100%;
   object-fit: cover;
+}
+
+.webcam-feed.mirrored {
   transform: scaleX(-1);
 }
 
@@ -732,14 +735,18 @@ textarea {
   left: 50%;
   width: 60%;
   aspect-ratio: 1;
-  /* Mirrored to match .webcam-feed: the overlay's cells are ordered from
-     the raw (unmirrored) camera frame, so flipping the whole grid keeps
-     each swatch visually aligned with the sticker the user sees. */
-  transform: translate(-50%, -50%) scaleX(-1);
+  transform: translate(-50%, -50%);
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   grid-template-rows: repeat(3, 1fr);
   pointer-events: none;
+}
+
+/* Matches .webcam-feed.mirrored: the overlay's cells are ordered from the
+   raw (unmirrored) camera frame, so flipping the whole grid whenever the
+   feed is mirrored keeps each swatch visually aligned with its sticker. */
+.capture-grid-overlay.mirrored {
+  transform: translate(-50%, -50%) scaleX(-1);
 }
 
 .capture-grid-cell {
@@ -862,6 +869,21 @@ textarea {
   color: var(--color-text-secondary);
   font-style: italic;
   white-space: nowrap;
+}
+
+.mirror-toggle {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  font-size: 0.8rem;
+  color: var(--color-text-primary);
+  cursor: pointer;
+  white-space: nowrap;
+  margin-left: auto;
+}
+
+.mirror-toggle input {
+  cursor: pointer;
 }
 
 .progress-dot.current {

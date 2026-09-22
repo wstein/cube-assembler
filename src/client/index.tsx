@@ -141,6 +141,11 @@ function App() {
   const [reviewEditingCell, setReviewEditingCell] = useState<{ face: string; row: number; col: number } | null>(null)
   const [whiteBalanceMode, setWhiteBalanceMode] = useState<'auto' | keyof typeof WHITE_BALANCE_PRESETS>('auto')
   const [autoWhiteBalance, setAutoWhiteBalance] = useState<{ gains: RGB; lightSource: string } | null>(null)
+  // Most laptop/webcam feeds are shown mirrored by convention (like a
+  // physical mirror), which is what most users expect; default on but
+  // let it be turned off for cameras that don't need it (e.g. a rear
+  // phone camera fed in via some capture setups).
+  const [mirrorPreview, setMirrorPreview] = useState(true)
   const [globalWhiteBalanceNote, setGlobalWhiteBalanceNote] = useState<string | null>(null)
   const [reviewStep, setReviewStep] = useState(0)
   const webcamRef = useRef<HTMLVideoElement>(null)
@@ -997,6 +1002,14 @@ function App() {
                   {autoWhiteBalance ? `Detected: ${autoWhiteBalance.lightSource}` : 'Detecting light source…'}
                 </span>
               )}
+              <label class="mirror-toggle">
+                <input
+                  type="checkbox"
+                  checked={mirrorPreview}
+                  onChange={(e) => setMirrorPreview(e.currentTarget.checked)}
+                />
+                Mirror
+              </label>
             </div>
             <div class="capture-video-wrapper">
               <video
@@ -1004,11 +1017,11 @@ function App() {
                 autoplay
                 muted
                 playsinline
-                class="webcam-feed"
+                class={`webcam-feed ${mirrorPreview ? 'mirrored' : ''}`}
               />
               {liveDetection && (
                 <div
-                  class="capture-grid-overlay"
+                  class={`capture-grid-overlay ${mirrorPreview ? 'mirrored' : ''}`}
                   style={{
                     gridTemplateColumns: `repeat(${puzzleSize}, 1fr)`,
                     gridTemplateRows: `repeat(${puzzleSize}, 1fr)`,
