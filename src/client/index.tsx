@@ -802,6 +802,7 @@ function App() {
                       <div
                         key={`${r}-${c}`}
                         class={`capture-grid-cell confidence-${confidenceTier(liveDetection.cellConfidences[r][c])}`}
+                        style={{ background: `${STICKER_HEX[color] || '#888'}66` }}
                       >
                         <span
                           class="capture-grid-swatch"
@@ -812,6 +813,12 @@ function App() {
                   )}
                 </div>
               )}
+              {/* Always-visible guide framing exactly what region gets
+                  analyzed, on top of the grid so its border/dimming stays
+                  visible even once per-cell colors are drawn underneath. */}
+              <div class="capture-scan-frame">
+                <span class="capture-scan-label">Fit face in this square</span>
+              </div>
             </div>
             <p>
               Align cube face in center
