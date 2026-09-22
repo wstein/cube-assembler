@@ -4,7 +4,8 @@ import { TwistyPlayer } from 'cubing/twisty'
 import '../../web/style.css'
 import {
   captureAndProcessFace, captureAndProcessImage, extractCubeFaceColors,
-  estimateGrayWorldGains, runGlobalWhiteBalance, WHITE_BALANCE_PRESETS, NEUTRAL_GAINS, rgbToOKLCH, hueCircularRange,
+  estimateGrayWorldGains, runGlobalWhiteBalance, WHITE_BALANCE_PRESETS, NEUTRAL_GAINS,
+  rgbToOKLCH, formatOKLCHValues, hueCircularRange, linearRange,
   type ColorDetectionResult, type FaceCaptureResult, type RGB,
 } from './imageProcessing'
 import { assembleCubeFromFaces, validateFaceColors, createSolvedCube, toCubeIR, solveFaceOrientations } from './cubeAssembly'
@@ -113,6 +114,23 @@ const STICKER_HEX: Record<string, string> = {
 
 function confidenceTier(c: number): 'high' | 'medium' | 'low' {
   return c >= 0.8 ? 'high' : c >= 0.5 ? 'medium' : 'low'
+}
+
+// Renders a sample's OKLCH components as 3 stacked lines (L%, C%, Hdeg)
+// rather than formatOKLCHValues' single space-separated line - meant for
+// small sticker-grid cells, where 3 short lines fit and read more clearly
+// than one long wrapped one.
+function OklchLines({ oklch, class: className }: { oklch: { l: number; c: number; h: number }; class?: string }) {
+  const lPct = Math.round(oklch.l * 100)
+  const cPct = Math.round((oklch.c / 0.4) * 100)
+  const h = Math.round(oklch.h)
+  return (
+    <span class={className}>
+      <span class="oklch-line">{lPct}%</span>
+      <span class="oklch-line">{cPct}%</span>
+      <span class="oklch-line">{h}deg</span>
+    </span>
+  )
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1088,9 +1106,7 @@ function App() {
                         class={`capture-grid-cell confidence-${confidenceTier(liveDetection.cellConfidences[r][c])}`}
                         style={{ background: `${STICKER_HEX[color] || '#888'}66` }}
                       >
-                        <span class="capture-grid-hue">
-                          {Math.round(rgbToOKLCH(liveDetection.cellColors[r][c]).h)}°
-                        </span>
+                        <OklchLines class="capture-grid-hue" oklch={rgbToOKLCH(liveDetection.cellColors[r][c])} />
                       </div>
                     ))
                   )}
@@ -1141,7 +1157,7 @@ function App() {
         // fixes immediately, since seeing the count move is the whole
         // point of a fix.
         const liveColorCounts: Record<string, number> = { W: 0, O: 0, G: 0, R: 0, B: 0, Y: 0 }
-        const liveColorHues: Record<string, number[]> = { W: [], O: [], G: [], R: [], B: [], Y: [] }
+        const liveColorOKLCH: Record<string, { l: number; c: number; h: number }[]> = { W: [], O: [], G: [], R: [], B: [], Y: [] }
         for (const f of FACE_ORDER) {
           const grid = capturedFaces[f]?.colors
           const cellColors = capturedFaces[f]?.cellColors
@@ -1150,7 +1166,7 @@ function App() {
             if (!(color in liveColorCounts)) return
             liveColorCounts[color]++
             const rgb = cellColors?.[r]?.[c]
-            if (rgb) liveColorHues[color].push(rgbToOKLCH(rgb).h)
+            if (rgb) liveColorOKLCH[color].push(rgbToOKLCH(rgb))
           }))
         }
         return (
@@ -1175,30 +1191,44 @@ function App() {
               {globalWhiteBalanceNote && (
                 <div class="global-wb-note">✓ {globalWhiteBalanceNote}</div>
               )}
-              <div class="color-stats-row">
-                {['W', 'O', 'G', 'R', 'B', 'Y'].map((color) => {
-                  const expected = puzzleSize * puzzleSize
-                  const count = liveColorCounts[color]
-                  const range = hueCircularRange(liveColorHues[color])
-                  return (
-                    <div
-                      key={color}
-                      class={`color-stat-chip ${count !== expected ? 'mismatch' : ''}`}
-                      title={`${count} of ${expected} expected stickers assigned to this color${
-                        range ? ` — observed hue ${Math.round(range.min)}°–${Math.round(range.max)}° (${Math.round(range.span)}° spread)` : ''
-                      }`}
-                    >
-                      <span class="color-stat-swatch" style={{ background: STICKER_HEX[color] }} />
-                      {count}/{expected}
-                      {range && (
-                        <span class="color-stat-hue-range">
-                          {Math.round(range.min)}°–{Math.round(range.max)}°
-                        </span>
-                      )}
-                    </div>
-                  )
-                })}
-              </div>
+              <table class="color-stats-table">
+                <thead>
+                  <tr>
+                    <th>Color</th>
+                    <th>Count</th>
+                    <th>Lightness</th>
+                    <th>Chroma</th>
+                    <th>Hue</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {['W', 'O', 'G', 'R', 'B', 'Y'].map((color) => {
+                    const expected = puzzleSize * puzzleSize
+                    const count = liveColorCounts[color]
+                    const samples = liveColorOKLCH[color]
+                    const lRange = linearRange(samples.map((o) => o.l))
+                    const cRange = linearRange(samples.map((o) => o.c))
+                    const hRange = hueCircularRange(samples.map((o) => o.h))
+                    return (
+                      <tr key={color} class={count !== expected ? 'mismatch' : ''}>
+                        <td class="color-stats-swatch-cell">
+                          <span class="color-stat-swatch" style={{ background: STICKER_HEX[color] }} />
+                        </td>
+                        <td class="color-stats-numeric-cell">{count}/{expected}</td>
+                        <td class="color-stats-numeric-cell">
+                          {lRange ? `${Math.round(lRange.min * 100)}%–${Math.round(lRange.max * 100)}%` : '—'}
+                        </td>
+                        <td class="color-stats-numeric-cell">
+                          {cRange ? `${Math.round((cRange.min / 0.4) * 100)}%–${Math.round((cRange.max / 0.4) * 100)}%` : '—'}
+                        </td>
+                        <td class="color-stats-numeric-cell">
+                          {hRange ? `${Math.round(hRange.min)}°–${Math.round(hRange.max)}°` : '—'}
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
               {data && (
                 <>
                   <div class="review-wizard-panes">
@@ -1220,16 +1250,16 @@ function App() {
                         {data.colors.map((row, r) =>
                           row.map((color, c) => {
                             const rgb = data.cellColors?.[r]?.[c]
-                            const hue = rgb ? Math.round(rgbToOKLCH(rgb).h) : null
+                            const oklch = rgb ? rgbToOKLCH(rgb) : null
                             return (
                               <button
                                 key={`${r}-${c}`}
                                 class={`review-detected-cell confidence-${confidenceTier(data.cellConfidences?.[r]?.[c] ?? 1)}`}
                                 style={{ background: STICKER_HEX[color] || '#888' }}
                                 onClick={() => setReviewEditingCell({ face, row: r, col: c })}
-                                title={`Row ${r + 1}, Col ${c + 1}: ${color}${hue !== null ? ` (${hue}°)` : ''} — tap to fix`}
+                                title={`Row ${r + 1}, Col ${c + 1}: ${color}${oklch ? ` (${formatOKLCHValues(oklch)})` : ''} — tap to fix`}
                               >
-                                {hue !== null && <span class="review-detected-hue">{hue}°</span>}
+                                {oklch && <OklchLines class="review-detected-hue" oklch={oklch} />}
                               </button>
                             )
                           })

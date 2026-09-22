@@ -5,7 +5,7 @@
 ![License: MIT](https://img.shields.io/badge/License-MIT-cyan.svg)
 ![npm](https://img.shields.io/badge/runtime-npm-black)
 ![ReScript](https://img.shields.io/badge/lang-ReScript-e6484f)
-![Tests](https://img.shields.io/badge/tests-96%2F96%20%E2%9C%85-brightgreen)
+![Tests](https://img.shields.io/badge/tests-102%2F102%20%E2%9C%85-brightgreen)
 
 A full-stack library and web app that solves two geometric ambiguities when reconstructing a physical cube from 6 unordered face photographs:
 
@@ -84,7 +84,7 @@ cube-assembler/
     ├── notation.test.ts           23 tests — ReScript Notation module (WRG/URF/Kociemba/Numeric)
     ├── cubeAssembly.test.ts       15 tests — face identity/orientation solver (odd + even sizes)
     ├── notationOutput.test.ts     22 tests — WRG/URF facelet formats + format auto-detection
-    ├── imageProcessing.test.ts    15 tests — OKLCH conversion, hue-range math, sticker-color learning
+    ├── imageProcessing.test.ts    21 tests — OKLCH conversion/formatting, range math, sticker-color learning
     ├── parity.test.ts             14 tests — server-side corner/edge/wing-edge facelet-index tables
     └── assemblyWorker.test.ts     7 tests — /api/assemble worker's corner/edge validation
 ```
@@ -106,32 +106,35 @@ or imported photos and reconstructs its state:
    face 1, then locks to whatever it was at the moment face 1 was
    captured — faces 2–6 reuse that same gain instead of each
    re-estimating from their own (possibly differently-framed) shot. Each
-   grid cell in the live preview shows its sampled OKLCH hue in degrees
-   (not a color swatch), so you can see the actual detected value —
-   useful for spotting when lighting is pushing a reading toward the
-   wrong side of a hue boundary before you even capture the shot.
+   grid cell in the live preview shows its sampled OKLCH value — L%, C%,
+   H° stacked on 3 lines (`formatOKLCHValues` in `imageProcessing.ts`,
+   CSS `oklch()`'s own percentage/degree units, without the `oklch(...)`
+   wrapper) — instead of a color swatch, so you can see the actual
+   detected value, not just which bucket it landed in; useful for
+   spotting a reading drifting toward the wrong side of a classification
+   boundary before you even capture the shot.
 2. **Review** — after all 6 faces are captured, a global recalibration
    pass re-clusters all stickers together (k-means, capacity-constrained
    to the physical invariant of exactly N² stickers per color) and a
    wizard lets you approve or correct each face's detected colors against
-   its photo. A per-color count row (e.g. `9/9`, or `12/9` flagged red)
-   shows how many stickers were assigned to each color against the N²
-   expected, so a systematic mixup between two colors is visible at a
-   glance instead of requiring a cell-by-cell count — alongside each
-   count, the actual observed hue range for that color's currently-
-   assigned stickers (e.g. `73°–78°`, computed circularly by
-   `hueCircularRange` so a cluster straddling the 0°/360° wraparound
-   still reports its true, short span instead of a spurious ~350° one),
-   so you can see a color's readings drifting toward a neighbor's hue
-   before that neighbor's count actually goes wrong. The "Detected" grid
-   likewise labels every sticker with its own hue, not just its
-   classified color. Every step of color classification — per-sticker
-   sampling, k-means, and confidence scoring — measures color "closeness"
-   in OKLCH (`rgbToOKLCH` in `imageProcessing.ts`), not raw RGB:
-   separating hue from lightness/chroma matters because canonical Red and
-   Orange sit only 127 RGB units apart (entirely on the G channel) but
-   are ~23° apart in hue, a far more reliable signal under real lighting
-   variation.
+   its photo. A color-stats table (one row per color: swatch, count,
+   lightness/chroma/hue range) shows both how many stickers were assigned
+   to each color against the N² expected — so a systematic mixup between
+   two colors is visible at a glance instead of requiring a cell-by-cell
+   count — and the actual observed OKLCH range across that color's
+   currently-assigned stickers (e.g. hue `73°–78°`; hue specifically via
+   `hueCircularRange`, computed as the minimal enclosing arc so a cluster
+   straddling the 0°/360° wraparound still reports its true, short span
+   instead of a spurious ~350° one), so a color's readings drifting
+   toward a neighbor's territory is visible before that neighbor's count
+   actually goes wrong. The "Detected" grid likewise labels every sticker
+   with its own OKLCH value, not just its classified color. Every step of
+   color classification — per-sticker sampling, k-means, and confidence
+   scoring — measures color "closeness" in OKLCH (`rgbToOKLCH` in
+   `imageProcessing.ts`), not raw RGB: separating hue from
+   lightness/chroma matters because canonical Red and Orange sit only 127
+   RGB units apart (entirely on the G channel) but are ~23° apart in hue,
+   a far more reliable signal under real lighting variation.
 3. **Orientation solving** — on confirm, `solveFaceOrientations` (in
    `cubeAssembly.ts`) resolves true face identity and each face's
    0°/90°/180°/270° rotation by maximizing valid corner cubies first, edge

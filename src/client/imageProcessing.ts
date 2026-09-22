@@ -115,6 +115,18 @@ export function rgbToOKLCH(rgb: RGB): OKLCH {
   return { l, c, h }
 }
 
+// The three OKLCH component values as CSS oklch()'s own percentage/degree
+// units (https://www.w3.org/TR/css-color-4/#specifying-oklch), without the
+// oklch(...) wrapper: lightness is already 0-1 so it maps directly to
+// 0%-100%, and chroma's percentage form is spec-defined as 100% == 0.4
+// (chroma is otherwise unitless, ~0-0.4 for in-gamut sRGB).
+export function formatOKLCHValues(oklch: OKLCH): string {
+  const lPct = Math.round(oklch.l * 100)
+  const cPct = Math.round((oklch.c / 0.4) * 100)
+  const h = Math.round(oklch.h)
+  return `${lPct}% ${cPct}% ${h}deg`
+}
+
 export interface HueRange {
   min: number
   max: number
@@ -141,6 +153,18 @@ export function hueCircularRange(hues: number[]): HueRange | null {
   const max = sorted[gapStartIdx]
   const span = 360 - largestGap
   return { min, max, span }
+}
+
+export interface LinearRange {
+  min: number
+  max: number
+}
+
+// Plain min/max range for OKLCH's lightness and chroma - unlike hue, these
+// are bounded (not circular), so no wraparound handling is needed.
+export function linearRange(values: number[]): LinearRange | null {
+  if (values.length === 0) return null
+  return { min: Math.min(...values), max: Math.max(...values) }
 }
 
 function oklabDistance(o1: Oklab, o2: Oklab): number {
