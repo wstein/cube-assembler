@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm run *)",
+      "Bash(git add *)",
+      "Bash(git commit -m 'feat\\(notation\\): WRG facelet + URF cubie notation parsers *)",
+      "Bash(git commit -m 'feat\\(cubingjs\\): cubing.js types + integration stubs *)",
+      "Bash(git commit -m 'feat\\(server\\): Hono + Bun server with SSE assembly pipeline *)",
+      "Bash(git commit -m 'test\\(notation\\): 23 tests for WRG/URF notation round-trip *)",
+      "Bash(git commit -m 'feat\\(web\\): HTML entry point + Preact client scaffold *)",
+      "Bash(git commit -m 'docs: README + MIT license *)",
+      "Bash(git commit *)"
+    ]
+  }
+}
