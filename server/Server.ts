@@ -193,7 +193,10 @@ const SOLVED_CORNERS: Array<[FaceColor, FaceColor, FaceColor]> = [
   ["W","R","G"],["W","B","R"],["W","O","B"],["W","G","O"],
   ["Y","G","R"],["Y","R","B"],["Y","B","O"],["Y","O","G"],
 ];
-const SOLVED_EDGES_3x3: Array<[FaceColor, FaceColor]> = [
+// The 12 canonical edge color-pairs: fixed regardless of N, since every
+// NxN cube has the same 12 edges (just N-2 independently-permutable
+// "wing" pieces per edge on N>3 - see EDGE_LINES below).
+const SOLVED_EDGES: Array<[FaceColor, FaceColor]> = [
   ["W","G"],["W","R"],["W","B"],["W","O"],
   ["Y","G"],["Y","R"],["Y","B"],["Y","O"],
   ["G","R"],["G","O"],["B","R"],["B","O"],
@@ -205,6 +208,90 @@ const EDGE_FACELETS_3x3 = [
   ["d",1,"f",7],["d",5,"r",7],["d",7,"b",7],["d",3,"l",7],
   ["f",5,"r",3],["f",3,"l",5],["b",3,"r",5],["b",5,"l",3],
 ] as const;
+
+// ─── Wing-edge facelet geometry for N>3 (size-independent) ────────────────────
+// On a 4x4+ cube, each of the 12 edges splits into N-2 independently
+// permutable "wing" pieces (rather than 3x3's single fixed edge piece).
+// A wing at "distance" w (1..N-2) from one of the edge's two corner
+// endpoints has one sticker on each of the edge's two faces.
+//
+// [edgeName, faceA, lineA, reverseA, faceB, lineB, reverseB]: derived from
+// explicit 3D coordinates for all 6 faces (each face's (row,col) mapped to
+// a position on the cube's surface, cross-checked by finding which cells
+// of the two faces at each edge share a position) - NOT from a shortcut
+// pattern-matched against CORNER_SLOTS, which was tried first and got 4 of
+// the 12 edges (UR, UB, DB, DL) wrong: the corner-adjacency reasoning it
+// used can't distinguish a "forward" pairing from a "reversed" one, and
+// the only cross-check available at the time (N=3's EDGE_FACELETS_3x3) has
+// just one, self-symmetric wing position where forward and reversed
+// formulas coincide by coincidence - so it looked right until tested
+// against a real N=4 capture with 2 distinguishable wing positions per
+// edge. `reverse=true` means the wing at distance w from the FIRST-listed
+// corner endpoint reads that face's line at position (N-1-w), not w.
+type EdgeLineType = "TOP" | "BOTTOM" | "LEFT" | "RIGHT";
+function lineFaceletIdx(n: number, line: EdgeLineType, w: number): number {
+  switch (line) {
+    case "TOP": return w;
+    case "BOTTOM": return n * (n - 1) + w;
+    case "LEFT": return w * n;
+    case "RIGHT": return w * n + (n - 1);
+  }
+}
+const EDGE_LINES = [
+  ["UF", "u", "BOTTOM", false, "f", "TOP", false],
+  ["UR", "u", "RIGHT", false, "r", "TOP", true],
+  ["UB", "u", "TOP", false, "b", "TOP", true],
+  ["UL", "u", "LEFT", false, "l", "TOP", false],
+  ["DF", "d", "TOP", false, "f", "BOTTOM", false],
+  ["DR", "d", "RIGHT", false, "r", "BOTTOM", false],
+  ["DB", "d", "BOTTOM", false, "b", "BOTTOM", true],
+  ["DL", "d", "LEFT", false, "l", "BOTTOM", true],
+  ["FR", "f", "RIGHT", false, "r", "LEFT", false],
+  ["FL", "f", "LEFT", false, "l", "RIGHT", false],
+  ["BR", "b", "LEFT", false, "r", "RIGHT", false],
+  ["BL", "b", "RIGHT", false, "l", "LEFT", false],
+] as const;
+function edgeLineFaceletIdx(n: number, line: EdgeLineType, reverse: boolean, w: number): number {
+  return lineFaceletIdx(n, line, reverse ? n - 1 - w : w);
+}
+
+// Validates wing-edge stickers by counting, not full permutation/
+// orientation parity (see runFullParity for why): every wing sticker pair
+// must be one of the 12 canonical color pairs (an "opposite colors
+// touching" pair is physically impossible at any position, corner or
+// wing), AND each canonical pair must appear exactly N-2 times across all
+// wings - since a specific-colored wing piece has a fixed, unique pair of
+// colors and a fixed total supply (N-2) of that type. This pools wings of
+// every "depth" together rather than validating each depth-class
+// separately (on N≥5, wings at different distances from an edge's two
+// corners belong to distinct permutation orbits and can't mix with each
+// other) - a real, known limitation, but one that can only make this
+// check WEAKER (miss a cross-depth imbalance) than it ideally would be,
+// never cause a false rejection of a valid cube, so it's an acceptable
+// gap rather than something blocking this check from shipping.
+function validateWingEdges(cube: CubeIR): { valid: boolean; result?: string } {
+  const n = cube.size;
+  const counts = new Array(SOLVED_EDGES.length).fill(0);
+  for (const [, faceA, lineA, reverseA, faceB, lineB, reverseB] of EDGE_LINES) {
+    for (let w = 1; w <= n - 2; w++) {
+      const c0 = getFace(cube, faceA).data[edgeLineFaceletIdx(n, lineA as EdgeLineType, reverseA, w)] as FaceColor;
+      const c1 = getFace(cube, faceB).data[edgeLineFaceletIdx(n, lineB as EdgeLineType, reverseB, w)] as FaceColor;
+      let found = false;
+      for (let pi = 0; pi < SOLVED_EDGES.length; pi++) {
+        const se = SOLVED_EDGES[pi];
+        if ((c0 === se[0] && c1 === se[1]) || (c0 === se[1] && c1 === se[0])) {
+          counts[pi]++; found = true; break;
+        }
+      }
+      if (!found) return { valid: false, result: "Unknown wing edge color pair" };
+    }
+  }
+  const expected = n - 2;
+  if (!counts.every((c) => c === expected)) {
+    return { valid: false, result: `Wing edge color-pair counts unbalanced (expected ${expected} of each)` };
+  }
+  return { valid: true };
+}
 
 function permParity(perm: number[]): boolean {
   const visited = new Array(perm.length).fill(false);
@@ -275,14 +362,25 @@ function runFullParity(cube: CubeIR): ParityResponse {
 
   if (n !== 3) {
     // 4x4-7x7: edges split into N-2 independently-permutable "wing" pieces
-    // per edge, and centers into (N-2)² per face - modeling their full
-    // permutation/orientation parity is future work (see README). Center-
-    // block color uniformity is deliberately NOT used as a stand-in for
-    // that: on a genuinely scrambled even cube in particular, a face's
-    // center pieces are routinely a mix of colors (that's why "center
-    // reduction" is a required first step of the standard big-cube solving
-    // method) - requiring uniformity here would reject valid scrambles.
-    return { valid: true, result: "Valid (structural + corner check)", checks };
+    // per edge - validated by counting (see validateWingEdges), not full
+    // permutation/orientation parity, which is future work (see README).
+    // Centers get no check at all: colorBalance + the exact corner/wing
+    // counts above already force each color's center-facelet count to be
+    // exactly (N-2)² (there's no room left for it to be anything else),
+    // and individual center pieces aren't distinguishable by color anyway
+    // (several genuinely different pieces share the same solved color), so
+    // there's nothing further a color-only check could validate. Center-
+    // block *uniformity* was tried as a stand-in for all of this and
+    // removed: on a genuinely scrambled even cube, a face's center pieces
+    // are routinely a mix of colors (that's why "center reduction" is a
+    // required first step of the standard big-cube solving method), so
+    // requiring uniformity rejected valid scrambles.
+    const wingResult = validateWingEdges(cube);
+    checks.wingEdgeColors = wingResult.valid;
+    if (!wingResult.valid) {
+      return { valid: false, result: wingResult.result!, checks };
+    }
+    return { valid: true, result: "Valid (structural + corner + wing-edge count check)", checks };
   }
 
   // Edge analysis
@@ -292,8 +390,8 @@ function runFullParity(cube: CubeIR): ParityResponse {
     const c0 = getFace(cube, fa).data[ia] as FaceColor;
     const c1 = getFace(cube, fb).data[ib] as FaceColor;
     let found = false;
-    for (let pi = 0; pi < SOLVED_EDGES_3x3.length; pi++) {
-      const se = SOLVED_EDGES_3x3[pi];
+    for (let pi = 0; pi < SOLVED_EDGES.length; pi++) {
+      const se = SOLVED_EDGES[pi];
       if (c0===se[0] && c1===se[1]) { edgePieces.push(pi); edgeOrients.push(0); found=true; break; }
       if (c0===se[1] && c1===se[0]) { edgePieces.push(pi); edgeOrients.push(1); found=true; break; }
     }

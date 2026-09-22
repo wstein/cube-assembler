@@ -1,7 +1,7 @@
 /**
  * test/parity.test.ts
  * Regression tests for server/Server.ts's runFullParity and its facelet-
- * index tables (CORNER_SLOTS, EDGE_FACELETS_3x3).
+ * index tables (CORNER_SLOTS, EDGE_FACELETS_3x3, EDGE_LINES).
  *
  * Mirrors the fixed logic inline (matching test/notation.test.ts's own
  * "inline minimal mirrors" approach) rather than importing server/Server.ts
@@ -21,7 +21,7 @@ const SOLVED_CORNERS: Array<[FaceColor, FaceColor, FaceColor]> = [
   ['W', 'R', 'G'], ['W', 'B', 'R'], ['W', 'O', 'B'], ['W', 'G', 'O'],
   ['Y', 'G', 'R'], ['Y', 'R', 'B'], ['Y', 'B', 'O'], ['Y', 'O', 'G'],
 ]
-const SOLVED_EDGES_3x3: Array<[FaceColor, FaceColor]> = [
+const SOLVED_EDGES: Array<[FaceColor, FaceColor]> = [
   ['W', 'G'], ['W', 'R'], ['W', 'B'], ['W', 'O'],
   ['Y', 'G'], ['Y', 'R'], ['Y', 'B'], ['Y', 'O'],
   ['G', 'R'], ['G', 'O'], ['B', 'R'], ['B', 'O'],
@@ -60,6 +60,61 @@ const EDGE_FACELETS_3x3 = [
   ['d', 1, 'f', 7], ['d', 5, 'r', 7], ['d', 7, 'b', 7], ['d', 3, 'l', 7],
   ['f', 5, 'r', 3], ['f', 3, 'l', 5], ['b', 3, 'r', 5], ['b', 5, 'l', 3],
 ] as const
+
+// Wing-edge geometry for N>3: derived from explicit 3D coordinates for all
+// 6 faces (not the corner-slot shortcut, which can't distinguish a
+// "forward" pairing from a "reversed" one - the only cross-check available
+// at N=3 has a single, self-symmetric wing position where both coincide).
+// reverse=true means the wing at distance w from the first-listed corner
+// reads that face's line at position (N-1-w), not w.
+type EdgeLineType = 'TOP' | 'BOTTOM' | 'LEFT' | 'RIGHT'
+function lineFaceletIdx(n: number, line: EdgeLineType, w: number): number {
+  switch (line) {
+    case 'TOP': return w
+    case 'BOTTOM': return n * (n - 1) + w
+    case 'LEFT': return w * n
+    case 'RIGHT': return w * n + (n - 1)
+  }
+}
+const EDGE_LINES = [
+  ['UF', 'u', 'BOTTOM', false, 'f', 'TOP', false],
+  ['UR', 'u', 'RIGHT', false, 'r', 'TOP', true],
+  ['UB', 'u', 'TOP', false, 'b', 'TOP', true],
+  ['UL', 'u', 'LEFT', false, 'l', 'TOP', false],
+  ['DF', 'd', 'TOP', false, 'f', 'BOTTOM', false],
+  ['DR', 'd', 'RIGHT', false, 'r', 'BOTTOM', false],
+  ['DB', 'd', 'BOTTOM', false, 'b', 'BOTTOM', true],
+  ['DL', 'd', 'LEFT', false, 'l', 'BOTTOM', true],
+  ['FR', 'f', 'RIGHT', false, 'r', 'LEFT', false],
+  ['FL', 'f', 'LEFT', false, 'l', 'RIGHT', false],
+  ['BR', 'b', 'LEFT', false, 'r', 'RIGHT', false],
+  ['BL', 'b', 'RIGHT', false, 'l', 'LEFT', false],
+] as const
+function edgeLineFaceletIdx(n: number, line: EdgeLineType, reverse: boolean, w: number): number {
+  return lineFaceletIdx(n, line, reverse ? n - 1 - w : w)
+}
+
+function validateWingEdges(cube: CubeIR): { valid: boolean; result?: string } {
+  const n = cube.size
+  const counts = new Array(SOLVED_EDGES.length).fill(0)
+  for (const [, faceA, lineA, reverseA, faceB, lineB, reverseB] of EDGE_LINES) {
+    for (let w = 1; w <= n - 2; w++) {
+      const c0 = getFace(cube, faceA).data[edgeLineFaceletIdx(n, lineA as EdgeLineType, reverseA, w)]
+      const c1 = getFace(cube, faceB).data[edgeLineFaceletIdx(n, lineB as EdgeLineType, reverseB, w)]
+      let found = false
+      for (let pi = 0; pi < SOLVED_EDGES.length; pi++) {
+        const se = SOLVED_EDGES[pi]
+        if ((c0 === se[0] && c1 === se[1]) || (c0 === se[1] && c1 === se[0])) { counts[pi]++; found = true; break }
+      }
+      if (!found) return { valid: false, result: 'Unknown wing edge color pair' }
+    }
+  }
+  const expected = n - 2
+  if (!counts.every((c) => c === expected)) {
+    return { valid: false, result: `Wing edge color-pair counts unbalanced (expected ${expected} of each)` }
+  }
+  return { valid: true }
+}
 
 function getFace(cube: CubeIR, key: string): FaceGrid {
   return (cube as any)[key]
@@ -123,7 +178,11 @@ function checkParity(cube: CubeIR): { valid: boolean; result: string } {
   if (cornerOrientSum % 3 !== 0) return { valid: false, result: 'Corner orientation sum not 0 mod 3' }
 
   if (n === 2) return { valid: true, result: 'OK' }
-  if (n !== 3) return { valid: true, result: 'OK (structural + corner check)' }
+  if (n !== 3) {
+    const wingResult = validateWingEdges(cube)
+    if (!wingResult.valid) return { valid: false, result: wingResult.result! }
+    return { valid: true, result: 'OK (structural + corner + wing-edge count check)' }
+  }
 
   const edgePieces: number[] = []
   const edgeOrients: number[] = []
@@ -131,8 +190,8 @@ function checkParity(cube: CubeIR): { valid: boolean; result: string } {
     const c0 = getFace(cube, fa).data[ia]
     const c1 = getFace(cube, fb).data[ib]
     let found = false
-    for (let pi = 0; pi < SOLVED_EDGES_3x3.length; pi++) {
-      const se = SOLVED_EDGES_3x3[pi]
+    for (let pi = 0; pi < SOLVED_EDGES.length; pi++) {
+      const se = SOLVED_EDGES[pi]
       if (c0 === se[0] && c1 === se[1]) { edgePieces.push(pi); edgeOrients.push(0); found = true; break }
       if (c0 === se[1] && c1 === se[0]) { edgePieces.push(pi); edgeOrients.push(1); found = true; break }
     }
@@ -218,12 +277,14 @@ describe('server parity: 3x3 corner/edge facelet-index tables', () => {
 })
 
 describe('server parity: non-3x3 sizes (no center-block uniformity check)', () => {
-  it('accepts a solved 2x2 and 4x4', () => {
+  it('accepts a solved 2x2, and 4x4-7x7', () => {
     expect(checkParity(solvedCube(2))).toEqual({ valid: true, result: 'OK' })
-    expect(checkParity(solvedCube(4))).toEqual({ valid: true, result: 'OK (structural + corner check)' })
+    for (const n of [4, 5, 6, 7]) {
+      expect(checkParity(solvedCube(n))).toEqual({ valid: true, result: 'OK (structural + corner + wing-edge count check)' })
+    }
   })
 
-  it('accepts a real scrambled 4x4 capture with mixed-color face centers (the reported false-positive case)', () => {
+  it('accepts a real scrambled 4x4 capture with mixed-color face centers (the reported center-uniformity false-positive)', () => {
     // Reported bug: on a genuinely scrambled 4x4, a face's 4 center
     // stickers are routinely a mix of colors (center pieces are
     // independently movable on even cubes - that's why "center
@@ -234,7 +295,24 @@ describe('server parity: non-3x3 sizes (no center-block uniformity check)', () =
     const cube = cubeFromFacelets(
       'YOOWWRRYWYRRRRRG YBGORBBBWBBBOOOO GGGOOGYYGRYBRYRW BGWBROOYRYOYBOOB GBGWBOGBRGGWWYWY GGGRYWWOYWWBYWWR'
     )
-    expect(checkParity(cube)).toEqual({ valid: true, result: 'OK (structural + corner check)' })
+    expect(checkParity(cube)).toEqual({ valid: true, result: 'OK (structural + corner + wing-edge count check)' })
+  })
+
+  it('accepts the same real 4x4 capture under wing-edge counting (the reported direction-bug false-positive)', () => {
+    // A second, independent bug the same capture caught: EDGE_LINES was
+    // first derived by pattern-matching against CORNER_SLOTS (reasoning
+    // about which corner sits at which slot on each face), which got the
+    // UR/UB/DB/DL edges' direction backwards - undetectable by cross-
+    // checking against the legacy N=3 table, since N=3 has only one,
+    // self-symmetric wing position where a forward and a reversed formula
+    // produce an identical result. Re-derived from explicit 3D coordinates
+    // for all 6 faces instead, which exposed and fixed the 4 wrong edges;
+    // this capture's wing-edge counts only balance under the corrected
+    // table (see EDGE_LINES's reverse flags above).
+    const cube = cubeFromFacelets(
+      'YOOWWRRYWYRRRRRG YBGORBBBWBBBOOOO GGGOOGYYGRYBRYRW BGWBROOYRYOYBOOB GBGWBOGBRGGWWYWY GGGRYWWOYWWBYWWR'
+    )
+    expect(validateWingEdges(cube)).toEqual({ valid: true })
   })
 
   it('rejects a 2x2 with an invalid color balance', () => {
@@ -257,5 +335,36 @@ describe('server parity: non-3x3 sizes (no center-block uniformity check)', () =
     const result = checkParity(cube)
     expect(result.valid).toBe(false)
     expect(result.result).toBe('Unknown corner color triplet')
+  })
+
+  it('rejects a 4x4 with an unbalanced wing-edge color-pair count', () => {
+    // Swap two wing stickers between different edges (u's UF wing and d's
+    // DR wing) so each individual wing still reads as *some* valid pair,
+    // but one canonical pair now has 3 copies and another has 1 (instead
+    // of 2 each) - a state no legal scramble can reach, since a wing
+    // piece's colors are fixed.
+    const cube = solvedCube(4)
+    ;[cube.u.data[13], cube.d.data[7]] = [cube.d.data[7], cube.u.data[13]]
+    const result = checkParity(cube)
+    expect(result.valid).toBe(false)
+    expect(result.result).toMatch(/unbalanced/i)
+  })
+
+  it('rejects a 4x4 with a genuinely impossible wing-edge color pair', () => {
+    // Swap the UF edge's own two wings (u's and f's sides) with each
+    // other, producing a same-color (W-W or G-G) reading at that
+    // position - impossible for a real edge, which always joins two
+    // different, non-opposite colors.
+    const cube = solvedCube(4)
+    ;[cube.u.data[13], cube.f.data[2]] = [cube.f.data[2], cube.u.data[13]]
+    const result = checkParity(cube)
+    expect(result.valid).toBe(false)
+    expect(result.result).toBe('Unknown wing edge color pair')
+  })
+
+  it('accepts solved cubes of every wing-bearing size via validateWingEdges directly', () => {
+    for (const n of [4, 5, 6, 7]) {
+      expect(validateWingEdges(solvedCube(n))).toEqual({ valid: true })
+    }
   })
 })
