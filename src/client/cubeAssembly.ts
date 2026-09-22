@@ -70,13 +70,38 @@ export function createSolvedCube(): CubeState {
 }
 
 export function parseColorInput(input: string): Record<string, string[][]> | null {
+  const faceData: Record<string, string[][]> = {}
+  const validColors = new Set(['W', 'Y', 'O', 'R', 'G', 'B'])
+
+  // Try compact format first: U:WWWWWWWWW R:RRRRRRRRR ... (ignore all whitespace)
+  const compactMatch = input.match(/([URFDLB]):([A-Z]{9})/g)
+  if (compactMatch && compactMatch.length > 0) {
+    for (const match of compactMatch) {
+      const [faceName, colors] = match.split(':')
+      const colorChars = colors.split('')
+
+      if (!colorChars.every(c => validColors.has(c))) {
+        console.warn(`Face ${faceName} has invalid colors: ${colorChars.filter(c => !validColors.has(c)).join(',')}`)
+        continue
+      }
+
+      faceData[faceName] = [
+        [colorChars[0], colorChars[1], colorChars[2]],
+        [colorChars[3], colorChars[4], colorChars[5]],
+        [colorChars[6], colorChars[7], colorChars[8]],
+      ]
+    }
+
+    if (Object.keys(faceData).length === 6) {
+      return faceData
+    }
+  }
+
+  // Fall back to line-by-line format: U W W W ... or U:W W W ...
   const lines = input
     .split('\n')
     .map(l => l.trim())
     .filter(l => l && !l.startsWith('#'))
-
-  const faceData: Record<string, string[][]> = {}
-  const validColors = new Set(['W', 'Y', 'O', 'R', 'G', 'B'])
 
   for (const line of lines) {
     const [faceName, ...colorChars] = line.split(/[\s:,]+/).filter(s => s)
