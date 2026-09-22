@@ -72,6 +72,20 @@ function streamAssembly(faces: any, size: number): EventSource {
   )
 }
 
+// /api/apply-alg currently returns raw KPatternData (the ReScript
+// kPatternDataToIR bridge is an unimplemented stub), not a usable cube
+// state. Reject rather than silently corrupting `cube` with a non-cube
+// object.
+function extractCubeFromApplyAlgResult(result: any): any {
+  if (result && result.cube && result.cube.u && result.cube.r) {
+    return result.cube
+  }
+  throw new Error(
+    'Applying algorithms is not fully implemented yet: the server returns raw ' +
+    'kPatternData instead of face colors. The cube state was left unchanged.'
+  )
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // App Component
 // ─────────────────────────────────────────────────────────────────────────────
@@ -171,7 +185,7 @@ function App() {
     setLoading(true)
     try {
       const result = await applyAlgorithm(cube, scramble, puzzleSize)
-      setCube(result.cube || result)
+      setCube(extractCubeFromApplyAlgResult(result))
       setScramble('')
     } catch (err) {
       alert(`Error: ${err instanceof Error ? err.message : 'Unknown error'}`)
@@ -189,8 +203,9 @@ function App() {
     setLoading(true)
     try {
       const result = await applyAlgorithm(cube, algorithm, puzzleSize)
-      setCube(result.cube || result)
-      await updateParityStatus(result.cube || result)
+      const newCube = extractCubeFromApplyAlgResult(result)
+      setCube(newCube)
+      await updateParityStatus(newCube)
     } catch (err) {
       alert(`Error: ${err instanceof Error ? err.message : 'Unknown error'}`)
     } finally {
@@ -208,8 +223,9 @@ function App() {
         .reverse()
         .join(' ')
       const result = await applyAlgorithm(cube, inverted, puzzleSize)
-      setCube(result.cube || result)
-      await updateParityStatus(result.cube || result)
+      const newCube = extractCubeFromApplyAlgResult(result)
+      setCube(newCube)
+      await updateParityStatus(newCube)
     } catch (err) {
       alert(`Error: ${err instanceof Error ? err.message : 'Unknown error'}`)
     } finally {
