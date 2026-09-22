@@ -14,7 +14,8 @@
       "Bash(curl -s http://localhost:3000)",
       "Bash(curl *)",
       "Artifact",
-      "Bash(npm install *)"
+      "Bash(npm install *)",
+      "Bash(pkill -f \"npm run dev\")"
     ]
   }
 }
