@@ -966,10 +966,11 @@ function App() {
                             <button
                               key={`${r}-${c}`}
                               class={`review-cell confidence-${confidenceTier(data.cellConfidences?.[r]?.[c] ?? 1)}`}
-                              style={{ background: `${STICKER_HEX[color] || '#888'}b3` }}
                               onClick={() => setReviewEditingCell({ face, row: r, col: c })}
                               title={`Row ${r + 1}, Col ${c + 1}: ${color} — tap to fix`}
-                            />
+                            >
+                              <span class="review-cell-swatch" style={{ background: STICKER_HEX[color] || '#888' }} />
+                            </button>
                           ))
                         )}
                       </div>

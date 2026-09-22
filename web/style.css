@@ -528,15 +528,31 @@ textarea {
 }
 
 .review-cell {
-  border: 1px solid rgba(255, 255, 255, 0.5);
+  /* Deliberately no background fill: the underlying photo needs to stay
+     clearly visible so a human can compare it against the small detected-
+     color swatch, rather than the swatch hiding the very thing it's meant
+     to be checked against (see .review-cell-swatch below). */
+  border: 2px solid rgba(255, 255, 255, 0.7);
   cursor: pointer;
   transition: border-color 0.15s, outline 0.15s;
-  padding: 0;
+  padding: 3px;
+  display: flex;
+  align-items: flex-end;
+  justify-content: flex-end;
+  background: transparent;
 }
 
 .review-cell:hover {
   outline: 2px solid #fff;
   outline-offset: -2px;
+}
+
+.review-cell-swatch {
+  width: 32%;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.95);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.6);
 }
 
 .review-cell.confidence-high {
