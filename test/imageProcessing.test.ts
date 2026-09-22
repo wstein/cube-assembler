@@ -9,12 +9,63 @@
  * Run: npx vitest run test/imageProcessing.test.ts
  */
 import { describe, it, expect } from 'vitest'
-import { learnStickerColors, STICKER_COLORS, type RGB } from '../src/client/imageProcessing'
+import { learnStickerColors, rgbToOKLCH, STICKER_COLORS, type RGB } from '../src/client/imageProcessing'
 
+// Mirrors the internal OKLab-based colorDistance (not exported): rebuilds
+// Cartesian (a,b) from the exported OKLCH's polar (c,h) - c·cos(h), c·sin(h)
+// - which is exactly what colorDistance itself measures Euclidean distance
+// over, just reached via the public rgbToOKLCH rather than the private
+// Cartesian conversion.
 function colorDistance(c1: RGB, c2: RGB): number {
-  const dr = c1.r - c2.r, dg = c1.g - c2.g, db = c1.b - c2.b
-  return Math.sqrt(dr * dr + dg * dg + db * db)
+  const o1 = rgbToOKLCH(c1), o2 = rgbToOKLCH(c2)
+  const toAB = (o: { c: number; h: number }) => {
+    const rad = (o.h * Math.PI) / 180
+    return { a: o.c * Math.cos(rad), b: o.c * Math.sin(rad) }
+  }
+  const ab1 = toAB(o1), ab2 = toAB(o2)
+  const dl = o1.l - o2.l, da = ab1.a - ab2.a, db = ab1.b - ab2.b
+  return Math.sqrt(dl * dl + da * da + db * db)
 }
+
+describe('rgbToOKLCH', () => {
+  it('matches Ottosson\'s published OKLab reference values for pure red', () => {
+    // https://bottosson.github.io/posts/oklab/ - the standard cross-check
+    // for any OKLab implementation. L/C/H derived from the same L/a/b.
+    const oklch = rgbToOKLCH({ r: 255, g: 0, b: 0 })
+    expect(oklch.l).toBeCloseTo(0.6279553606145516, 9)
+    expect(oklch.c).toBeCloseTo(0.2576833077361567, 9)
+    expect(oklch.h).toBeCloseTo(29.233885192342633, 9)
+  })
+
+  it('maps white to maximum lightness and ~zero chroma', () => {
+    const oklch = rgbToOKLCH({ r: 255, g: 255, b: 255 })
+    expect(oklch.l).toBeCloseTo(1, 6)
+    expect(oklch.c).toBeCloseTo(0, 6)
+  })
+
+  it('maps black to zero lightness and zero chroma', () => {
+    expect(rgbToOKLCH({ r: 0, g: 0, b: 0 })).toEqual({ l: 0, c: 0, h: 0 })
+  })
+
+  it('gives every canonical sticker color a distinct hue', () => {
+    const hues = Object.entries(STICKER_COLORS)
+      .filter(([name]) => name !== 'W') // white's hue is undefined (~zero chroma)
+      .map(([, rgb]) => rgbToOKLCH(rgb).h)
+    expect(new Set(hues.map((h) => Math.round(h)))).toHaveProperty('size', hues.length)
+  })
+
+  it('separates Red and Orange by hue substantially more than their RGB Euclidean distance suggests', () => {
+    // The actual motivation for this switch: Red (255,0,0) and Orange
+    // (255,127,0) are only 127 RGB units apart (entirely on the G
+    // channel), but their hues are ~23° apart - a real, robust signal
+    // classification can lean on that a shared, easily-perturbed G-channel
+    // reading can't provide on its own.
+    const red = rgbToOKLCH({ r: 255, g: 0, b: 0 })
+    const orange = rgbToOKLCH({ r: 255, g: 127, b: 0 })
+    const hueDelta = Math.abs(red.h - orange.h)
+    expect(hueDelta).toBeGreaterThan(15)
+  })
+})
 
 // 9 exact-canonical samples of each of the 6 colors (54 total, matching a
 // solved 3x3's sticker count) - a clean baseline with zero variance.
@@ -68,9 +119,12 @@ describe('learnStickerColors', () => {
 
       // Exact expected value: excluding the offset point, the other 8 red
       // samples are all precisely canonical red (255,0,0), so the
-      // leave-one-out centroid is exactly canonical red, and the distance
-      // from (200,50,10) to (255,0,0) is exactly sqrt(55^2+50^2+10^2) = 75.
-      expect(leaveOneOutDistance).toBeCloseTo(75, 5)
+      // leave-one-out centroid is exactly canonical red's own OKLab value,
+      // and the distance from (200,50,10)'s OKLab to it is a fixed
+      // constant (independently verified via a reference OKLab
+      // implementation) regardless of how kMeansCluster's own centroid
+      // happened to converge.
+      expect(leaveOneOutDistance).toBeCloseTo(0.10506791364369204, 9)
       expect(leaveOneOutDistance).toBeGreaterThan(selfInclusiveDistance)
     })
 
@@ -85,8 +139,11 @@ describe('learnStickerColors', () => {
       const leaveOneOutDistance = learned.leaveOneOutDistances[perfectRedIdx]
 
       // The single outlier only pulls the 9-member centroid a little;
-      // excluding a *different*, well-behaved member changes even less.
-      expect(Math.abs(leaveOneOutDistance - selfInclusiveDistance)).toBeLessThan(5)
+      // excluding a *different*, well-behaved member changes even less
+      // (OKLab distances between meaningfully different colors run
+      // ~0.15-0.6 - see CONFIDENCE_DISTANCE_SCALE's derivation - so 0.02
+      // is a small fraction of that).
+      expect(Math.abs(leaveOneOutDistance - selfInclusiveDistance)).toBeLessThan(0.02)
     })
 
     it('falls back to the ordinary centroid distance for a singleton cluster (no other member to average)', () => {

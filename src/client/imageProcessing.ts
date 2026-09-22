@@ -29,12 +29,111 @@ export const STICKER_COLORS: Record<string, RGB> = {
   B: { r: 0, g: 0, b: 255 },     // Blue
 }
 
-function colorDistance(c1: RGB, c2: RGB): number {
-  const dr = c1.r - c2.r
-  const dg = c1.g - c2.g
-  const db = c1.b - c2.b
-  return Math.sqrt(dr * dr + dg * dg + db * db)
+// ─────────────────────────────────────────────────────────────────────────────
+// OKLCH color space
+//
+// Sticker classification measures "closeness" in OKLCH (Björn Ottosson's
+// perceptually-uniform Oklab, in its polar Lightness/Chroma/Hue form - the
+// same space CSS's oklch() uses), not raw sRGB. Plain RGB Euclidean
+// distance is a poor stand-in for how different two colors actually look:
+// canonical Red (255,0,0) and Orange (255,127,0) sit only 127 units apart,
+// entirely on the G channel - a modest lighting- or camera-driven G shift
+// is enough to flip which one a sample reads as closer to. OKLCH separates
+// hue from lightness/chroma explicitly, which is the property that
+// actually distinguishes Red from Orange perceptually.
+//
+// Distance is computed in Oklab's Cartesian (L,a,b) form, not polar
+// (L,C,h): they're the same space (a = C·cos h, b = C·sin h), but
+// Cartesian Euclidean distance avoids the circular-wraparound edge case
+// hue angles have at 0°/360° that a naive |h1-h2| would need special
+// handling for.
+// ─────────────────────────────────────────────────────────────────────────────
+
+export interface OKLCH {
+  l: number // lightness, 0-1
+  c: number // chroma, unbounded (~0-0.4 for in-gamut sRGB)
+  h: number // hue, degrees, 0-360
 }
+
+type Oklab = { l: number; a: number; b: number }
+
+function srgbChannelToLinear(c: number): number {
+  const v = c / 255
+  return v <= 0.04045 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4)
+}
+
+// Internal Cartesian form - what colorDistance actually computes in.
+// Matrices per Ottosson's OKLab reference (https://bottosson.github.io/posts/oklab/).
+function rgbToOklab(rgb: RGB): Oklab {
+  const r = srgbChannelToLinear(rgb.r)
+  const g = srgbChannelToLinear(rgb.g)
+  const b = srgbChannelToLinear(rgb.b)
+
+  const l_ = Math.cbrt(0.4122214708 * r + 0.5363325363 * g + 0.0514459929 * b)
+  const m_ = Math.cbrt(0.2119034982 * r + 0.6806995451 * g + 0.1073969566 * b)
+  const s_ = Math.cbrt(0.0883024619 * r + 0.2817188376 * g + 0.6299787005 * b)
+
+  return {
+    l: 0.2104542553 * l_ + 0.7936177850 * m_ - 0.0040720468 * s_,
+    a: 1.9779984951 * l_ - 2.4285922050 * m_ + 0.4505937099 * s_,
+    b: 0.0259040371 * l_ + 0.7827717662 * m_ - 0.8086757660 * s_,
+  }
+}
+
+function linearChannelToSrgb(v: number): number {
+  const clamped = Math.max(0, Math.min(1, v))
+  const encoded = clamped <= 0.0031308 ? clamped * 12.92 : 1.055 * Math.pow(clamped, 1 / 2.4) - 0.055
+  return Math.max(0, Math.min(255, Math.round(encoded * 255)))
+}
+
+// Inverse of rgbToOklab - needed because k-means averages cluster members
+// in this same OKLab space (see kMeansCluster) rather than in RGB, so each
+// updated centroid has to be converted back to RGB for display/storage.
+// Matrices per Ottosson's OKLab reference (the exact inverse of the ones
+// rgbToOklab uses).
+function oklabToRgb(lab: Oklab): RGB {
+  const l_ = lab.l + 0.3963377774 * lab.a + 0.2158037573 * lab.b
+  const m_ = lab.l - 0.1055613458 * lab.a - 0.0638541728 * lab.b
+  const s_ = lab.l - 0.0894841775 * lab.a - 1.2914855480 * lab.b
+
+  const l = l_ * l_ * l_
+  const m = m_ * m_ * m_
+  const s = s_ * s_ * s_
+
+  return {
+    r: linearChannelToSrgb(4.0767416621 * l - 3.3077115913 * m + 0.2309699292 * s),
+    g: linearChannelToSrgb(-1.2684380046 * l + 2.6097574011 * m - 0.3413193965 * s),
+    b: linearChannelToSrgb(-0.0041960863 * l - 0.7034186147 * m + 1.7076147010 * s),
+  }
+}
+
+export function rgbToOKLCH(rgb: RGB): OKLCH {
+  const { l, a, b } = rgbToOklab(rgb)
+  const c = Math.sqrt(a * a + b * b)
+  const hRad = Math.atan2(b, a)
+  const h = hRad < 0 ? (hRad * 180) / Math.PI + 360 : (hRad * 180) / Math.PI
+  return { l, c, h }
+}
+
+function oklabDistance(o1: Oklab, o2: Oklab): number {
+  const dl = o1.l - o2.l
+  const da = o1.a - o2.a
+  const db = o1.b - o2.b
+  return Math.sqrt(dl * dl + da * da + db * db)
+}
+
+function colorDistance(c1: RGB, c2: RGB): number {
+  return oklabDistance(rgbToOklab(c1), rgbToOklab(c2))
+}
+
+// Calibration for turning an OKLab colorDistance into a 0-1 confidence
+// score (see cellConfidence below): the closest pair of the 6 canonical
+// colors (Red-Orange) sits ~0.15 apart in this space, and the farthest
+// (White-Blue) ~0.63 apart. 0.4 sits between those, so a sample right on
+// the Red/Orange boundary reads as a moderate-but-flagged confidence
+// rather than a false "high confidence", while a sample nowhere near its
+// assigned color reads as ~0.
+const CONFIDENCE_DISTANCE_SCALE = 0.4
 
 function closestSticker(color: RGB): string {
   let closest = 'W'
@@ -229,14 +328,21 @@ function kMeansCluster(points: RGB[], k: number, iterations = 20): RGB[] {
 
   for (let iter = 0; iter < iterations; iter++) {
     const assignment = balancedAssign(points, centroids)
-    const sums = Array.from({ length: k }, () => ({ r: 0, g: 0, b: 0, count: 0 }))
+    // Averaged in OKLab space, not RGB: assignment/distance both operate
+    // in OKLab (colorDistance), and Lloyd's algorithm only converges
+    // correctly when the centroid update minimizes the same metric the
+    // assignment step used - an RGB-space mean isn't the point that
+    // minimizes total OKLab distance to the cluster's members, since
+    // OKLab is a nonlinear (cube-root) remapping of RGB.
+    const sums = Array.from({ length: k }, () => ({ l: 0, a: 0, b: 0, count: 0 }))
     points.forEach((p, pi) => {
       const c = assignment[pi]
-      sums[c].r += p.r; sums[c].g += p.g; sums[c].b += p.b; sums[c].count++
+      const lab = rgbToOklab(p)
+      sums[c].l += lab.l; sums[c].a += lab.a; sums[c].b += lab.b; sums[c].count++
     })
     centroids = centroids.map((c, i) =>
       sums[i].count > 0
-        ? { r: sums[i].r / sums[i].count, g: sums[i].g / sums[i].count, b: sums[i].b / sums[i].count }
+        ? oklabToRgb({ l: sums[i].l / sums[i].count, a: sums[i].a / sums[i].count, b: sums[i].b / sums[i].count })
         : c // keep empty clusters where they were rather than collapsing to NaN
     )
   }
@@ -349,25 +455,34 @@ export function learnStickerColors(samples: StickerSample[]): LearnedColors | nu
   // points it got wrong. Leave-one-out fixes this: recompute the
   // centroid excluding the sample being scored, so it can't be flattered
   // by its own membership.
-  const clusterSums = Array.from({ length: K }, () => ({ r: 0, g: 0, b: 0 }))
+  // Summed in OKLab space to match colorDistance below, for the same
+  // reason kMeansCluster's centroid update is: an RGB-space mean isn't
+  // the point that minimizes OKLab distance to the cluster's members.
+  const pointsOklab = points.map(rgbToOklab)
+  const clusterSums = Array.from({ length: K }, () => ({ l: 0, a: 0, b: 0 }))
   pointAssignment.forEach((clusterIdx, i) => {
-    clusterSums[clusterIdx].r += points[i].r
-    clusterSums[clusterIdx].g += points[i].g
-    clusterSums[clusterIdx].b += points[i].b
+    clusterSums[clusterIdx].l += pointsOklab[i].l
+    clusterSums[clusterIdx].a += pointsOklab[i].a
+    clusterSums[clusterIdx].b += pointsOklab[i].b
   })
   const leaveOneOutDistances = points.map((point, i) => {
     const clusterIdx = pointAssignment[i]
     const count = clusterCounts[clusterIdx]
     // A singleton cluster has no "other members" to average — fall back
     // to the ordinary (self-inclusive) centroid rather than divide by 0.
-    const centroid: RGB = count > 1
-      ? {
-          r: (clusterSums[clusterIdx].r - point.r) / (count - 1),
-          g: (clusterSums[clusterIdx].g - point.g) / (count - 1),
-          b: (clusterSums[clusterIdx].b - point.b) / (count - 1),
-        }
-      : centroids[clusterIdx]
-    return colorDistance(point, centroid)
+    // Computed and compared directly in OKLab (never round-tripped
+    // through RGB, unlike kMeansCluster's centroids): this value is only
+    // ever used for a distance, so there's no reason to pay RGB's integer
+    // quantization error for a value nothing else needs as an RGB.
+    if (count > 1) {
+      const centroidOklab: Oklab = {
+        l: (clusterSums[clusterIdx].l - pointsOklab[i].l) / (count - 1),
+        a: (clusterSums[clusterIdx].a - pointsOklab[i].a) / (count - 1),
+        b: (clusterSums[clusterIdx].b - pointsOklab[i].b) / (count - 1),
+      }
+      return oklabDistance(pointsOklab[i], centroidOklab)
+    }
+    return colorDistance(point, centroids[clusterIdx])
   })
 
   return { colors, clusterSizes, labelsBySampleIndex, leaveOneOutDistances }
@@ -523,9 +638,9 @@ export function extractCubeFaceColors(
         const stickerColor = closestSticker(avgColor)
         rowColors.push(stickerColor)
 
-        // Confidence based on color distance (0-1, higher = better match)
+        // Confidence based on OKLab color distance (0-1, higher = better match)
         const dist = colorDistance(avgColor, STICKER_COLORS[stickerColor])
-        const cellConfidence = Math.max(0, 1 - dist / 200)
+        const cellConfidence = Math.max(0, 1 - dist / CONFIDENCE_DISTANCE_SCALE)
         rowConfidences.push(cellConfidence)
         totalConfidence += cellConfidence
       } else {
@@ -700,7 +815,7 @@ export async function runGlobalWhiteBalance(
   samples.forEach((_, i) => {
     const { face, row, col } = sampleLocations[i]
     const label = learned.labelsBySampleIndex[i]
-    const cellConfidence = Math.max(0, 1 - learned.leaveOneOutDistances[i] / 200)
+    const cellConfidence = Math.max(0, 1 - learned.leaveOneOutDistances[i] / CONFIDENCE_DISTANCE_SCALE)
 
     reclassifiedFaces[face].colors[row][col] = label
     reclassifiedFaces[face].cellConfidences[row][col] = cellConfidence
