@@ -69,7 +69,15 @@ function getDominantColor(imageData: Uint8ClampedArray, start: number, width: nu
   return { r: avgR, g: avgG, b: avgB }
 }
 
-export function extractCubeFaceColors(canvas: HTMLCanvasElement): ColorDetectionResult {
+interface FaceRegion {
+  imageData: ImageData
+  faceWidth: number
+  faceHeight: number
+}
+
+// Cube face is assumed centered in frame, matching the fixed guide square
+// shown to the user during capture (see capture-grid-overlay in index.tsx).
+function getFaceRegion(canvas: HTMLCanvasElement): FaceRegion {
   const ctx = canvas.getContext('2d')
   if (!ctx) {
     throw new Error('Could not get canvas context')
@@ -78,7 +86,6 @@ export function extractCubeFaceColors(canvas: HTMLCanvasElement): ColorDetection
   const width = canvas.width
   const height = canvas.height
 
-  // Assume cube face is in center, detect it
   const centerX = width / 2
   const centerY = height / 2
   const faceSize = Math.min(width, height) * 0.6
@@ -90,12 +97,19 @@ export function extractCubeFaceColors(canvas: HTMLCanvasElement): ColorDetection
 
   const faceWidth = endX - startX
   const faceHeight = endY - startY
-  const gridSize = 3
+
+  return {
+    imageData: ctx.getImageData(startX, startY, faceWidth, faceHeight),
+    faceWidth,
+    faceHeight,
+  }
+}
+
+export function extractCubeFaceColors(canvas: HTMLCanvasElement, gridSize = 3): ColorDetectionResult {
+  const { imageData, faceWidth, faceHeight } = getFaceRegion(canvas)
 
   const cellWidth = faceWidth / gridSize
   const cellHeight = faceHeight / gridSize
-
-  const imageData = ctx.getImageData(startX, startY, faceWidth, faceHeight)
   const data = imageData.data
 
   const colors: string[][] = []
@@ -155,7 +169,8 @@ export function extractCubeFaceColors(canvas: HTMLCanvasElement): ColorDetection
 }
 
 export function captureAndProcessFace(
-  video: HTMLVideoElement
+  video: HTMLVideoElement,
+  gridSize = 3
 ): ColorDetectionResult {
   const canvas = document.createElement('canvas')
   canvas.width = video.videoWidth
@@ -167,11 +182,12 @@ export function captureAndProcessFace(
   }
 
   ctx.drawImage(video, 0, 0)
-  return extractCubeFaceColors(canvas)
+  return extractCubeFaceColors(canvas, gridSize)
 }
 
 export function captureAndProcessImage(
-  img: HTMLImageElement
+  img: HTMLImageElement,
+  gridSize = 3
 ): ColorDetectionResult {
   const canvas = document.createElement('canvas')
   canvas.width = img.naturalWidth
@@ -183,5 +199,5 @@ export function captureAndProcessImage(
   }
 
   ctx.drawImage(img, 0, 0)
-  return extractCubeFaceColors(canvas)
+  return extractCubeFaceColors(canvas, gridSize)
 }
