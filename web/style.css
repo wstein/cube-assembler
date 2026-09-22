@@ -463,6 +463,115 @@ textarea {
   width: min(600px, 90vw);
 }
 
+/* ─────────────────────────────────────────────────────────────────────────────
+   POST-CAPTURE REVIEW DIALOG
+   ───────────────────────────────────────────────────────────────────────────── */
+
+.review-modal-content {
+  width: min(920px, 92vw);
+}
+
+.review-hint-text {
+  color: var(--color-text-secondary);
+  font-size: 0.875rem;
+  margin-bottom: var(--spacing-md);
+}
+
+.review-face-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--spacing-md);
+  margin-bottom: var(--spacing-lg);
+}
+
+@media (max-width: 700px) {
+  .review-face-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+.review-face-card {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: var(--spacing-sm);
+  background: var(--color-bg-secondary);
+}
+
+.review-face-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--spacing-sm);
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.review-face-image-wrapper {
+  position: relative;
+  aspect-ratio: 1;
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  background: #000;
+}
+
+.review-face-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.review-face-grid-overlay {
+  position: absolute;
+  inset: 0;
+  display: grid;
+}
+
+.review-cell {
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  cursor: pointer;
+  transition: border-color 0.15s, outline 0.15s;
+  padding: 0;
+}
+
+.review-cell:hover {
+  outline: 2px solid #fff;
+  outline-offset: -2px;
+}
+
+.review-cell.confidence-high {
+  border-color: var(--color-success);
+}
+
+.review-cell.confidence-medium {
+  border-color: var(--color-warning);
+}
+
+.review-cell.confidence-low {
+  border-color: var(--color-danger);
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   COLOR-FIX POPUP
+   ───────────────────────────────────────────────────────────────────────────── */
+
+.color-picker-modal {
+  z-index: 1100;
+}
+
+.color-picker-content {
+  width: min(280px, 80vw);
+  text-align: center;
+}
+
+.color-picker-content h3 {
+  margin-bottom: var(--spacing-md);
+}
+
+.color-picker-content .color-palette {
+  margin-bottom: var(--spacing-md);
+}
+
 .modal-header {
   display: flex;
   justify-content: space-between;

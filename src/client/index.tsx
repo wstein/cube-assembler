@@ -2,7 +2,7 @@ import { render, h, Fragment } from 'preact'
 import { useState, useEffect, useRef } from 'preact/hooks'
 import { TwistyPlayer } from 'cubing/twisty'
 import '../../web/style.css'
-import { captureAndProcessFace, captureAndProcessImage, extractCubeFaceColors, detectGridSize, type ColorDetectionResult, type GridSizeDetection } from './imageProcessing'
+import { captureAndProcessFace, captureAndProcessImage, extractCubeFaceColors, detectGridSize, type ColorDetectionResult, type GridSizeDetection, type FaceCaptureResult } from './imageProcessing'
 import { assembleCubeFromFaces, validateFaceColors, createSolvedCube, parseColorInput, toCubeIR } from './cubeAssembly'
 import { notationForFormat, toURFFacelets, fromURFFacelets } from './notationOutput'
 
@@ -18,7 +18,9 @@ interface CubeState {
 
 interface FaceCaptureData {
   colors: string[][]
+  cellConfidences?: number[][]
   confidence: number
+  croppedImage?: string
   timestamp: number
 }
 
@@ -90,6 +92,16 @@ function extractCubeFromApplyAlgResult(result: any): any {
 
 const FACE_ORDER = ['U', 'R', 'F', 'D', 'L', 'B']
 
+// Face identity (which physical face is U vs R vs F...) can't actually be
+// determined from a photo — it depends on how the user is holding the cube,
+// which this app has no way to verify. So capture asks for 6 neutral faces
+// in a fixed order rather than claiming to know which is "the U face";
+// FACE_ORDER's positions still map 1:1 to U/R/F/D/L/B internally, since
+// cube assembly/notation/the server API all key off those letters.
+const FACE_DISPLAY_LABEL: Record<string, string> = Object.fromEntries(
+  FACE_ORDER.map((face, i) => [face, String(i + 1)])
+)
+
 const STICKER_HEX: Record<string, string> = {
   W: '#ffffff', Y: '#ffd500', O: '#ff8c00', R: '#c41e3a', G: '#009e60', B: '#0051ba',
 }
@@ -121,6 +133,8 @@ function App() {
   const [inputMode, setInputMode] = useState<'colors' | 'facelets'>('colors')
   const [liveDetection, setLiveDetection] = useState<ColorDetectionResult | null>(null)
   const [detectedGridSize, setDetectedGridSize] = useState<GridSizeDetection | null>(null)
+  const [showReviewDialog, setShowReviewDialog] = useState(false)
+  const [reviewEditingCell, setReviewEditingCell] = useState<{ face: string; row: number; col: number } | null>(null)
   const webcamRef = useRef<HTMLVideoElement>(null)
   const sampleCanvasRef = useRef<HTMLCanvasElement | null>(null)
 
@@ -455,12 +469,13 @@ function App() {
     setWebcamOpen(true)
   }
 
-  // Stores a capture result for `face`, assembles the cube once all 6 faces
-  // are in, and otherwise auto-advances the modal to the next uncaptured
-  // face so the user doesn't have to close/reopen it per face.
+  // Stores a capture result for `face`, opens the review dialog once all 6
+  // faces are in (so the user can fix any misdetected colors before the
+  // cube is assembled), and otherwise auto-advances the modal to the next
+  // uncaptured face so the user doesn't have to close/reopen it per face.
   const applyFaceCapture = async (
     face: string,
-    result: { colors: string[][]; confidence: number }
+    result: { colors: string[][]; confidence: number; cellConfidences?: number[][]; croppedImage?: string }
   ) => {
     if (!validateFaceColors(result.colors, puzzleSize)) {
       setCaptureMessage(`❌ Invalid colors detected. Confidence: ${(result.confidence * 100).toFixed(0)}%`)
@@ -471,26 +486,24 @@ function App() {
       ...capturedFaces,
       [face]: {
         colors: result.colors,
+        cellConfidences: result.cellConfidences,
         confidence: result.confidence,
+        croppedImage: result.croppedImage,
         timestamp: Date.now(),
       },
     }
 
     setCapturedFaces(newCapturedFaces)
     setFaceConfidence({ ...faceConfidence, [face]: result.confidence })
-    setCaptureMessage(`✓ ${face} face captured (${(result.confidence * 100).toFixed(0)}% confidence)`)
+    setCaptureMessage(`✓ Face ${FACE_DISPLAY_LABEL[face]} captured (${(result.confidence * 100).toFixed(0)}% confidence)`)
 
     const allFacesCaptured = FACE_ORDER.every(f => f in newCapturedFaces)
     if (allFacesCaptured) {
-      const faceData: Record<string, string[][]> = {}
-      for (const [f, data] of Object.entries(newCapturedFaces)) {
-        faceData[f] = (data as FaceCaptureData).colors
-      }
-      const cubeState = assembleCubeFromFaces(faceData, puzzleSize)
-      setCube(cubeState)
-      await updateParityStatus(cubeState)
-      setCaptureMessage('✓ All faces captured! Cube state ready.')
-      setTimeout(() => setWebcamOpen(false), 1200)
+      setCaptureMessage('✓ All faces captured! Review colors before finishing.')
+      setTimeout(() => {
+        setWebcamOpen(false)
+        setShowReviewDialog(true)
+      }, 900)
     } else {
       const nextFace = FACE_ORDER.find(f => !(f in newCapturedFaces))
       if (nextFace) {
@@ -500,6 +513,47 @@ function App() {
         }, 900)
       }
     }
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Features: Post-Capture Review & Color Fix
+  // ─────────────────────────────────────────────────────────────────────────
+
+  const handleFixCellColor = (face: string, row: number, col: number, newColor: string) => {
+    setCapturedFaces((prev) => {
+      const faceData = prev[face]
+      if (!faceData) return prev
+
+      const newColors = faceData.colors.map((r) => [...r])
+      newColors[row][col] = newColor
+
+      const newCellConfidences = faceData.cellConfidences?.map((r) => [...r])
+      if (newCellConfidences) newCellConfidences[row][col] = 1
+
+      return {
+        ...prev,
+        [face]: { ...faceData, colors: newColors, cellConfidences: newCellConfidences },
+      }
+    })
+    setReviewEditingCell(null)
+  }
+
+  const handleRetakeFace = (face: string) => {
+    setShowReviewDialog(false)
+    setWebcamFace(face)
+    setCaptureMessage('')
+    setWebcamOpen(true)
+  }
+
+  const handleConfirmReview = async () => {
+    const faceData: Record<string, string[][]> = {}
+    for (const [f, data] of Object.entries(capturedFaces)) {
+      faceData[f] = data.colors
+    }
+    const cubeState = assembleCubeFromFaces(faceData, puzzleSize)
+    setCube(cubeState)
+    await updateParityStatus(cubeState)
+    setShowReviewDialog(false)
   }
 
   const handleCapturePhoto = async () => {
@@ -640,9 +694,9 @@ function App() {
               <span
                 key={face}
                 class={`progress-dot ${capturedFaces[face] ? 'done' : ''}`}
-                title={`${face} face${capturedFaces[face] ? ' (captured)' : ' (not captured)'}`}
+                title={`Face ${FACE_DISPLAY_LABEL[face]}${capturedFaces[face] ? ' (captured)' : ' (not captured)'}`}
               >
-                {face}
+                {FACE_DISPLAY_LABEL[face]}
               </span>
             ))}
           </div>
@@ -772,7 +826,7 @@ function App() {
         <div class="modal open">
           <div class="modal-content capture-modal-content">
             <div class="modal-header">
-              <h2>Capturing: {webcamFace} Face</h2>
+              <h2>Capturing: Face {FACE_DISPLAY_LABEL[webcamFace]}</h2>
               <button class="modal-close" onClick={() => setWebcamOpen(false)}>×</button>
             </div>
             <div class="capture-progress">
@@ -784,9 +838,9 @@ function App() {
                   <span
                     key={face}
                     class={`progress-dot ${capturedFaces[face] ? 'done' : ''} ${face === webcamFace ? 'current' : ''}`}
-                    title={`${face} face${capturedFaces[face] ? ' (captured)' : ''}`}
+                    title={`Face ${FACE_DISPLAY_LABEL[face]}${capturedFaces[face] ? ' (captured)' : ''}`}
                   >
-                    {face}
+                    {FACE_DISPLAY_LABEL[face]}
                   </span>
                 ))}
               </div>
@@ -871,6 +925,88 @@ function App() {
 
             <label>Import from image file</label>
             <input type="file" accept="image/*" onChange={handleImportImage} disabled={loading} />
+          </div>
+        </div>
+      )}
+
+      {/* Post-Capture Review Dialog */}
+      {showReviewDialog && (
+        <div class="modal open">
+          <div class="modal-content review-modal-content">
+            <div class="modal-header">
+              <h2>Review Captured Faces</h2>
+              <button class="modal-close" onClick={() => setShowReviewDialog(false)}>×</button>
+            </div>
+            <p class="review-hint-text">Tap any sticker below to fix its color if it was misdetected.</p>
+            <div class="review-face-grid">
+              {FACE_ORDER.map((face) => {
+                const data = capturedFaces[face]
+                if (!data) return null
+                return (
+                  <div class="review-face-card" key={face}>
+                    <div class="review-face-card-header">
+                      <span>Face {FACE_DISPLAY_LABEL[face]}</span>
+                      <button class="btn btn-secondary btn-sm" onClick={() => handleRetakeFace(face)}>
+                        Retake
+                      </button>
+                    </div>
+                    <div class="review-face-image-wrapper">
+                      {data.croppedImage && (
+                        <img src={data.croppedImage} class="review-face-image" />
+                      )}
+                      <div
+                        class="review-face-grid-overlay"
+                        style={{
+                          gridTemplateColumns: `repeat(${data.colors.length}, 1fr)`,
+                          gridTemplateRows: `repeat(${data.colors.length}, 1fr)`,
+                        }}
+                      >
+                        {data.colors.map((row, r) =>
+                          row.map((color, c) => (
+                            <button
+                              key={`${r}-${c}`}
+                              class={`review-cell confidence-${confidenceTier(data.cellConfidences?.[r]?.[c] ?? 1)}`}
+                              style={{ background: `${STICKER_HEX[color] || '#888'}b3` }}
+                              onClick={() => setReviewEditingCell({ face, row: r, col: c })}
+                              title={`Row ${r + 1}, Col ${c + 1}: ${color} — tap to fix`}
+                            />
+                          ))
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+            <button class="btn btn-primary" onClick={handleConfirmReview}>
+              ✓ Confirm & Assemble Cube
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Color-fix palette popup */}
+      {reviewEditingCell && (
+        <div class="modal open color-picker-modal" onClick={() => setReviewEditingCell(null)}>
+          <div class="modal-content color-picker-content" onClick={(e) => e.stopPropagation()}>
+            <h3>Fix color</h3>
+            <div class="color-palette">
+              {['W', 'Y', 'O', 'R', 'G', 'B'].map((color) => (
+                <button
+                  key={color}
+                  class="color-btn"
+                  style={{ background: STICKER_HEX[color] }}
+                  onClick={() =>
+                    handleFixCellColor(reviewEditingCell!.face, reviewEditingCell!.row, reviewEditingCell!.col, color)
+                  }
+                >
+                  {color}
+                </button>
+              ))}
+            </div>
+            <button class="btn btn-secondary btn-sm" onClick={() => setReviewEditingCell(null)}>
+              Cancel
+            </button>
           </div>
         </div>
       )}
