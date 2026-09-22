@@ -1195,10 +1195,10 @@ function App() {
                 <thead>
                   <tr>
                     <th>Color</th>
-                    <th>Count</th>
-                    <th>Lightness</th>
-                    <th>Chroma</th>
-                    <th>Hue</th>
+                    <th class="color-stats-numeric-cell">Count</th>
+                    <th class="color-stats-numeric-cell">Lightness</th>
+                    <th class="color-stats-numeric-cell">Chroma</th>
+                    <th class="color-stats-numeric-cell">Hue</th>
                   </tr>
                 </thead>
                 <tbody>
