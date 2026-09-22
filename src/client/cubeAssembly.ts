@@ -159,6 +159,44 @@ const VALID_EDGE_PAIRS = new Set(
   })
 )
 
+// Precomputed once: which position on each of a corner's/edge's touching
+// faces it occupies, in the same face order as CORNER_FACES/EDGE_FACES.
+// Static (independent of any particular capture or rotation), so computing
+// it up front - rather than re-deriving it inside every scored combination,
+// as an earlier version did - matters once the even-size search below adds
+// a second, much larger search dimension (which capture is which face) on
+// top of rotation alone.
+const CORNER_POSITIONS: Record<string, [CornerPos, CornerPos, CornerPos]> = {}
+for (const [name, [f1, f2, f3]] of Object.entries(CORNER_FACES)) {
+  const posOf = (f: FaceKey) => (Object.entries(FACE_CORNERS[f]) as [CornerPos, string][]).find(([, n]) => n === name)![0]
+  CORNER_POSITIONS[name] = [posOf(f1), posOf(f2), posOf(f3)]
+}
+const EDGE_POSITIONS: Record<string, [EdgePos, EdgePos]> = {}
+for (const [name, [f1, f2]] of Object.entries(EDGE_FACES)) {
+  const posOf = (f: FaceKey) => (Object.entries(FACE_EDGES[f]) as [EdgePos, string][]).find(([, n]) => n === name)![0]
+  EDGE_POSITIONS[name] = [posOf(f1), posOf(f2)]
+}
+
+function scoreCorners(faces: Record<FaceKey, string[][]>): number {
+  let score = 0
+  for (const [name, [f1, f2, f3]] of Object.entries(CORNER_FACES)) {
+    const [p1, p2, p3] = CORNER_POSITIONS[name]
+    const triple = cornerSticker(faces[f1], p1) + cornerSticker(faces[f2], p2) + cornerSticker(faces[f3], p3)
+    if (VALID_CORNER_TRIPLES.has(triple)) score++
+  }
+  return score
+}
+
+function scoreEdges(faces: Record<FaceKey, string[][]>): number {
+  let score = 0
+  for (const [name, [f1, f2]] of Object.entries(EDGE_FACES)) {
+    const [p1, p2] = EDGE_POSITIONS[name]
+    const pair = edgeSticker(faces[f1], p1) + edgeSticker(faces[f2], p2)
+    if (VALID_EDGE_PAIRS.has(pair)) score++
+  }
+  return score
+}
+
 function rotateGrid(grid: string[][], quarterTurnsClockwise: number): string[][] {
   const turns = ((quarterTurnsClockwise % 4) + 4) % 4
   let result = grid
@@ -199,79 +237,125 @@ export interface OrientationSolution {
   edgeScore: number // out of 12
 }
 
-/**
- * Identifies each captured face (via center-sticker color — odd sizes
- * only) and solves for the 0/90/180/270 rotation of each that maximizes
- * how many of the cube's 8 corners show a physically valid color triple,
- * using the 12 edges only to break ties. Returns null if center colors
- * don't identify all 6 faces uniquely (even-sized cube, or a capture
- * error), not if orientation-solving merely scores imperfectly — check
- * cornerScore/edgeScore against 8/12 to see how well-supported the result
- * is.
- */
-export function solveFaceOrientations(
-  capturedFaces: Record<string, string[][]>
-): OrientationSolution | null {
-  const size = Object.values(capturedFaces)[0]?.length
-  if (!size || size % 2 === 0) return null // even sizes have no fixed center reference
+type BestCandidate = { faces: Record<FaceKey, string[][]>; rotations: Record<FaceKey, number>; cornerScore: number; edgeScore: number }
 
+// Scores one fully-assigned, fully-rotated candidate and folds it into
+// `best` if it beats the current leader (more valid corners first, valid
+// edges as the tiebreaker) - shared by both the odd-size (identity known,
+// rotation-only) and even-size (identity + rotation) searches below so
+// the corner-before-edge reduction logic exists in exactly one place.
+function considerCandidate(
+  faces: Record<FaceKey, string[][]>,
+  rotations: Record<FaceKey, number>,
+  best: BestCandidate | null
+): BestCandidate | null {
+  const cornerScore = scoreCorners(faces)
+  if (best && cornerScore < best.cornerScore) return best
+  if (best && cornerScore === best.cornerScore) {
+    const edgeScore = scoreEdges(faces)
+    return edgeScore > best.edgeScore ? { faces, rotations, cornerScore, edgeScore } : best
+  }
+  return { faces, rotations, cornerScore, edgeScore: scoreEdges(faces) }
+}
+
+// Odd sizes (3x3, 5x5, 7x7): each face's fixed center sticker identifies
+// it unambiguously, so only rotation (4^6 = 4096 combinations) needs
+// solving. Returns null if center colors don't identify all 6 faces
+// uniquely (duplicate or unreadable center).
+function solveOddSizeOrientations(capturedFaces: Record<string, string[][]>, size: number): OrientationSolution | null {
   const byIdentity: Partial<Record<FaceKey, string[][]>> = {}
   for (const colors of Object.values(capturedFaces)) {
     const mid = Math.floor(size / 2)
-    const centerColor = colors[mid][mid]
-    const identity = COLOR_TO_FACE[centerColor]
+    const identity = COLOR_TO_FACE[colors[mid][mid]]
     if (!identity || byIdentity[identity]) return null // unreadable or duplicate center color
     byIdentity[identity] = colors
   }
   if (FACE_KEYS.some((f) => !byIdentity[f])) return null
   const faces = byIdentity as Record<FaceKey, string[][]>
 
-  let best: { rotations: Record<FaceKey, number>; cornerScore: number; edgeScore: number } | null = null
-
+  let best: BestCandidate | null = null
   for (let rU = 0; rU < 4; rU++) for (let rR = 0; rR < 4; rR++) for (let rF = 0; rF < 4; rF++)
   for (let rD = 0; rD < 4; rD++) for (let rL = 0; rL < 4; rL++) for (let rB = 0; rB < 4; rB++) {
     const rot: Record<FaceKey, number> = { U: rU, R: rR, F: rF, D: rD, L: rL, B: rB }
     const rotated: Record<FaceKey, string[][]> = {} as Record<FaceKey, string[][]>
     for (const f of FACE_KEYS) rotated[f] = rotateGrid(faces[f], rot[f])
+    best = considerCandidate(rotated, rot, best)
+  }
+  return best
+}
 
-    let cornerScore = 0
-    for (const [name, [f1, f2, f3]] of Object.entries(CORNER_FACES)) {
-      const posOf = (f: FaceKey) => (Object.entries(FACE_CORNERS[f]) as [CornerPos, string][]).find(([, n]) => n === name)![0]
-      const triple = [
-        cornerSticker(rotated[f1], posOf(f1)),
-        cornerSticker(rotated[f2], posOf(f2)),
-        cornerSticker(rotated[f3], posOf(f3)),
-      ].join('')
-      if (VALID_CORNER_TRIPLES.has(triple)) cornerScore++
-    }
+function permutations<T>(arr: T[]): T[][] {
+  if (arr.length <= 1) return [arr]
+  const result: T[][] = []
+  for (let i = 0; i < arr.length; i++) {
+    const rest = [...arr.slice(0, i), ...arr.slice(i + 1)]
+    for (const p of permutations(rest)) result.push([arr[i], ...p])
+  }
+  return result
+}
 
-    if (!best || cornerScore > best.cornerScore) {
-      // New corner-score leader: (re)compute edges only for the leader,
-      // since edges only matter as a tiebreaker among equal corner scores.
-      let edgeScore = 0
-      for (const [name, [f1, f2]] of Object.entries(EDGE_FACES)) {
-        const posOf = (f: FaceKey) => (Object.entries(FACE_EDGES[f]) as [EdgePos, string][]).find(([, n]) => n === name)![0]
-        const pair = [edgeSticker(rotated[f1], posOf(f1)), edgeSticker(rotated[f2], posOf(f2))].join('')
-        if (VALID_EDGE_PAIRS.has(pair)) edgeScore++
+// Even sizes (2x2, 4x4, 6x6): center stickers belong to independently-
+// rotatable center cubies, not a single fixed reference cubie, so unlike
+// odd sizes there is no shortcut to each face's identity - it has to be
+// searched for jointly with rotation, using the same corner/edge validity
+// scoring. Which of the 6 captures is U/R/F/D/L/B, and each's rotation,
+// is 6! x 4^6 = 2,949,120 combinations - too many to search plainly.
+// Fixing capture #1 as U at rotation 0 cuts that by the cube's 24-element
+// rotation group (any solution can be re-expressed, as a whole, with
+// capture #1 in that position without changing which corners/edges are
+// valid - reconstructing a cube from photos alone has no way to know
+// which face is "really" U anyway, so any one consistent labeling is as
+// good as another), leaving 5! x 4^5 = 122,880 - fast enough in practice.
+function solveEvenSizeOrientations(capturedFaces: Record<string, string[][]>): OrientationSolution | null {
+  const captures = Object.values(capturedFaces)
+  if (captures.length !== 6) return null
+
+  const [firstCapture, ...rest] = captures
+  const otherKeys: FaceKey[] = ['R', 'F', 'D', 'L', 'B']
+
+  // Precompute every capture's 4 rotations once, rather than re-rotating
+  // inside the ~123K-combination search below.
+  const firstRotated = rotateGrid(firstCapture, 0)
+  const restRotations = rest.map((capture) => [0, 1, 2, 3].map((r) => rotateGrid(capture, r)))
+
+  let best: BestCandidate | null = null
+  for (const order of permutations([0, 1, 2, 3, 4])) {
+    for (let mask = 0; mask < 1024; mask++) {
+      const rotations: Record<FaceKey, number> = { U: 0 } as Record<FaceKey, number>
+      const faces: Record<FaceKey, string[][]> = { U: firstRotated } as Record<FaceKey, string[][]>
+      for (let slot = 0; slot < 5; slot++) {
+        const captureIdx = order[slot]
+        const rot = (mask >> (slot * 2)) & 0b11
+        rotations[otherKeys[slot]] = rot
+        faces[otherKeys[slot]] = restRotations[captureIdx][rot]
       }
-      best = { rotations: rot, cornerScore, edgeScore }
-    } else if (cornerScore === best.cornerScore) {
-      let edgeScore = 0
-      for (const [name, [f1, f2]] of Object.entries(EDGE_FACES)) {
-        const posOf = (f: FaceKey) => (Object.entries(FACE_EDGES[f]) as [EdgePos, string][]).find(([, n]) => n === name)![0]
-        const pair = [edgeSticker(rotated[f1], posOf(f1)), edgeSticker(rotated[f2], posOf(f2))].join('')
-        if (VALID_EDGE_PAIRS.has(pair)) edgeScore++
-      }
-      if (edgeScore > best.edgeScore) best = { rotations: rot, cornerScore, edgeScore }
+      best = considerCandidate(faces, rotations, best)
     }
   }
+  return best
+}
 
-  if (!best) return null
-
-  const finalFaces: Record<FaceKey, string[][]> = {} as Record<FaceKey, string[][]>
-  for (const f of FACE_KEYS) finalFaces[f] = rotateGrid(faces[f], best.rotations[f])
-
-  return { faces: finalFaces, rotations: best.rotations, cornerScore: best.cornerScore, edgeScore: best.edgeScore }
+/**
+ * Identifies each captured face and solves for the 0/90/180/270 rotation
+ * of each that maximizes how many of the cube's 8 corners show a
+ * physically valid color triple, using the 12 edges only to break ties
+ * among equally-good rotations. Odd sizes (3x3, 5x5, 7x7) get face
+ * identity for free from each face's fixed center sticker; even sizes
+ * (2x2, 4x4, 6x6) have no such reference and must search for identity
+ * jointly with rotation (see solveEvenSizeOrientations). Returns null if
+ * face identity can't be determined at all (odd: duplicate/unreadable
+ * center; even: not exactly 6 captures) - not if orientation-solving
+ * merely scores imperfectly, which check cornerScore/edgeScore against
+ * 8/12 for.
+ */
+export function solveFaceOrientations(
+  capturedFaces: Record<string, string[][]>
+): OrientationSolution | null {
+  const size = Object.values(capturedFaces)[0]?.length
+  if (!size) return null
+  return size % 2 === 1
+    ? solveOddSizeOrientations(capturedFaces, size)
+    : solveEvenSizeOrientations(capturedFaces)
 }
 
 export function faceColorsToString(colors: string[][]): string {

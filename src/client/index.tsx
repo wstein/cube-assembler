@@ -604,25 +604,24 @@ function App() {
     }
 
     // Capture order tells us nothing about which physical face is U vs R
-    // vs F etc, or which way up each was held - only odd sizes carry a
-    // fixed center sticker that can answer that. When it's available, use
-    // it (identity by center color, orientation by corner-then-edge
-    // validity) instead of trusting capture order as identity.
+    // vs F etc, or which way up each was held. Odd sizes get identity for
+    // free from each face's fixed center sticker; even sizes search for
+    // identity jointly with rotation instead (see solveFaceOrientations).
+    // Either way, use the solved result (identity by validity, not
+    // capture order) instead of trusting capture order as identity.
     let orientedFaceData = faceData
-    if (puzzleSize % 2 === 1) {
-      const solved = solveFaceOrientations(faceData)
-      if (solved) {
-        orientedFaceData = solved.faces
-        if (solved.cornerScore < 8 || solved.edgeScore < 12) {
-          alert(
-            `⚠️ Orientation solved with ${solved.cornerScore}/8 corners and ${solved.edgeScore}/12 edges valid — some captured colors may be misdetected. Check the assembled cube.`
-          )
-        }
-      } else {
+    const solved = solveFaceOrientations(faceData)
+    if (solved) {
+      orientedFaceData = solved.faces
+      if (solved.cornerScore < 8 || solved.edgeScore < 12) {
         alert(
-          '⚠️ Could not identify faces from center colors (duplicate or unreadable center) — used capture order as-is; verify results carefully.'
+          `⚠️ Orientation solved with ${solved.cornerScore}/8 corners and ${solved.edgeScore}/12 edges valid — some captured colors may be misdetected. Check the assembled cube.`
         )
       }
+    } else {
+      alert(
+        '⚠️ Could not resolve face identity/orientation (need exactly 6 captured faces, or for odd sizes a duplicate/unreadable center) — used capture order as-is; verify results carefully.'
+      )
     }
 
     const cubeState = assembleCubeFromFaces(orientedFaceData, puzzleSize)
