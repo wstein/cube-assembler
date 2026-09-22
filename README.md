@@ -5,7 +5,7 @@
 ![License: MIT](https://img.shields.io/badge/License-MIT-cyan.svg)
 ![npm](https://img.shields.io/badge/runtime-npm-black)
 ![ReScript](https://img.shields.io/badge/lang-ReScript-e6484f)
-![Tests](https://img.shields.io/badge/tests-74%2F74%20%E2%9C%85-brightgreen)
+![Tests](https://img.shields.io/badge/tests-81%2F81%20%E2%9C%85-brightgreen)
 
 A full-stack library and web app that solves two geometric ambiguities when reconstructing a physical cube from 6 unordered face photographs:
 
@@ -85,7 +85,8 @@ cube-assembler/
     ├── cubeAssembly.test.ts       15 tests — face identity/orientation solver (odd + even sizes)
     ├── notationOutput.test.ts     16 tests — spaced + URF (Kociemba) facelet formats
     ├── imageProcessing.test.ts    10 tests — OKLCH conversion + sticker-color learning
-    └── parity.test.ts             10 tests — server-side corner/edge facelet-index tables
+    ├── parity.test.ts             10 tests — server-side corner/edge facelet-index tables
+    └── assemblyWorker.test.ts     7 tests — /api/assemble worker's corner/edge validation
 ```
 
 ---
@@ -276,6 +277,19 @@ UBR/UBL corners and BR/BL edges, which could reject a genuinely valid
 scrambled cube with "Unknown corner color triplet" even though color
 balance checked out; see `test/parity.test.ts` for the real capture that
 caught it.
+
+`server/AssemblyWorker.ts` (the `/api/assemble` brute-force face-
+orientation search, currently unreachable from the UI) mirrors this same
+corner/edge/color-balance logic in a separate copy to avoid a circular
+import, and had drifted: it still had the old B-face-mirroring bug, the
+same removed center-uniformity check, and its own `VALID_CORNERS` lookup
+table used the *opposite* chirality from the corner triples it's checked
+against — rejecting every cube, including a solved one. All three are
+fixed now too, with their own regression coverage in
+`test/assemblyWorker.test.ts`. Separately (not fixed, since it's
+unrelated to any of the above): the `/api/assemble` route itself
+currently throws on every request (`loaders is not defined` in
+`server/Server.ts`), so this pipeline is fully inert regardless.
 
 ---
 
