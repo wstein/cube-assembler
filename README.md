@@ -5,7 +5,7 @@
 ![License: MIT](https://img.shields.io/badge/License-MIT-cyan.svg)
 ![npm](https://img.shields.io/badge/runtime-npm-black)
 ![ReScript](https://img.shields.io/badge/lang-ReScript-e6484f)
-![Tests](https://img.shields.io/badge/tests-23%2F23%20%E2%9C%85-brightgreen)
+![Tests](https://img.shields.io/badge/tests-43%2F43%20%E2%9C%85-brightgreen)
 
 A full-stack library and web app that solves two geometric ambiguities when reconstructing a physical cube from 6 unordered face photographs:
 
@@ -20,9 +20,9 @@ The multi-stage pipeline filters 2,949,120 candidates down to physically reachab
 
 | | |
 |---|---|
-| **Runtime** | [npm](https://npm.sh) ≥ 1.3 |
+| **Runtime** | [Bun](https://bun.sh) ≥ 1.3 |
 | **Server** | [Hono](https://hono.dev) — HTTP + SSE streaming, no middleware bloat |
-| **Domain logic** | [ReScript](https://rescript-lang.org) → ES modules (served directly, no npmdler) |
+| **Domain logic** | [ReScript](https://rescript-lang.org) → ES modules (served directly, no bundler) |
 | **Puzzle engine** | [cubing.js](https://github.com/cubing/cubing.js) — WCA scrambles, KPuzzle, TwistyPlayer |
 | **Tests** | [Vitest](https://vitest.dev) |
 
@@ -51,31 +51,73 @@ npm run build:res
 
 ```
 cube-assembler/
-├── index.html                     Web app (served by Hono, no npmdler)
+├── index.html                     Web app (served by Hono, no bundler)
 │
 ├── server/
 │   ├── Server.ts                  Hono app + all API routes
 │   └── AssemblyWorker.ts          npm Worker: 2.9M-candidate search off main thread
 │
-├── src/                           ReScript domain library
-│   ├── Index.res                  Public API
-│   ├── ir/
-│   │   ├── CubeIR.res             Core IR: puzzleSize, faceGrid, cubeIR, rotateFace
-│   │   └── CubeIRUtils.res        Color balance, orbit extraction, adjacency tables
-│   ├── notation/
-│   │   └── Notation.res           Unified WRG + URF parser/printer (alphabet-parameterised)
-│   ├── cubingjs/
-│   │   ├── CubingJsBindings.res   @module bindings to cubing.js
-│   │   ├── IRBridge.res           cubeIR ↔ KPatternData (3×3 full, NxN stub)
-│   │   └── WCANotation.res        Full WCA move parser: face/wide/slice/rotation/depth
-│   └── assembler/
-│       ├── PermGen.res            Heap's algorithm — 720 permutations
-│       ├── Parity.res             Full 4-condition parity check
-│       └── CubeAssembler.res      5-stage pipeline orchestrator
+├── src/
+│   ├── client/                    Preact browser app: webcam capture, review, notation I/O
+│   │   ├── index.tsx              App shell, capture/review flow, cube net view
+│   │   ├── imageProcessing.ts     Canvas-based sticker color + grid-size detection, white balance
+│   │   ├── cubeAssembly.ts        Face assembly + center-sticker identity/orientation solving
+│   │   └── notationOutput.ts      Spaced-facelet notation (the app's sole manual I/O format)
+│   │
+│   └── (ReScript domain library, served as compiled ES modules)
+│       ├── Index.res              Public API
+│       ├── ir/
+│       │   ├── CubeIR.res         Core IR: puzzleSize, faceGrid, cubeIR, rotateFace
+│       │   └── CubeIRUtils.res    Color balance, orbit extraction, adjacency tables
+│       ├── notation/
+│       │   └── Notation.res       Unified WRG + URF parser/printer (alphabet-parameterised)
+│       ├── cubingjs/
+│       │   ├── CubingJsBindings.res  @module bindings to cubing.js
+│       │   ├── IRBridge.res       cubeIR ↔ KPatternData (3×3 full, NxN stub)
+│       │   └── WCANotation.res    Full WCA move parser: face/wide/slice/rotation/depth
+│       └── assembler/
+│           ├── PermGen.res        Heap's algorithm — 720 permutations
+│           ├── Parity.res         Full 4-condition parity check
+│           └── CubeAssembler.res  5-stage pipeline orchestrator
 │
 └── test/
-    └── notation.test.ts           23 Vitest tests
+    ├── notation.test.ts           23 tests — ReScript Notation module (WRG/URF/Kociemba/Numeric)
+    ├── cubeAssembly.test.ts       12 tests — face identity/orientation solver
+    └── notationOutput.test.ts     8 tests — spaced-facelet format
 ```
+
+---
+
+## Browser Capture & Review UI
+
+The Preact app (`src/client/`) captures a real physical cube from 6 webcam
+or imported photos and reconstructs its state:
+
+1. **Capture** — one neutral entry point walks through 6 faces (labeled
+   1–6, not U/R/F/D/L/B — the app has no way to know a face's identity
+   from a photo alone). Grid size (2×2–7×7) is auto-detected from sticker
+   edges; a manual or auto-estimated white balance (gray-world light-source
+   detection) is applied per shot.
+2. **Review** — after all 6 faces are captured, a global recalibration
+   pass re-clusters all 54 stickers together (k-means, capacity-constrained
+   to the physical invariant of exactly N² stickers per color) and a
+   wizard lets you approve or correct each face's detected colors against
+   its photo.
+3. **Orientation solving** — on confirm, odd puzzle sizes (3×3, 5×5, 7×7)
+   resolve true face identity from each face's fixed center sticker color,
+   then find the 0°/90°/180°/270° rotation of every face that maximizes
+   valid corner cubies first, edge cubies second (`solveFaceOrientations`
+   in `cubeAssembly.ts`). Even sizes have no fixed center and fall back to
+   capture order, with a warning.
+4. **Cube net** — the resolved state renders as a standard unfolded net
+   (U top, L-F-R-B row, D bottom) alongside the 3D viewer.
+
+Manual entry and the notation output panel both use a single format:
+**spaced facelets** — 6 space-separated N²-letter blocks in U R F D L B
+order, e.g. for a 3×3: `WWWWWWWWW RRRRRRRRR GGGGGGGGG YYYYYYYYY OOOOOOOOO
+BBBBBBBBB` (see `src/client/notationOutput.ts`). This is a client-only
+format distinct from the ReScript `Notation` module described below,
+which the server-side parity/assembly pipeline uses instead.
 
 ---
 
