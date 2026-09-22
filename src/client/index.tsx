@@ -466,10 +466,17 @@ function App() {
   // Features: Face Capture Modal (#5)
   // ─────────────────────────────────────────────────────────────────────────
 
-  // Single capture entry point: resume at the first uncaptured face, or
-  // start over from U once all 6 are done (e.g. to recapture everything).
+  // Single capture entry point: resume at the first uncaptured face, or -
+  // once all 6 are already done - clear every prior capture and start
+  // completely over from U, so "Recapture Faces" actually re-walks all 6
+  // faces instead of silently reusing the other 5's stale data.
   const handleOpenCapture = () => {
-    const nextFace = FACE_ORDER.find((f) => !(f in capturedFaces)) || FACE_ORDER[0]
+    const allCaptured = FACE_ORDER.every((f) => f in capturedFaces)
+    if (allCaptured) {
+      setCapturedFaces({})
+      setFaceConfidence({})
+    }
+    const nextFace = allCaptured ? FACE_ORDER[0] : FACE_ORDER.find((f) => !(f in capturedFaces))!
     setWebcamFace(nextFace)
     setCaptureMessage('')
     setGlobalWhiteBalanceNote(null)
