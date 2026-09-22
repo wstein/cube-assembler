@@ -7,8 +7,8 @@ import {
   estimateGrayWorldGains, runGlobalWhiteBalance, WHITE_BALANCE_PRESETS, NEUTRAL_GAINS,
   type ColorDetectionResult, type GridSizeDetection, type FaceCaptureResult, type RGB,
 } from './imageProcessing'
-import { assembleCubeFromFaces, validateFaceColors, createSolvedCube, parseColorInput, toCubeIR, solveFaceOrientations } from './cubeAssembly'
-import { notationForFormat, toURFFacelets, fromURFFacelets } from './notationOutput'
+import { assembleCubeFromFaces, validateFaceColors, createSolvedCube, toCubeIR, solveFaceOrientations } from './cubeAssembly'
+import { toSpacedFacelets, fromSpacedFacelets } from './notationOutput'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
@@ -130,12 +130,10 @@ function App() {
   const [webcamFace, setWebcamFace] = useState('U')
   const [capturedFaces, setCapturedFaces] = useState<Record<string, FaceCaptureData>>({})
   const [faceConfidence, setFaceConfidence] = useState<Record<string, number>>({})
-  const [activeTab, setActiveTab] = useState('WRG')
   const [loading, setLoading] = useState(false)
   const [captureMessage, setCaptureMessage] = useState('')
   const [manualColorInput, setManualColorInput] = useState('')
   const [showColorInput, setShowColorInput] = useState(false)
-  const [inputMode, setInputMode] = useState<'colors' | 'facelets'>('colors')
   const [liveDetection, setLiveDetection] = useState<ColorDetectionResult | null>(null)
   const [detectedGridSize, setDetectedGridSize] = useState<GridSizeDetection | null>(null)
   const [showReviewDialog, setShowReviewDialog] = useState(false)
@@ -357,55 +355,33 @@ function App() {
     await updateParityStatus(solved)
   }
 
-  const handleApplyColorInput = async () => {
+  const handleApplySpacedFacelets = async () => {
     if (!manualColorInput.trim()) {
-      alert('Please enter color data')
+      alert('Please enter facelet data')
       return
     }
 
     setLoading(true)
     try {
-      const faceData = parseColorInput(manualColorInput)
-      if (!faceData) {
-        alert('Invalid format!\n\nRequired: All 6 faces (U, R, F, D, L, B)\nEach face: exactly 9 colors (W, Y, O, R, G, B)\nValid colors: W, Y, O, R, G, B\n\nAccepted formats:\n\n1) Compact (no spaces between colors):\nU:WWWWWWWWW R:RRRRRRRRR F:GGGGGGGGG D:YYYYYYYYY L:OOOOOOOOO B:BBBBBBBBB\n\n2) Spaced (spaces between colors):\nU W W W W W W W W W\nR R R R R R R R R\nF G G G G G G G G\nD Y Y Y Y Y Y Y Y\nL O O O O O O O O\nB B B B B B B B B')
+      const newCube = fromSpacedFacelets(manualColorInput.toUpperCase())
+      if (!newCube) {
+        alert('Invalid facelets. Must be 6 space-separated blocks of equal, perfect-square length (9 for 3×3, 25 for 5×5, ...) using colors W, O, G, R, B, Y, in U R F D L B order.')
         return
       }
 
-      const newCube = assembleCubeFromFaces(faceData)
+      const size = Math.sqrt(newCube.u.length)
+      setPuzzleSize(size)
       setCube(newCube)
 
+      const toGrid = (data: string[]): string[][] =>
+        Array.from({ length: size }, (_, r) => data.slice(r * size, r * size + size))
       const newCapturedFaces: Record<string, FaceCaptureData> = {}
-      for (const [face, colors] of Object.entries(faceData)) {
-        newCapturedFaces[face] = { colors, confidence: 1.0, timestamp: Date.now() }
+      for (const [face, data] of Object.entries(newCube)) {
+        newCapturedFaces[face.toUpperCase()] = { colors: toGrid(data), confidence: 1.0, timestamp: Date.now() }
       }
       setCapturedFaces(newCapturedFaces)
 
-      await updateParityStatus(newCube)
-      setManualColorInput('')
-      setShowColorInput(false)
-    } catch (err) {
-      alert(`Error: ${err instanceof Error ? err.message : 'Unknown error'}`)
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const handleApplyURFFacelets = async () => {
-    if (!manualColorInput.trim()) {
-      alert('Please enter URF facelets string')
-      return
-    }
-
-    setLoading(true)
-    try {
-      const newCube = fromURFFacelets(manualColorInput.toUpperCase())
-      if (!newCube) {
-        alert('Invalid URF facelets. Must be 54 characters (WROGBY colors only)')
-        return
-      }
-
-      setCube(newCube)
-      await updateParityStatus(newCube)
+      await updateParityStatus(newCube, size)
       setManualColorInput('')
       setShowColorInput(false)
     } catch (err) {
@@ -419,9 +395,9 @@ function App() {
   // Features: Parity Validation (#10)
   // ─────────────────────────────────────────────────────────────────────────
 
-  const updateParityStatus = async (cubeState: any) => {
+  const updateParityStatus = async (cubeState: any, sizeOverride?: number) => {
     try {
-      const result = await checkParity(cubeState, puzzleSize)
+      const result = await checkParity(cubeState, sizeOverride ?? puzzleSize)
       setParity(result)
     } catch (err) {
       console.error('Parity check error:', err)
@@ -719,11 +695,7 @@ function App() {
   // Render
   // ─────────────────────────────────────────────────────────────────────────
 
-  const getTabContent = () => {
-    if (!cube) return 'null'
-    if (activeTab === 'Facelets') return toURFFacelets(cube)
-    return notationForFormat(cube, activeTab)
-  }
+  const getNotationOutput = () => (cube ? toSpacedFacelets(cube) : 'null')
 
   return (
     <div id="app">
@@ -825,41 +797,23 @@ function App() {
         </div>
         {showColorInput && (
           <div class="color-input-panel">
-            <div class="input-tabs">
-              <button
-                class={`input-tab-btn ${inputMode === 'colors' ? 'active' : ''}`}
-                onClick={() => setInputMode('colors')}
-              >
-                Face Colors
-              </button>
-              <button
-                class={`input-tab-btn ${inputMode === 'facelets' ? 'active' : ''}`}
-                onClick={() => setInputMode('facelets')}
-              >
-                URF Facelets
-              </button>
-            </div>
             <label>
-              {inputMode === 'colors'
-                ? 'Enter face colors (compact: "U:WWWWWWWWW R:RRRRRRRRR ..." or spaced: "U W W W ...")'
-                : 'Enter 54-character URF facelets string (e.g., "WWWWWWWWWRRRRRRRRR...")'}
+              Enter spaced facelets: 6 blocks of {puzzleSize * puzzleSize} colors (W, O, G, R, B, Y), space-separated, in U R F D L B order
             </label>
             <textarea
               value={manualColorInput}
               onInput={(e) => setManualColorInput(e.currentTarget.value)}
-              placeholder={inputMode === 'colors'
-                ? 'U:WWWWWWWWW R:RRRRRRRRR F:GGGGGGGGG D:YYYYYYYYY L:OOOOOOOOO B:BBBBBBBBB'
-                : 'WWWWWWWWWRRRRRRRRRGGGGGGGGGYYYYYYYYYYOOOOOOOOOBBBBBBBBBB'}
+              placeholder={Array(6).fill('W'.repeat(puzzleSize * puzzleSize)).join(' ')}
               rows={6}
               style={{ width: '100%', marginTop: '0.5rem' }}
             />
             <div class="input-actions">
               <button
                 class="btn btn-primary btn-sm"
-                onClick={inputMode === 'colors' ? handleApplyColorInput : handleApplyURFFacelets}
+                onClick={handleApplySpacedFacelets}
                 disabled={loading}
               >
-                {loading ? '⏳ Processing...' : `Apply ${inputMode === 'colors' ? 'Colors' : 'Facelets'}`}
+                {loading ? '⏳ Processing...' : 'Apply Facelets'}
               </button>
             </div>
           </div>
@@ -926,19 +880,9 @@ function App() {
         )}
 
         <h2>Notation Output</h2>
-        <div class="tab-list">
-          {['WRG', 'URF', 'Flat', 'Facelets'].map((tab) => (
-            <button
-              key={tab}
-              class={`tab-btn ${activeTab === tab ? 'active' : ''}`}
-              onClick={() => setActiveTab(tab)}
-            >
-              {tab}
-            </button>
-          ))}
-        </div>
-        <textarea readonly value={getTabContent()} />
-        <button class="btn btn-primary" onClick={() => cube && copyToClipboard(getTabContent())}>
+        <p class="notation-hint">Spaced facelets: 6 blocks of {puzzleSize * puzzleSize} (U R F D L B), space-separated.</p>
+        <textarea readonly value={getNotationOutput()} />
+        <button class="btn btn-primary" onClick={() => cube && copyToClipboard(getNotationOutput())}>
           Copy to Clipboard
         </button>
       </aside>

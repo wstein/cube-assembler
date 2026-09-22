@@ -9,8 +9,9 @@ export default defineConfig({
     coverage: {
       provider: "v8",
       reporter: ["text", "json", "html"],
-      // ReScript compiled output, plus client TS modules with dedicated unit tests
-      include: ["lib/**/*.js", "src/client/cubeAssembly.ts"],
+      // ReScript compiled output, plus the client TS modules that now have
+      // dedicated unit tests (test/cubeAssembly.test.ts, test/notationOutput.test.ts)
+      include: ["lib/**/*.js", "src/client/cubeAssembly.ts", "src/client/notationOutput.ts"],
     },
     // Resolve ReScript compiled output from lib/
     alias: {
