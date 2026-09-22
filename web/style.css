@@ -526,6 +526,42 @@ textarea {
   color: var(--color-text-primary);
 }
 
+/* Per-color assigned-sticker counts, so a human reviewer can see at a
+   glance which colors are over/under-represented (and therefore likely
+   mixed up with each other) without counting all N² stickers by eye. */
+.color-stats-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-sm);
+  margin-bottom: var(--spacing-md);
+}
+
+.color-stat-chip {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.2rem 0.5rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-border);
+  font-size: 0.8rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-text-secondary);
+}
+
+.color-stat-chip.mismatch {
+  border-color: var(--color-danger);
+  color: var(--color-danger);
+  font-weight: 600;
+}
+
+.color-stat-swatch {
+  width: 0.7rem;
+  height: 0.7rem;
+  border-radius: 2px;
+  border: 1px solid rgba(0, 0, 0, 0.15);
+  flex-shrink: 0;
+}
+
 .review-progress-dots {
   display: flex;
   gap: var(--spacing-xs);
