@@ -8,7 +8,7 @@ import {
   type ColorDetectionResult, type GridSizeDetection, type FaceCaptureResult, type RGB,
 } from './imageProcessing'
 import { assembleCubeFromFaces, validateFaceColors, createSolvedCube, toCubeIR, solveFaceOrientations } from './cubeAssembly'
-import { toSpacedFacelets, fromSpacedFacelets } from './notationOutput'
+import { toSpacedFacelets, fromSpacedFacelets, toURFFacelets, fromURFFacelets } from './notationOutput'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
@@ -134,6 +134,7 @@ function App() {
   const [captureMessage, setCaptureMessage] = useState('')
   const [manualColorInput, setManualColorInput] = useState('')
   const [showColorInput, setShowColorInput] = useState(false)
+  const [notationFormat, setNotationFormat] = useState<'spaced' | 'urf'>('spaced')
   const [liveDetection, setLiveDetection] = useState<ColorDetectionResult | null>(null)
   const [detectedGridSize, setDetectedGridSize] = useState<GridSizeDetection | null>(null)
   const [showReviewDialog, setShowReviewDialog] = useState(false)
@@ -355,7 +356,7 @@ function App() {
     await updateParityStatus(solved)
   }
 
-  const handleApplySpacedFacelets = async () => {
+  const handleApplyFacelets = async () => {
     if (!manualColorInput.trim()) {
       alert('Please enter facelet data')
       return
@@ -363,9 +364,15 @@ function App() {
 
     setLoading(true)
     try {
-      const newCube = fromSpacedFacelets(manualColorInput.toUpperCase())
+      const newCube = notationFormat === 'spaced'
+        ? fromSpacedFacelets(manualColorInput.toUpperCase())
+        : fromURFFacelets(manualColorInput.toUpperCase().trim())
       if (!newCube) {
-        alert('Invalid facelets. Must be 6 space-separated blocks of equal, perfect-square length (9 for 3×3, 25 for 5×5, ...) using colors W, O, G, R, B, Y, in U R F D L B order.')
+        alert(
+          notationFormat === 'spaced'
+            ? 'Invalid facelets. Must be 6 space-separated blocks of equal, perfect-square length (9 for 3×3, 25 for 5×5, ...) using colors W, O, G, R, B, Y, in U R F D L B order.'
+            : 'Invalid facelets. Must be a single run of 6 equal, perfect-square blocks (54 characters for 3×3, 150 for 5×5, ...) using colors W, O, G, R, B, Y, in U R F D L B order, with no separators.'
+        )
         return
       }
 
@@ -695,7 +702,10 @@ function App() {
   // Render
   // ─────────────────────────────────────────────────────────────────────────
 
-  const getNotationOutput = () => (cube ? toSpacedFacelets(cube) : 'null')
+  const getNotationOutput = () => {
+    if (!cube) return 'null'
+    return notationFormat === 'spaced' ? toSpacedFacelets(cube) : toURFFacelets(cube)
+  }
 
   return (
     <div id="app">
@@ -797,20 +807,38 @@ function App() {
         </div>
         {showColorInput && (
           <div class="color-input-panel">
+            <div class="notation-format-toggle">
+              <button
+                class={`wb-btn ${notationFormat === 'spaced' ? 'active' : ''}`}
+                onClick={() => setNotationFormat('spaced')}
+              >
+                Spaced Facelets
+              </button>
+              <button
+                class={`wb-btn ${notationFormat === 'urf' ? 'active' : ''}`}
+                onClick={() => setNotationFormat('urf')}
+              >
+                URF Facelets
+              </button>
+            </div>
             <label>
-              Enter spaced facelets: 6 blocks of {puzzleSize * puzzleSize} colors (W, O, G, R, B, Y), space-separated, in U R F D L B order
+              {notationFormat === 'spaced'
+                ? `Enter spaced facelets: 6 blocks of ${puzzleSize * puzzleSize} colors (W, O, G, R, B, Y), space-separated, in U R F D L B order`
+                : `Enter URF facelets: ${puzzleSize * puzzleSize * 6} colors (W, O, G, R, B, Y), no separators, in U R F D L B order`}
             </label>
             <textarea
               value={manualColorInput}
               onInput={(e) => setManualColorInput(e.currentTarget.value)}
-              placeholder={Array(6).fill('W'.repeat(puzzleSize * puzzleSize)).join(' ')}
+              placeholder={notationFormat === 'spaced'
+                ? Array(6).fill('W'.repeat(puzzleSize * puzzleSize)).join(' ')
+                : 'W'.repeat(puzzleSize * puzzleSize * 6)}
               rows={6}
               style={{ width: '100%', marginTop: '0.5rem' }}
             />
             <div class="input-actions">
               <button
                 class="btn btn-primary btn-sm"
-                onClick={handleApplySpacedFacelets}
+                onClick={handleApplyFacelets}
                 disabled={loading}
               >
                 {loading ? '⏳ Processing...' : 'Apply Facelets'}
@@ -880,7 +908,25 @@ function App() {
         )}
 
         <h2>Notation Output</h2>
-        <p class="notation-hint">Spaced facelets: 6 blocks of {puzzleSize * puzzleSize} (U R F D L B), space-separated.</p>
+        <div class="notation-format-toggle">
+          <button
+            class={`wb-btn ${notationFormat === 'spaced' ? 'active' : ''}`}
+            onClick={() => setNotationFormat('spaced')}
+          >
+            Spaced Facelets
+          </button>
+          <button
+            class={`wb-btn ${notationFormat === 'urf' ? 'active' : ''}`}
+            onClick={() => setNotationFormat('urf')}
+          >
+            URF Facelets
+          </button>
+        </div>
+        <p class="notation-hint">
+          {notationFormat === 'spaced'
+            ? `Spaced facelets: 6 blocks of ${puzzleSize * puzzleSize} (U R F D L B), space-separated.`
+            : `URF facelets: ${puzzleSize * puzzleSize * 6} characters (U R F D L B), no separators.`}
+        </p>
         <textarea readonly value={getNotationOutput()} />
         <button class="btn btn-primary" onClick={() => cube && copyToClipboard(getNotationOutput())}>
           Copy to Clipboard
