@@ -85,11 +85,11 @@ type faceGrid = {
 }
 
 let makeSolidFace = (~n: int, color: faceletColor): faceGrid => {
-  { n, data: Array.make(n * n, color) }
+  { n, data: Array.make(~length=n * n, color) }
 }
 
 let faceGet = (face: faceGrid, row: int, col: int): faceletColor =>
-  face.data[row * face.n + col]
+  Belt.Array.getExn(face.data, row * face.n + col)
 
 let faceSet = (face: faceGrid, row: int, col: int, color: faceletColor): unit =>
   face.data[row * face.n + col] = color
@@ -105,13 +105,13 @@ let rotateFace = (grid: faceGrid, rotations: int): faceGrid => {
     let n = grid.n
     let current = ref(grid.data)
     for _ in 1 to k {
-      let next = Array.make(n * n, W)
+      let next = Array.make(~length=n * n, W)
       for r in 0 to n - 1 {
         for c in 0 to n - 1 {
-          // 90° CW: new[c][N-1-r] = old[r][c]
           let srcIdx = r * n + c
           let dstIdx = c * n + (n - 1 - r)
-          next[dstIdx] = current.contents[srcIdx]
+          let value = Belt.Array.getExn(current.contents, srcIdx)
+          next[dstIdx] = value
         }
       }
       current := next
@@ -194,12 +194,12 @@ let fromFaceArray = (size: puzzleSize, faces: array<faceGrid>): option<cubeIR> =
   } else {
     Some({
       size,
-      u: faces[0],
-      r: faces[1],
-      f: faces[2],
-      d: faces[3],
-      l: faces[4],
-      b: faces[5],
+      u: Belt.Array.getExn(faces, 0),
+      r: Belt.Array.getExn(faces, 1),
+      f: Belt.Array.getExn(faces, 2),
+      d: Belt.Array.getExn(faces, 3),
+      l: Belt.Array.getExn(faces, 4),
+      b: Belt.Array.getExn(faces, 5),
     })
   }
 }
