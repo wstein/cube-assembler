@@ -13,6 +13,12 @@ export interface RGB {
   b: number
 }
 
+// Fraction of each sticker cell actually sampled, centered — the rest is a
+// dead zone the color/edge detectors ignore. Exported so the UI can draw
+// the same boundary the detector actually uses, instead of implying the
+// whole cell is being read.
+export const SAMPLE_CORE_FRACTION = 0.6
+
 // Standard cube sticker colors (WCA compliant)
 export const STICKER_COLORS: Record<string, RGB> = {
   W: { r: 255, g: 255, b: 255 }, // White
@@ -572,11 +578,16 @@ export function extractCubeFaceColors(
     const rowConfidences: number[] = []
     const rowRGB: RGB[] = []
     for (let col = 0; col < gridSize; col++) {
-      // Extract the center 80% of each cell to avoid edges
-      const cellStartX = Math.round(col * cellWidth + cellWidth * 0.1)
-      const cellStartY = Math.round(row * cellHeight + cellHeight * 0.1)
-      const cellW = Math.round(cellWidth * 0.8)
-      const cellH = Math.round(cellHeight * 0.8)
+      // Sample only the cell's core, ignoring a dead zone around its
+      // border: sticker edges are where gap-line bleed, glare off the
+      // plastic bezel, and slight grid misalignment are most likely to
+      // contaminate the average, so those pixels are excluded rather than
+      // averaged in.
+      const deadZoneMargin = (1 - SAMPLE_CORE_FRACTION) / 2
+      const cellStartX = Math.round(col * cellWidth + cellWidth * deadZoneMargin)
+      const cellStartY = Math.round(row * cellHeight + cellHeight * deadZoneMargin)
+      const cellW = Math.round(cellWidth * SAMPLE_CORE_FRACTION)
+      const cellH = Math.round(cellHeight * SAMPLE_CORE_FRACTION)
 
       let sumR = 0, sumG = 0, sumB = 0, pixelCount = 0
 
