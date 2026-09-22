@@ -146,7 +146,6 @@ function App() {
   // phone camera fed in via some capture setups).
   const [mirrorPreview, setMirrorPreview] = useState(true)
   const [globalWhiteBalanceNote, setGlobalWhiteBalanceNote] = useState<string | null>(null)
-  const [colorStats, setColorStats] = useState<Record<string, number> | null>(null)
   const [reviewStep, setReviewStep] = useState(0)
   const webcamRef = useRef<HTMLVideoElement>(null)
   const sampleCanvasRef = useRef<HTMLCanvasElement | null>(null)
@@ -479,7 +478,6 @@ function App() {
     setWebcamFace(nextFace)
     setCaptureMessage('')
     setGlobalWhiteBalanceNote(null)
-    setColorStats(null)
     setWebcamOpen(true)
   }
 
@@ -524,7 +522,6 @@ function App() {
       setLoading(true)
 
       const canRecalibrate = FACE_ORDER.every((f) => newCapturedFaces[f].croppedImage)
-      if (!canRecalibrate) setColorStats(null)
       if (canRecalibrate) {
         try {
           const images: Record<string, string> = {}
@@ -539,15 +536,12 @@ function App() {
             }
             setCapturedFaces(recalibrated)
             setGlobalWhiteBalanceNote('Colors re-checked by learning each sticker color from all 6 faces together, instead of fixed reference values.')
-            setColorStats(wb.learned?.clusterSizes ?? null)
           } else {
             setGlobalWhiteBalanceNote(null)
-            setColorStats(null)
           }
         } catch (err) {
           console.error('Global white balance error:', err)
           setGlobalWhiteBalanceNote(null)
-          setColorStats(null)
         }
       }
 
@@ -1103,6 +1097,18 @@ function App() {
         const face = FACE_ORDER[reviewStep]
         const data = capturedFaces[face]
         const isLast = reviewStep === FACE_ORDER.length - 1
+        // Recomputed from capturedFaces on every render (not stored state)
+        // so it never goes stale - it has to reflect manual per-sticker
+        // fixes immediately, since seeing the count move is the whole
+        // point of a fix.
+        const liveColorCounts: Record<string, number> = { W: 0, O: 0, G: 0, R: 0, B: 0, Y: 0 }
+        for (const f of FACE_ORDER) {
+          const grid = capturedFaces[f]?.colors
+          if (!grid) continue
+          for (const row of grid) for (const color of row) {
+            if (color in liveColorCounts) liveColorCounts[color]++
+          }
+        }
         return (
           <div class="modal open">
             <div class="modal-content review-modal-content">
@@ -1125,24 +1131,22 @@ function App() {
               {globalWhiteBalanceNote && (
                 <div class="global-wb-note">✓ {globalWhiteBalanceNote}</div>
               )}
-              {colorStats && (
-                <div class="color-stats-row">
-                  {['W', 'O', 'G', 'R', 'B', 'Y'].map((color) => {
-                    const expected = puzzleSize * puzzleSize
-                    const count = colorStats[color] ?? 0
-                    return (
-                      <div
-                        key={color}
-                        class={`color-stat-chip ${count !== expected ? 'mismatch' : ''}`}
-                        title={`${count} of ${expected} expected stickers assigned to this color`}
-                      >
-                        <span class="color-stat-swatch" style={{ background: STICKER_HEX[color] }} />
-                        {count}/{expected}
-                      </div>
-                    )
-                  })}
-                </div>
-              )}
+              <div class="color-stats-row">
+                {['W', 'O', 'G', 'R', 'B', 'Y'].map((color) => {
+                  const expected = puzzleSize * puzzleSize
+                  const count = liveColorCounts[color]
+                  return (
+                    <div
+                      key={color}
+                      class={`color-stat-chip ${count !== expected ? 'mismatch' : ''}`}
+                      title={`${count} of ${expected} expected stickers assigned to this color`}
+                    >
+                      <span class="color-stat-swatch" style={{ background: STICKER_HEX[color] }} />
+                      {count}/{expected}
+                    </div>
+                  )
+                })}
+              </div>
               {data && (
                 <>
                   <div class="review-wizard-panes">
