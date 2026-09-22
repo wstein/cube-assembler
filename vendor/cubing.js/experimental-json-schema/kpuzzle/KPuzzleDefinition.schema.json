@@ -1,0 +1,101 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string"
+    },
+    "orbits": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "orbitName": {
+            "type": "string"
+          },
+          "numPieces": {
+            "type": "number"
+          },
+          "numOrientations": {
+            "type": "number"
+          }
+        },
+        "required": ["orbitName", "numPieces", "numOrientations"],
+        "additionalProperties": false
+      }
+    },
+    "defaultPattern": {
+      "type": "object",
+      "propertyNames": {
+        "type": "string"
+      },
+      "additionalProperties": {
+        "type": "object",
+        "properties": {
+          "pieces": {
+            "type": "array",
+            "items": {
+              "type": "number"
+            }
+          },
+          "orientation": {
+            "type": "array",
+            "items": {
+              "type": "number"
+            }
+          },
+          "orientationMod": {
+            "type": "array",
+            "items": {
+              "type": "number"
+            }
+          }
+        },
+        "required": ["pieces", "orientation"],
+        "additionalProperties": false
+      }
+    },
+    "moves": {
+      "type": "object",
+      "propertyNames": {
+        "type": "string"
+      },
+      "additionalProperties": {
+        "type": "object",
+        "propertyNames": {
+          "type": "string"
+        },
+        "additionalProperties": {
+          "type": "object",
+          "properties": {
+            "permutation": {
+              "type": "array",
+              "items": {
+                "type": "number"
+              }
+            },
+            "orientationDelta": {
+              "type": "array",
+              "items": {
+                "type": "number"
+              }
+            }
+          },
+          "required": ["permutation", "orientationDelta"],
+          "additionalProperties": false
+        }
+      }
+    },
+    "derivedMoves": {
+      "type": "object",
+      "propertyNames": {
+        "type": "string"
+      },
+      "additionalProperties": {
+        "type": "string"
+      }
+    }
+  },
+  "required": ["name", "orbits", "defaultPattern", "moves"],
+  "additionalProperties": false
+}

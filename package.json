@@ -18,7 +18,7 @@
     "lint":       "rescript build 2>&1"
   },
   "dependencies": {
-    "cubing": "^0.63.6",
+    "cubing": "file:./vendor/cubing.js",
     "hono": "^4.5.0",
     "preact": "^10.20.0",
     "preact-router": "^4.1.2"

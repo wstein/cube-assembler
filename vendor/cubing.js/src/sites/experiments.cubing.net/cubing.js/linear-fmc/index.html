@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <meta charset="utf8" />
+  <title>Linear FMC</title>
+  <link href="./index.css" rel="stylesheet" type="text/css" />
+  <script src="./index.js" href="./index.ts" type="module"></script>
+</head>
+
+<body>
+  <div id="controls">
+    <div class="header">
+      <div>
+        <h2>Linear FMC <button id="connect" style="vertical-align: 0.2em;" autofocus>Connect</button></h2>
+        Competitor: <input id="competitor" placeholder="Competitor" style="font-size: 1em">
+        <br>
+        <br>
+        <button id="move-alg-to-scramble" disabled>Done with scramble</button>
+        <button id="start-timer" disabled>Start</button>
+        <button id="stop-timer" disabled>Stop</button>
+        <button id="record-result">Record result</button>
+        <button id="copy-results">Copy</button>
+        <button id="player-pattern-reset" disabled>Reset scramble and alg</button>
+      </div>
+    </div>
+
+    <br>
+    <div class="time-display-wrapper scrambling">
+      <div class="time-display">2:00</div>
+      <div class="time-display moves-display"><span class="obtm">0</span><span
+          style="font-family: Ubuntu; margin-left: 0.4em; font-size: 80%;">moves</span></div>
+      <div class="scrambling-display" style="font-family: Ubuntu; font-size: 4em;">Scrambling…</div>
+    </div>
+
+    <div id="scramble-display" hidden>
+      <h3>Scramble</h3>
+      <twisty-player id="scramble-display-player" visualization="PG3D" control-panel="none" background="none"
+        style="height: 200px" ;></twisty-player>
+      <twisty-alg-viewer for="scramble-display-player"></twisty-alg-viewer>
+    </div>
+
+    <div id="scramble-section" hidden>
+      <h3>Scramble</h3>
+      <div class="scramble-text"></div>
+    </div>
+
+    <h3>Solution (<span class="obtm">0</span> move<span id="moves-plural">s</span> OBTM)</h3>
+    <div id="counting-moves"></div>
+  </div>
+  <div id="player"></div>
+</body>
+
+</html>

@@ -1,0 +1,12 @@
+.tsd-page-toolbar {
+  --color-background-secondary: #4285f4;
+  --color-accent: black;
+}
+
+.tsd-page-toolbar a {
+  --color-text: white;
+}
+
+.tsd-navigation.settings {
+  display: none;
+}

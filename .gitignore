@@ -8,3 +8,9 @@ lib/
 
 # Bun lockfile — using npm as package manager
 bun.lock
+
+# vendored wstein/cubing.js fork: keep src/ + built dist/, drop its own toolchain
+vendor/cubing.js/node_modules/
+!vendor/cubing.js/dist/
+!vendor/cubing.js/dist/**
+!vendor/cubing.js/bun.lock

@@ -1,0 +1,3 @@
+# Old format (may stick around from an old checkout):
+/search-worker-inside-generated*
+/worker-inside-generated*
