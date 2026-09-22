@@ -85,6 +85,7 @@ function App() {
   const [captureMessage, setCaptureMessage] = useState('')
   const [manualColorInput, setManualColorInput] = useState('')
   const [showColorInput, setShowColorInput] = useState(false)
+  const [inputMode, setInputMode] = useState<'colors' | 'facelets'>('colors')
   const webcamRef = useRef<HTMLVideoElement>(null)
 
   // ─────────────────────────────────────────────────────────────────────────
@@ -487,23 +488,40 @@ function App() {
         {showColorInput && (
           <div class="color-input-panel">
             <div class="input-tabs">
-              <button class="input-tab-btn active">Face Colors</button>
-              <button class="input-tab-btn">URF Facelets</button>
+              <button
+                class={`input-tab-btn ${inputMode === 'colors' ? 'active' : ''}`}
+                onClick={() => setInputMode('colors')}
+              >
+                Face Colors
+              </button>
+              <button
+                class={`input-tab-btn ${inputMode === 'facelets' ? 'active' : ''}`}
+                onClick={() => setInputMode('facelets')}
+              >
+                URF Facelets
+              </button>
             </div>
-            <label>Enter colors (e.g., "U W W W W W W W W W")</label>
+            <label>
+              {inputMode === 'colors'
+                ? 'Enter face colors (compact: "U:WWWWWWWWW R:RRRRRRRRR ..." or spaced: "U W W W ...")'
+                : 'Enter 54-character URF facelets string (e.g., "WWWWWWWWWRRRRRRRRR...")'}
+            </label>
             <textarea
               value={manualColorInput}
               onInput={(e) => setManualColorInput(e.currentTarget.value)}
-              placeholder="U W W W W W W W W W&#10;R R R R R R R R R&#10;F G G G G G G G G&#10;D Y Y Y Y Y Y Y Y Y&#10;L O O O O O O O O&#10;B B B B B B B B B"
+              placeholder={inputMode === 'colors'
+                ? 'U:WWWWWWWWW R:RRRRRRRRR F:GGGGGGGGG D:YYYYYYYYY L:OOOOOOOOO B:BBBBBBBBB'
+                : 'WWWWWWWWWRRRRRRRRRGGGGGGGGGYYYYYYYYYYOOOOOOOOOBBBBBBBBBB'}
               rows={6}
               style={{ width: '100%', marginTop: '0.5rem' }}
             />
             <div class="input-actions">
-              <button class="btn btn-primary btn-sm" onClick={handleApplyColorInput} disabled={loading}>
-                {loading ? '⏳ Processing...' : 'Apply Colors'}
-              </button>
-              <button class="btn btn-secondary btn-sm" onClick={handleApplyURFFacelets} disabled={loading}>
-                {loading ? '⏳ Processing...' : 'Apply URF Facelets'}
+              <button
+                class="btn btn-primary btn-sm"
+                onClick={inputMode === 'colors' ? handleApplyColorInput : handleApplyURFFacelets}
+                disabled={loading}
+              >
+                {loading ? '⏳ Processing...' : `Apply ${inputMode === 'colors' ? 'Colors' : 'Facelets'}`}
               </button>
             </div>
           </div>
