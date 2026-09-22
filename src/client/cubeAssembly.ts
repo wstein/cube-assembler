@@ -57,3 +57,41 @@ export function validateFaceColors(colors: string[][]): boolean {
 
   return true
 }
+
+export function createSolvedCube(): CubeState {
+  return {
+    u: Array(9).fill('W'),
+    r: Array(9).fill('R'),
+    f: Array(9).fill('G'),
+    d: Array(9).fill('Y'),
+    l: Array(9).fill('O'),
+    b: Array(9).fill('B'),
+  }
+}
+
+export function parseColorInput(input: string): Record<string, string[][]> | null {
+  const lines = input
+    .split('\n')
+    .map(l => l.trim())
+    .filter(l => l && !l.startsWith('#'))
+
+  const faceData: Record<string, string[][]> = {}
+
+  for (const line of lines) {
+    const [faceName, ...colorChars] = line.split(/[\s:,]+/).filter(s => s)
+
+    if (!['U', 'R', 'F', 'D', 'L', 'B'].includes(faceName)) continue
+    if (colorChars.length !== 9) continue
+
+    const validColors = new Set(['W', 'Y', 'O', 'R', 'G', 'B'])
+    if (!colorChars.every(c => validColors.has(c))) continue
+
+    faceData[faceName] = [
+      [colorChars[0], colorChars[1], colorChars[2]],
+      [colorChars[3], colorChars[4], colorChars[5]],
+      [colorChars[6], colorChars[7], colorChars[8]],
+    ]
+  }
+
+  return Object.keys(faceData).length === 6 ? faceData : null
+}

@@ -106,3 +106,47 @@ export function notationForFormat(cube: CubeState, format: string): string {
       return JSON.stringify(cube, null, 2)
   }
 }
+
+// URF Facelets notation: 54-character string representing cube state
+// Order: U(9) R(9) F(9) D(9) L(9) B(9)
+export function toURFFacelets(cube: CubeState): string {
+  const order = ['U', 'R', 'F', 'D', 'L', 'B']
+  const faceMap: Record<string, string[]> = {
+    U: cube.u,
+    R: cube.r,
+    F: cube.f,
+    D: cube.d,
+    L: cube.l,
+    B: cube.b,
+  }
+
+  let facelets = ''
+  for (const face of order) {
+    facelets += faceMap[face].join('')
+  }
+  return facelets
+}
+
+export function fromURFFacelets(facelets: string): CubeState | null {
+  if (facelets.length !== 54) {
+    console.warn('Invalid URF facelets string: must be 54 characters')
+    return null
+  }
+
+  const validColors = new Set(['W', 'Y', 'O', 'R', 'G', 'B'])
+  for (const char of facelets) {
+    if (!validColors.has(char)) {
+      console.warn(`Invalid color in facelets: ${char}`)
+      return null
+    }
+  }
+
+  return {
+    u: facelets.slice(0, 9).split(''),
+    r: facelets.slice(9, 18).split(''),
+    f: facelets.slice(18, 27).split(''),
+    d: facelets.slice(27, 36).split(''),
+    l: facelets.slice(36, 45).split(''),
+    b: facelets.slice(45, 54).split(''),
+  }
+}

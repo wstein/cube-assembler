@@ -1,8 +1,8 @@
 import { render, h, Fragment } from 'preact'
 import { useState, useEffect, useRef } from 'preact/hooks'
 import { captureAndProcessFace } from './imageProcessing'
-import { assembleCubeFromFaces, validateFaceColors } from './cubeAssembly'
-import { notationForFormat } from './notationOutput'
+import { assembleCubeFromFaces, validateFaceColors, createSolvedCube, parseColorInput } from './cubeAssembly'
+import { notationForFormat, toURFFacelets, fromURFFacelets } from './notationOutput'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
@@ -83,6 +83,8 @@ function App() {
   const [activeTab, setActiveTab] = useState('WRG')
   const [loading, setLoading] = useState(false)
   const [captureMessage, setCaptureMessage] = useState('')
+  const [manualColorInput, setManualColorInput] = useState('')
+  const [showColorInput, setShowColorInput] = useState(false)
   const webcamRef = useRef<HTMLVideoElement>(null)
 
   // ─────────────────────────────────────────────────────────────────────────
@@ -203,6 +205,78 @@ function App() {
 
   const handlePresetAlgorithm = (algo: string) => {
     setAlgorithm(algo)
+  }
+
+  const handleApplySolved = async () => {
+    const solved = createSolvedCube()
+    setCube(solved)
+    setCapturedFaces({
+      U: { colors: [['W','W','W'],['W','W','W'],['W','W','W']], confidence: 1.0, timestamp: Date.now() },
+      R: { colors: [['R','R','R'],['R','R','R'],['R','R','R']], confidence: 1.0, timestamp: Date.now() },
+      F: { colors: [['G','G','G'],['G','G','G'],['G','G','G']], confidence: 1.0, timestamp: Date.now() },
+      D: { colors: [['Y','Y','Y'],['Y','Y','Y'],['Y','Y','Y']], confidence: 1.0, timestamp: Date.now() },
+      L: { colors: [['O','O','O'],['O','O','O'],['O','O','O']], confidence: 1.0, timestamp: Date.now() },
+      B: { colors: [['B','B','B'],['B','B','B'],['B','B','B']], confidence: 1.0, timestamp: Date.now() },
+    })
+    await updateParityStatus(solved)
+  }
+
+  const handleApplyColorInput = async () => {
+    if (!manualColorInput.trim()) {
+      alert('Please enter color data')
+      return
+    }
+
+    setLoading(true)
+    try {
+      const faceData = parseColorInput(manualColorInput)
+      if (!faceData) {
+        alert('Invalid format. Use: U W W W W W W W W W (face name followed by 9 colors)')
+        return
+      }
+
+      const newCube = assembleCubeFromFaces(faceData)
+      setCube(newCube)
+
+      const newCapturedFaces: Record<string, FaceCaptureData> = {}
+      for (const [face, colors] of Object.entries(faceData)) {
+        newCapturedFaces[face] = { colors, confidence: 1.0, timestamp: Date.now() }
+      }
+      setCapturedFaces(newCapturedFaces)
+
+      await updateParityStatus(newCube)
+      setManualColorInput('')
+      setShowColorInput(false)
+    } catch (err) {
+      alert(`Error: ${err instanceof Error ? err.message : 'Unknown error'}`)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleApplyURFFacelets = async () => {
+    if (!manualColorInput.trim()) {
+      alert('Please enter URF facelets string')
+      return
+    }
+
+    setLoading(true)
+    try {
+      const newCube = fromURFFacelets(manualColorInput.toUpperCase())
+      if (!newCube) {
+        alert('Invalid URF facelets. Must be 54 characters (WROGBY colors only)')
+        return
+      }
+
+      setCube(newCube)
+      await updateParityStatus(newCube)
+      setManualColorInput('')
+      setShowColorInput(false)
+    } catch (err) {
+      alert(`Error: ${err instanceof Error ? err.message : 'Unknown error'}`)
+    } finally {
+      setLoading(false)
+    }
   }
 
   // ─────────────────────────────────────────────────────────────────────────
@@ -348,6 +422,7 @@ function App() {
 
   const getTabContent = () => {
     if (!cube) return 'null'
+    if (activeTab === 'Facelets') return toURFFacelets(cube)
     return notationForFormat(cube, activeTab)
   }
 
@@ -385,7 +460,17 @@ function App() {
 
       {/* Face Capture Panel */}
       <section class="face-capture-panel">
-        <h2>Capture Cube Faces</h2>
+        <div class="face-capture-header">
+          <h2>Capture Cube Faces</h2>
+          <div class="face-capture-actions">
+            <button class="btn btn-secondary btn-sm" onClick={handleApplySolved}>
+              Reset to Solved
+            </button>
+            <button class="btn btn-secondary btn-sm" onClick={() => setShowColorInput(!showColorInput)}>
+              {showColorInput ? '✕ Close' : '+ Manual Input'}
+            </button>
+          </div>
+        </div>
         <div class="face-grid">
           {['U', 'R', 'F', 'D', 'L', 'B'].map((face) => (
             <button
@@ -399,6 +484,30 @@ function App() {
             </button>
           ))}
         </div>
+        {showColorInput && (
+          <div class="color-input-panel">
+            <div class="input-tabs">
+              <button class="input-tab-btn active">Face Colors</button>
+              <button class="input-tab-btn">URF Facelets</button>
+            </div>
+            <label>Enter colors (e.g., "U W W W W W W W W W")</label>
+            <textarea
+              value={manualColorInput}
+              onInput={(e) => setManualColorInput(e.currentTarget.value)}
+              placeholder="U W W W W W W W W W&#10;R R R R R R R R R&#10;F G G G G G G G G&#10;D Y Y Y Y Y Y Y Y Y&#10;L O O O O O O O O&#10;B B B B B B B B B"
+              rows={6}
+              style={{ width: '100%', marginTop: '0.5rem' }}
+            />
+            <div class="input-actions">
+              <button class="btn btn-primary btn-sm" onClick={handleApplyColorInput} disabled={loading}>
+                {loading ? '⏳ Processing...' : 'Apply Colors'}
+              </button>
+              <button class="btn btn-secondary btn-sm" onClick={handleApplyURFFacelets} disabled={loading}>
+                {loading ? '⏳ Processing...' : 'Apply URF Facelets'}
+              </button>
+            </div>
+          </div>
+        )}
       </section>
 
       {/* Right Panel: Algorithms & Results */}
@@ -462,7 +571,7 @@ function App() {
 
         <h2>Notation Output</h2>
         <div class="tab-list">
-          {['WRG', 'URF', 'Flat'].map((tab) => (
+          {['WRG', 'URF', 'Flat', 'Facelets'].map((tab) => (
             <button
               key={tab}
               class={`tab-btn ${activeTab === tab ? 'active' : ''}`}
