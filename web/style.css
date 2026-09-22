@@ -468,13 +468,7 @@ textarea {
    ───────────────────────────────────────────────────────────────────────────── */
 
 .review-modal-content {
-  width: min(920px, 92vw);
-}
-
-.review-hint-text {
-  color: var(--color-text-secondary);
-  font-size: 0.875rem;
-  margin-bottom: var(--spacing-md);
+  width: min(820px, 92vw);
 }
 
 .global-wb-note {
@@ -487,33 +481,38 @@ textarea {
   color: var(--color-text-primary);
 }
 
-.review-face-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: var(--spacing-md);
-  margin-bottom: var(--spacing-lg);
+.review-progress-dots {
+  display: flex;
+  gap: var(--spacing-xs);
+  margin-bottom: var(--spacing-md);
 }
 
-@media (max-width: 700px) {
-  .review-face-grid {
-    grid-template-columns: repeat(2, 1fr);
+.review-progress-dots .progress-dot {
+  cursor: pointer;
+}
+
+/* Side-by-side wizard step: a clean, undecorated photo on the left so
+   there's always an unobstructed original to check against, and the
+   detected colors as their own separate interactive grid on the right —
+   not overlaid on the photo. Stacks vertically on narrow screens. */
+.review-wizard-panes {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--spacing-lg);
+  margin-bottom: var(--spacing-md);
+}
+
+@media (max-width: 600px) {
+  .review-wizard-panes {
+    grid-template-columns: 1fr;
   }
 }
 
-.review-face-card {
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-  padding: var(--spacing-sm);
-  background: var(--color-bg-secondary);
-}
-
-.review-face-card-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: var(--spacing-sm);
+.review-pane-label {
+  font-size: 0.8rem;
   font-weight: 600;
-  font-size: 0.9rem;
+  color: var(--color-text-secondary);
+  margin-bottom: var(--spacing-xs);
 }
 
 .review-face-image-wrapper {
@@ -531,52 +530,46 @@ textarea {
   display: block;
 }
 
-.review-face-grid-overlay {
-  position: absolute;
-  inset: 0;
+.review-detected-grid {
   display: grid;
+  gap: 3px;
+  aspect-ratio: 1;
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  background: var(--color-border);
 }
 
-.review-cell {
-  /* Deliberately no background fill: the underlying photo needs to stay
-     clearly visible so a human can compare it against the detected-color
-     indicator, rather than it hiding the very thing it's meant to be
-     checked against (see .review-cell-swatch below). */
-  border: 2px solid rgba(255, 255, 255, 0.7);
+.review-detected-cell {
+  border: 3px solid transparent;
   cursor: pointer;
-  transition: border-color 0.15s, outline 0.15s;
+  transition: transform 0.1s, border-color 0.15s;
   padding: 0;
-  position: relative;
-  background: transparent;
 }
 
-.review-cell:hover {
-  outline: 2px solid #fff;
-  outline-offset: -2px;
+.review-detected-cell:hover {
+  transform: scale(0.94);
 }
 
-/* A diagonal corner wedge (not a full fill, not a tiny dot) — big enough
-   to read at a glance, small enough to leave most of the photo visible. */
-.review-cell-swatch {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 58%;
-  height: 58%;
-  clip-path: polygon(0 0, 100% 0, 0 100%);
-  filter: drop-shadow(1px 1px 2px rgba(0, 0, 0, 0.6));
-}
-
-.review-cell.confidence-high {
+.review-detected-cell.confidence-high {
   border-color: var(--color-success);
 }
 
-.review-cell.confidence-medium {
+.review-detected-cell.confidence-medium {
   border-color: var(--color-warning);
 }
 
-.review-cell.confidence-low {
+.review-detected-cell.confidence-low {
   border-color: var(--color-danger);
+}
+
+.review-wizard-nav {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+}
+
+.review-wizard-nav-spacer {
+  flex: 1;
 }
 
 /* ─────────────────────────────────────────────────────────────────────────────
@@ -650,7 +643,7 @@ textarea {
      the square video was previously sized purely from the dialog's width,
      which could push total content past the viewport with nothing hinting
      that a scrollbar was needed. */
-  max-height: 42vh;
+  max-height: 36vh;
   width: auto;
   margin-inline: auto;
   background: #000;
