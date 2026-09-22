@@ -105,12 +105,16 @@ or imported photos and reconstructs its state:
    pass re-clusters all stickers together (k-means, capacity-constrained
    to the physical invariant of exactly N² stickers per color) and a
    wizard lets you approve or correct each face's detected colors against
-   its photo. Every step of color classification — per-sticker sampling,
-   k-means, and confidence scoring — measures color "closeness" in OKLCH
-   (`rgbToOKLCH` in `imageProcessing.ts`), not raw RGB: separating hue
-   from lightness/chroma matters because canonical Red and Orange sit only
-   127 RGB units apart (entirely on the G channel) but are ~23° apart in
-   hue, a far more reliable signal under real lighting variation.
+   its photo. A per-color count row (e.g. `9/9`, or `12/9` flagged red)
+   shows how many stickers were assigned to each color against the N²
+   expected, so a systematic mixup between two colors is visible at a
+   glance instead of requiring a cell-by-cell count. Every step of color
+   classification — per-sticker sampling, k-means, and confidence scoring
+   — measures color "closeness" in OKLCH (`rgbToOKLCH` in
+   `imageProcessing.ts`), not raw RGB: separating hue from
+   lightness/chroma matters because canonical Red and Orange sit only 127
+   RGB units apart (entirely on the G channel) but are ~23° apart in hue,
+   a far more reliable signal under real lighting variation.
 3. **Orientation solving** — on confirm, `solveFaceOrientations` (in
    `cubeAssembly.ts`) resolves true face identity and each face's
    0°/90°/180°/270° rotation by maximizing valid corner cubies first, edge
