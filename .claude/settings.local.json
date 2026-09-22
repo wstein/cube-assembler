@@ -15,7 +15,10 @@
       "Bash(curl *)",
       "Artifact",
       "Bash(npm install *)",
-      "Bash(pkill -f \"npm run dev\")"
+      "Bash(pkill -f \"npm run dev\")",
+      "Bash(sed -i '67,112d' web/style.css)",
+      "Bash(sed -i '66r /tmp/app-css-fix.css' web/style.css)",
+      "Bash(python3 *)"
     ]
   }
 }
