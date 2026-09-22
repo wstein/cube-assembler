@@ -562,6 +562,15 @@ textarea {
   flex-shrink: 0;
 }
 
+/* The circular-arc hue range actually observed among this color's
+   currently-assigned stickers (see hueCircularRange) - lets you see how
+   close a color's readings are drifting toward a neighboring hue before
+   it actually misclassifies. */
+.color-stat-hue-range {
+  color: var(--color-text-secondary);
+  font-size: 0.7rem;
+}
+
 .review-progress-dots {
   display: flex;
   gap: var(--spacing-xs);
@@ -621,10 +630,22 @@ textarea {
 }
 
 .review-detected-cell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
   border: 3px solid transparent;
   cursor: pointer;
   transition: transform 0.1s, border-color 0.15s;
   padding: 0;
+}
+
+.review-detected-hue {
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: #fff;
+  text-shadow: 0 0 3px rgba(0, 0, 0, 0.9), 0 1px 2px rgba(0, 0, 0, 0.9);
+  font-variant-numeric: tabular-nums;
+  pointer-events: none;
 }
 
 .review-detected-cell:hover {
