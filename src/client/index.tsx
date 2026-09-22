@@ -903,7 +903,11 @@ function App() {
                   <span
                     key={face}
                     class={`progress-dot ${capturedFaces[face] ? 'done' : ''} ${face === webcamFace ? 'current' : ''}`}
-                    title={`Face ${FACE_DISPLAY_LABEL[face]}${capturedFaces[face] ? ' (captured)' : ''}`}
+                    title={`Face ${FACE_DISPLAY_LABEL[face]}${capturedFaces[face] ? ' (captured)' : ''} — click to jump here`}
+                    onClick={() => {
+                      setWebcamFace(face)
+                      setCaptureMessage('')
+                    }}
                   >
                     {FACE_DISPLAY_LABEL[face]}
                   </span>

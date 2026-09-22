@@ -744,6 +744,14 @@ textarea {
   gap: var(--spacing-xs);
 }
 
+.capture-progress-dots .progress-dot {
+  cursor: pointer;
+}
+
+.capture-progress-dots .progress-dot:hover {
+  border-color: var(--color-primary);
+}
+
 .progress-dot {
   display: flex;
   align-items: center;
