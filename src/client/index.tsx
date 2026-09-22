@@ -143,6 +143,7 @@ function App() {
   const [whiteBalanceMode, setWhiteBalanceMode] = useState<'auto' | keyof typeof WHITE_BALANCE_PRESETS>('auto')
   const [autoWhiteBalance, setAutoWhiteBalance] = useState<{ gains: RGB; lightSource: string } | null>(null)
   const [globalWhiteBalanceNote, setGlobalWhiteBalanceNote] = useState<string | null>(null)
+  const [reviewStep, setReviewStep] = useState(0)
   const webcamRef = useRef<HTMLVideoElement>(null)
   const sampleCanvasRef = useRef<HTMLCanvasElement | null>(null)
 
@@ -558,6 +559,7 @@ function App() {
 
       setLoading(false)
       setWebcamOpen(false)
+      setReviewStep(0)
       setShowReviewDialog(true)
     } else {
       const nextFace = FACE_ORDER.find(f => !(f in newCapturedFaces))
@@ -1011,36 +1013,50 @@ function App() {
         </div>
       )}
 
-      {/* Post-Capture Review Dialog */}
-      {showReviewDialog && (
-        <div class="modal open">
-          <div class="modal-content review-modal-content">
-            <div class="modal-header">
-              <h2>Review Captured Faces</h2>
-              <button class="modal-close" onClick={() => setShowReviewDialog(false)}>×</button>
-            </div>
-            <p class="review-hint-text">Tap any sticker below to fix its color if it was misdetected.</p>
-            {globalWhiteBalanceNote && (
-              <div class="global-wb-note">✓ {globalWhiteBalanceNote}</div>
-            )}
-            <div class="review-face-grid">
-              {FACE_ORDER.map((face) => {
-                const data = capturedFaces[face]
-                if (!data) return null
-                return (
-                  <div class="review-face-card" key={face}>
-                    <div class="review-face-card-header">
-                      <span>Face {FACE_DISPLAY_LABEL[face]}</span>
-                      <button class="btn btn-secondary btn-sm" onClick={() => handleRetakeFace(face)}>
-                        Retake
-                      </button>
+      {/* Post-Capture Review Wizard: step through faces one at a time,
+          photo on the left (clean, undecorated) and the detected colors as
+          a separate interactive grid on the right — not overlaid on the
+          photo, so there's always a clear, unobstructed original to check
+          the detection against. */}
+      {showReviewDialog && (() => {
+        const face = FACE_ORDER[reviewStep]
+        const data = capturedFaces[face]
+        const isLast = reviewStep === FACE_ORDER.length - 1
+        return (
+          <div class="modal open">
+            <div class="modal-content review-modal-content">
+              <div class="modal-header">
+                <h2>Approve Face {FACE_DISPLAY_LABEL[face]} of {FACE_ORDER.length}</h2>
+                <button class="modal-close" onClick={() => setShowReviewDialog(false)}>×</button>
+              </div>
+              <div class="review-progress-dots">
+                {FACE_ORDER.map((f, i) => (
+                  <span
+                    key={f}
+                    class={`progress-dot ${i < reviewStep ? 'done' : ''} ${i === reviewStep ? 'current' : ''}`}
+                    onClick={() => setReviewStep(i)}
+                    title={`Face ${FACE_DISPLAY_LABEL[f]}`}
+                  >
+                    {FACE_DISPLAY_LABEL[f]}
+                  </span>
+                ))}
+              </div>
+              {globalWhiteBalanceNote && (
+                <div class="global-wb-note">✓ {globalWhiteBalanceNote}</div>
+              )}
+              {data && (
+                <>
+                  <div class="review-wizard-panes">
+                    <div class="review-pane">
+                      <div class="review-pane-label">Photo</div>
+                      <div class="review-face-image-wrapper">
+                        {data.croppedImage && <img src={data.croppedImage} class="review-face-image" />}
+                      </div>
                     </div>
-                    <div class="review-face-image-wrapper">
-                      {data.croppedImage && (
-                        <img src={data.croppedImage} class="review-face-image" />
-                      )}
+                    <div class="review-pane">
+                      <div class="review-pane-label">Detected — tap a sticker to fix</div>
                       <div
-                        class="review-face-grid-overlay"
+                        class="review-detected-grid"
                         style={{
                           gridTemplateColumns: `repeat(${data.colors.length}, 1fr)`,
                           gridTemplateRows: `repeat(${data.colors.length}, 1fr)`,
@@ -1050,26 +1066,44 @@ function App() {
                           row.map((color, c) => (
                             <button
                               key={`${r}-${c}`}
-                              class={`review-cell confidence-${confidenceTier(data.cellConfidences?.[r]?.[c] ?? 1)}`}
+                              class={`review-detected-cell confidence-${confidenceTier(data.cellConfidences?.[r]?.[c] ?? 1)}`}
+                              style={{ background: STICKER_HEX[color] || '#888' }}
                               onClick={() => setReviewEditingCell({ face, row: r, col: c })}
                               title={`Row ${r + 1}, Col ${c + 1}: ${color} — tap to fix`}
-                            >
-                              <span class="review-cell-swatch" style={{ background: STICKER_HEX[color] || '#888' }} />
-                            </button>
+                            />
                           ))
                         )}
                       </div>
                     </div>
                   </div>
-                )
-              })}
+                  <div class="review-wizard-nav">
+                    <button class="btn btn-secondary btn-sm" onClick={() => handleRetakeFace(face)}>
+                      Retake this face
+                    </button>
+                    <div class="review-wizard-nav-spacer" />
+                    <button
+                      class="btn btn-secondary btn-sm"
+                      onClick={() => setReviewStep((s) => Math.max(0, s - 1))}
+                      disabled={reviewStep === 0}
+                    >
+                      ← Previous
+                    </button>
+                    {isLast ? (
+                      <button class="btn btn-primary" onClick={handleConfirmReview}>
+                        ✓ Confirm & Assemble Cube
+                      </button>
+                    ) : (
+                      <button class="btn btn-primary" onClick={() => setReviewStep((s) => s + 1)}>
+                        Approve & Next →
+                      </button>
+                    )}
+                  </div>
+                </>
+              )}
             </div>
-            <button class="btn btn-primary" onClick={handleConfirmReview}>
-              ✓ Confirm & Assemble Cube
-            </button>
           </div>
-        </div>
-      )}
+        )
+      })()}
 
       {/* Color-fix palette popup */}
       {reviewEditingCell && (
