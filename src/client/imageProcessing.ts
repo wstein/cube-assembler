@@ -1,8 +1,9 @@
 // Image processing utilities for cube face detection and color extraction
 
-interface ColorDetectionResult {
+export interface ColorDetectionResult {
   colors: string[][]
   confidence: number
+  cellConfidences: number[][]
 }
 
 interface RGB {
@@ -98,10 +99,12 @@ export function extractCubeFaceColors(canvas: HTMLCanvasElement): ColorDetection
   const data = imageData.data
 
   const colors: string[][] = []
+  const cellConfidences: number[][] = []
   let totalConfidence = 0
 
   for (let row = 0; row < gridSize; row++) {
     const rowColors: string[] = []
+    const rowConfidences: number[] = []
     for (let col = 0; col < gridSize; col++) {
       // Extract the center 80% of each cell to avoid edges
       const cellStartX = Math.round(col * cellWidth + cellWidth * 0.1)
@@ -134,22 +137,26 @@ export function extractCubeFaceColors(canvas: HTMLCanvasElement): ColorDetection
 
         // Confidence based on color distance (0-1, higher = better match)
         const dist = colorDistance(avgColor, STICKER_COLORS[stickerColor])
-        totalConfidence += Math.max(0, 1 - dist / 200)
+        const cellConfidence = Math.max(0, 1 - dist / 200)
+        rowConfidences.push(cellConfidence)
+        totalConfidence += cellConfidence
       } else {
         rowColors.push('W')
+        rowConfidences.push(0)
       }
     }
     colors.push(rowColors)
+    cellConfidences.push(rowConfidences)
   }
 
   const confidence = Math.min(1, totalConfidence / (gridSize * gridSize))
 
-  return { colors, confidence }
+  return { colors, confidence, cellConfidences }
 }
 
 export function captureAndProcessFace(
   video: HTMLVideoElement
-): { colors: string[][]; confidence: number } {
+): ColorDetectionResult {
   const canvas = document.createElement('canvas')
   canvas.width = video.videoWidth
   canvas.height = video.videoHeight
@@ -165,7 +172,7 @@ export function captureAndProcessFace(
 
 export function captureAndProcessImage(
   img: HTMLImageElement
-): { colors: string[][]; confidence: number } {
+): ColorDetectionResult {
   const canvas = document.createElement('canvas')
   canvas.width = img.naturalWidth
   canvas.height = img.naturalHeight

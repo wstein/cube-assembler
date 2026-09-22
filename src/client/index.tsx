@@ -1,7 +1,7 @@
 import { render, h, Fragment } from 'preact'
 import { useState, useEffect, useRef } from 'preact/hooks'
 import { TwistyPlayer } from 'cubing/twisty'
-import { captureAndProcessFace, captureAndProcessImage } from './imageProcessing'
+import { captureAndProcessFace, captureAndProcessImage, extractCubeFaceColors, type ColorDetectionResult } from './imageProcessing'
 import { assembleCubeFromFaces, validateFaceColors, createSolvedCube, parseColorInput, toCubeIR } from './cubeAssembly'
 import { notationForFormat, toURFFacelets, fromURFFacelets } from './notationOutput'
 
@@ -89,6 +89,14 @@ function extractCubeFromApplyAlgResult(result: any): any {
 
 const FACE_ORDER = ['U', 'R', 'F', 'D', 'L', 'B']
 
+const STICKER_HEX: Record<string, string> = {
+  W: '#ffffff', Y: '#ffd500', O: '#ff8c00', R: '#c41e3a', G: '#009e60', B: '#0051ba',
+}
+
+function confidenceTier(c: number): 'high' | 'medium' | 'low' {
+  return c >= 0.8 ? 'high' : c >= 0.5 ? 'medium' : 'low'
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // App Component
 // ─────────────────────────────────────────────────────────────────────────────
@@ -110,7 +118,9 @@ function App() {
   const [manualColorInput, setManualColorInput] = useState('')
   const [showColorInput, setShowColorInput] = useState(false)
   const [inputMode, setInputMode] = useState<'colors' | 'facelets'>('colors')
+  const [liveDetection, setLiveDetection] = useState<ColorDetectionResult | null>(null)
   const webcamRef = useRef<HTMLVideoElement>(null)
+  const sampleCanvasRef = useRef<HTMLCanvasElement | null>(null)
 
   // ─────────────────────────────────────────────────────────────────────────
   // Webcam Capture
@@ -133,6 +143,40 @@ function App() {
         (webcamRef.current.srcObject as MediaStream).getTracks().forEach((t) => t.stop())
       }
     }
+  }, [webcamOpen])
+
+  // Live sticker-color preview: sample the video feed a few times a second
+  // so the 3x3 grid overlay shows detected colors before the user commits
+  // to a capture, instead of only finding out the result afterward.
+  useEffect(() => {
+    if (!webcamOpen) {
+      setLiveDetection(null)
+      return
+    }
+
+    if (!sampleCanvasRef.current) {
+      sampleCanvasRef.current = document.createElement('canvas')
+    }
+    const canvas = sampleCanvasRef.current
+
+    const intervalId = setInterval(() => {
+      const video = webcamRef.current
+      if (!video || video.videoWidth === 0 || video.videoHeight === 0) return
+
+      canvas.width = video.videoWidth
+      canvas.height = video.videoHeight
+      const ctx = canvas.getContext('2d')
+      if (!ctx) return
+
+      ctx.drawImage(video, 0, 0)
+      try {
+        setLiveDetection(extractCubeFaceColors(canvas))
+      } catch {
+        // Transient frame read failure (e.g. camera still warming up) — skip this tick.
+      }
+    }, 200)
+
+    return () => clearInterval(intervalId)
   }, [webcamOpen])
 
   const twistyPlayerRef = useRef<TwistyPlayer | null>(null)
@@ -723,13 +767,36 @@ function App() {
                 ))}
               </div>
             </div>
-            <video
-              ref={webcamRef}
-              autoplay
-              playsinline
-              class="webcam-feed"
-            />
-            <p>Align cube face in center</p>
+            <div class="capture-video-wrapper">
+              <video
+                ref={webcamRef}
+                autoplay
+                muted
+                playsinline
+                class="webcam-feed"
+              />
+              {liveDetection && (
+                <div class="capture-grid-overlay">
+                  {liveDetection.colors.map((row, r) =>
+                    row.map((color, c) => (
+                      <div
+                        key={`${r}-${c}`}
+                        class={`capture-grid-cell confidence-${confidenceTier(liveDetection.cellConfidences[r][c])}`}
+                      >
+                        <span
+                          class="capture-grid-swatch"
+                          style={{ background: STICKER_HEX[color] || '#888' }}
+                        />
+                      </div>
+                    ))
+                  )}
+                </div>
+              )}
+            </div>
+            <p>
+              Align cube face in center
+              {liveDetection && ` — live confidence: ${(liveDetection.confidence * 100).toFixed(0)}%`}
+            </p>
             {captureMessage && (
               <div class={`capture-message ${captureMessage.includes('✓') ? 'success' : captureMessage.includes('❌') ? 'error' : ''}`}>
                 {captureMessage}
