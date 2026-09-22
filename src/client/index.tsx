@@ -3,9 +3,9 @@ import { useState, useEffect, useRef } from 'preact/hooks'
 import { TwistyPlayer } from 'cubing/twisty'
 import '../../web/style.css'
 import {
-  captureAndProcessFace, captureAndProcessImage, extractCubeFaceColors, detectGridSize,
+  captureAndProcessFace, captureAndProcessImage, extractCubeFaceColors,
   estimateGrayWorldGains, runGlobalWhiteBalance, WHITE_BALANCE_PRESETS, NEUTRAL_GAINS,
-  type ColorDetectionResult, type GridSizeDetection, type FaceCaptureResult, type RGB,
+  type ColorDetectionResult, type FaceCaptureResult, type RGB,
 } from './imageProcessing'
 import { assembleCubeFromFaces, validateFaceColors, createSolvedCube, toCubeIR, solveFaceOrientations } from './cubeAssembly'
 import { toSpacedFacelets, fromSpacedFacelets, toURFFacelets, fromURFFacelets } from './notationOutput'
@@ -136,7 +136,6 @@ function App() {
   const [showColorInput, setShowColorInput] = useState(false)
   const [notationFormat, setNotationFormat] = useState<'spaced' | 'urf'>('spaced')
   const [liveDetection, setLiveDetection] = useState<ColorDetectionResult | null>(null)
-  const [detectedGridSize, setDetectedGridSize] = useState<GridSizeDetection | null>(null)
   const [showReviewDialog, setShowReviewDialog] = useState(false)
   const [reviewEditingCell, setReviewEditingCell] = useState<{ face: string; row: number; col: number } | null>(null)
   const [whiteBalanceMode, setWhiteBalanceMode] = useState<'auto' | keyof typeof WHITE_BALANCE_PRESETS>('auto')
@@ -180,7 +179,6 @@ function App() {
   useEffect(() => {
     if (!webcamOpen) {
       setLiveDetection(null)
-      setDetectedGridSize(null)
       return
     }
 
@@ -217,11 +215,6 @@ function App() {
         setLiveDetection(extractCubeFaceColors(canvas, puzzleSize, gains))
       } catch {
         // Transient frame read failure (e.g. camera still warming up) — skip this tick.
-      }
-      try {
-        setDetectedGridSize(detectGridSize(canvas))
-      } catch {
-        // Same as above — leave the previous detection in place.
       }
     }, 200)
 
@@ -983,6 +976,28 @@ function App() {
                 ))}
               </div>
             </div>
+            <div class="capture-size-row">
+              <span class="capture-size-label">Cube size:</span>
+              <div class="capture-size-buttons">
+                {[2, 3, 4, 5, 6, 7].map((size) => (
+                  <button
+                    key={size}
+                    class={`wb-btn ${puzzleSize === size ? 'active' : ''}`}
+                    onClick={() => {
+                      if (size === puzzleSize) return
+                      if (Object.keys(capturedFaces).length > 0) {
+                        setCapturedFaces({})
+                        setFaceConfidence({})
+                        setWebcamFace(FACE_ORDER[0])
+                      }
+                      setPuzzleSize(size)
+                    }}
+                  >
+                    {size}×{size}
+                  </button>
+                ))}
+              </div>
+            </div>
             <div class="white-balance-row">
               <span class="white-balance-label">White balance:</span>
               <div class="white-balance-buttons">
@@ -1054,27 +1069,6 @@ function App() {
               {' — live confidence: '}
               {liveDetection ? `${(liveDetection.confidence * 100).toFixed(0)}%` : '—'}
             </p>
-            {(() => {
-              const showSizeHint = !!detectedGridSize && detectedGridSize.size !== puzzleSize
-              return (
-                <div class={`grid-size-hint ${showSizeHint ? '' : 'is-empty'}`}>
-                  {showSizeHint && (
-                    <>
-                      <span>
-                        Detected {detectedGridSize!.size}×{detectedGridSize!.size}
-                        {' '}({(detectedGridSize!.confidence * 100).toFixed(0)}% confidence) — currently set to {puzzleSize}×{puzzleSize}
-                      </span>
-                      <button
-                        class="btn btn-secondary btn-sm"
-                        onClick={() => setPuzzleSize(detectedGridSize!.size)}
-                      >
-                        Use {detectedGridSize!.size}×{detectedGridSize!.size}
-                      </button>
-                    </>
-                  )}
-                </div>
-              )
-            })()}
             <div
               class={`capture-message ${captureMessage ? (captureMessage.includes('✓') ? 'success' : captureMessage.includes('❌') ? 'error' : '') : 'is-empty'}`}
             >
