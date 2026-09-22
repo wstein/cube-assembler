@@ -276,6 +276,10 @@ export interface LearnedColors {
   colors: Record<string, RGB>
   clusterSizes: Record<string, number>
   labelsBySampleIndex: string[]
+  // Each sample's distance to its assigned cluster's centroid computed
+  // WITHOUT that sample (leave-one-out), not the ordinary centroid — see
+  // the comment on this function's confidence handling for why.
+  leaveOneOutDistances: number[]
 }
 
 // Learns each of the 6 sticker colors' actual RGB directly from the
@@ -335,7 +339,38 @@ export function learnStickerColors(samples: StickerSample[]): LearnedColors | nu
 
   const labelsBySampleIndex = pointAssignment.map((clusterIdx) => canonicalKeys[permutation[clusterIdx]])
 
-  return { colors, clusterSizes, labelsBySampleIndex }
+  // A sample's distance to the centroid it was assigned to is a biased
+  // confidence signal: the centroid IS the mean of its members, so any
+  // sample — including one the capacity constraint force-assigned to the
+  // "wrong" (but not-yet-full) cluster because its true cluster had
+  // already hit quota — pulls that centroid slightly toward itself,
+  // making itself look closer than it really is. A cluster made up
+  // partly of misclassified points reads as confident about exactly the
+  // points it got wrong. Leave-one-out fixes this: recompute the
+  // centroid excluding the sample being scored, so it can't be flattered
+  // by its own membership.
+  const clusterSums = Array.from({ length: K }, () => ({ r: 0, g: 0, b: 0 }))
+  pointAssignment.forEach((clusterIdx, i) => {
+    clusterSums[clusterIdx].r += points[i].r
+    clusterSums[clusterIdx].g += points[i].g
+    clusterSums[clusterIdx].b += points[i].b
+  })
+  const leaveOneOutDistances = points.map((point, i) => {
+    const clusterIdx = pointAssignment[i]
+    const count = clusterCounts[clusterIdx]
+    // A singleton cluster has no "other members" to average — fall back
+    // to the ordinary (self-inclusive) centroid rather than divide by 0.
+    const centroid: RGB = count > 1
+      ? {
+          r: (clusterSums[clusterIdx].r - point.r) / (count - 1),
+          g: (clusterSums[clusterIdx].g - point.g) / (count - 1),
+          b: (clusterSums[clusterIdx].b - point.b) / (count - 1),
+        }
+      : centroids[clusterIdx]
+    return colorDistance(point, centroid)
+  })
+
+  return { colors, clusterSizes, labelsBySampleIndex, leaveOneOutDistances }
 }
 
 function getDominantColor(imageData: Uint8ClampedArray, start: number, width: number, height: number): RGB {
@@ -824,11 +859,10 @@ export async function runGlobalWhiteBalance(
   const faceTotals: Record<string, { sum: number; count: number }> = {}
   for (const face of Object.keys(baselineFaces)) faceTotals[face] = { sum: 0, count: 0 }
 
-  samples.forEach((sample, i) => {
+  samples.forEach((_, i) => {
     const { face, row, col } = sampleLocations[i]
     const label = learned.labelsBySampleIndex[i]
-    const distance = colorDistance(sample.rgb, learned.colors[label])
-    const cellConfidence = Math.max(0, 1 - distance / 200)
+    const cellConfidence = Math.max(0, 1 - learned.leaveOneOutDistances[i] / 200)
 
     reclassifiedFaces[face].colors[row][col] = label
     reclassifiedFaces[face].cellConfidences[row][col] = cellConfidence
