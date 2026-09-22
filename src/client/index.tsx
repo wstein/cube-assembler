@@ -146,8 +146,8 @@ function App() {
   }, [webcamOpen])
 
   // Live sticker-color preview: sample the video feed a few times a second
-  // so the 3x3 grid overlay shows detected colors before the user commits
-  // to a capture, instead of only finding out the result afterward.
+  // so the grid overlay shows detected colors before the user commits to a
+  // capture, instead of only finding out the result afterward.
   useEffect(() => {
     if (!webcamOpen) {
       setLiveDetection(null)
@@ -170,14 +170,14 @@ function App() {
 
       ctx.drawImage(video, 0, 0)
       try {
-        setLiveDetection(extractCubeFaceColors(canvas))
+        setLiveDetection(extractCubeFaceColors(canvas, puzzleSize))
       } catch {
         // Transient frame read failure (e.g. camera still warming up) — skip this tick.
       }
     }, 200)
 
     return () => clearInterval(intervalId)
-  }, [webcamOpen])
+  }, [webcamOpen, puzzleSize])
 
   const twistyPlayerRef = useRef<TwistyPlayer | null>(null)
 
@@ -293,16 +293,22 @@ function App() {
   }
 
   const handleApplySolved = async () => {
-    const solved = createSolvedCube()
+    const solved = createSolvedCube(puzzleSize)
     setCube(solved)
-    setCapturedFaces({
-      U: { colors: [['W','W','W'],['W','W','W'],['W','W','W']], confidence: 1.0, timestamp: Date.now() },
-      R: { colors: [['R','R','R'],['R','R','R'],['R','R','R']], confidence: 1.0, timestamp: Date.now() },
-      F: { colors: [['G','G','G'],['G','G','G'],['G','G','G']], confidence: 1.0, timestamp: Date.now() },
-      D: { colors: [['Y','Y','Y'],['Y','Y','Y'],['Y','Y','Y']], confidence: 1.0, timestamp: Date.now() },
-      L: { colors: [['O','O','O'],['O','O','O'],['O','O','O']], confidence: 1.0, timestamp: Date.now() },
-      B: { colors: [['B','B','B'],['B','B','B'],['B','B','B']], confidence: 1.0, timestamp: Date.now() },
-    })
+
+    const solvedFaceGrid = (color: string): string[][] =>
+      Array.from({ length: puzzleSize }, () => Array(puzzleSize).fill(color))
+    const solvedColors: Record<string, string> = { U: 'W', R: 'R', F: 'G', D: 'Y', L: 'O', B: 'B' }
+
+    const newCapturedFaces: Record<string, FaceCaptureData> = {}
+    for (const face of FACE_ORDER) {
+      newCapturedFaces[face] = {
+        colors: solvedFaceGrid(solvedColors[face]),
+        confidence: 1.0,
+        timestamp: Date.now(),
+      }
+    }
+    setCapturedFaces(newCapturedFaces)
     await updateParityStatus(solved)
   }
 
@@ -445,7 +451,7 @@ function App() {
     face: string,
     result: { colors: string[][]; confidence: number }
   ) => {
-    if (!validateFaceColors(result.colors)) {
+    if (!validateFaceColors(result.colors, puzzleSize)) {
       setCaptureMessage(`❌ Invalid colors detected. Confidence: ${(result.confidence * 100).toFixed(0)}%`)
       return
     }
@@ -469,7 +475,7 @@ function App() {
       for (const [f, data] of Object.entries(newCapturedFaces)) {
         faceData[f] = (data as FaceCaptureData).colors
       }
-      const cubeState = assembleCubeFromFaces(faceData)
+      const cubeState = assembleCubeFromFaces(faceData, puzzleSize)
       setCube(cubeState)
       await updateParityStatus(cubeState)
       setCaptureMessage('✓ All faces captured! Cube state ready.')
@@ -491,7 +497,7 @@ function App() {
     try {
       setLoading(true)
       setCaptureMessage('Processing image...')
-      const result = captureAndProcessFace(webcamRef.current)
+      const result = captureAndProcessFace(webcamRef.current, puzzleSize)
       await applyFaceCapture(webcamFace, result)
     } catch (err) {
       console.error('Capture error:', err)
@@ -518,7 +524,7 @@ function App() {
           img.onerror = () => reject(new Error('Could not load image file'))
           img.src = url
         })
-        const result = captureAndProcessImage(img)
+        const result = captureAndProcessImage(img, puzzleSize)
         await applyFaceCapture(webcamFace, result)
       } finally {
         URL.revokeObjectURL(url)
@@ -776,7 +782,13 @@ function App() {
                 class="webcam-feed"
               />
               {liveDetection && (
-                <div class="capture-grid-overlay">
+                <div
+                  class="capture-grid-overlay"
+                  style={{
+                    gridTemplateColumns: `repeat(${puzzleSize}, 1fr)`,
+                    gridTemplateRows: `repeat(${puzzleSize}, 1fr)`,
+                  }}
+                >
                   {liveDetection.colors.map((row, r) =>
                     row.map((color, c) => (
                       <div
