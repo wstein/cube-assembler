@@ -1,5 +1,6 @@
 import { render, h, Fragment } from 'preact'
 import { useState, useEffect, useRef } from 'preact/hooks'
+import { TwistyPlayer } from 'cubing/twisty'
 import { captureAndProcessFace } from './imageProcessing'
 import { assembleCubeFromFaces, validateFaceColors, createSolvedCube, parseColorInput, toCubeIR } from './cubeAssembly'
 import { notationForFormat, toURFFacelets, fromURFFacelets } from './notationOutput'
@@ -132,39 +133,47 @@ function App() {
     }
   }, [webcamOpen])
 
+  const twistyPlayerRef = useRef<TwistyPlayer | null>(null)
+
   useEffect(() => {
     const container = document.getElementById('twisty-player-container')
     if (!container) return
 
-    try {
-      const player = document.createElement('twisty-player')
-      player.setAttribute('visualization', 'side-by-side')
-      player.setAttribute('background', 'checkered')
-      player.setAttribute('control-panel', 'bottom-row')
+    const player = new TwistyPlayer({
+      puzzle: `${puzzleSize}x${puzzleSize}x${puzzleSize}` as any,
+      visualization: '3D',
+      background: 'checkered',
+      controlPanel: 'bottom-row',
+      alg: algorithm || '',
+      experimentalSetupAlg: scramble || '',
+    })
 
-      if (cube) {
-        try {
-          const cubeStr = JSON.stringify(cube)
-          player.setAttribute('cube-state', cubeStr)
-        } catch (e) {
-          console.warn('Could not serialize cube state for TwistyPlayer', e)
-        }
-      } else {
-        player.setAttribute('setup-anchor', 'start')
-        player.textContent = `R U R' U' R U R' U'`
-      }
+    container.innerHTML = ''
+    container.appendChild(player)
+    twistyPlayerRef.current = player
 
+    return () => {
+      twistyPlayerRef.current = null
       container.innerHTML = ''
-      container.appendChild(player)
-    } catch (e) {
-      console.warn('TwistyPlayer initialization failed:', e)
-      container.innerHTML = `<div style="padding: 2rem; text-align: center; color: var(--color-text-secondary); background: var(--color-bg-secondary); border-radius: 8px;">
-        <p style="margin: 0;">3D Cube Viewer</p>
-        <p style="margin: 0.5rem 0 0; font-size: 0.9rem;">TwistyPlayer ready</p>
-        ${cube ? `<p style="margin-top: 0.5rem; font-size: 0.85rem;">Puzzle: ${puzzleSize}×${puzzleSize}</p>` : ''}
-      </div>`
     }
-  }, [cube, puzzleSize])
+  }, [puzzleSize])
+
+  // TwistyPlayer visualizes puzzles via move sequences (alg /
+  // experimentalSetupAlg), not arbitrary facelet colors — there's no API to
+  // feed it an assembled cube state directly (that would need a solver to
+  // find an equivalent setup alg). So the viewer reflects the entered
+  // scramble/algorithm rather than the photo-captured/manual cube state.
+  useEffect(() => {
+    if (twistyPlayerRef.current) {
+      twistyPlayerRef.current.experimentalSetupAlg = scramble || ''
+    }
+  }, [scramble])
+
+  useEffect(() => {
+    if (twistyPlayerRef.current) {
+      twistyPlayerRef.current.alg = algorithm || ''
+    }
+  }, [algorithm])
 
   // ─────────────────────────────────────────────────────────────────────────
   // Features: Scramble Generation (#8)
@@ -493,7 +502,6 @@ function App() {
         </div>
         <div class="viewer-canvas">
           <div id="twisty-player-container" style={{ width: '100%', height: '100%' }}></div>
-          {!cube && <div class="placeholder-text">Capture faces to load cube state</div>}
         </div>
       </div>
 

@@ -1,0 +1,42 @@
+{
+  "$schema": "./node_modules/@biomejs/biome/configuration_schema.json",
+  "extends": ["./node_modules/@cubing/dev-config/biome/biome.json"],
+  "files": {
+    "includes": [
+      "**",
+      "!!.temp",
+      "!dist",
+      "!**/*/index.d.ts",
+      "!src/cubing/vendor/mit/cs0x7f/**/*",
+      "!src/cubing/vendor/mpl/twips/**/*.js",
+      "!src/cubing/vendor/mpl/xyzzy/**/*.js",
+      "!src/sites/experiments.cubing.net/cubing.js/rust/wasm/**/*.js",
+      "!src/sites/experiments.cubing.net/cubing.js/rust/wasm/**/*.d.ts",
+      "!vendor",
+      // Exclude HTML files
+      // - https://github.com/biomejs/biome/discussions/9209
+      // - https://github.com/biomejs/biome/discussions/9308
+      "!**/*.html",
+      "!**/*.svg"
+    ]
+  },
+  "linter": {
+    "rules": {
+      "nursery": {
+        "noFloatingPromises": "error"
+      },
+      "complexity": {
+        "useLiteralKeys": "off"
+      },
+      "style": {
+        "noNonNullAssertion": "off",
+        "noUselessElse": "off"
+      },
+      "suspicious": {
+        "noAssignInExpressions": "off",
+        "noExplicitAny": "off"
+      }
+    }
+  },
+  "html": {}
+}

@@ -1,0 +1,196 @@
+@import "../../fonts/ubuntu-cubing-subset.css";
+
+control-pane {
+  grid-area: "control";
+  /* padding: 1em; */
+  font-family: "Ubuntu-cubing-subset", Verdana, Tahoma, sans-serif;
+  background: rgb(255, 245, 235);
+  overflow-x: hidden;
+  overflow-y: auto;
+  transition: opacity 0.5s;
+}
+
+control-pane div.inline {
+  display: inline;
+  font-size: 1.5em;
+}
+
+control-pane section:not(.unpadded) {
+  padding: 1em;
+}
+
+control-pane.loading {
+  opacity: 0.3;
+}
+
+control-pane .title {
+  font-size: 2em;
+  font-weight: bold;
+  white-space: pre;
+}
+
+control-pane h2 {
+  margin: 0;
+  padding: 0.25em 0.5em;
+  --heading-background: 255, 230, 210;
+  background: rgba(var(--heading-background), 1);
+  border-top: 1px solid rgba(0, 0, 0, 0.5);
+}
+
+control-pane .metadata-url {
+  display: grid;
+}
+
+control-pane .move-count-header {
+  display: grid;
+  grid-template-columns: auto 1fr;
+}
+
+.move-count {
+  /* TODO: internationalized layout */
+  text-align: right;
+}
+
+control-pane twisty-alg-editor {
+  width: 100%;
+  --border-color: rgba(0, 0, 0, 0);
+  --font-family: "Ubuntu", Verdana, Tahoma, sans-serif;
+  --font-size: 1.5em;
+  --padding: 0.75em;
+}
+
+control-pane twisty-alg-editor:focus-within {
+  --background: rgb(255, 253, 251);
+}
+
+control-pane twisty-alg-editor:hover {
+  background: white;
+}
+
+control-pane .alg-features p {
+  margin: 0;
+  padding: 0.5em 1em;
+  color: rgba(0, 0, 0, 0.75);
+  border-top: 1px solid rgba(0, 0, 0, 0.5);
+}
+
+control-pane textarea.status-warning {
+  background: rgba(255, 255, 0, 0.2);
+  border: 1px solid rgba(200, 180, 0, 0.5);
+}
+
+control-pane textarea.status-bad {
+  background: rgba(255, 0, 0, 0.2);
+  border: 1px solid rgba(255, 0, 0, 0.5);
+}
+
+control-pane select,
+control-pane button {
+  font-size: 1.5em;
+  background: rgb(255, 245, 235);
+  border: none;
+  padding: 8px;
+}
+
+section#puzzle-settings :first-child {
+  grid-column: 1 / 3;
+}
+
+control-pane select:hover,
+control-pane button:hover,
+control-pane select:focus,
+control-pane button:focus {
+  cursor: pointer;
+  background: white;
+}
+
+control-pane button:active {
+  background: rgb(255, 245, 235);
+}
+
+control-pane input[type="checkbox"] {
+  vertical-align: 5%;
+  margin-right: 0.5em;
+  margin-top: 1em;
+  margin-left: 0em;
+}
+
+button-grid,
+section#puzzle-settings {
+  display: grid;
+  gap: 0.4em;
+  padding: 0 0.4em 0.4em;
+  background: rgba(255, 230, 210, 1);
+  grid-template-columns: repeat(2, 1fr);
+}
+
+button-grid[hidden],
+section#puzzle-settings[hidden] {
+  /* 🤷‍♀️ */
+  display: none;
+}
+
+button-grid button {
+  margin-bottom: 0;
+}
+
+input:disabled + label {
+  opacity: 0.3;
+}
+
+expand-button:hover h2:not(.no-hover-underline),
+expand-button:hover .hover-underline {
+  text-decoration: underline;
+}
+
+expand-button .expand-icon {
+  display: inline-block;
+  width: 0.75em;
+}
+
+expand-button a {
+  text-decoration: none;
+  color: inherit;
+}
+
+#moves-sticky-wrapper {
+  position: sticky;
+  top: 0;
+  background: rgba(255, 245, 235, 0.75);
+  border-bottom: 3px solid rgba(0, 0, 0, 0.5);
+  margin-bottom: -1px;
+  -webkit-backdrop-filter: blur(0.5em);
+  backdrop-filter: blur(0.5em);
+}
+
+twisty-stream-source {
+  width: 100%;
+  height: auto;
+  padding: 2em;
+}
+
+.move-count {
+  color: rgba(0, 0, 0, 0.3);
+  /* biome-ignore lint/complexity/noImportantStyles: TODO */
+  text-decoration: none !important;
+}
+
+/* TODO: dedup with <twizzle-link> */
+.move-count > span:hover:before {
+  background-color: rgba(var(--heading-background), 1);
+  color: black;
+  backdrop-filter: blur(4px);
+  z-index: 100;
+  position: absolute;
+  padding: 0.5em;
+  top: 1.5em;
+  right: 0;
+  content: attr(data-before);
+  white-space: pre-wrap;
+  text-align: left;
+}
+
+.move-count > span:hover {
+  color: black;
+  cursor: help;
+}
