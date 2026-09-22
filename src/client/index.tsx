@@ -1,7 +1,7 @@
 import { render, h, Fragment } from 'preact'
 import { useState, useEffect, useRef } from 'preact/hooks'
 import { TwistyPlayer } from 'cubing/twisty'
-import { captureAndProcessFace, captureAndProcessImage, extractCubeFaceColors, type ColorDetectionResult } from './imageProcessing'
+import { captureAndProcessFace, captureAndProcessImage, extractCubeFaceColors, detectGridSize, type ColorDetectionResult, type GridSizeDetection } from './imageProcessing'
 import { assembleCubeFromFaces, validateFaceColors, createSolvedCube, parseColorInput, toCubeIR } from './cubeAssembly'
 import { notationForFormat, toURFFacelets, fromURFFacelets } from './notationOutput'
 
@@ -119,6 +119,7 @@ function App() {
   const [showColorInput, setShowColorInput] = useState(false)
   const [inputMode, setInputMode] = useState<'colors' | 'facelets'>('colors')
   const [liveDetection, setLiveDetection] = useState<ColorDetectionResult | null>(null)
+  const [detectedGridSize, setDetectedGridSize] = useState<GridSizeDetection | null>(null)
   const webcamRef = useRef<HTMLVideoElement>(null)
   const sampleCanvasRef = useRef<HTMLCanvasElement | null>(null)
 
@@ -151,6 +152,7 @@ function App() {
   useEffect(() => {
     if (!webcamOpen) {
       setLiveDetection(null)
+      setDetectedGridSize(null)
       return
     }
 
@@ -173,6 +175,11 @@ function App() {
         setLiveDetection(extractCubeFaceColors(canvas, puzzleSize))
       } catch {
         // Transient frame read failure (e.g. camera still warming up) — skip this tick.
+      }
+      try {
+        setDetectedGridSize(detectGridSize(canvas))
+      } catch {
+        // Same as above — leave the previous detection in place.
       }
     }, 200)
 
@@ -809,6 +816,20 @@ function App() {
               Align cube face in center
               {liveDetection && ` — live confidence: ${(liveDetection.confidence * 100).toFixed(0)}%`}
             </p>
+            {detectedGridSize && detectedGridSize.size !== puzzleSize && (
+              <div class="grid-size-hint">
+                <span>
+                  Detected {detectedGridSize.size}×{detectedGridSize.size}
+                  {' '}({(detectedGridSize.confidence * 100).toFixed(0)}% confidence) — currently set to {puzzleSize}×{puzzleSize}
+                </span>
+                <button
+                  class="btn btn-secondary btn-sm"
+                  onClick={() => setPuzzleSize(detectedGridSize.size)}
+                >
+                  Use {detectedGridSize.size}×{detectedGridSize.size}
+                </button>
+              </div>
+            )}
             {captureMessage && (
               <div class={`capture-message ${captureMessage.includes('✓') ? 'success' : captureMessage.includes('❌') ? 'error' : ''}`}>
                 {captureMessage}
