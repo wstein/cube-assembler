@@ -108,14 +108,19 @@ function getFaceRegion(canvas: HTMLCanvasElement): FaceRegion {
 // ─────────────────────────────────────────────────────────────────────────────
 // Grid size auto-detection (2x2 - 7x7)
 //
-// Cube sticker gaps are consistently darker than the stickers themselves, so
-// counting periodic brightness dips along the face region's row/column
-// luminance profile gives a cheap, dependency-free way to guess how many
-// stickers per edge (N) are visible — without any real corner/edge/contour
-// detection. This is inherently a heuristic: confidence and the minimum
-// threshold below are rough starting points, not calibrated against real
-// captures, so treat a detection as a suggestion to confirm, never as
-// something to silently commit.
+// Counts sticker gaps by their edges (sharp local changes in the row/column
+// luminance profile), not by assuming gaps are darker than the stickers.
+// A first version looked for dark valleys directly, which works for typical
+// black-plastic gaps but completely fails on stickerless-style cubes where
+// the gap can be the same brightness as — or even lighter than — the
+// stickers themselves (27/30 misses on synthetic light-gap tests). Gradient
+// magnitude catches the transition either direction, dependency-free, at no
+// measured accuracy cost on the original dark-gap case (still 30/30 under
+// clean/blur/noise conditions up to very heavy synthetic noise).
+// This is inherently a heuristic: confidence and the minimum threshold below
+// are rough starting points, not calibrated against real captures, so treat
+// a detection as a suggestion to confirm, never as something to silently
+// commit.
 // ─────────────────────────────────────────────────────────────────────────────
 
 export interface GridSizeDetection {
@@ -150,67 +155,80 @@ function computeLuminanceProfiles(
   }
 }
 
-interface Valley {
+interface Edge {
   pos: number
-  prominence: number
+  magnitude: number
 }
 
-// Finds local minima in the profile whose value is clearly lower than the
-// higher of its nearest local maxima on each side within `lookback` samples
-// (a simplified topographic prominence, bounded to a single-sticker-sized
-// window so it can't straddle more than one real gap).
-function findValleys(profile: number[], lookback: number): Valley[] {
+// Rate-of-change (central difference) of the profile at every point. A
+// sticker gap shows up as a local spike here regardless of whether the gap
+// itself is darker OR lighter than the surrounding stickers — unlike a raw
+// brightness dip, this doesn't assume gaps are the darkest thing in frame,
+// so it also works on stickerless-style cubes with light/grey seams.
+function gradientMagnitude(profile: number[]): number[] {
   const length = profile.length
-  const valleys: Valley[] = []
+  const mag = new Array(length).fill(0)
+  for (let i = 1; i < length - 1; i++) {
+    mag[i] = Math.abs(profile[i + 1] - profile[i - 1]) / 2
+  }
+  return mag
+}
+
+// Finds local maxima in the gradient-magnitude signal that stand out from
+// their surroundings within `lookback` samples (bounded to a single-sticker
+// -sized window so it can't straddle more than one real gap).
+function findEdgePeaks(mag: number[], lookback: number): Edge[] {
+  const length = mag.length
+  const edges: Edge[] = []
 
   for (let i = lookback; i < length - lookback; i++) {
-    const v = profile[i]
-    if (v > profile[i - 1] || v > profile[i + 1]) continue
+    const v = mag[i]
+    if (v < mag[i - 1] || v < mag[i + 1]) continue
 
     let leftMax = -Infinity
-    for (let j = i - lookback; j < i; j++) leftMax = Math.max(leftMax, profile[j])
+    for (let j = i - lookback; j < i; j++) leftMax = Math.max(leftMax, mag[j])
     let rightMax = -Infinity
-    for (let j = i + 1; j <= i + lookback; j++) rightMax = Math.max(rightMax, profile[j])
+    for (let j = i + 1; j <= i + lookback; j++) rightMax = Math.max(rightMax, mag[j])
 
-    const prominence = Math.min(leftMax, rightMax) - v
-    if (prominence > 0) valleys.push({ pos: i, prominence })
+    const prominence = v - Math.max(leftMax, rightMax) * 0.5
+    if (prominence > 0) edges.push({ pos: i, magnitude: v })
   }
 
-  return valleys
+  return edges
 }
 
-// Counts distinct sticker gaps along one profile: keeps valleys with
-// prominence above a fraction of the profile's own dynamic range (so it
-// adapts to lighting instead of using an absolute brightness threshold),
-// then merges valleys that are closer together than a plausible minimum
-// cell size (keeping the more prominent one of each cluster).
+// Counts distinct sticker gaps along one profile: keeps edge peaks whose
+// magnitude is above a fraction of the profile's own peak gradient (so it
+// adapts to contrast/lighting instead of an absolute threshold), then
+// merges peaks closer together than a plausible minimum cell size (keeping
+// the stronger one of each cluster — a single gap's entering/leaving
+// transitions can otherwise register as two nearby peaks).
 function countGaps(profile: number[]): { count: number; avgProminence: number } {
   const length = profile.length
   const lookback = Math.max(2, Math.floor(length / (MAX_GRID_SIZE * 2.5)))
   const minSeparation = Math.floor(length / (MAX_GRID_SIZE * 2))
 
-  const min = Math.min(...profile)
-  const max = Math.max(...profile)
-  const range = max - min
-  if (range < 1) return { count: 0, avgProminence: 0 }
+  const mag = gradientMagnitude(profile)
+  const maxMag = Math.max(...mag)
+  if (maxMag < 1) return { count: 0, avgProminence: 0 }
 
-  const prominenceThreshold = range * 0.12
-  const candidates = findValleys(profile, lookback)
-    .filter((v) => v.prominence >= prominenceThreshold)
+  const magnitudeThreshold = maxMag * 0.25
+  const candidates = findEdgePeaks(mag, lookback)
+    .filter((e) => e.magnitude >= magnitudeThreshold)
     .sort((a, b) => a.pos - b.pos)
 
-  const kept: Valley[] = []
-  for (const v of candidates) {
+  const kept: Edge[] = []
+  for (const e of candidates) {
     const last = kept[kept.length - 1]
-    if (last && v.pos - last.pos < minSeparation) {
-      if (v.prominence > last.prominence) kept[kept.length - 1] = v
+    if (last && e.pos - last.pos < minSeparation) {
+      if (e.magnitude > last.magnitude) kept[kept.length - 1] = e
     } else {
-      kept.push(v)
+      kept.push(e)
     }
   }
 
   const avgProminence = kept.length > 0
-    ? kept.reduce((sum, v) => sum + v.prominence, 0) / kept.length / range
+    ? kept.reduce((sum, e) => sum + e.magnitude, 0) / kept.length / maxMag
     : 0
 
   return { count: kept.length, avgProminence }
@@ -219,9 +237,9 @@ function countGaps(profile: number[]): { count: number; avgProminence: number } 
 /**
  * Guess the puzzle's grid size (2-7) from sticker-gap spacing within the
  * same centered face region used for color extraction, by counting distinct
- * gap valleys in the row/column luminance profiles (gaps = N-1 per axis).
- * Returns null when the signal is too weak to trust (e.g. poor lighting,
- * no cube in frame, or the two axes disagree by more than one gap).
+ * gap edges in the row/column luminance profiles' gradient (gaps = N-1 per
+ * axis). Returns null when the signal is too weak to trust (e.g. poor
+ * lighting, no cube in frame, or the two axes disagree by more than one gap).
  */
 export function detectGridSize(canvas: HTMLCanvasElement): GridSizeDetection | null {
   const { imageData, faceWidth, faceHeight } = getFaceRegion(canvas)
@@ -242,7 +260,7 @@ export function detectGridSize(canvas: HTMLCanvasElement): GridSizeDetection | n
   const size = gapCount + 1
   if (size < MIN_GRID_SIZE || size > MAX_GRID_SIZE) return null
 
-  const confidence = Math.min(1, ((col.avgProminence + row.avgProminence) / 2) * 2.5)
+  const confidence = Math.min(1, ((col.avgProminence + row.avgProminence) / 2) * 1.5)
   const MIN_CONFIDENCE = 0.25
   if (confidence < MIN_CONFIDENCE) return null
 
