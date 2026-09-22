@@ -2,7 +2,11 @@ import { render, h, Fragment } from 'preact'
 import { useState, useEffect, useRef } from 'preact/hooks'
 import { TwistyPlayer } from 'cubing/twisty'
 import '../../web/style.css'
-import { captureAndProcessFace, captureAndProcessImage, extractCubeFaceColors, detectGridSize, type ColorDetectionResult, type GridSizeDetection, type FaceCaptureResult } from './imageProcessing'
+import {
+  captureAndProcessFace, captureAndProcessImage, extractCubeFaceColors, detectGridSize,
+  estimateGrayWorldGains, runGlobalWhiteBalance, WHITE_BALANCE_PRESETS, NEUTRAL_GAINS,
+  type ColorDetectionResult, type GridSizeDetection, type FaceCaptureResult, type RGB,
+} from './imageProcessing'
 import { assembleCubeFromFaces, validateFaceColors, createSolvedCube, parseColorInput, toCubeIR } from './cubeAssembly'
 import { notationForFormat, toURFFacelets, fromURFFacelets } from './notationOutput'
 
@@ -19,6 +23,7 @@ interface CubeState {
 interface FaceCaptureData {
   colors: string[][]
   cellConfidences?: number[][]
+  cellColors?: RGB[][]
   confidence: number
   croppedImage?: string
   timestamp: number
@@ -135,6 +140,9 @@ function App() {
   const [detectedGridSize, setDetectedGridSize] = useState<GridSizeDetection | null>(null)
   const [showReviewDialog, setShowReviewDialog] = useState(false)
   const [reviewEditingCell, setReviewEditingCell] = useState<{ face: string; row: number; col: number } | null>(null)
+  const [whiteBalanceMode, setWhiteBalanceMode] = useState<'auto' | keyof typeof WHITE_BALANCE_PRESETS>('auto')
+  const [autoWhiteBalance, setAutoWhiteBalance] = useState<{ gains: RGB; lightSource: string } | null>(null)
+  const [globalWhiteBalanceNote, setGlobalWhiteBalanceNote] = useState<string | null>(null)
   const webcamRef = useRef<HTMLVideoElement>(null)
   const sampleCanvasRef = useRef<HTMLCanvasElement | null>(null)
 
@@ -186,8 +194,22 @@ function App() {
       if (!ctx) return
 
       ctx.drawImage(video, 0, 0)
+
+      let gains = NEUTRAL_GAINS
+      if (whiteBalanceMode === 'auto') {
+        try {
+          const estimate = estimateGrayWorldGains(canvas)
+          setAutoWhiteBalance(estimate)
+          if (estimate) gains = estimate.gains
+        } catch {
+          // Leave the previous auto estimate in place on a transient failure.
+        }
+      } else {
+        gains = WHITE_BALANCE_PRESETS[whiteBalanceMode]
+      }
+
       try {
-        setLiveDetection(extractCubeFaceColors(canvas, puzzleSize))
+        setLiveDetection(extractCubeFaceColors(canvas, puzzleSize, gains))
       } catch {
         // Transient frame read failure (e.g. camera still warming up) — skip this tick.
       }
@@ -199,7 +221,7 @@ function App() {
     }, 200)
 
     return () => clearInterval(intervalId)
-  }, [webcamOpen, puzzleSize])
+  }, [webcamOpen, puzzleSize, whiteBalanceMode])
 
   const twistyPlayerRef = useRef<TwistyPlayer | null>(null)
 
@@ -466,6 +488,7 @@ function App() {
     const nextFace = FACE_ORDER.find((f) => !(f in capturedFaces)) || FACE_ORDER[0]
     setWebcamFace(nextFace)
     setCaptureMessage('')
+    setGlobalWhiteBalanceNote(null)
     setWebcamOpen(true)
   }
 
@@ -475,7 +498,13 @@ function App() {
   // uncaptured face so the user doesn't have to close/reopen it per face.
   const applyFaceCapture = async (
     face: string,
-    result: { colors: string[][]; confidence: number; cellConfidences?: number[][]; croppedImage?: string }
+    result: {
+      colors: string[][]
+      confidence: number
+      cellConfidences?: number[][]
+      cellColors?: RGB[][]
+      croppedImage?: string
+    }
   ) => {
     if (!validateFaceColors(result.colors, puzzleSize)) {
       setCaptureMessage(`❌ Invalid colors detected. Confidence: ${(result.confidence * 100).toFixed(0)}%`)
@@ -487,6 +516,7 @@ function App() {
       [face]: {
         colors: result.colors,
         cellConfidences: result.cellConfidences,
+        cellColors: result.cellColors,
         confidence: result.confidence,
         croppedImage: result.croppedImage,
         timestamp: Date.now(),
@@ -499,11 +529,36 @@ function App() {
 
     const allFacesCaptured = FACE_ORDER.every(f => f in newCapturedFaces)
     if (allFacesCaptured) {
-      setCaptureMessage('✓ All faces captured! Review colors before finishing.')
-      setTimeout(() => {
-        setWebcamOpen(false)
-        setShowReviewDialog(true)
-      }, 900)
+      setCaptureMessage('✓ All faces captured! Checking white balance across all stickers...')
+      setLoading(true)
+
+      const canRecalibrate = FACE_ORDER.every((f) => newCapturedFaces[f].croppedImage)
+      if (canRecalibrate) {
+        try {
+          const images: Record<string, string> = {}
+          for (const f of FACE_ORDER) images[f] = newCapturedFaces[f].croppedImage!
+
+          const wb = await runGlobalWhiteBalance(images, puzzleSize)
+          if (wb.applied) {
+            const recalibrated = { ...newCapturedFaces }
+            for (const f of FACE_ORDER) {
+              const det = wb.faces[f]
+              recalibrated[f] = { ...recalibrated[f], colors: det.colors, cellConfidences: det.cellConfidences, cellColors: det.cellColors, confidence: det.confidence }
+            }
+            setCapturedFaces(recalibrated)
+            setGlobalWhiteBalanceNote('Colors re-checked by learning each sticker color from all 6 faces together, instead of fixed reference values.')
+          } else {
+            setGlobalWhiteBalanceNote(null)
+          }
+        } catch (err) {
+          console.error('Global white balance error:', err)
+          setGlobalWhiteBalanceNote(null)
+        }
+      }
+
+      setLoading(false)
+      setWebcamOpen(false)
+      setShowReviewDialog(true)
     } else {
       const nextFace = FACE_ORDER.find(f => !(f in newCapturedFaces))
       if (nextFace) {
@@ -556,13 +611,21 @@ function App() {
     setShowReviewDialog(false)
   }
 
+  // The gain the user has actually chosen right now — live auto-estimate
+  // when in Auto mode (falls back to neutral if no estimate exists yet,
+  // e.g. camera still warming up), or a fixed preset otherwise.
+  const getCurrentGains = (): RGB =>
+    whiteBalanceMode === 'auto'
+      ? autoWhiteBalance?.gains ?? NEUTRAL_GAINS
+      : WHITE_BALANCE_PRESETS[whiteBalanceMode]
+
   const handleCapturePhoto = async () => {
     if (!webcamRef.current) return
 
     try {
       setLoading(true)
       setCaptureMessage('Processing image...')
-      const result = captureAndProcessFace(webcamRef.current, puzzleSize)
+      const result = captureAndProcessFace(webcamRef.current, puzzleSize, getCurrentGains())
       await applyFaceCapture(webcamFace, result)
     } catch (err) {
       console.error('Capture error:', err)
@@ -589,7 +652,7 @@ function App() {
           img.onerror = () => reject(new Error('Could not load image file'))
           img.src = url
         })
-        const result = captureAndProcessImage(img, puzzleSize)
+        const result = captureAndProcessImage(img, puzzleSize, getCurrentGains())
         await applyFaceCapture(webcamFace, result)
       } finally {
         URL.revokeObjectURL(url)
@@ -845,6 +908,25 @@ function App() {
                 ))}
               </div>
             </div>
+            <div class="white-balance-row">
+              <span class="white-balance-label">White balance:</span>
+              <div class="white-balance-buttons">
+                {(['auto', 'daylight', 'cloudy', 'tungsten', 'fluorescent'] as const).map((mode) => (
+                  <button
+                    key={mode}
+                    class={`wb-btn ${whiteBalanceMode === mode ? 'active' : ''}`}
+                    onClick={() => setWhiteBalanceMode(mode)}
+                  >
+                    {mode === 'auto' ? 'Auto' : mode[0].toUpperCase() + mode.slice(1)}
+                  </button>
+                ))}
+              </div>
+              {whiteBalanceMode === 'auto' && (
+                <span class="white-balance-detected">
+                  {autoWhiteBalance ? `Detected: ${autoWhiteBalance.lightSource}` : 'Detecting light source…'}
+                </span>
+              )}
+            </div>
             <div class="capture-video-wrapper">
               <video
                 ref={webcamRef}
@@ -938,6 +1020,9 @@ function App() {
               <button class="modal-close" onClick={() => setShowReviewDialog(false)}>×</button>
             </div>
             <p class="review-hint-text">Tap any sticker below to fix its color if it was misdetected.</p>
+            {globalWhiteBalanceNote && (
+              <div class="global-wb-note">✓ {globalWhiteBalanceNote}</div>
+            )}
             <div class="review-face-grid">
               {FACE_ORDER.map((face) => {
                 const data = capturedFaces[face]

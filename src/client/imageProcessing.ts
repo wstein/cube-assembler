@@ -86,8 +86,8 @@ export interface LightSourceEstimate {
 // so it's a coarse approximation, not a true illuminant measurement — it
 // has no way to know the cube's stickers aren't gray to begin with. Good
 // enough to suggest a light-source label and a starting-point correction;
-// the post-capture sticker-based recalibration (computeGlobalWhiteBalanceGains)
-// is what actually uses knowledge of the cube's real colors.
+// the post-capture sticker-based recalibration (learnStickerColors) is
+// what actually uses knowledge of the cube's real colors.
 export function estimateGrayWorldGains(canvas: HTMLCanvasElement): LightSourceEstimate | null {
   const { imageData, faceWidth, faceHeight } = getFaceRegion(canvas)
   if (faceWidth < 20 || faceHeight < 20) return null
@@ -146,18 +146,32 @@ export interface StickerSample {
 // picking k evenly-spaced ones, rather than random init, so results are
 // reproducible for the same capture.
 function kMeansCluster(points: RGB[], k: number, iterations = 20): RGB[] {
-  const channels: Array<keyof RGB> = ['r', 'g', 'b']
-  let spreadCh: keyof RGB = 'r'
-  let maxSpread = -1
-  for (const ch of channels) {
-    const vals = points.map((p) => p[ch])
-    const spread = Math.max(...vals) - Math.min(...vals)
-    if (spread > maxSpread) { maxSpread = spread; spreadCh = ch }
+  // Deterministic farthest-point seeding: start from the first point, then
+  // repeatedly add whichever remaining point has the largest distance to
+  // its NEAREST already-chosen centroid. This reliably spreads initial
+  // centroids across distinct clusters even when real colors are
+  // well-separated corners of RGB space.
+  //
+  // A first version seeded by sorting all points along whichever single
+  // channel had the widest spread and picking k evenly-spaced points from
+  // that order. That silently breaks when two different colors tie on
+  // that one axis: green (0,128,0) and blue (0,0,255) both have r=0, so
+  // sorting by r leaves them adjacent regardless of how different they
+  // actually are — confirmed by testing on a perfectly clean (zero-noise,
+  // zero-cast) synthetic capture, which should trivially cluster into 6
+  // exact corners but instead produced two 0-member clusters and one
+  // 26-member cluster the axis-sort seeding couldn't recover from.
+  let centroids: RGB[] = points.length > 0 ? [points[0]] : []
+  while (centroids.length < k && centroids.length < points.length) {
+    let farthest = points[0]
+    let farthestMinDist = -1
+    for (const p of points) {
+      let minDist = Infinity
+      for (const c of centroids) minDist = Math.min(minDist, colorDistance(p, c))
+      if (minDist > farthestMinDist) { farthestMinDist = minDist; farthest = p }
+    }
+    centroids.push(farthest)
   }
-  const sorted = [...points].sort((a, b) => a[spreadCh] - b[spreadCh])
-  let centroids = Array.from({ length: k }, (_, i) =>
-    sorted[Math.floor((i + 0.5) * sorted.length / k)]
-  )
 
   for (let iter = 0; iter < iterations; iter++) {
     const sums = Array.from({ length: k }, () => ({ r: 0, g: 0, b: 0, count: 0 }))
@@ -208,27 +222,37 @@ function bestPermutationMatch(centroids: RGB[], canonical: RGB[]): number[] {
   return bestAssignment
 }
 
-// Solves for the per-channel gain that best maps observed sticker colors
-// onto the canonical WCA palette, using ALL captured stickers (typically
-// all 54 across 6 faces) as calibration data — a global correction, not a
-// per-sticker fix: if every "white" sticker across the whole cube reads
-// slightly blue, that's much stronger evidence of a lighting cast than any
-// single sticker's isolated reading.
+export interface LearnedColors {
+  colors: Record<string, RGB>
+  clusterSizes: Record<string, number>
+}
+
+// Learns each of the 6 sticker colors' actual RGB directly from the
+// capture itself, using ALL captured stickers (typically all 54 across 6
+// faces) as calibration data, instead of assuming the hardcoded WCA
+// reference swatches (STICKER_COLORS) are what the camera+lighting
+// actually produced. Every sticker is then classified against these
+// learned colors (classifyByLearnedColors), not the hardcoded ones — the
+// hardcoded palette is used here only to LABEL which cluster is which
+// color name, never as the classification target itself.
 //
-// Deliberately does NOT trust each sample's already-guessed colorGuess for
-// grouping: under a strong enough cast, that guess can itself be wrong
-// (e.g. a cast-shifted white sticker nearest-neighbor-matches yellow), and
-// grouping by a wrong guess computes a gain that fits the WRONG target —
-// confirmed by testing, where doing exactly that pushed the wrong-direction
-// gain to 0.5 on a channel that needed roughly 4x correction. Instead this
-// clusters the raw RGB samples into 6 groups (k-means, unsupervised — no
-// canonical colors involved yet), then finds the single best overall
-// pairing of the 6 cluster centroids to the 6 canonical colors (brute-force
-// over all 6! pairings). Clustering only needs the 6 real sticker colors to
-// stay visually distinguishable from each other under the cast, not close
-// to their "true" position — a much weaker assumption than trusting
-// nearest-canonical-color classification.
-export function computeGlobalWhiteBalanceGains(samples: StickerSample[]): RGB | null {
+// An earlier version of this instead solved for a global per-channel gain
+// (observed * gain ~= canonical) and reclassified against the still-fixed
+// canonical palette. Dropped after testing surfaced two real failure
+// modes: (1) grouping samples by their own nearest-canonical-color guess
+// is self-poisoning under a strong enough cast (the guess is already
+// wrong, so the gain gets fit to the wrong target — one test pushed a
+// channel's gain to 0.5 when ~4x was needed, backwards); and (2) even
+// after fixing that with clustering, a color with very few captured
+// stickers produces a poorly-constrained, sometimes wildly wrong gain for
+// the channel that mostly distinguishes it (observed b=2.56x on a capture
+// with no real color cast at all, because only 2 of 54 stickers happened
+// to land in the white/blue clusters that channel depends on). Learning
+// the colors directly sidesteps both: there is no reference-target
+// mismatch to poison, and no gain to overshoot — each cluster centroid IS
+// the learned color, so a sparse cluster just means a less-precise learned
+// color, not a runaway correction applied to everything.
+export function learnStickerColors(samples: StickerSample[]): LearnedColors | null {
   const points = samples.map((s) => s.rgb)
   const K = 6
   if (points.length < K) return null
@@ -238,10 +262,7 @@ export function computeGlobalWhiteBalanceGains(samples: StickerSample[]): RGB | 
   const canonicalList = canonicalKeys.map((k) => STICKER_COLORS[k])
   const assignment = bestPermutationMatch(centroids, canonicalList)
 
-  // Re-assign every individual sample to its nearest FINAL centroid (not
-  // its original, possibly-wrong, colorGuess) to get per-category weights
-  // for the regression below.
-  const byCanonicalIndex: RGB[][] = canonicalList.map(() => [])
+  const clusterCounts = new Array(K).fill(0)
   for (const p of points) {
     let best = 0
     let bestDist = Infinity
@@ -249,31 +270,28 @@ export function computeGlobalWhiteBalanceGains(samples: StickerSample[]): RGB | 
       const d = colorDistance(p, centroids[i])
       if (d < bestDist) { bestDist = d; best = i }
     }
-    byCanonicalIndex[assignment[best]].push(p)
+    clusterCounts[best]++
   }
 
-  const channels: Array<keyof RGB> = ['r', 'g', 'b']
-  const gains = {} as RGB
-
-  for (const ch of channels) {
-    let num = 0
-    let den = 0
-    for (let ci = 0; ci < K; ci++) {
-      const rgbs = byCanonicalIndex[ci]
-      if (rgbs.length === 0) continue
-      const observedAvg = rgbs.reduce((sum, c) => sum + c[ch], 0) / rgbs.length
-      const canonical = canonicalList[ci][ch]
-      const weight = rgbs.length
-      num += weight * canonical * observedAvg
-      den += weight * observedAvg * observedAvg
-    }
-    gains[ch] = den > 1 ? num / den : 1
+  const colors: Record<string, RGB> = {}
+  const clusterSizes: Record<string, number> = {}
+  for (let i = 0; i < K; i++) {
+    const name = canonicalKeys[assignment[i]]
+    colors[name] = centroids[i]
+    clusterSizes[name] = clusterCounts[i]
   }
 
-  // A fit driven by very few samples or an unlucky color mix shouldn't be
-  // allowed to swing colors wildly.
-  const clampGain = (g: number) => Math.max(0.3, Math.min(4, g))
-  return { r: clampGain(gains.r), g: clampGain(gains.g), b: clampGain(gains.b) }
+  return { colors, clusterSizes }
+}
+
+function classifyByLearnedColors(rgb: RGB, learned: Record<string, RGB>): { color: string; distance: number } {
+  let closest = 'W'
+  let minDist = Infinity
+  for (const [color, ref] of Object.entries(learned)) {
+    const dist = colorDistance(rgb, ref)
+    if (dist < minDist) { minDist = dist; closest = color }
+  }
+  return { color: closest, distance: minDist }
 }
 
 function getDominantColor(imageData: Uint8ClampedArray, start: number, width: number, height: number): RGB {
@@ -698,55 +716,35 @@ export async function redetectFaceColors(
   return extractCubeFaceColors(padded, gridSize, gains)
 }
 
-// Sum of squared deviations from a perfectly uniform 6-color split across
-// all captured stickers. A real cube (any state, not just solved) has
-// exactly N^2 stickers of each of the 6 colors — a strong, free validation
-// signal for "did this correction actually help," independent of and more
-// reliable than classifier confidence: testing found cases where an
-// overly-aggressive gain correction, applied to a capture that had no real
-// problem, INCREASED average confidence while introducing brand-new
-// misclassifications the uncorrected capture didn't have. Confidence only
-// measures "how close is this reading to its nearest canonical color," not
-// whether that's the right color; histogram balance catches the difference.
-function colorHistogramImbalance(faces: Record<string, ColorDetectionResult>): number {
-  const counts: Record<string, number> = { W: 0, Y: 0, O: 0, R: 0, G: 0, B: 0 }
-  let total = 0
-  for (const det of Object.values(faces)) {
-    for (const row of det.colors) {
-      for (const c of row) {
-        counts[c] = (counts[c] ?? 0) + 1
-        total++
-      }
-    }
-  }
-  const expected = total / 6
-  let sumSqDev = 0
-  for (const c of Object.keys(counts)) sumSqDev += (counts[c] - expected) ** 2
-  return sumSqDev
-}
-
-export interface GlobalWhiteBalanceResult {
-  gains: RGB | null
+export interface LearnedColorClassificationResult {
+  learned: LearnedColors | null
   applied: boolean
   faces: Record<string, ColorDetectionResult>
 }
 
 /**
- * Runs the full post-capture recalibration pass: computes a global gain
- * correction from all captured faces' stickers (computeGlobalWhiteBalanceGains),
- * redetects every face with it applied, and only keeps the corrected result
- * if it actually brings the overall color histogram closer to the uniform
- * 1/6-per-color split every valid cube must have — otherwise falls back to
- * the original (uncorrected) detections untouched. `applied` tells the
- * caller which happened, so the UI can say so.
+ * Runs the full post-capture recalibration pass: redetects every face's
+ * stored snapshot from scratch with neutral gains (ignoring whatever WB
+ * preset/auto-estimate was live-applied during capture — that was only
+ * ever a capture-time aid for the user, not something this pass should
+ * inherit), learns each color's actual RGB from all 6 faces' stickers
+ * together (learnStickerColors), then reclassifies every sticker against
+ * those learned colors instead of the hardcoded canonical palette —
+ * relabeling only, no re-extraction, since the raw per-cell RGB doesn't
+ * change. Falls back to the neutral-gain/hardcoded-palette baseline
+ * (`applied: false`) if there aren't enough stickers to cluster reliably.
  */
 export async function runGlobalWhiteBalance(
   faceCroppedImages: Record<string, string>,
-  gridSize: number,
-  uncorrectedFaces: Record<string, ColorDetectionResult>
-): Promise<GlobalWhiteBalanceResult> {
+  gridSize: number
+): Promise<LearnedColorClassificationResult> {
+  const baselineFaces: Record<string, ColorDetectionResult> = {}
+  for (const [face, dataUrl] of Object.entries(faceCroppedImages)) {
+    baselineFaces[face] = await redetectFaceColors(dataUrl, gridSize, NEUTRAL_GAINS)
+  }
+
   const samples: StickerSample[] = []
-  for (const det of Object.values(uncorrectedFaces)) {
+  for (const det of Object.values(baselineFaces)) {
     for (let r = 0; r < det.colors.length; r++) {
       for (let c = 0; c < det.colors[r].length; c++) {
         samples.push({ rgb: det.cellColors[r][c], colorGuess: det.colors[r][c] })
@@ -754,16 +752,38 @@ export async function runGlobalWhiteBalance(
     }
   }
 
-  const gains = computeGlobalWhiteBalanceGains(samples)
-  if (!gains) return { gains: null, applied: false, faces: uncorrectedFaces }
+  const learned = learnStickerColors(samples)
+  if (!learned) return { learned: null, applied: false, faces: baselineFaces }
 
-  const correctedFaces: Record<string, ColorDetectionResult> = {}
-  for (const [face, dataUrl] of Object.entries(faceCroppedImages)) {
-    correctedFaces[face] = await redetectFaceColors(dataUrl, gridSize, gains)
+  const reclassifiedFaces: Record<string, ColorDetectionResult> = {}
+  for (const [face, det] of Object.entries(baselineFaces)) {
+    const colors: string[][] = []
+    const cellConfidences: number[][] = []
+    let totalConfidence = 0
+    let cellCount = 0
+
+    for (const row of det.cellColors) {
+      const rowColors: string[] = []
+      const rowConfidences: number[] = []
+      for (const rgb of row) {
+        const { color, distance } = classifyByLearnedColors(rgb, learned.colors)
+        const cellConfidence = Math.max(0, 1 - distance / 200)
+        rowColors.push(color)
+        rowConfidences.push(cellConfidence)
+        totalConfidence += cellConfidence
+        cellCount++
+      }
+      colors.push(rowColors)
+      cellConfidences.push(rowConfidences)
+    }
+
+    reclassifiedFaces[face] = {
+      colors,
+      cellConfidences,
+      cellColors: det.cellColors,
+      confidence: cellCount > 0 ? totalConfidence / cellCount : 0,
+    }
   }
 
-  const better = colorHistogramImbalance(correctedFaces) < colorHistogramImbalance(uncorrectedFaces)
-  return better
-    ? { gains, applied: true, faces: correctedFaces }
-    : { gains, applied: false, faces: uncorrectedFaces }
+  return { learned, applied: true, faces: reclassifiedFaces }
 }
