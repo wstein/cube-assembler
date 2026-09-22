@@ -1,6 +1,7 @@
 import { render, h, Fragment } from 'preact'
 import { useState, useEffect, useRef } from 'preact/hooks'
 import { TwistyPlayer } from 'cubing/twisty'
+import '../../web/style.css'
 import { captureAndProcessFace, captureAndProcessImage, extractCubeFaceColors, detectGridSize, type ColorDetectionResult, type GridSizeDetection } from './imageProcessing'
 import { assembleCubeFromFaces, validateFaceColors, createSolvedCube, parseColorInput, toCubeIR } from './cubeAssembly'
 import { notationForFormat, toURFFacelets, fromURFFacelets } from './notationOutput'
