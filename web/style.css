@@ -597,6 +597,166 @@ textarea {
 }
 
 /* ─────────────────────────────────────────────────────────────────────────────
+   HEADER
+   ───────────────────────────────────────────────────────────────────────────── */
+
+.app-header {
+  background: var(--color-bg-secondary);
+  border-bottom: 1px solid var(--color-border);
+  padding: var(--spacing-lg) var(--spacing-xl);
+}
+
+.header-content h1 {
+  font-size: 1.75rem;
+  font-weight: 700;
+  margin-bottom: var(--spacing-sm);
+}
+
+.header-content p {
+  color: var(--color-text-secondary);
+  font-size: 0.95rem;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   PUZZLE SIZE SELECTOR
+   ───────────────────────────────────────────────────────────────────────────── */
+
+.viewer-controls {
+  padding: var(--spacing-lg);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.viewer-controls h3 {
+  margin-bottom: var(--spacing-md);
+  font-size: 0.95rem;
+}
+
+.size-selector {
+  display: flex;
+  gap: var(--spacing-sm);
+  flex-wrap: wrap;
+}
+
+.size-btn {
+  min-width: 45px;
+  padding: var(--spacing-sm) var(--spacing-md);
+  border: 1px solid var(--color-border);
+  background: var(--color-bg-primary);
+  color: var(--color-text-primary);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  font-weight: 500;
+  transition: all 0.2s;
+}
+
+.size-btn:hover {
+  border-color: var(--color-accent);
+  background: var(--color-bg-secondary);
+}
+
+.size-btn.active {
+  background: var(--color-accent);
+  color: #000;
+  border-color: var(--color-accent);
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   FACE CAPTURE PANEL
+   ───────────────────────────────────────────────────────────────────────────── */
+
+.face-capture-panel {
+  padding: var(--spacing-lg);
+  background: var(--color-bg-secondary);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.face-capture-panel h2 {
+  margin-bottom: var(--spacing-md);
+  font-size: 1rem;
+}
+
+.face-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--spacing-md);
+  max-width: 320px;
+}
+
+.face-btn {
+  position: relative;
+  aspect-ratio: 1;
+  padding: var(--spacing-md);
+  border: 2px solid var(--color-border);
+  background: var(--color-bg-primary);
+  color: var(--color-text-primary);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 1.1rem;
+  transition: all 0.2s;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.face-btn:hover {
+  border-color: var(--color-accent);
+  box-shadow: 0 0 10px rgba(0, 229, 255, 0.3);
+}
+
+.face-btn.captured {
+  background: var(--color-success);
+  color: #000;
+  border-color: var(--color-success);
+}
+
+.face-label {
+  display: block;
+}
+
+.face-check {
+  position: absolute;
+  top: 4px;
+  right: 6px;
+  font-size: 1.2rem;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   TWISTY PLAYER CONTAINER
+   ───────────────────────────────────────────────────────────────────────────── */
+
+#twisty-player-container {
+  background: var(--color-bg-secondary);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+
+.placeholder-text {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  color: var(--color-text-secondary);
+  font-size: 0.95rem;
+  text-align: center;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   BUTTON STATES
+   ───────────────────────────────────────────────────────────────────────────── */
+
+.btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.btn:disabled:hover {
+  background-color: var(--color-primary);
+  transform: none;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
    RESPONSIVE
    ───────────────────────────────────────────────────────────────────────────── */
 

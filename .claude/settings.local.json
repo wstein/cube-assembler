@@ -9,7 +9,12 @@
       "Bash(git commit -m 'test\\(notation\\): 23 tests for WRG/URF notation round-trip *)",
       "Bash(git commit -m 'feat\\(web\\): HTML entry point + Preact client scaffold *)",
       "Bash(git commit -m 'docs: README + MIT license *)",
-      "Bash(git commit *)"
+      "Bash(git commit *)",
+      "Bash(npm test *)",
+      "Bash(curl -s http://localhost:3000)",
+      "Bash(curl *)",
+      "Artifact",
+      "Bash(npm install *)"
     ]
   }
 }
