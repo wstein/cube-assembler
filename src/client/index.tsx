@@ -793,6 +793,17 @@ function App() {
               ? `Continue Capturing (${FACE_ORDER.filter((f) => f in capturedFaces).length}/${FACE_ORDER.length})`
               : 'Capture Faces'}
           </button>
+          {FACE_ORDER.every((f) => f in capturedFaces) && (
+            <button
+              class="btn btn-secondary"
+              onClick={() => {
+                setReviewStep(0)
+                setShowReviewDialog(true)
+              }}
+            >
+              ✎ Edit Colors
+            </button>
+          )}
           <div class="face-status-dots">
             {FACE_ORDER.map((face) => (
               <span
