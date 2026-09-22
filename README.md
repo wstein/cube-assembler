@@ -105,7 +105,11 @@ or imported photos and reconstructs its state:
    detection) is applied per shot. Auto mode estimates live while framing
    face 1, then locks to whatever it was at the moment face 1 was
    captured — faces 2–6 reuse that same gain instead of each
-   re-estimating from their own (possibly differently-framed) shot.
+   re-estimating from their own (possibly differently-framed) shot. Each
+   grid cell in the live preview shows its sampled OKLCH hue in degrees
+   (not a color swatch), so you can see the actual detected value —
+   useful for spotting when lighting is pushing a reading toward the
+   wrong side of a hue boundary before you even capture the shot.
 2. **Review** — after all 6 faces are captured, a global recalibration
    pass re-clusters all stickers together (k-means, capacity-constrained
    to the physical invariant of exactly N² stickers per color) and a

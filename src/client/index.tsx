@@ -4,7 +4,7 @@ import { TwistyPlayer } from 'cubing/twisty'
 import '../../web/style.css'
 import {
   captureAndProcessFace, captureAndProcessImage, extractCubeFaceColors,
-  estimateGrayWorldGains, runGlobalWhiteBalance, WHITE_BALANCE_PRESETS, NEUTRAL_GAINS,
+  estimateGrayWorldGains, runGlobalWhiteBalance, WHITE_BALANCE_PRESETS, NEUTRAL_GAINS, rgbToOKLCH,
   type ColorDetectionResult, type FaceCaptureResult, type RGB,
 } from './imageProcessing'
 import { assembleCubeFromFaces, validateFaceColors, createSolvedCube, toCubeIR, solveFaceOrientations } from './cubeAssembly'
@@ -1088,10 +1088,9 @@ function App() {
                         class={`capture-grid-cell confidence-${confidenceTier(liveDetection.cellConfidences[r][c])}`}
                         style={{ background: `${STICKER_HEX[color] || '#888'}66` }}
                       >
-                        <span
-                          class="capture-grid-swatch"
-                          style={{ background: STICKER_HEX[color] || '#888' }}
-                        />
+                        <span class="capture-grid-hue">
+                          {Math.round(rgbToOKLCH(liveDetection.cellColors[r][c]).h)}°
+                        </span>
                       </div>
                     ))
                   )}
