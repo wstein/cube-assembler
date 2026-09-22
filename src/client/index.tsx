@@ -1,7 +1,7 @@
 import { render, h, Fragment } from 'preact'
 import { useState, useEffect, useRef } from 'preact/hooks'
 import { captureAndProcessFace } from './imageProcessing'
-import { assembleCubeFromFaces, validateFaceColors, createSolvedCube, parseColorInput } from './cubeAssembly'
+import { assembleCubeFromFaces, validateFaceColors, createSolvedCube, parseColorInput, toCubeIR } from './cubeAssembly'
 import { notationForFormat, toURFFacelets, fromURFFacelets } from './notationOutput'
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -40,22 +40,29 @@ async function generateScramble(size: number): Promise<string> {
   return data.scramble || 'Failed to generate scramble'
 }
 
-async function applyAlgorithm(cube: any, alg: string): Promise<any> {
+async function applyAlgorithm(cube: any, alg: string, size: number): Promise<any> {
   const res = await fetch('/api/apply-alg', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ cube, alg }),
+    body: JSON.stringify({ cube: toCubeIR(cube, size), alg }),
   })
-  const data = await res.json()
-  return data
+  if (!res.ok) {
+    const text = await res.text()
+    throw new Error(`Apply algorithm failed (${res.status}): ${text.slice(0, 200)}`)
+  }
+  return res.json()
 }
 
-async function checkParity(cube: any): Promise<any> {
+async function checkParity(cube: any, size: number): Promise<any> {
   const res = await fetch('/api/parity', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ cube }),
+    body: JSON.stringify({ cube: toCubeIR(cube, size) }),
   })
+  if (!res.ok) {
+    const text = await res.text()
+    throw new Error(`Parity check failed (${res.status}): ${text.slice(0, 200)}`)
+  }
   return res.json()
 }
 
@@ -163,9 +170,11 @@ function App() {
     if (!scramble || !cube) return
     setLoading(true)
     try {
-      const result = await applyAlgorithm(cube, scramble)
+      const result = await applyAlgorithm(cube, scramble, puzzleSize)
       setCube(result.cube || result)
       setScramble('')
+    } catch (err) {
+      alert(`Error: ${err instanceof Error ? err.message : 'Unknown error'}`)
     } finally {
       setLoading(false)
     }
@@ -179,9 +188,11 @@ function App() {
     if (!algorithm || !cube) return
     setLoading(true)
     try {
-      const result = await applyAlgorithm(cube, algorithm)
+      const result = await applyAlgorithm(cube, algorithm, puzzleSize)
       setCube(result.cube || result)
       await updateParityStatus(result.cube || result)
+    } catch (err) {
+      alert(`Error: ${err instanceof Error ? err.message : 'Unknown error'}`)
     } finally {
       setLoading(false)
     }
@@ -196,9 +207,11 @@ function App() {
         .map((m) => (m.endsWith("'") ? m.slice(0, -1) : m + "'"))
         .reverse()
         .join(' ')
-      const result = await applyAlgorithm(cube, inverted)
+      const result = await applyAlgorithm(cube, inverted, puzzleSize)
       setCube(result.cube || result)
       await updateParityStatus(result.cube || result)
+    } catch (err) {
+      alert(`Error: ${err instanceof Error ? err.message : 'Unknown error'}`)
     } finally {
       setLoading(false)
     }
@@ -285,8 +298,17 @@ function App() {
   // ─────────────────────────────────────────────────────────────────────────
 
   const updateParityStatus = async (cubeState: any) => {
-    const result = await checkParity(cubeState)
-    setParity(result)
+    try {
+      const result = await checkParity(cubeState, puzzleSize)
+      setParity(result)
+    } catch (err) {
+      console.error('Parity check error:', err)
+      setParity({
+        valid: false,
+        result: err instanceof Error ? err.message : 'Parity check failed',
+        checks: {},
+      })
+    }
   }
 
   // ─────────────────────────────────────────────────────────────────────────

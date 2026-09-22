@@ -9,6 +9,30 @@ export interface CubeState {
   b: string[]
 }
 
+// Server-side wire format: each face carries its own grid dimension + colors
+export interface CubeIR {
+  size: number
+  u: { n: number; data: string[] }
+  r: { n: number; data: string[] }
+  f: { n: number; data: string[] }
+  d: { n: number; data: string[] }
+  l: { n: number; data: string[] }
+  b: { n: number; data: string[] }
+}
+
+export function toCubeIR(cube: CubeState, size: number): CubeIR {
+  const grid = (data: string[]) => ({ n: size, data })
+  return {
+    size,
+    u: grid(cube.u),
+    r: grid(cube.r),
+    f: grid(cube.f),
+    d: grid(cube.d),
+    l: grid(cube.l),
+    b: grid(cube.b),
+  }
+}
+
 // WCA color to position mapping
 const COLOR_FACES: Record<string, 'U' | 'R' | 'F' | 'D' | 'L' | 'B'> = {
   W: 'U', // White = Up
