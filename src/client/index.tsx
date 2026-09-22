@@ -446,8 +446,11 @@ function App() {
   // Features: Face Capture Modal (#5)
   // ─────────────────────────────────────────────────────────────────────────
 
-  const handleCaptureFace = (face: string) => {
-    setWebcamFace(face)
+  // Single capture entry point: resume at the first uncaptured face, or
+  // start over from U once all 6 are done (e.g. to recapture everything).
+  const handleOpenCapture = () => {
+    const nextFace = FACE_ORDER.find((f) => !(f in capturedFaces)) || FACE_ORDER[0]
+    setWebcamFace(nextFace)
     setCaptureMessage('')
     setWebcamOpen(true)
   }
@@ -624,18 +627,25 @@ function App() {
             </button>
           </div>
         </div>
-        <div class="face-grid">
-          {FACE_ORDER.map((face) => (
-            <button
-              key={face}
-              class={`face-btn ${capturedFaces[face] ? 'captured' : ''}`}
-              onClick={() => handleCaptureFace(face)}
-              title={capturedFaces[face] ? `${face} face captured` : `Capture ${face} face`}
-            >
-              <span class="face-label">{face}</span>
-              {capturedFaces[face] && <span class="face-check">✓</span>}
-            </button>
-          ))}
+        <div class="face-capture-entry">
+          <button class="btn btn-primary" onClick={handleOpenCapture}>
+            {FACE_ORDER.every((f) => f in capturedFaces)
+              ? 'Recapture Faces'
+              : FACE_ORDER.some((f) => f in capturedFaces)
+              ? `Continue Capturing (${FACE_ORDER.filter((f) => f in capturedFaces).length}/${FACE_ORDER.length})`
+              : 'Capture Faces'}
+          </button>
+          <div class="face-status-dots">
+            {FACE_ORDER.map((face) => (
+              <span
+                key={face}
+                class={`progress-dot ${capturedFaces[face] ? 'done' : ''}`}
+                title={`${face} face${capturedFaces[face] ? ' (captured)' : ' (not captured)'}`}
+              >
+                {face}
+              </span>
+            ))}
+          </div>
         </div>
         {showColorInput && (
           <div class="color-input-panel">
@@ -760,7 +770,7 @@ function App() {
       {/* Webcam Modal */}
       {webcamOpen && (
         <div class="modal open">
-          <div class="modal-content">
+          <div class="modal-content capture-modal-content">
             <div class="modal-header">
               <h2>Capturing: {webcamFace} Face</h2>
               <button class="modal-close" onClick={() => setWebcamOpen(false)}>×</button>
@@ -820,29 +830,37 @@ function App() {
                 <span class="capture-scan-label">Fit face in this square</span>
               </div>
             </div>
-            <p>
+            <p class="capture-hint-text">
               Align cube face in center
-              {liveDetection && ` — live confidence: ${(liveDetection.confidence * 100).toFixed(0)}%`}
+              {' — live confidence: '}
+              {liveDetection ? `${(liveDetection.confidence * 100).toFixed(0)}%` : '—'}
             </p>
-            {detectedGridSize && detectedGridSize.size !== puzzleSize && (
-              <div class="grid-size-hint">
-                <span>
-                  Detected {detectedGridSize.size}×{detectedGridSize.size}
-                  {' '}({(detectedGridSize.confidence * 100).toFixed(0)}% confidence) — currently set to {puzzleSize}×{puzzleSize}
-                </span>
-                <button
-                  class="btn btn-secondary btn-sm"
-                  onClick={() => setPuzzleSize(detectedGridSize.size)}
-                >
-                  Use {detectedGridSize.size}×{detectedGridSize.size}
-                </button>
-              </div>
-            )}
-            {captureMessage && (
-              <div class={`capture-message ${captureMessage.includes('✓') ? 'success' : captureMessage.includes('❌') ? 'error' : ''}`}>
-                {captureMessage}
-              </div>
-            )}
+            {(() => {
+              const showSizeHint = !!detectedGridSize && detectedGridSize.size !== puzzleSize
+              return (
+                <div class={`grid-size-hint ${showSizeHint ? '' : 'is-empty'}`}>
+                  {showSizeHint && (
+                    <>
+                      <span>
+                        Detected {detectedGridSize!.size}×{detectedGridSize!.size}
+                        {' '}({(detectedGridSize!.confidence * 100).toFixed(0)}% confidence) — currently set to {puzzleSize}×{puzzleSize}
+                      </span>
+                      <button
+                        class="btn btn-secondary btn-sm"
+                        onClick={() => setPuzzleSize(detectedGridSize!.size)}
+                      >
+                        Use {detectedGridSize!.size}×{detectedGridSize!.size}
+                      </button>
+                    </>
+                  )}
+                </div>
+              )
+            })()}
+            <div
+              class={`capture-message ${captureMessage ? (captureMessage.includes('✓') ? 'success' : captureMessage.includes('❌') ? 'error' : '') : 'is-empty'}`}
+            >
+              {captureMessage || '—'}
+            </div>
             <button
               class="btn btn-primary"
               onClick={handleCapturePhoto}
