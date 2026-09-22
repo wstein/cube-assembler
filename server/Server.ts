@@ -114,25 +114,6 @@ function rotateFace(grid: FaceGrid, rotations: number): FaceGrid {
 
 // ─── Color validation helpers ─────────────────────────────────────────────────
 
-const VALID_EDGE_PAIRS = new Set([
-  "W-G","W-R","W-B","W-O",
-  "Y-G","Y-R","Y-B","Y-O",
-  "G-R","R-B","B-O","O-G",
-  "G-W","R-W","B-W","O-W",
-  "G-Y","R-Y","B-Y","O-Y",
-  "R-G","B-R","O-B","G-O",
-]);
-
-const VALID_CORNERS = new Set([
-  "W-G-R","W-R-B","W-B-O","W-O-G",
-  "Y-G-O","Y-O-B","Y-B-R","Y-R-G",
-  // all rotations:
-  "G-R-W","R-B-W","B-O-W","O-G-W",
-  "R-W-G","B-W-R","O-W-B","G-W-O",
-  "G-O-Y","O-B-Y","B-R-Y","R-G-Y",
-  "O-Y-G","B-Y-O","R-Y-B","G-Y-R",
-]);
-
 function countColors(cube: CubeIR): Record<FaceColor, number> {
   const counts: any = { W:0, O:0, G:0, R:0, B:0, Y:0 };
   for (const face of [cube.u, cube.r, cube.f, cube.d, cube.l, cube.b]) {
@@ -163,22 +144,20 @@ function validateCenterCores(cube: CubeIR): boolean {
   return true;
 }
 
+// [faceA, idxA, faceB, idxB, faceC, idxC] per corner: UFR, UBR, UBL, UFL,
+// DFR, DBR, DBL, DFL. The B (back) face is viewed from outside the cube
+// (i.e. mirrored left/right relative to F), which the UBR/UBL entries'
+// `b` and UBL's `l` index originally got backwards - confirmed against a
+// real scrambled capture that a correct table accepts and the original
+// one rejected with "Unknown corner color triplet" even though
+// colorBalance/centerCores both passed.
 const CORNER_FACELETS_3x3 = [
-  // [faceA, idxA, faceB, idxB, faceC, idxC]
-  ["u",8,"r",0,"f",2], ["u",2,"b",2,"r",2], ["u",0,"l",2,"b",0], ["u",6,"f",0,"l",2],
+  ["u",8,"r",0,"f",2], ["u",2,"b",0,"r",2], ["u",0,"l",0,"b",2], ["u",6,"f",0,"l",2],
   ["d",2,"f",8,"r",6], ["d",8,"r",8,"b",6], ["d",6,"b",8,"l",6], ["d",0,"l",8,"f",6],
 ] as const;
 
 function getFace(cube: CubeIR, key: string): FaceGrid {
   return (cube as any)[key];
-}
-
-function validateCorners(cube: CubeIR): boolean {
-  for (const [fa, ia, fb, ib, fc, ic] of CORNER_FACELETS_3x3) {
-    const key = [getFace(cube, fa).data[ia], getFace(cube, fb).data[ib], getFace(cube, fc).data[ic]].join("-");
-    if (!VALID_CORNERS.has(key)) return false;
-  }
-  return true;
 }
 
 // ─── Permutation generator (Heap's algorithm) ─────────────────────────────────
@@ -214,10 +193,12 @@ const SOLVED_EDGES_3x3: Array<[FaceColor, FaceColor]> = [
   ["Y","G"],["Y","R"],["Y","B"],["Y","O"],
   ["G","R"],["G","O"],["B","R"],["B","O"],
 ];
+// UF, UR, UB, UL, DF, DR, DB, DL, FR, FL, BR, BL. Same B-face mirroring
+// mistake as CORNER_FACELETS_3x3 above hit the BR/BL entries' `b` index.
 const EDGE_FACELETS_3x3 = [
   ["u",7,"f",1],["u",5,"r",1],["u",1,"b",1],["u",3,"l",1],
   ["d",1,"f",7],["d",5,"r",7],["d",7,"b",7],["d",3,"l",7],
-  ["f",5,"r",3],["f",3,"l",5],["b",5,"r",5],["b",3,"l",3],
+  ["f",5,"r",3],["f",3,"l",5],["b",3,"r",5],["b",5,"l",3],
 ] as const;
 
 function permParity(perm: number[]): boolean {
