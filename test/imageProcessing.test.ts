@@ -9,7 +9,7 @@
  * Run: npx vitest run test/imageProcessing.test.ts
  */
 import { describe, it, expect } from 'vitest'
-import { learnStickerColors, rgbToOKLCH, hueCircularRange, STICKER_COLORS, type RGB } from '../src/client/imageProcessing'
+import { learnStickerColors, rgbToOKLCH, formatOKLCHValues, hueCircularRange, linearRange, STICKER_COLORS, type RGB } from '../src/client/imageProcessing'
 
 // Mirrors the internal OKLab-based colorDistance (not exported): rebuilds
 // Cartesian (a,b) from the exported OKLCH's polar (c,h) - c·cos(h), c·sin(h)
@@ -98,6 +98,36 @@ describe('hueCircularRange', () => {
     expect(range.min).toBe(200)
     expect(range.max).toBe(12)
     expect(range.span).toBe(172)
+  })
+})
+
+describe('linearRange', () => {
+  it('returns null for no samples', () => {
+    expect(linearRange([])).toBeNull()
+  })
+
+  it('returns min and max for several samples', () => {
+    expect(linearRange([0.6, 0.75, 0.62, 0.7])).toEqual({ min: 0.6, max: 0.75 })
+  })
+
+  it('returns the same value twice for a single sample', () => {
+    expect(linearRange([0.42])).toEqual({ min: 0.42, max: 0.42 })
+  })
+})
+
+describe('formatOKLCHValues', () => {
+  it('renders canonical red as bare percentage/degree values', () => {
+    // l=0.6280, c=0.2577, h=29.23 -> 63%, 64% (0.2577/0.4), 29deg
+    expect(formatOKLCHValues(rgbToOKLCH({ r: 255, g: 0, b: 0 }))).toBe('63% 64% 29deg')
+  })
+
+  it('renders black as 0% lightness and chroma regardless of (undefined) hue', () => {
+    expect(formatOKLCHValues(rgbToOKLCH({ r: 0, g: 0, b: 0 }))).toBe('0% 0% 0deg')
+  })
+
+  it('rounds each component independently', () => {
+    expect(formatOKLCHValues({ l: 0.5, c: 0.2, h: 180.4 })).toBe('50% 50% 180deg')
+    expect(formatOKLCHValues({ l: 0.505, c: 0.204, h: 180.6 })).toBe('51% 51% 181deg')
   })
 })
 
