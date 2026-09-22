@@ -115,6 +115,34 @@ export function rgbToOKLCH(rgb: RGB): OKLCH {
   return { l, c, h }
 }
 
+export interface HueRange {
+  min: number
+  max: number
+  span: number
+}
+
+// The smallest arc (min degrees .. max degrees, going clockwise from min
+// to max) that contains every given hue - NOT a naive Math.min/Math.max,
+// which breaks near the 0°/360° wraparound (e.g. samples at 355° and 5°
+// are 10° apart on the circle, but a plain min/max reports an incorrect
+// 350° span). Finds the largest gap between consecutive hues around the
+// circle; the arc is everything else, starting right after that gap.
+export function hueCircularRange(hues: number[]): HueRange | null {
+  if (hues.length === 0) return null
+  const sorted = [...hues].sort((a, b) => a - b)
+  let largestGap = 0
+  let gapStartIdx = sorted.length - 1 // gap from last (wrapping) to first
+  for (let i = 0; i < sorted.length; i++) {
+    const prev = i === 0 ? sorted[sorted.length - 1] - 360 : sorted[i - 1]
+    const gap = sorted[i] - prev
+    if (gap > largestGap) { largestGap = gap; gapStartIdx = i === 0 ? sorted.length - 1 : i - 1 }
+  }
+  const min = sorted[(gapStartIdx + 1) % sorted.length]
+  const max = sorted[gapStartIdx]
+  const span = 360 - largestGap
+  return { min, max, span }
+}
+
 function oklabDistance(o1: Oklab, o2: Oklab): number {
   const dl = o1.l - o2.l
   const da = o1.a - o2.a

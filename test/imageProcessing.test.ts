@@ -9,7 +9,7 @@
  * Run: npx vitest run test/imageProcessing.test.ts
  */
 import { describe, it, expect } from 'vitest'
-import { learnStickerColors, rgbToOKLCH, STICKER_COLORS, type RGB } from '../src/client/imageProcessing'
+import { learnStickerColors, rgbToOKLCH, hueCircularRange, STICKER_COLORS, type RGB } from '../src/client/imageProcessing'
 
 // Mirrors the internal OKLab-based colorDistance (not exported): rebuilds
 // Cartesian (a,b) from the exported OKLCH's polar (c,h) - c·cos(h), c·sin(h)
@@ -64,6 +64,40 @@ describe('rgbToOKLCH', () => {
     const orange = rgbToOKLCH({ r: 255, g: 127, b: 0 })
     const hueDelta = Math.abs(red.h - orange.h)
     expect(hueDelta).toBeGreaterThan(15)
+  })
+})
+
+describe('hueCircularRange', () => {
+  it('returns null for no samples', () => {
+    expect(hueCircularRange([])).toBeNull()
+  })
+
+  it('returns a zero-span range for a single sample', () => {
+    expect(hueCircularRange([40])).toEqual({ min: 40, max: 40, span: 0 })
+  })
+
+  it('finds the plain min/max span for a cluster nowhere near the wraparound', () => {
+    expect(hueCircularRange([28, 30, 35, 32])).toEqual({ min: 28, max: 35, span: 7 })
+  })
+
+  it('finds the correct short arc for a cluster straddling the 0/360 wraparound', () => {
+    // These samples span only 15° in reality (355 -> 0 -> 10), not the 350°
+    // a naive Math.min/Math.max over the raw numbers would report.
+    const range = hueCircularRange([355, 5, 10])!
+    expect(range.span).toBe(15)
+    expect(range.min).toBe(355)
+    expect(range.max).toBe(10)
+  })
+
+  it('picks the tightest arc when samples form two clusters on opposite sides of the circle', () => {
+    // Two tight clusters, {10,12} and {200,202}: the gap going "up" from
+    // 12 to 200 is 188°, the gap wrapping "down" from 202 through 360 to
+    // 10 is only 168° - the minimal enclosing arc excludes the LARGER
+    // (188°) gap, so it runs the other way: 200 -> 202 -> (wrap) -> 10 -> 12.
+    const range = hueCircularRange([10, 12, 200, 202])!
+    expect(range.min).toBe(200)
+    expect(range.max).toBe(12)
+    expect(range.span).toBe(172)
   })
 })
 

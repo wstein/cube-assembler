@@ -4,7 +4,7 @@ import { TwistyPlayer } from 'cubing/twisty'
 import '../../web/style.css'
 import {
   captureAndProcessFace, captureAndProcessImage, extractCubeFaceColors,
-  estimateGrayWorldGains, runGlobalWhiteBalance, WHITE_BALANCE_PRESETS, NEUTRAL_GAINS, rgbToOKLCH,
+  estimateGrayWorldGains, runGlobalWhiteBalance, WHITE_BALANCE_PRESETS, NEUTRAL_GAINS, rgbToOKLCH, hueCircularRange,
   type ColorDetectionResult, type FaceCaptureResult, type RGB,
 } from './imageProcessing'
 import { assembleCubeFromFaces, validateFaceColors, createSolvedCube, toCubeIR, solveFaceOrientations } from './cubeAssembly'
@@ -1141,12 +1141,17 @@ function App() {
         // fixes immediately, since seeing the count move is the whole
         // point of a fix.
         const liveColorCounts: Record<string, number> = { W: 0, O: 0, G: 0, R: 0, B: 0, Y: 0 }
+        const liveColorHues: Record<string, number[]> = { W: [], O: [], G: [], R: [], B: [], Y: [] }
         for (const f of FACE_ORDER) {
           const grid = capturedFaces[f]?.colors
+          const cellColors = capturedFaces[f]?.cellColors
           if (!grid) continue
-          for (const row of grid) for (const color of row) {
-            if (color in liveColorCounts) liveColorCounts[color]++
-          }
+          grid.forEach((row, r) => row.forEach((color, c) => {
+            if (!(color in liveColorCounts)) return
+            liveColorCounts[color]++
+            const rgb = cellColors?.[r]?.[c]
+            if (rgb) liveColorHues[color].push(rgbToOKLCH(rgb).h)
+          }))
         }
         return (
           <div class="modal open">
@@ -1174,14 +1179,22 @@ function App() {
                 {['W', 'O', 'G', 'R', 'B', 'Y'].map((color) => {
                   const expected = puzzleSize * puzzleSize
                   const count = liveColorCounts[color]
+                  const range = hueCircularRange(liveColorHues[color])
                   return (
                     <div
                       key={color}
                       class={`color-stat-chip ${count !== expected ? 'mismatch' : ''}`}
-                      title={`${count} of ${expected} expected stickers assigned to this color`}
+                      title={`${count} of ${expected} expected stickers assigned to this color${
+                        range ? ` — observed hue ${Math.round(range.min)}°–${Math.round(range.max)}° (${Math.round(range.span)}° spread)` : ''
+                      }`}
                     >
                       <span class="color-stat-swatch" style={{ background: STICKER_HEX[color] }} />
                       {count}/{expected}
+                      {range && (
+                        <span class="color-stat-hue-range">
+                          {Math.round(range.min)}°–{Math.round(range.max)}°
+                        </span>
+                      )}
                     </div>
                   )
                 })}
@@ -1205,15 +1218,21 @@ function App() {
                         }}
                       >
                         {data.colors.map((row, r) =>
-                          row.map((color, c) => (
-                            <button
-                              key={`${r}-${c}`}
-                              class={`review-detected-cell confidence-${confidenceTier(data.cellConfidences?.[r]?.[c] ?? 1)}`}
-                              style={{ background: STICKER_HEX[color] || '#888' }}
-                              onClick={() => setReviewEditingCell({ face, row: r, col: c })}
-                              title={`Row ${r + 1}, Col ${c + 1}: ${color} — tap to fix`}
-                            />
-                          ))
+                          row.map((color, c) => {
+                            const rgb = data.cellColors?.[r]?.[c]
+                            const hue = rgb ? Math.round(rgbToOKLCH(rgb).h) : null
+                            return (
+                              <button
+                                key={`${r}-${c}`}
+                                class={`review-detected-cell confidence-${confidenceTier(data.cellConfidences?.[r]?.[c] ?? 1)}`}
+                                style={{ background: STICKER_HEX[color] || '#888' }}
+                                onClick={() => setReviewEditingCell({ face, row: r, col: c })}
+                                title={`Row ${r + 1}, Col ${c + 1}: ${color}${hue !== null ? ` (${hue}°)` : ''} — tap to fix`}
+                              >
+                                {hue !== null && <span class="review-detected-hue">{hue}°</span>}
+                              </button>
+                            )
+                          })
                         )}
                       </div>
                     </div>
