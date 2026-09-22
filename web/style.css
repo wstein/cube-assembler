@@ -537,6 +537,56 @@ textarea {
   object-fit: cover;
 }
 
+.capture-video-wrapper {
+  position: relative;
+  aspect-ratio: 1;
+  background: #000;
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  margin-bottom: var(--spacing-md);
+}
+
+.capture-grid-overlay {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 60%;
+  aspect-ratio: 1;
+  transform: translate(-50%, -50%);
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  grid-template-rows: repeat(3, 1fr);
+  pointer-events: none;
+}
+
+.capture-grid-cell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid rgba(255, 255, 255, 0.35);
+  transition: border-color 0.15s;
+}
+
+.capture-grid-cell.confidence-high {
+  border-color: var(--color-success);
+}
+
+.capture-grid-cell.confidence-medium {
+  border-color: var(--color-warning);
+}
+
+.capture-grid-cell.confidence-low {
+  border-color: var(--color-danger);
+}
+
+.capture-grid-swatch {
+  width: 45%;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.8);
+  box-shadow: 0 0 4px rgba(0, 0, 0, 0.4);
+}
+
 .capture-progress {
   display: flex;
   align-items: center;
