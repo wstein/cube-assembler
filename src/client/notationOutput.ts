@@ -1,4 +1,9 @@
-// Notation output converters for different formats
+// Cube state notation: the app's sole input/output format for manual entry
+// and copy/paste is "spaced facelets" - six space-separated N²-letter
+// blocks (U R F D L B order, WOGRBY colors; N² is 9 for a 3×3, 25 for a
+// 5×5, etc). A single format keeps the manual-entry UI simple and
+// unambiguous; there's no reader-facing benefit to also supporting
+// alternate labeled/grid layouts.
 
 export interface CubeState {
   u: string[]
@@ -9,127 +14,33 @@ export interface CubeState {
   b: string[]
 }
 
-// WRG notation: White-Red-Green (XYZ axis)
-export function toWRGNotation(cube: CubeState): string {
-  const faces = {
-    W: cube.u,
-    R: cube.r,
-    G: cube.f,
-    Y: cube.d,
-    O: cube.l,
-    B: cube.b,
-  }
+const FACE_ORDER = ['U', 'R', 'F', 'D', 'L', 'B'] as const
 
-  const lines: string[] = []
-  for (const [letter, stickers] of Object.entries(faces)) {
-    lines.push(`${letter}: ${stickers.join(' ')}`)
-  }
-  return lines.join('\n')
+function faceMap(cube: CubeState): Record<(typeof FACE_ORDER)[number], string[]> {
+  return { U: cube.u, R: cube.r, F: cube.f, D: cube.d, L: cube.l, B: cube.b }
 }
 
-// URF notation: Up-Right-Front (Ruwix notation)
-export function toURFNotation(cube: CubeState): string {
-  const faceOrder = [
-    { name: 'U', data: cube.u },
-    { name: 'R', data: cube.r },
-    { name: 'F', data: cube.f },
-    { name: 'D', data: cube.d },
-    { name: 'L', data: cube.l },
-    { name: 'B', data: cube.b },
-  ]
-
-  const lines: string[] = []
-  for (const face of faceOrder) {
-    // Display as 3x3 grid
-    for (let i = 0; i < 3; i++) {
-      lines.push(face.data.slice(i * 3, i * 3 + 3).join(' '))
-    }
-    lines.push('---')
-  }
-  return lines.join('\n')
+// Unspaced 6*N² run (U(N²) R(N²) F(N²) D(N²) L(N²) B(N²)) - the underlying
+// wire format `toSpacedFacelets`/`fromSpacedFacelets` add human-readable
+// spacing to.
+function toFacelets(cube: CubeState): string {
+  const faces = faceMap(cube)
+  return FACE_ORDER.map((face) => faces[face].join('')).join('')
 }
 
-// Flat notation: single line representation
-export function toFlatNotation(cube: CubeState): string {
-  const order = ['U', 'R', 'F', 'D', 'L', 'B']
-  const faceMap: Record<string, string[]> = {
-    U: cube.u,
-    R: cube.r,
-    F: cube.f,
-    D: cube.d,
-    L: cube.l,
-    B: cube.b,
-  }
-
-  return order.map(face => `${face}:${faceMap[face].join('')}`).join(' ')
+// A facelets string only carries the puzzle size implicitly (its total
+// length must split evenly into 6 perfect-square blocks), so this rejects
+// anything that can't possibly be a valid NxN cube instead of guessing.
+function faceletsPerFace(totalLength: number): number | null {
+  if (totalLength <= 0 || totalLength % 6 !== 0) return null
+  const perFace = totalLength / 6
+  return Number.isInteger(Math.sqrt(perFace)) ? perFace : null
 }
 
-// Matrix/Grid notation: visual representation
-export function toGridNotation(cube: CubeState): string {
-  const displayFace = (name: string, stickers: string[]): string[] => {
-    const lines: string[] = [`${name}:`]
-    for (let i = 0; i < 3; i++) {
-      lines.push(`  ${stickers[i * 3]} ${stickers[i * 3 + 1]} ${stickers[i * 3 + 2]}`)
-    }
-    return lines
-  }
-
-  const lines: string[] = []
-  const faces = [
-    { name: 'U', stickers: cube.u },
-    { name: 'R', stickers: cube.r },
-    { name: 'F', stickers: cube.f },
-    { name: 'D', stickers: cube.d },
-    { name: 'L', stickers: cube.l },
-    { name: 'B', stickers: cube.b },
-  ]
-
-  for (const face of faces) {
-    lines.push(...displayFace(face.name, face.stickers))
-    lines.push('')
-  }
-
-  return lines.join('\n')
-}
-
-export function notationForFormat(cube: CubeState, format: string): string {
-  switch (format.toUpperCase()) {
-    case 'WRG':
-      return toWRGNotation(cube)
-    case 'URF':
-      return toURFNotation(cube)
-    case 'FLAT':
-      return toFlatNotation(cube)
-    case 'GRID':
-      return toGridNotation(cube)
-    default:
-      return JSON.stringify(cube, null, 2)
-  }
-}
-
-// URF Facelets notation: 54-character string representing cube state
-// Order: U(9) R(9) F(9) D(9) L(9) B(9)
-export function toURFFacelets(cube: CubeState): string {
-  const order = ['U', 'R', 'F', 'D', 'L', 'B']
-  const faceMap: Record<string, string[]> = {
-    U: cube.u,
-    R: cube.r,
-    F: cube.f,
-    D: cube.d,
-    L: cube.l,
-    B: cube.b,
-  }
-
-  let facelets = ''
-  for (const face of order) {
-    facelets += faceMap[face].join('')
-  }
-  return facelets
-}
-
-export function fromURFFacelets(facelets: string): CubeState | null {
-  if (facelets.length !== 54) {
-    console.warn('Invalid URF facelets string: must be 54 characters')
+function fromFacelets(facelets: string): CubeState | null {
+  const perFace = faceletsPerFace(facelets.length)
+  if (perFace === null) {
+    console.warn(`Invalid facelets string: length ${facelets.length} is not 6 perfect-square blocks`)
     return null
   }
 
@@ -141,12 +52,17 @@ export function fromURFFacelets(facelets: string): CubeState | null {
     }
   }
 
-  return {
-    u: facelets.slice(0, 9).split(''),
-    r: facelets.slice(9, 18).split(''),
-    f: facelets.slice(18, 27).split(''),
-    d: facelets.slice(27, 36).split(''),
-    l: facelets.slice(36, 45).split(''),
-    b: facelets.slice(45, 54).split(''),
-  }
+  const faces = FACE_ORDER.map((_, i) => facelets.slice(i * perFace, (i + 1) * perFace).split(''))
+  const [u, r, f, d, l, b] = faces
+  return { u, r, f, d, l, b }
+}
+
+export function toSpacedFacelets(cube: CubeState): string {
+  const facelets = toFacelets(cube)
+  const perFace = facelets.length / FACE_ORDER.length
+  return FACE_ORDER.map((_, i) => facelets.slice(i * perFace, (i + 1) * perFace)).join(' ')
+}
+
+export function fromSpacedFacelets(input: string): CubeState | null {
+  return fromFacelets(input.trim().replace(/\s+/g, ''))
 }
