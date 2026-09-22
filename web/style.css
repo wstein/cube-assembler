@@ -805,12 +805,20 @@ textarea {
   border-color: var(--color-danger);
 }
 
-.capture-grid-swatch {
-  width: 45%;
-  aspect-ratio: 1;
-  border-radius: 50%;
-  border: 2px solid rgba(255, 255, 255, 0.8);
-  box-shadow: 0 0 4px rgba(0, 0, 0, 0.4);
+.capture-grid-hue {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #fff;
+  text-shadow: 0 0 3px rgba(0, 0, 0, 0.9), 0 1px 2px rgba(0, 0, 0, 0.9);
+  font-variant-numeric: tabular-nums;
+}
+
+/* .capture-grid-overlay.mirrored flips the whole grid so each cell stays
+   aligned with its sticker - counter-flip the text itself so the hue
+   number still reads left-to-right instead of coming out backwards. */
+.capture-grid-overlay.mirrored .capture-grid-hue {
+  display: inline-block;
+  transform: scaleX(-1);
 }
 
 .capture-progress {
