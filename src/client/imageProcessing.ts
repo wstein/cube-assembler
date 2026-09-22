@@ -69,20 +69,20 @@ function getDominantColor(imageData: Uint8ClampedArray, start: number, width: nu
   return { r: avgR, g: avgG, b: avgB }
 }
 
-interface FaceRegion {
-  imageData: ImageData
+interface FaceBounds {
+  startX: number
+  startY: number
   faceWidth: number
   faceHeight: number
 }
 
+interface FaceRegion extends FaceBounds {
+  imageData: ImageData
+}
+
 // Cube face is assumed centered in frame, matching the fixed guide square
 // shown to the user during capture (see capture-grid-overlay in index.tsx).
-function getFaceRegion(canvas: HTMLCanvasElement): FaceRegion {
-  const ctx = canvas.getContext('2d')
-  if (!ctx) {
-    throw new Error('Could not get canvas context')
-  }
-
+function computeFaceBounds(canvas: HTMLCanvasElement): FaceBounds {
   const width = canvas.width
   const height = canvas.height
 
@@ -95,14 +95,48 @@ function getFaceRegion(canvas: HTMLCanvasElement): FaceRegion {
   const endX = Math.min(width, startX + faceSize)
   const endY = Math.min(height, startY + faceSize)
 
-  const faceWidth = endX - startX
-  const faceHeight = endY - startY
-
   return {
-    imageData: ctx.getImageData(startX, startY, faceWidth, faceHeight),
-    faceWidth,
-    faceHeight,
+    startX,
+    startY,
+    faceWidth: endX - startX,
+    faceHeight: endY - startY,
   }
+}
+
+function getFaceRegion(canvas: HTMLCanvasElement): FaceRegion {
+  const ctx = canvas.getContext('2d')
+  if (!ctx) {
+    throw new Error('Could not get canvas context')
+  }
+
+  const bounds = computeFaceBounds(canvas)
+  return {
+    ...bounds,
+    imageData: ctx.getImageData(bounds.startX, bounds.startY, bounds.faceWidth, bounds.faceHeight),
+  }
+}
+
+// Crops just the analyzed face region out of a captured frame, for showing
+// the user what was actually sampled (e.g. in a post-capture review step) —
+// independent of extractCubeFaceColors, so it costs nothing on the
+// high-frequency live-preview path that doesn't need an image, only text.
+export function cropFaceRegionToDataUrl(canvas: HTMLCanvasElement): string {
+  const bounds = computeFaceBounds(canvas)
+  const out = document.createElement('canvas')
+  out.width = bounds.faceWidth
+  out.height = bounds.faceHeight
+
+  const ctx = out.getContext('2d')
+  if (!ctx) {
+    throw new Error('Could not get canvas context')
+  }
+
+  ctx.drawImage(
+    canvas,
+    bounds.startX, bounds.startY, bounds.faceWidth, bounds.faceHeight,
+    0, 0, bounds.faceWidth, bounds.faceHeight
+  )
+  return out.toDataURL('image/jpeg', 0.85)
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -330,10 +364,14 @@ export function extractCubeFaceColors(canvas: HTMLCanvasElement, gridSize = 3): 
   return { colors, confidence, cellConfidences }
 }
 
+export interface FaceCaptureResult extends ColorDetectionResult {
+  croppedImage: string
+}
+
 export function captureAndProcessFace(
   video: HTMLVideoElement,
   gridSize = 3
-): ColorDetectionResult {
+): FaceCaptureResult {
   const canvas = document.createElement('canvas')
   canvas.width = video.videoWidth
   canvas.height = video.videoHeight
@@ -344,13 +382,13 @@ export function captureAndProcessFace(
   }
 
   ctx.drawImage(video, 0, 0)
-  return extractCubeFaceColors(canvas, gridSize)
+  return { ...extractCubeFaceColors(canvas, gridSize), croppedImage: cropFaceRegionToDataUrl(canvas) }
 }
 
 export function captureAndProcessImage(
   img: HTMLImageElement,
   gridSize = 3
-): ColorDetectionResult {
+): FaceCaptureResult {
   const canvas = document.createElement('canvas')
   canvas.width = img.naturalWidth
   canvas.height = img.naturalHeight
@@ -361,5 +399,5 @@ export function captureAndProcessImage(
   }
 
   ctx.drawImage(img, 0, 0)
-  return extractCubeFaceColors(canvas, gridSize)
+  return { ...extractCubeFaceColors(canvas, gridSize), croppedImage: cropFaceRegionToDataUrl(canvas) }
 }
