@@ -7,20 +7,29 @@
     "build:res": "rescript build",
     "clean:res": "rescript clean",
     "watch:res": "rescript build -w",
-    "dev":       "bun run --watch server/Server.ts",
-    "start":     "bun run server/Server.ts",
-    "test":      "vitest run",
-    "test:watch":"vitest",
-    "test:ui":   "vitest --ui",
-    "lint":      "rescript build 2>&1"
+    "dev:server": "bun run --watch server/Server.ts",
+    "dev:client": "vite",
+    "dev":        "concurrently \"npm:dev:server\" \"npm:dev:client\"",
+    "build":      "npm run build:res && vite build",
+    "start":      "bun run server/Server.ts",
+    "test":       "vitest run",
+    "test:watch": "vitest",
+    "test:ui":    "vitest --ui",
+    "lint":       "rescript build 2>&1"
   },
   "dependencies": {
     "cubing": "^0.63.6",
-    "hono": "^4.5.0"
+    "hono": "^4.5.0",
+    "preact": "^10.20.0",
+    "preact-router": "^4.1.2"
   },
   "devDependencies": {
+    "@preact/preset-vite": "^2.8.1",
     "@vitest/ui": "^2.1.0",
+    "concurrently": "^8.2.2",
     "rescript": "^12.3.1",
+    "terser": "^5.30.3",
+    "vite": "^5.0.10",
     "vitest": "^2.1.0"
   },
   "trustedDependencies": ["cubing"],
