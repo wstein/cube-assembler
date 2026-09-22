@@ -231,7 +231,7 @@ function App() {
     try {
       const faceData = parseColorInput(manualColorInput)
       if (!faceData) {
-        alert('Invalid format!\n\nRequired: All 6 faces (U, R, F, D, L, B)\nEach face: name followed by exactly 9 colors\nValid colors: W, Y, O, R, G, B\n\nExample:\nU W W W W W W W W W\nR R R R R R R R R\nF G G G G G G G G G\nD Y Y Y Y Y Y Y Y Y\nL O O O O O O O O O\nB B B B B B B B B B')
+        alert('Invalid format!\n\nRequired: All 6 faces (U, R, F, D, L, B)\nEach face: exactly 9 colors (W, Y, O, R, G, B)\nValid colors: W, Y, O, R, G, B\n\nAccepted formats:\n\n1) Compact (no spaces between colors):\nU:WWWWWWWWW R:RRRRRRRRR F:GGGGGGGGG D:YYYYYYYYY L:OOOOOOOOO B:BBBBBBBBB\n\n2) Spaced (spaces between colors):\nU W W W W W W W W W\nR R R R R R R R R\nF G G G G G G G G\nD Y Y Y Y Y Y Y Y\nL O O O O O O O O\nB B B B B B B B B')
         return
       }
 
