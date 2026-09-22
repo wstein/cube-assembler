@@ -16,7 +16,7 @@
  */
 import { describe, it, expect } from 'vitest'
 import {
-  toWRGFacelets, fromWRGFacelets, toURFFacelets, fromURFFacelets, type CubeState,
+  toWRGFacelets, fromWRGFacelets, toURFFacelets, fromURFFacelets, detectNotationFormat, type CubeState,
 } from '../src/client/notationOutput'
 
 function solvedCube(size: number): CubeState {
@@ -138,5 +138,32 @@ describe('fromURFFacelets', () => {
   it('rejects a length that is not 6 equal perfect-square blocks', () => {
     expect(fromURFFacelets('UUUUUUUU RRRRRRRR FFFFFFFF DDDDDDDD LLLLLLLL BBBBBBBB')).toBeNull()
     expect(fromURFFacelets('')).toBeNull()
+  })
+})
+
+describe('detectNotationFormat', () => {
+  it('detects WRG from letters unique to its alphabet (W, Y, O, G)', () => {
+    expect(detectNotationFormat(toWRGFacelets(solvedCube(3)))).toBe('wrg')
+  })
+
+  it('detects URF from letters unique to its alphabet (U, F, D, L)', () => {
+    expect(detectNotationFormat(toURFFacelets(solvedCube(3)))).toBe('urf')
+  })
+
+  it('is case-insensitive', () => {
+    expect(detectNotationFormat(toWRGFacelets(solvedCube(3)).toLowerCase())).toBe('wrg')
+    expect(detectNotationFormat(toURFFacelets(solvedCube(3)).toLowerCase())).toBe('urf')
+  })
+
+  it('returns null for text using only the two letters shared by both alphabets (R, B)', () => {
+    expect(detectNotationFormat('RRRRRRRRR BBBBBBBBB RRRRRRRRR BBBBBBBBB RRRRRRRRR BBBBBBBBB')).toBeNull()
+  })
+
+  it('returns null for empty input', () => {
+    expect(detectNotationFormat('')).toBeNull()
+  })
+
+  it('returns null when letters unique to both alphabets are mixed together', () => {
+    expect(detectNotationFormat('WWWWWWWWW UUUUUUUUU')).toBeNull()
   })
 })

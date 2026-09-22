@@ -8,7 +8,7 @@ import {
   type ColorDetectionResult, type FaceCaptureResult, type RGB,
 } from './imageProcessing'
 import { assembleCubeFromFaces, validateFaceColors, createSolvedCube, toCubeIR, solveFaceOrientations } from './cubeAssembly'
-import { toWRGFacelets, fromWRGFacelets, toURFFacelets, fromURFFacelets } from './notationOutput'
+import { toWRGFacelets, fromWRGFacelets, toURFFacelets, fromURFFacelets, detectNotationFormat } from './notationOutput'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
@@ -375,17 +375,23 @@ function App() {
 
     setLoading(true)
     try {
-      const newCube = notationFormat === 'wrg'
+      // The textarea's onInput already keeps notationFormat in sync with
+      // pasted content via detectNotationFormat, but fall back to it here
+      // too in case content ever reaches this handler without going
+      // through that path (e.g. a fast paste-and-submit).
+      const effectiveFormat = detectNotationFormat(manualColorInput) ?? notationFormat
+      const newCube = effectiveFormat === 'wrg'
         ? fromWRGFacelets(manualColorInput)
         : fromURFFacelets(manualColorInput)
       if (!newCube) {
         alert(
-          notationFormat === 'wrg'
+          effectiveFormat === 'wrg'
             ? 'Invalid facelets. Must be 6 space-separated blocks of equal, perfect-square length (9 for 3×3, 25 for 5×5, ...) using colors W, O, G, R, B, Y, in U R F D L B order.'
             : 'Invalid facelets. Must be 6 space-separated blocks of equal, perfect-square length (9 for 3×3, 25 for 5×5, ...) using letters U, R, F, D, L, B (the face each sticker matches when solved), in U R F D L B order.'
         )
         return
       }
+      if (effectiveFormat !== notationFormat) setNotationFormat(effectiveFormat)
 
       const size = Math.sqrt(newCube.u.length)
       setPuzzleSize(size)
@@ -868,7 +874,12 @@ function App() {
             </label>
             <textarea
               value={manualColorInput}
-              onInput={(e) => setManualColorInput(e.currentTarget.value)}
+              onInput={(e) => {
+                const value = e.currentTarget.value
+                setManualColorInput(value)
+                const detected = detectNotationFormat(value)
+                if (detected && detected !== notationFormat) setNotationFormat(detected)
+              }}
               placeholder={notationFormat === 'wrg'
                 ? Array(6).fill('W'.repeat(puzzleSize * puzzleSize)).join(' ')
                 : ['U', 'R', 'F', 'D', 'L', 'B'].map((l) => l.repeat(puzzleSize * puzzleSize)).join(' ')}

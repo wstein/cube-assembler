@@ -90,3 +90,24 @@ export function toURFFacelets(cube: CubeState): string {
 export function fromURFFacelets(input: string): CubeState | null {
   return fromBlocks(input.toUpperCase(), URF_LETTERS, (letter) => FACE_LETTER_TO_COLOR[letter], 'URF')
 }
+
+// WRG's alphabet (WOGRBY) and URF's (URFDLB) share two letters (R, B), but
+// W/Y/O/G only ever appear in WRG text and U/F/D/L only ever appear in URF
+// text - so a pasted facelets string usually identifies its own format
+// unambiguously, letting the input panel auto-select the matching toggle
+// instead of requiring the user to pick it first. Returns null (don't
+// switch) when the input is empty, uses only the shared R/B letters, or
+// mixes letters unique to both alphabets (not a valid string either way).
+const WRG_ONLY_LETTERS = new Set(['W', 'Y', 'O', 'G'])
+const URF_ONLY_LETTERS = new Set(['U', 'F', 'D', 'L'])
+export function detectNotationFormat(input: string): 'wrg' | 'urf' | null {
+  let hasWrgOnly = false
+  let hasUrfOnly = false
+  for (const char of input.toUpperCase()) {
+    if (WRG_ONLY_LETTERS.has(char)) hasWrgOnly = true
+    else if (URF_ONLY_LETTERS.has(char)) hasUrfOnly = true
+  }
+  if (hasWrgOnly && !hasUrfOnly) return 'wrg'
+  if (hasUrfOnly && !hasWrgOnly) return 'urf'
+  return null
+}

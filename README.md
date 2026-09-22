@@ -5,7 +5,7 @@
 ![License: MIT](https://img.shields.io/badge/License-MIT-cyan.svg)
 ![npm](https://img.shields.io/badge/runtime-npm-black)
 ![ReScript](https://img.shields.io/badge/lang-ReScript-e6484f)
-![Tests](https://img.shields.io/badge/tests-81%2F81%20%E2%9C%85-brightgreen)
+![Tests](https://img.shields.io/badge/tests-87%2F87%20%E2%9C%85-brightgreen)
 
 A full-stack library and web app that solves two geometric ambiguities when reconstructing a physical cube from 6 unordered face photographs:
 
@@ -83,7 +83,7 @@ cube-assembler/
 └── test/
     ├── notation.test.ts           23 tests — ReScript Notation module (WRG/URF/Kociemba/Numeric)
     ├── cubeAssembly.test.ts       15 tests — face identity/orientation solver (odd + even sizes)
-    ├── notationOutput.test.ts     16 tests — spaced + URF (Kociemba) facelet formats
+    ├── notationOutput.test.ts     22 tests — WRG/URF facelet formats + format auto-detection
     ├── imageProcessing.test.ts    10 tests — OKLCH conversion + sticker-color learning
     ├── parity.test.ts             10 tests — server-side corner/edge facelet-index tables
     └── assemblyWorker.test.ts     7 tests — /api/assemble worker's corner/edge validation
@@ -150,6 +150,14 @@ formats, toggled with the same switch in both places (see
 Both are client-only formats, distinct from the ReScript `Notation`
 module described below, which the server-side parity/assembly pipeline
 uses instead.
+
+Pasting into the manual-entry textarea auto-detects which of the two
+formats the pasted text is in and switches the toggle to match, so you
+don't have to select the right one first: WOGRBY's W/Y/O/G and URFDLB's
+U/F/D/L never appear in the other alphabet, so `detectNotationFormat`
+(`notationOutput.ts`) can tell them apart from content alone (R and B are
+shared by both alphabets, so text using only those two letters is left
+alone rather than guessed).
 
 ---
 
