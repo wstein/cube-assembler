@@ -387,12 +387,6 @@ app.post("/api/assemble", async (c) => {
 
   return streamSSE(c, async (sse) => {
     const TOTAL = 720 * 4096; // 6! × 4^6 candidates
-    let tested = 0;
-    let afterBalance = 0;
-    let afterCenters = 0;
-    let afterEdges = 0;
-    let afterCorners = 0;
-    const validStates: CubeIR[] = [];
 
     await sse.writeSSE({ data: JSON.stringify({ type: "start", total: TOTAL }) });
 

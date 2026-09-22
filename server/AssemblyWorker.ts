@@ -39,25 +39,35 @@ function validateColorBalance(cube: CubeIR): boolean {
   return Object.values(countColors(cube)).every(c => c === expected);
 }
 
-function centerIdx(n: number): number[] {
-  if (n % 2 === 1) return [Math.floor(n / 2) * n + Math.floor(n / 2)];
-  const h = n / 2;
-  return [(h-1)*n+(h-1), (h-1)*n+h, h*n+(h-1), h*n+h];
-}
-
-function validateCenters(cube: CubeIR): boolean {
-  const idxs = centerIdx(cube.size);
-  for (const face of [cube.u, cube.r, cube.f, cube.d, cube.l, cube.b]) {
-    const ref = face.data[idxs[0]];
-    if (!idxs.every(i => face.data[i] === ref)) return false;
+// Corners are always single unit cubies regardless of puzzle size N, so
+// their 4 grid-corner slots (top-left/top-right/bottom-left/bottom-right)
+// on each face generalize to any N; only the literal facelet index of a
+// slot depends on N. (There is deliberately no center-block-uniformity
+// check here: unlike a 3x3's single fixed center sticker, center pieces
+// on an even cube are independently movable, so a genuinely scrambled
+// face's center block routinely mixes colors - see server/Server.ts's
+// runFullParity for the full writeup of why that check was removed.)
+type CornerSlot = "TL" | "TR" | "BL" | "BR";
+function cornerFaceletIdx(n: number, slot: CornerSlot): number {
+  switch (slot) {
+    case "TL": return 0;
+    case "TR": return n - 1;
+    case "BL": return n * (n - 1);
+    case "BR": return n * n - 1;
   }
-  return true;
 }
 
+// The 8 canonical corner color-triples (read in the same faceA/faceB/faceC
+// order as CORNERS below), each with its 2 other valid cyclic rotations -
+// 24 entries total. This previously used the opposite chirality (e.g.
+// "W-G-R" instead of "W-R-G"), which is a mirror image of every real
+// corner and so rejected every cube, including a solved one - the same
+// class of never-actually-exercised bug as Server.ts's own now-removed
+// dead-code VALID_CORNERS/validateCorners once had.
 const VALID_CORNERS = new Set([
-  "W-G-R","W-R-B","W-B-O","W-O-G","Y-G-O","Y-O-B","Y-B-R","Y-R-G",
-  "G-R-W","R-B-W","B-O-W","O-G-W","R-W-G","B-W-R","O-W-B","G-W-O",
-  "G-O-Y","O-B-Y","B-R-Y","R-G-Y","O-Y-G","B-Y-O","R-Y-B","G-Y-R",
+  "W-R-G","G-W-R","R-G-W","W-B-R","R-W-B","B-R-W","W-O-B","B-W-O",
+  "O-B-W","W-G-O","O-W-G","G-O-W","Y-G-R","R-Y-G","G-R-Y","Y-R-B",
+  "B-Y-R","R-B-Y","Y-B-O","O-Y-B","B-O-Y","Y-O-G","G-Y-O","O-G-Y",
 ]);
 
 const VALID_EDGES = new Set([
@@ -65,16 +75,24 @@ const VALID_EDGES = new Set([
   "G-W","R-W","B-W","O-W","G-Y","R-Y","B-Y","O-Y","R-G","O-G","R-B","O-B",
 ]);
 
-// Corner & edge facelet positions for 3x3
+// [faceA, slotA, faceB, slotB, faceC, slotC] per corner: UFR, UBR, UBL, UFL,
+// DFR, DBR, DBL, DFL. The B (back) face is viewed from outside the cube
+// (mirrored left/right relative to F), which the UBR/UBL entries' `b`/`l`
+// slots originally got backwards in this table's old literal-3x3-index
+// predecessor - same bug as server/Server.ts's CORNER_SLOTS once had, and
+// same fix (see test/assemblyWorker.test.ts for the regression coverage).
 const CORNERS = [
-  ["u",8,"r",0,"f",2],["u",2,"b",2,"r",2],["u",0,"l",2,"b",0],["u",6,"f",0,"l",2],
-  ["d",2,"f",8,"r",6],["d",8,"r",8,"b",6],["d",6,"b",8,"l",6],["d",0,"l",8,"f",6],
+  ["u","BR","r","TL","f","TR"], ["u","TR","b","TL","r","TR"], ["u","TL","l","TL","b","TR"], ["u","BL","f","TL","l","TR"],
+  ["d","TR","f","BR","r","BL"], ["d","BR","r","BR","b","BL"], ["d","BL","b","BR","l","BL"], ["d","TL","l","BR","f","BL"],
 ] as const;
 
+// Edge facelet positions for 3x3: UF, UR, UB, UL, DF, DR, DB, DL, FR, FL,
+// BR, BL. Same B-face mirroring mistake as CORNERS above hit the BR/BL
+// entries' `b` index.
 const EDGES = [
   ["u",7,"f",1],["u",5,"r",1],["u",1,"b",1],["u",3,"l",1],
   ["d",1,"f",7],["d",5,"r",7],["d",7,"b",7],["d",3,"l",7],
-  ["f",5,"r",3],["f",3,"l",5],["b",5,"r",5],["b",3,"l",3],
+  ["f",5,"r",3],["f",3,"l",5],["b",3,"r",5],["b",5,"l",3],
 ] as const;
 
 function gf(cube: CubeIR, key: string): FaceGrid { return (cube as any)[key]; }
@@ -89,8 +107,9 @@ function validateEdges(cube: CubeIR): boolean {
 }
 
 function validateCorners(cube: CubeIR): boolean {
-  for (const [fa, ia, fb, ib, fc, ic] of CORNERS) {
-    const key = `${gf(cube,fa).data[ia]}-${gf(cube,fb).data[ib]}-${gf(cube,fc).data[ic]}`;
+  const n = cube.size;
+  for (const [fa, ca, fb, cb, fc, cc] of CORNERS) {
+    const key = `${gf(cube,fa).data[cornerFaceletIdx(n, ca as CornerSlot)]}-${gf(cube,fb).data[cornerFaceletIdx(n, cb as CornerSlot)]}-${gf(cube,fc).data[cornerFaceletIdx(n, cc as CornerSlot)]}`;
     if (!VALID_CORNERS.has(key)) return false;
   }
   return true;
@@ -117,11 +136,16 @@ function permParity(p: number[]): boolean {
 }
 
 function checkFullParity(cube: CubeIR): boolean {
-  if (cube.size !== 3) return true; // non-3x3: structural checks sufficient
-  // Corner analysis
+  const n = cube.size;
+
+  // Corner analysis - meaningful for every N (see CORNERS/cornerFaceletIdx above).
   const cp: number[] = [], co: number[] = [];
-  for (const [fa,ia,fb,ib,fc,ic] of CORNERS) {
-    const colors: FaceColor[] = [gf(cube,fa).data[ia] as FaceColor, gf(cube,fb).data[ib] as FaceColor, gf(cube,fc).data[ic] as FaceColor];
+  for (const [fa,ca,fb,cb,fc,cc] of CORNERS) {
+    const colors: FaceColor[] = [
+      gf(cube,fa).data[cornerFaceletIdx(n, ca as CornerSlot)] as FaceColor,
+      gf(cube,fb).data[cornerFaceletIdx(n, cb as CornerSlot)] as FaceColor,
+      gf(cube,fc).data[cornerFaceletIdx(n, cc as CornerSlot)] as FaceColor,
+    ];
     let found = false;
     for (let pi = 0; pi < SOLVED_C.length && !found; pi++) {
       for (let rot = 0; rot < 3; rot++) {
@@ -132,6 +156,11 @@ function checkFullParity(cube: CubeIR): boolean {
     }
     if (!found) return false;
   }
+  const coSum = co.reduce((a,b)=>a+b,0);
+  if (coSum % 3 !== 0) return false;
+
+  if (n !== 3) return true; // 4x4-7x7: no wing/center parity model yet (see README)
+
   // Edge analysis
   const ep: number[] = [], eo: number[] = [];
   for (const [fa,ia,fb,ib] of EDGES) {
@@ -143,8 +172,6 @@ function checkFullParity(cube: CubeIR): boolean {
     }
     if (!found) return false;
   }
-  const coSum = co.reduce((a,b)=>a+b,0);
-  if (coSum % 3 !== 0) return false;
   const eoSum = eo.reduce((a,b)=>a+b,0);
   if (eoSum % 2 !== 0) return false;
   return permParity(cp) === permParity(ep);
@@ -172,7 +199,7 @@ self.onmessage = async (e: MessageEvent) => {
   const { faces, size }: { faces: FaceGrid[]; size: number } = e.data;
 
   const TOTAL = 720 * 4096;
-  let tested = 0, afterBalance = 0, afterCenters = 0, afterEdges = 0, afterCorners = 0;
+  let tested = 0, afterBalance = 0, afterCorners = 0, afterEdges = 0;
   const valid: CubeIR[] = [];
 
   const send = (msg: AssembleSSEEvent) => self.postMessage(msg);
@@ -194,12 +221,10 @@ self.onmessage = async (e: MessageEvent) => {
 
       if (!validateColorBalance(cube)) continue;
       afterBalance++;
-      if (!validateCenters(cube)) continue;
-      afterCenters++;
-      if (!validateEdges(cube)) continue;
-      afterEdges++;
       if (!validateCorners(cube)) continue;
       afterCorners++;
+      if (!validateEdges(cube)) continue;
+      afterEdges++;
       if (!checkFullParity(cube)) continue;
       valid.push(cube);
 
@@ -213,9 +238,8 @@ self.onmessage = async (e: MessageEvent) => {
   }
 
   send({ type: "stage", stage: "balance",  count: afterBalance,  tested });
-  send({ type: "stage", stage: "centers",  count: afterCenters,  tested });
-  send({ type: "stage", stage: "edges",    count: afterEdges,    tested });
   send({ type: "stage", stage: "corners",  count: afterCorners,  tested });
+  send({ type: "stage", stage: "edges",    count: afterEdges,    tested });
   send({ type: "stage", stage: "parity",   count: valid.length,  tested });
   send({ type: "result", states: valid });
 };
