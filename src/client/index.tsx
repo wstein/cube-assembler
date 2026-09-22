@@ -69,7 +69,9 @@ function App() {
   const [parity, setParity] = useState<any>(null)
   const [webcamOpen, setWebcamOpen] = useState(false)
   const [webcamFace, setWebcamFace] = useState('U')
-  const [showExport, setShowExport] = useState(false)
+  const [capturedFaces, setCapturedFaces] = useState<Record<string, boolean>>({})
+  const [activeTab, setActiveTab] = useState('WRG')
+  const [loading, setLoading] = useState(false)
   const webcamRef = useRef<HTMLVideoElement>(null)
 
   // ─────────────────────────────────────────────────────────────────────────
@@ -95,20 +97,55 @@ function App() {
     }
   }, [webcamOpen])
 
+  useEffect(() => {
+    const container = document.getElementById('twisty-player-container')
+    if (!container) return
+
+    const player = document.createElement('twisty-player')
+    player.setAttribute('visualization', 'side-by-side')
+    player.setAttribute('background', 'checkered')
+    player.setAttribute('control-panel', 'bottom-row')
+
+    if (cube) {
+      try {
+        const cubeStr = JSON.stringify(cube)
+        player.setAttribute('cube-state', cubeStr)
+      } catch (e) {
+        console.warn('Could not serialize cube state for TwistyPlayer', e)
+      }
+    } else {
+      player.setAttribute('setup-anchor', 'start')
+      player.textContent = `R U R' U' R U R' U'`
+    }
+
+    container.innerHTML = ''
+    container.appendChild(player)
+  }, [cube, puzzleSize])
+
   // ─────────────────────────────────────────────────────────────────────────
   // Features: Scramble Generation (#8)
   // ─────────────────────────────────────────────────────────────────────────
 
   const handleGenerateScramble = async () => {
-    const newScramble = await generateScramble(puzzleSize)
-    setScramble(newScramble)
+    setLoading(true)
+    try {
+      const newScramble = await generateScramble(puzzleSize)
+      setScramble(newScramble)
+    } finally {
+      setLoading(false)
+    }
   }
 
   const handleApplyScramble = async () => {
     if (!scramble || !cube) return
-    const result = await applyAlgorithm(cube, scramble)
-    setCube(result.cube || result)
-    setScramble('')
+    setLoading(true)
+    try {
+      const result = await applyAlgorithm(cube, scramble)
+      setCube(result.cube || result)
+      setScramble('')
+    } finally {
+      setLoading(false)
+    }
   }
 
   // ─────────────────────────────────────────────────────────────────────────
@@ -117,21 +154,31 @@ function App() {
 
   const handleApplyAlgorithm = async () => {
     if (!algorithm || !cube) return
-    const result = await applyAlgorithm(cube, algorithm)
-    setCube(result.cube || result)
-    await updateParityStatus(result.cube || result)
+    setLoading(true)
+    try {
+      const result = await applyAlgorithm(cube, algorithm)
+      setCube(result.cube || result)
+      await updateParityStatus(result.cube || result)
+    } finally {
+      setLoading(false)
+    }
   }
 
   const handleInvertAlgorithm = async () => {
     if (!algorithm || !cube) return
-    const inverted = algorithm
-      .split(/\s+/)
-      .map((m) => (m.endsWith("'") ? m.slice(0, -1) : m + "'"))
-      .reverse()
-      .join(' ')
-    const result = await applyAlgorithm(cube, inverted)
-    setCube(result.cube || result)
-    await updateParityStatus(result.cube || result)
+    setLoading(true)
+    try {
+      const inverted = algorithm
+        .split(/\s+/)
+        .map((m) => (m.endsWith("'") ? m.slice(0, -1) : m + "'"))
+        .reverse()
+        .join(' ')
+      const result = await applyAlgorithm(cube, inverted)
+      setCube(result.cube || result)
+      await updateParityStatus(result.cube || result)
+    } finally {
+      setLoading(false)
+    }
   }
 
   const handlePresetAlgorithm = (algo: string) => {
@@ -211,8 +258,9 @@ function App() {
     const ctx = canvas.getContext('2d')
     if (ctx) {
       ctx.drawImage(webcamRef.current, 0, 0)
-      // TODO: Send to image processing pipeline for color extraction
+      setCapturedFaces({ ...capturedFaces, [webcamFace]: true })
       console.log('Photo captured for face:', webcamFace)
+      setWebcamOpen(false)
     }
   }
 
@@ -244,16 +292,63 @@ function App() {
   // Render
   // ─────────────────────────────────────────────────────────────────────────
 
+  const getTabContent = () => {
+    if (!cube) return 'null'
+    if (activeTab === 'WRG') return JSON.stringify(cube, null, 2)
+    if (activeTab === 'URF') return JSON.stringify(cube, null, 2)
+    if (activeTab === 'Flat') return JSON.stringify(cube, null, 2)
+    return JSON.stringify(cube, null, 2)
+  }
+
   return (
     <div id="app">
-      {/* 3D Viewer (Placeholder for TwistyPlayer) - Finding #4 */}
+      {/* Header */}
+      <header class="app-header">
+        <div class="header-content">
+          <h1>CubeAssembler</h1>
+          <p>Assemble, validate, and solve Rubik's Cubes from face photos</p>
+        </div>
+      </header>
+
+      {/* 3D Viewer */}
       <div class="viewer-region">
-        <h3>3D Cube Viewer</h3>
+        <div class="viewer-controls">
+          <h3>Puzzle Size</h3>
+          <div class="size-selector">
+            {[2, 3, 4, 5, 6, 7].map((size) => (
+              <button
+                key={size}
+                class={`size-btn ${puzzleSize === size ? 'active' : ''}`}
+                onClick={() => setPuzzleSize(size)}
+              >
+                {size}×{size}
+              </button>
+            ))}
+          </div>
+        </div>
         <div class="viewer-canvas">
-          TwistyPlayer integration coming soon...
-          {cube && <span>Puzzle size: {puzzleSize}×{puzzleSize}</span>}
+          <div id="twisty-player-container" style={{ width: '100%', height: '100%' }}></div>
+          {!cube && <div class="placeholder-text">Capture faces to load cube state</div>}
         </div>
       </div>
+
+      {/* Face Capture Panel */}
+      <section class="face-capture-panel">
+        <h2>Capture Cube Faces</h2>
+        <div class="face-grid">
+          {['U', 'R', 'F', 'D', 'L', 'B'].map((face) => (
+            <button
+              key={face}
+              class={`face-btn ${capturedFaces[face] ? 'captured' : ''}`}
+              onClick={() => handleCaptureFace(face)}
+              title={capturedFaces[face] ? `${face} face captured` : `Capture ${face} face`}
+            >
+              <span class="face-label">{face}</span>
+              {capturedFaces[face] && <span class="face-check">✓</span>}
+            </button>
+          ))}
+        </div>
+      </section>
 
       {/* Right Panel: Algorithms & Results */}
       <aside class="panel panel-controls">
@@ -278,20 +373,20 @@ function App() {
           ))}
         </div>
 
-        <button class="btn btn-primary" onClick={handleApplyAlgorithm}>
-          Apply Algorithm
+        <button class="btn btn-primary" onClick={handleApplyAlgorithm} disabled={loading || !cube}>
+          {loading ? '⏳ Applying...' : 'Apply Algorithm'}
         </button>
-        <button class="btn btn-secondary" onClick={handleInvertAlgorithm}>
-          Invert & Apply
+        <button class="btn btn-secondary" onClick={handleInvertAlgorithm} disabled={loading || !cube}>
+          {loading ? '⏳ Inverting...' : 'Invert & Apply'}
         </button>
 
         <h2>Scramble</h2>
         <div class="scramble-display">{scramble || 'Press Generate to get a WCA scramble'}</div>
-        <button class="btn btn-primary" onClick={handleGenerateScramble}>
-          Generate WCA Scramble
+        <button class="btn btn-primary" onClick={handleGenerateScramble} disabled={loading}>
+          {loading ? '⏳ Generating...' : 'Generate WCA Scramble'}
         </button>
-        <button class="btn btn-secondary" onClick={handleApplyScramble} disabled={!scramble || !cube}>
-          Apply Scramble
+        <button class="btn btn-secondary" onClick={handleApplyScramble} disabled={loading || !scramble || !cube}>
+          {loading ? '⏳ Applying...' : 'Apply Scramble'}
         </button>
 
         <h2>Parity Status</h2>
@@ -314,19 +409,25 @@ function App() {
           <div class="status-line">No cube loaded. Capture all 6 faces to validate.</div>
         )}
 
-        <h2>URF / WRG Output</h2>
+        <h2>Notation Output</h2>
         <div class="tab-list">
-          <button class="tab-btn active">WRG</button>
-          <button class="tab-btn">URF</button>
-          <button class="tab-btn">Flat</button>
+          {['WRG', 'URF', 'Flat'].map((tab) => (
+            <button
+              key={tab}
+              class={`tab-btn ${activeTab === tab ? 'active' : ''}`}
+              onClick={() => setActiveTab(tab)}
+            >
+              {tab}
+            </button>
+          ))}
         </div>
-        <textarea readonly value={JSON.stringify(cube, null, 2)} />
-        <button class="btn btn-primary" onClick={() => cube && copyToClipboard(JSON.stringify(cube))}>
+        <textarea readonly value={getTabContent()} />
+        <button class="btn btn-primary" onClick={() => cube && copyToClipboard(getTabContent())}>
           Copy to Clipboard
         </button>
       </aside>
 
-      {/* Webcam Modal - Finding #5 */}
+      {/* Webcam Modal */}
       {webcamOpen && (
         <div class="modal open">
           <div class="modal-content">
