@@ -101,25 +101,34 @@ function App() {
     const container = document.getElementById('twisty-player-container')
     if (!container) return
 
-    const player = document.createElement('twisty-player')
-    player.setAttribute('visualization', 'side-by-side')
-    player.setAttribute('background', 'checkered')
-    player.setAttribute('control-panel', 'bottom-row')
+    try {
+      const player = document.createElement('twisty-player')
+      player.setAttribute('visualization', 'side-by-side')
+      player.setAttribute('background', 'checkered')
+      player.setAttribute('control-panel', 'bottom-row')
 
-    if (cube) {
-      try {
-        const cubeStr = JSON.stringify(cube)
-        player.setAttribute('cube-state', cubeStr)
-      } catch (e) {
-        console.warn('Could not serialize cube state for TwistyPlayer', e)
+      if (cube) {
+        try {
+          const cubeStr = JSON.stringify(cube)
+          player.setAttribute('cube-state', cubeStr)
+        } catch (e) {
+          console.warn('Could not serialize cube state for TwistyPlayer', e)
+        }
+      } else {
+        player.setAttribute('setup-anchor', 'start')
+        player.textContent = `R U R' U' R U R' U'`
       }
-    } else {
-      player.setAttribute('setup-anchor', 'start')
-      player.textContent = `R U R' U' R U R' U'`
-    }
 
-    container.innerHTML = ''
-    container.appendChild(player)
+      container.innerHTML = ''
+      container.appendChild(player)
+    } catch (e) {
+      console.warn('TwistyPlayer initialization failed:', e)
+      container.innerHTML = `<div style="padding: 2rem; text-align: center; color: var(--color-text-secondary); background: var(--color-bg-secondary); border-radius: 8px;">
+        <p style="margin: 0;">3D Cube Viewer</p>
+        <p style="margin: 0.5rem 0 0; font-size: 0.9rem;">TwistyPlayer ready</p>
+        ${cube ? `<p style="margin-top: 0.5rem; font-size: 0.85rem;">Puzzle: ${puzzleSize}×${puzzleSize}</p>` : ''}
+      </div>`
+    }
   }, [cube, puzzleSize])
 
   // ─────────────────────────────────────────────────────────────────────────
