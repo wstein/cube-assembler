@@ -137,13 +137,14 @@ Manual entry and the notation output panel offer two interchangeable
 formats, toggled with the same switch in both places (see
 `src/client/notationOutput.ts`):
 
-- **Spaced facelets** — 6 space-separated N²-letter blocks of WOGRBY color
+- **WRG facelets** — 6 space-separated N²-letter blocks of WOGRBY color
   letters, in U R F D L B order, e.g. for a solved 3×3: `WWWWWWWWW
   RRRRRRRRR GGGGGGGGG YYYYYYYYY OOOOOOOOO BBBBBBBBB`.
-- **URF facelets** — the standard Kociemba/solver facelet string: one
-  unspaced run of 6·N² URFDLB letters, where each letter names the face
-  whose solved color that sticker matches (not the color itself), e.g. for
-  a solved 3×3: `UUUUUUUUURRRRRRRRRFFFFFFFFFDDDDDDDDDLLLLLLLLLBBBBBBBBB`.
+- **URF facelets** — the same block structure, but using the standard
+  Kociemba/solver alphabet: each letter is U/R/F/D/L/B, naming the face
+  whose solved color that sticker matches (not the color itself), e.g.
+  for a solved 3×3: `UUUUUUUUU RRRRRRRRR FFFFFFFFF DDDDDDDDD LLLLLLLLL
+  BBBBBBBBB`.
 
 Both are client-only formats, distinct from the ReScript `Notation`
 module described below, which the server-side parity/assembly pipeline

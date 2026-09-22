@@ -8,7 +8,7 @@ import {
   type ColorDetectionResult, type FaceCaptureResult, type RGB,
 } from './imageProcessing'
 import { assembleCubeFromFaces, validateFaceColors, createSolvedCube, toCubeIR, solveFaceOrientations } from './cubeAssembly'
-import { toSpacedFacelets, fromSpacedFacelets, toURFFacelets, fromURFFacelets } from './notationOutput'
+import { toWRGFacelets, fromWRGFacelets, toURFFacelets, fromURFFacelets } from './notationOutput'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
@@ -134,7 +134,7 @@ function App() {
   const [captureMessage, setCaptureMessage] = useState('')
   const [manualColorInput, setManualColorInput] = useState('')
   const [showColorInput, setShowColorInput] = useState(false)
-  const [notationFormat, setNotationFormat] = useState<'spaced' | 'urf'>('spaced')
+  const [notationFormat, setNotationFormat] = useState<'wrg' | 'urf'>('wrg')
   const [liveDetection, setLiveDetection] = useState<ColorDetectionResult | null>(null)
   const [showReviewDialog, setShowReviewDialog] = useState(false)
   const [reviewEditingCell, setReviewEditingCell] = useState<{ face: string; row: number; col: number } | null>(null)
@@ -375,14 +375,14 @@ function App() {
 
     setLoading(true)
     try {
-      const newCube = notationFormat === 'spaced'
-        ? fromSpacedFacelets(manualColorInput.toUpperCase())
-        : fromURFFacelets(manualColorInput.toUpperCase().trim())
+      const newCube = notationFormat === 'wrg'
+        ? fromWRGFacelets(manualColorInput)
+        : fromURFFacelets(manualColorInput)
       if (!newCube) {
         alert(
-          notationFormat === 'spaced'
+          notationFormat === 'wrg'
             ? 'Invalid facelets. Must be 6 space-separated blocks of equal, perfect-square length (9 for 3×3, 25 for 5×5, ...) using colors W, O, G, R, B, Y, in U R F D L B order.'
-            : 'Invalid facelets. Must be a single run of 6 equal, perfect-square blocks (54 characters for 3×3, 150 for 5×5, ...) using letters U, R, F, D, L, B (the face each sticker matches when solved), in U R F D L B order, with no separators.'
+            : 'Invalid facelets. Must be 6 space-separated blocks of equal, perfect-square length (9 for 3×3, 25 for 5×5, ...) using letters U, R, F, D, L, B (the face each sticker matches when solved), in U R F D L B order.'
         )
         return
       }
@@ -733,7 +733,7 @@ function App() {
 
   const getNotationOutput = () => {
     if (!cube) return 'null'
-    return notationFormat === 'spaced' ? toSpacedFacelets(cube) : toURFFacelets(cube)
+    return notationFormat === 'wrg' ? toWRGFacelets(cube) : toURFFacelets(cube)
   }
 
   return (
@@ -849,10 +849,10 @@ function App() {
           <div class="color-input-panel">
             <div class="notation-format-toggle">
               <button
-                class={`wb-btn ${notationFormat === 'spaced' ? 'active' : ''}`}
-                onClick={() => setNotationFormat('spaced')}
+                class={`wb-btn ${notationFormat === 'wrg' ? 'active' : ''}`}
+                onClick={() => setNotationFormat('wrg')}
               >
-                Spaced Facelets
+                WRG Facelets
               </button>
               <button
                 class={`wb-btn ${notationFormat === 'urf' ? 'active' : ''}`}
@@ -862,16 +862,16 @@ function App() {
               </button>
             </div>
             <label>
-              {notationFormat === 'spaced'
-                ? `Enter spaced facelets: 6 blocks of ${puzzleSize * puzzleSize} colors (W, O, G, R, B, Y), space-separated, in U R F D L B order`
-                : `Enter URF facelets: ${puzzleSize * puzzleSize * 6} letters (U, R, F, D, L, B - the face each sticker's color matches when solved), no separators, in U R F D L B order`}
+              {notationFormat === 'wrg'
+                ? `Enter WRG facelets: 6 blocks of ${puzzleSize * puzzleSize} colors (W, O, G, R, B, Y), space-separated, in U R F D L B order`
+                : `Enter URF facelets: 6 blocks of ${puzzleSize * puzzleSize} letters (U, R, F, D, L, B - the face each sticker's color matches when solved), space-separated, in U R F D L B order`}
             </label>
             <textarea
               value={manualColorInput}
               onInput={(e) => setManualColorInput(e.currentTarget.value)}
-              placeholder={notationFormat === 'spaced'
+              placeholder={notationFormat === 'wrg'
                 ? Array(6).fill('W'.repeat(puzzleSize * puzzleSize)).join(' ')
-                : ['U', 'R', 'F', 'D', 'L', 'B'].map((l) => l.repeat(puzzleSize * puzzleSize)).join('')}
+                : ['U', 'R', 'F', 'D', 'L', 'B'].map((l) => l.repeat(puzzleSize * puzzleSize)).join(' ')}
               rows={6}
               style={{ width: '100%', marginTop: '0.5rem' }}
             />
@@ -950,10 +950,10 @@ function App() {
         <h2>Notation Output</h2>
         <div class="notation-format-toggle">
           <button
-            class={`wb-btn ${notationFormat === 'spaced' ? 'active' : ''}`}
-            onClick={() => setNotationFormat('spaced')}
+            class={`wb-btn ${notationFormat === 'wrg' ? 'active' : ''}`}
+            onClick={() => setNotationFormat('wrg')}
           >
-            Spaced Facelets
+            WRG Facelets
           </button>
           <button
             class={`wb-btn ${notationFormat === 'urf' ? 'active' : ''}`}
@@ -963,9 +963,9 @@ function App() {
           </button>
         </div>
         <p class="notation-hint">
-          {notationFormat === 'spaced'
-            ? `Spaced facelets: 6 blocks of ${puzzleSize * puzzleSize} (U R F D L B), space-separated.`
-            : `URF facelets: ${puzzleSize * puzzleSize * 6} characters (U R F D L B), no separators.`}
+          {notationFormat === 'wrg'
+            ? `WRG facelets: 6 blocks of ${puzzleSize * puzzleSize} (W O G R B Y colors), space-separated.`
+            : `URF facelets: 6 blocks of ${puzzleSize * puzzleSize} (U R F D L B letters), space-separated.`}
         </p>
         <textarea readonly value={getNotationOutput()} />
         <button class="btn btn-primary" onClick={() => cube && copyToClipboard(getNotationOutput())}>
