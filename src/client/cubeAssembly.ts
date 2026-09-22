@@ -43,21 +43,31 @@ const COLOR_FACES: Record<string, 'U' | 'R' | 'F' | 'D' | 'L' | 'B'> = {
   B: 'B', // Blue = Back
 }
 
+const SOLVED_FACE_COLOR: Record<'U' | 'R' | 'F' | 'D' | 'L' | 'B', string> = {
+  U: 'W', R: 'R', F: 'G', D: 'Y', L: 'O', B: 'B',
+}
+
+function solvedFace(letter: keyof typeof SOLVED_FACE_COLOR, size: number): string[][] {
+  const color = SOLVED_FACE_COLOR[letter]
+  return Array.from({ length: size }, () => Array(size).fill(color))
+}
+
 export function assembleCubeFromFaces(
-  faces: Record<string, string[][]>
+  faces: Record<string, string[][]>,
+  size = 3
 ): CubeState {
-  // Flatten each 3x3 face into a 9-element array
+  // Flatten each NxN face into a size*size-element array
   const flattenFace = (face: string[][]): string[] => {
     return face.flat()
   }
 
   const cubeState: CubeState = {
-    u: flattenFace(faces.U || [['W','W','W'],['W','W','W'],['W','W','W']]),
-    r: flattenFace(faces.R || [['R','R','R'],['R','R','R'],['R','R','R']]),
-    f: flattenFace(faces.F || [['G','G','G'],['G','G','G'],['G','G','G']]),
-    d: flattenFace(faces.D || [['Y','Y','Y'],['Y','Y','Y'],['Y','Y','Y']]),
-    l: flattenFace(faces.L || [['O','O','O'],['O','O','O'],['O','O','O']]),
-    b: flattenFace(faces.B || [['B','B','B'],['B','B','B'],['B','B','B']]),
+    u: flattenFace(faces.U || solvedFace('U', size)),
+    r: flattenFace(faces.R || solvedFace('R', size)),
+    f: flattenFace(faces.F || solvedFace('F', size)),
+    d: flattenFace(faces.D || solvedFace('D', size)),
+    l: flattenFace(faces.L || solvedFace('L', size)),
+    b: flattenFace(faces.B || solvedFace('B', size)),
   }
 
   return cubeState
@@ -67,13 +77,13 @@ export function faceColorsToString(colors: string[][]): string {
   return colors.map(row => row.join(' ')).join('\n')
 }
 
-export function validateFaceColors(colors: string[][]): boolean {
-  if (colors.length !== 3) return false
+export function validateFaceColors(colors: string[][], size = 3): boolean {
+  if (colors.length !== size) return false
 
   const validColors = new Set(['W', 'Y', 'O', 'R', 'G', 'B'])
 
   for (const row of colors) {
-    if (row.length !== 3) return false
+    if (row.length !== size) return false
     for (const color of row) {
       if (!validColors.has(color)) return false
     }
@@ -82,14 +92,14 @@ export function validateFaceColors(colors: string[][]): boolean {
   return true
 }
 
-export function createSolvedCube(): CubeState {
+export function createSolvedCube(size = 3): CubeState {
   return {
-    u: Array(9).fill('W'),
-    r: Array(9).fill('R'),
-    f: Array(9).fill('G'),
-    d: Array(9).fill('Y'),
-    l: Array(9).fill('O'),
-    b: Array(9).fill('B'),
+    u: Array(size * size).fill('W'),
+    r: Array(size * size).fill('R'),
+    f: Array(size * size).fill('G'),
+    d: Array(size * size).fill('Y'),
+    l: Array(size * size).fill('O'),
+    b: Array(size * size).fill('B'),
   }
 }
 
