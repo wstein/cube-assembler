@@ -151,6 +151,54 @@ export interface StickerSample {
 // seeds centroids by sorting points along their dominant spread axis and
 // picking k evenly-spaced ones, rather than random init, so results are
 // reproducible for the same capture.
+// Assigns each point to exactly one of `centroids`, enforcing that every
+// centroid receives (as close as possible to, and exactly when n divides
+// evenly by k) points.length / centroids.length points — the hard
+// constraint that a valid NxN cube capture always has exactly N^2
+// stickers of each of the 6 colors. Greedy: sort every (point, centroid)
+// pairing by distance ascending, then walk that list assigning each point
+// to the nearest centroid that still has room, skipping pairs whose point
+// is already assigned or whose centroid is already full.
+//
+// This is a well-known good heuristic for balanced/capacitated clustering
+// — not necessarily the global optimum (that's a harder transportation-
+// problem solve), but far better than unconstrained nearest-centroid.
+// Unconstrained assignment has no way to know a nearby cluster is already
+// "full": on a real capture, 3 green stickers were pulled into the orange
+// cluster because they were (slightly) closer to orange's centroid than
+// to green's, even though orange had already claimed its fair share of 9
+// and green hadn't — the assignment had no mechanism to prefer the
+// correct-but-slightly-farther cluster once green's own points ran out.
+function balancedAssign(points: RGB[], centroids: RGB[]): number[] {
+  const k = centroids.length
+  const n = points.length
+  const capacity = Math.ceil(n / k)
+
+  const pairs: { pointIdx: number; centroidIdx: number; dist: number }[] = []
+  for (let pi = 0; pi < n; pi++) {
+    for (let ci = 0; ci < k; ci++) {
+      pairs.push({ pointIdx: pi, centroidIdx: ci, dist: colorDistance(points[pi], centroids[ci]) })
+    }
+  }
+  pairs.sort((a, b) => a.dist - b.dist)
+
+  const assignment = new Array(n).fill(0)
+  const counts = new Array(k).fill(0)
+  const isAssigned = new Array(n).fill(false)
+  let assignedCount = 0
+
+  for (const { pointIdx, centroidIdx } of pairs) {
+    if (assignedCount === n) break
+    if (isAssigned[pointIdx] || counts[centroidIdx] >= capacity) continue
+    assignment[pointIdx] = centroidIdx
+    isAssigned[pointIdx] = true
+    counts[centroidIdx]++
+    assignedCount++
+  }
+
+  return assignment
+}
+
 function kMeansCluster(points: RGB[], k: number, iterations = 20): RGB[] {
   // Deterministic farthest-point seeding: start from the first point, then
   // repeatedly add whichever remaining point has the largest distance to
@@ -180,16 +228,12 @@ function kMeansCluster(points: RGB[], k: number, iterations = 20): RGB[] {
   }
 
   for (let iter = 0; iter < iterations; iter++) {
+    const assignment = balancedAssign(points, centroids)
     const sums = Array.from({ length: k }, () => ({ r: 0, g: 0, b: 0, count: 0 }))
-    for (const p of points) {
-      let best = 0
-      let bestDist = Infinity
-      for (let i = 0; i < k; i++) {
-        const d = colorDistance(p, centroids[i])
-        if (d < bestDist) { bestDist = d; best = i }
-      }
-      sums[best].r += p.r; sums[best].g += p.g; sums[best].b += p.b; sums[best].count++
-    }
+    points.forEach((p, pi) => {
+      const c = assignment[pi]
+      sums[c].r += p.r; sums[c].g += p.g; sums[c].b += p.b; sums[c].count++
+    })
     centroids = centroids.map((c, i) =>
       sums[i].count > 0
         ? { r: sums[i].r / sums[i].count, g: sums[i].g / sums[i].count, b: sums[i].b / sums[i].count }
@@ -231,16 +275,17 @@ function bestPermutationMatch(centroids: RGB[], canonical: RGB[]): number[] {
 export interface LearnedColors {
   colors: Record<string, RGB>
   clusterSizes: Record<string, number>
+  labelsBySampleIndex: string[]
 }
 
 // Learns each of the 6 sticker colors' actual RGB directly from the
 // capture itself, using ALL captured stickers (typically all 54 across 6
 // faces) as calibration data, instead of assuming the hardcoded WCA
 // reference swatches (STICKER_COLORS) are what the camera+lighting
-// actually produced. Every sticker is then classified against these
-// learned colors (classifyByLearnedColors), not the hardcoded ones — the
-// hardcoded palette is used here only to LABEL which cluster is which
-// color name, never as the classification target itself.
+// actually produced. Every sticker is then classified by a balanced
+// assignment against these learned colors (labelsBySampleIndex), not the
+// hardcoded ones — the hardcoded palette is used here only to LABEL which
+// cluster is which color name, never as the classification target itself.
 //
 // An earlier version of this instead solved for a global per-channel gain
 // (observed * gain ~= canonical) and reclassified against the still-fixed
@@ -266,38 +311,31 @@ export function learnStickerColors(samples: StickerSample[]): LearnedColors | nu
   const centroids = kMeansCluster(points, K)
   const canonicalKeys = Object.keys(STICKER_COLORS)
   const canonicalList = canonicalKeys.map((k) => STICKER_COLORS[k])
-  const assignment = bestPermutationMatch(centroids, canonicalList)
+  const permutation = bestPermutationMatch(centroids, canonicalList)
+
+  // One final balanced-assignment pass against the converged centroids, so
+  // every sticker's DEFINITIVE label (not just the centroid-learning
+  // iterations inside kMeansCluster) also respects the exact-N-per-color
+  // constraint — this is what actually gets used as each sticker's color,
+  // not an independent nearest-centroid lookup per sticker, which would
+  // reopen the same "one cluster steals another's points" failure this
+  // whole balanced-assignment approach exists to close.
+  const pointAssignment = balancedAssign(points, centroids)
 
   const clusterCounts = new Array(K).fill(0)
-  for (const p of points) {
-    let best = 0
-    let bestDist = Infinity
-    for (let i = 0; i < K; i++) {
-      const d = colorDistance(p, centroids[i])
-      if (d < bestDist) { bestDist = d; best = i }
-    }
-    clusterCounts[best]++
-  }
+  for (const clusterIdx of pointAssignment) clusterCounts[clusterIdx]++
 
   const colors: Record<string, RGB> = {}
   const clusterSizes: Record<string, number> = {}
   for (let i = 0; i < K; i++) {
-    const name = canonicalKeys[assignment[i]]
+    const name = canonicalKeys[permutation[i]]
     colors[name] = centroids[i]
     clusterSizes[name] = clusterCounts[i]
   }
 
-  return { colors, clusterSizes }
-}
+  const labelsBySampleIndex = pointAssignment.map((clusterIdx) => canonicalKeys[permutation[clusterIdx]])
 
-function classifyByLearnedColors(rgb: RGB, learned: Record<string, RGB>): { color: string; distance: number } {
-  let closest = 'W'
-  let minDist = Infinity
-  for (const [color, ref] of Object.entries(learned)) {
-    const dist = colorDistance(rgb, ref)
-    if (dist < minDist) { minDist = dist; closest = color }
-  }
-  return { color: closest, distance: minDist }
+  return { colors, clusterSizes, labelsBySampleIndex }
 }
 
 function getDominantColor(imageData: Uint8ClampedArray, start: number, width: number, height: number): RGB {
@@ -755,10 +793,12 @@ export async function runGlobalWhiteBalance(
   }
 
   const samples: StickerSample[] = []
-  for (const det of Object.values(baselineFaces)) {
+  const sampleLocations: Array<{ face: string; row: number; col: number }> = []
+  for (const [face, det] of Object.entries(baselineFaces)) {
     for (let r = 0; r < det.colors.length; r++) {
       for (let c = 0; c < det.colors[r].length; c++) {
         samples.push({ rgb: det.cellColors[r][c], colorGuess: det.colors[r][c] })
+        sampleLocations.push({ face, row: r, col: c })
       }
     }
   }
@@ -766,34 +806,38 @@ export async function runGlobalWhiteBalance(
   const learned = learnStickerColors(samples)
   if (!learned) return { learned: null, applied: false, faces: baselineFaces }
 
+  // Every sticker's final color/confidence comes directly from
+  // learnStickerColors()'s own balanced assignment (labelsBySampleIndex),
+  // not an independent per-cell nearest-centroid lookup — that would
+  // reopen the "one cluster steals another's points" problem the whole
+  // balanced-assignment approach exists to close.
   const reclassifiedFaces: Record<string, ColorDetectionResult> = {}
   for (const [face, det] of Object.entries(baselineFaces)) {
-    const colors: string[][] = []
-    const cellConfidences: number[][] = []
-    let totalConfidence = 0
-    let cellCount = 0
-
-    for (const row of det.cellColors) {
-      const rowColors: string[] = []
-      const rowConfidences: number[] = []
-      for (const rgb of row) {
-        const { color, distance } = classifyByLearnedColors(rgb, learned.colors)
-        const cellConfidence = Math.max(0, 1 - distance / 200)
-        rowColors.push(color)
-        rowConfidences.push(cellConfidence)
-        totalConfidence += cellConfidence
-        cellCount++
-      }
-      colors.push(rowColors)
-      cellConfidences.push(rowConfidences)
-    }
-
     reclassifiedFaces[face] = {
-      colors,
-      cellConfidences,
+      colors: det.colors.map((row) => [...row]),
+      cellConfidences: det.cellConfidences.map((row) => [...row]),
       cellColors: det.cellColors,
-      confidence: cellCount > 0 ? totalConfidence / cellCount : 0,
+      confidence: 0,
     }
+  }
+
+  const faceTotals: Record<string, { sum: number; count: number }> = {}
+  for (const face of Object.keys(baselineFaces)) faceTotals[face] = { sum: 0, count: 0 }
+
+  samples.forEach((sample, i) => {
+    const { face, row, col } = sampleLocations[i]
+    const label = learned.labelsBySampleIndex[i]
+    const distance = colorDistance(sample.rgb, learned.colors[label])
+    const cellConfidence = Math.max(0, 1 - distance / 200)
+
+    reclassifiedFaces[face].colors[row][col] = label
+    reclassifiedFaces[face].cellConfidences[row][col] = cellConfidence
+    faceTotals[face].sum += cellConfidence
+    faceTotals[face].count++
+  })
+
+  for (const [face, { sum, count }] of Object.entries(faceTotals)) {
+    reclassifiedFaces[face].confidence = count > 0 ? sum / count : 0
   }
 
   return { learned, applied: true, faces: reclassifiedFaces }
