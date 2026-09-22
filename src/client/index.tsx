@@ -7,7 +7,7 @@ import {
   estimateGrayWorldGains, runGlobalWhiteBalance, WHITE_BALANCE_PRESETS, NEUTRAL_GAINS,
   type ColorDetectionResult, type GridSizeDetection, type FaceCaptureResult, type RGB,
 } from './imageProcessing'
-import { assembleCubeFromFaces, validateFaceColors, createSolvedCube, parseColorInput, toCubeIR } from './cubeAssembly'
+import { assembleCubeFromFaces, validateFaceColors, createSolvedCube, parseColorInput, toCubeIR, solveFaceOrientations } from './cubeAssembly'
 import { notationForFormat, toURFFacelets, fromURFFacelets } from './notationOutput'
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -607,7 +607,30 @@ function App() {
     for (const [f, data] of Object.entries(capturedFaces)) {
       faceData[f] = data.colors
     }
-    const cubeState = assembleCubeFromFaces(faceData, puzzleSize)
+
+    // Capture order tells us nothing about which physical face is U vs R
+    // vs F etc, or which way up each was held - only odd sizes carry a
+    // fixed center sticker that can answer that. When it's available, use
+    // it (identity by center color, orientation by corner-then-edge
+    // validity) instead of trusting capture order as identity.
+    let orientedFaceData = faceData
+    if (puzzleSize % 2 === 1) {
+      const solved = solveFaceOrientations(faceData)
+      if (solved) {
+        orientedFaceData = solved.faces
+        if (solved.cornerScore < 8 || solved.edgeScore < 12) {
+          alert(
+            `⚠️ Orientation solved with ${solved.cornerScore}/8 corners and ${solved.edgeScore}/12 edges valid — some captured colors may be misdetected. Check the assembled cube.`
+          )
+        }
+      } else {
+        alert(
+          '⚠️ Could not identify faces from center colors (duplicate or unreadable center) — used capture order as-is; verify results carefully.'
+        )
+      }
+    }
+
+    const cubeState = assembleCubeFromFaces(orientedFaceData, puzzleSize)
     setCube(cubeState)
     await updateParityStatus(cubeState)
     setShowReviewDialog(false)
