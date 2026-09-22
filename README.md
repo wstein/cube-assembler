@@ -5,7 +5,7 @@
 ![License: MIT](https://img.shields.io/badge/License-MIT-cyan.svg)
 ![npm](https://img.shields.io/badge/runtime-npm-black)
 ![ReScript](https://img.shields.io/badge/lang-ReScript-e6484f)
-![Tests](https://img.shields.io/badge/tests-69%2F69%20%E2%9C%85-brightgreen)
+![Tests](https://img.shields.io/badge/tests-74%2F74%20%E2%9C%85-brightgreen)
 
 A full-stack library and web app that solves two geometric ambiguities when reconstructing a physical cube from 6 unordered face photographs:
 
@@ -85,7 +85,7 @@ cube-assembler/
     ├── cubeAssembly.test.ts       15 tests — face identity/orientation solver (odd + even sizes)
     ├── notationOutput.test.ts     16 tests — spaced + URF (Kociemba) facelet formats
     ├── imageProcessing.test.ts    10 tests — OKLCH conversion + sticker-color learning
-    └── parity.test.ts             5 tests — server-side corner/edge facelet-index tables
+    └── parity.test.ts             10 tests — server-side corner/edge facelet-index tables
 ```
 
 ---
@@ -247,17 +247,35 @@ For 3×3×3, four necessary and sufficient conditions are checked:
 3. **Edge orientation sum** ≡ 0 (mod 2)
 4. **Permutation parity** — corner perm parity = edge perm parity
 
-For 2×2, conditions 1 and 2 apply (edges are implicit).
-For 4×4–7×7, structural + color balance + center uniformity checks are applied (full big-cube parity is future work).
+Corners are always single unit cubies regardless of puzzle size — every
+NxN cube has the same 8 corners, each occupying the same grid-corner slot
+on 3 faces, just at a different literal facelet index — so conditions 1,
+2, and the corner-triplet-identity check behind them apply to **every**
+size (2×2–7×7), not just 3×3×3. **Edges split into N−2 independently
+permutable "wing" pieces per edge on 4×4+, and centers into (N−2)² pieces
+per face — full permutation/orientation parity for those (conditions 3
+and 4, plus the wing/center equivalents) is future work**, so 4×4–7×7
+currently get structural + color balance + corner checks only, and 2×2
+(which has no edges or centers at all) gets the complete model for free.
 
-`CORNER_FACELETS_3x3`/`EDGE_FACELETS_3x3` (`server/Server.ts`) map each
+Center-block color uniformity was tried as a stand-in for the missing
+big-cube edge/center checks and removed: unlike a 3×3's single fixed
+center sticker, a face's center pieces on an even cube are independently
+movable, so a genuinely scrambled 4×4/6×6 routinely has a mix of colors
+in what would be "the center block" — that's exactly why "center
+reduction" is a required first step of the standard big-cube solving
+method. Enforcing uniformity there rejected valid scrambles with "Center
+cores not uniform"; see `test/parity.test.ts` for the real 4×4 capture
+that caught it.
+
+`CORNER_SLOTS`/`EDGE_FACELETS_3x3` (`server/Server.ts`) map each
 corner/edge cubie to its facelet positions on the B (back) face, which is
 viewed from outside the cube — mirrored left/right relative to F. A
 previous version of these tables got that mirroring backwards for the
 UBR/UBL corners and BR/BL edges, which could reject a genuinely valid
 scrambled cube with "Unknown corner color triplet" even though color
-balance and center cores both checked out; see `test/parity.test.ts` for
-the real capture that caught it.
+balance checked out; see `test/parity.test.ts` for the real capture that
+caught it.
 
 ---
 

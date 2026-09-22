@@ -128,32 +128,35 @@ function validateColorBalance(cube: CubeIR): boolean {
   return Object.values(counts).every((c) => c === expected);
 }
 
-function centerIdx(n: number): number[] {
-  if (n % 2 === 1) return [Math.floor(n / 2) * n + Math.floor(n / 2)];
-  const h = n / 2;
-  return [(h-1)*n+(h-1), (h-1)*n+h, h*n+(h-1), h*n+h];
-}
-
-function validateCenterCores(cube: CubeIR): boolean {
-  const n = cube.size;
-  const idxs = centerIdx(n);
-  for (const face of [cube.u, cube.r, cube.f, cube.d, cube.l, cube.b]) {
-    const ref = face.data[idxs[0]];
-    if (!idxs.every((i) => face.data[i] === ref)) return false;
+// ─── Corner facelet-slot geometry (size-independent) ──────────────────────────
+// Corner pieces are always single unit cubies regardless of puzzle size N -
+// every NxN cube has exactly the same 8 corners, each occupying the same
+// grid-corner slot (top-left/top-right/bottom-left/bottom-right) of each of
+// its 3 faces; only the literal facelet index of a slot depends on N. Unlike
+// center-block color uniformity (an earlier, removed check here that only
+// holds for a *solved* cube - see runFullParity below), this is a genuine
+// invariant for a scrambled cube of any size, so it's meaningful to check
+// for every N.
+type CornerSlot = "TL" | "TR" | "BL" | "BR";
+function cornerFaceletIdx(n: number, slot: CornerSlot): number {
+  switch (slot) {
+    case "TL": return 0;
+    case "TR": return n - 1;
+    case "BL": return n * (n - 1);
+    case "BR": return n * n - 1;
   }
-  return true;
 }
 
-// [faceA, idxA, faceB, idxB, faceC, idxC] per corner: UFR, UBR, UBL, UFL,
+// [faceA, slotA, faceB, slotB, faceC, slotC] per corner: UFR, UBR, UBL, UFL,
 // DFR, DBR, DBL, DFL. The B (back) face is viewed from outside the cube
 // (i.e. mirrored left/right relative to F), which the UBR/UBL entries'
-// `b` and UBL's `l` index originally got backwards - confirmed against a
-// real scrambled capture that a correct table accepts and the original
-// one rejected with "Unknown corner color triplet" even though
-// colorBalance/centerCores both passed.
-const CORNER_FACELETS_3x3 = [
-  ["u",8,"r",0,"f",2], ["u",2,"b",0,"r",2], ["u",0,"l",0,"b",2], ["u",6,"f",0,"l",2],
-  ["d",2,"f",8,"r",6], ["d",8,"r",8,"b",6], ["d",6,"b",8,"l",6], ["d",0,"l",8,"f",6],
+// `b` and UBL's `l` slot originally got backwards in this table's old
+// literal-3x3-index predecessor - confirmed against a real scrambled
+// capture that a correct table accepts and the original one rejected with
+// "Unknown corner color triplet" even though colorBalance passed.
+const CORNER_SLOTS = [
+  ["u","BR","r","TL","f","TR"], ["u","TR","b","TL","r","TR"], ["u","TL","l","TL","b","TR"], ["u","BL","f","TL","l","TR"],
+  ["d","TR","f","BR","r","BL"], ["d","BR","r","BR","b","BL"], ["d","BL","b","BR","l","BL"], ["d","TL","l","BR","f","BL"],
 ] as const;
 
 function getFace(cube: CubeIR, key: string): FaceGrid {
@@ -184,7 +187,9 @@ function* heapPermutations<T>(arr: T[]): Generator<T[]> {
 
 // ─── Parity checks ────────────────────────────────────────────────────────────
 
-const SOLVED_CORNERS_3x3: Array<[FaceColor, FaceColor, FaceColor]> = [
+// The 8 canonical corner color-triples: fixed regardless of N, since every
+// NxN cube has the same 8 corner pieces.
+const SOLVED_CORNERS: Array<[FaceColor, FaceColor, FaceColor]> = [
   ["W","R","G"],["W","B","R"],["W","O","B"],["W","G","O"],
   ["Y","G","R"],["Y","R","B"],["Y","B","O"],["Y","O","G"],
 ];
@@ -194,7 +199,7 @@ const SOLVED_EDGES_3x3: Array<[FaceColor, FaceColor]> = [
   ["G","R"],["G","O"],["B","R"],["B","O"],
 ];
 // UF, UR, UB, UL, DF, DR, DB, DL, FR, FL, BR, BL. Same B-face mirroring
-// mistake as CORNER_FACELETS_3x3 above hit the BR/BL entries' `b` index.
+// mistake as CORNER_SLOTS above hit the BR/BL entries' `b` index.
 const EDGE_FACELETS_3x3 = [
   ["u",7,"f",1],["u",5,"r",1],["u",1,"b",1],["u",3,"l",1],
   ["d",1,"f",7],["d",5,"r",7],["d",7,"b",7],["d",3,"l",7],
@@ -216,32 +221,24 @@ function permParity(perm: number[]): boolean {
 
 function runFullParity(cube: CubeIR): ParityResponse {
   const checks: Record<string, boolean> = {};
+  const n = cube.size;
 
   checks.colorBalance = validateColorBalance(cube);
   if (!checks.colorBalance)
     return { valid: false, result: "Invalid color balance", checks };
 
-  checks.centerCores = validateCenterCores(cube);
-  if (!checks.centerCores)
-    return { valid: false, result: "Center cores not uniform", checks };
-
-  if (cube.size !== 3) {
-    // For non-3x3: structural + color checks only
-    return { valid: true, result: "Valid (structural check)", checks };
-  }
-
-  // Corner analysis
+  // Corner analysis — meaningful for every N (see CORNER_SLOTS above).
   const cornerPieces: number[] = [];
   const cornerOrients: number[] = [];
-  for (const [fa, ia, fb, ib, fc, ic] of CORNER_FACELETS_3x3) {
+  for (const [fa, ca, fb, cb, fc, cc] of CORNER_SLOTS) {
     const colors: FaceColor[] = [
-      getFace(cube, fa).data[ia] as FaceColor,
-      getFace(cube, fb).data[ib] as FaceColor,
-      getFace(cube, fc).data[ic] as FaceColor,
+      getFace(cube, fa).data[cornerFaceletIdx(n, ca as CornerSlot)] as FaceColor,
+      getFace(cube, fb).data[cornerFaceletIdx(n, cb as CornerSlot)] as FaceColor,
+      getFace(cube, fc).data[cornerFaceletIdx(n, cc as CornerSlot)] as FaceColor,
     ];
     let found = false;
-    for (let pi = 0; pi < SOLVED_CORNERS_3x3.length; pi++) {
-      const sc = SOLVED_CORNERS_3x3[pi];
+    for (let pi = 0; pi < SOLVED_CORNERS.length; pi++) {
+      const sc = SOLVED_CORNERS[pi];
       for (let rot = 0; rot < 3; rot++) {
         if (colors[rot%3]===sc[0] && colors[(rot+1)%3]===sc[1] && colors[(rot+2)%3]===sc[2]) {
           cornerPieces.push(pi);
@@ -257,6 +254,36 @@ function runFullParity(cube: CubeIR): ParityResponse {
     }
   }
   checks.cornerColors = true;
+
+  // Corner orientation-twist invariant: also meaningful for every N, since
+  // it's a purely local per-corner mechanical fact (unaffected by slice
+  // turns on bigger cubes).
+  const cornerOrientSum = cornerOrients.reduce((a, b) => a + b, 0);
+  checks.cornerOrientation = cornerOrientSum % 3 === 0;
+  if (!checks.cornerOrientation)
+    return { valid: false, result: `Corner orientation sum ${cornerOrientSum} ≢ 0 (mod 3)`, checks };
+
+  if (n === 2) {
+    // 2x2 has only corners (no edges/centers), so the checks above are the
+    // complete parity model. Unlike n===3, corner permutation carries no
+    // parity constraint of its own to check here: with no edges to compare
+    // against, and since a single quarter turn is already an odd corner
+    // permutation (so both parities are freely reachable), there's nothing
+    // further to validate.
+    return { valid: true, result: "Valid — all parity checks passed", checks };
+  }
+
+  if (n !== 3) {
+    // 4x4-7x7: edges split into N-2 independently-permutable "wing" pieces
+    // per edge, and centers into (N-2)² per face - modeling their full
+    // permutation/orientation parity is future work (see README). Center-
+    // block color uniformity is deliberately NOT used as a stand-in for
+    // that: on a genuinely scrambled even cube in particular, a face's
+    // center pieces are routinely a mix of colors (that's why "center
+    // reduction" is a required first step of the standard big-cube solving
+    // method) - requiring uniformity here would reject valid scrambles.
+    return { valid: true, result: "Valid (structural + corner check)", checks };
+  }
 
   // Edge analysis
   const edgePieces: number[] = [];
@@ -277,12 +304,8 @@ function runFullParity(cube: CubeIR): ParityResponse {
   }
   checks.edgeColors = true;
 
-  // Orientation sums
-  const cornerOrientSum = cornerOrients.reduce((a, b) => a + b, 0);
-  checks.cornerOrientation = cornerOrientSum % 3 === 0;
-  if (!checks.cornerOrientation)
-    return { valid: false, result: `Corner orientation sum ${cornerOrientSum} ≢ 0 (mod 3)`, checks };
-
+  // Edge orientation sum (corner orientation was already checked above,
+  // for every N).
   const edgeOrientSum = edgeOrients.reduce((a, b) => a + b, 0);
   checks.edgeOrientation = edgeOrientSum % 2 === 0;
   if (!checks.edgeOrientation)

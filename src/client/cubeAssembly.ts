@@ -128,7 +128,7 @@ const FACE_EDGES: Record<FaceKey, Record<EdgePos, string>> = {
 // geometric chirality (consistently CW or CCW as viewed from outside) —
 // NOT a naive "U/D axis first" pattern, which looks reasonable but silently
 // breaks validity checks on half the corners (verified against this app's
-// server-side CORNER_FACELETS_3x3/SOLVED_CORNERS_3x3 tables).
+// server-side CORNER_SLOTS/SOLVED_CORNERS tables in server/Server.ts).
 const CORNER_FACES: Record<string, [FaceKey, FaceKey, FaceKey]> = {
   UFR: ['U', 'R', 'F'], UFL: ['U', 'F', 'L'], UBR: ['U', 'B', 'R'], UBL: ['U', 'L', 'B'],
   DFR: ['D', 'F', 'R'], DFL: ['D', 'L', 'F'], DBR: ['D', 'R', 'B'], DBL: ['D', 'B', 'L'],
