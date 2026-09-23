@@ -947,7 +947,7 @@ textarea {
   background: color-mix(in srgb, var(--color-success) 15%, transparent);
 }
 
-.white-balance-row,
+.capture-options-row,
 .capture-size-row {
   display: flex;
   align-items: center;
@@ -957,13 +957,11 @@ textarea {
   font-size: 0.8rem;
 }
 
-.white-balance-label,
 .capture-size-label {
   color: var(--color-text-secondary);
   white-space: nowrap;
 }
 
-.white-balance-buttons,
 .capture-size-buttons {
   display: flex;
   gap: var(--spacing-xs);
@@ -988,12 +986,6 @@ textarea {
   background: var(--color-accent);
   border-color: var(--color-accent);
   color: var(--color-bg-primary);
-}
-
-.white-balance-detected {
-  color: var(--color-text-secondary);
-  font-style: italic;
-  white-space: nowrap;
 }
 
 .mirror-toggle {
