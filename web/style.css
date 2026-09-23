@@ -177,18 +177,29 @@ button {
   font-family: inherit;
   cursor: pointer;
   border: none;
-  transition: all 0.2s;
+  transition: all 0.15s ease;
 }
 
 .btn {
-  padding: var(--spacing-sm) var(--spacing-md);
+  height: 38px;
+  padding: 0 var(--spacing-md);
   border-radius: var(--radius-md);
-  font-weight: 500;
+  font-weight: 600;
   font-size: 0.875rem;
   display: inline-flex;
   align-items: center;
-  gap: var(--spacing-sm);
+  justify-content: center;
+  gap: var(--spacing-xs);
   cursor: pointer;
+  transition: all 0.15s ease;
+  user-select: none;
+  white-space: nowrap;
+  box-sizing: border-box;
+  text-decoration: none;
+}
+
+.btn:active:not(:disabled) {
+  transform: scale(0.98);
 }
 
 /* For a <label>-as-button wrapping a real disabled input (e.g. the bulk
@@ -203,22 +214,29 @@ button {
 .btn-primary {
   background: var(--color-accent);
   color: var(--color-on-accent);
+  border: 1px solid transparent;
 }
 
-.btn-primary:hover {
+.btn-primary:hover:not(:disabled) {
   background: var(--color-accent-dark);
   box-shadow: var(--shadow-md);
 }
 
 .btn-secondary {
-  background: var(--color-bg-secondary);
+  background: var(--color-bg-primary);
   color: var(--color-text-primary);
   border: 1px solid var(--color-border);
 }
 
-.btn-secondary:hover {
+.btn-secondary:hover:not(:disabled) {
   border-color: var(--color-accent);
-  color: var(--color-accent);
+  color: var(--color-accent-dark);
+}
+
+.btn-sm {
+  height: 32px;
+  padding: 0 var(--spacing-sm);
+  font-size: 0.8rem;
 }
 
 /* ─────────────────────────────────────────────────────────────────────────────
@@ -250,7 +268,7 @@ label {
   display: block;
   font-size: 0.875rem;
   font-weight: 600;
-  margin-bottom: var(--spacing-sm);
+  margin-bottom: var(--spacing-xs);
   color: var(--color-text-primary);
 }
 
@@ -264,53 +282,59 @@ textarea {
   color: var(--color-text-primary);
   font-family: inherit;
   font-size: 0.875rem;
-  transition: all 0.2s;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  box-sizing: border-box;
 }
 
 input[type="text"]:focus,
 textarea:focus {
   outline: none;
   border-color: var(--color-accent);
-  box-shadow: 0 0 0 3px rgba(0, 229, 255, 0.1);
+  box-shadow: 0 0 0 3px rgba(0, 229, 255, 0.15);
+}
+
+input[type="text"] {
+  font-family: var(--font-mono);
+  font-size: 0.9rem;
 }
 
 textarea {
   resize: vertical;
   min-height: 80px;
   font-family: var(--font-mono);
+  line-height: 1.4;
 }
 
 /* ─────────────────────────────────────────────────────────────────────────────
    ALGORITHM PRESETS
    ───────────────────────────────────────────────────────────────────────────── */
 
-/* Chip-style, not full buttons: these just fill the algorithm textbox with
-   a shortcut, they don't act on the cube the way Apply Algorithm/Generate
-   Scramble below do - wrapping pills that hug their own text read as
-   "pick a quick value" rather than competing with the real action
-   buttons for attention. */
 .algo-presets {
   display: flex;
   flex-wrap: wrap;
   gap: var(--spacing-xs);
+  margin: var(--spacing-xs) 0;
 }
 
 .preset-btn {
-  padding: var(--spacing-xs) var(--spacing-sm);
-  border: 1px dashed var(--color-border);
+  padding: 0.25rem 0.75rem;
+  min-height: 28px;
+  border: 1px solid var(--color-border);
   border-radius: 999px;
-  background: transparent;
+  background: var(--color-bg-primary);
   color: var(--color-text-secondary);
   font-weight: 500;
   font-size: 0.8rem;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all 0.15s ease;
+  display: inline-flex;
+  align-items: center;
 }
 
 .preset-btn:hover {
   border-color: var(--color-accent);
-  border-style: solid;
-  color: var(--color-accent);
+  color: var(--color-text-primary);
+  background: var(--color-bg-secondary);
 }
 
 .scramble-display {
