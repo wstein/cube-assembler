@@ -617,6 +617,27 @@ textarea {
   flex-shrink: 0;
 }
 
+/* Faces the orientation wizard hasn't pinned down yet - a neutral
+   placeholder (diagonal hatch) rather than any specific candidate's
+   guessed colors, since more than one is still possible. */
+.orientation-net-face-undecided .orientation-net-sticker {
+  background:
+    repeating-linear-gradient(
+      45deg, var(--color-bg-secondary), var(--color-bg-secondary) 3px,
+      var(--color-border) 3px, var(--color-border) 6px
+    );
+}
+
+.orientation-wizard-options {
+  grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+  margin-top: var(--spacing-lg);
+}
+
+.orientation-wizard-option .orientation-net-face {
+  width: 72px;
+  height: 72px;
+}
+
 .global-wb-note {
   padding: var(--spacing-sm) var(--spacing-md);
   margin-bottom: var(--spacing-md);

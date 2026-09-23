@@ -8,7 +8,7 @@ import {
   rgbToOKLCH, formatOKLCHValues, hueCircularRange, hueRangesOverlap, linearRange,
   type ColorDetectionResult, type FaceCaptureResult, type RGB,
 } from './imageProcessing'
-import { assembleCubeFromFaces, validateFaceColors, createSolvedCube, toCubeIR, solveFaceOrientations, type OrientedCandidate } from './cubeAssembly'
+import { assembleCubeFromFaces, validateFaceColors, createSolvedCube, toCubeIR, solveFaceOrientations, type OrientedCandidate, type FaceKey } from './cubeAssembly'
 import { toWRGFacelets, fromWRGFacelets, toURFFacelets, fromURFFacelets, detectNotationFormat } from './notationOutput'
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -150,14 +150,36 @@ function OklchLines({ oklch, class: className }: { oklch: { l: number; c: number
 // class names once caused this component's flex-based CSS to silently
 // override the main net's grid-based cross layout (same selector, later
 // in the stylesheet wins the cascade).
-function OrientationNetPreview({ faces }: { faces: Record<string, string[][]> }) {
-  const grid = (face: string) => (
-    <div class="orientation-net-face" style={{ gridTemplateColumns: `repeat(${faces[face].length}, 1fr)` }}>
-      {faces[face].flat().map((color, i) => (
-        <div key={i} class="orientation-net-sticker" style={{ background: STICKER_HEX[color] ?? '#888' }} />
+// Single face's grid of stickers, standalone (used both inside the net
+// layout below and on its own for the orientation wizard's per-option
+// choices, where only one face at a time needs showing). `undecided`
+// renders a neutral placeholder instead of real colors - used for faces
+// the orientation wizard hasn't pinned down yet, so the customer isn't
+// shown a specific guess as if it were settled.
+function FaceGrid({ colors, undecided }: { colors: string[][]; undecided?: boolean }) {
+  return (
+    <div
+      class={`orientation-net-face${undecided ? ' orientation-net-face-undecided' : ''}`}
+      style={{ gridTemplateColumns: `repeat(${colors.length}, 1fr)` }}
+    >
+      {colors.flat().map((color, i) => (
+        <div
+          key={i}
+          class="orientation-net-sticker"
+          style={undecided ? undefined : { background: STICKER_HEX[color] ?? '#888' }}
+        />
       ))}
     </div>
   )
+}
+
+function OrientationNetPreview({
+  faces, undecidedFaces,
+}: {
+  faces: Record<string, string[][]>
+  undecidedFaces?: Set<string>
+}) {
+  const grid = (face: string) => <FaceGrid colors={faces[face]} undecided={undecidedFaces?.has(face)} />
   return (
     <div class="orientation-net">
       <div class="orientation-net-row">
@@ -180,6 +202,59 @@ function OrientationNetPreview({ faces }: { faces: Record<string, string[][]> })
       </div>
     </div>
   )
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Orientation wizard: narrows solveFaceOrientations' tied `alternatives`
+// down to one, one face at a time, instead of dumping every alternative
+// (which can real-world number in the dozens - see cubeAssembly.ts's
+// MAX_ALTERNATIVES comment) in a single overwhelming grid. At each step,
+// asks about whichever not-yet-agreed-upon face currently has the most
+// distinct values among the remaining candidates (the question that
+// eliminates the most options), filters to the customer's answer, and
+// repeats - faces that happen to already agree across all remaining
+// candidates (including ones never directly asked about, resolved purely
+// as a side effect of earlier answers) are shown as settled without ever
+// being asked about. Terminates when exactly one candidate remains.
+// ─────────────────────────────────────────────────────────────────────────────
+
+const WIZARD_FACE_ORDER: FaceKey[] = ['U', 'R', 'F', 'D', 'L', 'B']
+const FACE_LABELS: Record<FaceKey, string> = { U: 'Up', R: 'Right', F: 'Front', D: 'Down', L: 'Left', B: 'Back' }
+
+function faceContentKey(colors: string[][]): string {
+  return colors.map((row) => row.join('')).join('')
+}
+
+// The face (if any) worth asking about next: the one with the most
+// distinct remaining values, so the customer's answer narrows things down
+// the most. Null once every face already agrees - i.e. `remaining` must
+// be down to exactly one candidate (alternatives are deduped by content,
+// so >1 distinct candidates can never agree on all 6 faces at once).
+function pickWizardFace(remaining: OrientedCandidate[]): FaceKey | null {
+  let best: FaceKey | null = null
+  let bestCount = 1
+  for (const face of WIZARD_FACE_ORDER) {
+    const distinct = new Set(remaining.map((c) => faceContentKey(c.faces[face])))
+    if (distinct.size > bestCount) {
+      best = face
+      bestCount = distinct.size
+    }
+  }
+  return best
+}
+
+// Groups the remaining candidates by their value for `face`, one option
+// per distinct grid - the choices shown to the customer for this step.
+function groupWizardOptions(
+  remaining: OrientedCandidate[], face: FaceKey
+): { grid: string[][]; candidates: OrientedCandidate[] }[] {
+  const groups = new Map<string, { grid: string[][]; candidates: OrientedCandidate[] }>()
+  for (const c of remaining) {
+    const key = faceContentKey(c.faces[face])
+    if (!groups.has(key)) groups.set(key, { grid: c.faces[face], candidates: [] })
+    groups.get(key)!.candidates.push(c)
+  }
+  return [...groups.values()]
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -212,14 +287,14 @@ function App() {
   const [liveDetection, setLiveDetection] = useState<ColorDetectionResult | null>(null)
   const [showReviewDialog, setShowReviewDialog] = useState(false)
   // Non-null only when solveFaceOrientations found genuine ambiguity (see
-  // its alternatives field) - the customer must pick which reading
-  // matches their physical cube before assembly can proceed.
-  const [orientationAlternatives, setOrientationAlternatives] = useState<OrientedCandidate[] | null>(null)
-  // True when solveFaceOrientations found MORE genuinely-distinct tied
-  // alternatives than it could keep (see OrientationSolution.truncated) -
-  // the list below is then an arbitrary subset, not the complete set, and
-  // must say so rather than implying the customer has seen every option.
-  const [orientationTruncated, setOrientationTruncated] = useState(false)
+  // its alternatives field) - drives the step-by-step orientation wizard
+  // (see pickWizardFace/groupWizardOptions above) that narrows `remaining`
+  // down to one candidate before assembly can proceed, instead of dumping
+  // every alternative in one overwhelming grid. `truncated` mirrors
+  // OrientationSolution.truncated: more genuinely-distinct ties existed
+  // than the solver could keep, so `remaining` may not include every
+  // possibility - shown to the customer rather than silently hidden.
+  const [orientationWizard, setOrientationWizard] = useState<{ remaining: OrientedCandidate[]; truncated: boolean } | null>(null)
   const [reviewEditingCell, setReviewEditingCell] = useState<{ face: string; row: number; col: number } | null>(null)
   // Most laptop/webcam feeds are shown mirrored by convention (like a
   // physical mirror), which is what most users expect; default on but
@@ -740,11 +815,10 @@ function App() {
         // valid rotation reading (see isFullyValid/OrientationSolution's
         // alternatives comment in cubeAssembly.ts) - only the person
         // holding the actual cube can say which is real, so ask instead
-        // of silently picking one. Leaves the review dialog up; the net
-        // picker renders on top of it and calls handleChooseOrientation
-        // once the customer picks, which does the actual assembly.
-        setOrientationAlternatives(solved.alternatives)
-        setOrientationTruncated(solved.truncated)
+        // of silently picking one. Leaves the review dialog up; the
+        // orientation wizard renders on top of it and calls
+        // handleChooseOrientation once it narrows down to one candidate.
+        setOrientationWizard({ remaining: solved.alternatives, truncated: solved.truncated })
         return
       }
     } else {
@@ -759,18 +833,29 @@ function App() {
     setShowReviewDialog(false)
   }
 
-  // Finishes assembly once the customer has picked which of several
-  // equally-valid orientation readings matches their physical cube (see
-  // orientationAlternatives) - mirrors handleConfirmReview's tail end
-  // exactly, since this IS that same step, just with the choice already
-  // made instead of auto-picking alternatives[0].
+  // Finishes assembly once the orientation wizard has narrowed down to a
+  // single candidate - mirrors handleConfirmReview's tail end exactly,
+  // since this IS that same step, just with the choice already made
+  // instead of auto-picking alternatives[0].
   const handleChooseOrientation = async (chosen: OrientedCandidate) => {
-    setOrientationAlternatives(null)
-    setOrientationTruncated(false)
+    setOrientationWizard(null)
     const cubeState = assembleCubeFromFaces(chosen.faces, puzzleSize)
     setCube(cubeState)
     await updateParityStatus(cubeState)
     setShowReviewDialog(false)
+  }
+
+  // Advances the orientation wizard by one answer: narrows `remaining` to
+  // whichever candidates matched the customer's pick for the face just
+  // asked about, then either asks the next most-informative question or,
+  // once every face agrees (pickWizardFace returns null), finishes
+  // assembly with the single remaining candidate.
+  const handleWizardAnswer = (matched: OrientedCandidate[]) => {
+    if (pickWizardFace(matched) === null) {
+      handleChooseOrientation(matched[0])
+      return
+    }
+    setOrientationWizard((prev) => (prev ? { remaining: matched, truncated: prev.truncated } : null))
   }
 
   // Saves this capture - each face's actual photo plus its (human-
@@ -1536,42 +1621,83 @@ function App() {
         )
       })()}
 
-      {/* Orientation-ambiguity picker - see orientationAlternatives */}
-      {orientationAlternatives && (
-        <div class="modal open">
-          <div class="modal-content orientation-picker">
-            <div class="modal-header">
-              <h2>Which orientation matches your cube?</h2>
-              <button
-                class="modal-close"
-                onClick={() => { setOrientationAlternatives(null); setOrientationTruncated(false) }}
-              >×</button>
-            </div>
-            <p class="orientation-picker-note">
-              The photographed colors are equally consistent with {orientationAlternatives.length} different
-              readings of your cube — this can happen when a cube's own arrangement has a symmetry the camera
-              can't see past. Pick whichever net below matches what you're actually holding.
-            </p>
-            {orientationTruncated && (
-              <p class="orientation-picker-note orientation-picker-truncated-note">
-                ⚠️ Even more equally-valid readings exist beyond what's shown here — this capture's colors are
-                unusually repetitive. If none of these match your cube, try re-photographing with more
-                lighting/angle variation so the app can tell the faces apart more reliably.
-              </p>
-            )}
-            <div class="orientation-picker-grid">
-              {orientationAlternatives.map((alt, i) => (
-                <div key={i} class="orientation-picker-option">
-                  <OrientationNetPreview faces={alt.faces} />
-                  <button class="btn btn-primary btn-sm" onClick={() => handleChooseOrientation(alt)}>
-                    Use this one
-                  </button>
+      {/* Orientation wizard - see orientationWizard/pickWizardFace/groupWizardOptions */}
+      {orientationWizard && (() => {
+        const { remaining, truncated } = orientationWizard
+        const askingFace = pickWizardFace(remaining)
+        // handleWizardAnswer never leaves the wizard open once no face is
+        // left to ask about, so this should always resolve - but fall
+        // back to the net-preview picker's old "show everything" behavior
+        // rather than rendering nothing if that invariant is ever wrong.
+        if (!askingFace) {
+          return (
+            <div class="modal open">
+              <div class="modal-content orientation-picker">
+                <div class="modal-header">
+                  <h2>Which orientation matches your cube?</h2>
+                  <button class="modal-close" onClick={() => setOrientationWizard(null)}>×</button>
                 </div>
-              ))}
+                <div class="orientation-picker-grid">
+                  {remaining.map((alt, i) => (
+                    <div key={i} class="orientation-picker-option">
+                      <OrientationNetPreview faces={alt.faces} />
+                      <button class="btn btn-primary btn-sm" onClick={() => handleChooseOrientation(alt)}>
+                        Use this one
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )
+        }
+
+        const progressFaces: Record<string, string[][]> = {}
+        const undecidedFaces = new Set<string>()
+        for (const f of WIZARD_FACE_ORDER) {
+          const distinct = new Set(remaining.map((c) => faceContentKey(c.faces[f])))
+          progressFaces[f] = remaining[0].faces[f]
+          if (distinct.size > 1) undecidedFaces.add(f)
+        }
+        const decidedCount = WIZARD_FACE_ORDER.length - undecidedFaces.size
+        const options = groupWizardOptions(remaining, askingFace)
+
+        return (
+          <div class="modal open">
+            <div class="modal-content orientation-picker">
+              <div class="modal-header">
+                <h2>Which way is your {FACE_LABELS[askingFace]} face?</h2>
+                <button class="modal-close" onClick={() => setOrientationWizard(null)}>×</button>
+              </div>
+              <p class="orientation-picker-note">
+                {decidedCount} of 6 faces confirmed so far ({remaining.length} possible arrangement{remaining.length === 1 ? '' : 's'} left).
+                The photographed colors are equally consistent with more than one reading of your cube — this can
+                happen when a cube's own arrangement has a symmetry the camera can't see past. Pick the option below
+                that matches your actual {FACE_LABELS[askingFace]} face; grayed-out faces will fill in automatically
+                once there's enough information.
+              </p>
+              {truncated && (
+                <p class="orientation-picker-note orientation-picker-truncated-note">
+                  ⚠️ Even more equally-valid readings exist beyond what's tracked here — this capture's colors are
+                  unusually repetitive. If none of these ever match your cube, try re-photographing with more
+                  lighting/angle variation so the app can tell the faces apart more reliably.
+                </p>
+              )}
+              <OrientationNetPreview faces={progressFaces} undecidedFaces={undecidedFaces} />
+              <div class="orientation-picker-grid orientation-wizard-options">
+                {options.map((opt, i) => (
+                  <div key={i} class="orientation-picker-option orientation-wizard-option">
+                    <FaceGrid colors={opt.grid} />
+                    <button class="btn btn-primary btn-sm" onClick={() => handleWizardAnswer(opt.candidates)}>
+                      This one
+                    </button>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        )
+      })()}
 
       {/* Color-fix palette popup */}
       {reviewEditingCell && (
