@@ -55,10 +55,20 @@ export type AssembleSSEEvent =
   | { type: "error";   message: string };
 
 export type ParityRequest  = { cube: CubeIR };
+export type FaceletRef = { face: string; index: number };
 export type ParityResponse = {
   valid: boolean;
   result: string;
   checks: Record<string, boolean>;
+  // Which specific stickers are implicated in `result`, when the failure
+  // is localized enough to point at (an unknown/duplicate corner or edge
+  // triplet, or the over-represented wing-edge pairs hiding a misread
+  // sticker) - so a human can go look at exactly those cubies instead of
+  // re-deriving positions from the text. Omitted for failures that are
+  // inherently global rather than pointing at specific stickers
+  // (colorBalance, an orientation-sum parity mismatch, or corner-vs-edge
+  // permutation parity itself - see each return site's own comment).
+  highlight?: FaceletRef[];
 };
 
 export type ApplyAlgRequest  = { cube: CubeIR; alg: string };
@@ -273,18 +283,26 @@ function edgeLineFaceletIdx(n: number, line: EdgeLineType, reverse: boolean, w: 
 // check WEAKER (miss a cross-depth imbalance) than it ideally would be,
 // never cause a false rejection of a valid cube, so it's an acceptable
 // gap rather than something blocking this check from shipping.
-function validateWingEdges(cube: CubeIR): { valid: boolean; result?: string } {
+function validateWingEdges(cube: CubeIR): { valid: boolean; result?: string; highlight?: FaceletRef[] } {
   const n = cube.size;
   const counts = new Array(SOLVED_EDGES.length).fill(0);
+  // Every wing reading's two facelets, grouped by which canonical pair
+  // they matched - kept so an over-represented pair (see below) can
+  // point at exactly the wings that might be the misread ones, not just
+  // name the pair.
+  const faceletsByPair: FaceletRef[][][] = SOLVED_EDGES.map(() => []);
   for (const [edgeName, faceA, lineA, reverseA, faceB, lineB, reverseB] of EDGE_LINES) {
     for (let w = 1; w <= n - 2; w++) {
-      const c0 = getFace(cube, faceA).data[edgeLineFaceletIdx(n, lineA as EdgeLineType, reverseA, w)] as FaceColor;
-      const c1 = getFace(cube, faceB).data[edgeLineFaceletIdx(n, lineB as EdgeLineType, reverseB, w)] as FaceColor;
+      const idxA = edgeLineFaceletIdx(n, lineA as EdgeLineType, reverseA, w);
+      const idxB = edgeLineFaceletIdx(n, lineB as EdgeLineType, reverseB, w);
+      const c0 = getFace(cube, faceA).data[idxA] as FaceColor;
+      const c1 = getFace(cube, faceB).data[idxB] as FaceColor;
+      const facelets: FaceletRef[] = [{ face: faceA, index: idxA }, { face: faceB, index: idxB }];
       let found = false;
       for (let pi = 0; pi < SOLVED_EDGES.length; pi++) {
         const se = SOLVED_EDGES[pi];
         if ((c0 === se[0] && c1 === se[1]) || (c0 === se[1] && c1 === se[0])) {
-          counts[pi]++; found = true; break;
+          counts[pi]++; faceletsByPair[pi].push(facelets); found = true; break;
         }
       }
       if (!found) {
@@ -297,6 +315,7 @@ function validateWingEdges(cube: CubeIR): { valid: boolean; result?: string } {
         return {
           valid: false,
           result: `Unknown wing edge color pair "${c0}-${c1}" at edge ${edgeName} (wing ${w} of ${n - 2}, reading ${faceA}+${faceB}) - two same or opposite colors can never physically touch, so one of these two stickers was misread`,
+          highlight: facelets,
         };
       }
     }
@@ -313,9 +332,17 @@ function validateWingEdges(cube: CubeIR): { valid: boolean; result?: string } {
       .map((se, i) => ({ pair: se.join("-"), count: counts[i] }))
       .filter((p) => p.count !== expected)
       .map((p) => `${p.pair} has ${p.count} (expected ${expected})`);
+    // A pair with FEWER than expected has nothing to point at - it's
+    // simply missing, not sitting on the cube anywhere. The misread
+    // stickers are hiding among the OVER-represented pairs' actual wings,
+    // so those are what get highlighted (can't narrow further than "one
+    // of these" without more information - the count alone doesn't say
+    // which specific wing among them is the wrong one).
+    const highlight = counts.flatMap((c, i) => (c > expected ? faceletsByPair[i].flat() : []));
     return {
       valid: false,
       result: `Wing edge color-pair counts unbalanced: ${offending.join(", ")}`,
+      highlight,
     };
   }
   return { valid: true };
@@ -345,12 +372,20 @@ function runFullParity(cube: CubeIR): ParityResponse {
   // Corner analysis — meaningful for every N (see CORNER_SLOTS above).
   const cornerPieces: number[] = [];
   const cornerOrients: number[] = [];
+  // Facelets backing each slot's corner, same order as cornerPieces - kept
+  // around purely so a failure below can point at exactly the stickers
+  // involved instead of just naming the problem.
+  const cornerFacelets: FaceletRef[][] = [];
   for (const [fa, ca, fb, cb, fc, cc] of CORNER_SLOTS) {
+    const idxA = cornerFaceletIdx(n, ca as CornerSlot);
+    const idxB = cornerFaceletIdx(n, cb as CornerSlot);
+    const idxC = cornerFaceletIdx(n, cc as CornerSlot);
     const colors: FaceColor[] = [
-      getFace(cube, fa).data[cornerFaceletIdx(n, ca as CornerSlot)] as FaceColor,
-      getFace(cube, fb).data[cornerFaceletIdx(n, cb as CornerSlot)] as FaceColor,
-      getFace(cube, fc).data[cornerFaceletIdx(n, cc as CornerSlot)] as FaceColor,
+      getFace(cube, fa).data[idxA] as FaceColor,
+      getFace(cube, fb).data[idxB] as FaceColor,
+      getFace(cube, fc).data[idxC] as FaceColor,
     ];
+    const facelets: FaceletRef[] = [{ face: fa, index: idxA }, { face: fb, index: idxB }, { face: fc, index: idxC }];
     let found = false;
     for (let pi = 0; pi < SOLVED_CORNERS.length; pi++) {
       const sc = SOLVED_CORNERS[pi];
@@ -358,6 +393,7 @@ function runFullParity(cube: CubeIR): ParityResponse {
         if (colors[rot%3]===sc[0] && colors[(rot+1)%3]===sc[1] && colors[(rot+2)%3]===sc[2]) {
           cornerPieces.push(pi);
           cornerOrients.push(rot);
+          cornerFacelets.push(facelets);
           found = true; break;
         }
       }
@@ -365,7 +401,7 @@ function runFullParity(cube: CubeIR): ParityResponse {
     }
     if (!found) {
       checks.cornerColors = false;
-      return { valid: false, result: "Unknown corner color triplet", checks };
+      return { valid: false, result: "Unknown corner color triplet", checks, highlight: facelets };
     }
   }
   // Each triple above only checked "is this SOME real corner" independently
@@ -377,19 +413,35 @@ function runFullParity(cube: CubeIR): ParityResponse {
   // piece list was [0,1,1,0,7,6,6,7] - not a permutation at all (2026-09-23
   // design discussion; same fix mirrored in AssemblyWorker.ts's
   // checkFullParity and src/client/cubeAssembly.ts's isFullyValid).
-  if (new Set(cornerPieces).size !== SOLVED_CORNERS.length) {
-    checks.cornerColors = false;
-    return { valid: false, result: "Duplicate corner piece (two positions read the same physical corner)", checks };
+  {
+    const firstSlotForPiece = new Map<number, number>();
+    for (let slot = 0; slot < cornerPieces.length; slot++) {
+      const piece = cornerPieces[slot];
+      const firstSlot = firstSlotForPiece.get(piece);
+      if (firstSlot !== undefined) {
+        checks.cornerColors = false;
+        return {
+          valid: false,
+          result: "Duplicate corner piece (two positions read the same physical corner)",
+          checks,
+          highlight: [...cornerFacelets[firstSlot], ...cornerFacelets[slot]],
+        };
+      }
+      firstSlotForPiece.set(piece, slot);
+    }
   }
   checks.cornerColors = true;
 
   // Corner orientation-twist invariant: also meaningful for every N, since
   // it's a purely local per-corner mechanical fact (unaffected by slice
-  // turns on bigger cubes).
+  // turns on bigger cubes). The sum is a property of ALL 8 corners
+  // together, not any one of them, so there's no single corner to point
+  // at - highlighting all 24 corner facelets ("the problem is somewhere
+  // in here") is honest about that, unlike guessing one.
   const cornerOrientSum = cornerOrients.reduce((a, b) => a + b, 0);
   checks.cornerOrientation = cornerOrientSum % 3 === 0;
   if (!checks.cornerOrientation)
-    return { valid: false, result: `Corner orientation sum ${cornerOrientSum} ≢ 0 (mod 3)`, checks };
+    return { valid: false, result: `Corner orientation sum ${cornerOrientSum} ≢ 0 (mod 3)`, checks, highlight: cornerFacelets.flat() };
 
   if (n === 2) {
     // 2x2 has only corners (no edges/centers), so the checks above are the
@@ -419,7 +471,7 @@ function runFullParity(cube: CubeIR): ParityResponse {
     const wingResult = validateWingEdges(cube);
     checks.wingEdgeColors = wingResult.valid;
     if (!wingResult.valid) {
-      return { valid: false, result: wingResult.result!, checks };
+      return { valid: false, result: wingResult.result!, checks, highlight: wingResult.highlight };
     }
     return { valid: true, result: "Valid (structural + corner + wing-edge count check)", checks };
   }
@@ -427,33 +479,50 @@ function runFullParity(cube: CubeIR): ParityResponse {
   // Edge analysis
   const edgePieces: number[] = [];
   const edgeOrients: number[] = [];
+  const edgeFacelets: FaceletRef[][] = [];
   for (const [fa, ia, fb, ib] of EDGE_FACELETS_3x3) {
     const c0 = getFace(cube, fa).data[ia] as FaceColor;
     const c1 = getFace(cube, fb).data[ib] as FaceColor;
+    const facelets: FaceletRef[] = [{ face: fa, index: ia }, { face: fb, index: ib }];
     let found = false;
     for (let pi = 0; pi < SOLVED_EDGES.length; pi++) {
       const se = SOLVED_EDGES[pi];
-      if (c0===se[0] && c1===se[1]) { edgePieces.push(pi); edgeOrients.push(0); found=true; break; }
-      if (c0===se[1] && c1===se[0]) { edgePieces.push(pi); edgeOrients.push(1); found=true; break; }
+      if (c0===se[0] && c1===se[1]) { edgePieces.push(pi); edgeOrients.push(0); edgeFacelets.push(facelets); found=true; break; }
+      if (c0===se[1] && c1===se[0]) { edgePieces.push(pi); edgeOrients.push(1); edgeFacelets.push(facelets); found=true; break; }
     }
     if (!found) {
       checks.edgeColors = false;
-      return { valid: false, result: "Unknown edge color pair", checks };
+      return { valid: false, result: "Unknown edge color pair", checks, highlight: facelets };
     }
   }
   // Same distinctness gap as the corner check above, mirrored for edges.
-  if (new Set(edgePieces).size !== SOLVED_EDGES.length) {
-    checks.edgeColors = false;
-    return { valid: false, result: "Duplicate edge piece (two positions read the same physical edge)", checks };
+  {
+    const firstSlotForPiece = new Map<number, number>();
+    for (let slot = 0; slot < edgePieces.length; slot++) {
+      const piece = edgePieces[slot];
+      const firstSlot = firstSlotForPiece.get(piece);
+      if (firstSlot !== undefined) {
+        checks.edgeColors = false;
+        return {
+          valid: false,
+          result: "Duplicate edge piece (two positions read the same physical edge)",
+          checks,
+          highlight: [...edgeFacelets[firstSlot], ...edgeFacelets[slot]],
+        };
+      }
+      firstSlotForPiece.set(piece, slot);
+    }
   }
   checks.edgeColors = true;
 
   // Edge orientation sum (corner orientation was already checked above,
-  // for every N).
+  // for every N) - a property of all 12 edges together, same reasoning as
+  // the corner orientation sum above for why every edge facelet is
+  // highlighted rather than guessing one.
   const edgeOrientSum = edgeOrients.reduce((a, b) => a + b, 0);
   checks.edgeOrientation = edgeOrientSum % 2 === 0;
   if (!checks.edgeOrientation)
-    return { valid: false, result: `Edge orientation sum ${edgeOrientSum} ≢ 0 (mod 2)`, checks };
+    return { valid: false, result: `Edge orientation sum ${edgeOrientSum} ≢ 0 (mod 2)`, checks, highlight: edgeFacelets.flat() };
 
   const cpParity = permParity(cornerPieces);
   const epParity = permParity(edgePieces);
