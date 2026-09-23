@@ -15,9 +15,18 @@
   --color-warning: #fbbf24;
   --color-danger: #ef4444;
   --color-primary: #3b82f6;
+  /* Text color for content sitting on --color-accent/--color-accent-dark
+     backgrounds. Deliberately NOT theme-dependent (unlike the other color
+     tokens) - the accent color itself doesn't change between light/dark
+     mode, so its on-accent text shouldn't either. Fixed dark text gives
+     ~11:1 contrast against both accent shades; the previous approach
+     (reusing --color-bg-primary) only worked by coincidence in dark mode,
+     where that token happens to be dark, and failed WCAG AA (~1.55:1) for
+     every .btn-primary in light mode. */
+  --color-on-accent: #04232b;
 
-  --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  --font-mono: "Jetbrains Mono", "Courier New", monospace;
+  --font-sans: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-mono: "JetBrains Mono", "Courier New", monospace;
 
   --spacing-xs: 0.25rem;
   --spacing-sm: 0.5rem;
@@ -193,7 +202,7 @@ button {
 
 .btn-primary {
   background: var(--color-accent);
-  color: var(--color-bg-primary);
+  color: var(--color-on-accent);
 }
 
 .btn-primary:hover {
@@ -829,7 +838,7 @@ textarea {
 .wb-btn.active {
   background: var(--color-accent);
   border-color: var(--color-accent);
-  color: var(--color-bg-primary);
+  color: var(--color-on-accent);
 }
 
 .mirror-toggle {
@@ -969,7 +978,7 @@ textarea {
 
 .size-btn.active {
   background: var(--color-accent);
-  color: #000;
+  color: var(--color-on-accent);
   border-color: var(--color-accent);
 }
 
