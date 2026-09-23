@@ -493,19 +493,33 @@ export interface OrientationSolution {
   // alone - which only the person holding the physical cube can resolve.
   // `faces`/`rotations` above always mirror alternatives[0]; capped at
   // MAX_ALTERNATIVES (see its comment) so a pathological capture can't
-  // produce an unusable wall of options.
+  // produce an unusable wall of options - see `truncated` below for
+  // knowing when that cap actually bound.
   alternatives: OrientedCandidate[]
+  // True when more genuinely-distinct tied candidates existed than
+  // MAX_ALTERNATIVES could keep - i.e. `alternatives` is an arbitrary
+  // (search-order-dependent) subset, not the complete set. A caller must
+  // surface this rather than silently presenting `alternatives` as
+  // exhaustive: the customer's actual physical orientation could be one
+  // of the discarded ones. Real-world captures essentially never hit
+  // this (see MAX_ALTERNATIVES's comment) - a highly regular/repeating
+  // capture (e.g. a checkerboard-style test pattern, or 2+ faces that are
+  // literal duplicates of each other) can.
+  truncated: boolean
 }
 
-// Cap on how many distinct tied-for-best candidates to keep. Generous
-// enough that it should never bind on a real, physically sensible
-// capture (genuine orientation ambiguity from a cube's own symmetry tops
-// out at a handful of cases in practice - the whole-cube reorientation
-// group has 24 elements, but corner/edge coloring almost always breaks
-// that symmetry down to 1); exists only to bound memory/UI on a
-// pathological input (e.g. a capture with almost no color variation at
-// all) rather than to reflect any expected real count.
-const MAX_ALTERNATIVES = 8
+// Cap on how many distinct tied-for-best candidates to keep. Bounds
+// memory/UI on a pathological input (e.g. a capture with almost no color
+// variation, or a highly regular repeating pattern) - a real capture with
+// actual color variation almost always pins down a unique rotation or, at
+// most, a handful of genuinely-tied alternatives. NOT a guarantee this
+// never binds, though: a real reported case (a 4x4 with independently-
+// symmetric R/D/L wing patterns) hit 36 genuine ties, which the previous
+// cap of 8 silently truncated - i.e. potentially discarding the
+// customer's actual correct orientation. `truncated` above exists exactly
+// so a caller is never left assuming an incomplete list is the whole
+// story; this cap only needs to be "generous," not literally unbounded.
+const MAX_ALTERNATIVES = 48
 
 // Canonical string encoding of a candidate's actual resulting sticker
 // content, for dedup - NOT of its rotation parameters, which can differ
@@ -522,6 +536,7 @@ type BestCandidates = {
   fullyValid: boolean
   alternatives: OrientedCandidate[]
   seenSignatures: Set<string>
+  truncated: boolean
 }
 
 // Scores one fully-assigned, fully-rotated candidate and folds it into
@@ -560,6 +575,7 @@ function considerCandidate(
       cornerScore, edgeScore, fullyValid,
       alternatives: [{ faces, rotations }],
       seenSignatures: new Set([faceSetSignature(faces)]),
+      truncated: false,
     }
   }
 
@@ -569,9 +585,13 @@ function considerCandidate(
     && (!hasEdges || edgeScore === best.edgeScore)
   if (tiesBest && best) {
     const signature = faceSetSignature(faces)
-    if (!best.seenSignatures.has(signature) && best.alternatives.length < MAX_ALTERNATIVES) {
-      best.seenSignatures.add(signature)
-      best.alternatives.push({ faces, rotations })
+    if (!best.seenSignatures.has(signature)) {
+      if (best.alternatives.length < MAX_ALTERNATIVES) {
+        best.seenSignatures.add(signature)
+        best.alternatives.push({ faces, rotations })
+      } else {
+        best.truncated = true
+      }
     }
   }
   return best
@@ -581,25 +601,29 @@ function considerCandidate(
 // it unambiguously, so only rotation (4^6 = 4096 combinations) needs
 // solving. Returns null if center colors don't identify all 6 faces
 // uniquely (duplicate or unreadable center).
-// `surfaceAlternatives=false` (even sizes - see solveEvenSizeOrientations)
-// canonicalizes down to a single choice rather than reporting every tie:
-// even-size identity has NO fixed reference at all (no center cubie), so
+//
+// Both odd and even sizes surface every genuinely-distinct tied
+// alternative (see OrientationSolution.alternatives) - a previous version
+// canonicalized even sizes down to a single choice on the theory that
 // solveEvenSizeOrientations already deliberately pins capture#1=U@rotation
-// 0 specifically because "reconstructing a cube from photos alone has no
-// way to know which face is really U anyway, so any one consistent
-// labeling is as good as another" (its own comment). The ties that
-// remain within that fixed frame are exactly the residual U-D-axis
-// whole-cube-rotation freedom (which of the other captures gets called
-// R/F/L/B) - not a genuine question about where any piece physically is,
-// just which arbitrary label was assigned, so asking the customer to
-// pick among them would be asking them to resolve something the app's
-// own design already says is unresolvable and unimportant. Odd sizes
-// (surfaceAlternatives=true) are different in kind: center color makes
-// identity a physical fact, not a labeling choice, so a tie there means
-// the same uniquely-identified 6 photos genuinely support more than one
-// physically-different rotation reading - a real ambiguity worth asking
-// about (see the 3x3 front-back-axis-flip regression case).
-function toOrientationSolution(best: BestCandidates | null, surfaceAlternatives: boolean): OrientationSolution | null {
+// 0 ("reconstructing a cube from photos alone has no way to know which
+// face is really U anyway, so any one consistent labeling is as good as
+// another"), so any remaining tie must be that same kind of arbitrary
+// whole-cube-relabeling freedom, not a genuine question about where any
+// piece physically is. That reasoning covers a real degenerate case (a
+// solved cube: every tie there really is just "which capture do we call
+// R," and its assembled state is identical either way) but does NOT cover
+// the general case: a real reported 4x4 capture had 36 genuinely-distinct
+// tied alternatives where U/F/B stayed fixed while R/D/L varied
+// independently and inconsistently - not expressible as a single
+// whole-cube rotation, so a materially different assembled cube each
+// time. Telling those two situations apart in general would need a full
+// 24-element whole-cube-rotation-equivalence detector; surfacing every
+// distinct-by-content tie either way is the safe default (the solved-cube
+// case just costs the customer one extra, harmless click among
+// equally-valid options; silently guessing on the 4x4 case could hand
+// back the wrong cube).
+function toOrientationSolution(best: BestCandidates | null): OrientationSolution | null {
   if (!best) return null
   return {
     faces: best.alternatives[0].faces,
@@ -607,7 +631,8 @@ function toOrientationSolution(best: BestCandidates | null, surfaceAlternatives:
     cornerScore: best.cornerScore,
     edgeScore: best.edgeScore,
     fullyValid: best.fullyValid,
-    alternatives: surfaceAlternatives ? best.alternatives : [best.alternatives[0]],
+    alternatives: best.alternatives,
+    truncated: best.truncated,
   }
 }
 
@@ -630,7 +655,7 @@ function solveOddSizeOrientations(capturedFaces: Record<string, string[][]>, siz
     for (const f of FACE_KEYS) rotated[f] = rotateGrid(faces[f], rot[f])
     best = considerCandidate(rotated, rot, best)
   }
-  return toOrientationSolution(best, true)
+  return toOrientationSolution(best)
 }
 
 function permutations<T>(arr: T[]): T[][] {
@@ -681,7 +706,7 @@ function solveEvenSizeOrientations(capturedFaces: Record<string, string[][]>): O
       best = considerCandidate(faces, rotations, best)
     }
   }
-  return toOrientationSolution(best, false)
+  return toOrientationSolution(best)
 }
 
 /**
