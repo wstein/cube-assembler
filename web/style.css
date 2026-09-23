@@ -765,6 +765,42 @@ textarea {
   pointer-events: none;
 }
 
+/* A sticker whose final color was set by hand, differing from what
+   detection produced: the cell shows the human choice, and this corner
+   swatch (labeled with its letter) records what was detected instead.
+   Solid purple border so it can't be mistaken for the dashed "unsure"
+   flag above - this is a known disagreement, not doubt. */
+.review-detected-cell-corrected {
+  border-color: #8b5cf6;
+  border-style: solid;
+}
+
+.review-detected-cell-was {
+  position: absolute;
+  right: 2px;
+  bottom: 2px;
+  min-width: 1.1rem;
+  height: 1.1rem;
+  padding: 0 2px;
+  border: 1.5px solid #fff;
+  border-radius: 3px;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.6);
+  font-size: 0.6rem;
+  font-weight: 700;
+  line-height: 1rem;
+  text-align: center;
+  color: #000;
+  text-shadow: 0 0 2px #fff;
+  box-sizing: border-box;
+  pointer-events: none;
+}
+
+.review-corrected-count {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #8b5cf6;
+}
+
 .review-wizard-nav {
   display: flex;
   align-items: center;

@@ -22,6 +22,11 @@ interface CubeState {
 
 interface FaceCaptureData {
   colors: string[][]
+  // What automatic detection produced for this face, kept alongside
+  // `colors` (the final answer, possibly human-corrected) so the review
+  // wizard can mark every sticker where the two disagree. Absent when there
+  // was no detection at all (manual facelet input).
+  detectedColors?: string[][]
   cellConfidences?: number[][]
   cellColors?: RGB[][]
   confidence: number
@@ -808,6 +813,7 @@ function App() {
       ...capturedFaces,
       [face]: {
         colors: result.colors,
+        detectedColors: result.colors,
         cellConfidences: result.cellConfidences,
         cellColors: result.cellColors,
         confidence: result.confidence,
@@ -870,7 +876,7 @@ function App() {
           const recalibrated = { ...newCapturedFaces }
           for (const f of FACE_ORDER) {
             const det = wb.faces[f]
-            recalibrated[f] = { ...recalibrated[f], colors: det.colors, cellConfidences: det.cellConfidences, cellColors: det.cellColors, confidence: det.confidence }
+            recalibrated[f] = { ...recalibrated[f], colors: det.colors, detectedColors: det.colors, cellConfidences: det.cellConfidences, cellColors: det.cellColors, confidence: det.confidence }
           }
           setCapturedFaces(recalibrated)
           setGlobalWhiteBalanceNote('Colors re-checked by learning each sticker color from all 6 faces together, instead of fixed reference values.')
@@ -1782,11 +1788,14 @@ function App() {
                         // sticker doesn't have to first work out which
                         // signal triggered it.
                         let flaggedCount = 0
+                        let correctedCount = 0
                         for (let r = 0; r < data.colors.length; r++) {
                           for (let c = 0; c < data.colors[r].length; c++) {
                             const lowConfidence = confidenceTier(data.cellConfidences?.[r]?.[c] ?? 1) === 'low'
                             const overlapping = colorStats[data.colors[r][c]]?.hueOverlapsWith.length > 0
                             if (lowConfidence || overlapping) flaggedCount++
+                            const detected = data.detectedColors?.[r]?.[c]
+                            if (detected !== undefined && detected !== data.colors[r][c]) correctedCount++
                           }
                         }
                         return (
@@ -1794,6 +1803,9 @@ function App() {
                             Detected — tap a sticker to fix
                             {flaggedCount > 0 && (
                               <span class="review-flagged-count">⚠ {flaggedCount} flagged for review</span>
+                            )}
+                            {correctedCount > 0 && (
+                              <span class="review-corrected-count">✎ {correctedCount} set by hand</span>
                             )}
                           </div>
                         )
@@ -1812,20 +1824,34 @@ function App() {
                             const tier = confidenceTier(data.cellConfidences?.[r]?.[c] ?? 1)
                             const overlaps = colorStats[color]?.hueOverlapsWith ?? []
                             const flagged = tier === 'low' || overlaps.length > 0
+                            // The final color stays the human choice; the badge only
+                            // records what automatic detection had said instead.
+                            const detected = data.detectedColors?.[r]?.[c]
+                            const corrected = detected !== undefined && detected !== color
                             const reasons = [
+                              corrected ? `detected as ${detected}, set to ${color} by hand` : null,
                               tier === 'low' ? 'low detection confidence' : null,
                               overlaps.length > 0 ? `hue range overlaps ${overlaps.join(', ')} this capture` : null,
                             ].filter(Boolean)
                             return (
                               <button
                                 key={`${r}-${c}`}
-                                class={`review-detected-cell confidence-${tier} ${flagged ? 'review-detected-cell-flagged' : ''}`}
+                                class={`review-detected-cell confidence-${tier} ${flagged ? 'review-detected-cell-flagged' : ''} ${corrected ? 'review-detected-cell-corrected' : ''}`}
                                 style={{ background: STICKER_HEX[color] || '#888' }}
                                 onClick={() => setReviewEditingCell({ face, row: r, col: c })}
                                 title={`Row ${r + 1}, Col ${c + 1}: ${color}${oklch ? ` (${formatOKLCHValues(oklch)})` : ''}${reasons.length > 0 ? ` — ${reasons.join('; ')}` : ''} — tap to fix`}
                               >
                                 {oklch && <OklchLines class="review-detected-hue" oklch={oklch} />}
                                 {flagged && <span class="review-detected-cell-flag" aria-hidden="true">⚠</span>}
+                                {corrected && (
+                                  <span
+                                    class="review-detected-cell-was"
+                                    style={{ background: STICKER_HEX[detected] || '#888' }}
+                                    aria-hidden="true"
+                                  >
+                                    {detected}
+                                  </span>
+                                )}
                               </button>
                             )
                           })
