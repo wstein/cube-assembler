@@ -213,6 +213,131 @@ function scoreEdges(faces: Record<FaceKey, string[][]>): number {
   return score
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Full validity (distinct pieces + orientation sums + matching permutation
+// parity) - mirrors server/Server.ts's runFullParity exactly, but as a
+// filter the rotation SEARCH itself optimizes for, not a check the server
+// runs afterward on whatever the search already committed to.
+//
+// scoreCorners/scoreEdges above check each of the 8/12 named positions'
+// triple/pair against the SET of physically-real pieces independently -
+// "is this ANY valid corner" - with no requirement that two positions
+// don't match the SAME physical piece. A rotation assignment that reads
+// one piece into two different slots (while another piece's slot goes
+// unfilled) can score a perfect 8/8 or 12/12 that way despite being
+// physically impossible, and the exhaustive search below has no reason to
+// prefer the genuinely-correct rotation over that kind of decoy - both
+// score identically under scoreCorners/scoreEdges alone. This is exactly
+// the gap a real capture hit: cornerColors and cornerOrientation both
+// reported valid, yet the corner-piece list was [0,1,1,0,7,6,6,7] - pieces
+// 0/1/6/7 doubled, 2/3/4/5 never appearing - which only the server's
+// stricter bijection-based permParity caught (2026-09-23 design
+// discussion). Fixed at the source: identify WHICH of the 8/12 canonical
+// pieces each position actually is (not just "some" valid one), reject
+// outright the moment two positions claim the same piece, and require the
+// same orientation-sum and permutation-parity invariants the server does
+// - so the search only ever accepts a genuinely reachable cube state when
+// one exists among the candidates, instead of merely a locally-plausible-
+// looking one.
+// ─────────────────────────────────────────────────────────────────────────────
+
+const CORNER_NAMES = Object.keys(CORNER_FACES)
+const SOLVED_CORNER_TRIPLE: Record<string, [string, string, string]> = Object.fromEntries(
+  CORNER_NAMES.map((name) => {
+    const [f1, f2, f3] = CORNER_FACES[name]
+    return [name, [SOLVED_FACE_COLOR[f1], SOLVED_FACE_COLOR[f2], SOLVED_FACE_COLOR[f3]]]
+  })
+)
+const EDGE_NAMES = Object.keys(EDGE_FACES)
+const SOLVED_EDGE_PAIR: Record<string, [string, string]> = Object.fromEntries(
+  EDGE_NAMES.map((name) => {
+    const [f1, f2] = EDGE_FACES[name]
+    return [name, [SOLVED_FACE_COLOR[f1], SOLVED_FACE_COLOR[f2]]]
+  })
+)
+
+// Which of the 8 canonical corners the sticker triple AT a position
+// actually is (by name, not just position identity) and its twist (0/1/2)
+// relative to that piece's solved orientation - null if the triple is an
+// impossible combination (e.g. two same colors, or two opposite colors,
+// touching) that matches no real corner at all.
+function identifyCorner(triple: [string, string, string]): { name: string; twist: number } | null {
+  for (const name of CORNER_NAMES) {
+    const sc = SOLVED_CORNER_TRIPLE[name]
+    for (let rot = 0; rot < 3; rot++) {
+      if (triple[rot % 3] === sc[0] && triple[(rot + 1) % 3] === sc[1] && triple[(rot + 2) % 3] === sc[2]) {
+        return { name, twist: rot }
+      }
+    }
+  }
+  return null
+}
+function identifyEdge(pair: [string, string]): { name: string; flip: number } | null {
+  for (const name of EDGE_NAMES) {
+    const se = SOLVED_EDGE_PAIR[name]
+    if (pair[0] === se[0] && pair[1] === se[1]) return { name, flip: 0 }
+    if (pair[0] === se[1] && pair[1] === se[0]) return { name, flip: 1 }
+  }
+  return null
+}
+
+function permParity(perm: number[]): boolean {
+  const visited = new Array(perm.length).fill(false)
+  let cycles = 0
+  for (let i = 0; i < perm.length; i++) {
+    if (!visited[i]) {
+      let j = i
+      while (!visited[j]) { visited[j] = true; j = perm[j] }
+      cycles++
+    }
+  }
+  return (perm.length - cycles) % 2 === 0
+}
+
+function isFullyValid(faces: Record<FaceKey, string[][]>): boolean {
+  const n = faces.U.length
+  const cornerIndexByName = new Map(CORNER_NAMES.map((name, i) => [name, i]))
+  const cornerPieces: number[] = []
+  const cornerTwists: number[] = []
+  const usedCorners = new Set<string>()
+  for (const [name, [f1, f2, f3]] of Object.entries(CORNER_FACES)) {
+    const [p1, p2, p3] = CORNER_POSITIONS[name]
+    const triple: [string, string, string] = [
+      cornerSticker(faces[f1], p1), cornerSticker(faces[f2], p2), cornerSticker(faces[f3], p3),
+    ]
+    const id = identifyCorner(triple)
+    if (!id || usedCorners.has(id.name)) return false
+    usedCorners.add(id.name)
+    cornerPieces.push(cornerIndexByName.get(id.name)!)
+    cornerTwists.push(id.twist)
+  }
+  if (cornerTwists.reduce((a, b) => a + b, 0) % 3 !== 0) return false
+
+  // 2x2 has no edges at all; 4x4+ edges split into wings with no strict
+  // permutation model in this file yet (see server/Server.ts's
+  // runFullParity, which draws the identical line at n!==3) - corner
+  // distinctness + orientation is the complete validity model there.
+  if (n !== 3) return true
+
+  const edgeIndexByName = new Map(EDGE_NAMES.map((name, i) => [name, i]))
+  const edgePieces: number[] = []
+  const edgeFlips: number[] = []
+  const usedEdges = new Set<string>()
+  for (const [name, [f1, f2]] of Object.entries(EDGE_FACES)) {
+    const [p1, p2] = EDGE_POSITIONS[name]
+    const mirrored = EDGES_WITH_MIRRORED_SECOND_FACE.has(name)
+    const pair: [string, string] = [edgeSticker(faces[f1], p1, false), edgeSticker(faces[f2], p2, mirrored)]
+    const id = identifyEdge(pair)
+    if (!id || usedEdges.has(id.name)) return false
+    usedEdges.add(id.name)
+    edgePieces.push(edgeIndexByName.get(id.name)!)
+    edgeFlips.push(id.flip)
+  }
+  if (edgeFlips.reduce((a, b) => a + b, 0) % 2 !== 0) return false
+
+  return permParity(cornerPieces) === permParity(edgePieces)
+}
+
 function rotateGrid(grid: string[][], quarterTurnsClockwise: number): string[][] {
   const turns = ((quarterTurnsClockwise % 4) + 4) % 4
   let result = grid
@@ -257,35 +382,64 @@ export interface OrientationSolution {
   // just a less-useful signal. Callers must check size (or Number.isNaN)
   // before displaying this, rather than assuming it's always meaningful.
   edgeScore: number
+  // Whether this candidate passed isFullyValid (distinct pieces, correct
+  // orientation sums, matching permutation parity) - the thing that
+  // actually matters for the assembled cube to be physically reachable.
+  // cornerScore===8 (and edgeScore===12) does NOT imply this: those only
+  // check each position independently, not that they're distinct pieces.
+  // False here alongside a perfect cornerScore/edgeScore means every
+  // position looked locally plausible but no candidate in the whole
+  // search space was actually a reachable cube - a genuinely bad capture
+  // (a misread color), not a rotation problem this solver can fix.
+  fullyValid: boolean
 }
 
-type BestCandidate = { faces: Record<FaceKey, string[][]>; rotations: Record<FaceKey, number>; cornerScore: number; edgeScore: number }
+type BestCandidate = {
+  faces: Record<FaceKey, string[][]>
+  rotations: Record<FaceKey, number>
+  cornerScore: number
+  edgeScore: number
+  fullyValid: boolean
+}
 
 // Scores one fully-assigned, fully-rotated candidate and folds it into
-// `best` if it beats the current leader (more valid corners first, valid
-// edges as the tiebreaker) - shared by both the odd-size (identity known,
-// rotation-only) and even-size (identity + rotation) searches below so
-// the corner-before-edge reduction logic exists in exactly one place. On
-// a 2x2 (no edge pieces to score at all), corner validity is the only
-// signal there is - any remaining tie among multiple equally-valid 8/8
-// candidates is a real, irreducible ambiguity, not something a bogus edge
-// score should paper over.
+// `best` if it beats the current leader - shared by both the odd-size
+// (identity known, rotation-only) and even-size (identity + rotation)
+// searches below so the reduction logic exists in exactly one place.
+//
+// Priority: a fully-valid candidate (isFullyValid - see its comment for
+// why this is a separate, stricter check from cornerScore/edgeScore)
+// ALWAYS beats a not-fully-valid one, full stop, regardless of score -
+// there is no such thing as a "better" physically-impossible cube. Among
+// candidates tied on validity, more valid corners first, valid edges as
+// the tiebreaker (matches the pre-existing behavior, still relevant for
+// ranking imperfect candidates when NO fully-valid one exists in the
+// search space at all - a genuinely bad capture, not a rotation problem).
+// On a 2x2 (no edge pieces to score), corner validity is the only signal.
 function considerCandidate(
   faces: Record<FaceKey, string[][]>,
   rotations: Record<FaceKey, number>,
   best: BestCandidate | null
 ): BestCandidate | null {
   const hasEdges = faces.U.length > 2
+  const fullyValid = isFullyValid(faces)
   const cornerScore = scoreCorners(faces)
+
+  if (best?.fullyValid && !fullyValid) return best
+  if (fullyValid && !best?.fullyValid) {
+    return { faces, rotations, cornerScore, edgeScore: hasEdges ? scoreEdges(faces) : NaN, fullyValid }
+  }
+  // Both (or neither) fully valid from here on - fall through to the
+  // original score-based comparison.
   if (best && cornerScore < best.cornerScore) return best
   if (!hasEdges) {
-    return best && cornerScore === best.cornerScore ? best : { faces, rotations, cornerScore, edgeScore: NaN }
+    return best && cornerScore === best.cornerScore ? best : { faces, rotations, cornerScore, edgeScore: NaN, fullyValid }
   }
   if (best && cornerScore === best.cornerScore) {
     const edgeScore = scoreEdges(faces)
-    return edgeScore > best.edgeScore ? { faces, rotations, cornerScore, edgeScore } : best
+    return edgeScore > best.edgeScore ? { faces, rotations, cornerScore, edgeScore, fullyValid } : best
   }
-  return { faces, rotations, cornerScore, edgeScore: scoreEdges(faces) }
+  return { faces, rotations, cornerScore, edgeScore: scoreEdges(faces), fullyValid }
 }
 
 // Odd sizes (3x3, 5x5, 7x7): each face's fixed center sticker identifies
