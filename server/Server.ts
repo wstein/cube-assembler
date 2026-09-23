@@ -728,7 +728,9 @@ app.get("/api/formats/:encoding", async (c) => {
 type SaveFixtureRequest = {
   name?: string;
   gridSize: number;
-  faces: Record<string, { photo: string; colors: string[][] }>;
+  // Any other per-face fields (detection before correction, crop, camera
+  // settings, ...) are informational and stored as-is, like `meta`.
+  faces: Record<string, { photo: string; colors: string[][] } & Record<string, unknown>>;
   // Informational capture context (camera, white balance, etc) - opaque to
   // the server, stored as-is alongside the fixture for later debugging.
   meta?: unknown;
@@ -763,7 +765,7 @@ app.post("/api/fixtures", async (c) => {
   const dir = join(FIXTURES_DIR, safeName);
   await mkdir(dir, { recursive: true });
 
-  const meta: { gridSize: number; faces: Record<string, { colors: string[][]; photo: string }>; capture?: unknown } = {
+  const meta: { gridSize: number; faces: Record<string, { colors: string[][]; photo: string } & Record<string, unknown>>; capture?: unknown } = {
     gridSize: body.gridSize,
     faces: {},
     ...(body.meta !== undefined ? { capture: body.meta } : {}),
@@ -778,7 +780,8 @@ app.post("/api/fixtures", async (c) => {
     const buffer = Buffer.from(match[2], "base64");
     const photoFilename = `face-${faceKey}.${ext}`;
     await Bun.write(join(dir, photoFilename), buffer);
-    meta.faces[faceKey] = { colors: faceData.colors, photo: photoFilename };
+    const { photo: _photo, colors, ...extra } = faceData;
+    meta.faces[faceKey] = { colors, photo: photoFilename, ...extra };
   }
 
   await Bun.write(join(dir, "meta.json"), JSON.stringify(meta, null, 2));

@@ -1047,6 +1047,19 @@ export interface FaceCaptureResult extends ColorDetectionResult {
   // callers should then fall back to NEUTRAL_GAINS for this face's
   // cross-face correction rather than treating it as a hard error.
   backgroundColor: RGB | null
+  // Where croppedImage came from, for saved fixtures: the full frame's size
+  // and the crop rectangle within it (the rest of the frame is dropped for
+  // privacy, so this is the only record of how it was framed).
+  frame: { width: number; height: number }
+  crop: { x: number; y: number; width: number; height: number }
+}
+
+function describeCrop(canvas: HTMLCanvasElement): Pick<FaceCaptureResult, 'frame' | 'crop'> {
+  const bounds = computeFaceBounds(canvas)
+  return {
+    frame: { width: canvas.width, height: canvas.height },
+    crop: { x: bounds.startX, y: bounds.startY, width: bounds.faceWidth, height: bounds.faceHeight },
+  }
 }
 
 export function captureAndProcessFace(
@@ -1075,6 +1088,7 @@ export function captureAndProcessFace(
     ...extractCubeFaceColors(canvas, gridSize, gains),
     croppedImage: cropFaceRegionToDataUrl(canvas),
     backgroundColor: extractBackgroundColor(canvas),
+    ...describeCrop(canvas),
   }
 }
 
@@ -1097,6 +1111,7 @@ export function captureAndProcessImage(
     ...extractCubeFaceColors(canvas, gridSize, gains),
     croppedImage: cropFaceRegionToDataUrl(canvas),
     backgroundColor: extractBackgroundColor(canvas),
+    ...describeCrop(canvas),
   }
 }
 
