@@ -81,31 +81,6 @@ body {
   flex-shrink: 0;
 }
 
-/* Capped and centered rather than stretched to the panel's full width:
-   the panel itself spans the page, but a 3D cube rendered that wide would
-   look absurd - the TwistyPlayer web component (#twisty-player-container's
-   child, see index.tsx) fills this box via the rule below, sized by its
-   aspect-ratio, not by min-height guesswork. */
-.viewer-canvas {
-  width: 100%;
-  max-width: 480px;
-  aspect-ratio: 1;
-  margin: 0 auto;
-  border-radius: var(--radius-md);
-  background: rgba(0, 229, 255, 0.05);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--color-text-secondary);
-  font-size: 0.875rem;
-}
-
-.viewer-canvas twisty-player {
-  width: 100%;
-  height: 100%;
-  display: block;
-}
-
 /* ─────────────────────────────────────────────────────────────────────────────
    CUBE NET
    ───────────────────────────────────────────────────────────────────────────── */
@@ -962,7 +937,6 @@ textarea {
   align-items: center;
   gap: var(--spacing-sm);
   padding: var(--spacing-lg);
-  border-bottom: 1px solid var(--color-border);
 }
 
 .viewer-controls h3 {
@@ -1056,16 +1030,6 @@ textarea {
    or disappearing never shifts the rest of the dialog. */
 .capture-message.is-empty {
   visibility: hidden;
-}
-
-/* ─────────────────────────────────────────────────────────────────────────────
-   TWISTY PLAYER CONTAINER
-   ───────────────────────────────────────────────────────────────────────────── */
-
-#twisty-player-container {
-  background: var(--color-bg-secondary);
-  border-radius: var(--radius-md);
-  overflow: hidden;
 }
 
 /* ─────────────────────────────────────────────────────────────────────────────

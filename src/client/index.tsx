@@ -1,6 +1,5 @@
 import { render, h, Fragment } from 'preact'
 import { useState, useEffect, useRef } from 'preact/hooks'
-import { TwistyPlayer } from 'cubing/twisty'
 import '../../web/style.css'
 import {
   captureAndProcessFace, captureAndProcessImage, extractCubeFaceColors,
@@ -503,48 +502,6 @@ function App() {
 
     return () => clearInterval(intervalId)
   }, [webcamOpen, puzzleSize])
-
-  const twistyPlayerRef = useRef<TwistyPlayer | null>(null)
-
-  useEffect(() => {
-    const container = document.getElementById('twisty-player-container')
-    if (!container) return
-
-    const player = new TwistyPlayer({
-      puzzle: `${puzzleSize}x${puzzleSize}x${puzzleSize}` as any,
-      visualization: '3D',
-      background: 'checkered',
-      controlPanel: 'bottom-row',
-      alg: algorithm || '',
-      experimentalSetupAlg: scramble || '',
-    })
-
-    container.innerHTML = ''
-    container.appendChild(player)
-    twistyPlayerRef.current = player
-
-    return () => {
-      twistyPlayerRef.current = null
-      container.innerHTML = ''
-    }
-  }, [puzzleSize])
-
-  // TwistyPlayer visualizes puzzles via move sequences (alg /
-  // experimentalSetupAlg), not arbitrary facelet colors — there's no API to
-  // feed it an assembled cube state directly (that would need a solver to
-  // find an equivalent setup alg). So the viewer reflects the entered
-  // scramble/algorithm rather than the photo-captured/manual cube state.
-  useEffect(() => {
-    if (twistyPlayerRef.current) {
-      twistyPlayerRef.current.experimentalSetupAlg = scramble || ''
-    }
-  }, [scramble])
-
-  useEffect(() => {
-    if (twistyPlayerRef.current) {
-      twistyPlayerRef.current.alg = algorithm || ''
-    }
-  }, [algorithm])
 
   // ─────────────────────────────────────────────────────────────────────────
   // Features: Scramble Generation (#8)
@@ -1236,9 +1193,6 @@ function App() {
               </button>
             ))}
           </div>
-        </div>
-        <div class="viewer-canvas">
-          <div id="twisty-player-container" style={{ width: '100%', height: '100%' }}></div>
         </div>
       </div>
 
