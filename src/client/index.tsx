@@ -238,6 +238,47 @@ function FaceGrid({ colors, undecided, current }: { colors: string[][]; undecide
   )
 }
 
+// Flies a copy of `source` onto `target`'s position and size (FLIP-style,
+// via a fixed-position clone so neither real element has to move). Resolves
+// once the clone has landed, with a callback that removes it - the caller
+// decides when, so the clone can cover the target until the real content
+// has re-rendered underneath. Skipped entirely under prefers-reduced-motion.
+function morphInto(source: HTMLElement, target: HTMLElement): Promise<() => void> {
+  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return Promise.resolve(() => {})
+  const from = source.getBoundingClientRect()
+  const to = target.getBoundingClientRect()
+  const clone = source.cloneNode(true) as HTMLElement
+  Object.assign(clone.style, {
+    position: 'fixed',
+    left: `${from.left}px`,
+    top: `${from.top}px`,
+    width: `${from.width}px`,
+    height: `${from.height}px`,
+    margin: '0',
+    zIndex: '10000',
+    pointerEvents: 'none',
+    transformOrigin: 'top left',
+  })
+  document.body.appendChild(clone)
+  const scale = to.width / from.width
+  const anim = clone.animate(
+    [
+      { transform: 'none' },
+      { transform: `translate(${to.left - from.left}px, ${to.top - from.top}px) scale(${scale})` },
+    ],
+    { duration: 450, easing: 'cubic-bezier(0.2, 0.8, 0.2, 1)', fill: 'forwards' }
+  )
+  const remove = () => clone.remove()
+  // Browsers freeze animation timelines in background tabs, so `finished`
+  // alone could leave the pick hanging until the tab is visible again -
+  // force-finish after a grace period (timers still fire when hidden).
+  const fallback = setTimeout(() => anim.finish(), 800)
+  return anim.finished.then(
+    () => { clearTimeout(fallback); return remove },
+    () => { clearTimeout(fallback); return remove }
+  )
+}
+
 function OrientationNetPreview({
   faces, undecidedFaces, currentFace,
 }: {
@@ -416,6 +457,9 @@ function App() {
   // than the solver could keep, so `remaining` may not include every
   // possibility - shown to the customer rather than silently hidden.
   const [orientationWizard, setOrientationWizard] = useState<{ remaining: OrientedCandidate[]; truncated: boolean } | null>(null)
+  // True while a picked option is animating into the net - blocks a second
+  // pick from landing mid-flight.
+  const [wizardMorphing, setWizardMorphing] = useState(false)
   const [reviewEditingCell, setReviewEditingCell] = useState<{ face: string; row: number; col: number } | null>(null)
   // Most laptop/webcam feeds are shown mirrored by convention (like a
   // physical mirror), which is what most users expect; default on but
@@ -1028,6 +1072,29 @@ function App() {
       return
     }
     setOrientationWizard((prev) => (prev ? { remaining: matched, truncated: prev.truncated } : null))
+  }
+
+  // Clicking an option face flies it into the framed slot in the progress
+  // net before the answer is applied, so the customer sees exactly where
+  // their pick landed. The flying clone is removed in the next task, after
+  // Preact's microtask re-render has already filled the slot - so the slot
+  // never flashes back to its hatched placeholder in between. (A timer,
+  // not requestAnimationFrame, since rAF doesn't fire in background tabs.)
+  const handleWizardPick = async (optionEl: HTMLElement, candidates: OrientedCandidate[]) => {
+    if (wizardMorphing) return
+    const source = optionEl.querySelector<HTMLElement>('.orientation-net-face')
+    const target = document.querySelector<HTMLElement>('.orientation-picker .orientation-net-face-current')
+    let removeClone = () => {}
+    if (source && target) {
+      setWizardMorphing(true)
+      try {
+        removeClone = await morphInto(source, target)
+      } finally {
+        setWizardMorphing(false)
+      }
+    }
+    handleWizardAnswer(candidates)
+    setTimeout(removeClone, 0)
   }
 
   // Saves this capture - each face's actual photo plus its (human-
@@ -1828,12 +1895,16 @@ function App() {
               <OrientationNetPreview faces={progressFaces} undecidedFaces={undecidedFaces} currentFace={askingFace} />
               <div class="orientation-picker-grid orientation-wizard-options">
                 {options.map((opt, i) => (
-                  <div key={i} class="orientation-picker-option orientation-wizard-option">
+                  <button
+                    key={i}
+                    type="button"
+                    class="orientation-picker-option orientation-wizard-option"
+                    aria-label={`Option ${i + 1} for the ${FACE_LABELS[askingFace]} face`}
+                    disabled={wizardMorphing}
+                    onClick={(e) => handleWizardPick(e.currentTarget, opt.candidates)}
+                  >
                     <FaceGrid colors={opt.grid} />
-                    <button class="btn btn-primary btn-sm" onClick={() => handleWizardAnswer(opt.candidates)}>
-                      This one
-                    </button>
-                  </div>
+                  </button>
                 ))}
               </div>
             </div>

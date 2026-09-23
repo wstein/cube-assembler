@@ -458,6 +458,25 @@ textarea {
   height: 72px;
 }
 
+/* Each option is itself the button (no separate "This one" button) -
+   clicking it flies the face into the framed net slot (see morphInto). */
+.orientation-wizard-option {
+  font: inherit;
+  cursor: pointer;
+  transition: border-color 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.orientation-wizard-option:hover:not(:disabled),
+.orientation-wizard-option:focus-visible {
+  border-color: var(--color-accent-dark);
+  box-shadow: 0 0 0 2px var(--color-accent-dark);
+  transform: translateY(-2px);
+}
+
+.orientation-wizard-option:disabled {
+  cursor: default;
+}
+
 .global-wb-note {
   padding: var(--spacing-sm) var(--spacing-md);
   margin-bottom: var(--spacing-md);
