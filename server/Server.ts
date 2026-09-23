@@ -18,6 +18,8 @@
  *   POST /api/parse-wrg            → parse WRG string → cube IR JSON
  *   POST /api/parse-urf            → parse URF string → cube IR JSON
  *   GET  /api/formats/:ir          → convert IR to all notation formats
+ *   POST /api/fixtures             → save a human-verified capture to
+ *                                     test/fixtures/ as a regression fixture
  */
 
 import { Hono } from "hono";
@@ -28,6 +30,8 @@ import { streamSSE } from "hono/streaming";
 import { randomScrambleForEvent } from "cubing/scramble";
 import { Alg } from "cubing/alg";
 import { puzzles } from "cubing/puzzles";
+import { mkdir } from "node:fs/promises";
+import { join } from "node:path";
 
 // ─── Types shared with client ─────────────────────────────────────────────────
 
@@ -558,6 +562,71 @@ app.post("/api/parse-urf", async (c) => {
 app.get("/api/formats/:encoding", async (c) => {
   const encoding = c.req.param("encoding");
   return c.json({ encoding, note: "Pass cube IR via POST /api/parse-wrg first" });
+});
+
+// ── POST /api/fixtures ───────────────────────────────────────────────────────
+// Saves a real, human-verified capture (each face's actual photo plus the
+// color grid after any manual corrections) to test/fixtures/<name>/, so a
+// misclassification a human caught in the review wizard becomes a
+// permanent regression fixture instead of a one-off bug report - see
+// test/fixtures.test.ts, which runs the real detection pipeline
+// (extractColorsFromImageData) against every saved fixture and checks it
+// against the stored, human-verified colors.
+type SaveFixtureRequest = {
+  name?: string;
+  gridSize: number;
+  faces: Record<string, { photo: string; colors: string[][] }>;
+};
+
+const FIXTURES_DIR = join(import.meta.dir, "..", "test", "fixtures");
+const REQUIRED_FACES = ["u", "r", "f", "d", "l", "b"];
+
+app.post("/api/fixtures", async (c) => {
+  const body = await c.req.json<SaveFixtureRequest>();
+
+  const faceEntries = Object.entries(body.faces ?? {}).map(
+    ([key, value]) => [key.toLowerCase(), value] as const
+  );
+  const faceKeys = new Set(faceEntries.map(([key]) => key));
+  if (!REQUIRED_FACES.every((f) => faceKeys.has(f))) {
+    return c.json({ error: "Expected all 6 faces (U, R, F, D, L, B)" }, 400);
+  }
+  if (!Number.isInteger(body.gridSize) || body.gridSize < 2 || body.gridSize > 7) {
+    return c.json({ error: "gridSize must be an integer between 2 and 7" }, 400);
+  }
+
+  // Written directly to disk below, so strip anything but a safe
+  // directory-name character set - never trust a client-provided name as
+  // a path component as-is.
+  const rawName = body.name ?? `capture-${new Date().toISOString().replace(/[:.]/g, "-")}`;
+  const safeName = rawName.replace(/[^a-zA-Z0-9_-]/g, "-").slice(0, 80);
+  if (!safeName) {
+    return c.json({ error: "Invalid fixture name" }, 400);
+  }
+
+  const dir = join(FIXTURES_DIR, safeName);
+  await mkdir(dir, { recursive: true });
+
+  const meta: { gridSize: number; faces: Record<string, { colors: string[][]; photo: string }> } = {
+    gridSize: body.gridSize,
+    faces: {},
+  };
+
+  for (const [faceKey, faceData] of faceEntries) {
+    const match = /^data:image\/(jpeg|jpg|png);base64,(.+)$/.exec(faceData.photo ?? "");
+    if (!match) {
+      return c.json({ error: `Face ${faceKey.toUpperCase()}: photo must be a JPEG/PNG data URL` }, 400);
+    }
+    const ext = match[1] === "png" ? "png" : "jpg";
+    const buffer = Buffer.from(match[2], "base64");
+    const photoFilename = `face-${faceKey}.${ext}`;
+    await Bun.write(join(dir, photoFilename), buffer);
+    meta.faces[faceKey] = { colors: faceData.colors, photo: photoFilename };
+  }
+
+  await Bun.write(join(dir, "meta.json"), JSON.stringify(meta, null, 2));
+
+  return c.json({ success: true, name: safeName, path: `test/fixtures/${safeName}` });
 });
 
 // ─── Start ────────────────────────────────────────────────────────────────────

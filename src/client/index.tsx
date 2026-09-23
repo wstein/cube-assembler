@@ -150,6 +150,7 @@ function App() {
   const [faceConfidence, setFaceConfidence] = useState<Record<string, number>>({})
   const [loading, setLoading] = useState(false)
   const [captureMessage, setCaptureMessage] = useState('')
+  const [fixtureSaveMessage, setFixtureSaveMessage] = useState('')
   const [manualColorInput, setManualColorInput] = useState('')
   const [showColorInput, setShowColorInput] = useState(false)
   const [notationFormat, setNotationFormat] = useState<'wrg' | 'urf'>('wrg')
@@ -661,6 +662,41 @@ function App() {
     setShowReviewDialog(false)
   }
 
+  // Saves this capture - each face's actual photo plus its (human-
+  // reviewed/corrected) color grid - as a permanent regression fixture on
+  // the server (test/fixtures/<name>/, see server/Server.ts's
+  // POST /api/fixtures and test/fixtures.test.ts). Only meaningful once a
+  // cube has actually been confirmed: that's the point at which
+  // capturedFaces' colors reflect whatever corrections were made in the
+  // review wizard, not just the raw first-pass detection.
+  const handleSendFixtureToServer = async () => {
+    const allCaptured = FACE_ORDER.every((f) => capturedFaces[f]?.croppedImage)
+    if (!allCaptured) {
+      setFixtureSaveMessage('❌ Capture and confirm all 6 faces first.')
+      return
+    }
+    setLoading(true)
+    setFixtureSaveMessage('Sending...')
+    try {
+      const faces: Record<string, { photo: string; colors: string[][] }> = {}
+      for (const f of FACE_ORDER) {
+        faces[f] = { photo: capturedFaces[f].croppedImage!, colors: capturedFaces[f].colors }
+      }
+      const res = await fetch('/api/fixtures', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ gridSize: puzzleSize, faces }),
+      })
+      const result = await res.json()
+      if (!res.ok) throw new Error(result.error ?? `Failed (${res.status})`)
+      setFixtureSaveMessage(`✓ Saved as regression fixture: ${result.path}`)
+    } catch (err) {
+      setFixtureSaveMessage(`❌ Failed to save fixture: ${err instanceof Error ? err.message : String(err)}`)
+    } finally {
+      setLoading(false)
+    }
+  }
+
   // The gain the user has actually chosen right now — in Auto mode,
   // face 1's locked estimate once it exists (see lockedAutoGains), else
   // the live estimate (falls back to neutral if none exists yet, e.g.
@@ -1000,6 +1036,23 @@ function App() {
         <button class="btn btn-primary" onClick={() => cube && copyToClipboard(getNotationOutput())}>
           Copy to Clipboard
         </button>
+        {cube && (
+          <>
+            <button
+              class="btn btn-secondary"
+              onClick={handleSendFixtureToServer}
+              disabled={loading}
+              title="Save this capture's photos + reviewed colors on the server as a permanent regression test fixture"
+            >
+              {loading ? '⏳ Sending...' : '💾 Send to Server (Save as Test Fixture)'}
+            </button>
+            {fixtureSaveMessage && (
+              <div class={`capture-message ${fixtureSaveMessage.includes('✓') ? 'success' : fixtureSaveMessage.includes('❌') ? 'error' : ''}`}>
+                {fixtureSaveMessage}
+              </div>
+            )}
+          </>
+        )}
       </aside>
 
       {/* Webcam Modal */}
