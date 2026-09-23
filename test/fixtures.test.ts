@@ -32,6 +32,40 @@ const FACE_ORDER = ['u', 'r', 'f', 'd', 'l', 'b']
 interface FixtureMeta {
   gridSize: number
   faces: Record<string, { colors: string[][]; photo: string }>
+  // Free-text labels a human can add by hand to meta.json (e.g. "pastel",
+  // "office-lighting") - combined with tags auto-derived from `capture`
+  // below so a cluster of failures under one condition is visible from
+  // the test titles alone, without any separate reporting step.
+  tags?: string[]
+  // Informational capture context saved by the app (camera, white
+  // balance, light source) - see src/client/index.tsx's
+  // handleSendFixtureToServer. Shape isn't load-bearing here, only used
+  // to derive display tags.
+  capture?: {
+    camera?: { label?: string }
+    whiteBalance?: { mode?: string; lightSource?: string | null }
+  }
+  // Marks a fixture as a known, not-yet-fixed limitation rather than a
+  // regression to guard against - e.g. a genuine palette-geometry case
+  // with no close neighbor, or a real gap a future algorithm change
+  // (see A1/A2 in the design discussion) is meant to close. Runs via
+  // it.fails: the fixture must keep failing for exactly this reason, and
+  // the moment it starts passing, the test itself fails - forcing a
+  // human to notice and remove the flag rather than the fix going
+  // unnoticed.
+  expectedFail?: { reason: string }
+}
+
+// Tags shown in each test's title so a pattern across failures (e.g.
+// "3 failures, all light:Fluorescent (green cast)") is visible directly
+// in normal `npm test` output - no separate aggregation/reporting step
+// needed for T2's "diagnose, don't just alarm" goal.
+function fixtureTags(meta: FixtureMeta): string[] {
+  const tags = new Set(meta.tags ?? [])
+  if (meta.capture?.camera?.label) tags.add(`camera:${meta.capture.camera.label}`)
+  if (meta.capture?.whiteBalance?.mode) tags.add(`wb:${meta.capture.whiteBalance.mode}`)
+  if (meta.capture?.whiteBalance?.lightSource) tags.add(`light:${meta.capture.whiteBalance.lightSource}`)
+  return [...tags].sort()
 }
 
 function loadFixtureNames(): string[] {
@@ -52,8 +86,19 @@ describe('real-capture regression fixtures', () => {
   }
 
   for (const name of fixtureNames) {
-    it(`"${name}" reproduces the human-verified colors through the full pipeline`, () => {
-      const meta: FixtureMeta = JSON.parse(readFileSync(join(FIXTURES_DIR, name, 'meta.json'), 'utf8'))
+    const meta: FixtureMeta = JSON.parse(readFileSync(join(FIXTURES_DIR, name, 'meta.json'), 'utf8'))
+    const tags = fixtureTags(meta)
+    const tagSuffix = tags.length > 0 ? ` [${tags.join(', ')}]` : ''
+    const title = meta.expectedFail
+      ? `"${name}"${tagSuffix} [known-hard: ${meta.expectedFail.reason}]`
+      : `"${name}"${tagSuffix} reproduces the human-verified colors through the full pipeline`
+    // Known-hard fixtures run via it.fails: they're expected to keep
+    // failing for the stated reason, and it.fails itself fails the suite
+    // the moment they start passing - so a fix has to be noticed and the
+    // expectedFail flag removed, rather than silently going unnoticed.
+    const runTest = meta.expectedFail ? it.fails : it
+
+    runTest(title, () => {
       for (const faceKey of FACE_ORDER) {
         expect(meta.faces[faceKey], `fixture "${name}" is missing face ${faceKey.toUpperCase()}`).toBeDefined()
       }

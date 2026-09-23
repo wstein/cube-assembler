@@ -41,6 +41,27 @@ face with neutral gains, pools every sticker across all 6 faces, runs
 `meta.json`. With zero fixtures saved, this reports "no fixtures saved yet"
 rather than failing - fixtures are opt-in, not required.
 
+## Tagging and known-hard fixtures
+
+As the corpus grows, two optional `meta.json` fields keep the suite
+readable and honest instead of it turning into a flat, noisy pass/fail list
+(hand-edit `meta.json` to add either):
+
+- **`"tags": ["pastel", "office-lighting"]`** - free-text labels you add by
+  hand. Combined with tags auto-derived from `capture` (camera label, white
+  balance mode, light source), they're appended to the test's title, e.g.
+  `"my-cube" [light:Fluorescent (green cast), pastel]`. That's enough for a
+  pattern across failures (e.g. "every failure mentions Fluorescent") to be
+  visible straight from `npm test` output - no separate report to run.
+- **`"expectedFail": { "reason": "..." }`** - marks a fixture as a known,
+  not-yet-fixed limitation (e.g. a genuine palette-geometry case with no
+  close neighbor color) instead of a regression to guard against. The test
+  runs via Vitest's `it.fails`: it must keep failing for the stated reason,
+  and the moment it starts passing (someone actually fixes it), `it.fails`
+  itself reports a failure ("expected test to fail but it passed") -
+  forcing a human to notice and remove the flag, rather than the fix going
+  unnoticed and the fixture just quietly turning green.
+
 ## `synthetic-sanity-check/`
 
 Not a real capture - 6 solid-color JPEGs (one per canonical WCA color),
