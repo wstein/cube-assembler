@@ -438,6 +438,16 @@ textarea {
     );
 }
 
+/* The face the wizard is currently asking about - framed so it's clear
+   which slot in the net the options below refer to. outline (not border)
+   so the net's fixed 40px cells don't shift. */
+.orientation-net-face-current {
+  outline: 3px solid var(--color-accent-dark);
+  outline-offset: 2px;
+  position: relative;
+  z-index: 1;
+}
+
 .orientation-wizard-options {
   grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
   margin-top: var(--spacing-lg);

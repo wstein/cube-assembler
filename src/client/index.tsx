@@ -218,11 +218,13 @@ function OklchLines({ oklch, class: className }: { oklch: { l: number; c: number
 // choices, where only one face at a time needs showing). `undecided`
 // renders a neutral placeholder instead of real colors - used for faces
 // the orientation wizard hasn't pinned down yet, so the customer isn't
-// shown a specific guess as if it were settled.
-function FaceGrid({ colors, undecided }: { colors: string[][]; undecided?: boolean }) {
+// shown a specific guess as if it were settled. `current` frames the face
+// the wizard is asking about right now, so it's obvious which slot in the
+// net the options below refer to.
+function FaceGrid({ colors, undecided, current }: { colors: string[][]; undecided?: boolean; current?: boolean }) {
   return (
     <div
-      class={`orientation-net-face${undecided ? ' orientation-net-face-undecided' : ''}`}
+      class={`orientation-net-face${undecided ? ' orientation-net-face-undecided' : ''}${current ? ' orientation-net-face-current' : ''}`}
       style={{ gridTemplateColumns: `repeat(${colors.length}, 1fr)` }}
     >
       {colors.flat().map((color, i) => (
@@ -237,12 +239,15 @@ function FaceGrid({ colors, undecided }: { colors: string[][]; undecided?: boole
 }
 
 function OrientationNetPreview({
-  faces, undecidedFaces,
+  faces, undecidedFaces, currentFace,
 }: {
   faces: Record<string, string[][]>
   undecidedFaces?: Set<string>
+  currentFace?: string
 }) {
-  const grid = (face: string) => <FaceGrid colors={faces[face]} undecided={undecidedFaces?.has(face)} />
+  const grid = (face: string) => (
+    <FaceGrid colors={faces[face]} undecided={undecidedFaces?.has(face)} current={face === currentFace} />
+  )
   return (
     <div class="orientation-net">
       <div class="orientation-net-row">
@@ -410,10 +415,7 @@ function App() {
   // OrientationSolution.truncated: more genuinely-distinct ties existed
   // than the solver could keep, so `remaining` may not include every
   // possibility - shown to the customer rather than silently hidden.
-  // `step` counts answers given so far - only the first question spells
-  // out WHY it's being asked; repeating that explanation on every
-  // subsequent click would just be noise pushing the actual question down.
-  const [orientationWizard, setOrientationWizard] = useState<{ remaining: OrientedCandidate[]; truncated: boolean; step: number } | null>(null)
+  const [orientationWizard, setOrientationWizard] = useState<{ remaining: OrientedCandidate[]; truncated: boolean } | null>(null)
   const [reviewEditingCell, setReviewEditingCell] = useState<{ face: string; row: number; col: number } | null>(null)
   // Most laptop/webcam feeds are shown mirrored by convention (like a
   // physical mirror), which is what most users expect; default on but
@@ -988,7 +990,7 @@ function App() {
         // of silently picking one. Leaves the review dialog up; the
         // orientation wizard renders on top of it and calls
         // handleChooseOrientation once it narrows down to one candidate.
-        setOrientationWizard({ remaining: solved.alternatives, truncated: solved.truncated, step: 0 })
+        setOrientationWizard({ remaining: solved.alternatives, truncated: solved.truncated })
         return
       }
     } else {
@@ -1025,7 +1027,7 @@ function App() {
       handleChooseOrientation(matched[0])
       return
     }
-    setOrientationWizard((prev) => (prev ? { remaining: matched, truncated: prev.truncated, step: prev.step + 1 } : null))
+    setOrientationWizard((prev) => (prev ? { remaining: matched, truncated: prev.truncated } : null))
   }
 
   // Saves this capture - each face's actual photo plus its (human-
@@ -1755,7 +1757,7 @@ function App() {
 
       {/* Orientation wizard - see orientationWizard/pickWizardFace/groupWizardOptions */}
       {orientationWizard && (() => {
-        const { remaining, truncated, step } = orientationWizard
+        const { remaining, truncated } = orientationWizard
         const askingFace = pickWizardFace(remaining)
         // handleWizardAnswer never leaves the wizard open once no face is
         // left to ask about, so this should always resolve - but fall
@@ -1816,26 +1818,14 @@ function App() {
                 <button class="modal-close" onClick={() => setOrientationWizard(null)}>×</button>
               </div>
               <p class="orientation-picker-note">
-                {step === 0 ? (
-                  <>
-                    {decidedCount} of 6 faces confirmed so far ({remaining.length} possible arrangement{remaining.length === 1 ? '' : 's'} left).
-                    The photographed colors are equally consistent with more than one reading of your cube — this can
-                    happen when a cube's own arrangement has a symmetry the camera can't see past. Pick the option
-                    below that matches your actual {FACE_LABELS[askingFace]} face; grayed-out faces will fill in
-                    automatically once there's enough information.
-                  </>
-                ) : (
-                  <>{decidedCount} of 6 confirmed ({remaining.length} left) — pick your actual {FACE_LABELS[askingFace]} face.</>
-                )}
+                {decidedCount}/6 set · {remaining.length} left — match the framed face.
               </p>
               {truncated && (
                 <p class="orientation-picker-note orientation-picker-truncated-note">
-                  ⚠️ Even more equally-valid readings exist beyond what's tracked here — this capture's colors are
-                  unusually repetitive. If none of these ever match your cube, try re-photographing with more
-                  lighting/angle variation so the app can tell the faces apart more reliably.
+                  ⚠️ More matches exist than shown — if none fit, retake the photos.
                 </p>
               )}
-              <OrientationNetPreview faces={progressFaces} undecidedFaces={undecidedFaces} />
+              <OrientationNetPreview faces={progressFaces} undecidedFaces={undecidedFaces} currentFace={askingFace} />
               <div class="orientation-picker-grid orientation-wizard-options">
                 {options.map((opt, i) => (
                   <div key={i} class="orientation-picker-option orientation-wizard-option">
