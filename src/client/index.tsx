@@ -40,6 +40,15 @@ interface FaceCaptureData {
   timestamp: number
 }
 
+// Without an explicit size most webcams default to 640x480, which leaves a
+// 7x7 sticker's sample area only ~25px wide. `ideal` (not `exact`) so a
+// camera that can't do 1080p still opens at the best size it offers.
+const CAMERA_CONSTRAINTS: MediaTrackConstraints = {
+  facingMode: 'environment',
+  width: { ideal: 1920 },
+  height: { ideal: 1080 },
+}
+
 interface AssemblyResult {
   type: 'start' | 'stage' | 'result' | 'error'
   total?: number
@@ -503,7 +512,7 @@ function App() {
     if (!webcamOpen || !webcamRef.current) return
 
     navigator.mediaDevices
-      .getUserMedia({ video: { facingMode: 'environment' } })
+      .getUserMedia({ video: CAMERA_CONSTRAINTS })
       .then((stream) => {
         if (webcamRef.current) {
           webcamRef.current.srcObject = stream
