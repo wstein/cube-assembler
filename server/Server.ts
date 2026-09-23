@@ -276,7 +276,7 @@ function edgeLineFaceletIdx(n: number, line: EdgeLineType, reverse: boolean, w: 
 function validateWingEdges(cube: CubeIR): { valid: boolean; result?: string } {
   const n = cube.size;
   const counts = new Array(SOLVED_EDGES.length).fill(0);
-  for (const [, faceA, lineA, reverseA, faceB, lineB, reverseB] of EDGE_LINES) {
+  for (const [edgeName, faceA, lineA, reverseA, faceB, lineB, reverseB] of EDGE_LINES) {
     for (let w = 1; w <= n - 2; w++) {
       const c0 = getFace(cube, faceA).data[edgeLineFaceletIdx(n, lineA as EdgeLineType, reverseA, w)] as FaceColor;
       const c1 = getFace(cube, faceB).data[edgeLineFaceletIdx(n, lineB as EdgeLineType, reverseB, w)] as FaceColor;
@@ -287,12 +287,36 @@ function validateWingEdges(cube: CubeIR): { valid: boolean; result?: string } {
           counts[pi]++; found = true; break;
         }
       }
-      if (!found) return { valid: false, result: "Unknown wing edge color pair" };
+      if (!found) {
+        // Names the actual two colors and exactly where they were read
+        // from, not just "somewhere" - a human staring at this needs to
+        // know which physical stickers to go re-check, not just that
+        // *some* wing is wrong. Two same/opposite colors can never
+        // physically touch on any real cube, so this always means at
+        // least one of these two specific stickers was misread.
+        return {
+          valid: false,
+          result: `Unknown wing edge color pair "${c0}-${c1}" at edge ${edgeName} (wing ${w} of ${n - 2}, reading ${faceA}+${faceB}) - two same or opposite colors can never physically touch, so one of these two stickers was misread`,
+        };
+      }
     }
   }
   const expected = n - 2;
   if (!counts.every((c) => c === expected)) {
-    return { valid: false, result: `Wing edge color-pair counts unbalanced (expected ${expected} of each)` };
+    // Lists every pair that's actually off (not the 12-line full table),
+    // each with its real count vs. the expected one - the specific
+    // over/under pattern across pairs (e.g. one color's count short by
+    // exactly what another's is over by) is usually the fastest way for a
+    // human to spot which two colors are being confused for each other,
+    // without re-deriving this same table by hand from the raw facelets.
+    const offending = SOLVED_EDGES
+      .map((se, i) => ({ pair: se.join("-"), count: counts[i] }))
+      .filter((p) => p.count !== expected)
+      .map((p) => `${p.pair} has ${p.count} (expected ${expected})`);
+    return {
+      valid: false,
+      result: `Wing edge color-pair counts unbalanced: ${offending.join(", ")}`,
+    };
   }
   return { valid: true };
 }

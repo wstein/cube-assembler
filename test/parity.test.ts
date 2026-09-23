@@ -97,7 +97,7 @@ function edgeLineFaceletIdx(n: number, line: EdgeLineType, reverse: boolean, w: 
 function validateWingEdges(cube: CubeIR): { valid: boolean; result?: string } {
   const n = cube.size
   const counts = new Array(SOLVED_EDGES.length).fill(0)
-  for (const [, faceA, lineA, reverseA, faceB, lineB, reverseB] of EDGE_LINES) {
+  for (const [edgeName, faceA, lineA, reverseA, faceB, lineB, reverseB] of EDGE_LINES) {
     for (let w = 1; w <= n - 2; w++) {
       const c0 = getFace(cube, faceA).data[edgeLineFaceletIdx(n, lineA as EdgeLineType, reverseA, w)]
       const c1 = getFace(cube, faceB).data[edgeLineFaceletIdx(n, lineB as EdgeLineType, reverseB, w)]
@@ -106,12 +106,21 @@ function validateWingEdges(cube: CubeIR): { valid: boolean; result?: string } {
         const se = SOLVED_EDGES[pi]
         if ((c0 === se[0] && c1 === se[1]) || (c0 === se[1] && c1 === se[0])) { counts[pi]++; found = true; break }
       }
-      if (!found) return { valid: false, result: 'Unknown wing edge color pair' }
+      if (!found) {
+        return {
+          valid: false,
+          result: `Unknown wing edge color pair "${c0}-${c1}" at edge ${edgeName} (wing ${w} of ${n - 2}, reading ${faceA}+${faceB}) - two same or opposite colors can never physically touch, so one of these two stickers was misread`,
+        }
+      }
     }
   }
   const expected = n - 2
   if (!counts.every((c) => c === expected)) {
-    return { valid: false, result: `Wing edge color-pair counts unbalanced (expected ${expected} of each)` }
+    const offending = SOLVED_EDGES
+      .map((se, i) => ({ pair: se.join('-'), count: counts[i] }))
+      .filter((p) => p.count !== expected)
+      .map((p) => `${p.pair} has ${p.count} (expected ${expected})`)
+    return { valid: false, result: `Wing edge color-pair counts unbalanced: ${offending.join(', ')}` }
   }
   return { valid: true }
 }
@@ -347,7 +356,13 @@ describe('server parity: non-3x3 sizes (no center-block uniformity check)', () =
     ;[cube.u.data[13], cube.d.data[7]] = [cube.d.data[7], cube.u.data[13]]
     const result = checkParity(cube)
     expect(result.valid).toBe(false)
-    expect(result.result).toMatch(/unbalanced/i)
+    // Every offending pair named with its actual vs. expected count, not
+    // just "unbalanced" - a human can see directly that W/Y and G/R are
+    // the two colors being confused (each short exactly where the other
+    // is over), without re-deriving the count table themselves.
+    expect(result.result).toBe(
+      'Wing edge color-pair counts unbalanced: W-G has 1 (expected 2), W-R has 3 (expected 2), Y-G has 3 (expected 2), Y-R has 1 (expected 2)'
+    )
   })
 
   it('rejects a 4x4 with a genuinely impossible wing-edge color pair', () => {
@@ -359,7 +374,9 @@ describe('server parity: non-3x3 sizes (no center-block uniformity check)', () =
     ;[cube.u.data[13], cube.f.data[2]] = [cube.f.data[2], cube.u.data[13]]
     const result = checkParity(cube)
     expect(result.valid).toBe(false)
-    expect(result.result).toBe('Unknown wing edge color pair')
+    // Names the actual bad pair and where it was read from, not just that
+    // "some" wing was wrong.
+    expect(result.result).toMatch(/^Unknown wing edge color pair "G-G" at edge UF/)
   })
 
   it('accepts solved cubes of every wing-bearing size via validateWingEdges directly', () => {
