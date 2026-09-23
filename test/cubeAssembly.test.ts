@@ -175,6 +175,48 @@ describe('solveFaceOrientations', () => {
     expect(result!.faces.B.flat().every((c) => c === 'B')).toBe(true)
   })
 
+  it('surfaces a genuine 4-way tie for a highly symmetric 7x7 capture, all wing-valid (not a dedup or wing-validation bug)', () => {
+    // Regression case for a real user report: a 7x7 capture with a
+    // periodic checkerboard-style coloring on every face produced several
+    // alternatives that "look the same" in the orientation picker, raising
+    // the question of whether this was a dedup bug (two alternatives
+    // secretly identical) or a wing-validation gap (an alternative wrongly
+    // marked fullyValid despite broken wings). Verified neither: each
+    // alternative's facelet content actually differs from every other by
+    // 40-80 of 196 cells (F+B rotate together as a coupled pair,
+    // independently of R+L rotating together as a separate coupled pair -
+    // 2x2 = 4 combinations), and each of the 4 is independently, genuinely
+    // wing-valid (this checkerboard pattern's periodicity is what makes
+    // rotating a coupled opposite-face pair 90 degrees produce a
+    // different-but-visually-similar arrangement to a human glancing at
+    // it, not a bug in this app). Odd sizes correctly surface this as
+    // real ambiguity (center color fixes identity as physical fact, so a
+    // tie here is a genuine question only the person holding the cube can
+    // answer) rather than silently picking one.
+    const toGrid = (s: string, n: number): string[][] =>
+      Array.from({ length: n }, (_, r) => s.slice(r * n, r * n + n).split(''))
+    const captured: Record<string, string[][]> = {
+      U: toGrid('BBGBGBBBWYWYWBGYOROYGBWRWRWBGYOROYGBWYWYWBBBGBGBB', 7),
+      R: toGrid('YYWYWYYWOROROWYRGBGRYWOBRBOWYRGBGRYWOROROWYYWYWYY', 7),
+      F: toGrid('RRORORROBGBGBORGYWYGROBWGWBORGYWYGROBGBGBORRORORR', 7),
+      D: toGrid('GGBGBGGGYWYWYGBWRORWBGYOYOYGBWRORWBGYWYWYGGGBGBGG', 7),
+      L: toGrid('WWYWYWWYRORORYWOBGBOWYRGOGRYWOBGBOWYRORORYWWYWYWW', 7),
+      B: toGrid('OOROROORGBGBGROBWYWBORGYBYGROBWYWBORGBGBGROOROROO', 7),
+    }
+    const result = solveFaceOrientations(captured)
+    expect(result).not.toBeNull()
+    expect(result!.fullyValid).toBe(true)
+    expect(result!.cornerScore).toBe(8)
+    expect(result!.edgeScore).toBe(12)
+    expect(result!.alternatives.length).toBe(4)
+    const signatures = new Set(
+      result!.alternatives.map((alt) =>
+        ['U', 'R', 'F', 'D', 'L', 'B'].map((f) => alt.faces[f].map((row) => row.join('')).join('')).join('|')
+      )
+    )
+    expect(signatures.size).toBe(4) // genuinely distinct content, not duplicates
+  })
+
   describe('even sizes (no fixed center reference - identity searched jointly with rotation)', () => {
     it.each([2, 4, 6])('resolves a solved %ix%i cube, shuffled and pre-rotated, to full validity', (size) => {
       // Even sizes have no center to key off, so - unlike the odd-size
