@@ -218,7 +218,15 @@ function OrientationNetPreview({
 // being asked about. Terminates when exactly one candidate remains.
 // ─────────────────────────────────────────────────────────────────────────────
 
-const WIZARD_FACE_ORDER: FaceKey[] = ['U', 'R', 'F', 'D', 'L', 'B']
+// F last: for even sizes solveEvenSizeOrientations fixes F as its search
+// anchor, so it's already unanimous across every alternative and never
+// actually reaches this tiebreak - matches how someone naturally orients
+// a physical cube around the face they're looking at, rather than the one
+// on top. For odd sizes there's no free anchor (every face's rotation is
+// a genuine unknown from its photo alone), so F is only ever actually
+// asked about there if it turns out to be tied with another face on
+// "most distinct values" - this ordering just makes it lose that tiebreak.
+const WIZARD_FACE_ORDER: FaceKey[] = ['U', 'R', 'D', 'L', 'B', 'F']
 const FACE_LABELS: Record<FaceKey, string> = { U: 'Up', R: 'Right', F: 'Front', D: 'Down', L: 'Left', B: 'Back' }
 
 function faceContentKey(colors: string[][]): string {
