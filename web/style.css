@@ -70,8 +70,7 @@ body {
 
 .viewer-region {
   width: 100%;
-  height: 600px;
-  display: flex !important;
+  display: flex;
   flex-direction: column;
   background: var(--color-bg-secondary);
   border: 1px solid var(--color-border);
@@ -79,20 +78,32 @@ body {
   padding: var(--spacing-lg);
   margin: var(--spacing-lg);
   gap: var(--spacing-lg);
-  flex-shrink: 0 !important;
+  flex-shrink: 0;
 }
 
+/* Capped and centered rather than stretched to the panel's full width:
+   the panel itself spans the page, but a 3D cube rendered that wide would
+   look absurd - the TwistyPlayer web component (#twisty-player-container's
+   child, see index.tsx) fills this box via the rule below, sized by its
+   aspect-ratio, not by min-height guesswork. */
 .viewer-canvas {
-  flex: 1 !important;
   width: 100%;
+  max-width: 480px;
+  aspect-ratio: 1;
+  margin: 0 auto;
   border-radius: var(--radius-md);
-  background: linear-gradient(135deg, rgba(0,229,255,0.1) 0%, rgba(0,188,212,0.05) 100%);
-  display: flex !important;
+  background: rgba(0, 229, 255, 0.05);
+  display: flex;
   align-items: center;
   justify-content: center;
   color: var(--color-text-secondary);
   font-size: 0.875rem;
-  min-height: 400px;
+}
+
+.viewer-canvas twisty-player {
+  width: 100%;
+  height: 100%;
+  display: block;
 }
 
 /* ─────────────────────────────────────────────────────────────────────────────
@@ -175,97 +186,6 @@ body {
 }
 
 /* ─────────────────────────────────────────────────────────────────────────────
-   HEADER
-   ───────────────────────────────────────────────────────────────────────────── */
-
-.header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: var(--spacing-lg);
-  border-bottom: 1px solid var(--color-border);
-  background-color: var(--color-bg-primary);
-  gap: var(--spacing-xl);
-  flex-wrap: wrap;
-}
-
-.logo {
-  display: flex;
-  align-items: center;
-  gap: var(--spacing-md);
-  text-decoration: none;
-  color: inherit;
-  font-weight: 700;
-  font-size: 1.25rem;
-}
-
-.logo-icon {
-  width: 32px;
-  height: 32px;
-  display: block;
-}
-
-.logo-text {
-  background: linear-gradient(135deg, var(--color-accent) 0%, var(--color-accent-dark) 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-}
-
-.logo-accent {
-  font-weight: 600;
-  opacity: 0.8;
-}
-
-.size-selector {
-  display: flex;
-  align-items: center;
-  gap: var(--spacing-md);
-}
-
-.size-label {
-  font-size: 0.875rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: var(--color-text-secondary);
-}
-
-.size-pills {
-  display: flex;
-  gap: var(--spacing-sm);
-  flex-wrap: wrap;
-}
-
-.size-pill {
-  padding: var(--spacing-sm) var(--spacing-md);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-  background: var(--color-bg-secondary);
-  color: var(--color-text-primary);
-  font-weight: 500;
-  font-size: 0.875rem;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.size-pill:hover {
-  border-color: var(--color-accent);
-  color: var(--color-accent);
-}
-
-.size-pill.active {
-  background: var(--color-accent);
-  border-color: var(--color-accent);
-  color: var(--color-bg-primary);
-}
-
-.header-actions {
-  display: flex;
-  gap: var(--spacing-md);
-}
-
-/* ─────────────────────────────────────────────────────────────────────────────
    BUTTONS
    ───────────────────────────────────────────────────────────────────────────── */
 
@@ -307,48 +227,6 @@ button {
   color: var(--color-accent);
 }
 
-.btn-icon {
-  width: 40px;
-  height: 40px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 50%;
-  background: var(--color-bg-secondary);
-  color: var(--color-text-primary);
-}
-
-.btn-icon:hover {
-  background: var(--color-border);
-  color: var(--color-accent);
-}
-
-.btn-icon svg {
-  width: 20px;
-  height: 20px;
-}
-
-/* ─────────────────────────────────────────────────────────────────────────────
-   MAIN LAYOUT
-   ───────────────────────────────────────────────────────────────────────────── */
-
-.main-layout {
-  display: grid;
-  grid-template-columns: 300px 1fr 320px;
-  gap: var(--spacing-lg);
-  padding: var(--spacing-lg);
-  min-height: calc(100vh - 80px);
-  max-width: 1600px;
-  margin: 0 auto;
-}
-
-@media (max-width: 1200px) {
-  .main-layout {
-    grid-template-columns: 1fr;
-    gap: var(--spacing-md);
-  }
-}
-
 /* ─────────────────────────────────────────────────────────────────────────────
    PANELS
    ───────────────────────────────────────────────────────────────────────────── */
@@ -368,13 +246,6 @@ button {
   font-weight: 600;
   color: var(--color-text-primary);
   margin: 0;
-}
-
-.face-color {
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  border: 2px solid currentColor;
 }
 
 /* ─────────────────────────────────────────────────────────────────────────────
@@ -416,90 +287,35 @@ textarea {
 }
 
 /* ─────────────────────────────────────────────────────────────────────────────
-   3D VIEWER
-   ───────────────────────────────────────────────────────────────────────────── */
-
-.viewer-region {
-  background: var(--color-bg-secondary);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-lg);
-  padding: var(--spacing-lg);
-  display: flex;
-  flex-direction: column;
-  gap: var(--spacing-lg);
-  min-height: 500px;
-}
-
-.viewer-canvas {
-  flex: 1;
-  border-radius: var(--radius-md);
-  background: rgba(0, 229, 255, 0.05);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--color-text-secondary);
-  font-size: 0.875rem;
-  min-height: 300px;
-}
-
-.viewer-controls {
-  display: flex;
-  gap: var(--spacing-sm);
-}
-
-/* ─────────────────────────────────────────────────────────────────────────────
-   PIPELINE STATUS
-   ───────────────────────────────────────────────────────────────────────────── */
-
-.pipeline-stages {
-  display: flex;
-  gap: var(--spacing-sm);
-  font-size: 0.75rem;
-  padding: var(--spacing-md);
-  background: var(--color-bg-primary);
-  border-radius: var(--radius-md);
-  overflow-x: auto;
-}
-
-.stage {
-  flex-shrink: 0;
-  padding: var(--spacing-sm) var(--spacing-md);
-  border-radius: var(--radius-sm);
-  background: var(--color-bg-secondary);
-  color: var(--color-text-secondary);
-  white-space: nowrap;
-}
-
-.stage.active {
-  background: var(--color-accent);
-  color: var(--color-bg-primary);
-  font-weight: 600;
-}
-
-/* ─────────────────────────────────────────────────────────────────────────────
    ALGORITHM PRESETS
    ───────────────────────────────────────────────────────────────────────────── */
 
+/* Chip-style, not full buttons: these just fill the algorithm textbox with
+   a shortcut, they don't act on the cube the way Apply Algorithm/Generate
+   Scramble below do - wrapping pills that hug their own text read as
+   "pick a quick value" rather than competing with the real action
+   buttons for attention. */
 .algo-presets {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: var(--spacing-sm);
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-xs);
 }
 
 .preset-btn {
-  padding: var(--spacing-sm) var(--spacing-md);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-  background: var(--color-bg-primary);
-  color: var(--color-text-primary);
+  padding: var(--spacing-xs) var(--spacing-sm);
+  border: 1px dashed var(--color-border);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--color-text-secondary);
   font-weight: 500;
-  font-size: 0.875rem;
+  font-size: 0.8rem;
   cursor: pointer;
   transition: all 0.2s;
 }
 
 .preset-btn:hover {
   border-color: var(--color-accent);
+  border-style: solid;
   color: var(--color-accent);
 }
 
@@ -730,9 +546,8 @@ textarea {
 }
 
 /* .oklch-line styles the shared 3-line (L%, C%, Hdeg) OKLCH readout used
-   by both the live capture overlay and the review wizard's detected
-   grid (see the OklchLines component) - .capture-grid-hue/
-   .review-detected-hue just position that stack within their own cell. */
+   by the review wizard's detected grid (see the OklchLines component) -
+   .review-detected-hue just positions that stack within its own cell. */
 .oklch-line {
   display: block;
   font-weight: 600;
@@ -844,14 +659,6 @@ textarea {
 /* ─────────────────────────────────────────────────────────────────────────────
    WEBCAM FEED
    ───────────────────────────────────────────────────────────────────────────── */
-
-.webcam-container {
-  aspect-ratio: 1;
-  background: #000;
-  border-radius: var(--radius-md);
-  overflow: hidden;
-  margin-bottom: var(--spacing-lg);
-}
 
 .webcam-feed {
   width: 100%;
@@ -1082,11 +889,6 @@ textarea {
   transform: scale(1.05);
 }
 
-.color-btn.selected {
-  border-color: white;
-  box-shadow: 0 0 0 2px white;
-}
-
 /* ─────────────────────────────────────────────────────────────────────────────
    STATUS INDICATORS
    ───────────────────────────────────────────────────────────────────────────── */
@@ -1110,10 +912,6 @@ textarea {
 
 .status-dot.success {
   background: var(--color-success);
-}
-
-.status-dot.warning {
-  background: var(--color-warning);
 }
 
 .status-dot.error {
@@ -1150,6 +948,9 @@ textarea {
    ───────────────────────────────────────────────────────────────────────────── */
 
 .viewer-controls {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
   padding: var(--spacing-lg);
   border-bottom: 1px solid var(--color-border);
 }
@@ -1257,16 +1058,6 @@ textarea {
   overflow: hidden;
 }
 
-.placeholder-text {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  color: var(--color-text-secondary);
-  font-size: 0.95rem;
-  text-align: center;
-}
-
 /* ─────────────────────────────────────────────────────────────────────────────
    BUTTON STATES
    ───────────────────────────────────────────────────────────────────────────── */
@@ -1342,13 +1133,22 @@ textarea {
    ───────────────────────────────────────────────────────────────────────────── */
 
 @media (max-width: 768px) {
-  .header {
-    flex-direction: column;
-    align-items: flex-start;
+  .app-header {
     padding: var(--spacing-md);
   }
 
-  .main-layout {
+  .viewer-region {
+    margin: var(--spacing-md);
+    padding: var(--spacing-md);
+  }
+
+  .viewer-controls {
+    flex-wrap: wrap;
+    padding: var(--spacing-md);
+  }
+
+  .face-capture-panel,
+  .panel {
     padding: var(--spacing-md);
   }
 
