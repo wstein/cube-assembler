@@ -548,34 +548,34 @@ textarea {
   background: var(--color-bg-secondary);
 }
 
-.cube-net {
+.orientation-net {
   display: flex;
   flex-direction: column;
   gap: 2px;
 }
 
-.cube-net-row {
+.orientation-net-row {
   display: flex;
   gap: 2px;
 }
 
-.cube-net-face {
+.orientation-net-face {
   display: grid;
   gap: 1px;
-  width: 56px;
-  height: 56px;
+  width: 40px;
+  height: 40px;
   background: var(--color-border);
   padding: 1px;
   border-radius: var(--radius-sm);
 }
 
-.cube-net-sticker {
+.orientation-net-sticker {
   aspect-ratio: 1;
 }
 
-.cube-net-spacer {
-  width: 56px;
-  height: 56px;
+.orientation-net-spacer {
+  width: 40px;
+  height: 40px;
   flex-shrink: 0;
 }
 
