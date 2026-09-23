@@ -811,51 +811,7 @@ function App() {
 
     const allFacesCaptured = FACE_ORDER.every(f => f in newCapturedFaces)
     if (allFacesCaptured) {
-      setCaptureMessage('✓ All faces captured! Checking white balance across all stickers...')
-      setLoading(true)
-
-      const canRecalibrate = FACE_ORDER.every((f) => newCapturedFaces[f].croppedImage)
-      if (canRecalibrate) {
-        try {
-          const images: Record<string, string> = {}
-          for (const f of FACE_ORDER) images[f] = newCapturedFaces[f].croppedImage!
-
-          // Cross-face correction from the background around the cube (see
-          // computeBackgroundGain): face 1 is the reference, every other
-          // face's gain rescales ITS OWN background reading to match
-          // face 1's. Skipped (stays neutral) for any face whose
-          // background wasn't sampleable, rather than failing the whole
-          // capture over one bad reading.
-          const referenceBackground = newCapturedFaces[FACE_ORDER[0]].backgroundColor
-          const faceGains: Record<string, RGB> = {}
-          for (const f of FACE_ORDER) {
-            const bg = newCapturedFaces[f].backgroundColor
-            faceGains[f] = referenceBackground && bg ? computeBackgroundGain(referenceBackground, bg) : NEUTRAL_GAINS
-          }
-          setAppliedBackgroundGains(faceGains)
-
-          const wb = await runGlobalWhiteBalance(images, puzzleSize, faceGains)
-          if (wb.applied) {
-            const recalibrated = { ...newCapturedFaces }
-            for (const f of FACE_ORDER) {
-              const det = wb.faces[f]
-              recalibrated[f] = { ...recalibrated[f], colors: det.colors, cellConfidences: det.cellConfidences, cellColors: det.cellColors, confidence: det.confidence }
-            }
-            setCapturedFaces(recalibrated)
-            setGlobalWhiteBalanceNote('Colors re-checked by learning each sticker color from all 6 faces together, instead of fixed reference values.')
-          } else {
-            setGlobalWhiteBalanceNote(null)
-          }
-        } catch (err) {
-          console.error('Global white balance error:', err)
-          setGlobalWhiteBalanceNote(null)
-        }
-      }
-
-      setLoading(false)
-      setWebcamOpen(false)
-      setReviewStep(0)
-      setShowReviewDialog(true)
+      await finalizeAllFacesCaptured(newCapturedFaces)
     } else {
       const nextFace = FACE_ORDER.find(f => !(f in newCapturedFaces))
       if (nextFace) {
@@ -864,6 +820,137 @@ function App() {
           setCaptureMessage('')
         }, 900)
       }
+    }
+  }
+
+  // Runs once every face has a captured entry, regardless of how it got
+  // there (one-by-one webcam capture or a bulk file upload) - the global
+  // white-balance recalibration (learning each sticker color from all 6
+  // faces together, see runGlobalWhiteBalance) only makes sense with a
+  // complete set, so this is the single place both capture paths converge
+  // before opening the review wizard.
+  const finalizeAllFacesCaptured = async (newCapturedFaces: Record<string, FaceCaptureData>) => {
+    setCaptureMessage('✓ All faces captured! Checking white balance across all stickers...')
+    setLoading(true)
+
+    const canRecalibrate = FACE_ORDER.every((f) => newCapturedFaces[f].croppedImage)
+    if (canRecalibrate) {
+      try {
+        const images: Record<string, string> = {}
+        for (const f of FACE_ORDER) images[f] = newCapturedFaces[f].croppedImage!
+
+        // Cross-face correction from the background around the cube (see
+        // computeBackgroundGain): face 1 is the reference, every other
+        // face's gain rescales ITS OWN background reading to match
+        // face 1's. Skipped (stays neutral) for any face whose
+        // background wasn't sampleable, rather than failing the whole
+        // capture over one bad reading.
+        const referenceBackground = newCapturedFaces[FACE_ORDER[0]].backgroundColor
+        const faceGains: Record<string, RGB> = {}
+        for (const f of FACE_ORDER) {
+          const bg = newCapturedFaces[f].backgroundColor
+          faceGains[f] = referenceBackground && bg ? computeBackgroundGain(referenceBackground, bg) : NEUTRAL_GAINS
+        }
+        setAppliedBackgroundGains(faceGains)
+
+        const wb = await runGlobalWhiteBalance(images, puzzleSize, faceGains)
+        if (wb.applied) {
+          const recalibrated = { ...newCapturedFaces }
+          for (const f of FACE_ORDER) {
+            const det = wb.faces[f]
+            recalibrated[f] = { ...recalibrated[f], colors: det.colors, cellConfidences: det.cellConfidences, cellColors: det.cellColors, confidence: det.confidence }
+          }
+          setCapturedFaces(recalibrated)
+          setGlobalWhiteBalanceNote('Colors re-checked by learning each sticker color from all 6 faces together, instead of fixed reference values.')
+        } else {
+          setGlobalWhiteBalanceNote(null)
+        }
+      } catch (err) {
+        console.error('Global white balance error:', err)
+        setGlobalWhiteBalanceNote(null)
+      }
+    }
+
+    setLoading(false)
+    setWebcamOpen(false)
+    setReviewStep(0)
+    setShowReviewDialog(true)
+  }
+
+  // Bulk alternative to one-by-one webcam capture: assigns up to 6 chosen
+  // image files to U/R/F/D/L/B in order (same "capture order isn't
+  // identity" philosophy as everywhere else - solveFaceOrientations sorts
+  // out which photo is really which face later), running each through the
+  // same detection pipeline as a single-file import. Deliberately does NOT
+  // reuse applyFaceCapture in a loop: that function reads `capturedFaces`
+  // from this render's closure, so calling it repeatedly in one synchronous
+  // pass would have each call clobber the previous one's result instead of
+  // accumulating - a merge into one batch, then a single setCapturedFaces
+  // call, avoids that entirely.
+  const handleBulkUploadImages = async (e: Event) => {
+    const input = e.currentTarget as HTMLInputElement
+    const files = Array.from(input.files ?? []).slice(0, FACE_ORDER.length)
+    if (files.length === 0) return
+
+    setLoading(true)
+    setCaptureMessage(`Processing ${files.length} image${files.length === 1 ? '' : 's'}...`)
+
+    try {
+      const newEntries: Record<string, FaceCaptureData> = {}
+      const newConfidence: Record<string, number> = {}
+      let failed = 0
+
+      for (let i = 0; i < files.length; i++) {
+        const face = FACE_ORDER[i]
+        const url = URL.createObjectURL(files[i])
+        try {
+          const img = new Image()
+          await new Promise<void>((resolve, reject) => {
+            img.onload = () => resolve()
+            img.onerror = () => reject(new Error(`Could not load ${files[i].name}`))
+            img.src = url
+          })
+          const result = captureAndProcessImage(img, puzzleSize)
+          if (!validateFaceColors(result.colors, puzzleSize)) {
+            failed++
+            continue
+          }
+          newEntries[face] = {
+            colors: result.colors,
+            cellConfidences: result.cellConfidences,
+            cellColors: result.cellColors,
+            confidence: result.confidence,
+            croppedImage: result.croppedImage,
+            backgroundColor: result.backgroundColor,
+            timestamp: Date.now(),
+          }
+          newConfidence[face] = result.confidence
+        } catch (err) {
+          console.error(`Bulk upload: face ${FACE_DISPLAY_LABEL[face]} failed`, err)
+          failed++
+        } finally {
+          URL.revokeObjectURL(url)
+        }
+      }
+
+      const merged = { ...capturedFaces, ...newEntries }
+      setCapturedFaces(merged)
+      setFaceConfidence((prev) => ({ ...prev, ...newConfidence }))
+
+      const succeeded = Object.keys(newEntries).length
+      setCaptureMessage(
+        failed > 0
+          ? `✓ ${succeeded} face${succeeded === 1 ? '' : 's'} uploaded, ${failed} failed — check and retry ${failed === 1 ? 'that face' : 'those faces'} individually.`
+          : `✓ ${succeeded} face${succeeded === 1 ? '' : 's'} uploaded.`
+      )
+
+      if (FACE_ORDER.every((f) => f in merged)) {
+        await finalizeAllFacesCaptured(merged)
+      } else {
+        setLoading(false)
+      }
+    } finally {
+      input.value = ''
     }
   }
 
@@ -1238,6 +1325,17 @@ function App() {
               ? `Continue Capturing (${FACE_ORDER.filter((f) => f in capturedFaces).length}/${FACE_ORDER.length})`
               : 'Capture Faces'}
           </button>
+          <label class={`btn btn-secondary ${loading ? 'btn-disabled' : ''}`}>
+            ⇪ Upload Faces
+            <input
+              type="file"
+              accept="image/*"
+              multiple
+              hidden
+              disabled={loading}
+              onChange={handleBulkUploadImages}
+            />
+          </label>
           {FACE_ORDER.every((f) => f in capturedFaces) && (
             <button
               class="btn btn-secondary"
