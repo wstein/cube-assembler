@@ -204,6 +204,16 @@ button {
   display: inline-flex;
   align-items: center;
   gap: var(--spacing-sm);
+  cursor: pointer;
+}
+
+/* For a <label>-as-button wrapping a real disabled input (e.g. the bulk
+   upload file picker) - a <label> has no :disabled state of its own to
+   style, unlike a real <button>/<input>, so this mirrors .btn:disabled's
+   look for that case. */
+.btn-disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
 .btn-primary {
