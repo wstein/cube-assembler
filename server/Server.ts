@@ -576,6 +576,9 @@ type SaveFixtureRequest = {
   name?: string;
   gridSize: number;
   faces: Record<string, { photo: string; colors: string[][] }>;
+  // Informational capture context (camera, white balance, etc) - opaque to
+  // the server, stored as-is alongside the fixture for later debugging.
+  meta?: unknown;
 };
 
 const FIXTURES_DIR = join(import.meta.dir, "..", "test", "fixtures");
@@ -607,9 +610,10 @@ app.post("/api/fixtures", async (c) => {
   const dir = join(FIXTURES_DIR, safeName);
   await mkdir(dir, { recursive: true });
 
-  const meta: { gridSize: number; faces: Record<string, { colors: string[][]; photo: string }> } = {
+  const meta: { gridSize: number; faces: Record<string, { colors: string[][]; photo: string }>; capture?: unknown } = {
     gridSize: body.gridSize,
     faces: {},
+    ...(body.meta !== undefined ? { capture: body.meta } : {}),
   };
 
   for (const [faceKey, faceData] of faceEntries) {

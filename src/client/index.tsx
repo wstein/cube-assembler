@@ -173,6 +173,11 @@ function App() {
   const [mirrorPreview, setMirrorPreview] = useState(true)
   const [globalWhiteBalanceNote, setGlobalWhiteBalanceNote] = useState<string | null>(null)
   const [reviewStep, setReviewStep] = useState(0)
+  // Captured once per webcam session (device label isn't available until
+  // getUserMedia grants permission) - purely informational, attached to
+  // saved fixtures so a color regression can be cross-checked against the
+  // camera that produced it.
+  const [cameraInfo, setCameraInfo] = useState<{ label: string; width?: number; height?: number; frameRate?: number; facingMode?: string } | null>(null)
   const webcamRef = useRef<HTMLVideoElement>(null)
   const sampleCanvasRef = useRef<HTMLCanvasElement | null>(null)
 
@@ -188,6 +193,17 @@ function App() {
       .then((stream) => {
         if (webcamRef.current) {
           webcamRef.current.srcObject = stream
+        }
+        const track = stream.getVideoTracks()[0]
+        if (track) {
+          const settings = track.getSettings()
+          setCameraInfo({
+            label: track.label || 'Unknown camera',
+            width: settings.width,
+            height: settings.height,
+            frameRate: settings.frameRate,
+            facingMode: settings.facingMode,
+          })
         }
       })
       .catch((err) => console.error('Webcam error:', err))
@@ -682,10 +698,25 @@ function App() {
       for (const f of FACE_ORDER) {
         faces[f] = { photo: capturedFaces[f].croppedImage!, colors: capturedFaces[f].colors }
       }
+      const lightSource = whiteBalanceMode === 'auto' ? lockedAutoGains?.lightSource ?? autoWhiteBalance?.lightSource ?? null : null
+      const meta = {
+        capturedAt: new Date().toISOString(),
+        userAgent: navigator.userAgent,
+        mirrored: mirrorPreview,
+        camera: cameraInfo,
+        whiteBalance: {
+          mode: whiteBalanceMode,
+          gains: getCurrentGains(),
+          lightSource,
+          globalRecalibration: globalWhiteBalanceNote
+            ? { applied: true, note: globalWhiteBalanceNote }
+            : { applied: false },
+        },
+      }
       const res = await fetch('/api/fixtures', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ gridSize: puzzleSize, faces }),
+        body: JSON.stringify({ gridSize: puzzleSize, faces, meta }),
       })
       const result = await res.json()
       if (!res.ok) throw new Error(result.error ?? `Failed (${res.status})`)
