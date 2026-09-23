@@ -5,7 +5,7 @@ import '../../web/style.css'
 import {
   captureAndProcessFace, captureAndProcessImage, extractCubeFaceColors,
   estimateGrayWorldGains, runGlobalWhiteBalance, WHITE_BALANCE_PRESETS, NEUTRAL_GAINS,
-  rgbToOKLCH, formatOKLCHValues, hueCircularRange, linearRange,
+  rgbToOKLCH, formatOKLCHValues, hueCircularRange, hueRangesOverlap, linearRange,
   type ColorDetectionResult, type FaceCaptureResult, type RGB,
 } from './imageProcessing'
 import { assembleCubeFromFaces, validateFaceColors, createSolvedCube, toCubeIR, solveFaceOrientations } from './cubeAssembly'
@@ -1191,44 +1191,77 @@ function App() {
               {globalWhiteBalanceNote && (
                 <div class="global-wb-note">✓ {globalWhiteBalanceNote}</div>
               )}
-              <table class="color-stats-table">
-                <thead>
-                  <tr>
-                    <th>Color</th>
-                    <th class="color-stats-numeric-cell">Count</th>
-                    <th class="color-stats-numeric-cell">Lightness</th>
-                    <th class="color-stats-numeric-cell">Chroma</th>
-                    <th class="color-stats-numeric-cell">Hue</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {['W', 'O', 'G', 'R', 'B', 'Y'].map((color) => {
-                    const expected = puzzleSize * puzzleSize
-                    const count = liveColorCounts[color]
-                    const samples = liveColorOKLCH[color]
-                    const lRange = linearRange(samples.map((o) => o.l))
-                    const cRange = linearRange(samples.map((o) => o.c))
-                    const hRange = hueCircularRange(samples.map((o) => o.h))
-                    return (
-                      <tr key={color} class={count !== expected ? 'mismatch' : ''}>
-                        <td class="color-stats-swatch-cell">
-                          <span class="color-stat-swatch" style={{ background: STICKER_HEX[color] }} />
-                        </td>
-                        <td class="color-stats-numeric-cell">{count}/{expected}</td>
-                        <td class="color-stats-numeric-cell">
-                          {lRange ? `${Math.round(lRange.min * 100)}%–${Math.round(lRange.max * 100)}%` : '—'}
-                        </td>
-                        <td class="color-stats-numeric-cell">
-                          {cRange ? `${Math.round((cRange.min / 0.4) * 100)}%–${Math.round((cRange.max / 0.4) * 100)}%` : '—'}
-                        </td>
-                        <td class="color-stats-numeric-cell">
-                          {hRange ? `${Math.round(hRange.min)}°–${Math.round(hRange.max)}°` : '—'}
-                        </td>
+              {(() => {
+                const colorOrder = ['W', 'O', 'G', 'R', 'B', 'Y']
+                // Computed once for all 6 colors up front (rather than
+                // per-row) so each color's hue range can be cross-checked
+                // against every OTHER color's - a color whose range
+                // overlaps a neighbor's is exactly the situation that
+                // produces boundary misclassifications between the two,
+                // and is worth surfacing before it shows up as a wrong
+                // sticker instead of just a number.
+                const hRangesByColor: Record<string, ReturnType<typeof hueCircularRange>> = {}
+                for (const color of colorOrder) {
+                  hRangesByColor[color] = hueCircularRange(liveColorOKLCH[color].map((o) => o.h))
+                }
+                const overlapsByColor: Record<string, string[]> = {}
+                for (const color of colorOrder) {
+                  const range = hRangesByColor[color]
+                  overlapsByColor[color] = range
+                    ? colorOrder.filter((other) => {
+                        if (other === color) return false
+                        const otherRange = hRangesByColor[other]
+                        return otherRange !== null && hueRangesOverlap(range, otherRange)
+                      })
+                    : []
+                }
+
+                return (
+                  <table class="color-stats-table">
+                    <thead>
+                      <tr>
+                        <th>Color</th>
+                        <th class="color-stats-numeric-cell">Count</th>
+                        <th class="color-stats-numeric-cell">Lightness</th>
+                        <th class="color-stats-numeric-cell">Chroma</th>
+                        <th class="color-stats-numeric-cell">Hue</th>
                       </tr>
-                    )
-                  })}
-                </tbody>
-              </table>
+                    </thead>
+                    <tbody>
+                      {colorOrder.map((color) => {
+                        const expected = puzzleSize * puzzleSize
+                        const count = liveColorCounts[color]
+                        const samples = liveColorOKLCH[color]
+                        const lRange = linearRange(samples.map((o) => o.l))
+                        const cRange = linearRange(samples.map((o) => o.c))
+                        const hRange = hRangesByColor[color]
+                        const overlaps = overlapsByColor[color]
+                        return (
+                          <tr key={color} class={count !== expected ? 'mismatch' : ''}>
+                            <td class="color-stats-swatch-cell">
+                              <span class="color-stat-swatch" style={{ background: STICKER_HEX[color] }} />
+                            </td>
+                            <td class="color-stats-numeric-cell">{count}/{expected}</td>
+                            <td class="color-stats-numeric-cell">
+                              {lRange ? `${Math.round(lRange.min * 100)}%–${Math.round(lRange.max * 100)}%` : '—'}
+                            </td>
+                            <td class="color-stats-numeric-cell">
+                              {cRange ? `${Math.round((cRange.min / 0.4) * 100)}%–${Math.round((cRange.max / 0.4) * 100)}%` : '—'}
+                            </td>
+                            <td
+                              class={`color-stats-numeric-cell ${overlaps.length > 0 ? 'color-stats-hue-overlap' : ''}`}
+                              title={overlaps.length > 0 ? `Hue range overlaps ${overlaps.join(', ')} this capture — check for mixups between these colors` : undefined}
+                            >
+                              {hRange ? `${Math.round(hRange.min)}°–${Math.round(hRange.max)}°` : '—'}
+                              {overlaps.length > 0 && <span class="color-stats-overlap-flag" aria-label={`overlaps ${overlaps.join(', ')}`}>⚠</span>}
+                            </td>
+                          </tr>
+                        )
+                      })}
+                    </tbody>
+                  </table>
+                )
+              })()}
               {data && (
                 <>
                   <div class="review-wizard-panes">

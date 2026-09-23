@@ -5,7 +5,7 @@
 ![License: MIT](https://img.shields.io/badge/License-MIT-cyan.svg)
 ![npm](https://img.shields.io/badge/runtime-npm-black)
 ![ReScript](https://img.shields.io/badge/lang-ReScript-e6484f)
-![Tests](https://img.shields.io/badge/tests-115%2F115%20%E2%9C%85-brightgreen)
+![Tests](https://img.shields.io/badge/tests-122%2F122%20%E2%9C%85-brightgreen)
 
 A full-stack library and web app that solves two geometric ambiguities when reconstructing a physical cube from 6 unordered face photographs:
 
@@ -84,7 +84,7 @@ cube-assembler/
     ├── notation.test.ts           23 tests — ReScript Notation module (WRG/URF/Kociemba/Numeric)
     ├── cubeAssembly.test.ts       15 tests — face identity/orientation solver (odd + even sizes)
     ├── notationOutput.test.ts     22 tests — WRG/URF facelet formats + format auto-detection
-    ├── imageProcessing.test.ts    34 tests — OKLCH conversion/formatting, range math, optimal assignment, outlier-robust sampling, sticker-color learning
+    ├── imageProcessing.test.ts    41 tests — OKLCH conversion/formatting, range math, hue-overlap detection, optimal assignment, outlier-robust sampling, sticker-color learning
     ├── parity.test.ts             14 tests — server-side corner/edge/wing-edge facelet-index tables
     └── assemblyWorker.test.ts     7 tests — /api/assemble worker's corner/edge validation
 ```
@@ -130,7 +130,11 @@ or imported photos and reconstructs its state:
    straddling the 0°/360° wraparound still reports its true, short span
    instead of a spurious ~350° one), so a color's readings drifting
    toward a neighbor's territory is visible before that neighbor's count
-   actually goes wrong. The "Detected" grid likewise labels every sticker
+   actually goes wrong — and when two colors' hue ranges actually overlap
+   this capture (`hueRangesOverlap`), both rows get a ⚠ flag naming which
+   other color to check for mixups against, rather than leaving you to
+   spot the overlap by comparing ranges across rows yourself. The
+   "Detected" grid likewise labels every sticker
    with its own OKLCH value, not just its classified color. Each
    sticker's color is itself a trimmed mean (`trimmedMeanColor`), not a
    plain average, over its sampled pixels — the brightest/darkest 15% by
