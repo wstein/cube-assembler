@@ -894,6 +894,8 @@ export function computeBackgroundGain(reference: RGB, current: RGB): RGB {
 // the user what was actually sampled (e.g. in a post-capture review step) —
 // independent of extractCubeFaceColors, so it costs nothing on the
 // high-frequency live-preview path that doesn't need an image, only text.
+export const CROP_JPEG_QUALITY = 1
+
 export function cropFaceRegionToDataUrl(canvas: HTMLCanvasElement): string {
   const bounds = computeFaceBounds(canvas)
   const out = document.createElement('canvas')
@@ -916,7 +918,7 @@ export function cropFaceRegionToDataUrl(canvas: HTMLCanvasElement): string {
   // differed by up to 25 levels at sticker edges at 0.85, by at most 3 at
   // 1. This image is the source of truth that recalibration and saved
   // fixtures re-analyze, so it's worth the ~4x size (~50 KB for 288px).
-  return out.toDataURL('image/jpeg', 1)
+  return out.toDataURL('image/jpeg', CROP_JPEG_QUALITY)
 }
 
 // Fraction of a cell's sampled pixels discarded from each luminance

@@ -3,7 +3,7 @@ import { useState, useEffect, useRef } from 'preact/hooks'
 import '../../web/style.css'
 import {
   captureAndProcessFace, captureAndProcessImage, extractCubeFaceColors,
-  runGlobalWhiteBalance, computeBackgroundGain, NEUTRAL_GAINS,
+  runGlobalWhiteBalance, computeBackgroundGain, NEUTRAL_GAINS, CROP_JPEG_QUALITY,
   rgbToOKLCH, formatOKLCHValues, hueCircularRange, hueRangesOverlap, linearRange,
   type ColorDetectionResult, type FaceCaptureResult, type RGB,
 } from './imageProcessing'
@@ -54,6 +54,10 @@ const CAMERA_CONSTRAINTS: MediaTrackConstraints = {
   width: { ideal: 1920 },
   height: { ideal: 1080 },
 }
+
+// Injected at build time by vite.config.ts's `define`.
+declare const __APP_VERSION__: string
+declare const __APP_COMMIT__: string
 
 interface CameraInfo {
   label: string
@@ -1209,7 +1213,10 @@ function App() {
       }
       const meta = {
         capturedAt: new Date().toISOString(),
+        app: { version: __APP_VERSION__, commit: __APP_COMMIT__ },
         userAgent: navigator.userAgent,
+        devicePixelRatio: window.devicePixelRatio,
+        photo: { format: 'image/jpeg', quality: CROP_JPEG_QUALITY },
         mirrored: mirrorPreview,
         camera: cameraInfo,
         // No fixed-preset/gray-world software white-balance runs at capture
