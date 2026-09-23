@@ -344,6 +344,19 @@ function runFullParity(cube: CubeIR): ParityResponse {
       return { valid: false, result: "Unknown corner color triplet", checks };
     }
   }
+  // Each triple above only checked "is this SOME real corner" independently
+  // per slot - two slots matching the SAME physical piece (impossible on a
+  // real cube) isn't automatically excluded by that alone, and would make
+  // permParity(cornerPieces) below meaningless, since it assumes the array
+  // is an actual permutation of 0..7. A real capture demonstrated this
+  // exact gap: every individual triple read as a valid corner, yet the
+  // piece list was [0,1,1,0,7,6,6,7] - not a permutation at all (2026-09-23
+  // design discussion; same fix mirrored in AssemblyWorker.ts's
+  // checkFullParity and src/client/cubeAssembly.ts's isFullyValid).
+  if (new Set(cornerPieces).size !== SOLVED_CORNERS.length) {
+    checks.cornerColors = false;
+    return { valid: false, result: "Duplicate corner piece (two positions read the same physical corner)", checks };
+  }
   checks.cornerColors = true;
 
   // Corner orientation-twist invariant: also meaningful for every N, since
@@ -403,6 +416,11 @@ function runFullParity(cube: CubeIR): ParityResponse {
       checks.edgeColors = false;
       return { valid: false, result: "Unknown edge color pair", checks };
     }
+  }
+  // Same distinctness gap as the corner check above, mirrored for edges.
+  if (new Set(edgePieces).size !== SOLVED_EDGES.length) {
+    checks.edgeColors = false;
+    return { valid: false, result: "Duplicate edge piece (two positions read the same physical edge)", checks };
   }
   checks.edgeColors = true;
 
@@ -483,7 +501,7 @@ app.post("/api/assemble", async (c) => {
   const body = await c.req.json<AssembleRequest>();
   const { faces, size } = body;
 
-  if (faces.length !== 6 || !loaders[size]) {
+  if (faces.length !== 6 || !wcaEventIds[size]) {
     return c.json({ error: "Need exactly 6 faces and valid size (2–7)" }, 400);
   }
 
