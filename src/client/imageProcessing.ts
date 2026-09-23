@@ -750,16 +750,24 @@ export function trimmedMeanColor(pixels: RGB[], trimFraction = OUTLIER_TRIM_FRAC
   return { r: sumR / kept.length, g: sumG / kept.length, b: sumB / kept.length }
 }
 
-export function extractCubeFaceColors(
-  canvas: HTMLCanvasElement,
+// The actual per-sticker sampling and classification logic, operating on
+// already-extracted raw pixel data rather than a browser HTMLCanvasElement
+// - split out from extractCubeFaceColors so it can run against a real,
+// decoded photo in a test environment with no DOM/Canvas API available
+// (see test/fixtures.test.ts), not just against a live canvas. `data` is
+// treated as already covering exactly the face region to sample (no
+// further center-cropping is applied here - extractCubeFaceColors below
+// does that cropping itself before calling in, and a saved fixture photo
+// is already the cropped region, per cropFaceRegionToDataUrl).
+export function extractColorsFromImageData(
+  data: Uint8ClampedArray,
+  faceWidth: number,
+  faceHeight: number,
   gridSize = 3,
   gains: RGB = NEUTRAL_GAINS
 ): ColorDetectionResult {
-  const { imageData, faceWidth, faceHeight } = getFaceRegion(canvas)
-
   const cellWidth = faceWidth / gridSize
   const cellHeight = faceHeight / gridSize
-  const data = imageData.data
 
   const colors: string[][] = []
   const cellConfidences: number[][] = []
@@ -819,6 +827,15 @@ export function extractCubeFaceColors(
   const confidence = Math.min(1, totalConfidence / (gridSize * gridSize))
 
   return { colors, confidence, cellConfidences, cellColors }
+}
+
+export function extractCubeFaceColors(
+  canvas: HTMLCanvasElement,
+  gridSize = 3,
+  gains: RGB = NEUTRAL_GAINS
+): ColorDetectionResult {
+  const { imageData, faceWidth, faceHeight } = getFaceRegion(canvas)
+  return extractColorsFromImageData(imageData.data, faceWidth, faceHeight, gridSize, gains)
 }
 
 export interface FaceCaptureResult extends ColorDetectionResult {
