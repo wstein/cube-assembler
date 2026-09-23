@@ -294,6 +294,87 @@ function permParity(perm: number[]): boolean {
   return (perm.length - cycles) % 2 === 0
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Wing-edge validity for N>3 - mirrors server/Server.ts's EDGE_LINES/
+// validateWingEdges, ported to this file's string[][] grid representation
+// (server's tables index a flat per-face array; these read the same
+// positions via row/col on a 2D grid instead).
+//
+// Real bug this fixes: isFullyValid used to return true for n!==3 right
+// after the corner checks passed - corners alone don't fully constrain a
+// 4x4+'s per-face rotation (many different rotations of U/R/etc. can
+// still leave all 8 corners valid and distinct), so the search had ZERO
+// signal telling it a corner-valid candidate's WINGS were scrambled, and
+// could - and did, on a real reported capture - settle on one with U
+// rotated 180deg and R rotated 90deg CW away from the only wing-consistent
+// answer. Confirmed live: server/Server.ts's validateWingEdges (which
+// DOES check this, just after the fact rather than inside the search)
+// correctly flagged that exact capture's result as wing-unbalanced.
+// ─────────────────────────────────────────────────────────────────────────────
+
+type EdgeLineType = 'TOP' | 'BOTTOM' | 'LEFT' | 'RIGHT'
+function edgeLineSticker(grid: string[][], line: EdgeLineType, reverse: boolean, w: number): string {
+  const n = grid.length
+  const pos = reverse ? n - 1 - w : w
+  switch (line) {
+    case 'TOP': return grid[0][pos]
+    case 'BOTTOM': return grid[n - 1][pos]
+    case 'LEFT': return grid[pos][0]
+    case 'RIGHT': return grid[pos][n - 1]
+  }
+}
+
+// [edgeName, faceA, lineA, reverseA, faceB, lineB, reverseB] - index-
+// parallel with EDGE_NAMES (both derived from/matching EDGE_FACES' key
+// order). reverse=true means the wing at distance w from the edge's
+// first-listed corner endpoint reads that face's line at (N-1-w), not w -
+// see server/Server.ts's EDGE_LINES for the full derivation story (a
+// naive corner-adjacency guess got UR/UB/DB/DL backwards; this is
+// reverse-checked against that already-verified table, not re-derived).
+const WING_EDGE_LINES: Array<[FaceKey, EdgeLineType, boolean, FaceKey, EdgeLineType, boolean]> = [
+  ['U', 'BOTTOM', false, 'F', 'TOP', false],
+  ['U', 'RIGHT', false, 'R', 'TOP', true],
+  ['U', 'TOP', false, 'B', 'TOP', true],
+  ['U', 'LEFT', false, 'L', 'TOP', false],
+  ['D', 'TOP', false, 'F', 'BOTTOM', false],
+  ['D', 'RIGHT', false, 'R', 'BOTTOM', false],
+  ['D', 'BOTTOM', false, 'B', 'BOTTOM', true],
+  ['D', 'LEFT', false, 'L', 'BOTTOM', true],
+  ['F', 'RIGHT', false, 'R', 'LEFT', false],
+  ['F', 'LEFT', false, 'L', 'RIGHT', false],
+  ['B', 'LEFT', false, 'R', 'RIGHT', false],
+  ['B', 'RIGHT', false, 'L', 'LEFT', false],
+]
+
+// Counting check only (not full permutation/orientation, which would need
+// per-wing-depth orbit tracking on N>=5 - see server/Server.ts's
+// validateWingEdges for why that's future work, not a gap introduced
+// here): every wing sticker pair must be one of the 12 canonical pairs
+// (opposite/same colors touching is physically impossible anywhere on a
+// real cube), AND each canonical pair must appear exactly N-2 times
+// across all wings, since a specific wing piece has a fixed color pair
+// and fixed total supply. Weaker than a full check on N>=5 (could miss a
+// cross-depth imbalance) but can only ever accept too much, never falsely
+// reject a real cube - and it's still strictly more than the "nothing at
+// all" this replaces.
+function wingEdgeCountsValid(faces: Record<FaceKey, string[][]>, n: number): boolean {
+  const counts = new Array(EDGE_NAMES.length).fill(0)
+  for (const [faceA, lineA, reverseA, faceB, lineB, reverseB] of WING_EDGE_LINES) {
+    for (let w = 1; w <= n - 2; w++) {
+      const c0 = edgeLineSticker(faces[faceA], lineA, reverseA, w)
+      const c1 = edgeLineSticker(faces[faceB], lineB, reverseB, w)
+      let found = false
+      for (let pi = 0; pi < EDGE_NAMES.length; pi++) {
+        const [p0, p1] = SOLVED_EDGE_PAIR[EDGE_NAMES[pi]]
+        if ((c0 === p0 && c1 === p1) || (c0 === p1 && c1 === p0)) { counts[pi]++; found = true; break }
+      }
+      if (!found) return false
+    }
+  }
+  const expected = n - 2
+  return counts.every((c) => c === expected)
+}
+
 function isFullyValid(faces: Record<FaceKey, string[][]>): boolean {
   const n = faces.U.length
   const cornerIndexByName = new Map(CORNER_NAMES.map((name, i) => [name, i]))
@@ -313,11 +394,13 @@ function isFullyValid(faces: Record<FaceKey, string[][]>): boolean {
   }
   if (cornerTwists.reduce((a, b) => a + b, 0) % 3 !== 0) return false
 
-  // 2x2 has no edges at all; 4x4+ edges split into wings with no strict
-  // permutation model in this file yet (see server/Server.ts's
-  // runFullParity, which draws the identical line at n!==3) - corner
-  // distinctness + orientation is the complete validity model there.
-  if (n !== 3) return true
+  // 2x2 has no edges at all - corner distinctness + orientation is the
+  // complete validity model there.
+  if (n === 2) return true
+  // 4x4+ edges split into wings - counting check only (see
+  // wingEdgeCountsValid), not full permutation/orientation like n===3
+  // gets below, but real coverage where there used to be none at all.
+  if (n > 3) return wingEdgeCountsValid(faces, n)
 
   const edgeIndexByName = new Map(EDGE_NAMES.map((name, i) => [name, i]))
   const edgePieces: number[] = []

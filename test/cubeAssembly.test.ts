@@ -238,6 +238,42 @@ describe('solveFaceOrientations', () => {
       expect(result!.edgeScore).toBe(12)
     })
 
+    it('rejects a corner-valid-but-wing-broken rotation instead of falsely reporting full validity (4x4 wing-blind-spot regression)', () => {
+      // Regression case for a real reported bug: isFullyValid used to
+      // return true for n!==3 immediately after the corner checks passed,
+      // never checking wings at all - corners alone don't fully constrain
+      // a 4x4's per-face rotation, so the search had zero signal telling
+      // it a corner-valid candidate's wings were scrambled. On this exact
+      // capture it settled on R left unrotated, reporting a FALSE
+      // fullyValid:true - the server's independent, strict
+      // validateWingEdges correctly caught the resulting cube as
+      // "Wing edge color-pair counts unbalanced" even though the client
+      // thought it was done. The fix (wingEdgeCountsValid, gating
+      // isFullyValid for n>3) must find R needs a 90deg rotation the old
+      // code never applied, and the result must be genuinely, not just
+      // apparently, valid.
+      const toGrid = (s: string, n: number): string[][] =>
+        Array.from({ length: n }, (_, r) => s.slice(r * n, r * n + n).split(''))
+      const captured: Record<string, string[][]> = {
+        U: toGrid('WYWYYWYWYWYWYWYW', 4),
+        R: toGrid('BBBBBBBBGGGGBBBB', 4),
+        F: toGrid('ORORROROORORRORO', 4),
+        D: toGrid('YWYWWYWYWYWYWYWY', 4),
+        L: toGrid('GBGGGBGGGBGGGBGG', 4),
+        B: toGrid('ROROORORROROOROR', 4),
+      }
+      const result = solveFaceOrientations(captured)
+      expect(result).not.toBeNull()
+      expect(result!.fullyValid).toBe(true)
+      expect(result!.cornerScore).toBe(8)
+      expect(result!.edgeScore).toBe(12)
+      // The old (buggy) code left R unrotated (0) and still called it
+      // fully valid - a false positive. The genuinely valid answer needs
+      // R rotated 90deg.
+      expect(result!.rotations.R).toBe(1)
+      expect(result!.alternatives.length).toBe(1)
+    })
+
     it('completes a 4x4 search within a reasonable time budget', () => {
       const captured = captureWithRotations(solvedFaces(4), { U: 1, R: 2, F: 3, D: 0, L: 1, B: 2 })
       const start = performance.now()
