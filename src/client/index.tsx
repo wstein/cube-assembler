@@ -661,9 +661,14 @@ function App() {
     const solved = solveFaceOrientations(faceData)
     if (solved) {
       orientedFaceData = solved.faces
-      if (solved.cornerScore < 8 || solved.edgeScore < 12) {
+      // A 2x2 has no edge pieces at all - every piece is a corner - so
+      // solveFaceOrientations reports edgeScore as NaN there rather than
+      // a real count; only mention edges when they actually exist.
+      const hasEdgeScore = !Number.isNaN(solved.edgeScore)
+      if (solved.cornerScore < 8 || (hasEdgeScore && solved.edgeScore < 12)) {
+        const edgePart = hasEdgeScore ? ` and ${solved.edgeScore}/12 edges` : ''
         alert(
-          `⚠️ Orientation solved with ${solved.cornerScore}/8 corners and ${solved.edgeScore}/12 edges valid — some captured colors may be misdetected. Check the assembled cube.`
+          `⚠️ Orientation solved with ${solved.cornerScore}/8 corners${edgePart} valid — some captured colors may be misdetected. Check the assembled cube.`
         )
       }
     } else {

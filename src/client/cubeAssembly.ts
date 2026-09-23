@@ -187,11 +187,27 @@ function scoreCorners(faces: Record<FaceKey, string[][]>): number {
   return score
 }
 
+// On N>3, an edge's two faces don't always read their shared wing
+// positions in the same direction: UR/UB/DB/DL's second-listed face (R/B/
+// B/L respectively) reads its wing index MIRRORED relative to the first
+// face (U/U/D/D), while the other 8 edges read both faces the same way.
+// This exactly mirrors server/Server.ts's EDGE_LINES table (reverseB),
+// which was derived from explicit 3D coordinates after a naive corner-
+// adjacency-based guess got these same 4 edges wrong - see that table's
+// comment for the full story. Invisible on N=3 (single, self-symmetric
+// wing position, so "mirrored" and "forward" read the same index), which
+// is exactly why this went unnoticed here until a real N=4 capture
+// produced a same-shape false "edge mismatch" warning on a genuinely
+// valid cube (parity's wingEdgeColors check, which already used the
+// correct server-side convention, agreed the cube was fine).
+const EDGES_WITH_MIRRORED_SECOND_FACE = new Set(['UR', 'UB', 'DB', 'DL'])
+
 function scoreEdges(faces: Record<FaceKey, string[][]>): number {
   let score = 0
   for (const [name, [f1, f2]] of Object.entries(EDGE_FACES)) {
     const [p1, p2] = EDGE_POSITIONS[name]
-    const pair = edgeSticker(faces[f1], p1) + edgeSticker(faces[f2], p2)
+    const mirrored = EDGES_WITH_MIRRORED_SECOND_FACE.has(name)
+    const pair = edgeSticker(faces[f1], p1, false) + edgeSticker(faces[f2], p2, mirrored)
     if (VALID_EDGE_PAIRS.has(pair)) score++
   }
   return score
@@ -221,9 +237,10 @@ function cornerSticker(grid: string[][], pos: CornerPos): string {
   return grid[n - 1][n - 1]
 }
 
-function edgeSticker(grid: string[][], pos: EdgePos): string {
+function edgeSticker(grid: string[][], pos: EdgePos, mirrored: boolean): string {
   const n = grid.length
-  const mid = Math.floor(n / 2) // representative sticker per side; enough as a corroborating signal
+  const raw = Math.floor(n / 2) // representative sticker per side; enough as a corroborating signal
+  const mid = mirrored ? n - 1 - raw : raw
   if (pos === 'top') return grid[0][mid]
   if (pos === 'bottom') return grid[n - 1][mid]
   if (pos === 'left') return grid[mid][0]
@@ -234,7 +251,12 @@ export interface OrientationSolution {
   faces: Record<FaceKey, string[][]>
   rotations: Record<FaceKey, number>
   cornerScore: number // out of 8
-  edgeScore: number // out of 12
+  // out of 12 - NaN on a 2x2, which has no edge pieces at all (all 8
+  // pieces are corners): scoring "edges" there would mean re-reading
+  // corner stickers as if they were something else, a category error, not
+  // just a less-useful signal. Callers must check size (or Number.isNaN)
+  // before displaying this, rather than assuming it's always meaningful.
+  edgeScore: number
 }
 
 type BestCandidate = { faces: Record<FaceKey, string[][]>; rotations: Record<FaceKey, number>; cornerScore: number; edgeScore: number }
@@ -243,14 +265,22 @@ type BestCandidate = { faces: Record<FaceKey, string[][]>; rotations: Record<Fac
 // `best` if it beats the current leader (more valid corners first, valid
 // edges as the tiebreaker) - shared by both the odd-size (identity known,
 // rotation-only) and even-size (identity + rotation) searches below so
-// the corner-before-edge reduction logic exists in exactly one place.
+// the corner-before-edge reduction logic exists in exactly one place. On
+// a 2x2 (no edge pieces to score at all), corner validity is the only
+// signal there is - any remaining tie among multiple equally-valid 8/8
+// candidates is a real, irreducible ambiguity, not something a bogus edge
+// score should paper over.
 function considerCandidate(
   faces: Record<FaceKey, string[][]>,
   rotations: Record<FaceKey, number>,
   best: BestCandidate | null
 ): BestCandidate | null {
+  const hasEdges = faces.U.length > 2
   const cornerScore = scoreCorners(faces)
   if (best && cornerScore < best.cornerScore) return best
+  if (!hasEdges) {
+    return best && cornerScore === best.cornerScore ? best : { faces, rotations, cornerScore, edgeScore: NaN }
+  }
   if (best && cornerScore === best.cornerScore) {
     const edgeScore = scoreEdges(faces)
     return edgeScore > best.edgeScore ? { faces, rotations, cornerScore, edgeScore } : best

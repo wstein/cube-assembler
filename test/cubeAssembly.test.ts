@@ -116,7 +116,14 @@ describe('solveFaceOrientations', () => {
       const result = solveFaceOrientations(captured)
       expect(result).not.toBeNull()
       expect(result!.cornerScore).toBe(8)
-      expect(result!.edgeScore).toBe(12)
+      // A 2x2 has no edge pieces at all - every piece is a corner - so
+      // edgeScore is NaN there, not a real (and inevitably misleading)
+      // count; only 4x4/6x6 actually have edges to score.
+      if (size === 2) {
+        expect(Number.isNaN(result!.edgeScore)).toBe(true)
+      } else {
+        expect(result!.edgeScore).toBe(12)
+      }
     })
 
     it('resolves a real one-move scramble (4x4, U turn), shuffled and pre-rotated, to full validity', () => {
@@ -127,6 +134,35 @@ describe('solveFaceOrientations', () => {
       // can never physically occur on the same cubie), which is exactly
       // what capture-order-as-identity with no rotation solving produced.
       const captured = captureWithRotations(uTurnedFaces(4), { U: 2, R: 1, F: 3, D: 0, L: 1, B: 2 })
+      const result = solveFaceOrientations(captured)
+      expect(result).not.toBeNull()
+      expect(result!.cornerScore).toBe(8)
+      expect(result!.edgeScore).toBe(12)
+    })
+
+    it('scores a real user-reported 4x4 capture as fully edge-valid (mirrored-wing regression)', () => {
+      // Regression case for a reported bug: scoreEdges() picked a single
+      // "representative" wing sticker per edge side using the same raw
+      // index on both faces, but 4 of the 12 edges (UR, UB, DB, DL) read
+      // their two faces' wing positions in OPPOSITE directions - the same
+      // class of bug server/Server.ts's EDGE_LINES table documents
+      // already hitting (and fixing) for the wing-edge parity check. This
+      // capture (posted as evidence of a real, valid cube that the app
+      // nonetheless warned about) used to score 11/12 - DB specifically -
+      // even though the assembled cube was genuinely correct (its
+      // structural/corner/wing-edge parity all passed). Must now score
+      // 12/12.
+      const toGrid = (s: string, n: number): string[][] =>
+        Array.from({ length: n }, (_, r) => s.slice(r * n, r * n + n).split(''))
+      const faces: Record<string, string[][]> = {
+        U: toGrid('OYYWWBWYRYOGBORB', 4),
+        R: toGrid('YRROBRBBOGGROWRY', 4),
+        F: toGrid('RWWRGBROWOWYWGYW', 4),
+        D: toGrid('RWOBRYOGORWBYWGO', 4),
+        L: toGrid('GOYWRYRYBGOBRGGG', 4),
+        B: toGrid('GGBYYWBBWYGOBOBG', 4),
+      }
+      const captured = captureWithRotations(faces, { U: 2, R: 0, F: 1, D: 3, L: 2, B: 0 })
       const result = solveFaceOrientations(captured)
       expect(result).not.toBeNull()
       expect(result!.cornerScore).toBe(8)
