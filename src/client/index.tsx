@@ -169,6 +169,10 @@ function App() {
   // phone camera fed in via some capture setups).
   const [mirrorPreview, setMirrorPreview] = useState(true)
   const [globalWhiteBalanceNote, setGlobalWhiteBalanceNote] = useState<string | null>(null)
+  // The per-face background-derived gains actually applied this capture
+  // (see computeFaceBackgroundGains below) - kept only so a saved fixture
+  // can record what correction was in play, for later debugging/analysis.
+  const [appliedBackgroundGains, setAppliedBackgroundGains] = useState<Record<string, RGB> | null>(null)
   const [reviewStep, setReviewStep] = useState(0)
   // Captured once per webcam session (device label isn't available until
   // getUserMedia grants permission) - purely informational, attached to
@@ -505,12 +509,12 @@ function App() {
     if (allCaptured) {
       setCapturedFaces({})
       setFaceConfidence({})
-      setLockedAutoGains(null)
     }
     const nextFace = allCaptured ? FACE_ORDER[0] : FACE_ORDER.find((f) => !(f in capturedFaces))!
     setWebcamFace(nextFace)
     setCaptureMessage('')
     setGlobalWhiteBalanceNote(null)
+    setAppliedBackgroundGains(null)
     setWebcamOpen(true)
   }
 
@@ -574,6 +578,7 @@ function App() {
             const bg = newCapturedFaces[f].backgroundColor
             faceGains[f] = referenceBackground && bg ? computeBackgroundGain(referenceBackground, bg) : NEUTRAL_GAINS
           }
+          setAppliedBackgroundGains(faceGains)
 
           const wb = await runGlobalWhiteBalance(images, puzzleSize, faceGains)
           if (wb.applied) {
