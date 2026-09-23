@@ -32,6 +32,22 @@ function colorDistance(c1: RGB, c2: RGB): number {
   return Math.sqrt(dl * dl + da * da + db * db)
 }
 
+// Mirrors the internal, learnStickerColors-only CLUSTER_L_WEIGHT-adjusted
+// distance (not exported - also not the same metric as colorDistance
+// above, which stays unweighted): same L-axis discount, kept in sync by
+// hand with imageProcessing.ts's CLUSTER_L_WEIGHT constant.
+const CLUSTER_L_WEIGHT = 0.6
+function clusterDistance(c1: RGB, c2: RGB): number {
+  const o1 = rgbToOKLCH(c1), o2 = rgbToOKLCH(c2)
+  const toAB = (o: { c: number; h: number }) => {
+    const rad = (o.h * Math.PI) / 180
+    return { a: o.c * Math.cos(rad), b: o.c * Math.sin(rad) }
+  }
+  const ab1 = toAB(o1), ab2 = toAB(o2)
+  const dl = (o1.l - o2.l) * CLUSTER_L_WEIGHT, da = ab1.a - ab2.a, db = ab1.b - ab2.b
+  return Math.sqrt(dl * dl + da * da + db * db)
+}
+
 describe('rgbToOKLCH', () => {
   it('matches Ottosson\'s published OKLab reference values for pure red', () => {
     // https://bottosson.github.io/posts/oklab/ - the standard cross-check
@@ -434,17 +450,20 @@ describe('learnStickerColors', () => {
       const label = learned.labelsBySampleIndex[offsetIdx]
       expect(label).toBe('R') // still correctly clustered as red - this is a confidence test, not a classification one
 
-      const selfInclusiveDistance = colorDistance(offsetRGB, learned.colors[label])
+      const selfInclusiveDistance = clusterDistance(offsetRGB, learned.colors[label])
       const leaveOneOutDistance = learned.leaveOneOutDistances[offsetIdx]
 
       // Exact expected value: excluding the offset point, the other 8 red
       // samples are all precisely canonical red (255,0,0), so the
       // leave-one-out centroid is exactly canonical red's own OKLab value,
       // and the distance from (200,50,10)'s OKLab to it is a fixed
-      // constant (independently verified via a reference OKLab
-      // implementation) regardless of how kMeansCluster's own centroid
-      // happened to converge.
-      expect(leaveOneOutDistance).toBeCloseTo(0.10506791364369204, 9)
+      // constant regardless of how kMeansCluster's own centroid happened
+      // to converge. This distance is computed with the clustering
+      // pipeline's own metric (CLUSTER_L_WEIGHT-adjusted, see
+      // imageProcessing.ts) rather than plain unweighted OKLab distance -
+      // recomputed against production code after CLUSTER_L_WEIGHT was
+      // introduced (2026-09-23 real-fixture design discussion, "F3").
+      expect(leaveOneOutDistance).toBeCloseTo(0.08353292664771421, 9)
       expect(leaveOneOutDistance).toBeGreaterThan(selfInclusiveDistance)
     })
 
@@ -455,7 +474,7 @@ describe('learnStickerColors', () => {
       const perfectRedIdx = samples.findIndex((s, i) => s.colorGuess === 'R' && samples[i].rgb !== offsetRGB)
 
       const label = learned.labelsBySampleIndex[perfectRedIdx]
-      const selfInclusiveDistance = colorDistance(samples[perfectRedIdx].rgb, learned.colors[label])
+      const selfInclusiveDistance = clusterDistance(samples[perfectRedIdx].rgb, learned.colors[label])
       const leaveOneOutDistance = learned.leaveOneOutDistances[perfectRedIdx]
 
       // The single outlier only pulls the 9-member centroid a little;
