@@ -134,28 +134,30 @@ describe('solveFaceOrientations', () => {
     expect(result!.alternatives.length).toBe(2)
   })
 
-  it('canonicalizes even-size orientation ties instead of asking the customer to pick (solved 2x2)', () => {
+  it('surfaces even-size orientation ties too, including the degenerate all-relabelings case (solved 2x2)', () => {
     // A solved cube has no color variation to pin down which physical
     // side is "really" front - rotating the WHOLE cube 90/180/270 around
     // the U-D axis (cyclically permuting R/F/L/B, U/D fixed) produces an
     // equally solved, equally valid cube every time, and solveEvenSizeOrientations'
     // own search (identity has no fixed reference on an even cube) directly
-    // hits all 4 of these. But this is NOT a genuine customer decision:
-    // solveEvenSizeOrientations already deliberately treats identity as
-    // arbitrary here (fixing capture#1=U@0 "because...any one consistent
-    // labeling is as good as another" - its own comment) precisely because
-    // there's no physical fact (no fixed center cubie) to make one choice
-    // more "correct" than another. Asking the customer to pick among R/F/L/B
-    // relabelings of an otherwise-identical cube would be asking them to
-    // resolve something the app's own design already says doesn't matter -
-    // so this must canonicalize down to exactly 1, unlike the odd-size
-    // front-back-axis-flip case above (a real ambiguity, since center color
-    // makes identity a physical fact there, not a labeling choice).
+    // hits all 4 of these. An earlier version canonicalized this down to a
+    // single choice, reasoning that since solveEvenSizeOrientations
+    // already deliberately treats identity as arbitrary here (fixing
+    // capture#1=U@0 "because...any one consistent labeling is as good as
+    // another" - its own comment), any tie must be that same kind of
+    // arbitrary relabeling, not worth asking about. That turned out to be
+    // an over-generalization from this one degenerate case (see the 4x4
+    // regression below, where a real capture's ties are NOT reducible to
+    // whole-cube relabeling) - so both sizes now surface every distinct
+    // tie uniformly; the solved-cube case is genuinely just 4 identical-
+    // outcome relabelings, so seeing all 4 costs the customer nothing but
+    // one harmless extra click.
     const captured = captureWithRotations(solvedFaces(2), { U: 0, R: 0, F: 0, D: 0, L: 0, B: 0 })
     const result = solveFaceOrientations(captured)
     expect(result).not.toBeNull()
     expect(result!.fullyValid).toBe(true)
-    expect(result!.alternatives.length).toBe(1)
+    expect(result!.alternatives.length).toBe(4)
+    expect(result!.truncated).toBe(false)
   })
 
   it('identifies each face by center color regardless of capture-slot order', () => {
@@ -313,7 +315,65 @@ describe('solveFaceOrientations', () => {
       // fully valid - a false positive. The genuinely valid answer needs
       // R rotated 90deg.
       expect(result!.rotations.R).toBe(1)
-      expect(result!.alternatives.length).toBe(1)
+      // This capture's own R/D/L wing patterns turn out to be independently
+      // rotation-symmetric enough that 36 genuinely distinct assignments
+      // tie for the winning score (see the dedicated "multiple genuinely
+      // different alternatives" test below) - a real discovery made while
+      // investigating a user report that this exact capture, rotated
+      // differently, "has multiple valid permutations" too. Comfortably
+      // under MAX_ALTERNATIVES, so nothing here should be silently dropped.
+      expect(result!.alternatives.length).toBe(36)
+      expect(result!.truncated).toBe(false)
+    })
+
+    it('surfaces multiple genuinely different alternatives on a 4x4 instead of silently canonicalizing (real user report)', () => {
+      // Regression case for a real user report: this capture (the same
+      // cube as the wing-blind-spot regression above, with R pre-rotated
+      // 90deg at capture time - a difference that must not change the
+      // true set of physically-valid readings) was reported to have
+      // "multiple valid permutations" that the app should ask the
+      // customer to choose between, instead of silently picking one as
+      // even sizes previously always did. Confirmed genuine, not a
+      // whole-cube relabeling: across the 36 tied alternatives, R/F/B/L
+      // each independently take all 4 rotation values while D takes only
+      // 2 - an asymmetric spread no single whole-cube rigid rotation
+      // (which would move every face together, in lockstep, through one
+      // shared small orbit - see the clean 4-way cyclic tie in the
+      // solved-2x2 case above) can produce. So each alternative really is
+      // a materially different assembled cube, not just a different
+      // arbitrary label for the same one.
+      const toGrid = (s: string, n: number): string[][] =>
+        Array.from({ length: n }, (_, r) => s.slice(r * n, r * n + n).split(''))
+      const captured: Record<string, string[][]> = {
+        U: toGrid('WYWYYWYWYWYWYWYW', 4),
+        R: toGrid('BGBBBGBBBGBBBGBB', 4), // same R face as above, pre-rotated 90deg
+        F: toGrid('ORORROROORORRORO', 4),
+        D: toGrid('YWYWWYWYWYWYWYWY', 4),
+        L: toGrid('GBGGGBGGGBGGGBGG', 4),
+        B: toGrid('ROROORORROROOROR', 4),
+      }
+      const result = solveFaceOrientations(captured)
+      expect(result).not.toBeNull()
+      expect(result!.fullyValid).toBe(true)
+      expect(result!.alternatives.length).toBe(36)
+      expect(result!.truncated).toBe(false)
+      const signatures = new Set(
+        result!.alternatives.map((alt) =>
+          ['U', 'R', 'F', 'D', 'L', 'B'].map((f) => alt.faces[f].map((row) => row.join('')).join('')).join('|')
+        )
+      )
+      expect(signatures.size).toBe(36) // genuinely distinct content, not duplicates
+      // R/F/B/L range over all 4 rotations while D is stuck at only 2 -
+      // an asymmetric spread proving this isn't one shared whole-cube
+      // rotation orbit (U is trivially always 0 - solveEvenSizeOrientations
+      // fixes it by construction, not evidence of anything here).
+      const rotationValues = (face: 'R' | 'F' | 'B' | 'L' | 'D') =>
+        new Set(result!.alternatives.map((alt) => alt.rotations[face]))
+      expect(rotationValues('R').size).toBe(4)
+      expect(rotationValues('F').size).toBe(4)
+      expect(rotationValues('B').size).toBe(4)
+      expect(rotationValues('L').size).toBe(4)
+      expect(rotationValues('D').size).toBe(2)
     })
 
     it('completes a 4x4 search within a reasonable time budget', () => {
