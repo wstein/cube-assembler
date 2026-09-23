@@ -522,6 +522,53 @@ export interface LearnedColors {
   leaveOneOutDistances: number[]
 }
 
+// "Virtual sample count" a learned centroid is shrunk toward its matched
+// canonical anchor by (see shrinkTowardCanonical) - the centroid gets
+// weight sampleCount/(sampleCount+this) of its own k-means position, and
+// the rest pulled back to canonical. A 2x2x2 capture (only 4 real
+// samples/color) is where this actually matters: real 2x2 fixtures
+// showed k-means centroids from just 4 points swing wildly
+// (leave-one-out distances up to 0.28, vs. ~0.15 between the CLOSEST two
+// canonical colors), letting a single noisy point drag its whole
+// cluster's label off - the canonical anchor is a far more stable
+// estimate than 4 samples can produce alone. But it must NOT meaningfully
+// touch 3x3/4x4-sized clusters (9-16 samples/color): those are already
+// well-estimated from real data, and canonical anchors are measurably
+// WRONG for exactly the pairs that matter most here (real captures put
+// Red/Orange and Green/Yellow far closer together in hue than the
+// idealized WCA swatches do - see the 2026-09-23 real-fixture root-cause
+// analysis), so pulling an already-correct 9- or 16-point centroid
+// toward canonical only reintroduces that bias. 3 is the value found by
+// sweeping against all 4 real fixtures: it's the middle of a plateau
+// (1.9-3.8 all score identically) that fully fixes the 2x2 fixture (5/24
+// -> 0/24 mismatches) with zero change to the 3x3/4x4 fixtures' mismatch
+// counts - stronger priors (4+) start moving the 3x3/4x4 numbers the
+// wrong way. This shrink is a fix for small-sample instability ONLY, not
+// for the separate, confirmed root cause of Red/Orange and Green/Yellow
+// mislabels on 3x3/4x4 captures (spatially-clustered lighting bias
+// shrinking those pairs' already-narrow real hue gap even further) - see
+// TODO.md / the 2026-09-23 real-fixture design discussion for that one.
+const CENTROID_SHRINKAGE_PRIOR = 3
+
+// Blends a k-means-learned centroid toward its matched canonical anchor
+// in OKLab space (not RGB - consistent with every other averaging this
+// file does, for the same nonlinear-remapping reason kMeansCluster's
+// centroid update is). weight=1 (large sampleCount) is effectively "trust
+// the data"; weight→0 (sampleCount→0) is "fall back to canonical" - never
+// fully either at any finite sampleCount, deliberately, since a
+// canonical anchor isn't perfectly correct either (see e.g. the R/O gap
+// being narrower in real captures than in the idealized WCA swatches).
+function shrinkTowardCanonical(learned: RGB, canonical: RGB, sampleCount: number): RGB {
+  const weight = sampleCount / (sampleCount + CENTROID_SHRINKAGE_PRIOR)
+  const learnedLab = rgbToOklab(learned)
+  const canonicalLab = rgbToOklab(canonical)
+  return oklabToRgb({
+    l: learnedLab.l * weight + canonicalLab.l * (1 - weight),
+    a: learnedLab.a * weight + canonicalLab.a * (1 - weight),
+    b: learnedLab.b * weight + canonicalLab.b * (1 - weight),
+  })
+}
+
 // Learns each of the 6 sticker colors' actual RGB directly from the
 // capture itself, using ALL captured stickers (typically all 54 across 6
 // faces) as calibration data, instead of assuming the hardcoded WCA
@@ -557,23 +604,35 @@ export function learnStickerColors(samples: StickerSample[]): LearnedColors | nu
   const canonicalList = canonicalKeys.map((k) => STICKER_COLORS[k])
   const permutation = bestPermutationMatch(centroids, canonicalList)
 
-  // One final balanced-assignment pass against the converged centroids, so
-  // every sticker's DEFINITIVE label (not just the centroid-learning
-  // iterations inside kMeansCluster) also respects the exact-N-per-color
-  // constraint — this is what actually gets used as each sticker's color,
-  // not an independent nearest-centroid lookup per sticker, which would
-  // reopen the same "one cluster steals another's points" failure this
-  // whole balanced-assignment approach exists to close.
-  const pointAssignment = balancedAssign(points, centroids)
-
+  // Provisional assignment against the raw k-means centroids, used only to
+  // count how many real samples actually back each cluster - needed
+  // before shrinkage can weigh "trust the data" vs. "trust canonical" per
+  // cluster (see CENTROID_SHRINKAGE_PRIOR). Superseded below by the
+  // shrunk-centroid pointAssignment for every other purpose.
+  const provisionalAssignment = balancedAssign(points, centroids)
   const clusterCounts = new Array(K).fill(0)
-  for (const clusterIdx of pointAssignment) clusterCounts[clusterIdx]++
+  for (const clusterIdx of provisionalAssignment) clusterCounts[clusterIdx]++
+
+  // Shrink each centroid toward its matched canonical anchor before doing
+  // anything else with it - see shrinkTowardCanonical. A well-populated
+  // cluster (e.g. 16 samples on a 4x4) barely moves; a thin one (e.g. 4
+  // samples on a 2x2) leans on the far more stable canonical estimate.
+  const shrunkCentroids = centroids.map((c, i) => shrinkTowardCanonical(c, canonicalList[permutation[i]], clusterCounts[i]))
+
+  // DEFINITIVE balanced-assignment pass, against the shrunk centroids -
+  // this is what actually gets used as each sticker's color, not an
+  // independent nearest-centroid lookup per sticker (which would reopen
+  // the same "one cluster steals another's points" failure the whole
+  // balanced-assignment approach exists to close) and not the
+  // provisional pre-shrink assignment above (which is only there to size
+  // the shrinkage weight).
+  const pointAssignment = balancedAssign(points, shrunkCentroids)
 
   const colors: Record<string, RGB> = {}
   const clusterSizes: Record<string, number> = {}
   for (let i = 0; i < K; i++) {
     const name = canonicalKeys[permutation[i]]
-    colors[name] = centroids[i]
+    colors[name] = shrunkCentroids[i]
     clusterSizes[name] = clusterCounts[i]
   }
 
@@ -616,7 +675,7 @@ export function learnStickerColors(samples: StickerSample[]): LearnedColors | nu
       }
       return oklabDistance(pointsOklab[i], centroidOklab)
     }
-    return colorDistance(point, centroids[clusterIdx])
+    return colorDistance(point, shrunkCentroids[clusterIdx])
   })
 
   return { colors, clusterSizes, labelsBySampleIndex, leaveOneOutDistances }
