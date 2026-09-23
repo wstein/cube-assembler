@@ -220,11 +220,13 @@ function OklchLines({ oklch, class: className }: { oklch: { l: number; c: number
 // the orientation wizard hasn't pinned down yet, so the customer isn't
 // shown a specific guess as if it were settled. `current` frames the face
 // the wizard is asking about right now, so it's obvious which slot in the
-// net the options below refer to.
-function FaceGrid({ colors, undecided, current }: { colors: string[][]; undecided?: boolean; current?: boolean }) {
+// net the options below refer to. `auto` dims a face the wizard settled on
+// its own (never asked about), so the net shows at a glance which faces the
+// customer actually chose versus which were inferred from those choices.
+function FaceGrid({ colors, undecided, current, auto }: { colors: string[][]; undecided?: boolean; current?: boolean; auto?: boolean }) {
   return (
     <div
-      class={`orientation-net-face${undecided ? ' orientation-net-face-undecided' : ''}${current ? ' orientation-net-face-current' : ''}`}
+      class={`orientation-net-face${undecided ? ' orientation-net-face-undecided' : ''}${current ? ' orientation-net-face-current' : ''}${auto ? ' orientation-net-face-auto' : ''}`}
       style={{ gridTemplateColumns: `repeat(${colors.length}, 1fr)` }}
     >
       {colors.flat().map((color, i) => (
@@ -280,14 +282,20 @@ function morphInto(source: HTMLElement, target: HTMLElement): Promise<() => void
 }
 
 function OrientationNetPreview({
-  faces, undecidedFaces, currentFace,
+  faces, undecidedFaces, currentFace, autoFaces,
 }: {
   faces: Record<string, string[][]>
   undecidedFaces?: Set<string>
   currentFace?: string
+  autoFaces?: Set<string>
 }) {
   const grid = (face: string) => (
-    <FaceGrid colors={faces[face]} undecided={undecidedFaces?.has(face)} current={face === currentFace} />
+    <FaceGrid
+      colors={faces[face]}
+      undecided={undecidedFaces?.has(face)}
+      current={face === currentFace}
+      auto={autoFaces?.has(face)}
+    />
   )
   return (
     <div class="orientation-net">
@@ -456,7 +464,9 @@ function App() {
   // OrientationSolution.truncated: more genuinely-distinct ties existed
   // than the solver could keep, so `remaining` may not include every
   // possibility - shown to the customer rather than silently hidden.
-  const [orientationWizard, setOrientationWizard] = useState<{ remaining: OrientedCandidate[]; truncated: boolean } | null>(null)
+  // `picked` lists the faces the customer answered directly; every other
+  // settled face was inferred (see the progress net's dimming).
+  const [orientationWizard, setOrientationWizard] = useState<{ remaining: OrientedCandidate[]; truncated: boolean; picked: FaceKey[] } | null>(null)
   // True while a picked option is animating into the net - blocks a second
   // pick from landing mid-flight.
   const [wizardMorphing, setWizardMorphing] = useState(false)
@@ -1034,7 +1044,7 @@ function App() {
         // of silently picking one. Leaves the review dialog up; the
         // orientation wizard renders on top of it and calls
         // handleChooseOrientation once it narrows down to one candidate.
-        setOrientationWizard({ remaining: solved.alternatives, truncated: solved.truncated })
+        setOrientationWizard({ remaining: solved.alternatives, truncated: solved.truncated, picked: [] })
         return
       }
     } else {
@@ -1066,12 +1076,12 @@ function App() {
   // asked about, then either asks the next most-informative question or,
   // once every face agrees (pickWizardFace returns null), finishes
   // assembly with the single remaining candidate.
-  const handleWizardAnswer = (matched: OrientedCandidate[]) => {
+  const handleWizardAnswer = (matched: OrientedCandidate[], face: FaceKey) => {
     if (pickWizardFace(matched) === null) {
       handleChooseOrientation(matched[0])
       return
     }
-    setOrientationWizard((prev) => (prev ? { remaining: matched, truncated: prev.truncated } : null))
+    setOrientationWizard((prev) => (prev ? { remaining: matched, truncated: prev.truncated, picked: [...prev.picked, face] } : null))
   }
 
   // Clicking an option face flies it into the framed slot in the progress
@@ -1080,7 +1090,7 @@ function App() {
   // Preact's microtask re-render has already filled the slot - so the slot
   // never flashes back to its hatched placeholder in between. (A timer,
   // not requestAnimationFrame, since rAF doesn't fire in background tabs.)
-  const handleWizardPick = async (optionEl: HTMLElement, candidates: OrientedCandidate[]) => {
+  const handleWizardPick = async (optionEl: HTMLElement, candidates: OrientedCandidate[], face: FaceKey) => {
     if (wizardMorphing) return
     const source = optionEl.querySelector<HTMLElement>('.orientation-net-face')
     const target = document.querySelector<HTMLElement>('.orientation-picker .orientation-net-face-current')
@@ -1093,7 +1103,7 @@ function App() {
         setWizardMorphing(false)
       }
     }
-    handleWizardAnswer(candidates)
+    handleWizardAnswer(candidates, face)
     setTimeout(removeClone, 0)
   }
 
@@ -1835,7 +1845,7 @@ function App() {
 
       {/* Orientation wizard - see orientationWizard/pickWizardFace/groupWizardOptions */}
       {orientationWizard && (() => {
-        const { remaining, truncated } = orientationWizard
+        const { remaining, truncated, picked } = orientationWizard
         const askingFace = pickWizardFace(remaining)
         // handleWizardAnswer never leaves the wizard open once no face is
         // left to ask about, so this should always resolve - but fall
@@ -1873,10 +1883,12 @@ function App() {
 
         const progressFaces: Record<string, string[][]> = {}
         const undecidedFaces = new Set<string>()
+        const autoFaces = new Set<string>()
         for (const f of WIZARD_FACE_ORDER) {
           const distinct = new Set(remaining.map((c) => faceContentKey(c.faces[f])))
           progressFaces[f] = remaining[0].faces[f]
           if (distinct.size > 1) undecidedFaces.add(f)
+          else if (!picked.includes(f)) autoFaces.add(f)
         }
         const decidedCount = WIZARD_FACE_ORDER.length - undecidedFaces.size
         const options = groupWizardOptions(remaining, askingFace)
@@ -1903,7 +1915,12 @@ function App() {
                   ⚠️ More matches exist than shown — if none fit, retake the photos.
                 </p>
               )}
-              <OrientationNetPreview faces={progressFaces} undecidedFaces={undecidedFaces} currentFace={askingFace} />
+              <OrientationNetPreview
+                faces={progressFaces}
+                undecidedFaces={undecidedFaces}
+                currentFace={askingFace}
+                autoFaces={autoFaces}
+              />
               <div class="orientation-picker-grid orientation-wizard-options">
                 {options.map((opt, i) => (
                   <button
@@ -1912,7 +1929,7 @@ function App() {
                     class="orientation-picker-option orientation-wizard-option"
                     aria-label={`Option ${i + 1} for the ${FACE_LABELS[askingFace]} face`}
                     disabled={wizardMorphing}
-                    onClick={(e) => handleWizardPick(e.currentTarget, opt.candidates)}
+                    onClick={(e) => handleWizardPick(e.currentTarget, opt.candidates, askingFace)}
                   >
                     <FaceGrid colors={opt.grid} />
                   </button>

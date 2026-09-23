@@ -448,6 +448,12 @@ textarea {
   z-index: 1;
 }
 
+/* Settled without the customer being asked (the given Up face, or inferred
+   from earlier picks) - dimmed so faces they actually chose stand out. */
+.orientation-net-face-auto {
+  opacity: 0.4;
+}
+
 .orientation-wizard-options {
   grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
   margin-top: var(--spacing-lg);
