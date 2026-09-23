@@ -687,15 +687,24 @@ interface FaceRegion extends FaceBounds {
   imageData: ImageData
 }
 
+// Fraction of the frame (of min(width,height)) the sticker guide square
+// covers - the ONLY thing extractColorsFromImageData ever samples for
+// classification. Named so BACKGROUND_REGION_FRACTION below can be stated
+// relative to it, unchanged from the plain 0.6 this was before.
+const SAMPLE_FACE_FRACTION = 0.6
+
 // Cube face is assumed centered in frame, matching the fixed guide square
 // shown to the user during capture (see capture-grid-overlay in index.tsx).
-function computeFaceBounds(canvas: HTMLCanvasElement): FaceBounds {
+// `fraction` defaults to the sticker guide square itself; callers pass a
+// larger value (see BACKGROUND_REGION_FRACTION) to get a bigger, concentric
+// square for sampling the area AROUND the stickers instead.
+function computeFaceBounds(canvas: HTMLCanvasElement, fraction = SAMPLE_FACE_FRACTION): FaceBounds {
   const width = canvas.width
   const height = canvas.height
 
   const centerX = width / 2
   const centerY = height / 2
-  const faceSize = Math.min(width, height) * 0.6
+  const faceSize = Math.min(width, height) * fraction
 
   const startX = Math.max(0, centerX - faceSize / 2)
   const startY = Math.max(0, centerY - faceSize / 2)
@@ -720,6 +729,84 @@ function getFaceRegion(canvas: HTMLCanvasElement): FaceRegion {
   return {
     ...bounds,
     imageData: ctx.getImageData(bounds.startX, bounds.startY, bounds.faceWidth, bounds.faceHeight),
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Background-based cross-face correction
+//
+// The area around the cube (table, hand, backdrop) stays the SAME physical
+// surface across all 6 face captures, unlike the cube's own stickers (whose
+// colors are exactly what's being measured, and can't double as a
+// reference). Sampling it doesn't require knowing what color it "should"
+// be (unlike the gray-world estimate this replaced, which wrongly assumed
+// the whole scene averages to neutral gray) - only that it's CONSTANT, so
+// any difference between how face 2's patch reads vs. face 1's patch is,
+// by construction, illumination/camera drift rather than scene content.
+// See the 2026-09-23 real-fixture design discussion ("G1").
+// ─────────────────────────────────────────────────────────────────────────────
+
+// Outer edge of the ring sampled for the background reference, as a
+// fraction of min(width,height) - bigger than SAMPLE_FACE_FRACTION (the
+// sticker square, entirely excluded from this sample) but pulled in from
+// the true frame edge (1.0) to avoid the most lens-distorted/vignetted
+// corner pixels.
+const BACKGROUND_REGION_FRACTION = 0.92
+
+// Samples the ring between the sticker guide square and
+// BACKGROUND_REGION_FRACTION on a LIVE captured frame - null if the frame
+// is too small to have a meaningful ring, or if the ring came back too
+// dark to be a reliable reading (mirrors estimateGrayWorldGains' old
+// too-dark guard). Only meaningful on a live, uncropped canvas - a stored
+// croppedImage (see cropFaceRegionToDataUrl) is already cropped down to
+// just the sticker square and has no ring left to sample, which is why
+// this is captured once at capture time (captureAndProcessFace /
+// captureAndProcessImage) rather than re-derivable later like
+// redetectFaceColors' sticker re-extraction is.
+export function extractBackgroundColor(canvas: HTMLCanvasElement): RGB | null {
+  const ctx = canvas.getContext('2d')
+  if (!ctx) return null
+
+  const inner = computeFaceBounds(canvas, SAMPLE_FACE_FRACTION)
+  const outer = computeFaceBounds(canvas, BACKGROUND_REGION_FRACTION)
+  if (outer.faceWidth < 40 || outer.faceHeight < 40) return null
+
+  const imageData = ctx.getImageData(outer.startX, outer.startY, outer.faceWidth, outer.faceHeight)
+  const data = imageData.data
+  const innerLeft = inner.startX - outer.startX
+  const innerTop = inner.startY - outer.startY
+  const innerRight = innerLeft + inner.faceWidth
+  const innerBottom = innerTop + inner.faceHeight
+
+  const pixels: RGB[] = []
+  for (let y = 0; y < outer.faceHeight; y++) {
+    const inRow = y >= innerTop && y < innerBottom
+    for (let x = 0; x < outer.faceWidth; x++) {
+      if (inRow && x >= innerLeft && x < innerRight) continue // inside the sticker square - skip
+      const idx = (y * outer.faceWidth + x) * 4
+      pixels.push({ r: data[idx], g: data[idx + 1], b: data[idx + 2] })
+    }
+  }
+
+  const mean = trimmedMeanColor(pixels)
+  if (!mean) return null
+  const luminance = 0.2126 * mean.r + 0.7152 * mean.g + 0.0722 * mean.b
+  if (luminance < 5) return null // too dark to be a reliable reference
+  return mean
+}
+
+// Per-channel gain that would rescale `current`'s background reading to
+// match `reference`'s - the actual cross-face correction, applied to a
+// face's raw sticker samples (via applyGains) before classification, same
+// as any other gain in this file. Clamped like the old gray-world
+// estimate was, so a background patch that's unexpectedly extreme (e.g.
+// partially shadowed on one face) can't produce a runaway correction.
+export function computeBackgroundGain(reference: RGB, current: RGB): RGB {
+  const clampGain = (g: number) => Math.max(0.6, Math.min(1.8, g))
+  return {
+    r: clampGain(reference.r / Math.max(1, current.r)),
+    g: clampGain(reference.g / Math.max(1, current.g)),
+    b: clampGain(reference.b / Math.max(1, current.b)),
   }
 }
 
@@ -869,6 +956,11 @@ export function extractCubeFaceColors(
 
 export interface FaceCaptureResult extends ColorDetectionResult {
   croppedImage: string
+  // Sampled once, live, at capture time - see extractBackgroundColor. Null
+  // when the frame was too small or the ring came back unreliably dark;
+  // callers should then fall back to NEUTRAL_GAINS for this face's
+  // cross-face correction rather than treating it as a hard error.
+  backgroundColor: RGB | null
 }
 
 export function captureAndProcessFace(
@@ -890,8 +982,14 @@ export function captureAndProcessFace(
   // truth photo, re-analyzed independently by the post-capture global
   // recalibration pass (redetectFaceColors / runGlobalWhiteBalance),
   // which always starts over from NEUTRAL_GAINS regardless of what `gains`
-  // was passed in here (see the "Gains" comment above).
-  return { ...extractCubeFaceColors(canvas, gridSize, gains), croppedImage: cropFaceRegionToDataUrl(canvas) }
+  // was passed in here (see the "Gains" comment above) - unless a
+  // background-derived correction is supplied for this face instead (see
+  // runGlobalWhiteBalance's faceGains parameter).
+  return {
+    ...extractCubeFaceColors(canvas, gridSize, gains),
+    croppedImage: cropFaceRegionToDataUrl(canvas),
+    backgroundColor: extractBackgroundColor(canvas),
+  }
 }
 
 export function captureAndProcessImage(
@@ -909,7 +1007,11 @@ export function captureAndProcessImage(
   }
 
   ctx.drawImage(img, 0, 0)
-  return { ...extractCubeFaceColors(canvas, gridSize, gains), croppedImage: cropFaceRegionToDataUrl(canvas) }
+  return {
+    ...extractCubeFaceColors(canvas, gridSize, gains),
+    croppedImage: cropFaceRegionToDataUrl(canvas),
+    backgroundColor: extractBackgroundColor(canvas),
+  }
 }
 
 function loadImageFromDataUrl(dataUrl: string): Promise<HTMLImageElement> {
@@ -970,23 +1072,31 @@ export interface LearnedColorClassificationResult {
 
 /**
  * Runs the full post-capture recalibration pass: redetects every face's
- * stored snapshot from scratch with neutral gains (ignoring whatever WB
- * preset/auto-estimate was live-applied during capture — that was only
- * ever a capture-time aid for the user, not something this pass should
- * inherit), learns each color's actual RGB from all 6 faces' stickers
- * together (learnStickerColors), then reclassifies every sticker against
- * those learned colors instead of the hardcoded canonical palette —
- * relabeling only, no re-extraction, since the raw per-cell RGB doesn't
- * change. Falls back to the neutral-gain/hardcoded-palette baseline
+ * stored snapshot from scratch (ignoring whatever WB preset/auto-estimate
+ * was live-applied during capture — that was only ever a capture-time aid
+ * for the user, not something this pass should inherit), learns each
+ * color's actual RGB from all 6 faces' stickers together
+ * (learnStickerColors), then reclassifies every sticker against those
+ * learned colors instead of the hardcoded canonical palette — relabeling
+ * only, no re-extraction, since the raw per-cell RGB doesn't change.
+ * Falls back to the neutral-gain/hardcoded-palette baseline
  * (`applied: false`) if there aren't enough stickers to cluster reliably.
+ *
+ * `faceGains`, when given, redetects each face with that face's own gain
+ * instead of NEUTRAL_GAINS for all of them - the background-based
+ * cross-face correction (see computeBackgroundGain): face 1 is the
+ * reference (gain 1,1,1), later faces get whatever gain would make their
+ * OWN background patch read the same as face 1's did. A face missing from
+ * `faceGains` (background unavailable that shot) falls back to neutral.
  */
 export async function runGlobalWhiteBalance(
   faceCroppedImages: Record<string, string>,
-  gridSize: number
+  gridSize: number,
+  faceGains?: Record<string, RGB>
 ): Promise<LearnedColorClassificationResult> {
   const baselineFaces: Record<string, ColorDetectionResult> = {}
   for (const [face, dataUrl] of Object.entries(faceCroppedImages)) {
-    baselineFaces[face] = await redetectFaceColors(dataUrl, gridSize, NEUTRAL_GAINS)
+    baselineFaces[face] = await redetectFaceColors(dataUrl, gridSize, faceGains?.[face] ?? NEUTRAL_GAINS)
   }
 
   const samples: StickerSample[] = []
