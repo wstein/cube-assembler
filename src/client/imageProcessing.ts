@@ -695,6 +695,39 @@ export function cropFaceRegionToDataUrl(canvas: HTMLCanvasElement): string {
   return out.toDataURL('image/jpeg', 0.85)
 }
 
+// Fraction of a cell's sampled pixels discarded from each luminance
+// extreme before averaging - rejects glare (a specular highlight off the
+// sticker's glossy plastic, reading far brighter than the sticker's true
+// color) and shadow/bleed (reading far darker) outliers a plain mean
+// would blend straight in, pulling the reading toward whichever extreme
+// happened to be present. 15% each end (a standard "trimmed mean"
+// choice) is aggressive enough to reject a real highlight streak - which
+// only ever covers a minority of a sticker's sampled area - without
+// discarding so much that a genuinely uniform, glare-free sticker's
+// estimate gets noisier for no reason.
+const OUTLIER_TRIM_FRACTION = 0.15
+
+// Averages pixel colors after discarding the brightest/darkest tails by
+// luminance, instead of a plain mean over every sampled pixel - see
+// OUTLIER_TRIM_FRACTION above. Exported for direct unit testing (pure,
+// DOM-free), matching how this file's other small numeric helpers are
+// tested rather than only indirectly through the canvas-touching
+// functions that call them.
+export function trimmedMeanColor(pixels: RGB[], trimFraction = OUTLIER_TRIM_FRACTION): RGB | null {
+  if (pixels.length === 0) return null
+  const byLuminance = [...pixels].sort(
+    (a, b) => (0.2126 * a.r + 0.7152 * a.g + 0.0722 * a.b) - (0.2126 * b.r + 0.7152 * b.g + 0.0722 * b.b)
+  )
+  const trimCount = Math.floor(pixels.length * trimFraction)
+  // Only trim when there's enough left afterward - never let trimming
+  // itself produce an empty (or asymmetric/degenerate) result on a very
+  // small sample.
+  const kept = trimCount * 2 < pixels.length ? byLuminance.slice(trimCount, pixels.length - trimCount) : byLuminance
+  let sumR = 0, sumG = 0, sumB = 0
+  for (const p of kept) { sumR += p.r; sumG += p.g; sumB += p.b }
+  return { r: sumR / kept.length, g: sumG / kept.length, b: sumB / kept.length }
+}
+
 export function extractCubeFaceColors(
   canvas: HTMLCanvasElement,
   gridSize = 3,
@@ -727,25 +760,20 @@ export function extractCubeFaceColors(
       const cellW = Math.round(cellWidth * SAMPLE_CORE_FRACTION)
       const cellH = Math.round(cellHeight * SAMPLE_CORE_FRACTION)
 
-      let sumR = 0, sumG = 0, sumB = 0, pixelCount = 0
+      const pixels: RGB[] = []
 
       for (let y = cellStartY; y < cellStartY + cellH; y++) {
         for (let x = cellStartX; x < cellStartX + cellW; x++) {
           if (x >= 0 && x < faceWidth && y >= 0 && y < faceHeight) {
             const idx = (y * faceWidth + x) * 4
-            sumR += data[idx]
-            sumG += data[idx + 1]
-            sumB += data[idx + 2]
-            pixelCount++
+            pixels.push({ r: data[idx], g: data[idx + 1], b: data[idx + 2] })
           }
         }
       }
 
-      if (pixelCount > 0) {
-        const avgColor: RGB = applyGains(
-          { r: sumR / pixelCount, g: sumG / pixelCount, b: sumB / pixelCount },
-          gains
-        )
+      const trimmedMean = trimmedMeanColor(pixels)
+      if (trimmedMean) {
+        const avgColor: RGB = applyGains(trimmedMean, gains)
         rowRGB.push(avgColor)
         const stickerColor = closestSticker(avgColor)
         rowColors.push(stickerColor)

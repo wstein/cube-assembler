@@ -1,15 +1,20 @@
 /**
  * test/imageProcessing.test.ts
  * Vitest tests for the pure, DOM-free parts of src/client/imageProcessing.ts
- * (learnStickerColors' unsupervised color learning). The canvas/Image-
- * touching functions in this file (extractCubeFaceColors, redetectFaceColors,
- * runGlobalWhiteBalance, ...) need a browser DOM this project's node test
- * environment doesn't provide, so they aren't covered here.
+ * (learnStickerColors' unsupervised color learning, hungarianAssignment's
+ * optimal balanced assignment, trimmedMeanColor's outlier-robust pixel
+ * averaging). The canvas/Image-touching functions in this file
+ * (extractCubeFaceColors, redetectFaceColors, runGlobalWhiteBalance, ...)
+ * need a browser DOM this project's node test environment doesn't provide,
+ * so they aren't covered here.
  *
  * Run: npx vitest run test/imageProcessing.test.ts
  */
 import { describe, it, expect } from 'vitest'
-import { learnStickerColors, rgbToOKLCH, formatOKLCHValues, hueCircularRange, linearRange, hungarianAssignment, STICKER_COLORS, type RGB } from '../src/client/imageProcessing'
+import {
+  learnStickerColors, rgbToOKLCH, formatOKLCHValues, hueCircularRange, linearRange,
+  hungarianAssignment, trimmedMeanColor, STICKER_COLORS, type RGB,
+} from '../src/client/imageProcessing'
 
 // Mirrors the internal OKLab-based colorDistance (not exported): rebuilds
 // Cartesian (a,b) from the exported OKLCH's polar (c,h) - c·cos(h), c·sin(h)
@@ -112,6 +117,60 @@ describe('linearRange', () => {
 
   it('returns the same value twice for a single sample', () => {
     expect(linearRange([0.42])).toEqual({ min: 0.42, max: 0.42 })
+  })
+})
+
+describe('trimmedMeanColor', () => {
+  it('returns null for no pixels', () => {
+    expect(trimmedMeanColor([])).toBeNull()
+  })
+
+  it('matches a plain mean when every pixel is identical', () => {
+    const pixels = Array(20).fill({ r: 100, g: 150, b: 200 })
+    expect(trimmedMeanColor(pixels)).toEqual({ r: 100, g: 150, b: 200 })
+  })
+
+  it('rejects a bright glare outlier a plain mean would be pulled toward', () => {
+    // 18 pixels of a real (moderately dark) sticker color + 2 near-white
+    // glare pixels (10% of 20, comfortably inside the default 15% trim).
+    const stickerColor = { r: 80, g: 40, b: 40 }
+    const glare = { r: 250, g: 248, b: 245 }
+    const pixels = [...Array(18).fill(stickerColor), glare, glare]
+
+    const plainMean = pixels.reduce((sum, p) => ({ r: sum.r + p.r, g: sum.g + p.g, b: sum.b + p.b }), { r: 0, g: 0, b: 0 })
+    const plainR = plainMean.r / pixels.length
+    expect(plainR).toBeGreaterThan(stickerColor.r) // a plain mean WOULD be pulled upward by the glare
+
+    const trimmed = trimmedMeanColor(pixels)!
+    expect(trimmed).toEqual(stickerColor) // the trimmed mean rejects it entirely
+  })
+
+  it('rejects a dark shadow outlier symmetrically', () => {
+    const stickerColor = { r: 200, g: 180, b: 60 }
+    const shadow = { r: 10, g: 8, b: 5 }
+    const pixels = [...Array(18).fill(stickerColor), shadow, shadow]
+    expect(trimmedMeanColor(pixels)).toEqual(stickerColor)
+  })
+
+  it('trims symmetric extremes when the sample is large enough', () => {
+    const pixels = [{ r: 10, g: 10, b: 10 }, { r: 20, g: 20, b: 20 }, { r: 250, g: 250, b: 250 }]
+    // trimCount = floor(3*0.5) = 1; 1*2=2 < 3, so this trims 1 pixel off
+    // each end, leaving just the middle one.
+    expect(trimmedMeanColor(pixels, 0.5)).toEqual({ r: 20, g: 20, b: 20 })
+  })
+
+  it('falls back to the untrimmed mean when trimming would leave nothing', () => {
+    // 2 pixels, trimFraction 0.6 -> trimCount = floor(2*0.6) = 1;
+    // 1*2=2 is NOT < 2, so the "not enough left" guard skips trimming
+    // entirely rather than returning an empty/degenerate result.
+    const pixels = [{ r: 10, g: 10, b: 10 }, { r: 250, g: 250, b: 250 }]
+    expect(trimmedMeanColor(pixels, 0.6)).toEqual({ r: 130, g: 130, b: 130 })
+  })
+
+  it('does not trim when the sample is too small for trimming to make sense', () => {
+    const pixels = [{ r: 10, g: 10, b: 10 }, { r: 250, g: 250, b: 250 }]
+    // trimCount = floor(2*0.15) = 0 -> no trim, both pixels average.
+    expect(trimmedMeanColor(pixels)).toEqual({ r: 130, g: 130, b: 130 })
   })
 })
 

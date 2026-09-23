@@ -5,7 +5,7 @@
 ![License: MIT](https://img.shields.io/badge/License-MIT-cyan.svg)
 ![npm](https://img.shields.io/badge/runtime-npm-black)
 ![ReScript](https://img.shields.io/badge/lang-ReScript-e6484f)
-![Tests](https://img.shields.io/badge/tests-108%2F108%20%E2%9C%85-brightgreen)
+![Tests](https://img.shields.io/badge/tests-115%2F115%20%E2%9C%85-brightgreen)
 
 A full-stack library and web app that solves two geometric ambiguities when reconstructing a physical cube from 6 unordered face photographs:
 
@@ -84,7 +84,7 @@ cube-assembler/
     ├── notation.test.ts           23 tests — ReScript Notation module (WRG/URF/Kociemba/Numeric)
     ├── cubeAssembly.test.ts       15 tests — face identity/orientation solver (odd + even sizes)
     ├── notationOutput.test.ts     22 tests — WRG/URF facelet formats + format auto-detection
-    ├── imageProcessing.test.ts    27 tests — OKLCH conversion/formatting, range math, optimal assignment, sticker-color learning
+    ├── imageProcessing.test.ts    34 tests — OKLCH conversion/formatting, range math, optimal assignment, outlier-robust sampling, sticker-color learning
     ├── parity.test.ts             14 tests — server-side corner/edge/wing-edge facelet-index tables
     └── assemblyWorker.test.ts     7 tests — /api/assemble worker's corner/edge validation
 ```
@@ -131,13 +131,18 @@ or imported photos and reconstructs its state:
    instead of a spurious ~350° one), so a color's readings drifting
    toward a neighbor's territory is visible before that neighbor's count
    actually goes wrong. The "Detected" grid likewise labels every sticker
-   with its own OKLCH value, not just its classified color. Every step of
-   color classification — per-sticker sampling, k-means, and confidence
-   scoring — measures color "closeness" in OKLCH (`rgbToOKLCH` in
-   `imageProcessing.ts`), not raw RGB: separating hue from
-   lightness/chroma matters because canonical Red and Orange sit only 127
-   RGB units apart (entirely on the G channel) but are ~23° apart in hue,
-   a far more reliable signal under real lighting variation.
+   with its own OKLCH value, not just its classified color. Each
+   sticker's color is itself a trimmed mean (`trimmedMeanColor`), not a
+   plain average, over its sampled pixels — the brightest/darkest 15% by
+   luminance are discarded before averaging, so a specular highlight off
+   the sticker's glossy plastic (or a shadow at its edge) can't pull the
+   reading toward itself. Every step of color classification — per-
+   sticker sampling, k-means, and confidence scoring — measures color
+   "closeness" in OKLCH (`rgbToOKLCH` in `imageProcessing.ts`), not raw
+   RGB: separating hue from lightness/chroma matters because canonical
+   Red and Orange sit only 127 RGB units apart (entirely on the G
+   channel) but are ~23° apart in hue, a far more reliable signal under
+   real lighting variation.
 3. **Orientation solving** — on confirm, `solveFaceOrientations` (in
    `cubeAssembly.ts`) resolves true face identity and each face's
    0°/90°/180°/270° rotation by maximizing valid corner cubies first, edge
