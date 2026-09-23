@@ -73,21 +73,85 @@ body {
   font-size: 16px;
 }
 
-#app {
-  display: block;
-}
-
-.viewer-region {
-  width: 100%;
+#app,
+.app-layout {
+  min-height: 100vh;
   display: flex;
   flex-direction: column;
+}
+
+.app-main {
+  width: 100%;
+  max-width: 900px;
+  margin: 0 auto;
+  padding: var(--spacing-lg);
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-lg);
+  box-sizing: border-box;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   PUZZLE SIZE BAR
+   ───────────────────────────────────────────────────────────────────────────── */
+
+.size-control-panel,
+.viewer-region {
   background: var(--color-bg-secondary);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
-  padding: var(--spacing-lg);
-  margin: var(--spacing-lg);
-  gap: var(--spacing-lg);
-  flex-shrink: 0;
+  padding: var(--spacing-md) var(--spacing-lg);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--spacing-md);
+  box-sizing: border-box;
+  margin: 0;
+  width: auto;
+}
+
+.size-control-label {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.size-selector {
+  display: flex;
+  gap: var(--spacing-xs);
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.size-btn {
+  min-width: 44px;
+  height: 36px;
+  padding: 0 var(--spacing-sm);
+  border: 1px solid var(--color-border);
+  background: var(--color-bg-primary);
+  color: var(--color-text-primary);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 0.85rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
+  user-select: none;
+  box-sizing: border-box;
+}
+
+.size-btn:hover {
+  border-color: var(--color-accent);
+  background: var(--color-bg-secondary);
+}
+
+.size-btn.active {
+  background: var(--color-accent);
+  color: var(--color-on-accent);
+  border-color: var(--color-accent);
 }
 
 /* ─────────────────────────────────────────────────────────────────────────────
@@ -99,7 +163,8 @@ body {
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
   padding: var(--spacing-lg);
-  margin: 0 var(--spacing-lg) var(--spacing-lg);
+  box-sizing: border-box;
+  margin: 0;
 }
 
 .net-region h3 {
@@ -239,8 +304,19 @@ button {
   font-size: 0.8rem;
 }
 
+.btn-row {
+  display: flex;
+  gap: var(--spacing-sm);
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.btn-row .btn {
+  flex: 1 1 180px;
+}
+
 /* ─────────────────────────────────────────────────────────────────────────────
-   PANELS
+   PANELS & SECTIONS
    ───────────────────────────────────────────────────────────────────────────── */
 
 .panel {
@@ -250,18 +326,25 @@ button {
   padding: var(--spacing-lg);
   display: flex;
   flex-direction: column;
-  gap: var(--spacing-lg);
+  gap: var(--spacing-xl);
+  box-sizing: border-box;
+}
+
+.control-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
 }
 
 .panel h2, .panel h3 {
-  font-size: 1rem;
+  font-size: 1.05rem;
   font-weight: 600;
   color: var(--color-text-primary);
   margin: 0;
 }
 
 /* ─────────────────────────────────────────────────────────────────────────────
-   FORMS
+   FORMS & INPUTS
    ───────────────────────────────────────────────────────────────────────────── */
 
 label {
@@ -1005,16 +1088,22 @@ textarea {
 .app-header {
   background: var(--color-bg-secondary);
   border-bottom: 1px solid var(--color-border);
-  padding: var(--spacing-lg) var(--spacing-xl);
+  padding: var(--spacing-lg);
   width: 100%;
   box-sizing: border-box;
 }
 
+.header-content {
+  max-width: 900px;
+  margin: 0 auto;
+  width: 100%;
+}
+
 .header-content h1 {
-  font-size: 1.75rem;
+  font-size: 1.6rem;
   font-weight: 700;
-  margin-bottom: var(--spacing-sm);
-  margin: 0 0 var(--spacing-sm) 0;
+  margin: 0 0 var(--spacing-xs) 0;
+  color: var(--color-text-primary);
 }
 
 .header-content p {
@@ -1024,75 +1113,54 @@ textarea {
 }
 
 /* ─────────────────────────────────────────────────────────────────────────────
-   PUZZLE SIZE SELECTOR
-   ───────────────────────────────────────────────────────────────────────────── */
-
-.viewer-controls {
-  display: flex;
-  align-items: center;
-  gap: var(--spacing-sm);
-  padding: var(--spacing-lg);
-}
-
-.viewer-controls h3 {
-  margin-bottom: var(--spacing-md);
-  font-size: 0.95rem;
-}
-
-.size-selector {
-  display: flex;
-  gap: var(--spacing-sm);
-  flex-wrap: wrap;
-}
-
-.size-btn {
-  min-width: 45px;
-  padding: var(--spacing-sm) var(--spacing-md);
-  border: 1px solid var(--color-border);
-  background: var(--color-bg-primary);
-  color: var(--color-text-primary);
-  border-radius: var(--radius-md);
-  cursor: pointer;
-  font-weight: 500;
-  transition: all 0.2s;
-}
-
-.size-btn:hover {
-  border-color: var(--color-accent);
-  background: var(--color-bg-secondary);
-}
-
-.size-btn.active {
-  background: var(--color-accent);
-  color: var(--color-on-accent);
-  border-color: var(--color-accent);
-}
-
-/* ─────────────────────────────────────────────────────────────────────────────
    FACE CAPTURE PANEL
    ───────────────────────────────────────────────────────────────────────────── */
 
 .face-capture-panel {
   padding: var(--spacing-lg);
   background: var(--color-bg-secondary);
-  border-bottom: 1px solid var(--color-border);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
+  box-sizing: border-box;
 }
 
-.face-capture-panel h2 {
-  margin-bottom: var(--spacing-md);
-  font-size: 1rem;
+.face-capture-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--spacing-sm);
+}
+
+.face-capture-header h2 {
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  margin: 0;
+}
+
+.face-capture-actions {
+  display: flex;
+  gap: var(--spacing-xs);
+  flex-wrap: wrap;
+  align-items: center;
 }
 
 .face-capture-entry {
   display: flex;
   align-items: center;
-  gap: var(--spacing-lg);
+  gap: var(--spacing-md);
   flex-wrap: wrap;
 }
 
 .face-status-dots {
   display: flex;
   gap: var(--spacing-xs);
+  align-items: center;
+  flex-wrap: wrap;
 }
 
 /* ─────────────────────────────────────────────────────────────────────────────
@@ -1206,23 +1274,78 @@ textarea {
     padding: var(--spacing-md);
   }
 
-  .viewer-region {
-    margin: var(--spacing-md);
-    padding: var(--spacing-md);
+  .header-content h1 {
+    font-size: 1.35rem;
   }
 
-  .viewer-controls {
-    flex-wrap: wrap;
+  .app-main {
     padding: var(--spacing-md);
+    gap: var(--spacing-md);
   }
 
+  .size-control-panel,
   .face-capture-panel,
+  .net-region,
   .panel {
     padding: var(--spacing-md);
   }
 
+  .face-capture-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .face-capture-actions {
+    width: 100%;
+  }
+
+  .face-capture-actions .btn {
+    flex: 1 1 auto;
+  }
+
   .modal-content {
     padding: var(--spacing-lg);
+  }
+}
+
+@media (max-width: 540px) {
+  .size-control-panel {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--spacing-sm);
+  }
+
+  .size-selector {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .size-btn {
+    flex: 1 1 0;
+    min-width: 0;
+  }
+
+  .face-capture-entry {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .face-capture-entry .btn {
+    width: 100%;
+  }
+
+  .face-status-dots {
+    justify-content: center;
+    width: 100%;
+  }
+
+  .btn-row {
+    flex-direction: column;
+  }
+
+  .btn-row .btn {
+    width: 100%;
+    flex: none;
   }
 }
 

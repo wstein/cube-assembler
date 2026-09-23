@@ -1248,7 +1248,7 @@ function App() {
   }
 
   return (
-    <div>
+    <div class="app-layout">
       {/* Header */}
       <header class="app-header">
         <div class="header-content">
@@ -1257,10 +1257,10 @@ function App() {
         </div>
       </header>
 
-      {/* 3D Viewer */}
-      <div class="viewer-region">
-        <div class="viewer-controls">
-          <h3>Puzzle Size</h3>
+      <main class="app-main">
+        {/* Puzzle Size Bar */}
+        <div class="size-control-panel">
+          <span class="size-control-label">Puzzle Size</span>
           <div class="size-selector">
             {[2, 3, 4, 5, 6, 7].map((size) => (
               <button
@@ -1273,144 +1273,264 @@ function App() {
             ))}
           </div>
         </div>
-      </div>
 
-      {/* Cube Net */}
-      {cube && (() => {
-        // parity.highlight (see server/Server.ts's HighlightGroup) is a
-        // list of readings, each with its own `group` tag (the color
-        // combination or matched piece name it read as) and the facelets
-        // backing it. Multiple entries can share a `group` - e.g. every
-        // wing that matched an over-represented pair - which is exactly
-        // the set to cross-highlight on hover, since they're the
-        // candidates for "which of these is actually the misread one".
-        const highlightGroups: Array<{ group: string; facelets: { face: string; index: number }[] }> =
-          parity?.highlight ?? []
-        const totalHighlighted = highlightGroups.reduce((n, g) => n + g.facelets.length, 0)
-        const groupAt = (face: string, index: number): string | undefined =>
-          highlightGroups.find((g) => g.facelets.some((f) => f.face === face && f.index === index))?.group
-        return (
-        <div class="net-region">
-          <h3>Cube Net</h3>
-          {totalHighlighted > 0 && (
-            <p class="net-highlight-note">
-              ⚠ {totalHighlighted} sticker{totalHighlighted === 1 ? '' : 's'} outlined below may be involved in the
-              parity problem — see the message above. Hover one to see which others share its color reading.
-            </p>
-          )}
-          <div class="cube-net">
-            {(
-              [
-                ['U', cube.u, 'net-u'],
-                ['L', cube.l, 'net-l'],
-                ['F', cube.f, 'net-f'],
-                ['R', cube.r, 'net-r'],
-                ['B', cube.b, 'net-b'],
-                ['D', cube.d, 'net-d'],
-              ] as [string, string[], string][]
-            ).map(([label, data, cls]) => {
-              // Faces are named by their lowercase CubeIR key ('u','r',...)
-              // in parity.highlight, matching `cube`'s own keys - `label`
-              // here is only the uppercase display letter used for the
-              // net-u/net-l/... CSS class.
-              const faceKey = label.toLowerCase()
-              return (
-                <div class={`net-face ${cls}`} key={label}>
-                  <div
-                    class="net-face-grid"
-                    style={{ gridTemplateColumns: `repeat(${puzzleSize}, 1fr)` }}
-                  >
-                    {data.map((color, i) => {
-                      const group = groupAt(faceKey, i)
-                      const isHoverRelated = group !== undefined && group === hoveredHighlightGroup
-                      return (
-                        <div
-                          class={`net-cell ${group !== undefined ? 'net-cell-highlighted' : ''} ${isHoverRelated ? 'net-cell-hover-related' : ''}`}
-                          key={i}
-                          style={{ background: STICKER_HEX[color] || '#888' }}
-                          onMouseEnter={() => { if (group !== undefined) setHoveredHighlightGroup(group) }}
-                          onMouseLeave={() => setHoveredHighlightGroup(null)}
-                        ></div>
-                      )
-                    })}
+        {/* Cube Net */}
+        {cube && (() => {
+          // parity.highlight (see server/Server.ts's HighlightGroup) is a
+          // list of readings, each with its own `group` tag (the color
+          // combination or matched piece name it read as) and the facelets
+          // backing it. Multiple entries can share a `group` - e.g. every
+          // wing that matched an over-represented pair - which is exactly
+          // the set to cross-highlight on hover, since they're the
+          // candidates for "which of these is actually the misread one".
+          const highlightGroups: Array<{ group: string; facelets: { face: string; index: number }[] }> =
+            parity?.highlight ?? []
+          const totalHighlighted = highlightGroups.reduce((n, g) => n + g.facelets.length, 0)
+          const groupAt = (face: string, index: number): string | undefined =>
+            highlightGroups.find((g) => g.facelets.some((f) => f.face === face && f.index === index))?.group
+          return (
+          <div class="net-region">
+            <h3>Cube Net</h3>
+            {totalHighlighted > 0 && (
+              <p class="net-highlight-note">
+                ⚠ {totalHighlighted} sticker{totalHighlighted === 1 ? '' : 's'} outlined below may be involved in the
+                parity problem — see the message above. Hover one to see which others share its color reading.
+              </p>
+            )}
+            <div class="cube-net">
+              {(
+                [
+                  ['U', cube.u, 'net-u'],
+                  ['L', cube.l, 'net-l'],
+                  ['F', cube.f, 'net-f'],
+                  ['R', cube.r, 'net-r'],
+                  ['B', cube.b, 'net-b'],
+                  ['D', cube.d, 'net-d'],
+                ] as [string, string[], string][]
+              ).map(([label, data, cls]) => {
+                // Faces are named by their lowercase CubeIR key ('u','r',...)
+                // in parity.highlight, matching `cube`'s own keys - `label`
+                // here is only the uppercase display letter used for the
+                // net-u/net-l/... CSS class.
+                const faceKey = label.toLowerCase()
+                return (
+                  <div class={`net-face ${cls}`} key={label}>
+                    <div
+                      class="net-face-grid"
+                      style={{ gridTemplateColumns: `repeat(${puzzleSize}, 1fr)` }}
+                    >
+                      {data.map((color, i) => {
+                        const group = groupAt(faceKey, i)
+                        const isHoverRelated = group !== undefined && group === hoveredHighlightGroup
+                        return (
+                          <div
+                            class={`net-cell ${group !== undefined ? 'net-cell-highlighted' : ''} ${isHoverRelated ? 'net-cell-hover-related' : ''}`}
+                            key={i}
+                            style={{ background: STICKER_HEX[color] || '#888' }}
+                            onMouseEnter={() => { if (group !== undefined) setHoveredHighlightGroup(group) }}
+                            onMouseLeave={() => setHoveredHighlightGroup(null)}
+                          ></div>
+                        )
+                      })}
+                    </div>
                   </div>
-                </div>
-              )
-            })}
+                )
+              })}
+            </div>
           </div>
-        </div>
-        )
-      })()}
+          )
+        })()}
 
-      {/* Face Capture Panel */}
-      <section class="face-capture-panel">
-        <div class="face-capture-header">
-          <h2>Capture Cube Faces</h2>
-          <div class="face-capture-actions">
-            <button class="btn btn-secondary btn-sm" onClick={handleApplySolved}>
-              Reset to Solved
-            </button>
-            <button class="btn btn-secondary btn-sm" onClick={() => setShowColorInput(!showColorInput)}>
-              {showColorInput ? '✕ Close' : '+ Manual Input'}
-            </button>
+        {/* Face Capture Panel */}
+        <section class="face-capture-panel">
+          <div class="face-capture-header">
+            <h2>Capture Cube Faces</h2>
+            <div class="face-capture-actions">
+              <button class="btn btn-secondary btn-sm" onClick={handleApplySolved}>
+                Reset to Solved
+              </button>
+              <button class="btn btn-secondary btn-sm" onClick={() => setShowColorInput(!showColorInput)}>
+                {showColorInput ? '✕ Close' : '+ Manual Input'}
+              </button>
+            </div>
           </div>
-        </div>
-        <div class="face-capture-entry">
-          <button class="btn btn-primary" onClick={handleOpenCapture}>
-            {FACE_ORDER.every((f) => f in capturedFaces)
-              ? 'Recapture Faces'
-              : FACE_ORDER.some((f) => f in capturedFaces)
-              ? `Continue Capturing (${FACE_ORDER.filter((f) => f in capturedFaces).length}/${FACE_ORDER.length})`
-              : 'Capture Faces'}
-          </button>
-          <label
-            class={`btn btn-secondary ${loading ? 'btn-disabled' : ''}`}
-            title="Select a fixture's meta.json together with its 6 face-*.jpg photos"
-          >
-            ⇪ Upload Fixture
-            <input
-              type="file"
-              accept=".json,image/*"
-              multiple
-              hidden
-              disabled={loading}
-              onChange={handleUploadFixture}
-            />
-          </label>
-          {FACE_ORDER.every((f) => f in capturedFaces) && (
-            <button
-              class="btn btn-secondary"
-              onClick={() => {
-                setReviewStep(0)
-                setShowReviewDialog(true)
-              }}
+          <div class="face-capture-entry">
+            <button class="btn btn-primary" onClick={handleOpenCapture}>
+              {FACE_ORDER.every((f) => f in capturedFaces)
+                ? 'Recapture Faces'
+                : FACE_ORDER.some((f) => f in capturedFaces)
+                ? `Continue Capturing (${FACE_ORDER.filter((f) => f in capturedFaces).length}/${FACE_ORDER.length})`
+                : 'Capture Faces'}
+            </button>
+            <label
+              class={`btn btn-secondary ${loading ? 'btn-disabled' : ''}`}
+              title="Select a fixture's meta.json together with its 6 face-*.jpg photos"
             >
-              ✎ Edit Colors
-            </button>
-          )}
-          <div class="face-status-dots">
-            {FACE_ORDER.map((face) => (
-              <span
-                key={face}
-                class={`progress-dot ${capturedFaces[face] ? 'done' : ''}`}
-                title={`Face ${FACE_DISPLAY_LABEL[face]}${capturedFaces[face] ? ' (captured)' : ' (not captured)'}`}
+              ⇪ Upload Fixture
+              <input
+                type="file"
+                accept=".json,image/*"
+                multiple
+                hidden
+                disabled={loading}
+                onChange={handleUploadFixture}
+              />
+            </label>
+            {FACE_ORDER.every((f) => f in capturedFaces) && (
+              <button
+                class="btn btn-secondary"
+                onClick={() => {
+                  setReviewStep(0)
+                  setShowReviewDialog(true)
+                }}
               >
-                {FACE_DISPLAY_LABEL[face]}
-              </span>
-            ))}
+                ✎ Edit Colors
+              </button>
+            )}
+            <div class="face-status-dots">
+              {FACE_ORDER.map((face) => (
+                <span
+                  key={face}
+                  class={`progress-dot ${capturedFaces[face] ? 'done' : ''}`}
+                  title={`Face ${FACE_DISPLAY_LABEL[face]}${capturedFaces[face] ? ' (captured)' : ' (not captured)'}`}
+                >
+                  {FACE_DISPLAY_LABEL[face]}
+                </span>
+              ))}
+            </div>
           </div>
-        </div>
-        {/* Fixture-load/bulk-action feedback: the webcam modal has its own
-            copy of this same message for the live-capture flow, but that
-            modal isn't open for an upload started from this panel, so
-            without this the message would update invisibly. */}
-        {captureMessage && !webcamOpen && (
-          <div role="status" class={`capture-message ${captureMessage.includes('✓') ? 'success' : captureMessage.includes('❌') ? 'error' : ''}`}>
-            {captureMessage}
+          {/* Fixture-load/bulk-action feedback: the webcam modal has its own
+              copy of this same message for the live-capture flow, but that
+              modal isn't open for an upload started from this panel, so
+              without this the message would update invisibly. */}
+          {captureMessage && !webcamOpen && (
+            <div role="status" class={`capture-message ${captureMessage.includes('✓') ? 'success' : captureMessage.includes('❌') ? 'error' : ''}`}>
+              {captureMessage}
+            </div>
+          )}
+          {showColorInput && (
+            <div class="color-input-panel">
+              <div class="notation-format-toggle">
+                <button
+                  class={`wb-btn ${notationFormat === 'wrg' ? 'active' : ''}`}
+                  onClick={() => setNotationFormat('wrg')}
+                >
+                  WRG Facelets
+                </button>
+                <button
+                  class={`wb-btn ${notationFormat === 'urf' ? 'active' : ''}`}
+                  onClick={() => setNotationFormat('urf')}
+                >
+                  URF Facelets
+                </button>
+              </div>
+              <label>
+                {notationFormat === 'wrg'
+                  ? `Enter WRG facelets: 6 blocks of ${puzzleSize * puzzleSize} colors (W, O, G, R, B, Y), space-separated, in U R F D L B order`
+                  : `Enter URF facelets: 6 blocks of ${puzzleSize * puzzleSize} letters (U, R, F, D, L, B - the face each sticker's color matches when solved), space-separated, in U R F D L B order`}
+              </label>
+              <textarea
+                value={manualColorInput}
+                onInput={(e) => {
+                  const value = e.currentTarget.value
+                  setManualColorInput(value)
+                  const detected = detectNotationFormat(value)
+                  if (detected && detected !== notationFormat) setNotationFormat(detected)
+                }}
+                placeholder={notationFormat === 'wrg'
+                  ? Array(6).fill('W'.repeat(puzzleSize * puzzleSize)).join(' ')
+                  : ['U', 'R', 'F', 'D', 'L', 'B'].map((l) => l.repeat(puzzleSize * puzzleSize)).join(' ')}
+                rows={6}
+                style={{ width: '100%', marginTop: '0.5rem' }}
+              />
+              <div class="input-actions">
+                <button
+                  class="btn btn-primary btn-sm"
+                  onClick={handleApplyFacelets}
+                  disabled={loading}
+                >
+                  {loading ? '⏳ Processing...' : 'Apply Facelets'}
+                </button>
+              </div>
+            </div>
+          )}
+        </section>
+
+        {/* Controls: Algorithms, Scramble, Parity, Notation */}
+        <aside class="panel panel-controls">
+          <div class="control-section">
+            <h2>WCA Notation</h2>
+            <label>Algorithm</label>
+            <input
+              type="text"
+              placeholder="R U R' U'  F' U F  ..."
+              value={algorithm}
+              onInput={(e) => setAlgorithm(e.currentTarget.value)}
+            />
+
+            <div class="algo-presets">
+              {Object.entries(presets).map(([name, algo]) => (
+                <button
+                  class="preset-btn"
+                  onClick={() => handlePresetAlgorithm(algo)}
+                  key={name}
+                >
+                  {name}
+                </button>
+              ))}
+            </div>
+
+            <div class="btn-row">
+              <button class="btn btn-primary" onClick={handleApplyAlgorithm} disabled={loading || !cube}>
+                {loading ? '⏳ Applying...' : 'Apply Algorithm'}
+              </button>
+              <button class="btn btn-secondary" onClick={handleInvertAlgorithm} disabled={loading || !cube}>
+                {loading ? '⏳ Inverting...' : 'Invert & Apply'}
+              </button>
+            </div>
           </div>
-        )}
-        {showColorInput && (
-          <div class="color-input-panel">
+
+          <div class="control-section">
+            <h2>Scramble</h2>
+            <div class="scramble-display">{scramble || 'Press Generate to get a WCA scramble'}</div>
+            <div class="btn-row">
+              <button class="btn btn-primary" onClick={handleGenerateScramble} disabled={loading}>
+                {loading ? '⏳ Generating...' : 'Generate WCA Scramble'}
+              </button>
+              <button class="btn btn-secondary" onClick={handleApplyScramble} disabled={loading || !scramble || !cube}>
+                {loading ? '⏳ Applying...' : 'Apply Scramble'}
+              </button>
+            </div>
+          </div>
+
+          <div class="control-section">
+            <h2>Parity Status</h2>
+            {/* Always mounted, so screen readers announce the verdict when it
+                changes - only the summary, not every individual check. */}
+            <div role="status">
+              {parity ? (
+                <div class={`status-line ${parity.valid ? 'success' : 'error'}`}>
+                  <span class={`status-dot ${parity.valid ? 'success' : 'error'}`} aria-hidden="true"></span>
+                  {parity.result}
+                </div>
+              ) : (
+                <div class="status-line">No cube loaded. Capture all 6 faces to validate.</div>
+              )}
+            </div>
+            {parity && (
+              <div class="parity-checks">
+                {Object.entries(parity.checks).map(([check, valid]: [string, any]) => (
+                  <div class="status-line" key={check}>
+                    <span class={`status-dot ${valid ? 'success' : 'error'}`} aria-hidden="true"></span>
+                    {check}: {valid ? '✓' : '✗'}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div class="control-section">
+            <h2>Notation Output</h2>
             <div class="notation-format-toggle">
               <button
                 class={`wb-btn ${notationFormat === 'wrg' ? 'active' : ''}`}
@@ -1425,143 +1545,35 @@ function App() {
                 URF Facelets
               </button>
             </div>
-            <label>
+            <p class="notation-hint">
               {notationFormat === 'wrg'
-                ? `Enter WRG facelets: 6 blocks of ${puzzleSize * puzzleSize} colors (W, O, G, R, B, Y), space-separated, in U R F D L B order`
-                : `Enter URF facelets: 6 blocks of ${puzzleSize * puzzleSize} letters (U, R, F, D, L, B - the face each sticker's color matches when solved), space-separated, in U R F D L B order`}
-            </label>
-            <textarea
-              value={manualColorInput}
-              onInput={(e) => {
-                const value = e.currentTarget.value
-                setManualColorInput(value)
-                const detected = detectNotationFormat(value)
-                if (detected && detected !== notationFormat) setNotationFormat(detected)
-              }}
-              placeholder={notationFormat === 'wrg'
-                ? Array(6).fill('W'.repeat(puzzleSize * puzzleSize)).join(' ')
-                : ['U', 'R', 'F', 'D', 'L', 'B'].map((l) => l.repeat(puzzleSize * puzzleSize)).join(' ')}
-              rows={6}
-              style={{ width: '100%', marginTop: '0.5rem' }}
-            />
-            <div class="input-actions">
-              <button
-                class="btn btn-primary btn-sm"
-                onClick={handleApplyFacelets}
-                disabled={loading}
-              >
-                {loading ? '⏳ Processing...' : 'Apply Facelets'}
+                ? `WRG facelets: 6 blocks of ${puzzleSize * puzzleSize} (W O G R B Y colors), space-separated.`
+                : `URF facelets: 6 blocks of ${puzzleSize * puzzleSize} (U R F D L B letters), space-separated.`}
+            </p>
+            <textarea readonly value={getNotationOutput()} />
+            <div class="btn-row">
+              <button class="btn btn-primary" onClick={() => cube && copyToClipboard(getNotationOutput())}>
+                Copy to Clipboard
               </button>
+              {cube && (
+                <button
+                  class="btn btn-secondary"
+                  onClick={handleSendFixtureToServer}
+                  disabled={loading}
+                  title="Save this capture's photos + reviewed colors on the server as a permanent regression test fixture"
+                >
+                  {loading ? '⏳ Sending...' : '💾 Send to Server (Save as Test Fixture)'}
+                </button>
+              )}
             </div>
-          </div>
-        )}
-      </section>
-
-      {/* Right Panel: Algorithms & Results */}
-      <aside class="panel panel-controls">
-        <h2>WCA Notation</h2>
-        <label>Algorithm</label>
-        <input
-          type="text"
-          placeholder="R U R' U'  F' U F  ..."
-          value={algorithm}
-          onInput={(e) => setAlgorithm(e.currentTarget.value)}
-        />
-
-        <div class="algo-presets">
-          {Object.entries(presets).map(([name, algo]) => (
-            <button
-              class="preset-btn"
-              onClick={() => handlePresetAlgorithm(algo)}
-              key={name}
-            >
-              {name}
-            </button>
-          ))}
-        </div>
-
-        <button class="btn btn-primary" onClick={handleApplyAlgorithm} disabled={loading || !cube}>
-          {loading ? '⏳ Applying...' : 'Apply Algorithm'}
-        </button>
-        <button class="btn btn-secondary" onClick={handleInvertAlgorithm} disabled={loading || !cube}>
-          {loading ? '⏳ Inverting...' : 'Invert & Apply'}
-        </button>
-
-        <h2>Scramble</h2>
-        <div class="scramble-display">{scramble || 'Press Generate to get a WCA scramble'}</div>
-        <button class="btn btn-primary" onClick={handleGenerateScramble} disabled={loading}>
-          {loading ? '⏳ Generating...' : 'Generate WCA Scramble'}
-        </button>
-        <button class="btn btn-secondary" onClick={handleApplyScramble} disabled={loading || !scramble || !cube}>
-          {loading ? '⏳ Applying...' : 'Apply Scramble'}
-        </button>
-
-        <h2>Parity Status</h2>
-        {/* Always mounted, so screen readers announce the verdict when it
-            changes - only the summary, not every individual check. */}
-        <div role="status">
-          {parity ? (
-            <div class={`status-line ${parity.valid ? 'success' : 'error'}`}>
-              <span class={`status-dot ${parity.valid ? 'success' : 'error'}`} aria-hidden="true"></span>
-              {parity.result}
-            </div>
-          ) : (
-            <div class="status-line">No cube loaded. Capture all 6 faces to validate.</div>
-          )}
-        </div>
-        {parity && (
-          <div class="parity-checks">
-            {Object.entries(parity.checks).map(([check, valid]: [string, any]) => (
-              <div class="status-line" key={check}>
-                <span class={`status-dot ${valid ? 'success' : 'error'}`} aria-hidden="true"></span>
-                {check}: {valid ? '✓' : '✗'}
-              </div>
-            ))}
-          </div>
-        )}
-
-        <h2>Notation Output</h2>
-        <div class="notation-format-toggle">
-          <button
-            class={`wb-btn ${notationFormat === 'wrg' ? 'active' : ''}`}
-            onClick={() => setNotationFormat('wrg')}
-          >
-            WRG Facelets
-          </button>
-          <button
-            class={`wb-btn ${notationFormat === 'urf' ? 'active' : ''}`}
-            onClick={() => setNotationFormat('urf')}
-          >
-            URF Facelets
-          </button>
-        </div>
-        <p class="notation-hint">
-          {notationFormat === 'wrg'
-            ? `WRG facelets: 6 blocks of ${puzzleSize * puzzleSize} (W O G R B Y colors), space-separated.`
-            : `URF facelets: 6 blocks of ${puzzleSize * puzzleSize} (U R F D L B letters), space-separated.`}
-        </p>
-        <textarea readonly value={getNotationOutput()} />
-        <button class="btn btn-primary" onClick={() => cube && copyToClipboard(getNotationOutput())}>
-          Copy to Clipboard
-        </button>
-        {cube && (
-          <>
-            <button
-              class="btn btn-secondary"
-              onClick={handleSendFixtureToServer}
-              disabled={loading}
-              title="Save this capture's photos + reviewed colors on the server as a permanent regression test fixture"
-            >
-              {loading ? '⏳ Sending...' : '💾 Send to Server (Save as Test Fixture)'}
-            </button>
             {fixtureSaveMessage && (
               <div role="status" class={`capture-message ${fixtureSaveMessage.includes('✓') ? 'success' : fixtureSaveMessage.includes('❌') ? 'error' : ''}`}>
                 {fixtureSaveMessage}
               </div>
             )}
-          </>
-        )}
-      </aside>
+          </div>
+        </aside>
+      </main>
 
       {/* Webcam Modal */}
       {webcamOpen && (
