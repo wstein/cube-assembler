@@ -898,17 +898,19 @@ function App() {
   // Restores a fixture saved earlier via handleSendFixtureToServer (see
   // server/Server.ts's POST /api/fixtures and test/fixtures/<name>/) -
   // the customer selects that directory's meta.json together with its 6
-  // face-*.jpg photos (one multi-file picker covers both). Unlike bulk
-  // photo import, this does NOT run color detection or white-balance
-  // recalibration: meta.json's colors are already the final, human-
-  // reviewed answer from whenever the fixture was saved, and re-deriving
-  // them from the photos could silently undo that review. Faces are
-  // restored under whatever slot key they were saved under (meta.json's
-  // "u"/"r"/... - the ORIGINAL capture-order slot, not necessarily true
-  // physical identity, since capturedFaces itself is never rewritten to
-  // reflect solveFaceOrientations' answer - see handleConfirmReview), so
-  // reloading a fixture faithfully reproduces what solveFaceOrientations
-  // would have seen the first time.
+  // face-*.jpg photos (one multi-file picker covers both). Colors are
+  // re-detected from the photos through the same pipeline a live capture
+  // uses (runGlobalWhiteBalance), replaying the per-face gains recorded at
+  // capture time - so a detection problem reproduces exactly as the
+  // customer saw it. meta.json's colors (the human-reviewed answer) are
+  // kept as the final colors; wherever detection disagrees, the review
+  // wizard marks the sticker with what was detected (see detectedColors).
+  // Faces are restored under whatever slot key they were saved under
+  // (meta.json's "u"/"r"/... - the ORIGINAL capture-order slot, not
+  // necessarily true physical identity, since capturedFaces itself is never
+  // rewritten to reflect solveFaceOrientations' answer - see
+  // handleConfirmReview), so reloading a fixture faithfully reproduces what
+  // solveFaceOrientations would have seen the first time.
   const handleUploadFixture = async (e: Event) => {
     const input = e.currentTarget as HTMLInputElement
     const files = Array.from(input.files ?? [])
@@ -924,7 +926,11 @@ function App() {
         return
       }
 
-      let meta: { gridSize: number; faces: Record<string, { colors: string[][]; photo: string }> }
+      let meta: {
+        gridSize: number
+        faces: Record<string, { colors: string[][]; photo: string }>
+        capture?: { backgroundWhiteBalance?: Record<string, RGB> }
+      }
       try {
         meta = JSON.parse(await metaFile.text())
       } catch {
@@ -966,10 +972,30 @@ function App() {
         return
       }
 
+      setCaptureMessage('Detecting colors from the fixture photos...')
+      const recordedGains = meta.capture?.backgroundWhiteBalance
+      const images = Object.fromEntries(Object.entries(newEntries).map(([f, d]) => [f, d.croppedImage!]))
+      const wb = await runGlobalWhiteBalance(images, meta.gridSize, recordedGains)
+      let mismatches = 0
+      for (const [f, entry] of Object.entries(newEntries)) {
+        const det = wb.faces[f]
+        entry.detectedColors = det.colors
+        entry.cellColors = det.cellColors
+        entry.cellConfidences = det.cellConfidences
+        entry.confidence = det.confidence
+        entry.colors.forEach((row, r) => row.forEach((color, c) => { if (det.colors[r][c] !== color) mismatches++ }))
+      }
+      setAppliedBackgroundGains(recordedGains ?? null)
+      setGlobalWhiteBalanceNote(wb.applied
+        ? 'Colors re-checked by learning each sticker color from all 6 faces together, instead of fixed reference values.'
+        : null)
+
       setPuzzleSize(meta.gridSize)
       setCapturedFaces(newEntries)
-      setFaceConfidence(Object.fromEntries(Object.keys(newEntries).map((f) => [f, 1])))
-      setCaptureMessage(`✓ Loaded fixture (${Object.keys(newEntries).length} faces).`)
+      setFaceConfidence(Object.fromEntries(Object.entries(newEntries).map(([f, d]) => [f, d.confidence])))
+      setCaptureMessage(mismatches === 0
+        ? `✓ Loaded fixture - detection matches all stickers.`
+        : `✓ Loaded fixture - detection differs on ${mismatches} sticker${mismatches === 1 ? '' : 's'} (marked in the review).`)
       setReviewStep(0)
       setShowReviewDialog(true)
     } finally {
