@@ -200,6 +200,35 @@ function colorDistance(c1: RGB, c2: RGB): number {
   return oklabDistance(rgbToOklab(c1), rgbToOklab(c2))
 }
 
+// How much less the L (lightness) axis counts than a/b (hue+chroma) in the
+// learnStickerColors clustering pipeline specifically - NOT the plain
+// colorDistance above, which closestSticker and CONFIDENCE_DISTANCE_SCALE
+// are calibrated against and which stays unweighted. Counterintuitive
+// finding (2026-09-23 real-fixture design discussion, "F3"): Red/Orange's
+// average L gap looked like the more reliable separator than hue in real
+// captures, so the first attempt WEIGHTED L UP - that made things much
+// worse (10/228 real-fixture mismatches -> 125/228 at high weights).
+// Real per-sticker L varies far more than hue/chroma does shot-to-shot
+// (glare, shadow, exposure), so weighting it up let that noise dominate
+// the metric for every color pair, not just the close ones. Weighting L
+// DOWN instead - discounting the noisier axis rather than trusting it
+// more - is what actually helped: 0.6 sits in the middle of a stable
+// plateau (0.5-0.72 score identically) found by sweeping against all 4
+// real fixtures, dropping mismatches to 2/228 (both remaining cases are
+// genuine Red/Orange hue-boundary ties with no signal left to resolve).
+const CLUSTER_L_WEIGHT = 0.6
+
+function clusterOklabDistance(o1: Oklab, o2: Oklab): number {
+  const dl = (o1.l - o2.l) * CLUSTER_L_WEIGHT
+  const da = o1.a - o2.a
+  const db = o1.b - o2.b
+  return Math.sqrt(dl * dl + da * da + db * db)
+}
+
+function clusterDistance(c1: RGB, c2: RGB): number {
+  return clusterOklabDistance(rgbToOklab(c1), rgbToOklab(c2))
+}
+
 // Calibration for turning an OKLab colorDistance into a 0-1 confidence
 // score (see cellConfidence below): the closest pair of the 6 canonical
 // colors (Red-Orange) sits ~0.15 apart in this space, and the farthest
@@ -358,7 +387,7 @@ function balancedAssign(points: RGB[], centroids: RGB[]): number[] {
   for (let pi = 0; pi < n; pi++) {
     const row: number[] = []
     for (let ci = 0; ci < k; ci++) {
-      const d = colorDistance(points[pi], centroids[ci])
+      const d = clusterDistance(points[pi], centroids[ci])
       for (let s = 0; s < capacity; s++) row.push(d)
     }
     cost.push(row)
@@ -395,7 +424,7 @@ function kMeansCluster(points: RGB[], k: number, iterations = 20): RGB[] {
     let farthestMinDist = -1
     for (const p of points) {
       let minDist = Infinity
-      for (const c of centroids) minDist = Math.min(minDist, colorDistance(p, c))
+      for (const c of centroids) minDist = Math.min(minDist, clusterDistance(p, c))
       if (minDist > farthestMinDist) { farthestMinDist = minDist; farthest = p }
     }
     centroids.push(farthest)
@@ -438,7 +467,7 @@ function bestPermutationMatch(centroids: RGB[], canonical: RGB[]): number[] {
   function permute(arr: number[], l: number) {
     if (l === arr.length) {
       let cost = 0
-      for (let i = 0; i < k; i++) cost += colorDistance(centroids[i], canonical[arr[i]]) ** 2
+      for (let i = 0; i < k; i++) cost += clusterDistance(centroids[i], canonical[arr[i]]) ** 2
       if (cost < bestCost) { bestCost = cost; bestAssignment = [...arr] }
       return
     }
@@ -614,9 +643,9 @@ export function learnStickerColors(samples: StickerSample[]): LearnedColors | nu
         a: (clusterSums[clusterIdx].a - pointsOklab[i].a) / (count - 1),
         b: (clusterSums[clusterIdx].b - pointsOklab[i].b) / (count - 1),
       }
-      return oklabDistance(pointsOklab[i], centroidOklab)
+      return clusterOklabDistance(pointsOklab[i], centroidOklab)
     }
-    return colorDistance(point, shrunkCentroids[clusterIdx])
+    return clusterDistance(point, shrunkCentroids[clusterIdx])
   })
 
   return { colors, clusterSizes, labelsBySampleIndex, leaveOneOutDistances }
