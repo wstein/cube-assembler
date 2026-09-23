@@ -12,7 +12,7 @@
  */
 import { describe, it, expect } from 'vitest'
 import {
-  learnStickerColors, rgbToOKLCH, formatOKLCHValues, hueCircularRange, linearRange,
+  learnStickerColors, rgbToOKLCH, formatOKLCHValues, hueCircularRange, hueRangesOverlap, linearRange,
   hungarianAssignment, trimmedMeanColor, STICKER_COLORS, type RGB,
 } from '../src/client/imageProcessing'
 
@@ -103,6 +103,40 @@ describe('hueCircularRange', () => {
     expect(range.min).toBe(200)
     expect(range.max).toBe(12)
     expect(range.span).toBe(172)
+  })
+})
+
+describe('hueRangesOverlap', () => {
+  it('returns false for clearly disjoint arcs', () => {
+    expect(hueRangesOverlap({ min: 0, max: 10, span: 10 }, { min: 100, max: 110, span: 10 })).toBe(false)
+  })
+
+  it('returns true for partially overlapping arcs', () => {
+    expect(hueRangesOverlap({ min: 0, max: 20, span: 20 }, { min: 10, max: 30, span: 20 })).toBe(true)
+  })
+
+  it('returns true when one arc fully contains another', () => {
+    expect(hueRangesOverlap({ min: 0, max: 40, span: 40 }, { min: 10, max: 20, span: 10 })).toBe(true)
+  })
+
+  it('returns true for identical arcs', () => {
+    const r = { min: 50, max: 70, span: 20 }
+    expect(hueRangesOverlap(r, r)).toBe(true)
+  })
+
+  it('treats touching endpoints as overlapping', () => {
+    expect(hueRangesOverlap({ min: 0, max: 10, span: 10 }, { min: 10, max: 20, span: 10 })).toBe(true)
+  })
+
+  it('handles arcs that straddle the 0/360 wraparound correctly', () => {
+    // Arc A: 350 -> 10 (through 0). Arc B: 5 -> 15. They share 5-10.
+    expect(hueRangesOverlap({ min: 350, max: 10, span: 20 }, { min: 5, max: 15, span: 10 })).toBe(true)
+    // Arc A: 350 -> 10. Arc C: 100 -> 110 - nowhere near the wraparound region.
+    expect(hueRangesOverlap({ min: 350, max: 10, span: 20 }, { min: 100, max: 110, span: 10 })).toBe(false)
+  })
+
+  it('returns false for two arcs on opposite sides of the circle with real gaps on both sides', () => {
+    expect(hueRangesOverlap({ min: 0, max: 30, span: 30 }, { min: 180, max: 210, span: 30 })).toBe(false)
   })
 })
 

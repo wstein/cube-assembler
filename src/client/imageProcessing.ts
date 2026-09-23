@@ -155,6 +155,28 @@ export function hueCircularRange(hues: number[]): HueRange | null {
   return { min, max, span }
 }
 
+// Whether two hueCircularRange arcs share any point on the circle.
+// Deliberately NOT solved with modular-arithmetic interval-overlap
+// formulas (get the wraparound/containment cases subtly wrong easily,
+// and this file has already hit that class of bug once with the corner/
+// edge facelet tables) - instead walks a fine (0.5°) discretization of
+// the whole circle and checks direct membership in both arcs. Slower
+// than a closed-form check, but by a trivially small, one-time-per-
+// render amount (720 steps), and its correctness doesn't depend on
+// getting a wraparound case right by construction.
+export function hueRangesOverlap(a: HueRange, b: HueRange): boolean {
+  const STEPS = 720
+  const inArc = (deg: number, r: HueRange) => {
+    const rel = ((deg - r.min) % 360 + 360) % 360
+    return rel <= r.span + 1e-9
+  }
+  for (let i = 0; i < STEPS; i++) {
+    const deg = (i * 360) / STEPS
+    if (inArc(deg, a) && inArc(deg, b)) return true
+  }
+  return false
+}
+
 export interface LinearRange {
   min: number
   max: number
