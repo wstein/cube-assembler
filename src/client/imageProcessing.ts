@@ -751,10 +751,10 @@ function computeFaceBounds(canvas: HTMLCanvasElement, fraction = SAMPLE_FACE_FRA
   // the ImageData it returns is necessarily integer-pixel-sized, so a
   // caller that reuses these fractional bounds as BOTH the getImageData
   // argument AND its own manual (row * width + col) pixel-index math (as
-  // extractBackgroundColor's ring scan does, unlike the sticker-cell scan
-  // in extractColorsFromImageData, which stays safely inset from any
-  // edge) risks the two disagreeing on the actual row stride - drifting
-  // further off with every row until it reads past the real buffer end
+  // extractBackgroundColor's background-area scan does, unlike the
+  // sticker-cell scan in extractColorsFromImageData, which stays safely
+  // inset from any edge) risks the two disagreeing on the actual row
+  // stride - drifting further off with every row until it reads past the real buffer end
   // (silently `undefined`, poisoning every downstream sum to NaN). Round
   // once here so every consumer agrees on the same integer bounds.
   return {
@@ -792,21 +792,27 @@ function getFaceRegion(canvas: HTMLCanvasElement): FaceRegion {
 // See the 2026-09-23 real-fixture design discussion ("G1").
 // ─────────────────────────────────────────────────────────────────────────────
 
-// Outer edge of the ring sampled for the background reference, as a
-// fraction of min(width,height) - bigger than SAMPLE_FACE_FRACTION (the
-// sticker square, entirely excluded from this sample) but pulled in from
-// the true frame edge (1.0) to avoid the most lens-distorted/vignetted
-// corner pixels.
-const BACKGROUND_REGION_FRACTION = 0.92
+// Outer edge of the area sampled for the background reference, as a
+// fraction of min(width,height) - the whole frame (1.0) outside the
+// sticker guide square, not just a band near it. A narrow band is MORE
+// exposed to a single localized contamination (a shadow, a reflection, a
+// stray object at that exact radius) skewing the entire reading; the full
+// remaining area lets trimmedMeanColor average that out instead. (A
+// smaller value was tried first, to dodge lens vignetting at the true
+// edge - reconsidered after a live capture showed a background reading
+// extreme enough to turn a correctly-classifiable White sticker into
+// Blue, which pointed at contamination, not genuine illumination drift -
+// see the 2026-09-23 real-fixture design discussion, "G1".)
+const BACKGROUND_REGION_FRACTION = 1.0
 
-// Samples the ring between the sticker guide square and
+// Samples the whole area between the sticker guide square and
 // BACKGROUND_REGION_FRACTION on a LIVE captured frame - null if the frame
-// is too small to have a meaningful ring, or if the ring came back too
-// dark to be a reliable reading (mirrors estimateGrayWorldGains' old
+// is too small to have a meaningful background area, or if it came back
+// too dark to be a reliable reading (mirrors estimateGrayWorldGains' old
 // too-dark guard). Only meaningful on a live, uncropped canvas - a stored
 // croppedImage (see cropFaceRegionToDataUrl) is already cropped down to
-// just the sticker square and has no ring left to sample, which is why
-// this is captured once at capture time (captureAndProcessFace /
+// just the sticker square and has no background left to sample, which is
+// why this is captured once at capture time (captureAndProcessFace /
 // captureAndProcessImage) rather than re-derivable later like
 // redetectFaceColors' sticker re-extraction is.
 export function extractBackgroundColor(canvas: HTMLCanvasElement): RGB | null {
@@ -1010,7 +1016,7 @@ export function extractCubeFaceColors(
 export interface FaceCaptureResult extends ColorDetectionResult {
   croppedImage: string
   // Sampled once, live, at capture time - see extractBackgroundColor. Null
-  // when the frame was too small or the ring came back unreliably dark;
+  // when the frame was too small or the background area came back unreliably dark;
   // callers should then fall back to NEUTRAL_GAINS for this face's
   // cross-face correction rather than treating it as a hard error.
   backgroundColor: RGB | null
