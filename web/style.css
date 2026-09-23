@@ -565,6 +565,10 @@ textarea {
   line-height: 1.5;
 }
 
+.orientation-picker-truncated-note {
+  color: var(--color-warning);
+}
+
 .orientation-picker-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
