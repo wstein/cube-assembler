@@ -8,7 +8,7 @@ import {
   rgbToOKLCH, formatOKLCHValues, hueCircularRange, hueRangesOverlap, linearRange,
   type ColorDetectionResult, type FaceCaptureResult, type RGB,
 } from './imageProcessing'
-import { assembleCubeFromFaces, validateFaceColors, createSolvedCube, toCubeIR, solveFaceOrientations } from './cubeAssembly'
+import { assembleCubeFromFaces, validateFaceColors, createSolvedCube, toCubeIR, solveFaceOrientations, type OrientedCandidate } from './cubeAssembly'
 import { toWRGFacelets, fromWRGFacelets, toURFFacelets, fromURFFacelets, detectNotationFormat } from './notationOutput'
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -139,6 +139,43 @@ function OklchLines({ oklch, class: className }: { oklch: { l: number; c: number
   )
 }
 
+// Renders one candidate orientation as a classic unfolded cube net (cross
+// layout: U above F, D below F, L/F/R/B in a row) so the customer can
+// visually compare candidates against their physical cube and pick which
+// one matches - used when solveFaceOrientations reports genuine
+// orientation ambiguity (see its `alternatives` field).
+function CubeNet({ faces }: { faces: Record<string, string[][]> }) {
+  const grid = (face: string) => (
+    <div class="cube-net-face" style={{ gridTemplateColumns: `repeat(${faces[face].length}, 1fr)` }}>
+      {faces[face].flat().map((color, i) => (
+        <div key={i} class="cube-net-sticker" style={{ background: STICKER_HEX[color] ?? '#888' }} />
+      ))}
+    </div>
+  )
+  return (
+    <div class="cube-net">
+      <div class="cube-net-row">
+        <div class="cube-net-spacer" />
+        {grid('U')}
+        <div class="cube-net-spacer" />
+        <div class="cube-net-spacer" />
+      </div>
+      <div class="cube-net-row">
+        {grid('L')}
+        {grid('F')}
+        {grid('R')}
+        {grid('B')}
+      </div>
+      <div class="cube-net-row">
+        <div class="cube-net-spacer" />
+        {grid('D')}
+        <div class="cube-net-spacer" />
+        <div class="cube-net-spacer" />
+      </div>
+    </div>
+  )
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // App Component
 // ─────────────────────────────────────────────────────────────────────────────
@@ -162,6 +199,10 @@ function App() {
   const [notationFormat, setNotationFormat] = useState<'wrg' | 'urf'>('wrg')
   const [liveDetection, setLiveDetection] = useState<ColorDetectionResult | null>(null)
   const [showReviewDialog, setShowReviewDialog] = useState(false)
+  // Non-null only when solveFaceOrientations found genuine ambiguity (see
+  // its alternatives field) - the customer must pick which reading
+  // matches their physical cube before assembly can proceed.
+  const [orientationAlternatives, setOrientationAlternatives] = useState<OrientedCandidate[] | null>(null)
   const [reviewEditingCell, setReviewEditingCell] = useState<{ face: string; row: number; col: number } | null>(null)
   // Most laptop/webcam feeds are shown mirrored by convention (like a
   // physical mirror), which is what most users expect; default on but
@@ -676,6 +717,17 @@ function App() {
         alert(
           `⚠️ No fully valid orientation found (best: ${solved.cornerScore}/8 corners${edgePart} individually plausible, but not a physically reachable cube) — some captured colors may be misdetected. Check the assembled cube.`
         )
+      } else if (solved.alternatives.length > 1) {
+        // Genuine ambiguity, not a bug: the same uniquely color-identified
+        // 6 photos support more than one physically-different, equally
+        // valid rotation reading (see isFullyValid/OrientationSolution's
+        // alternatives comment in cubeAssembly.ts) - only the person
+        // holding the actual cube can say which is real, so ask instead
+        // of silently picking one. Leaves the review dialog up; the net
+        // picker renders on top of it and calls handleChooseOrientation
+        // once the customer picks, which does the actual assembly.
+        setOrientationAlternatives(solved.alternatives)
+        return
       }
     } else {
       alert(
@@ -684,6 +736,19 @@ function App() {
     }
 
     const cubeState = assembleCubeFromFaces(orientedFaceData, puzzleSize)
+    setCube(cubeState)
+    await updateParityStatus(cubeState)
+    setShowReviewDialog(false)
+  }
+
+  // Finishes assembly once the customer has picked which of several
+  // equally-valid orientation readings matches their physical cube (see
+  // orientationAlternatives) - mirrors handleConfirmReview's tail end
+  // exactly, since this IS that same step, just with the choice already
+  // made instead of auto-picking alternatives[0].
+  const handleChooseOrientation = async (chosen: OrientedCandidate) => {
+    setOrientationAlternatives(null)
+    const cubeState = assembleCubeFromFaces(chosen.faces, puzzleSize)
     setCube(cubeState)
     await updateParityStatus(cubeState)
     setShowReviewDialog(false)
@@ -1418,6 +1483,33 @@ function App() {
           </div>
         )
       })()}
+
+      {/* Orientation-ambiguity picker - see orientationAlternatives */}
+      {orientationAlternatives && (
+        <div class="modal open">
+          <div class="modal-content orientation-picker">
+            <div class="modal-header">
+              <h2>Which orientation matches your cube?</h2>
+              <button class="modal-close" onClick={() => setOrientationAlternatives(null)}>×</button>
+            </div>
+            <p class="orientation-picker-note">
+              The photographed colors are equally consistent with {orientationAlternatives.length} different
+              readings of your cube — this can happen when a cube's own arrangement has a symmetry the camera
+              can't see past. Pick whichever net below matches what you're actually holding.
+            </p>
+            <div class="orientation-picker-grid">
+              {orientationAlternatives.map((alt, i) => (
+                <div key={i} class="orientation-picker-option">
+                  <CubeNet faces={alt.faces} />
+                  <button class="btn btn-primary btn-sm" onClick={() => handleChooseOrientation(alt)}>
+                    Use this one
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Color-fix palette popup */}
       {reviewEditingCell && (

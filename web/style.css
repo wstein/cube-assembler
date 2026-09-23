@@ -516,6 +516,69 @@ textarea {
   width: min(820px, 92vw);
 }
 
+/* ─────────────────────────────────────────────────────────────────────────────
+   ORIENTATION-AMBIGUITY PICKER (solveFaceOrientations' alternatives)
+   ───────────────────────────────────────────────────────────────────────────── */
+
+.orientation-picker {
+  width: min(900px, 95vw);
+}
+
+.orientation-picker-note {
+  color: var(--color-text-secondary);
+  font-size: 0.9rem;
+  margin: 0 0 var(--spacing-lg);
+  line-height: 1.5;
+}
+
+.orientation-picker-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: var(--spacing-lg);
+}
+
+.orientation-picker-option {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-md);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-secondary);
+}
+
+.cube-net {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.cube-net-row {
+  display: flex;
+  gap: 2px;
+}
+
+.cube-net-face {
+  display: grid;
+  gap: 1px;
+  width: 56px;
+  height: 56px;
+  background: var(--color-border);
+  padding: 1px;
+  border-radius: var(--radius-sm);
+}
+
+.cube-net-sticker {
+  aspect-ratio: 1;
+}
+
+.cube-net-spacer {
+  width: 56px;
+  height: 56px;
+  flex-shrink: 0;
+}
+
 .global-wb-note {
   padding: var(--spacing-sm) var(--spacing-md);
   margin-bottom: var(--spacing-md);

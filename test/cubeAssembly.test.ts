@@ -123,6 +123,39 @@ describe('solveFaceOrientations', () => {
     // Must NOT be the decoy (leaving every face unrotated) - that's the
     // exact wrong answer the bug produced.
     expect(Object.values(result!.rotations).some((r) => r !== 0)).toBe(true)
+    // This specific scramble turns out to have a genuine second valid
+    // reading too: F and B are both untouched (rotation 0, same identity)
+    // in every alternative, while U/D and R/L swap - a real 180°
+    // whole-cube rotation about the front-back axis, which this
+    // particular capture's pattern happens to be symmetric under. Not a
+    // bug: a customer holding the actual cube, rotated that way, would
+    // see an equally valid but different-looking result, and the photos
+    // alone can't tell the two apart.
+    expect(result!.alternatives.length).toBe(2)
+  })
+
+  it('canonicalizes even-size orientation ties instead of asking the customer to pick (solved 2x2)', () => {
+    // A solved cube has no color variation to pin down which physical
+    // side is "really" front - rotating the WHOLE cube 90/180/270 around
+    // the U-D axis (cyclically permuting R/F/L/B, U/D fixed) produces an
+    // equally solved, equally valid cube every time, and solveEvenSizeOrientations'
+    // own search (identity has no fixed reference on an even cube) directly
+    // hits all 4 of these. But this is NOT a genuine customer decision:
+    // solveEvenSizeOrientations already deliberately treats identity as
+    // arbitrary here (fixing capture#1=U@0 "because...any one consistent
+    // labeling is as good as another" - its own comment) precisely because
+    // there's no physical fact (no fixed center cubie) to make one choice
+    // more "correct" than another. Asking the customer to pick among R/F/L/B
+    // relabelings of an otherwise-identical cube would be asking them to
+    // resolve something the app's own design already says doesn't matter -
+    // so this must canonicalize down to exactly 1, unlike the odd-size
+    // front-back-axis-flip case above (a real ambiguity, since center color
+    // makes identity a physical fact there, not a labeling choice).
+    const captured = captureWithRotations(solvedFaces(2), { U: 0, R: 0, F: 0, D: 0, L: 0, B: 0 })
+    const result = solveFaceOrientations(captured)
+    expect(result).not.toBeNull()
+    expect(result!.fullyValid).toBe(true)
+    expect(result!.alternatives.length).toBe(1)
   })
 
   it('identifies each face by center color regardless of capture-slot order', () => {
