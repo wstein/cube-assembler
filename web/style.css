@@ -138,6 +138,40 @@ body {
 
 .net-cell {
   aspect-ratio: 1;
+  position: relative;
+}
+
+/* A parity failure implicating specific stickers (see ParityResponse's
+   highlight field in server/Server.ts) outlines exactly those cells here,
+   distinct from the review wizard's own dashed low-confidence flagging
+   (.review-detected-cell-flagged) - this is "the server says this is
+   wrong", not "detection wasn't sure". outline (not border) so it doesn't
+   shift the 1px grid gap other cells rely on for alignment. */
+.net-cell-highlighted {
+  outline: 3px solid #ff3b3b;
+  outline-offset: -2px;
+  box-shadow: 0 0 6px 1px rgba(255, 59, 59, 0.85);
+  z-index: 1;
+  cursor: pointer;
+}
+
+/* Hovering a highlighted cell (see the onMouseEnter/Leave wiring in
+   index.tsx) applies this to every OTHER cell sharing its HighlightGroup
+   `group` tag too - e.g. every wing that matched the same over-
+   represented pair - not just the one under the cursor. Brighter/
+   different color than the base red outline so "these are related" reads
+   as a distinct, stronger state layered on top of "this is implicated". */
+.net-cell-hover-related {
+  outline: 3px solid #ffd400;
+  outline-offset: -2px;
+  box-shadow: 0 0 10px 3px rgba(255, 212, 0, 0.9);
+  z-index: 2;
+}
+
+.net-highlight-note {
+  margin: 0 0 var(--spacing-md);
+  font-size: 0.85rem;
+  color: #ff3b3b;
 }
 
 /* ─────────────────────────────────────────────────────────────────────────────
