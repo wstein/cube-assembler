@@ -877,79 +877,85 @@ function App() {
     setShowReviewDialog(true)
   }
 
-  // Bulk alternative to one-by-one webcam capture: assigns up to 6 chosen
-  // image files to U/R/F/D/L/B in order (same "capture order isn't
-  // identity" philosophy as everywhere else - solveFaceOrientations sorts
-  // out which photo is really which face later), running each through the
-  // same detection pipeline as a single-file import. Deliberately does NOT
-  // reuse applyFaceCapture in a loop: that function reads `capturedFaces`
-  // from this render's closure, so calling it repeatedly in one synchronous
-  // pass would have each call clobber the previous one's result instead of
-  // accumulating - a merge into one batch, then a single setCapturedFaces
-  // call, avoids that entirely.
-  const handleBulkUploadImages = async (e: Event) => {
+  // Restores a fixture saved earlier via handleSendFixtureToServer (see
+  // server/Server.ts's POST /api/fixtures and test/fixtures/<name>/) -
+  // the customer selects that directory's meta.json together with its 6
+  // face-*.jpg photos (one multi-file picker covers both). Unlike bulk
+  // photo import, this does NOT run color detection or white-balance
+  // recalibration: meta.json's colors are already the final, human-
+  // reviewed answer from whenever the fixture was saved, and re-deriving
+  // them from the photos could silently undo that review. Faces are
+  // restored under whatever slot key they were saved under (meta.json's
+  // "u"/"r"/... - the ORIGINAL capture-order slot, not necessarily true
+  // physical identity, since capturedFaces itself is never rewritten to
+  // reflect solveFaceOrientations' answer - see handleConfirmReview), so
+  // reloading a fixture faithfully reproduces what solveFaceOrientations
+  // would have seen the first time.
+  const handleUploadFixture = async (e: Event) => {
     const input = e.currentTarget as HTMLInputElement
-    const files = Array.from(input.files ?? []).slice(0, FACE_ORDER.length)
+    const files = Array.from(input.files ?? [])
     if (files.length === 0) return
 
     setLoading(true)
-    setCaptureMessage(`Processing ${files.length} image${files.length === 1 ? '' : 's'}...`)
+    setCaptureMessage('Loading fixture...')
 
     try {
-      const newEntries: Record<string, FaceCaptureData> = {}
-      const newConfidence: Record<string, number> = {}
-      let failed = 0
+      const metaFile = files.find((f) => f.name.toLowerCase().endsWith('.json'))
+      if (!metaFile) {
+        setCaptureMessage("❌ No .json file found - select a fixture's meta.json together with its 6 face-*.jpg photos.")
+        return
+      }
 
-      for (let i = 0; i < files.length; i++) {
-        const face = FACE_ORDER[i]
-        const url = URL.createObjectURL(files[i])
-        try {
-          const img = new Image()
-          await new Promise<void>((resolve, reject) => {
-            img.onload = () => resolve()
-            img.onerror = () => reject(new Error(`Could not load ${files[i].name}`))
-            img.src = url
-          })
-          const result = captureAndProcessImage(img, puzzleSize)
-          if (!validateFaceColors(result.colors, puzzleSize)) {
-            failed++
-            continue
-          }
-          newEntries[face] = {
-            colors: result.colors,
-            cellConfidences: result.cellConfidences,
-            cellColors: result.cellColors,
-            confidence: result.confidence,
-            croppedImage: result.croppedImage,
-            backgroundColor: result.backgroundColor,
-            timestamp: Date.now(),
-          }
-          newConfidence[face] = result.confidence
-        } catch (err) {
-          console.error(`Bulk upload: face ${FACE_DISPLAY_LABEL[face]} failed`, err)
-          failed++
-        } finally {
-          URL.revokeObjectURL(url)
+      let meta: { gridSize: number; faces: Record<string, { colors: string[][]; photo: string }> }
+      try {
+        meta = JSON.parse(await metaFile.text())
+      } catch {
+        setCaptureMessage(`❌ ${metaFile.name} is not valid JSON.`)
+        return
+      }
+      if (!meta.faces || typeof meta.gridSize !== 'number') {
+        setCaptureMessage(`❌ ${metaFile.name} doesn't look like a saved fixture (missing gridSize/faces).`)
+        return
+      }
+
+      const photoFiles = files.filter((f) => f !== metaFile)
+      const newEntries: Record<string, FaceCaptureData> = {}
+      const missing: string[] = []
+      for (const [face, faceData] of Object.entries(meta.faces)) {
+        const photoFile = photoFiles.find((f) => f.name === faceData.photo)
+        if (!photoFile || !validateFaceColors(faceData.colors, meta.gridSize)) {
+          missing.push(face.toUpperCase())
+          continue
+        }
+        const dataUrl = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader()
+          reader.onload = () => resolve(reader.result as string)
+          reader.onerror = () => reject(new Error(`Could not read ${photoFile.name}`))
+          reader.readAsDataURL(photoFile)
+        })
+        newEntries[face.toUpperCase()] = {
+          colors: faceData.colors,
+          confidence: 1,
+          croppedImage: dataUrl,
+          timestamp: Date.now(),
         }
       }
 
-      const merged = { ...capturedFaces, ...newEntries }
-      setCapturedFaces(merged)
-      setFaceConfidence((prev) => ({ ...prev, ...newConfidence }))
-
-      const succeeded = Object.keys(newEntries).length
-      setCaptureMessage(
-        failed > 0
-          ? `✓ ${succeeded} face${succeeded === 1 ? '' : 's'} uploaded, ${failed} failed — check and retry ${failed === 1 ? 'that face' : 'those faces'} individually.`
-          : `✓ ${succeeded} face${succeeded === 1 ? '' : 's'} uploaded.`
-      )
-
-      if (FACE_ORDER.every((f) => f in merged)) {
-        await finalizeAllFacesCaptured(merged)
-      } else {
-        setLoading(false)
+      if (missing.length > 0) {
+        setCaptureMessage(
+          `❌ Missing or invalid photo/colors for face${missing.length === 1 ? '' : 's'} ${missing.join(', ')} - make sure all 6 face-*.jpg files named in ${metaFile.name} are selected too.`
+        )
+        return
       }
+
+      setPuzzleSize(meta.gridSize)
+      setCapturedFaces(newEntries)
+      setFaceConfidence(Object.fromEntries(Object.keys(newEntries).map((f) => [f, 1])))
+      setCaptureMessage(`✓ Loaded fixture (${Object.keys(newEntries).length} faces).`)
+      setReviewStep(0)
+      setShowReviewDialog(true)
     } finally {
+      setLoading(false)
       input.value = ''
     }
   }
@@ -1325,15 +1331,18 @@ function App() {
               ? `Continue Capturing (${FACE_ORDER.filter((f) => f in capturedFaces).length}/${FACE_ORDER.length})`
               : 'Capture Faces'}
           </button>
-          <label class={`btn btn-secondary ${loading ? 'btn-disabled' : ''}`}>
-            ⇪ Upload Faces
+          <label
+            class={`btn btn-secondary ${loading ? 'btn-disabled' : ''}`}
+            title="Select a fixture's meta.json together with its 6 face-*.jpg photos"
+          >
+            ⇪ Upload Fixture
             <input
               type="file"
-              accept="image/*"
+              accept=".json,image/*"
               multiple
               hidden
               disabled={loading}
-              onChange={handleBulkUploadImages}
+              onChange={handleUploadFixture}
             />
           </label>
           {FACE_ORDER.every((f) => f in capturedFaces) && (
@@ -1359,6 +1368,15 @@ function App() {
             ))}
           </div>
         </div>
+        {/* Fixture-load/bulk-action feedback: the webcam modal has its own
+            copy of this same message for the live-capture flow, but that
+            modal isn't open for an upload started from this panel, so
+            without this the message would update invisibly. */}
+        {captureMessage && !webcamOpen && (
+          <div class={`capture-message ${captureMessage.includes('✓') ? 'success' : captureMessage.includes('❌') ? 'error' : ''}`}>
+            {captureMessage}
+          </div>
+        )}
         {showColorInput && (
           <div class="color-input-panel">
             <div class="notation-format-toggle">
