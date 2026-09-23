@@ -372,6 +372,11 @@ function edgeSticker(grid: string[][], pos: EdgePos, mirrored: boolean): string 
   return grid[mid][n - 1]
 }
 
+export interface OrientedCandidate {
+  faces: Record<FaceKey, string[][]>
+  rotations: Record<FaceKey, number>
+}
+
 export interface OrientationSolution {
   faces: Record<FaceKey, string[][]>
   rotations: Record<FaceKey, number>
@@ -392,20 +397,57 @@ export interface OrientationSolution {
   // search space was actually a reachable cube - a genuinely bad capture
   // (a misread color), not a rotation problem this solver can fix.
   fullyValid: boolean
+  // Every DISTINCT candidate tied for the winning (fullyValid, cornerScore,
+  // edgeScore) score, deduped by actual resulting sticker content (not by
+  // rotation-parameter identity - a uniformly-colored face rotated any
+  // amount produces byte-identical content, so a solved cube's ~4096
+  // trivially-tied rotation combinations correctly collapse to just 1
+  // entry here, not 4096). Length 1 in the overwhelming common case: a
+  // real capture with actual color variation almost always pins down a
+  // unique rotation. Length >1 means the capture is genuinely ambiguous
+  // - e.g. the whole cube could be reoriented (front/back, left/right
+  // swapped) and still read as equally valid from the photographed colors
+  // alone - which only the person holding the physical cube can resolve.
+  // `faces`/`rotations` above always mirror alternatives[0]; capped at
+  // MAX_ALTERNATIVES (see its comment) so a pathological capture can't
+  // produce an unusable wall of options.
+  alternatives: OrientedCandidate[]
 }
 
-type BestCandidate = {
-  faces: Record<FaceKey, string[][]>
-  rotations: Record<FaceKey, number>
+// Cap on how many distinct tied-for-best candidates to keep. Generous
+// enough that it should never bind on a real, physically sensible
+// capture (genuine orientation ambiguity from a cube's own symmetry tops
+// out at a handful of cases in practice - the whole-cube reorientation
+// group has 24 elements, but corner/edge coloring almost always breaks
+// that symmetry down to 1); exists only to bound memory/UI on a
+// pathological input (e.g. a capture with almost no color variation at
+// all) rather than to reflect any expected real count.
+const MAX_ALTERNATIVES = 8
+
+// Canonical string encoding of a candidate's actual resulting sticker
+// content, for dedup - NOT of its rotation parameters, which can differ
+// while producing byte-identical content (any rotation of a uniformly-
+// colored face) and must be treated as the same candidate, not a genuine
+// alternative.
+function faceSetSignature(faces: Record<FaceKey, string[][]>): string {
+  return FACE_KEYS.map((f) => faces[f].map((row) => row.join('')).join('')).join('|')
+}
+
+type BestCandidates = {
   cornerScore: number
   edgeScore: number
   fullyValid: boolean
+  alternatives: OrientedCandidate[]
+  seenSignatures: Set<string>
 }
 
 // Scores one fully-assigned, fully-rotated candidate and folds it into
-// `best` if it beats the current leader - shared by both the odd-size
-// (identity known, rotation-only) and even-size (identity + rotation)
-// searches below so the reduction logic exists in exactly one place.
+// `best` - shared by both the odd-size (identity known, rotation-only)
+// and even-size (identity + rotation) searches below so the reduction
+// logic exists in exactly one place. Collects EVERY distinct candidate
+// tied for the winning score (see OrientationSolution.alternatives), not
+// just one - a plain "keep the single best" reduction would silently
+// discard genuine orientation ambiguity instead of surfacing it.
 //
 // Priority: a fully-valid candidate (isFullyValid - see its comment for
 // why this is a separate, stricter check from cornerScore/edgeScore)
@@ -419,33 +461,73 @@ type BestCandidate = {
 function considerCandidate(
   faces: Record<FaceKey, string[][]>,
   rotations: Record<FaceKey, number>,
-  best: BestCandidate | null
-): BestCandidate | null {
+  best: BestCandidates | null
+): BestCandidates | null {
   const hasEdges = faces.U.length > 2
   const fullyValid = isFullyValid(faces)
   const cornerScore = scoreCorners(faces)
+  const edgeScore = hasEdges ? scoreEdges(faces) : NaN
 
-  if (best?.fullyValid && !fullyValid) return best
-  if (fullyValid && !best?.fullyValid) {
-    return { faces, rotations, cornerScore, edgeScore: hasEdges ? scoreEdges(faces) : NaN, fullyValid }
+  const beatsBest = !best
+    || (fullyValid && !best.fullyValid)
+    || (fullyValid === best.fullyValid && cornerScore > best.cornerScore)
+    || (fullyValid === best.fullyValid && cornerScore === best.cornerScore && hasEdges && edgeScore > best.edgeScore)
+  if (beatsBest) {
+    return {
+      cornerScore, edgeScore, fullyValid,
+      alternatives: [{ faces, rotations }],
+      seenSignatures: new Set([faceSetSignature(faces)]),
+    }
   }
-  // Both (or neither) fully valid from here on - fall through to the
-  // original score-based comparison.
-  if (best && cornerScore < best.cornerScore) return best
-  if (!hasEdges) {
-    return best && cornerScore === best.cornerScore ? best : { faces, rotations, cornerScore, edgeScore: NaN, fullyValid }
+
+  const tiesBest = best !== null
+    && fullyValid === best.fullyValid
+    && cornerScore === best.cornerScore
+    && (!hasEdges || edgeScore === best.edgeScore)
+  if (tiesBest && best) {
+    const signature = faceSetSignature(faces)
+    if (!best.seenSignatures.has(signature) && best.alternatives.length < MAX_ALTERNATIVES) {
+      best.seenSignatures.add(signature)
+      best.alternatives.push({ faces, rotations })
+    }
   }
-  if (best && cornerScore === best.cornerScore) {
-    const edgeScore = scoreEdges(faces)
-    return edgeScore > best.edgeScore ? { faces, rotations, cornerScore, edgeScore, fullyValid } : best
-  }
-  return { faces, rotations, cornerScore, edgeScore: scoreEdges(faces), fullyValid }
+  return best
 }
 
 // Odd sizes (3x3, 5x5, 7x7): each face's fixed center sticker identifies
 // it unambiguously, so only rotation (4^6 = 4096 combinations) needs
 // solving. Returns null if center colors don't identify all 6 faces
 // uniquely (duplicate or unreadable center).
+// `surfaceAlternatives=false` (even sizes - see solveEvenSizeOrientations)
+// canonicalizes down to a single choice rather than reporting every tie:
+// even-size identity has NO fixed reference at all (no center cubie), so
+// solveEvenSizeOrientations already deliberately pins capture#1=U@rotation
+// 0 specifically because "reconstructing a cube from photos alone has no
+// way to know which face is really U anyway, so any one consistent
+// labeling is as good as another" (its own comment). The ties that
+// remain within that fixed frame are exactly the residual U-D-axis
+// whole-cube-rotation freedom (which of the other captures gets called
+// R/F/L/B) - not a genuine question about where any piece physically is,
+// just which arbitrary label was assigned, so asking the customer to
+// pick among them would be asking them to resolve something the app's
+// own design already says is unresolvable and unimportant. Odd sizes
+// (surfaceAlternatives=true) are different in kind: center color makes
+// identity a physical fact, not a labeling choice, so a tie there means
+// the same uniquely-identified 6 photos genuinely support more than one
+// physically-different rotation reading - a real ambiguity worth asking
+// about (see the 3x3 front-back-axis-flip regression case).
+function toOrientationSolution(best: BestCandidates | null, surfaceAlternatives: boolean): OrientationSolution | null {
+  if (!best) return null
+  return {
+    faces: best.alternatives[0].faces,
+    rotations: best.alternatives[0].rotations,
+    cornerScore: best.cornerScore,
+    edgeScore: best.edgeScore,
+    fullyValid: best.fullyValid,
+    alternatives: surfaceAlternatives ? best.alternatives : [best.alternatives[0]],
+  }
+}
+
 function solveOddSizeOrientations(capturedFaces: Record<string, string[][]>, size: number): OrientationSolution | null {
   const byIdentity: Partial<Record<FaceKey, string[][]>> = {}
   for (const colors of Object.values(capturedFaces)) {
@@ -457,7 +539,7 @@ function solveOddSizeOrientations(capturedFaces: Record<string, string[][]>, siz
   if (FACE_KEYS.some((f) => !byIdentity[f])) return null
   const faces = byIdentity as Record<FaceKey, string[][]>
 
-  let best: BestCandidate | null = null
+  let best: BestCandidates | null = null
   for (let rU = 0; rU < 4; rU++) for (let rR = 0; rR < 4; rR++) for (let rF = 0; rF < 4; rF++)
   for (let rD = 0; rD < 4; rD++) for (let rL = 0; rL < 4; rL++) for (let rB = 0; rB < 4; rB++) {
     const rot: Record<FaceKey, number> = { U: rU, R: rR, F: rF, D: rD, L: rL, B: rB }
@@ -465,7 +547,7 @@ function solveOddSizeOrientations(capturedFaces: Record<string, string[][]>, siz
     for (const f of FACE_KEYS) rotated[f] = rotateGrid(faces[f], rot[f])
     best = considerCandidate(rotated, rot, best)
   }
-  return best
+  return toOrientationSolution(best, true)
 }
 
 function permutations<T>(arr: T[]): T[][] {
@@ -502,7 +584,7 @@ function solveEvenSizeOrientations(capturedFaces: Record<string, string[][]>): O
   const firstRotated = rotateGrid(firstCapture, 0)
   const restRotations = rest.map((capture) => [0, 1, 2, 3].map((r) => rotateGrid(capture, r)))
 
-  let best: BestCandidate | null = null
+  let best: BestCandidates | null = null
   for (const order of permutations([0, 1, 2, 3, 4])) {
     for (let mask = 0; mask < 1024; mask++) {
       const rotations: Record<FaceKey, number> = { U: 0 } as Record<FaceKey, number>
@@ -516,7 +598,7 @@ function solveEvenSizeOrientations(capturedFaces: Record<string, string[][]>): O
       best = considerCandidate(faces, rotations, best)
     }
   }
-  return best
+  return toOrientationSolution(best, false)
 }
 
 /**
