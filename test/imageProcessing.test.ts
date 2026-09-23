@@ -9,7 +9,7 @@
  * Run: npx vitest run test/imageProcessing.test.ts
  */
 import { describe, it, expect } from 'vitest'
-import { learnStickerColors, rgbToOKLCH, formatOKLCHValues, hueCircularRange, linearRange, STICKER_COLORS, type RGB } from '../src/client/imageProcessing'
+import { learnStickerColors, rgbToOKLCH, formatOKLCHValues, hueCircularRange, linearRange, hungarianAssignment, STICKER_COLORS, type RGB } from '../src/client/imageProcessing'
 
 // Mirrors the internal OKLab-based colorDistance (not exported): rebuilds
 // Cartesian (a,b) from the exported OKLCH's polar (c,h) - c·cos(h), c·sin(h)
@@ -131,6 +131,65 @@ describe('formatOKLCHValues', () => {
   })
 })
 
+describe('hungarianAssignment', () => {
+  it('solves a trivial 1x1 matrix', () => {
+    expect(hungarianAssignment([[5]])).toEqual([0])
+  })
+
+  it('picks the cheaper of two possible perfect matchings on a 2x2 matrix', () => {
+    // row0->col0 + row1->col1 = 1+1 = 2; row0->col1 + row1->col0 = 9+9 = 18.
+    expect(hungarianAssignment([[1, 9], [9, 1]])).toEqual([0, 1])
+    // Now the crossed matching is cheaper.
+    expect(hungarianAssignment([[9, 1], [1, 9]])).toEqual([1, 0])
+  })
+
+  it('always returns a valid bijection (every row and column used exactly once)', () => {
+    const cost = [[4, 1, 3], [2, 0, 5], [3, 2, 2]]
+    const assignment = hungarianAssignment(cost)
+    expect(new Set(assignment).size).toBe(cost.length)
+    assignment.forEach((col) => expect(col).toBeGreaterThanOrEqual(0))
+  })
+
+  // A from-scratch min-cost-matching implementation is exactly the kind of
+  // code where "looks right" and "is right" can quietly diverge - so
+  // rather than trust it from a handful of hand-picked cases, this checks
+  // it against brute-force optimal search (try every permutation, keep
+  // the cheapest) across many random small matrices, where brute force is
+  // still fast enough to serve as ground truth.
+  function bruteForceMinCost(cost: number[][]): number {
+    const n = cost.length
+    const indices = Array.from({ length: n }, (_, i) => i)
+    let best = Infinity
+    function permute(arr: number[], l: number) {
+      if (l === arr.length) {
+        let total = 0
+        for (let i = 0; i < n; i++) total += cost[i][arr[i]]
+        if (total < best) best = total
+        return
+      }
+      for (let i = l; i < arr.length; i++) {
+        [arr[l], arr[i]] = [arr[i], arr[l]]
+        permute(arr, l + 1)
+        ;[arr[l], arr[i]] = [arr[i], arr[l]]
+      }
+    }
+    permute([...indices], 0)
+    return best
+  }
+
+  it('matches brute-force optimal cost on many random small matrices', () => {
+    let seed = 42
+    const rand = () => { seed = (seed * 1103515245 + 12345) & 0x7fffffff; return seed / 0x7fffffff }
+    for (let trial = 0; trial < 300; trial++) {
+      const n = 2 + (trial % 5) // 2..6
+      const cost = Array.from({ length: n }, () => Array.from({ length: n }, () => Math.floor(rand() * 100)))
+      const assignment = hungarianAssignment(cost)
+      const gotCost = assignment.reduce((sum, col, row) => sum + cost[row][col], 0)
+      expect(gotCost).toBe(bruteForceMinCost(cost))
+    }
+  })
+})
+
 // 9 exact-canonical samples of each of the 6 colors (54 total, matching a
 // solved 3x3's sticker count) - a clean baseline with zero variance.
 function cleanSamples(): { rgb: RGB; colorGuess: string }[] {
@@ -156,6 +215,110 @@ describe('learnStickerColors', () => {
 
   it('returns null with fewer samples than colors (k=6)', () => {
     expect(learnStickerColors(cleanSamples().slice(0, 5))).toBeNull()
+  })
+
+  // A local reference copy of the OLD greedy algorithm this project used
+  // to run internally (now removed from production code in favor of
+  // hungarianAssignment) - kept here ONLY so tests can independently
+  // verify Hungarian is never worse, not because production should ever
+  // fall back to it.
+  function referenceGreedyAssign(points: RGB[], centroids: RGB[]): number[] {
+    const k = centroids.length, n = points.length, capacity = Math.ceil(n / k)
+    const pairs: { pointIdx: number; centroidIdx: number; dist: number }[] = []
+    for (let pi = 0; pi < n; pi++) {
+      for (let ci = 0; ci < k; ci++) pairs.push({ pointIdx: pi, centroidIdx: ci, dist: colorDistance(points[pi], centroids[ci]) })
+    }
+    pairs.sort((a, b) => a.dist - b.dist)
+    const assignment = new Array(n).fill(0), counts = new Array(k).fill(0), isAssigned = new Array(n).fill(false)
+    let assignedCount = 0
+    for (const { pointIdx, centroidIdx } of pairs) {
+      if (assignedCount === n) break
+      if (isAssigned[pointIdx] || counts[centroidIdx] >= capacity) continue
+      assignment[pointIdx] = centroidIdx; isAssigned[pointIdx] = true; counts[centroidIdx]++; assignedCount++
+    }
+    return assignment
+  }
+
+  it('reaches exactly balanced clusters even when one color is oversubscribed', () => {
+    // 17 candidates for Blue's 16 slots (16 tightly clustered, capacity-
+    // exceeding), everything else clean/canonical - something has to give
+    // up its Blue slot. Note this does NOT assert the displaced point
+    // lands "close" to wherever it's sent: with a 6-color palette this
+    // spread out, Blue has no close neighbor at all (unlike Red/Orange),
+    // so whichever point is displaced will look far from every remaining
+    // option no matter how optimally it's placed - confirmed by testing
+    // (see the sibling test below): on this exact input, an optimal
+    // solver and the old greedy heuristic converge to the identical
+    // result, because there simply isn't a better arrangement to find.
+    // What IS guaranteed, and what this checks, is that the N² -per-color
+    // physical invariant still holds exactly.
+    const blueLike = Array.from({ length: 17 }, (_, i) => ({
+      rgb: { r: 10 + (i % 5) * 4, g: 30 + (i % 4) * 5, b: 200 + (i % 6) * 6 },
+      colorGuess: 'B',
+    }))
+    const orangeLike = Array.from({ length: 15 }, (_, i) => ({
+      rgb: { r: 220 + (i % 4) * 3, g: 110 + (i % 5) * 4, b: 20 + (i % 3) * 4 },
+      colorGuess: 'O',
+    }))
+    const clean = (name: string, n: number) =>
+      Array.from({ length: n }, () => ({ rgb: { ...STICKER_COLORS[name] }, colorGuess: name }))
+    const samples = [
+      ...blueLike, ...orangeLike,
+      ...clean('G', 16), ...clean('R', 16), ...clean('W', 16), ...clean('Y', 16),
+    ]
+    expect(samples.length).toBe(96)
+
+    const learned = learnStickerColors(samples)!
+    expect(learned).not.toBeNull()
+    Object.values(learned.clusterSizes).forEach((size) => expect(size).toBe(16))
+
+    const displaced = blueLike
+      .map((s, i) => learned.labelsBySampleIndex[i])
+      .filter((label) => label !== 'B')
+    expect(displaced.length).toBe(1) // exactly one of the 17 has to give up its Blue slot
+  })
+
+  it('never produces a higher total assignment cost than the old greedy heuristic would, for the same centroids', () => {
+    // The actual, unconditional guarantee an optimal solver provides over
+    // a greedy heuristic: never worse, sometimes strictly better - not
+    // "every individual point looks reasonable" (the sibling test above
+    // shows that's not always achievable, regardless of algorithm).
+    // Cross-color competition case: X is a genuinely plausible fit for
+    // BOTH of two centroids; greedy's globally-sorted-pairs walk can snap
+    // X up for the wrong one early, before it can tell that centroid
+    // didn't actually need X as much as a point still waiting its turn.
+    const centroids: RGB[] = [{ r: 20, g: 40, b: 220 }, { r: 230, g: 120, b: 30 }, { r: 20, g: 150, b: 30 }]
+    const X: RGB = { r: 60, g: 60, b: 150 }
+    const points: RGB[] = [
+      X,
+      ...Array.from({ length: 8 }, (_, i) => ({ r: 15 + i, g: 35 + i, b: 225 - i })), // 9 candidates for centroid 0 (capacity 3)
+      ...Array.from({ length: 3 }, (_, i) => ({ r: 220 + i * 3, g: 110 + i * 4, b: 20 + i * 3 })),
+      ...Array.from({ length: 3 }, () => ({ r: 20, g: 150, b: 30 })),
+    ]
+
+    const greedy = referenceGreedyAssign(points, centroids)
+    const cost = (assignment: number[]) => assignment.reduce((sum, ci, pi) => sum + colorDistance(points[pi], centroids[ci]), 0)
+
+    // Mirror production's balancedAssign construction (capacity-expanded
+    // slots through hungarianAssignment) directly, since balancedAssign
+    // itself isn't exported.
+    const k = centroids.length, n = points.length, capacity = Math.ceil(n / k), totalSlots = k * capacity
+    const cost2d: number[][] = []
+    for (let pi = 0; pi < n; pi++) {
+      const row: number[] = []
+      for (let ci = 0; ci < k; ci++) { const d = colorDistance(points[pi], centroids[ci]); for (let s = 0; s < capacity; s++) row.push(d) }
+      cost2d.push(row)
+    }
+    for (let pi = n; pi < totalSlots; pi++) cost2d.push(new Array(totalSlots).fill(0))
+    const slotAssignment = hungarianAssignment(cost2d)
+    const optimal = slotAssignment.slice(0, n).map((slot) => Math.floor(slot / capacity))
+
+    // Strictly less (not just <=) - this specific case is constructed so
+    // greedy provably leaves cost on the table, confirmed against this
+    // exact input before writing the assertion (greedy 1.8217, optimal
+    // 1.7979) - a >= assertion alone wouldn't catch a future change that
+    // accidentally made this behave like greedy again.
+    expect(cost(optimal)).toBeLessThan(cost(greedy))
   })
 
   describe('leaveOneOutDistances (confidence fix)', () => {

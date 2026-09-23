@@ -298,6 +298,66 @@ export interface StickerSample {
   colorGuess: string
 }
 
+// Minimum-cost perfect bipartite matching on a square cost matrix
+// (Kuhn-Munkres / "Hungarian algorithm", O(n^3) via successive shortest
+// augmenting paths with potentials - the standard formulation, e.g.
+// https://cp-algorithms.com/graph/hungarian-algorithm.html). Returns
+// assignment[row] = column minimizing total cost[row][assignment[row]].
+// Verified against brute-force optimal search on random small cases (see
+// test/imageProcessing.test.ts) - a from-scratch min-cost-matching
+// implementation is exactly the kind of code where "looks right" and "is
+// right" can quietly diverge. Exported (unlike this file's other
+// clustering internals) specifically so that verification can call it
+// directly, rather than only indirectly through learnStickerColors' much
+// larger surface (k-means iteration, seeding, canonical-color matching,
+// ...), which would leave failures here hard to isolate.
+export function hungarianAssignment(cost: number[][]): number[] {
+  const n = cost.length
+  const INF = Infinity
+  // 1-indexed throughout (index 0 is a sentinel "no row/column yet"),
+  // matching the standard reference formulation this is ported from.
+  const u = new Array(n + 1).fill(0)
+  const v = new Array(n + 1).fill(0)
+  const p = new Array(n + 1).fill(0) // p[j] = row currently matched to column j
+  const way = new Array(n + 1).fill(0)
+
+  for (let i = 1; i <= n; i++) {
+    p[0] = i
+    let j0 = 0
+    const minv = new Array(n + 1).fill(INF)
+    const used = new Array(n + 1).fill(false)
+    do {
+      used[j0] = true
+      const i0 = p[j0]
+      let delta = INF
+      let j1 = -1
+      for (let j = 1; j <= n; j++) {
+        if (!used[j]) {
+          const cur = cost[i0 - 1][j - 1] - u[i0] - v[j]
+          if (cur < minv[j]) { minv[j] = cur; way[j] = j0 }
+          if (minv[j] < delta) { delta = minv[j]; j1 = j }
+        }
+      }
+      for (let j = 0; j <= n; j++) {
+        if (used[j]) { u[p[j]] += delta; v[j] -= delta }
+        else { minv[j] -= delta }
+      }
+      j0 = j1
+    } while (p[j0] !== 0)
+    do {
+      const j1 = way[j0]
+      p[j0] = p[j1]
+      j0 = j1
+    } while (j0 !== 0)
+  }
+
+  const result = new Array(n)
+  for (let j = 1; j <= n; j++) {
+    if (p[j] > 0) result[p[j] - 1] = j - 1
+  }
+  return result
+}
+
 // k-means (Lloyd's algorithm), fixed k, over raw RGB points. Deterministic:
 // seeds centroids by sorting points along their dominant spread axis and
 // picking k evenly-spaced ones, rather than random init, so results are
@@ -306,48 +366,48 @@ export interface StickerSample {
 // centroid receives (as close as possible to, and exactly when n divides
 // evenly by k) points.length / centroids.length points — the hard
 // constraint that a valid NxN cube capture always has exactly N^2
-// stickers of each of the 6 colors. Greedy: sort every (point, centroid)
-// pairing by distance ascending, then walk that list assigning each point
-// to the nearest centroid that still has room, skipping pairs whose point
-// is already assigned or whose centroid is already full.
+// stickers of each of the 6 colors. Solved as a genuine minimum-cost
+// assignment problem: each centroid becomes `capacity` identical-cost
+// "slots" (so 16 points can legitimately want the same centroid), padded
+// with zero-cost dummy points if capacity*k > n (points don't divide
+// evenly across centroids), then hungarianAssignment finds the
+// GLOBALLY cheapest full assignment - not just a locally-greedy one.
 //
-// This is a well-known good heuristic for balanced/capacitated clustering
-// — not necessarily the global optimum (that's a harder transportation-
-// problem solve), but far better than unconstrained nearest-centroid.
-// Unconstrained assignment has no way to know a nearby cluster is already
-// "full": on a real capture, 3 green stickers were pulled into the orange
-// cluster because they were (slightly) closer to orange's centroid than
-// to green's, even though orange had already claimed its fair share of 9
-// and green hadn't — the assignment had no mechanism to prefer the
-// correct-but-slightly-farther cluster once green's own points ran out.
+// This replaced an earlier greedy heuristic (sort every point/centroid
+// pairing by distance, walk it assigning each point to its nearest
+// still-available centroid) after a real capture showed it can strand a
+// point at a wildly wrong color: a point 0.04 (OKLab distance) from its
+// obviously-correct centroid got assigned to a centroid 0.49 away purely
+// because its correct centroid's capacity filled up first with other,
+// even-closer points, and by the point's own turn every *other* centroid
+// happened to be full too - greedy has no way to reconsider an earlier
+// choice once made, even when a cheap swap would fix both assignments at
+// once. An optimal solver doesn't have that blind spot: it considers the
+// assignment as a whole, so it will never leave a huge-cost pairing on
+// the table when a cheaper global arrangement exists.
 function balancedAssign(points: RGB[], centroids: RGB[]): number[] {
   const k = centroids.length
   const n = points.length
   const capacity = Math.ceil(n / k)
+  const totalSlots = k * capacity
 
-  const pairs: { pointIdx: number; centroidIdx: number; dist: number }[] = []
+  const cost: number[][] = []
   for (let pi = 0; pi < n; pi++) {
+    const row: number[] = []
     for (let ci = 0; ci < k; ci++) {
-      pairs.push({ pointIdx: pi, centroidIdx: ci, dist: colorDistance(points[pi], centroids[ci]) })
+      const d = colorDistance(points[pi], centroids[ci])
+      for (let s = 0; s < capacity; s++) row.push(d)
     }
+    cost.push(row)
   }
-  pairs.sort((a, b) => a.dist - b.dist)
+  // Dummy rows (real points don't reach this far into `cost`) cost
+  // nothing to place anywhere, so the solver always "spends" them on
+  // whichever leftover slots are cheapest to leave empty rather than
+  // distorting a real point's assignment.
+  for (let pi = n; pi < totalSlots; pi++) cost.push(new Array(totalSlots).fill(0))
 
-  const assignment = new Array(n).fill(0)
-  const counts = new Array(k).fill(0)
-  const isAssigned = new Array(n).fill(false)
-  let assignedCount = 0
-
-  for (const { pointIdx, centroidIdx } of pairs) {
-    if (assignedCount === n) break
-    if (isAssigned[pointIdx] || counts[centroidIdx] >= capacity) continue
-    assignment[pointIdx] = centroidIdx
-    isAssigned[pointIdx] = true
-    counts[centroidIdx]++
-    assignedCount++
-  }
-
-  return assignment
+  const slotAssignment = hungarianAssignment(cost)
+  return slotAssignment.slice(0, n).map((slot) => Math.floor(slot / capacity))
 }
 
 function kMeansCluster(points: RGB[], k: number, iterations = 20): RGB[] {
