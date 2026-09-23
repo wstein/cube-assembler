@@ -1169,7 +1169,7 @@ function App() {
   }
 
   return (
-    <div id="app">
+    <div>
       {/* Header */}
       <header class="app-header">
         <div class="header-content">
