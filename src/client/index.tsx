@@ -4,7 +4,7 @@ import { TwistyPlayer } from 'cubing/twisty'
 import '../../web/style.css'
 import {
   captureAndProcessFace, captureAndProcessImage, extractCubeFaceColors,
-  runGlobalWhiteBalance,
+  runGlobalWhiteBalance, computeBackgroundGain, NEUTRAL_GAINS,
   rgbToOKLCH, formatOKLCHValues, hueCircularRange, hueRangesOverlap, linearRange,
   type ColorDetectionResult, type FaceCaptureResult, type RGB,
 } from './imageProcessing'
@@ -27,6 +27,12 @@ interface FaceCaptureData {
   cellColors?: RGB[][]
   confidence: number
   croppedImage?: string
+  // Live-sampled at capture time from the area around the cube (see
+  // extractBackgroundColor) - null when unavailable (frame too small, or
+  // the ring read back unreliably dark). Used to derive a per-face
+  // cross-face correction gain once all 6 faces are in; see
+  // computeFaceBackgroundGains.
+  backgroundColor?: RGB | null
   timestamp: number
 }
 
@@ -520,6 +526,7 @@ function App() {
       cellConfidences?: number[][]
       cellColors?: RGB[][]
       croppedImage?: string
+      backgroundColor?: RGB | null
     }
   ) => {
     if (!validateFaceColors(result.colors, puzzleSize)) {
@@ -535,6 +542,7 @@ function App() {
         cellColors: result.cellColors,
         confidence: result.confidence,
         croppedImage: result.croppedImage,
+        backgroundColor: result.backgroundColor,
         timestamp: Date.now(),
       },
     }
@@ -554,7 +562,20 @@ function App() {
           const images: Record<string, string> = {}
           for (const f of FACE_ORDER) images[f] = newCapturedFaces[f].croppedImage!
 
-          const wb = await runGlobalWhiteBalance(images, puzzleSize)
+          // Cross-face correction from the background around the cube (see
+          // computeBackgroundGain): face 1 is the reference, every other
+          // face's gain rescales ITS OWN background reading to match
+          // face 1's. Skipped (stays neutral) for any face whose
+          // background wasn't sampleable, rather than failing the whole
+          // capture over one bad reading.
+          const referenceBackground = newCapturedFaces[FACE_ORDER[0]].backgroundColor
+          const faceGains: Record<string, RGB> = {}
+          for (const f of FACE_ORDER) {
+            const bg = newCapturedFaces[f].backgroundColor
+            faceGains[f] = referenceBackground && bg ? computeBackgroundGain(referenceBackground, bg) : NEUTRAL_GAINS
+          }
+
+          const wb = await runGlobalWhiteBalance(images, puzzleSize, faceGains)
           if (wb.applied) {
             const recalibrated = { ...newCapturedFaces }
             for (const f of FACE_ORDER) {
