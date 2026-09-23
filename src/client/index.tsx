@@ -663,10 +663,18 @@ function App() {
       // solveFaceOrientations reports edgeScore as NaN there rather than
       // a real count; only mention edges when they actually exist.
       const hasEdgeScore = !Number.isNaN(solved.edgeScore)
-      if (solved.cornerScore < 8 || (hasEdgeScore && solved.edgeScore < 12)) {
+      if (!solved.fullyValid) {
         const edgePart = hasEdgeScore ? ` and ${solved.edgeScore}/12 edges` : ''
+        // cornerScore/edgeScore can both read 8/8 and 12/12 here despite
+        // fullyValid being false: those only check each position looks
+        // like SOME real piece independently, not that all 8/12 are
+        // DISTINCT pieces with correct orientation sums and matching
+        // permutation parity (see isFullyValid in cubeAssembly.ts) - so a
+        // perfect-looking score can still be a physically unreachable
+        // cube, which this message calls out explicitly rather than
+        // implying "8/8" alone means it's fine.
         alert(
-          `⚠️ Orientation solved with ${solved.cornerScore}/8 corners${edgePart} valid — some captured colors may be misdetected. Check the assembled cube.`
+          `⚠️ No fully valid orientation found (best: ${solved.cornerScore}/8 corners${edgePart} individually plausible, but not a physically reachable cube) — some captured colors may be misdetected. Check the assembled cube.`
         )
       }
     } else {

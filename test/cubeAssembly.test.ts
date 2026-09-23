@@ -78,6 +78,7 @@ describe('solveFaceOrientations', () => {
     expect(result).not.toBeNull()
     expect(result!.cornerScore).toBe(8)
     expect(result!.edgeScore).toBe(12)
+    expect(result!.fullyValid).toBe(true)
     expect(Object.values(result!.rotations).every((r) => r === 0)).toBe(true)
   })
 
@@ -87,6 +88,41 @@ describe('solveFaceOrientations', () => {
     expect(result).not.toBeNull()
     expect(result!.cornerScore).toBe(8)
     expect(result!.edgeScore).toBe(12)
+    expect(result!.fullyValid).toBe(true)
+  })
+
+  it('rejects a decoy rotation that scores a false 8/8 corners + 12/12 edges by duplicating pieces (permutation-parity regression)', () => {
+    // Regression case for a real user-reported bug: cornerColors and
+    // cornerOrientation both reported valid, edgeColors/edgeOrientation
+    // too, yet the server's stricter permParity check failed. Root cause:
+    // scoreCorners/scoreEdges (pre-fix) checked each of the 8/12 named
+    // positions' triple/pair against the SET of physically-real pieces
+    // independently - "is this ANY valid corner/edge" - with no
+    // requirement that two positions don't match the SAME physical piece.
+    // This exact capture (already at its as-captured, zero-rotation
+    // orientation - the pre-fix solver picked rotation {0,0,0,0,0,0},
+    // i.e. did nothing) scores a perfect 8/8 + 12/12 that way, but its
+    // actual corner-piece list is [0,1,1,0,7,6,6,7] - pieces 0/1/6/7 each
+    // read twice, 2/3/4/5 never - not a permutation at all, hence
+    // physically impossible. A genuinely valid rotation of this same
+    // capture DOES exist (U:1,R:3,F:0,D:1,L:3,B:0) and must be what the
+    // solver picks.
+    const raw = 'RWWRWWRWW RRRRRRYYY GGGGGGGGG YYOYYOYYO WWWOOOOOO BBBBBBBBB'.split(' ')
+    const faceOrder = ['U', 'R', 'F', 'D', 'L', 'B']
+    const capturedFaces: Record<string, string[][]> = {}
+    faceOrder.forEach((key, i) => {
+      const flat = raw[i].split('')
+      capturedFaces[key] = [flat.slice(0, 3), flat.slice(3, 6), flat.slice(6, 9)]
+    })
+
+    const result = solveFaceOrientations(capturedFaces)
+    expect(result).not.toBeNull()
+    expect(result!.fullyValid).toBe(true)
+    expect(result!.cornerScore).toBe(8)
+    expect(result!.edgeScore).toBe(12)
+    // Must NOT be the decoy (leaving every face unrotated) - that's the
+    // exact wrong answer the bug produced.
+    expect(Object.values(result!.rotations).some((r) => r !== 0)).toBe(true)
   })
 
   it('identifies each face by center color regardless of capture-slot order', () => {
