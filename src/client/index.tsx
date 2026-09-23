@@ -215,6 +215,11 @@ function App() {
   // its alternatives field) - the customer must pick which reading
   // matches their physical cube before assembly can proceed.
   const [orientationAlternatives, setOrientationAlternatives] = useState<OrientedCandidate[] | null>(null)
+  // True when solveFaceOrientations found MORE genuinely-distinct tied
+  // alternatives than it could keep (see OrientationSolution.truncated) -
+  // the list below is then an arbitrary subset, not the complete set, and
+  // must say so rather than implying the customer has seen every option.
+  const [orientationTruncated, setOrientationTruncated] = useState(false)
   const [reviewEditingCell, setReviewEditingCell] = useState<{ face: string; row: number; col: number } | null>(null)
   // Most laptop/webcam feeds are shown mirrored by convention (like a
   // physical mirror), which is what most users expect; default on but
@@ -739,6 +744,7 @@ function App() {
         // picker renders on top of it and calls handleChooseOrientation
         // once the customer picks, which does the actual assembly.
         setOrientationAlternatives(solved.alternatives)
+        setOrientationTruncated(solved.truncated)
         return
       }
     } else {
@@ -760,6 +766,7 @@ function App() {
   // made instead of auto-picking alternatives[0].
   const handleChooseOrientation = async (chosen: OrientedCandidate) => {
     setOrientationAlternatives(null)
+    setOrientationTruncated(false)
     const cubeState = assembleCubeFromFaces(chosen.faces, puzzleSize)
     setCube(cubeState)
     await updateParityStatus(cubeState)
@@ -1535,13 +1542,23 @@ function App() {
           <div class="modal-content orientation-picker">
             <div class="modal-header">
               <h2>Which orientation matches your cube?</h2>
-              <button class="modal-close" onClick={() => setOrientationAlternatives(null)}>×</button>
+              <button
+                class="modal-close"
+                onClick={() => { setOrientationAlternatives(null); setOrientationTruncated(false) }}
+              >×</button>
             </div>
             <p class="orientation-picker-note">
               The photographed colors are equally consistent with {orientationAlternatives.length} different
               readings of your cube — this can happen when a cube's own arrangement has a symmetry the camera
               can't see past. Pick whichever net below matches what you're actually holding.
             </p>
+            {orientationTruncated && (
+              <p class="orientation-picker-note orientation-picker-truncated-note">
+                ⚠️ Even more equally-valid readings exist beyond what's shown here — this capture's colors are
+                unusually repetitive. If none of these match your cube, try re-photographing with more
+                lighting/angle variation so the app can tell the faces apart more reliably.
+              </p>
+            )}
             <div class="orientation-picker-grid">
               {orientationAlternatives.map((alt, i) => (
                 <div key={i} class="orientation-picker-option">
