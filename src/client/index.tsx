@@ -193,6 +193,12 @@ function App() {
   const [algorithm, setAlgorithm] = useState('')
   const [assemblyResults, setAssemblyResults] = useState<any[]>([])
   const [parity, setParity] = useState<any>(null)
+  // Which highlight group (see server/Server.ts's HighlightGroup) is
+  // currently moused-over in the Cube Net, if any - lets hovering one
+  // implicated sticker cross-highlight every other reading that shares
+  // its same color combination (e.g. all the wings that matched an
+  // over-represented pair), not just itself.
+  const [hoveredHighlightGroup, setHoveredHighlightGroup] = useState<string | null>(null)
   const [webcamOpen, setWebcamOpen] = useState(false)
   const [webcamFace, setWebcamFace] = useState('U')
   const [capturedFaces, setCapturedFaces] = useState<Record<string, FaceCaptureData>>({})
@@ -926,9 +932,28 @@ function App() {
       </div>
 
       {/* Cube Net */}
-      {cube && (
+      {cube && (() => {
+        // parity.highlight (see server/Server.ts's HighlightGroup) is a
+        // list of readings, each with its own `group` tag (the color
+        // combination or matched piece name it read as) and the facelets
+        // backing it. Multiple entries can share a `group` - e.g. every
+        // wing that matched an over-represented pair - which is exactly
+        // the set to cross-highlight on hover, since they're the
+        // candidates for "which of these is actually the misread one".
+        const highlightGroups: Array<{ group: string; facelets: { face: string; index: number }[] }> =
+          parity?.highlight ?? []
+        const totalHighlighted = highlightGroups.reduce((n, g) => n + g.facelets.length, 0)
+        const groupAt = (face: string, index: number): string | undefined =>
+          highlightGroups.find((g) => g.facelets.some((f) => f.face === face && f.index === index))?.group
+        return (
         <div class="net-region">
           <h3>Cube Net</h3>
+          {totalHighlighted > 0 && (
+            <p class="net-highlight-note">
+              ⚠ {totalHighlighted} sticker{totalHighlighted === 1 ? '' : 's'} outlined below may be involved in the
+              parity problem — see the message above. Hover one to see which others share its color reading.
+            </p>
+          )}
           <div class="cube-net">
             {(
               [
@@ -939,25 +964,39 @@ function App() {
                 ['B', cube.b, 'net-b'],
                 ['D', cube.d, 'net-d'],
               ] as [string, string[], string][]
-            ).map(([label, data, cls]) => (
-              <div class={`net-face ${cls}`} key={label}>
-                <div
-                  class="net-face-grid"
-                  style={{ gridTemplateColumns: `repeat(${puzzleSize}, 1fr)` }}
-                >
-                  {data.map((color, i) => (
-                    <div
-                      class="net-cell"
-                      key={i}
-                      style={{ background: STICKER_HEX[color] || '#888' }}
-                    ></div>
-                  ))}
+            ).map(([label, data, cls]) => {
+              // Faces are named by their lowercase CubeIR key ('u','r',...)
+              // in parity.highlight, matching `cube`'s own keys - `label`
+              // here is only the uppercase display letter used for the
+              // net-u/net-l/... CSS class.
+              const faceKey = label.toLowerCase()
+              return (
+                <div class={`net-face ${cls}`} key={label}>
+                  <div
+                    class="net-face-grid"
+                    style={{ gridTemplateColumns: `repeat(${puzzleSize}, 1fr)` }}
+                  >
+                    {data.map((color, i) => {
+                      const group = groupAt(faceKey, i)
+                      const isHoverRelated = group !== undefined && group === hoveredHighlightGroup
+                      return (
+                        <div
+                          class={`net-cell ${group !== undefined ? 'net-cell-highlighted' : ''} ${isHoverRelated ? 'net-cell-hover-related' : ''}`}
+                          key={i}
+                          style={{ background: STICKER_HEX[color] || '#888' }}
+                          onMouseEnter={() => { if (group !== undefined) setHoveredHighlightGroup(group) }}
+                          onMouseLeave={() => setHoveredHighlightGroup(null)}
+                        ></div>
+                      )
+                    })}
+                  </div>
                 </div>
-              </div>
-            ))}
+              )
+            })}
           </div>
         </div>
-      )}
+        )
+      })()}
 
       {/* Face Capture Panel */}
       <section class="face-capture-panel">
