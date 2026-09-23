@@ -5,7 +5,7 @@
 ![License: MIT](https://img.shields.io/badge/License-MIT-cyan.svg)
 ![npm](https://img.shields.io/badge/runtime-npm-black)
 ![ReScript](https://img.shields.io/badge/lang-ReScript-e6484f)
-![Tests](https://img.shields.io/badge/tests-122%2F122%20%E2%9C%85-brightgreen)
+![Tests](https://img.shields.io/badge/tests-123%2F123%20%E2%9C%85-brightgreen)
 
 A full-stack library and web app that solves two geometric ambiguities when reconstructing a physical cube from 6 unordered face photographs:
 
@@ -60,9 +60,9 @@ cube-assembler/
 ├── src/
 │   ├── client/                    Preact browser app: webcam capture, review, notation I/O
 │   │   ├── index.tsx              App shell, capture/review flow, cube net view
-│   │   ├── imageProcessing.ts     Canvas-based sticker color + grid-size detection, white balance
+│   │   ├── imageProcessing.ts     Sticker color extraction (OKLCH), white balance, sticker-color learning
 │   │   ├── cubeAssembly.ts        Face assembly + center-sticker identity/orientation solving
-│   │   └── notationOutput.ts      Spaced-facelet notation (the app's sole manual I/O format)
+│   │   └── notationOutput.ts      WRG/URF facelet notation + format auto-detection
 │   │
 │   └── (ReScript domain library, served as compiled ES modules)
 │       ├── Index.res              Public API
@@ -86,7 +86,9 @@ cube-assembler/
     ├── notationOutput.test.ts     22 tests — WRG/URF facelet formats + format auto-detection
     ├── imageProcessing.test.ts    41 tests — OKLCH conversion/formatting, range math, hue-overlap detection, optimal assignment, outlier-robust sampling, sticker-color learning
     ├── parity.test.ts             14 tests — server-side corner/edge/wing-edge facelet-index tables
-    └── assemblyWorker.test.ts     7 tests — /api/assemble worker's corner/edge validation
+    ├── assemblyWorker.test.ts     7 tests — /api/assemble worker's corner/edge validation
+    ├── fixtures.test.ts           1+ tests — real captures vs. human-verified colors (see below)
+    └── fixtures/                  Saved captures for fixtures.test.ts (see fixtures/README.md)
 ```
 
 ---
@@ -160,6 +162,14 @@ or imported photos and reconstructs its state:
    or unreadable center).
 4. **Cube net** — the resolved state renders as a standard unfolded net
    (U top, L-F-R-B row, D bottom) alongside the 3D viewer.
+5. **Send to Server** — once a cube is confirmed, saves that exact
+   capture (every face's actual photo plus its color grid after any
+   manual corrections) as a permanent regression test fixture (`POST
+   /api/fixtures`, `test/fixtures/<name>/`). A misclassification a human
+   caught once in the review wizard stays caught: `test/fixtures.test.ts`
+   re-runs the real detection pipeline against every saved fixture and
+   fails if it stops matching. See
+   [`test/fixtures/README.md`](test/fixtures/README.md).
 
 Manual entry and the notation output panel offer two interchangeable
 formats, toggled with the same switch in both places (see
@@ -215,7 +225,9 @@ data: {"type":"result","states":[...cubeIR...]}
 ```
 
 ### `POST /api/parity`
-Full 4-condition parity check for a `cubeIR`.
+Full 4-condition parity check for a `cubeIR` (3×3×3 shown; 4×4–7×7 return
+`colorBalance`, `cornerColors`, `cornerOrientation`, and `wingEdgeColors`
+only — see [Parity Validation](#parity-validation)).
 
 ```json
 {
@@ -223,10 +235,9 @@ Full 4-condition parity check for a `cubeIR`.
   "result": "Valid — all parity checks passed",
   "checks": {
     "colorBalance": true,
-    "centerCores": true,
     "cornerColors": true,
-    "edgeColors": true,
     "cornerOrientation": true,
+    "edgeColors": true,
     "edgeOrientation": true,
     "permutationParity": true
   }
@@ -245,6 +256,28 @@ Parse WRG/Kociemba/Numeric notation into a `cubeIR`.
 
 ```json
 { "notation": "W W W W W W W W W  R R R...", "size": 3 }
+```
+
+### `POST /api/fixtures`
+Saves a human-verified capture (each face's actual photo plus its color
+grid after any manual corrections) as a regression test fixture under
+`test/fixtures/<name>/` — see [Regression fixtures](test/fixtures/README.md).
+Reachable from the app itself via the **Send to Server** button once a
+cube has been confirmed.
+
+```json
+{
+  "name": "optional-name (defaults to a timestamp)",
+  "gridSize": 3,
+  "faces": {
+    "U": { "photo": "data:image/jpeg;base64,...", "colors": [["W","W","W"], ...] },
+    "R": { ... }, "F": { ... }, "D": { ... }, "L": { ... }, "B": { ... }
+  }
+}
+```
+
+```json
+{ "success": true, "name": "capture-2026-01-15T10-30-00-000Z", "path": "test/fixtures/capture-2026-01-15T10-30-00-000Z" }
 ```
 
 ---
