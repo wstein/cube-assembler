@@ -706,12 +706,16 @@ function App() {
         userAgent: navigator.userAgent,
         mirrored: mirrorPreview,
         camera: cameraInfo,
-        // No software white-balance step runs at capture time any more
-        // (see the "Gains" comment in imageProcessing.ts) - the only
-        // color correction is the post-capture recalibration below, which
+        // No fixed-preset/gray-world software white-balance runs at capture
+        // time any more (see the "Gains" comment in imageProcessing.ts).
+        // Two corrections actually run, both recorded here: the per-face
+        // background-derived gain (backgroundWhiteBalance - see
+        // computeBackgroundGain, "G1") applied BEFORE reclassification,
+        // and the post-capture target-shift recalibration
+        // (colorCalibration - learnStickerColors) applied AFTER, which
         // shifts each of the 6 reference colors to match what this
-        // capture's own stickers measured, instead of adjusting pixels
-        // toward a guessed-neutral state first.
+        // capture's own (already background-corrected) stickers measured.
+        backgroundWhiteBalance: appliedBackgroundGains,
         colorCalibration: globalWhiteBalanceNote
           ? { applied: true, note: globalWhiteBalanceNote }
           : { applied: false },
