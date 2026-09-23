@@ -24,7 +24,7 @@ import { describe, it, expect } from 'vitest'
 import { existsSync, readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import jpeg from 'jpeg-js'
-import { extractColorsFromImageData, learnStickerColors, NEUTRAL_GAINS, type StickerSample } from '../src/client/imageProcessing'
+import { extractColorsFromImageData, learnStickerColors, NEUTRAL_GAINS, type RGB, type StickerSample } from '../src/client/imageProcessing'
 
 const FIXTURES_DIR = join(__dirname, 'fixtures')
 const FACE_ORDER = ['u', 'r', 'f', 'd', 'l', 'b']
@@ -44,6 +44,11 @@ interface FixtureMeta {
   capture?: {
     camera?: { label?: string }
     whiteBalance?: { mode?: string; lightSource?: string | null }
+    // Per-face gains the app actually applied before classification (see
+    // computeBackgroundGain / runGlobalWhiteBalance) - replayed below so the
+    // test reproduces the real pipeline. Absent on fixtures saved before
+    // the app started recording them; those replay with neutral gains.
+    backgroundWhiteBalance?: Record<string, RGB>
   }
   // Marks a fixture as a known, not-yet-fixed limitation rather than a
   // regression to guard against - e.g. a genuine palette-geometry case
@@ -111,7 +116,13 @@ describe('real-capture regression fixtures', () => {
         const photoPath = join(FIXTURES_DIR, name, faceData.photo)
         const decoded = jpeg.decode(readFileSync(photoPath), { useTArray: true })
         const pixelData = Uint8ClampedArray.from(decoded.data)
-        const result = extractColorsFromImageData(pixelData, decoded.width, decoded.height, meta.gridSize, NEUTRAL_GAINS)
+        // Same per-face gain the app's runGlobalWhiteBalance re-detects with -
+        // using NEUTRAL_GAINS here instead made this test disagree with what
+        // the customer actually saw (a fixture the app classified perfectly
+        // failed here, purely because its strong per-face correction was
+        // skipped).
+        const gains = meta.capture?.backgroundWhiteBalance?.[faceKey.toUpperCase()] ?? NEUTRAL_GAINS
+        const result = extractColorsFromImageData(pixelData, decoded.width, decoded.height, meta.gridSize, gains)
 
         for (let r = 0; r < meta.gridSize; r++) {
           for (let c = 0; c < meta.gridSize; c++) {
