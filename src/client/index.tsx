@@ -269,6 +269,52 @@ function OrientationNetPreview({
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Modal accessibility: every modal in this app (capture, review wizard,
+// orientation wizard, color-fix popup) is a plain conditionally-rendered
+// div, not a shared component, so there's no single lifecycle hook to hang
+// this on - these two plain functions (not hooks, so they're safe to wire
+// up from inside a conditionally-rendered block) give each one the same
+// keyboard behavior instead of duplicating it five times.
+// ─────────────────────────────────────────────────────────────────────────────
+
+const FOCUSABLE_SELECTOR =
+  'a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])'
+
+// Escape closes the modal; Tab/Shift+Tab cycles focus within it instead of
+// leaking out to (invisible, behind-the-backdrop) page content.
+function handleModalKeyDown(e: KeyboardEvent, container: HTMLElement, onClose: () => void) {
+  if (e.key === 'Escape') {
+    e.stopPropagation()
+    onClose()
+    return
+  }
+  if (e.key !== 'Tab') return
+  const focusable = Array.from(container.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR))
+  if (focusable.length === 0) return
+  const first = focusable[0]
+  const last = focusable[focusable.length - 1]
+  if (e.shiftKey && document.activeElement === first) {
+    e.preventDefault()
+    last.focus()
+  } else if (!e.shiftKey && document.activeElement === last) {
+    e.preventDefault()
+    first.focus()
+  }
+}
+
+// Moves focus into a modal right when it opens, so keyboard/screen-reader
+// users land inside it instead of it silently appearing over whatever was
+// focused before (in practice, always the button that opened it). A ref
+// callback (not a hook) re-runs on every render, not just the first one a
+// real element mount would - checking that focus isn't already somewhere
+// inside this modal is what limits the focus grab to that first moment:
+// once the container (or something in it) is focused, later re-renders
+// while the customer is actually using the modal leave it alone.
+function focusModalOnOpen(el: HTMLElement | null) {
+  if (el && !el.contains(document.activeElement)) el.focus()
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Orientation wizard: narrows solveFaceOrientations' tied `alternatives`
 // down to one, one face at a time, instead of dumping every alternative
 // (which can real-world number in the dozens - see cubeAssembly.ts's
@@ -366,7 +412,10 @@ function App() {
   // OrientationSolution.truncated: more genuinely-distinct ties existed
   // than the solver could keep, so `remaining` may not include every
   // possibility - shown to the customer rather than silently hidden.
-  const [orientationWizard, setOrientationWizard] = useState<{ remaining: OrientedCandidate[]; truncated: boolean } | null>(null)
+  // `step` counts answers given so far - only the first question spells
+  // out WHY it's being asked; repeating that explanation on every
+  // subsequent click would just be noise pushing the actual question down.
+  const [orientationWizard, setOrientationWizard] = useState<{ remaining: OrientedCandidate[]; truncated: boolean; step: number } | null>(null)
   const [reviewEditingCell, setReviewEditingCell] = useState<{ face: string; row: number; col: number } | null>(null)
   // Most laptop/webcam feeds are shown mirrored by convention (like a
   // physical mirror), which is what most users expect; default on but
@@ -890,7 +939,7 @@ function App() {
         // of silently picking one. Leaves the review dialog up; the
         // orientation wizard renders on top of it and calls
         // handleChooseOrientation once it narrows down to one candidate.
-        setOrientationWizard({ remaining: solved.alternatives, truncated: solved.truncated })
+        setOrientationWizard({ remaining: solved.alternatives, truncated: solved.truncated, step: 0 })
         return
       }
     } else {
@@ -927,7 +976,7 @@ function App() {
       handleChooseOrientation(matched[0])
       return
     }
-    setOrientationWizard((prev) => (prev ? { remaining: matched, truncated: prev.truncated } : null))
+    setOrientationWizard((prev) => (prev ? { remaining: matched, truncated: prev.truncated, step: prev.step + 1 } : null))
   }
 
   // Saves this capture - each face's actual photo plus its (human-
@@ -1365,7 +1414,14 @@ function App() {
       {/* Webcam Modal */}
       {webcamOpen && (
         <div class="modal open">
-          <div class="modal-content capture-modal-content">
+          <div
+            class="modal-content capture-modal-content"
+            role="dialog"
+            aria-modal="true"
+            tabIndex={-1}
+            ref={focusModalOnOpen}
+            onKeyDown={(e) => handleModalKeyDown(e, e.currentTarget, () => setWebcamOpen(false))}
+          >
             <div class="modal-header">
               <h2>Capturing: Face {FACE_DISPLAY_LABEL[webcamFace]}</h2>
               <button class="modal-close" onClick={() => setWebcamOpen(false)}>×</button>
@@ -1500,7 +1556,14 @@ function App() {
 
         return (
           <div class="modal open">
-            <div class="modal-content review-modal-content">
+            <div
+              class="modal-content review-modal-content"
+              role="dialog"
+              aria-modal="true"
+              tabIndex={-1}
+              ref={focusModalOnOpen}
+              onKeyDown={(e) => handleModalKeyDown(e, e.currentTarget, () => setShowReviewDialog(false))}
+            >
               <div class="modal-header">
                 <h2>Approve Face {FACE_DISPLAY_LABEL[face]} of {FACE_ORDER.length}</h2>
                 <button class="modal-close" onClick={() => setShowReviewDialog(false)}>×</button>
@@ -1623,7 +1686,7 @@ function App() {
 
       {/* Orientation wizard - see orientationWizard/pickWizardFace/groupWizardOptions */}
       {orientationWizard && (() => {
-        const { remaining, truncated } = orientationWizard
+        const { remaining, truncated, step } = orientationWizard
         const askingFace = pickWizardFace(remaining)
         // handleWizardAnswer never leaves the wizard open once no face is
         // left to ask about, so this should always resolve - but fall
@@ -1632,7 +1695,14 @@ function App() {
         if (!askingFace) {
           return (
             <div class="modal open">
-              <div class="modal-content orientation-picker">
+              <div
+                class="modal-content orientation-picker"
+                role="dialog"
+                aria-modal="true"
+                tabIndex={-1}
+                ref={focusModalOnOpen}
+                onKeyDown={(e) => handleModalKeyDown(e, e.currentTarget, () => setOrientationWizard(null))}
+              >
                 <div class="modal-header">
                   <h2>Which orientation matches your cube?</h2>
                   <button class="modal-close" onClick={() => setOrientationWizard(null)}>×</button>
@@ -1664,17 +1734,30 @@ function App() {
 
         return (
           <div class="modal open">
-            <div class="modal-content orientation-picker">
+            <div
+              class="modal-content orientation-picker"
+              role="dialog"
+              aria-modal="true"
+              tabIndex={-1}
+              ref={focusModalOnOpen}
+              onKeyDown={(e) => handleModalKeyDown(e, e.currentTarget, () => setOrientationWizard(null))}
+            >
               <div class="modal-header">
                 <h2>Which way is your {FACE_LABELS[askingFace]} face?</h2>
                 <button class="modal-close" onClick={() => setOrientationWizard(null)}>×</button>
               </div>
               <p class="orientation-picker-note">
-                {decidedCount} of 6 faces confirmed so far ({remaining.length} possible arrangement{remaining.length === 1 ? '' : 's'} left).
-                The photographed colors are equally consistent with more than one reading of your cube — this can
-                happen when a cube's own arrangement has a symmetry the camera can't see past. Pick the option below
-                that matches your actual {FACE_LABELS[askingFace]} face; grayed-out faces will fill in automatically
-                once there's enough information.
+                {step === 0 ? (
+                  <>
+                    {decidedCount} of 6 faces confirmed so far ({remaining.length} possible arrangement{remaining.length === 1 ? '' : 's'} left).
+                    The photographed colors are equally consistent with more than one reading of your cube — this can
+                    happen when a cube's own arrangement has a symmetry the camera can't see past. Pick the option
+                    below that matches your actual {FACE_LABELS[askingFace]} face; grayed-out faces will fill in
+                    automatically once there's enough information.
+                  </>
+                ) : (
+                  <>{decidedCount} of 6 confirmed ({remaining.length} left) — pick your actual {FACE_LABELS[askingFace]} face.</>
+                )}
               </p>
               {truncated && (
                 <p class="orientation-picker-note orientation-picker-truncated-note">
@@ -1702,7 +1785,15 @@ function App() {
       {/* Color-fix palette popup */}
       {reviewEditingCell && (
         <div class="modal open color-picker-modal" onClick={() => setReviewEditingCell(null)}>
-          <div class="modal-content color-picker-content" onClick={(e) => e.stopPropagation()}>
+          <div
+            class="modal-content color-picker-content"
+            role="dialog"
+            aria-modal="true"
+            tabIndex={-1}
+            ref={focusModalOnOpen}
+            onClick={(e) => e.stopPropagation()}
+            onKeyDown={(e) => handleModalKeyDown(e, e.currentTarget, () => setReviewEditingCell(null))}
+          >
             <h3>Fix color</h3>
             <div class="color-palette">
               {['W', 'Y', 'O', 'R', 'G', 'B'].map((color) => (
