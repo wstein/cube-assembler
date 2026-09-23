@@ -910,7 +910,13 @@ export function cropFaceRegionToDataUrl(canvas: HTMLCanvasElement): string {
     bounds.startX, bounds.startY, bounds.faceWidth, bounds.faceHeight,
     0, 0, bounds.faceWidth, bounds.faceHeight
   )
-  return out.toDataURL('image/jpeg', 0.85)
+  // Quality 1 is the only setting at which Chrome keeps full-resolution
+  // color (4:4:4); anything below stores chroma at half resolution (4:2:0),
+  // and decoders then disagree on how to upsample it - jpeg-js vs Chrome
+  // differed by up to 25 levels at sticker edges at 0.85, by at most 3 at
+  // 1. This image is the source of truth that recalibration and saved
+  // fixtures re-analyze, so it's worth the ~4x size (~50 KB for 288px).
+  return out.toDataURL('image/jpeg', 1)
 }
 
 // Fraction of a cell's sampled pixels discarded from each luminance
