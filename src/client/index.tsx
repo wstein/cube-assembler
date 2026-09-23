@@ -1395,7 +1395,7 @@ function App() {
             modal isn't open for an upload started from this panel, so
             without this the message would update invisibly. */}
         {captureMessage && !webcamOpen && (
-          <div class={`capture-message ${captureMessage.includes('✓') ? 'success' : captureMessage.includes('❌') ? 'error' : ''}`}>
+          <div role="status" class={`capture-message ${captureMessage.includes('✓') ? 'success' : captureMessage.includes('❌') ? 'error' : ''}`}>
             {captureMessage}
           </div>
         )}
@@ -1487,23 +1487,27 @@ function App() {
         </button>
 
         <h2>Parity Status</h2>
-        {parity ? (
-          <>
+        {/* Always mounted, so screen readers announce the verdict when it
+            changes - only the summary, not every individual check. */}
+        <div role="status">
+          {parity ? (
             <div class={`status-line ${parity.valid ? 'success' : 'error'}`}>
-              <span class={`status-dot ${parity.valid ? 'success' : 'error'}`}></span>
+              <span class={`status-dot ${parity.valid ? 'success' : 'error'}`} aria-hidden="true"></span>
               {parity.result}
             </div>
-            <div class="parity-checks">
-              {Object.entries(parity.checks).map(([check, valid]: [string, any]) => (
-                <div class="status-line" key={check}>
-                  <span class={`status-dot ${valid ? 'success' : 'error'}`}></span>
-                  {check}: {valid ? '✓' : '✗'}
-                </div>
-              ))}
-            </div>
-          </>
-        ) : (
-          <div class="status-line">No cube loaded. Capture all 6 faces to validate.</div>
+          ) : (
+            <div class="status-line">No cube loaded. Capture all 6 faces to validate.</div>
+          )}
+        </div>
+        {parity && (
+          <div class="parity-checks">
+            {Object.entries(parity.checks).map(([check, valid]: [string, any]) => (
+              <div class="status-line" key={check}>
+                <span class={`status-dot ${valid ? 'success' : 'error'}`} aria-hidden="true"></span>
+                {check}: {valid ? '✓' : '✗'}
+              </div>
+            ))}
+          </div>
         )}
 
         <h2>Notation Output</h2>
@@ -1541,7 +1545,7 @@ function App() {
               {loading ? '⏳ Sending...' : '💾 Send to Server (Save as Test Fixture)'}
             </button>
             {fixtureSaveMessage && (
-              <div class={`capture-message ${fixtureSaveMessage.includes('✓') ? 'success' : fixtureSaveMessage.includes('❌') ? 'error' : ''}`}>
+              <div role="status" class={`capture-message ${fixtureSaveMessage.includes('✓') ? 'success' : fixtureSaveMessage.includes('❌') ? 'error' : ''}`}>
                 {fixtureSaveMessage}
               </div>
             )}
@@ -1562,7 +1566,7 @@ function App() {
           >
             <div class="modal-header">
               <h2>Capturing: Face {FACE_DISPLAY_LABEL[webcamFace]}</h2>
-              <button class="modal-close" onClick={() => setWebcamOpen(false)}>×</button>
+              <button class="modal-close" aria-label="Close" onClick={() => setWebcamOpen(false)}>×</button>
             </div>
             <div class="capture-progress">
               <span class="capture-progress-label">
@@ -1655,6 +1659,7 @@ function App() {
               {liveDetection ? `${(liveDetection.confidence * 100).toFixed(0)}%` : '—'}
             </p>
             <div
+              role="status"
               class={`capture-message ${captureMessage ? (captureMessage.includes('✓') ? 'success' : captureMessage.includes('❌') ? 'error' : '') : 'is-empty'}`}
             >
               {captureMessage || '—'}
@@ -1704,7 +1709,7 @@ function App() {
             >
               <div class="modal-header">
                 <h2>Approve Face {FACE_DISPLAY_LABEL[face]} of {FACE_ORDER.length}</h2>
-                <button class="modal-close" onClick={() => setShowReviewDialog(false)}>×</button>
+                <button class="modal-close" aria-label="Close" onClick={() => setShowReviewDialog(false)}>×</button>
               </div>
               <div class="review-progress-dots">
                 {FACE_ORDER.map((f, i) => (
@@ -1727,7 +1732,13 @@ function App() {
                     <div class="review-pane">
                       <div class="review-pane-label">Photo</div>
                       <div class="review-face-image-wrapper">
-                        {data.croppedImage && <img src={data.croppedImage} class="review-face-image" />}
+                        {data.croppedImage && (
+                          <img
+                            src={data.croppedImage}
+                            class="review-face-image"
+                            alt={`Captured photo of face ${FACE_DISPLAY_LABEL[face]}`}
+                          />
+                        )}
                       </div>
                     </div>
                     <div class="review-pane">
@@ -1843,7 +1854,7 @@ function App() {
               >
                 <div class="modal-header">
                   <h2>Which orientation matches your cube?</h2>
-                  <button class="modal-close" onClick={() => setOrientationWizard(null)}>×</button>
+                  <button class="modal-close" aria-label="Close" onClick={() => setOrientationWizard(null)}>×</button>
                 </div>
                 <div class="orientation-picker-grid">
                   {remaining.map((alt, i) => (
@@ -1882,7 +1893,7 @@ function App() {
             >
               <div class="modal-header">
                 <h2>Which way is your {FACE_LABELS[askingFace]} face?</h2>
-                <button class="modal-close" onClick={() => setOrientationWizard(null)}>×</button>
+                <button class="modal-close" aria-label="Close" onClick={() => setOrientationWizard(null)}>×</button>
               </div>
               <p class="orientation-picker-note">
                 {decidedCount}/6 set · {remaining.length} left — match the framed face.
