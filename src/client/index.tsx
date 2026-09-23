@@ -4,7 +4,7 @@ import { TwistyPlayer } from 'cubing/twisty'
 import '../../web/style.css'
 import {
   captureAndProcessFace, captureAndProcessImage, extractCubeFaceColors,
-  estimateGrayWorldGains, runGlobalWhiteBalance, WHITE_BALANCE_PRESETS, NEUTRAL_GAINS,
+  runGlobalWhiteBalance,
   rgbToOKLCH, formatOKLCHValues, hueCircularRange, hueRangesOverlap, linearRange,
   type ColorDetectionResult, type FaceCaptureResult, type RGB,
 } from './imageProcessing'
@@ -157,15 +157,6 @@ function App() {
   const [liveDetection, setLiveDetection] = useState<ColorDetectionResult | null>(null)
   const [showReviewDialog, setShowReviewDialog] = useState(false)
   const [reviewEditingCell, setReviewEditingCell] = useState<{ face: string; row: number; col: number } | null>(null)
-  const [whiteBalanceMode, setWhiteBalanceMode] = useState<'auto' | keyof typeof WHITE_BALANCE_PRESETS>('auto')
-  const [autoWhiteBalance, setAutoWhiteBalance] = useState<{ gains: RGB; lightSource: string } | null>(null)
-  // "Auto" white balance is estimated live while framing face 1, then
-  // locked to whatever it was AT THE MOMENT face 1 was captured - faces
-  // 2-6 reuse that same gain rather than each re-estimating from
-  // scratch, so a composition change between shots (more/less of the
-  // background in frame, etc) can't quietly shift the correction
-  // face-to-face. Reset whenever a fresh 6-face session starts.
-  const [lockedAutoGains, setLockedAutoGains] = useState<{ gains: RGB; lightSource: string } | null>(null)
   // Most laptop/webcam feeds are shown mirrored by convention (like a
   // physical mirror), which is what most users expect; default on but
   // let it be turned off for cameras that don't need it (e.g. a rear
@@ -240,34 +231,15 @@ function App() {
 
       ctx.drawImage(video, 0, 0)
 
-      let gains = NEUTRAL_GAINS
-      if (whiteBalanceMode === 'auto') {
-        if (lockedAutoGains) {
-          // Faces 2-6: reuse face 1's locked estimate instead of
-          // re-estimating from this frame's (possibly different) framing.
-          gains = lockedAutoGains.gains
-        } else {
-          try {
-            const estimate = estimateGrayWorldGains(canvas)
-            setAutoWhiteBalance(estimate)
-            if (estimate) gains = estimate.gains
-          } catch {
-            // Leave the previous auto estimate in place on a transient failure.
-          }
-        }
-      } else {
-        gains = WHITE_BALANCE_PRESETS[whiteBalanceMode]
-      }
-
       try {
-        setLiveDetection(extractCubeFaceColors(canvas, puzzleSize, gains))
+        setLiveDetection(extractCubeFaceColors(canvas, puzzleSize))
       } catch {
         // Transient frame read failure (e.g. camera still warming up) — skip this tick.
       }
     }, 200)
 
     return () => clearInterval(intervalId)
-  }, [webcamOpen, puzzleSize, whiteBalanceMode, lockedAutoGains])
+  }, [webcamOpen, puzzleSize])
 
   const twistyPlayerRef = useRef<TwistyPlayer | null>(null)
 
@@ -703,20 +675,20 @@ function App() {
       for (const f of FACE_ORDER) {
         faces[f] = { photo: capturedFaces[f].croppedImage!, colors: capturedFaces[f].colors }
       }
-      const lightSource = whiteBalanceMode === 'auto' ? lockedAutoGains?.lightSource ?? autoWhiteBalance?.lightSource ?? null : null
       const meta = {
         capturedAt: new Date().toISOString(),
         userAgent: navigator.userAgent,
         mirrored: mirrorPreview,
         camera: cameraInfo,
-        whiteBalance: {
-          mode: whiteBalanceMode,
-          gains: getCurrentGains(),
-          lightSource,
-          globalRecalibration: globalWhiteBalanceNote
-            ? { applied: true, note: globalWhiteBalanceNote }
-            : { applied: false },
-        },
+        // No software white-balance step runs at capture time any more
+        // (see the "Gains" comment in imageProcessing.ts) - the only
+        // color correction is the post-capture recalibration below, which
+        // shifts each of the 6 reference colors to match what this
+        // capture's own stickers measured, instead of adjusting pixels
+        // toward a guessed-neutral state first.
+        colorCalibration: globalWhiteBalanceNote
+          ? { applied: true, note: globalWhiteBalanceNote }
+          : { applied: false },
       }
       const res = await fetch('/api/fixtures', {
         method: 'POST',
@@ -733,31 +705,13 @@ function App() {
     }
   }
 
-  // The gain the user has actually chosen right now — in Auto mode,
-  // face 1's locked estimate once it exists (see lockedAutoGains), else
-  // the live estimate (falls back to neutral if none exists yet, e.g.
-  // camera still warming up); a fixed preset otherwise.
-  const getCurrentGains = (): RGB =>
-    whiteBalanceMode === 'auto'
-      ? lockedAutoGains?.gains ?? autoWhiteBalance?.gains ?? NEUTRAL_GAINS
-      : WHITE_BALANCE_PRESETS[whiteBalanceMode]
-
-  // Locks in Auto mode's gain the moment face 1 is captured, so faces
-  // 2-6 reuse it instead of each re-estimating from their own frame.
-  const lockAutoGainsIfFirstFace = (face: string) => {
-    if (whiteBalanceMode === 'auto' && face === FACE_ORDER[0] && !lockedAutoGains && autoWhiteBalance) {
-      setLockedAutoGains(autoWhiteBalance)
-    }
-  }
-
   const handleCapturePhoto = async () => {
     if (!webcamRef.current) return
 
     try {
       setLoading(true)
       setCaptureMessage('Processing image...')
-      lockAutoGainsIfFirstFace(webcamFace)
-      const result = captureAndProcessFace(webcamRef.current, puzzleSize, getCurrentGains())
+      const result = captureAndProcessFace(webcamRef.current, puzzleSize)
       await applyFaceCapture(webcamFace, result)
     } catch (err) {
       console.error('Capture error:', err)
@@ -784,8 +738,7 @@ function App() {
           img.onerror = () => reject(new Error('Could not load image file'))
           img.src = url
         })
-        lockAutoGainsIfFirstFace(webcamFace)
-        const result = captureAndProcessImage(img, puzzleSize, getCurrentGains())
+        const result = captureAndProcessImage(img, puzzleSize)
         await applyFaceCapture(webcamFace, result)
       } finally {
         URL.revokeObjectURL(url)
@@ -1141,28 +1094,7 @@ function App() {
                 ))}
               </div>
             </div>
-            <div class="white-balance-row">
-              <span class="white-balance-label">White balance:</span>
-              <div class="white-balance-buttons">
-                {(['auto', 'daylight', 'cloudy', 'tungsten', 'fluorescent'] as const).map((mode) => (
-                  <button
-                    key={mode}
-                    class={`wb-btn ${whiteBalanceMode === mode ? 'active' : ''}`}
-                    onClick={() => setWhiteBalanceMode(mode)}
-                  >
-                    {mode === 'auto' ? 'Auto' : mode[0].toUpperCase() + mode.slice(1)}
-                  </button>
-                ))}
-              </div>
-              {whiteBalanceMode === 'auto' && (
-                <span class="white-balance-detected">
-                  {lockedAutoGains
-                    ? `Locked from Face ${FACE_DISPLAY_LABEL[FACE_ORDER[0]]}: ${lockedAutoGains.lightSource}`
-                    : autoWhiteBalance
-                    ? `Detected: ${autoWhiteBalance.lightSource}`
-                    : 'Detecting light source…'}
-                </span>
-              )}
+            <div class="capture-options-row">
               <label class="mirror-toggle">
                 <input
                   type="checkbox"

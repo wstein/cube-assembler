@@ -225,25 +225,28 @@ function closestSticker(color: RGB): string {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// White balance
+// Gains
 //
-// A per-channel multiplicative gain {r,g,b} applied to sampled RGB before
-// classification. This is a simple diagonal (von Kries-style) correction —
-// no cross-channel terms, no offset — matching the level of the rest of
-// this file's hand-rolled, dependency-free approach.
+// A per-channel multiplicative gain {r,g,b}, applicable to sampled RGB
+// before classification (a simple diagonal, von Kries-style correction —
+// no cross-channel terms, no offset). The app deliberately does NOT use
+// this to estimate or correct white balance in software any more — no
+// user-facing WB mode, no gray-world estimate from the frame. Two reasons:
+// getUserMedia/ImageCapture give no reliable way to know what the camera's
+// own hardware auto-WB already did to a frame, so a software gain on top
+// is correcting an unknown, possibly-already-corrected input; and the
+// actual, confirmed fix for real-capture misclassification is on the
+// CLASSIFICATION TARGET side, not the pixel side - learnStickerColors
+// (+ its canonical-anchor shrinkage) shifts each of the 6 reference colors
+// to match what THIS capture's stickers actually measured, which directly
+// addresses the failure vector (distance to the wrong reference color)
+// instead of trying to normalize pixels toward an assumed-neutral state
+// first. `gains` stays as plain shared infrastructure through the
+// extraction pipeline below - every caller now always passes
+// NEUTRAL_GAINS (or omits the argument, defaulting to it).
 // ─────────────────────────────────────────────────────────────────────────────
 
 export const NEUTRAL_GAINS: RGB = { r: 1, g: 1, b: 1 }
-
-// Rough, uncalibrated presets (roughly matching typical camera WB presets).
-// "auto" is not a fixed gain — callers should use estimateGrayWorldGains()
-// instead when in auto mode.
-export const WHITE_BALANCE_PRESETS: Record<string, RGB> = {
-  daylight: { r: 1, g: 1, b: 1 },
-  cloudy: { r: 0.95, g: 1, b: 1.1 },
-  tungsten: { r: 0.8, g: 0.95, b: 1.25 },
-  fluorescent: { r: 1.05, g: 0.92, b: 1.05 },
-}
 
 export function applyGains(rgb: RGB, gains: RGB): RGB {
   return {
@@ -251,68 +254,6 @@ export function applyGains(rgb: RGB, gains: RGB): RGB {
     g: Math.max(0, Math.min(255, Math.round(rgb.g * gains.g))),
     b: Math.max(0, Math.min(255, Math.round(rgb.b * gains.b))),
   }
-}
-
-export interface LightSourceEstimate {
-  gains: RGB
-  lightSource: string
-}
-
-// Gray-world white balance: assumes the average color of a real scene
-// tends toward neutral gray, so pushes the frame's average RGB back toward
-// gray and reports the correction as per-channel gains. This is only run
-// over the guide-square region (mostly cube + hand, not the whole frame),
-// so it's a coarse approximation, not a true illuminant measurement — it
-// has no way to know the cube's stickers aren't gray to begin with. Good
-// enough to suggest a light-source label and a starting-point correction;
-// the post-capture sticker-based recalibration (learnStickerColors) is
-// what actually uses knowledge of the cube's real colors.
-export function estimateGrayWorldGains(canvas: HTMLCanvasElement): LightSourceEstimate | null {
-  const { imageData, faceWidth, faceHeight } = getFaceRegion(canvas)
-  if (faceWidth < 20 || faceHeight < 20) return null
-
-  const data = imageData.data
-  let sumR = 0, sumG = 0, sumB = 0
-  const pixelCount = faceWidth * faceHeight
-
-  for (let i = 0; i < data.length; i += 4) {
-    sumR += data[i]
-    sumG += data[i + 1]
-    sumB += data[i + 2]
-  }
-
-  const avgR = sumR / pixelCount
-  const avgG = sumG / pixelCount
-  const avgB = sumB / pixelCount
-  const gray = (avgR + avgG + avgB) / 3
-  if (gray < 5) return null // too dark to estimate meaningfully
-
-  // Clamp gains to a sane range so a single stray bright/dark frame can't
-  // produce an extreme correction.
-  const clampGain = (g: number) => Math.max(0.6, Math.min(1.8, g))
-  const gains: RGB = {
-    r: clampGain(gray / avgR),
-    g: clampGain(gray / avgG),
-    b: clampGain(gray / avgB),
-  }
-
-  // Classify the cast direction the gains are correcting FOR, i.e. what the
-  // light probably was: if we had to boost blue and cut red, the scene was
-  // warm (tungsten-like); if we boosted red/green and cut blue, the scene
-  // was cool (shade/cloudy-like); a green boost/cut alone suggests
-  // fluorescent's characteristic green spike.
-  const warmth = gains.b - gains.r // >0: scene was warm, needed cooling
-  const greenCast = gains.g - (gains.r + gains.b) / 2
-  let lightSource = 'Neutral (daylight-like)'
-  if (Math.abs(greenCast) > 0.12 && Math.abs(greenCast) > Math.abs(warmth)) {
-    lightSource = greenCast > 0 ? 'Fluorescent (green cast)' : 'Magenta cast'
-  } else if (warmth > 0.1) {
-    lightSource = 'Warm (incandescent/tungsten-like)'
-  } else if (warmth < -0.1) {
-    lightSource = 'Cool (shade/cloudy-like)'
-  }
-
-  return { gains, lightSource }
 }
 
 export interface StickerSample {
@@ -918,8 +859,9 @@ export function captureAndProcessFace(
   ctx.drawImage(video, 0, 0)
   // croppedImage is always the raw, un-gained frame — it's the source of
   // truth photo, re-analyzed independently by the post-capture global
-  // white-balance pass (redetectFaceColors) regardless of what WB was
-  // live/manually selected during capture.
+  // recalibration pass (redetectFaceColors / runGlobalWhiteBalance),
+  // which always starts over from NEUTRAL_GAINS regardless of what `gains`
+  // was passed in here (see the "Gains" comment above).
   return { ...extractCubeFaceColors(canvas, gridSize, gains), croppedImage: cropFaceRegionToDataUrl(canvas) }
 }
 
