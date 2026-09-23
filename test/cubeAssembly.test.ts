@@ -142,10 +142,11 @@ describe('solveFaceOrientations', () => {
     // own search (identity has no fixed reference on an even cube) directly
     // hits all 4 of these. An earlier version canonicalized this down to a
     // single choice, reasoning that since solveEvenSizeOrientations
-    // already deliberately treats identity as arbitrary here (fixing
-    // capture#1=U@0 "because...any one consistent labeling is as good as
-    // another" - its own comment), any tie must be that same kind of
-    // arbitrary relabeling, not worth asking about. That turned out to be
+    // already deliberately treats identity as arbitrary here (fixing one
+    // capture's identity+rotation as its search anchor "because...any one
+    // consistent labeling is as good as another" - its own comment), any
+    // tie must be that same kind of arbitrary relabeling, not worth
+    // asking about. That turned out to be
     // an over-generalization from this one degenerate case (see the 4x4
     // regression below, where a real capture's ties are NOT reducible to
     // whole-cube relabeling) - so both sizes now surface every distinct
@@ -293,9 +294,12 @@ describe('solveFaceOrientations', () => {
       // validateWingEdges correctly caught the resulting cube as
       // "Wing edge color-pair counts unbalanced" even though the client
       // thought it was done. The fix (wingEdgeCountsValid, gating
-      // isFullyValid for n>3) must find R needs a 90deg rotation the old
-      // code never applied, and the result must be genuinely, not just
-      // apparently, valid.
+      // isFullyValid for n>3) must reject that false positive and find a
+      // rotation assignment that is genuinely, not just apparently, valid
+      // (fullyValid alone already exercises this, since it's gated on
+      // wingEdgeCountsValid for n>3 - the specific winning rotation values
+      // are an implementation detail of which face solveEvenSizeOrientations
+      // picks as its free anchor, not a meaningful invariant to pin here).
       const toGrid = (s: string, n: number): string[][] =>
         Array.from({ length: n }, (_, r) => s.slice(r * n, r * n + n).split(''))
       const captured: Record<string, string[][]> = {
@@ -311,11 +315,7 @@ describe('solveFaceOrientations', () => {
       expect(result!.fullyValid).toBe(true)
       expect(result!.cornerScore).toBe(8)
       expect(result!.edgeScore).toBe(12)
-      // The old (buggy) code left R unrotated (0) and still called it
-      // fully valid - a false positive. The genuinely valid answer needs
-      // R rotated 90deg.
-      expect(result!.rotations.R).toBe(1)
-      // This capture's own R/D/L wing patterns turn out to be independently
+      // This capture's own U/R/D/L wing patterns turn out to be independently
       // rotation-symmetric enough that 36 genuinely distinct assignments
       // tie for the winning score (see the dedicated "multiple genuinely
       // different alternatives" test below) - a real discovery made while
@@ -334,8 +334,8 @@ describe('solveFaceOrientations', () => {
       // "multiple valid permutations" that the app should ask the
       // customer to choose between, instead of silently picking one as
       // even sizes previously always did. Confirmed genuine, not a
-      // whole-cube relabeling: across the 36 tied alternatives, R/F/B/L
-      // each independently take all 4 rotation values while D takes only
+      // whole-cube relabeling: across the 36 tied alternatives, U/R/D/L
+      // each independently take all 4 rotation values while B takes only
       // 2 - an asymmetric spread no single whole-cube rigid rotation
       // (which would move every face together, in lockstep, through one
       // shared small orbit - see the clean 4-way cyclic tie in the
@@ -363,17 +363,20 @@ describe('solveFaceOrientations', () => {
         )
       )
       expect(signatures.size).toBe(36) // genuinely distinct content, not duplicates
-      // R/F/B/L range over all 4 rotations while D is stuck at only 2 -
+      // U/R/D/L range over all 4 rotations while B is stuck at only 2 -
       // an asymmetric spread proving this isn't one shared whole-cube
-      // rotation orbit (U is trivially always 0 - solveEvenSizeOrientations
-      // fixes it by construction, not evidence of anything here).
-      const rotationValues = (face: 'R' | 'F' | 'B' | 'L' | 'D') =>
+      // rotation orbit (F is trivially always 0 - solveEvenSizeOrientations
+      // fixes it as the anchor by construction, not evidence of anything
+      // here; F is the anchor rather than U specifically so the
+      // orientation wizard never has to ask about it - see index.tsx).
+      const rotationValues = (face: 'U' | 'R' | 'D' | 'L' | 'B') =>
         new Set(result!.alternatives.map((alt) => alt.rotations[face]))
+      expect(rotationValues('U').size).toBe(4)
       expect(rotationValues('R').size).toBe(4)
-      expect(rotationValues('F').size).toBe(4)
-      expect(rotationValues('B').size).toBe(4)
+      expect(rotationValues('D').size).toBe(4)
       expect(rotationValues('L').size).toBe(4)
-      expect(rotationValues('D').size).toBe(2)
+      expect(rotationValues('B').size).toBe(2)
+      expect(result!.alternatives.every((alt) => alt.rotations.F === 0)).toBe(true)
     })
 
     it('completes a 4x4 search within a reasonable time budget', () => {
