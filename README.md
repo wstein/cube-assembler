@@ -133,9 +133,13 @@ or imported photos and reconstructs its state:
    actually goes wrong — and when two colors' hue ranges actually overlap
    this capture (`hueRangesOverlap`), both rows get a ⚠ flag naming which
    other color to check for mixups against, rather than leaving you to
-   spot the overlap by comparing ranges across rows yourself. The
-   "Detected" grid likewise labels every sticker
-   with its own OKLCH value, not just its classified color. Each
+   spot the overlap by comparing ranges across rows yourself. That same
+   overlap signal, plus each cell's own detection confidence, also flags
+   the specific affected stickers directly in the "Detected" grid (dashed
+   border + badge, with a running "N flagged for review" count next to the
+   pane label) — so correcting one ambiguous sticker doesn't first require
+   noticing it was ambiguous. The "Detected" grid likewise labels every
+   sticker with its own OKLCH value, not just its classified color. Each
    sticker's color is itself a trimmed mean (`trimmedMeanColor`), not a
    plain average, over its sampled pixels — the brightest/darkest 15% by
    luminance are discarded before averaging, so a specular highlight off
@@ -166,7 +170,12 @@ or imported photos and reconstructs its state:
    /api/fixtures`, `test/fixtures/<name>/`). A misclassification a human
    caught once in the review wizard stays caught: `test/fixtures.test.ts`
    re-runs the real detection pipeline against every saved fixture and
-   fails if it stops matching. See
+   fails if it stops matching. Fixtures can be hand-tagged (surfaced in
+   each test's title, so a pattern across failures — e.g. one lighting
+   condition — is visible straight from `npm test` output) or marked
+   `expectedFail` for a known, not-yet-fixed limitation (runs via Vitest's
+   `it.fails`, so the moment it's actually fixed the test itself fails
+   until the flag is removed). See
    [`test/fixtures/README.md`](test/fixtures/README.md).
 
 Manual entry and the notation output panel offer two interchangeable
