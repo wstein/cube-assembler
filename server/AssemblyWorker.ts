@@ -156,6 +156,14 @@ function checkFullParity(cube: CubeIR): boolean {
     }
     if (!found) return false;
   }
+  // Each corner-triple match above only checks "is this SOME real corner"
+  // independently per slot - two slots matching the SAME physical piece
+  // (impossible on a real cube, but not automatically excluded by that
+  // per-slot check alone) would make permParity(cp) below meaningless,
+  // since it assumes cp is an actual permutation of 0..7. Same class of
+  // gap this exhaustive search exists to avoid trusting a lone client-side
+  // heuristic for - see src/client/cubeAssembly.ts's isFullyValid.
+  if (new Set(cp).size !== SOLVED_C.length) return false;
   const coSum = co.reduce((a,b)=>a+b,0);
   if (coSum % 3 !== 0) return false;
 
@@ -172,6 +180,7 @@ function checkFullParity(cube: CubeIR): boolean {
     }
     if (!found) return false;
   }
+  if (new Set(ep).size !== SOLVED_E.length) return false;
   const eoSum = eo.reduce((a,b)=>a+b,0);
   if (eoSum % 2 !== 0) return false;
   return permParity(cp) === permParity(ep);
