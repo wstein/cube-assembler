@@ -5,7 +5,7 @@
 ![License: MIT](https://img.shields.io/badge/License-MIT-cyan.svg)
 ![npm](https://img.shields.io/badge/runtime-npm-black)
 ![ReScript](https://img.shields.io/badge/lang-ReScript-e6484f)
-![Tests](https://img.shields.io/badge/tests-102%2F102%20%E2%9C%85-brightgreen)
+![Tests](https://img.shields.io/badge/tests-108%2F108%20%E2%9C%85-brightgreen)
 
 A full-stack library and web app that solves two geometric ambiguities when reconstructing a physical cube from 6 unordered face photographs:
 
@@ -84,7 +84,7 @@ cube-assembler/
     ├── notation.test.ts           23 tests — ReScript Notation module (WRG/URF/Kociemba/Numeric)
     ├── cubeAssembly.test.ts       15 tests — face identity/orientation solver (odd + even sizes)
     ├── notationOutput.test.ts     22 tests — WRG/URF facelet formats + format auto-detection
-    ├── imageProcessing.test.ts    21 tests — OKLCH conversion/formatting, range math, sticker-color learning
+    ├── imageProcessing.test.ts    27 tests — OKLCH conversion/formatting, range math, optimal assignment, sticker-color learning
     ├── parity.test.ts             14 tests — server-side corner/edge/wing-edge facelet-index tables
     └── assemblyWorker.test.ts     7 tests — /api/assemble worker's corner/edge validation
 ```
@@ -114,8 +114,11 @@ or imported photos and reconstructs its state:
    spotting a reading drifting toward the wrong side of a classification
    boundary before you even capture the shot.
 2. **Review** — after all 6 faces are captured, a global recalibration
-   pass re-clusters all stickers together (k-means, capacity-constrained
-   to the physical invariant of exactly N² stickers per color) and a
+   pass re-clusters all stickers together (k-means, with each iteration's
+   assignment step solved as a genuine optimal balanced assignment —
+   `hungarianAssignment` in `imageProcessing.ts` — rather than a greedy
+   heuristic, so the N² -per-color physical invariant is enforced exactly
+   without ever leaving a cheaper global rearrangement on the table) and a
    wizard lets you approve or correct each face's detected colors against
    its photo. A color-stats table (one row per color: swatch, count,
    lightness/chroma/hue range) shows both how many stickers were assigned
