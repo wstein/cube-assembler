@@ -1218,13 +1218,18 @@ function App() {
   // Features: Copy to Clipboard (#11)
   // ─────────────────────────────────────────────────────────────────────────
 
+  // Confirmed inline on the button itself (briefly swapping its label)
+  // rather than with a blocking alert() the customer has to click away.
+  const [copyStatus, setCopyStatus] = useState<'idle' | 'copied' | 'failed'>('idle')
   const copyToClipboard = async (text: string) => {
     try {
       await navigator.clipboard.writeText(text)
-      alert('Copied to clipboard!')
+      setCopyStatus('copied')
     } catch (err) {
       console.error('Copy failed:', err)
+      setCopyStatus('failed')
     }
+    setTimeout(() => setCopyStatus('idle'), 1500)
   }
 
   // ─────────────────────────────────────────────────────────────────────────
@@ -1553,7 +1558,9 @@ function App() {
             <textarea readonly value={getNotationOutput()} />
             <div class="btn-row">
               <button class="btn btn-primary" onClick={() => cube && copyToClipboard(getNotationOutput())}>
-                Copy to Clipboard
+                <span aria-live="polite">
+                  {copyStatus === 'copied' ? '✓ Copied' : copyStatus === 'failed' ? 'Copy failed' : 'Copy to Clipboard'}
+                </span>
               </button>
               {cube && (
                 <button
