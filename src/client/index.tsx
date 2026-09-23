@@ -144,33 +144,39 @@ function OklchLines({ oklch, class: className }: { oklch: { l: number; c: number
 // visually compare candidates against their physical cube and pick which
 // one matches - used when solveFaceOrientations reports genuine
 // orientation ambiguity (see its `alternatives` field).
-function CubeNet({ faces }: { faces: Record<string, string[][]> }) {
+// Named distinctly from the pre-existing main-window "Cube Net" display
+// (.cube-net/.net-face/... below) - this is a small, per-alternative
+// preview inside the orientation picker, not that view, and sharing its
+// class names once caused this component's flex-based CSS to silently
+// override the main net's grid-based cross layout (same selector, later
+// in the stylesheet wins the cascade).
+function OrientationNetPreview({ faces }: { faces: Record<string, string[][]> }) {
   const grid = (face: string) => (
-    <div class="cube-net-face" style={{ gridTemplateColumns: `repeat(${faces[face].length}, 1fr)` }}>
+    <div class="orientation-net-face" style={{ gridTemplateColumns: `repeat(${faces[face].length}, 1fr)` }}>
       {faces[face].flat().map((color, i) => (
-        <div key={i} class="cube-net-sticker" style={{ background: STICKER_HEX[color] ?? '#888' }} />
+        <div key={i} class="orientation-net-sticker" style={{ background: STICKER_HEX[color] ?? '#888' }} />
       ))}
     </div>
   )
   return (
-    <div class="cube-net">
-      <div class="cube-net-row">
-        <div class="cube-net-spacer" />
+    <div class="orientation-net">
+      <div class="orientation-net-row">
+        <div class="orientation-net-spacer" />
         {grid('U')}
-        <div class="cube-net-spacer" />
-        <div class="cube-net-spacer" />
+        <div class="orientation-net-spacer" />
+        <div class="orientation-net-spacer" />
       </div>
-      <div class="cube-net-row">
+      <div class="orientation-net-row">
         {grid('L')}
         {grid('F')}
         {grid('R')}
         {grid('B')}
       </div>
-      <div class="cube-net-row">
-        <div class="cube-net-spacer" />
+      <div class="orientation-net-row">
+        <div class="orientation-net-spacer" />
         {grid('D')}
-        <div class="cube-net-spacer" />
-        <div class="cube-net-spacer" />
+        <div class="orientation-net-spacer" />
+        <div class="orientation-net-spacer" />
       </div>
     </div>
   )
@@ -1500,7 +1506,7 @@ function App() {
             <div class="orientation-picker-grid">
               {orientationAlternatives.map((alt, i) => (
                 <div key={i} class="orientation-picker-option">
-                  <CubeNet faces={alt.faces} />
+                  <OrientationNetPreview faces={alt.faces} />
                   <button class="btn btn-primary btn-sm" onClick={() => handleChooseOrientation(alt)}>
                     Use this one
                   </button>
