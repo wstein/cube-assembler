@@ -24,7 +24,7 @@ import { describe, it, expect } from 'vitest'
 import { existsSync, readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import jpeg from 'jpeg-js'
-import { extractColorsFromImageData, learnStickerColors, NEUTRAL_GAINS, type RGB, type StickerSample } from '../src/client/imageProcessing'
+import { extractColorsFromImageData, learnStickerColors, limitBackgroundGain, NEUTRAL_GAINS, type RGB, type StickerSample } from '../src/client/imageProcessing'
 
 const FIXTURES_DIR = join(__dirname, 'fixtures')
 const FACE_ORDER = ['u', 'r', 'f', 'd', 'l', 'b']
@@ -121,7 +121,10 @@ describe('real-capture regression fixtures', () => {
         // the customer actually saw (a fixture the app classified perfectly
         // failed here, purely because its strong per-face correction was
         // skipped).
-        const gains = meta.capture?.backgroundWhiteBalance?.[faceKey.toUpperCase()] ?? NEUTRAL_GAINS
+        // Limited like runGlobalWhiteBalance does, so gains recorded under
+        // an older, looser clamp replay with today's limit.
+        const recordedGains = meta.capture?.backgroundWhiteBalance?.[faceKey.toUpperCase()]
+        const gains = recordedGains ? limitBackgroundGain(recordedGains) : NEUTRAL_GAINS
         const result = extractColorsFromImageData(pixelData, decoded.width, decoded.height, meta.gridSize, gains)
 
         for (let r = 0; r < meta.gridSize; r++) {

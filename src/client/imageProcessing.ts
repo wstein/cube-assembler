@@ -847,26 +847,47 @@ export function extractBackgroundColor(canvas: HTMLCanvasElement): RGB | null {
   return mean
 }
 
+// Largest per-channel correction (and 1/this the smallest) a background
+// gain may apply. The background patch is only a rough gray card - it
+// picks up the cube's own colored reflections and exposure changes - so
+// a strong gain overcorrects: the 7x7 fixture capture-2026-09-23T10-23-06
+// had B's red gain at 1.56, which pushed its reds into orange territory
+// (and clipped 42 sticker readings at 255), leaving a Red/Orange pair so
+// close to the boundary that decoding the same JPEG with a different
+// decoder flipped it. Sweeping every local fixture that recorded gains,
+// 1.3 widened or kept the worst Red/Orange margin on all of them (the old
+// 0.6-1.8 was the loosest), while no gain at all broke
+// capture-2026-09-23T04-17-08 - so some correction is still needed.
+const MAX_BACKGROUND_GAIN = 1.3
+
+// Clamps a background-derived gain into [1/MAX_BACKGROUND_GAIN,
+// MAX_BACKGROUND_GAIN]. Exported so gains recorded by older captures
+// (clamped to the old, looser range) replay with today's limit too.
+// Falls back to a neutral (1) gain for any channel that comes out
+// non-finite, rather than propagating NaN/Infinity into applyGains -
+// which would silently corrupt every pixel it touches (NaN * anything
+// is NaN) rather than merely leaving that channel uncorrected. A real
+// instance of this (a getImageData/manual-indexing stride mismatch,
+// since fixed at the source in computeFaceBounds) reached exactly this
+// failure mode on a live capture.
+export function limitBackgroundGain(gains: RGB): RGB {
+  const clampGain = (g: number) =>
+    Number.isFinite(g) ? Math.max(1 / MAX_BACKGROUND_GAIN, Math.min(MAX_BACKGROUND_GAIN, g)) : 1
+  return { r: clampGain(gains.r), g: clampGain(gains.g), b: clampGain(gains.b) }
+}
+
 // Per-channel gain that would rescale `current`'s background reading to
 // match `reference`'s - the actual cross-face correction, applied to a
 // face's raw sticker samples (via applyGains) before classification, same
-// as any other gain in this file. Clamped like the old gray-world
-// estimate was, so a background patch that's unexpectedly extreme (e.g.
-// partially shadowed on one face) can't produce a runaway correction.
+// as any other gain in this file. Limited (see limitBackgroundGain) so a
+// background patch that's unexpectedly extreme (e.g. partially shadowed
+// on one face) can't produce a runaway correction.
 export function computeBackgroundGain(reference: RGB, current: RGB): RGB {
-  // Falls back to a neutral (1) gain for any channel that comes out
-  // non-finite, rather than propagating NaN/Infinity into applyGains -
-  // which would silently corrupt every pixel it touches (NaN * anything
-  // is NaN) rather than merely leaving that channel uncorrected. A real
-  // instance of this (a getImageData/manual-indexing stride mismatch,
-  // since fixed at the source in computeFaceBounds) reached exactly this
-  // failure mode on a live capture.
-  const clampGain = (g: number) => (Number.isFinite(g) ? Math.max(0.6, Math.min(1.8, g)) : 1)
-  return {
-    r: clampGain(reference.r / Math.max(1, current.r)),
-    g: clampGain(reference.g / Math.max(1, current.g)),
-    b: clampGain(reference.b / Math.max(1, current.b)),
-  }
+  return limitBackgroundGain({
+    r: reference.r / Math.max(1, current.r),
+    g: reference.g / Math.max(1, current.g),
+    b: reference.b / Math.max(1, current.b),
+  })
 }
 
 // Crops just the analyzed face region out of a captured frame, for showing
@@ -1155,7 +1176,8 @@ export async function runGlobalWhiteBalance(
 ): Promise<LearnedColorClassificationResult> {
   const baselineFaces: Record<string, ColorDetectionResult> = {}
   for (const [face, dataUrl] of Object.entries(faceCroppedImages)) {
-    baselineFaces[face] = await redetectFaceColors(dataUrl, gridSize, faceGains?.[face] ?? NEUTRAL_GAINS)
+    const gains = faceGains?.[face] ? limitBackgroundGain(faceGains[face]) : NEUTRAL_GAINS
+    baselineFaces[face] = await redetectFaceColors(dataUrl, gridSize, gains)
   }
 
   const samples: StickerSample[] = []
