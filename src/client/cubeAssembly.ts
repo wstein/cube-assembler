@@ -676,22 +676,21 @@ function permutations<T>(arr: T[]): T[][] {
 // searched for jointly with rotation, using the same corner/edge validity
 // scoring. Which of the 6 captures is U/R/F/D/L/B, and each's rotation,
 // is 6! x 4^6 = 2,949,120 combinations - too many to search plainly.
-// Fixing capture #1 as F at rotation 0 cuts that by the cube's 24-element
+// Fixing capture #1 as U at rotation 0 cuts that by the cube's 24-element
 // rotation group (any solution can be re-expressed, as a whole, with
 // capture #1 in that position without changing which corners/edges are
 // valid - reconstructing a cube from photos alone has no way to know
-// which face is "really" F anyway, so any one consistent labeling is as
+// which face is "really" U anyway, so any one consistent labeling is as
 // good as another), leaving 5! x 4^5 = 122,880 - fast enough in practice.
-// F (not U) is the anchor specifically so the orientation wizard (see
-// index.tsx) can treat it as the one face customers never have to answer
-// a question about - matches how someone naturally orients a physical
-// cube around the face they're looking at, rather than the one on top.
+// U is the anchor specifically so the orientation wizard (see index.tsx)
+// can treat it as the one face customers never have to answer a question
+// about - Up is given, then F/R/L/D/B are asked about as needed.
 function solveEvenSizeOrientations(capturedFaces: Record<string, string[][]>): OrientationSolution | null {
   const captures = Object.values(capturedFaces)
   if (captures.length !== 6) return null
 
   const [firstCapture, ...rest] = captures
-  const otherKeys: FaceKey[] = ['U', 'R', 'D', 'L', 'B']
+  const otherKeys: FaceKey[] = ['R', 'F', 'D', 'L', 'B']
 
   // Precompute every capture's 4 rotations once, rather than re-rotating
   // inside the ~123K-combination search below.
@@ -701,8 +700,8 @@ function solveEvenSizeOrientations(capturedFaces: Record<string, string[][]>): O
   let best: BestCandidates | null = null
   for (const order of permutations([0, 1, 2, 3, 4])) {
     for (let mask = 0; mask < 1024; mask++) {
-      const rotations: Record<FaceKey, number> = { F: 0 } as Record<FaceKey, number>
-      const faces: Record<FaceKey, string[][]> = { F: firstRotated } as Record<FaceKey, string[][]>
+      const rotations: Record<FaceKey, number> = { U: 0 } as Record<FaceKey, number>
+      const faces: Record<FaceKey, string[][]> = { U: firstRotated } as Record<FaceKey, string[][]>
       for (let slot = 0; slot < 5; slot++) {
         const captureIdx = order[slot]
         const rot = (mask >> (slot * 2)) & 0b11

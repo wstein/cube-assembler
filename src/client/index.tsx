@@ -328,15 +328,14 @@ function focusModalOnOpen(el: HTMLElement | null) {
 // being asked about. Terminates when exactly one candidate remains.
 // ─────────────────────────────────────────────────────────────────────────────
 
-// F last: for even sizes solveEvenSizeOrientations fixes F as its search
+// U last: for even sizes solveEvenSizeOrientations fixes U as its search
 // anchor, so it's already unanimous across every alternative and never
-// actually reaches this tiebreak - matches how someone naturally orients
-// a physical cube around the face they're looking at, rather than the one
-// on top. For odd sizes there's no free anchor (every face's rotation is
-// a genuine unknown from its photo alone), so F is only ever actually
+// actually reaches this tiebreak - Up is given, F/R/L/D/B get asked about
+// as needed. For odd sizes there's no free anchor (every face's rotation
+// is a genuine unknown from its photo alone), so U is only ever actually
 // asked about there if it turns out to be tied with another face on
 // "most distinct values" - this ordering just makes it lose that tiebreak.
-const WIZARD_FACE_ORDER: FaceKey[] = ['U', 'R', 'D', 'L', 'B', 'F']
+const WIZARD_FACE_ORDER: FaceKey[] = ['F', 'R', 'D', 'L', 'B', 'U']
 const FACE_LABELS: Record<FaceKey, string> = { U: 'Up', R: 'Right', F: 'Front', D: 'Down', L: 'Left', B: 'Back' }
 
 function faceContentKey(colors: string[][]): string {

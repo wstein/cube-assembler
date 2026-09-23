@@ -363,20 +363,20 @@ describe('solveFaceOrientations', () => {
         )
       )
       expect(signatures.size).toBe(36) // genuinely distinct content, not duplicates
-      // U/R/D/L range over all 4 rotations while B is stuck at only 2 -
+      // R/F/L/B range over all 4 rotations while D is stuck at only 2 -
       // an asymmetric spread proving this isn't one shared whole-cube
-      // rotation orbit (F is trivially always 0 - solveEvenSizeOrientations
+      // rotation orbit (U is trivially always 0 - solveEvenSizeOrientations
       // fixes it as the anchor by construction, not evidence of anything
-      // here; F is the anchor rather than U specifically so the
-      // orientation wizard never has to ask about it - see index.tsx).
-      const rotationValues = (face: 'U' | 'R' | 'D' | 'L' | 'B') =>
+      // here; U is the anchor specifically so the orientation wizard never
+      // has to ask about it - see index.tsx).
+      const rotationValues = (face: 'R' | 'F' | 'D' | 'L' | 'B') =>
         new Set(result!.alternatives.map((alt) => alt.rotations[face]))
-      expect(rotationValues('U').size).toBe(4)
       expect(rotationValues('R').size).toBe(4)
-      expect(rotationValues('D').size).toBe(4)
+      expect(rotationValues('F').size).toBe(4)
       expect(rotationValues('L').size).toBe(4)
-      expect(rotationValues('B').size).toBe(2)
-      expect(result!.alternatives.every((alt) => alt.rotations.F === 0)).toBe(true)
+      expect(rotationValues('B').size).toBe(4)
+      expect(rotationValues('D').size).toBe(2)
+      expect(result!.alternatives.every((alt) => alt.rotations.U === 0)).toBe(true)
     })
 
     it('completes a 4x4 search within a reasonable time budget', () => {
