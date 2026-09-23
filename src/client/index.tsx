@@ -122,6 +122,70 @@ function confidenceTier(c: number): 'high' | 'medium' | 'low' {
   return c >= 0.8 ? 'high' : c >= 0.5 ? 'medium' : 'low'
 }
 
+const COLOR_ORDER = ['W', 'O', 'G', 'R', 'B', 'Y']
+
+interface ColorStat {
+  count: number
+  expected: number
+  lightness: { min: number; max: number } | null
+  chroma: { min: number; max: number } | null
+  hue: { min: number; max: number } | null
+  hueOverlapsWith: string[]
+}
+
+// Aggregates every captured sticker's detected color across all 6 faces,
+// keyed by color letter - count (vs. the expected per-color total for this
+// puzzle size) plus each color's OKLCH lightness/chroma/hue spread and
+// which other colors' hue ranges it overlaps (the exact condition that
+// produces boundary misclassifications between two colors). Used both to
+// flag individual ambiguous stickers in the review wizard's detected grid
+// (see overlapsWith below) and, in full, as fixture metadata for later
+// offline analysis - kept out of the review wizard's own display since raw
+// OKLCH ranges are far more useful to a human debugging detection later
+// than to someone just trying to approve 6 photos right now.
+function computeColorStats(
+  capturedFaces: Record<string, { colors: string[][]; cellColors?: RGB[][] }>,
+  puzzleSize: number
+): Record<string, ColorStat> {
+  const counts: Record<string, number> = { W: 0, O: 0, G: 0, R: 0, B: 0, Y: 0 }
+  const oklchByColor: Record<string, { l: number; c: number; h: number }[]> = { W: [], O: [], G: [], R: [], B: [], Y: [] }
+  for (const f of FACE_ORDER) {
+    const grid = capturedFaces[f]?.colors
+    const cellColors = capturedFaces[f]?.cellColors
+    if (!grid) continue
+    grid.forEach((row, r) => row.forEach((color, c) => {
+      if (!(color in counts)) return
+      counts[color]++
+      const rgb = cellColors?.[r]?.[c]
+      if (rgb) oklchByColor[color].push(rgbToOKLCH(rgb))
+    }))
+  }
+  const hueRangeByColor: Record<string, ReturnType<typeof hueCircularRange>> = {}
+  for (const color of COLOR_ORDER) hueRangeByColor[color] = hueCircularRange(oklchByColor[color].map((o) => o.h))
+
+  const expected = puzzleSize * puzzleSize
+  const stats: Record<string, ColorStat> = {}
+  for (const color of COLOR_ORDER) {
+    const samples = oklchByColor[color]
+    const range = hueRangeByColor[color]
+    stats[color] = {
+      count: counts[color],
+      expected,
+      lightness: linearRange(samples.map((o) => o.l)),
+      chroma: linearRange(samples.map((o) => o.c)),
+      hue: range,
+      hueOverlapsWith: range
+        ? COLOR_ORDER.filter((other) => {
+            if (other === color) return false
+            const otherRange = hueRangeByColor[other]
+            return otherRange !== null && hueRangesOverlap(range, otherRange)
+          })
+        : [],
+    }
+  }
+  return stats
+}
+
 // Renders a sample's OKLCH components as 3 stacked lines (L%, C%, Hdeg)
 // rather than formatOKLCHValues' single space-separated line - meant for
 // small sticker-grid cells, where 3 short lines fit and read more clearly
@@ -904,6 +968,12 @@ function App() {
         colorCalibration: globalWhiteBalanceNote
           ? { applied: true, note: globalWhiteBalanceNote }
           : { applied: false },
+        // Per-color detected count/lightness/chroma/hue spread across all 6
+        // faces at confirm time (see computeColorStats) - no longer shown
+        // live in the review wizard (raw OKLCH ranges aren't actionable
+        // mid-capture), but valuable here for offline analysis of a
+        // reported detection problem against this exact fixture.
+        detectedColors: computeColorStats(capturedFaces, puzzleSize),
       }
       const res = await fetch('/api/fixtures', {
         method: 'POST',
@@ -1420,48 +1490,13 @@ function App() {
         const isLast = reviewStep === FACE_ORDER.length - 1
         // Recomputed from capturedFaces on every render (not stored state)
         // so it never goes stale - it has to reflect manual per-sticker
-        // fixes immediately, since seeing the count move is the whole
-        // point of a fix.
-        const liveColorCounts: Record<string, number> = { W: 0, O: 0, G: 0, R: 0, B: 0, Y: 0 }
-        const liveColorOKLCH: Record<string, { l: number; c: number; h: number }[]> = { W: [], O: [], G: [], R: [], B: [], Y: [] }
-        for (const f of FACE_ORDER) {
-          const grid = capturedFaces[f]?.colors
-          const cellColors = capturedFaces[f]?.cellColors
-          if (!grid) continue
-          grid.forEach((row, r) => row.forEach((color, c) => {
-            if (!(color in liveColorCounts)) return
-            liveColorCounts[color]++
-            const rgb = cellColors?.[r]?.[c]
-            if (rgb) liveColorOKLCH[color].push(rgbToOKLCH(rgb))
-          }))
-        }
-
-        // Computed once for all 6 colors up front (rather than per-row) so
-        // each color's hue range can be cross-checked against every OTHER
-        // color's - a color whose range overlaps a neighbor's is exactly
-        // the situation that produces boundary misclassifications between
-        // the two. Hoisted to this outer scope (not just the color-stats
-        // table below) so the same overlap flags can highlight the
-        // specific affected cells in the "Detected" grid, not just the
-        // aggregate color row - a human correcting one ambiguous sticker
-        // is worth far more than a general warning they have to go hunt
-        // for.
-        const colorOrder = ['W', 'O', 'G', 'R', 'B', 'Y']
-        const hRangesByColor: Record<string, ReturnType<typeof hueCircularRange>> = {}
-        for (const color of colorOrder) {
-          hRangesByColor[color] = hueCircularRange(liveColorOKLCH[color].map((o) => o.h))
-        }
-        const overlapsByColor: Record<string, string[]> = {}
-        for (const color of colorOrder) {
-          const range = hRangesByColor[color]
-          overlapsByColor[color] = range
-            ? colorOrder.filter((other) => {
-                if (other === color) return false
-                const otherRange = hRangesByColor[other]
-                return otherRange !== null && hueRangesOverlap(range, otherRange)
-              })
-            : []
-        }
+        // fixes immediately, since seeing a flag clear is the whole point
+        // of a fix. Only the hue-overlap flags are used here (to highlight
+        // individual ambiguous stickers in the "Detected" grid below) - the
+        // full per-color count/lightness/chroma/hue numbers this also
+        // computes go to fixture metadata instead (see
+        // handleSendFixtureToServer), not this live display.
+        const colorStats = computeColorStats(capturedFaces, puzzleSize)
 
         return (
           <div class="modal open">
@@ -1485,49 +1520,6 @@ function App() {
               {globalWhiteBalanceNote && (
                 <div class="global-wb-note">✓ {globalWhiteBalanceNote}</div>
               )}
-              <table class="color-stats-table">
-                <thead>
-                  <tr>
-                    <th>Color</th>
-                    <th class="color-stats-numeric-cell">Count</th>
-                    <th class="color-stats-numeric-cell">Lightness</th>
-                    <th class="color-stats-numeric-cell">Chroma</th>
-                    <th class="color-stats-numeric-cell">Hue</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {colorOrder.map((color) => {
-                    const expected = puzzleSize * puzzleSize
-                    const count = liveColorCounts[color]
-                    const samples = liveColorOKLCH[color]
-                    const lRange = linearRange(samples.map((o) => o.l))
-                    const cRange = linearRange(samples.map((o) => o.c))
-                    const hRange = hRangesByColor[color]
-                    const overlaps = overlapsByColor[color]
-                    return (
-                      <tr key={color} class={count !== expected ? 'mismatch' : ''}>
-                        <td class="color-stats-swatch-cell">
-                          <span class="color-stat-swatch" style={{ background: STICKER_HEX[color] }} />
-                        </td>
-                        <td class="color-stats-numeric-cell">{count}/{expected}</td>
-                        <td class="color-stats-numeric-cell">
-                          {lRange ? `${Math.round(lRange.min * 100)}%–${Math.round(lRange.max * 100)}%` : '—'}
-                        </td>
-                        <td class="color-stats-numeric-cell">
-                          {cRange ? `${Math.round((cRange.min / 0.4) * 100)}%–${Math.round((cRange.max / 0.4) * 100)}%` : '—'}
-                        </td>
-                        <td
-                          class={`color-stats-numeric-cell ${overlaps.length > 0 ? 'color-stats-hue-overlap' : ''}`}
-                          title={overlaps.length > 0 ? `Hue range overlaps ${overlaps.join(', ')} this capture — check for mixups between these colors` : undefined}
-                        >
-                          {hRange ? `${Math.round(hRange.min)}°–${Math.round(hRange.max)}°` : '—'}
-                          {overlaps.length > 0 && <span class="color-stats-overlap-flag" aria-label={`overlaps ${overlaps.join(', ')}`}>⚠</span>}
-                        </td>
-                      </tr>
-                    )
-                  })}
-                </tbody>
-              </table>
               {data && (
                 <>
                   <div class="review-wizard-panes">
@@ -1552,7 +1544,7 @@ function App() {
                         for (let r = 0; r < data.colors.length; r++) {
                           for (let c = 0; c < data.colors[r].length; c++) {
                             const lowConfidence = confidenceTier(data.cellConfidences?.[r]?.[c] ?? 1) === 'low'
-                            const overlapping = overlapsByColor[data.colors[r][c]]?.length > 0
+                            const overlapping = colorStats[data.colors[r][c]]?.hueOverlapsWith.length > 0
                             if (lowConfidence || overlapping) flaggedCount++
                           }
                         }
@@ -1577,7 +1569,7 @@ function App() {
                             const rgb = data.cellColors?.[r]?.[c]
                             const oklch = rgb ? rgbToOKLCH(rgb) : null
                             const tier = confidenceTier(data.cellConfidences?.[r]?.[c] ?? 1)
-                            const overlaps = overlapsByColor[color] ?? []
+                            const overlaps = colorStats[color]?.hueOverlapsWith ?? []
                             const flagged = tier === 'low' || overlaps.length > 0
                             const reasons = [
                               tier === 'low' ? 'low detection confidence' : null,
