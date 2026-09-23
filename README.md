@@ -107,14 +107,12 @@ or imported photos and reconstructs its state:
    detection) is applied per shot. Auto mode estimates live while framing
    face 1, then locks to whatever it was at the moment face 1 was
    captured — faces 2–6 reuse that same gain instead of each
-   re-estimating from their own (possibly differently-framed) shot. Each
-   grid cell in the live preview shows its sampled OKLCH value — L%, C%,
-   H° stacked on 3 lines (`formatOKLCHValues` in `imageProcessing.ts`,
-   CSS `oklch()`'s own percentage/degree units, without the `oklch(...)`
-   wrapper) — instead of a color swatch, so you can see the actual
-   detected value, not just which bucket it landed in; useful for
-   spotting a reading drifting toward the wrong side of a classification
-   boundary before you even capture the shot.
+   re-estimating from their own (possibly differently-framed) shot. The
+   live overlay is a plain wireframe — just each cell's confidence-
+   colored border over the raw camera feed, no fill or text — so the
+   photo itself stays fully visible for framing; the full per-sticker
+   OKLCH breakdown (and a color swatch) shows up once you're in the
+   review wizard instead, where there's room for it.
 2. **Review** — after all 6 faces are captured, a global recalibration
    pass re-clusters all stickers together (k-means, with each iteration's
    assignment step solved as a genuine optimal balanced assignment —

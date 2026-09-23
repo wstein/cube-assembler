@@ -785,8 +785,10 @@ textarea {
      stays visible without scrolling on shorter/typical-height windows —
      the square video was previously sized purely from the dialog's width,
      which could push total content past the viewport with nothing hinting
-     that a scrollbar was needed. */
-  max-height: 36vh;
+     that a scrollbar was needed. Now that the grid overlay is a plain
+     wireframe (no per-cell text), a bigger view stays readable, so the
+     cap was raised too. */
+  max-height: 46vh;
   width: auto;
   margin-inline: auto;
   background: #000;
@@ -844,12 +846,12 @@ textarea {
   transform: translate(-50%, -50%) scaleX(-1);
 }
 
+/* Wireframe only - no fill/text, so the raw camera feed underneath stays
+   fully visible; the border color is the only per-cell signal, live
+   confidence at a glance. */
 .capture-grid-cell {
-  display: flex;
-  align-items: center;
-  justify-content: center;
   border: 3px solid rgba(255, 255, 255, 0.6);
-  transition: border-color 0.15s, background-color 0.15s;
+  transition: border-color 0.15s;
 }
 
 .capture-grid-cell.confidence-high {
@@ -862,22 +864,6 @@ textarea {
 
 .capture-grid-cell.confidence-low {
   border-color: var(--color-danger);
-}
-
-.capture-grid-hue {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.05rem;
-  font-size: 0.62rem;
-  line-height: 1.15;
-}
-
-/* .capture-grid-overlay.mirrored flips the whole grid so each cell stays
-   aligned with its sticker - counter-flip the text itself so the OKLCH
-   values still read left-to-right instead of coming out backwards. */
-.capture-grid-overlay.mirrored .capture-grid-hue {
-  transform: scaleX(-1);
 }
 
 .capture-progress {

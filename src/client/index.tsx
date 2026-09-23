@@ -1153,14 +1153,11 @@ function App() {
                   }}
                 >
                   {liveDetection.colors.map((row, r) =>
-                    row.map((color, c) => (
+                    row.map((_color, c) => (
                       <div
                         key={`${r}-${c}`}
                         class={`capture-grid-cell confidence-${confidenceTier(liveDetection.cellConfidences[r][c])}`}
-                        style={{ background: `${STICKER_HEX[color] || '#888'}66` }}
-                      >
-                        <OklchLines class="capture-grid-hue" oklch={rgbToOKLCH(liveDetection.cellColors[r][c])} />
-                      </div>
+                      />
                     ))
                   )}
                 </div>
