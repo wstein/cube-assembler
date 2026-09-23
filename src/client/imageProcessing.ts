@@ -216,10 +216,46 @@ function colorDistance(c1: RGB, c2: RGB): number {
 // plateau (0.5-0.72 score identically) found by sweeping against all 4
 // real fixtures, dropping mismatches to 2/228 (both remaining cases are
 // genuine Red/Orange hue-boundary ties with no signal left to resolve).
+//
+// This discount is WRONG for White (or any near-neutral sample): hue is
+// only meaningful when there's enough chroma to compute it from - a real
+// White cluster's hue was observed spanning 27°-209° on a live capture
+// (near-zero chroma makes atan2(b,a) numerically unstable), so for a
+// low-chroma point, L isn't a noisy also-ran, it's the ONLY reliable
+// signal (White's entire identity IS "high L, ~zero C"). Discounting L
+// there was letting hue noise pull White toward whatever saturated color
+// its meaningless hue reading happened to land near - CLUSTER_L_WEIGHT
+// only applies once chroma clears CLUSTER_CHROMA_THRESHOLD; below that it
+// tapers smoothly back to full trust in L.
+//
+// Threshold swept against all 5 real fixtures on hand at the time
+// (2026-09-23): 0.1 was too wide - it softened the discount for
+// legitimate Red/Orange comparisons too (their chroma sits ~0.15-0.19,
+// not far above 0.1), regressing a fixture that CLUSTER_L_WEIGHT alone
+// had fully fixed (0/54 -> back to 4/54 wrong). 0.055-0.08 is a real
+// plateau clear of that interference - 0.07 sits in the middle, and
+// incidentally cleared the two remaining Red/Orange hue-ties on that
+// same fixture too (0/54), on top of protecting White. No fixture on
+// hand at tuning time actually exercised a live White-hue-noise failure
+// (the one that first surfaced this, a 2026-09-23 capture with visible
+// White/Orange confusion, was overwritten before it could be saved as a
+// regression fixture) - so this specific threshold's benefit for White
+// is reasoned from the mechanism and the 27°-209° hue-span observation,
+// not yet confirmed by a saved before/after fixture. Revisit if a future
+// White-confusion fixture shows this doesn't actually help.
 const CLUSTER_L_WEIGHT = 0.6
+const CLUSTER_CHROMA_THRESHOLD = 0.07
 
 function clusterOklabDistance(o1: Oklab, o2: Oklab): number {
-  const dl = (o1.l - o2.l) * CLUSTER_L_WEIGHT
+  const chroma1 = Math.sqrt(o1.a * o1.a + o1.b * o1.b)
+  const chroma2 = Math.sqrt(o2.a * o2.a + o2.b * o2.b)
+  // Either point being low-chroma is enough to make hue unreliable FOR
+  // THAT POINT, so the discount is gated on the smaller of the two - not
+  // an average, which would still under-trust L when comparing a
+  // genuinely-white point to a saturated one.
+  const t = Math.min(1, Math.min(chroma1, chroma2) / CLUSTER_CHROMA_THRESHOLD)
+  const lWeight = t * CLUSTER_L_WEIGHT + (1 - t) * 1
+  const dl = (o1.l - o2.l) * lWeight
   const da = o1.a - o2.a
   const db = o1.b - o2.b
   return Math.sqrt(dl * dl + da * da + db * db)
