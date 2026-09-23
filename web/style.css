@@ -313,6 +313,33 @@ textarea {
   color: var(--color-accent);
 }
 
+.scramble-display {
+  font-family: var(--font-mono);
+  font-size: 0.95rem;
+  line-height: 1.5;
+  padding: var(--spacing-md);
+  background: var(--color-bg-primary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  color: var(--color-text-primary);
+  word-break: break-word;
+  user-select: all;
+  box-sizing: border-box;
+}
+
+.parity-checks {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: var(--spacing-xs);
+  margin-top: var(--spacing-xs);
+}
+
+.notation-hint {
+  font-size: 0.8rem;
+  color: var(--color-text-secondary);
+  margin: 0;
+}
+
 /* ─────────────────────────────────────────────────────────────────────────────
    MODAL
    ───────────────────────────────────────────────────────────────────────────── */
