@@ -37,6 +37,12 @@ interface FaceCaptureData {
   // cross-face correction gain once all 6 faces are in; see
   // computeFaceBackgroundGains.
   backgroundColor?: RGB | null
+  // Capture context saved with fixtures - see FaceCaptureResult. The camera
+  // settings are read at the moment of capture since exposure and white
+  // balance can drift between faces. All absent for uploaded fixtures.
+  frame?: FaceCaptureResult['frame']
+  crop?: FaceCaptureResult['crop']
+  cameraSettings?: Partial<MediaTrackSettings>
   timestamp: number
 }
 
@@ -826,7 +832,10 @@ function App() {
       cellColors?: RGB[][]
       croppedImage?: string
       backgroundColor?: RGB | null
-    }
+      frame?: FaceCaptureResult['frame']
+      crop?: FaceCaptureResult['crop']
+    },
+    cameraSettings?: Partial<MediaTrackSettings>
   ) => {
     if (!validateFaceColors(result.colors, puzzleSize)) {
       setCaptureMessage(`❌ Invalid colors detected. Confidence: ${(result.confidence * 100).toFixed(0)}%`)
@@ -843,6 +852,9 @@ function App() {
         confidence: result.confidence,
         croppedImage: result.croppedImage,
         backgroundColor: result.backgroundColor,
+        frame: result.frame,
+        crop: result.crop,
+        cameraSettings,
         timestamp: Date.now(),
       },
     }
@@ -1179,9 +1191,21 @@ function App() {
     setLoading(true)
     setFixtureSaveMessage('Sending...')
     try {
-      const faces: Record<string, { photo: string; colors: string[][] }> = {}
+      const faces: Record<string, { photo: string; colors: string[][] } & Record<string, unknown>> = {}
       for (const f of FACE_ORDER) {
-        faces[f] = { photo: capturedFaces[f].croppedImage!, colors: capturedFaces[f].colors }
+        const face = capturedFaces[f]
+        faces[f] = {
+          photo: face.croppedImage!,
+          colors: face.colors,
+          // What detection said before any hand correction - the diff
+          // against `colors` is exactly what a human had to fix.
+          detected: face.detectedColors,
+          capturedAt: new Date(face.timestamp).toISOString(),
+          background: face.backgroundColor,
+          frame: face.frame,
+          crop: face.crop,
+          camera: face.cameraSettings,
+        }
       }
       const meta = {
         capturedAt: new Date().toISOString(),
@@ -1230,7 +1254,8 @@ function App() {
       setLoading(true)
       setCaptureMessage('Processing image...')
       const result = captureAndProcessFace(webcamRef.current, puzzleSize)
-      await applyFaceCapture(webcamFace, result)
+      const track = (webcamRef.current.srcObject as MediaStream | null)?.getVideoTracks()[0]
+      await applyFaceCapture(webcamFace, result, track ? withoutDeviceIds(track.getSettings()) : undefined)
     } catch (err) {
       console.error('Capture error:', err)
       setCaptureMessage(`❌ Error: ${err instanceof Error ? err.message : 'Unknown error'}`)
