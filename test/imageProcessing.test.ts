@@ -3,17 +3,20 @@
  * Vitest tests for the pure, DOM-free parts of src/client/imageProcessing.ts
  * (learnStickerColors' unsupervised color learning, hungarianAssignment's
  * optimal balanced assignment, trimmedMeanColor's outlier-robust pixel
- * averaging). The canvas/Image-touching functions in this file
+ * averaging). Most canvas/Image-touching functions in this file
  * (extractCubeFaceColors, redetectFaceColors, runGlobalWhiteBalance, ...)
  * need a browser DOM this project's node test environment doesn't provide,
- * so they aren't covered here.
+ * so they aren't covered here - extractBackgroundColor is the one
+ * exception, since its only DOM dependency is `canvas.getContext('2d')`
+ * returning something with getImageData/width/height, which a plain
+ * duck-typed object can stand in for without a real Canvas.
  *
  * Run: npx vitest run test/imageProcessing.test.ts
  */
 import { describe, it, expect } from 'vitest'
 import {
   learnStickerColors, rgbToOKLCH, formatOKLCHValues, hueCircularRange, hueRangesOverlap, linearRange,
-  hungarianAssignment, trimmedMeanColor, STICKER_COLORS, type RGB,
+  hungarianAssignment, trimmedMeanColor, STICKER_COLORS, extractBackgroundColor, type RGB,
 } from '../src/client/imageProcessing'
 
 // Mirrors the internal OKLab-based colorDistance (not exported): rebuilds
@@ -497,5 +500,70 @@ describe('learnStickerColors', () => {
         expect(learned.leaveOneOutDistances[i]).toBe(0) // exact canonical point vs. its own (self-inclusive) centroid
       })
     })
+  })
+})
+
+describe('extractBackgroundColor', () => {
+  // Simulates a real browser's getImageData(sx, sy, sw, sh): the arguments
+  // are doubles per spec, but the returned ImageData is necessarily
+  // integer-pixel-sized, so a real implementation rounds internally. A
+  // caller that requests a FRACTIONAL sw/sh but then does its own manual
+  // (row * width + col) pixel-index math using that same unrounded width
+  // will disagree with what was actually allocated, drifting further off
+  // with every row until it reads past the buffer's real end - this mock
+  // reproduces exactly that rounding behavior so the test can catch it.
+  function fakeCanvas(width: number, height: number, fill: RGB): HTMLCanvasElement {
+    return {
+      width,
+      height,
+      getContext: (kind: string) => {
+        if (kind !== '2d') return null
+        return {
+          getImageData(_sx: number, _sy: number, sw: number, sh: number) {
+            const w = Math.round(sw)
+            const h = Math.round(sh)
+            const data = new Uint8ClampedArray(w * h * 4)
+            for (let i = 0; i < w * h; i++) {
+              data[i * 4] = fill.r
+              data[i * 4 + 1] = fill.g
+              data[i * 4 + 2] = fill.b
+              data[i * 4 + 3] = 255
+            }
+            return { data, width: w, height: h }
+          },
+        }
+      },
+    } as unknown as HTMLCanvasElement
+  }
+
+  it('recovers the exact fill color from a uniform background ring, even at a width/height that lands on fractional pixel boundaries', () => {
+    // 641x481 (odd dimensions) make computeFaceBounds' fraction-based
+    // math land on non-integer bounds internally - the exact condition
+    // that exposed a real bug (fixed in computeFaceBounds by rounding its
+    // returned bounds): before that fix, this returned {r:NaN,g:NaN,b:NaN}
+    // because the ring-scan's manual indexing silently read past the
+    // mock's actual (rounded-width) buffer for the later rows.
+    const canvas = fakeCanvas(641, 481, { r: 120, g: 130, b: 140 })
+    const result = extractBackgroundColor(canvas)
+    expect(result).toEqual({ r: 120, g: 130, b: 140 })
+  })
+
+  it('never returns a non-finite channel, regardless of input dimensions', () => {
+    for (const [w, h] of [[640, 480], [641, 481], [999, 333], [100, 100], [237, 891]]) {
+      const result = extractBackgroundColor(fakeCanvas(w, h, { r: 50, g: 60, b: 70 }))
+      if (result) {
+        expect(Number.isFinite(result.r)).toBe(true)
+        expect(Number.isFinite(result.g)).toBe(true)
+        expect(Number.isFinite(result.b)).toBe(true)
+      }
+    }
+  })
+
+  it('returns null for a frame too small to have a meaningful background ring', () => {
+    expect(extractBackgroundColor(fakeCanvas(30, 30, { r: 100, g: 100, b: 100 }))).toBeNull()
+  })
+
+  it('returns null when the ring reads back too dark to be a reliable reference', () => {
+    expect(extractBackgroundColor(fakeCanvas(640, 480, { r: 2, g: 2, b: 2 }))).toBeNull()
   })
 })

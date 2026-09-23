@@ -747,11 +747,21 @@ function computeFaceBounds(canvas: HTMLCanvasElement, fraction = SAMPLE_FACE_FRA
   const endX = Math.min(width, startX + faceSize)
   const endY = Math.min(height, startY + faceSize)
 
+  // Rounded to integers - getImageData(sx, sy, sw, sh) takes doubles, but
+  // the ImageData it returns is necessarily integer-pixel-sized, so a
+  // caller that reuses these fractional bounds as BOTH the getImageData
+  // argument AND its own manual (row * width + col) pixel-index math (as
+  // extractBackgroundColor's ring scan does, unlike the sticker-cell scan
+  // in extractColorsFromImageData, which stays safely inset from any
+  // edge) risks the two disagreeing on the actual row stride - drifting
+  // further off with every row until it reads past the real buffer end
+  // (silently `undefined`, poisoning every downstream sum to NaN). Round
+  // once here so every consumer agrees on the same integer bounds.
   return {
-    startX,
-    startY,
-    faceWidth: endX - startX,
-    faceHeight: endY - startY,
+    startX: Math.round(startX),
+    startY: Math.round(startY),
+    faceWidth: Math.round(endX - startX),
+    faceHeight: Math.round(endY - startY),
   }
 }
 
@@ -825,7 +835,7 @@ export function extractBackgroundColor(canvas: HTMLCanvasElement): RGB | null {
   }
 
   const mean = trimmedMeanColor(pixels)
-  if (!mean) return null
+  if (!mean || !Number.isFinite(mean.r) || !Number.isFinite(mean.g) || !Number.isFinite(mean.b)) return null
   const luminance = 0.2126 * mean.r + 0.7152 * mean.g + 0.0722 * mean.b
   if (luminance < 5) return null // too dark to be a reliable reference
   return mean
@@ -838,7 +848,14 @@ export function extractBackgroundColor(canvas: HTMLCanvasElement): RGB | null {
 // estimate was, so a background patch that's unexpectedly extreme (e.g.
 // partially shadowed on one face) can't produce a runaway correction.
 export function computeBackgroundGain(reference: RGB, current: RGB): RGB {
-  const clampGain = (g: number) => Math.max(0.6, Math.min(1.8, g))
+  // Falls back to a neutral (1) gain for any channel that comes out
+  // non-finite, rather than propagating NaN/Infinity into applyGains -
+  // which would silently corrupt every pixel it touches (NaN * anything
+  // is NaN) rather than merely leaving that channel uncorrected. A real
+  // instance of this (a getImageData/manual-indexing stride mismatch,
+  // since fixed at the source in computeFaceBounds) reached exactly this
+  // failure mode on a live capture.
+  const clampGain = (g: number) => (Number.isFinite(g) ? Math.max(0.6, Math.min(1.8, g)) : 1)
   return {
     r: clampGain(reference.r / Math.max(1, current.r)),
     g: clampGain(reference.g / Math.max(1, current.g)),
