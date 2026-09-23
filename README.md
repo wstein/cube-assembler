@@ -261,7 +261,9 @@ Saves a human-verified capture (each face's actual photo plus its color
 grid after any manual corrections) as a regression test fixture under
 `test/fixtures/<name>/` — see [Regression fixtures](test/fixtures/README.md).
 Reachable from the app itself via the **Send to Server** button once a
-cube has been confirmed.
+cube has been confirmed. `meta` is optional, opaque capture context
+(camera, white balance, etc.) stored as-is under `capture` in the
+fixture's `meta.json`.
 
 ```json
 {
@@ -270,6 +272,10 @@ cube has been confirmed.
   "faces": {
     "U": { "photo": "data:image/jpeg;base64,...", "colors": [["W","W","W"], ...] },
     "R": { ... }, "F": { ... }, "D": { ... }, "L": { ... }, "B": { ... }
+  },
+  "meta": {
+    "camera": { "label": "FaceTime HD Camera", "width": 1280, "height": 720 },
+    "whiteBalance": { "mode": "auto", "gains": { "r": 1.02, "g": 1.0, "b": 0.94 }, "lightSource": "Neutral (daylight-like)" }
   }
 }
 ```

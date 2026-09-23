@@ -15,9 +15,16 @@ POSTs each face's cropped photo plus its (corrected) color grid to
 
 ```
 test/fixtures/<name>/
-  meta.json       { gridSize, faces: { u: { colors, photo }, r: {...}, ... } }
+  meta.json       { gridSize, faces: { u: { colors, photo }, r: {...}, ... }, capture }
   face-u.jpg       (etc. for r, f, d, l, b)
 ```
+
+`capture` is informational context about how the shots were taken - camera
+label/resolution, the white balance mode and gains that were applied, the
+estimated light source (Auto mode), and whether the post-capture global
+recalibration kicked in. Not used by `fixtures.test.ts` (the regression
+check only compares `colors`), but useful when a fixture's expected colors
+need to be debugged later.
 
 Commit the new directory - these are small (cropped-region) JPEGs, meant to
 be checked in like any other test fixture.
