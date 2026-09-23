@@ -624,10 +624,22 @@ textarea {
 }
 
 .review-pane-label {
+  display: flex;
+  align-items: baseline;
+  gap: var(--spacing-xs);
   font-size: 0.8rem;
   font-weight: 600;
   color: var(--color-text-secondary);
   margin-bottom: var(--spacing-xs);
+}
+
+/* Count of cells flagged in .review-detected-cell-flagged below - lets a
+   reviewer see at a glance whether this face needs a closer look before
+   they've scanned the whole grid for the per-cell badges. */
+.review-flagged-count {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--color-warning);
 }
 
 .review-face-image-wrapper {
@@ -655,6 +667,7 @@ textarea {
 }
 
 .review-detected-cell {
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -700,6 +713,26 @@ textarea {
 
 .review-detected-cell.confidence-low {
   border-color: var(--color-danger);
+}
+
+/* Cells worth a second look - low detection confidence OR a color whose
+   hue range overlaps another color present this capture (see
+   overlapsByColor). Border color alone (confidence-*) is easy to miss at
+   this size, so a flagged cell also gets a corner badge and a stronger
+   outline instead of relying on color alone. */
+.review-detected-cell-flagged {
+  border-style: dashed;
+  box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.25) inset;
+}
+
+.review-detected-cell-flag {
+  position: absolute;
+  top: 1px;
+  right: 2px;
+  font-size: 0.65rem;
+  line-height: 1;
+  text-shadow: 0 0 2px #000, 0 0 2px #000;
+  pointer-events: none;
 }
 
 .review-wizard-nav {

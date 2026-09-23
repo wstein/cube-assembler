@@ -1250,6 +1250,34 @@ function App() {
             if (rgb) liveColorOKLCH[color].push(rgbToOKLCH(rgb))
           }))
         }
+
+        // Computed once for all 6 colors up front (rather than per-row) so
+        // each color's hue range can be cross-checked against every OTHER
+        // color's - a color whose range overlaps a neighbor's is exactly
+        // the situation that produces boundary misclassifications between
+        // the two. Hoisted to this outer scope (not just the color-stats
+        // table below) so the same overlap flags can highlight the
+        // specific affected cells in the "Detected" grid, not just the
+        // aggregate color row - a human correcting one ambiguous sticker
+        // is worth far more than a general warning they have to go hunt
+        // for.
+        const colorOrder = ['W', 'O', 'G', 'R', 'B', 'Y']
+        const hRangesByColor: Record<string, ReturnType<typeof hueCircularRange>> = {}
+        for (const color of colorOrder) {
+          hRangesByColor[color] = hueCircularRange(liveColorOKLCH[color].map((o) => o.h))
+        }
+        const overlapsByColor: Record<string, string[]> = {}
+        for (const color of colorOrder) {
+          const range = hRangesByColor[color]
+          overlapsByColor[color] = range
+            ? colorOrder.filter((other) => {
+                if (other === color) return false
+                const otherRange = hRangesByColor[other]
+                return otherRange !== null && hueRangesOverlap(range, otherRange)
+              })
+            : []
+        }
+
         return (
           <div class="modal open">
             <div class="modal-content review-modal-content">
@@ -1272,77 +1300,49 @@ function App() {
               {globalWhiteBalanceNote && (
                 <div class="global-wb-note">✓ {globalWhiteBalanceNote}</div>
               )}
-              {(() => {
-                const colorOrder = ['W', 'O', 'G', 'R', 'B', 'Y']
-                // Computed once for all 6 colors up front (rather than
-                // per-row) so each color's hue range can be cross-checked
-                // against every OTHER color's - a color whose range
-                // overlaps a neighbor's is exactly the situation that
-                // produces boundary misclassifications between the two,
-                // and is worth surfacing before it shows up as a wrong
-                // sticker instead of just a number.
-                const hRangesByColor: Record<string, ReturnType<typeof hueCircularRange>> = {}
-                for (const color of colorOrder) {
-                  hRangesByColor[color] = hueCircularRange(liveColorOKLCH[color].map((o) => o.h))
-                }
-                const overlapsByColor: Record<string, string[]> = {}
-                for (const color of colorOrder) {
-                  const range = hRangesByColor[color]
-                  overlapsByColor[color] = range
-                    ? colorOrder.filter((other) => {
-                        if (other === color) return false
-                        const otherRange = hRangesByColor[other]
-                        return otherRange !== null && hueRangesOverlap(range, otherRange)
-                      })
-                    : []
-                }
-
-                return (
-                  <table class="color-stats-table">
-                    <thead>
-                      <tr>
-                        <th>Color</th>
-                        <th class="color-stats-numeric-cell">Count</th>
-                        <th class="color-stats-numeric-cell">Lightness</th>
-                        <th class="color-stats-numeric-cell">Chroma</th>
-                        <th class="color-stats-numeric-cell">Hue</th>
+              <table class="color-stats-table">
+                <thead>
+                  <tr>
+                    <th>Color</th>
+                    <th class="color-stats-numeric-cell">Count</th>
+                    <th class="color-stats-numeric-cell">Lightness</th>
+                    <th class="color-stats-numeric-cell">Chroma</th>
+                    <th class="color-stats-numeric-cell">Hue</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {colorOrder.map((color) => {
+                    const expected = puzzleSize * puzzleSize
+                    const count = liveColorCounts[color]
+                    const samples = liveColorOKLCH[color]
+                    const lRange = linearRange(samples.map((o) => o.l))
+                    const cRange = linearRange(samples.map((o) => o.c))
+                    const hRange = hRangesByColor[color]
+                    const overlaps = overlapsByColor[color]
+                    return (
+                      <tr key={color} class={count !== expected ? 'mismatch' : ''}>
+                        <td class="color-stats-swatch-cell">
+                          <span class="color-stat-swatch" style={{ background: STICKER_HEX[color] }} />
+                        </td>
+                        <td class="color-stats-numeric-cell">{count}/{expected}</td>
+                        <td class="color-stats-numeric-cell">
+                          {lRange ? `${Math.round(lRange.min * 100)}%–${Math.round(lRange.max * 100)}%` : '—'}
+                        </td>
+                        <td class="color-stats-numeric-cell">
+                          {cRange ? `${Math.round((cRange.min / 0.4) * 100)}%–${Math.round((cRange.max / 0.4) * 100)}%` : '—'}
+                        </td>
+                        <td
+                          class={`color-stats-numeric-cell ${overlaps.length > 0 ? 'color-stats-hue-overlap' : ''}`}
+                          title={overlaps.length > 0 ? `Hue range overlaps ${overlaps.join(', ')} this capture — check for mixups between these colors` : undefined}
+                        >
+                          {hRange ? `${Math.round(hRange.min)}°–${Math.round(hRange.max)}°` : '—'}
+                          {overlaps.length > 0 && <span class="color-stats-overlap-flag" aria-label={`overlaps ${overlaps.join(', ')}`}>⚠</span>}
+                        </td>
                       </tr>
-                    </thead>
-                    <tbody>
-                      {colorOrder.map((color) => {
-                        const expected = puzzleSize * puzzleSize
-                        const count = liveColorCounts[color]
-                        const samples = liveColorOKLCH[color]
-                        const lRange = linearRange(samples.map((o) => o.l))
-                        const cRange = linearRange(samples.map((o) => o.c))
-                        const hRange = hRangesByColor[color]
-                        const overlaps = overlapsByColor[color]
-                        return (
-                          <tr key={color} class={count !== expected ? 'mismatch' : ''}>
-                            <td class="color-stats-swatch-cell">
-                              <span class="color-stat-swatch" style={{ background: STICKER_HEX[color] }} />
-                            </td>
-                            <td class="color-stats-numeric-cell">{count}/{expected}</td>
-                            <td class="color-stats-numeric-cell">
-                              {lRange ? `${Math.round(lRange.min * 100)}%–${Math.round(lRange.max * 100)}%` : '—'}
-                            </td>
-                            <td class="color-stats-numeric-cell">
-                              {cRange ? `${Math.round((cRange.min / 0.4) * 100)}%–${Math.round((cRange.max / 0.4) * 100)}%` : '—'}
-                            </td>
-                            <td
-                              class={`color-stats-numeric-cell ${overlaps.length > 0 ? 'color-stats-hue-overlap' : ''}`}
-                              title={overlaps.length > 0 ? `Hue range overlaps ${overlaps.join(', ')} this capture — check for mixups between these colors` : undefined}
-                            >
-                              {hRange ? `${Math.round(hRange.min)}°–${Math.round(hRange.max)}°` : '—'}
-                              {overlaps.length > 0 && <span class="color-stats-overlap-flag" aria-label={`overlaps ${overlaps.join(', ')}`}>⚠</span>}
-                            </td>
-                          </tr>
-                        )
-                      })}
-                    </tbody>
-                  </table>
-                )
-              })()}
+                    )
+                  })}
+                </tbody>
+              </table>
               {data && (
                 <>
                   <div class="review-wizard-panes">
@@ -1353,7 +1353,33 @@ function App() {
                       </div>
                     </div>
                     <div class="review-pane">
-                      <div class="review-pane-label">Detected — tap a sticker to fix</div>
+                      {(() => {
+                        // A cell is worth a second look for either of two
+                        // independent reasons: the classifier itself was
+                        // unsure (low confidence), or its color's hue
+                        // range overlaps another color present THIS
+                        // capture (the exact condition that produces
+                        // boundary mixups between the two) - flag both the
+                        // same way so a human correcting one ambiguous
+                        // sticker doesn't have to first work out which
+                        // signal triggered it.
+                        let flaggedCount = 0
+                        for (let r = 0; r < data.colors.length; r++) {
+                          for (let c = 0; c < data.colors[r].length; c++) {
+                            const lowConfidence = confidenceTier(data.cellConfidences?.[r]?.[c] ?? 1) === 'low'
+                            const overlapping = overlapsByColor[data.colors[r][c]]?.length > 0
+                            if (lowConfidence || overlapping) flaggedCount++
+                          }
+                        }
+                        return (
+                          <div class="review-pane-label">
+                            Detected — tap a sticker to fix
+                            {flaggedCount > 0 && (
+                              <span class="review-flagged-count">⚠ {flaggedCount} flagged for review</span>
+                            )}
+                          </div>
+                        )
+                      })()}
                       <div
                         class="review-detected-grid"
                         style={{
@@ -1365,15 +1391,23 @@ function App() {
                           row.map((color, c) => {
                             const rgb = data.cellColors?.[r]?.[c]
                             const oklch = rgb ? rgbToOKLCH(rgb) : null
+                            const tier = confidenceTier(data.cellConfidences?.[r]?.[c] ?? 1)
+                            const overlaps = overlapsByColor[color] ?? []
+                            const flagged = tier === 'low' || overlaps.length > 0
+                            const reasons = [
+                              tier === 'low' ? 'low detection confidence' : null,
+                              overlaps.length > 0 ? `hue range overlaps ${overlaps.join(', ')} this capture` : null,
+                            ].filter(Boolean)
                             return (
                               <button
                                 key={`${r}-${c}`}
-                                class={`review-detected-cell confidence-${confidenceTier(data.cellConfidences?.[r]?.[c] ?? 1)}`}
+                                class={`review-detected-cell confidence-${tier} ${flagged ? 'review-detected-cell-flagged' : ''}`}
                                 style={{ background: STICKER_HEX[color] || '#888' }}
                                 onClick={() => setReviewEditingCell({ face, row: r, col: c })}
-                                title={`Row ${r + 1}, Col ${c + 1}: ${color}${oklch ? ` (${formatOKLCHValues(oklch)})` : ''} — tap to fix`}
+                                title={`Row ${r + 1}, Col ${c + 1}: ${color}${oklch ? ` (${formatOKLCHValues(oklch)})` : ''}${reasons.length > 0 ? ` — ${reasons.join('; ')}` : ''} — tap to fix`}
                               >
                                 {oklch && <OklchLines class="review-detected-hue" oklch={oklch} />}
+                                {flagged && <span class="review-detected-cell-flag" aria-hidden="true">⚠</span>}
                               </button>
                             )
                           })
