@@ -49,6 +49,21 @@ const CAMERA_CONSTRAINTS: MediaTrackConstraints = {
   height: { ideal: 1080 },
 }
 
+interface CameraInfo {
+  label: string
+  requested: MediaTrackConstraints
+  granted: Partial<MediaTrackSettings>
+  supported: Partial<MediaTrackCapabilities> | null
+}
+
+// Drops the per-browser device/group ids from settings/capabilities
+// before they end up in a saved fixture - they identify the user's
+// hardware and say nothing about how the photo was taken.
+function withoutDeviceIds<T extends { deviceId?: unknown; groupId?: unknown }>(info: T): Omit<T, 'deviceId' | 'groupId'> {
+  const { deviceId: _deviceId, groupId: _groupId, ...rest } = info
+  return rest
+}
+
 interface AssemblyResult {
   type: 'start' | 'stage' | 'result' | 'error'
   total?: number
@@ -499,8 +514,9 @@ function App() {
   // Captured once per webcam session (device label isn't available until
   // getUserMedia grants permission) - purely informational, attached to
   // saved fixtures so a color regression can be cross-checked against the
-  // camera that produced it.
-  const [cameraInfo, setCameraInfo] = useState<{ label: string; width?: number; height?: number; frameRate?: number; facingMode?: string } | null>(null)
+  // camera that produced it: what we asked for, what the camera granted,
+  // and which controls (white balance, exposure, ...) it supports at all.
+  const [cameraInfo, setCameraInfo] = useState<CameraInfo | null>(null)
   const webcamRef = useRef<HTMLVideoElement>(null)
   const sampleCanvasRef = useRef<HTMLCanvasElement | null>(null)
 
@@ -519,13 +535,12 @@ function App() {
         }
         const track = stream.getVideoTracks()[0]
         if (track) {
-          const settings = track.getSettings()
           setCameraInfo({
             label: track.label || 'Unknown camera',
-            width: settings.width,
-            height: settings.height,
-            frameRate: settings.frameRate,
-            facingMode: settings.facingMode,
+            requested: CAMERA_CONSTRAINTS,
+            granted: withoutDeviceIds(track.getSettings()),
+            // getCapabilities is missing in Firefox
+            supported: track.getCapabilities ? withoutDeviceIds(track.getCapabilities()) : null,
           })
         }
       })
