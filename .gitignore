@@ -14,3 +14,4 @@ vendor/cubing.js/node_modules/
 !vendor/cubing.js/dist/
 !vendor/cubing.js/dist/**
 !vendor/cubing.js/bun.lock
+test/fixtures/capture-20*
