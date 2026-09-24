@@ -29,6 +29,9 @@ interface FaceCaptureData {
   detectedColors?: string[][]
   cellConfidences?: number[][]
   cellColors?: RGB[][]
+  // Per sticker, the other color it sits close to the boundary with, or
+  // null - see ColorDetectionResult.cellLookalikes.
+  cellLookalikes?: (string | null)[][]
   confidence: number
   croppedImage?: string
   // Live-sampled at capture time from the area around the cube (see
@@ -181,12 +184,10 @@ interface ColorStat {
 // keyed by color letter - count (vs. the expected per-color total for this
 // puzzle size) plus each color's OKLCH lightness/chroma/hue spread and
 // which other colors' hue ranges it overlaps (the exact condition that
-// produces boundary misclassifications between two colors). Used both to
-// flag individual ambiguous stickers in the review wizard's detected grid
-// (see overlapsWith below) and, in full, as fixture metadata for later
-// offline analysis - kept out of the review wizard's own display since raw
-// OKLCH ranges are far more useful to a human debugging detection later
-// than to someone just trying to approve 6 photos right now.
+// produces boundary misclassifications between two colors). Saved as
+// fixture metadata for later offline analysis - the review wizard flags
+// individual stickers from cellLookalikes instead, since a whole color's
+// hue range overlapping another's flagged every sticker of both colors.
 function computeColorStats(
   capturedFaces: Record<string, { colors: string[][]; cellColors?: RGB[][] }>,
   puzzleSize: number
@@ -905,7 +906,7 @@ function App() {
           const recalibrated = { ...newCapturedFaces }
           for (const f of FACE_ORDER) {
             const det = wb.faces[f]
-            recalibrated[f] = { ...recalibrated[f], colors: det.colors, detectedColors: det.colors, cellConfidences: det.cellConfidences, cellColors: det.cellColors, confidence: det.confidence }
+            recalibrated[f] = { ...recalibrated[f], colors: det.colors, detectedColors: det.colors, cellConfidences: det.cellConfidences, cellColors: det.cellColors, cellLookalikes: det.cellLookalikes, confidence: det.confidence }
           }
           setCapturedFaces(recalibrated)
           setGlobalWhiteBalanceNote(CALIBRATION_NOTE)
@@ -1011,6 +1012,7 @@ function App() {
         entry.detectedColors = det.colors
         entry.cellColors = det.cellColors
         entry.cellConfidences = det.cellConfidences
+        entry.cellLookalikes = det.cellLookalikes
         entry.confidence = det.confidence
         entry.colors.forEach((row, r) => row.forEach((color, c) => { if (det.colors[r][c] !== color) mismatches++ }))
       }
@@ -1047,10 +1049,13 @@ function App() {
 
       const newCellConfidences = faceData.cellConfidences?.map((r) => [...r])
       if (newCellConfidences) newCellConfidences[row][col] = 1
+      // A human decided this one, so it's no longer in doubt.
+      const newCellLookalikes = faceData.cellLookalikes?.map((r) => [...r])
+      if (newCellLookalikes) newCellLookalikes[row][col] = null
 
       return {
         ...prev,
-        [face]: { ...faceData, colors: newColors, cellConfidences: newCellConfidences },
+        [face]: { ...faceData, colors: newColors, cellConfidences: newCellConfidences, cellLookalikes: newCellLookalikes },
       }
     })
     setReviewEditingCell(null)
@@ -1793,15 +1798,6 @@ function App() {
         const face = FACE_ORDER[reviewStep]
         const data = capturedFaces[face]
         const isLast = reviewStep === FACE_ORDER.length - 1
-        // Recomputed from capturedFaces on every render (not stored state)
-        // so it never goes stale - it has to reflect manual per-sticker
-        // fixes immediately, since seeing a flag clear is the whole point
-        // of a fix. Only the hue-overlap flags are used here (to highlight
-        // individual ambiguous stickers in the "Detected" grid below) - the
-        // full per-color count/lightness/chroma/hue numbers this also
-        // computes go to fixture metadata instead (see
-        // handleSendFixtureToServer), not this live display.
-        const colorStats = computeColorStats(capturedFaces, puzzleSize)
 
         return (
           <div class="modal open">
@@ -1851,20 +1847,18 @@ function App() {
                       {(() => {
                         // A cell is worth a second look for either of two
                         // independent reasons: the classifier itself was
-                        // unsure (low confidence), or its color's hue
-                        // range overlaps another color present THIS
-                        // capture (the exact condition that produces
-                        // boundary mixups between the two) - flag both the
-                        // same way so a human correcting one ambiguous
-                        // sticker doesn't have to first work out which
-                        // signal triggered it.
+                        // unsure (low confidence), or the sticker sits
+                        // close to the boundary with another color (see
+                        // cellLookalikes) - flag both the same way so a
+                        // human correcting one ambiguous sticker doesn't
+                        // have to first work out which signal triggered it.
                         let flaggedCount = 0
                         let correctedCount = 0
                         for (let r = 0; r < data.colors.length; r++) {
                           for (let c = 0; c < data.colors[r].length; c++) {
                             const lowConfidence = confidenceTier(data.cellConfidences?.[r]?.[c] ?? 1) === 'low'
-                            const overlapping = colorStats[data.colors[r][c]]?.hueOverlapsWith.length > 0
-                            if (lowConfidence || overlapping) flaggedCount++
+                            const lookalike = data.cellLookalikes?.[r]?.[c]
+                            if (lowConfidence || lookalike) flaggedCount++
                             const detected = data.detectedColors?.[r]?.[c]
                             if (detected !== undefined && detected !== data.colors[r][c]) correctedCount++
                           }
@@ -1893,8 +1887,8 @@ function App() {
                           row.map((color, c) => {
                             const confidence = data.cellConfidences?.[r]?.[c]
                             const tier = confidenceTier(confidence ?? 1)
-                            const overlaps = colorStats[color]?.hueOverlapsWith ?? []
-                            const flagged = tier === 'low' || overlaps.length > 0
+                            const lookalike = data.cellLookalikes?.[r]?.[c] ?? null
+                            const flagged = tier === 'low' || lookalike !== null
                             // The final color stays the human choice; the badge only
                             // records what automatic detection had said instead.
                             const detected = data.detectedColors?.[r]?.[c]
@@ -1904,9 +1898,7 @@ function App() {
                             const notes = [
                               corrected ? `We saw ${COLOR_NAME[detected] ?? detected}, you picked ${name}.` : null,
                               tier === 'low' ? 'Not sure about this one.' : null,
-                              overlaps.length > 0
-                                ? `${name} looks a lot like ${overlaps.map((o) => COLOR_NAME[o] ?? o).join(' and ')} in these photos.`
-                                : null,
+                              lookalike ? `It looks a lot like ${COLOR_NAME[lookalike] ?? lookalike}.` : null,
                             ].filter(Boolean)
                             return (
                               <button
