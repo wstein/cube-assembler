@@ -1856,11 +1856,12 @@ function App() {
                         let correctedCount = 0
                         for (let r = 0; r < data.colors.length; r++) {
                           for (let c = 0; c < data.colors[r].length; c++) {
+                            const detected = data.detectedColors?.[r]?.[c]
+                            const corrected = detected !== undefined && detected !== data.colors[r][c]
                             const lowConfidence = confidenceTier(data.cellConfidences?.[r]?.[c] ?? 1) === 'low'
                             const lookalike = data.cellLookalikes?.[r]?.[c]
-                            if (lowConfidence || lookalike) flaggedCount++
-                            const detected = data.detectedColors?.[r]?.[c]
-                            if (detected !== undefined && detected !== data.colors[r][c]) correctedCount++
+                            if (corrected) correctedCount++
+                            else if (lowConfidence || lookalike) flaggedCount++
                           }
                         }
                         return (
@@ -1885,14 +1886,16 @@ function App() {
                       >
                         {data.colors.map((row, r) =>
                           row.map((color, c) => {
-                            const confidence = data.cellConfidences?.[r]?.[c]
-                            const tier = confidenceTier(confidence ?? 1)
-                            const lookalike = data.cellLookalikes?.[r]?.[c] ?? null
-                            const flagged = tier === 'low' || lookalike !== null
                             // The final color stays the human choice; the badge only
-                            // records what automatic detection had said instead.
+                            // records what automatic detection had said instead. A
+                            // human-set sticker is settled: detection's confidence and
+                            // lookalike were about the color it saw, not this one.
                             const detected = data.detectedColors?.[r]?.[c]
                             const corrected = detected !== undefined && detected !== color
+                            const confidence = corrected ? undefined : data.cellConfidences?.[r]?.[c]
+                            const tier = confidenceTier(confidence ?? 1)
+                            const lookalike = corrected ? null : data.cellLookalikes?.[r]?.[c] ?? null
+                            const flagged = tier === 'low' || lookalike !== null
                             const name = COLOR_NAME[color] ?? color
                             const sure = confidence !== undefined ? `, ${Math.round(confidence * 100)}% sure` : ''
                             const notes = [
