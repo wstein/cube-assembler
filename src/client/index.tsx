@@ -1297,6 +1297,9 @@ function App() {
         setWebcamFace(nextFace)
         setCaptureMessage('')
         dismissTurnOverlay()
+        // The cue blocks capturing while the cube turns; without the turn it
+        // would only be a wait, and the step hint already says what to do.
+        if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
         const step = FACE_ORDER.indexOf(nextFace)
         setTurnOverlay({ step, startColors: result.colors, viaColors: step === 5 ? newCapturedFaces[FACE_ORDER[3]]?.colors : undefined })
         turnOverlayTimer.current = setTimeout(dismissTurnOverlay, step === 5 ? TURN_ANIMATION_MS * 2 + TURN_VIA_PAUSE_MS : TURN_ANIMATION_MS)
