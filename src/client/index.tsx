@@ -448,8 +448,9 @@ function TurnHint({ step }: { step: number }) {
 
 // A brief visual cue between successful captures. The turn shown is only an
 // example: the guided solver determines the real face orientation afterward.
-const TURN_ANIMATION_MS = 2400
-const TURN_VIA_PAUSE_MS = 300
+// It closes when the cube's turn animation ends, so its length lives only in
+// the CSS; the timer is a fallback in case that animation never runs.
+const TURN_CUE_FALLBACK_MS = 8000
 function CaptureTurnOverlay({ step, startColors, viaColors, onContinue }: { step: number; startColors: string[][]; viaColors?: string[][]; onContinue: () => void }) {
   const kind = step < 4 ? 'side' : step === 4 ? 'top' : 'bottom'
   const title = kind === 'side' ? 'Turn to another side' : kind === 'top' ? 'Show a remaining face' : 'Show the last face'
@@ -486,7 +487,7 @@ function CaptureTurnOverlay({ step, startColors, viaColors, onContinue }: { step
   return (
     <div class={`capture-turn-overlay capture-turn-${kind}`} role="status" aria-label={`${title}. ${detail}`}>
       <div class="capture-turn-scene" aria-hidden="true">
-        <div class="capture-turn-cube">
+        <div class="capture-turn-cube" onAnimationEnd={(e) => { if (e.target === e.currentTarget) onContinue() }}>
           {face('front')}
           {face('back')}
           {face('right')}
@@ -1305,7 +1306,7 @@ function App() {
         if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
         const step = FACE_ORDER.indexOf(nextFace)
         setTurnOverlay({ step, startColors: result.colors, viaColors: step === 5 ? newCapturedFaces[FACE_ORDER[3]]?.colors : undefined })
-        turnOverlayTimer.current = setTimeout(dismissTurnOverlay, step === 5 ? TURN_ANIMATION_MS * 2 + TURN_VIA_PAUSE_MS : TURN_ANIMATION_MS)
+        turnOverlayTimer.current = setTimeout(dismissTurnOverlay, TURN_CUE_FALLBACK_MS)
       }
     }
   }
