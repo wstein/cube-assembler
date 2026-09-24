@@ -24,7 +24,7 @@ import { describe, it, expect } from 'vitest'
 import { existsSync, readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import jpeg from 'jpeg-js'
-import { extractColorsFromImageData, learnStickerColors, limitBackgroundGain, NEUTRAL_GAINS, type RGB, type StickerSample } from '../src/client/imageProcessing'
+import { DEFAULT_SAMPLING, extractColorsFromImageData, learnStickerColors, limitBackgroundGain, NEUTRAL_GAINS, type RGB, type SamplingGeometry, type StickerSample } from '../src/client/imageProcessing'
 
 const FIXTURES_DIR = join(__dirname, 'fixtures')
 const FACE_ORDER = ['u', 'r', 'f', 'd', 'l', 'b']
@@ -49,6 +49,9 @@ interface FixtureMeta {
     // test reproduces the real pipeline. Absent on fixtures saved before
     // the app started recording them; those replay with neutral gains.
     backgroundWhiteBalance?: Record<string, RGB>
+    // Sampling setup (face border, sticker gap) the capture used - see
+    // SamplingGeometry. Absent on older fixtures, which used the default.
+    sampling?: SamplingGeometry
   }
   // Marks a fixture as a known, not-yet-fixed limitation rather than a
   // regression to guard against - e.g. a genuine palette-geometry case
@@ -125,7 +128,8 @@ describe('real-capture regression fixtures', () => {
         // an older, looser clamp replay with today's limit.
         const recordedGains = meta.capture?.backgroundWhiteBalance?.[faceKey.toUpperCase()]
         const gains = recordedGains ? limitBackgroundGain(recordedGains) : NEUTRAL_GAINS
-        const result = extractColorsFromImageData(pixelData, decoded.width, decoded.height, meta.gridSize, gains)
+        const sampling = meta.capture?.sampling ?? DEFAULT_SAMPLING
+        const result = extractColorsFromImageData(pixelData, decoded.width, decoded.height, meta.gridSize, gains, sampling)
 
         for (let r = 0; r < meta.gridSize; r++) {
           for (let c = 0; c < meta.gridSize; c++) {
