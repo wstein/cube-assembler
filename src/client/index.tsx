@@ -2548,12 +2548,30 @@ function App() {
               class="modal-content review-modal-content"
               role="dialog"
               aria-modal="true"
+              aria-labelledby="review-title"
               tabIndex={-1}
               ref={focusModalOnOpen}
               onKeyDown={(e) => handleModalKeyDown(e, e.currentTarget, () => setShowReviewDialog(false))}
             >
-              <div class="modal-header">
-                <h2>Approve {FACE_DISPLAY_LABEL[face]}</h2>
+              <div class="review-header">
+                <div class="capture-side-title">
+                  <span class="capture-step-kicker">Check colors · {reviewStep + 1} of {FACE_ORDER.length}</span>
+                  <h2 id="review-title">{FACE_DISPLAY_LABEL[face]}</h2>
+                </div>
+                <div class="review-progress-dots" role="group" aria-label="Faces">
+                  {FACE_ORDER.map((f, i) => (
+                    <button
+                      type="button"
+                      key={f}
+                      class={`progress-dot ${i < reviewStep ? 'done' : ''} ${i === reviewStep ? 'current' : ''}`}
+                      aria-current={i === reviewStep ? 'step' : undefined}
+                      aria-label={FACE_DISPLAY_LABEL[f]}
+                      onClick={() => setReviewStep(i)}
+                    >
+                      {FACE_SHORT_LABEL[f]}
+                    </button>
+                  ))}
+                </div>
                 <button class="modal-close" aria-label="Close" onClick={() => setShowReviewDialog(false)}>×</button>
               </div>
               {captureProfile && (
@@ -2562,18 +2580,6 @@ function App() {
                   {profileSuggestion && <> · looks like <strong>{profileSuggestion.suggested.name}</strong></>}
                 </p>
               )}
-              <div class="review-progress-dots">
-                {FACE_ORDER.map((f, i) => (
-                  <span
-                    key={f}
-                    class={`progress-dot ${i < reviewStep ? 'done' : ''} ${i === reviewStep ? 'current' : ''}`}
-                    onClick={() => setReviewStep(i)}
-                    title={FACE_DISPLAY_LABEL[f]}
-                  >
-                    {FACE_SHORT_LABEL[f]}
-                  </span>
-                ))}
-              </div>
               {globalWhiteBalanceNote && (
                 <div class="global-wb-note">✓ {globalWhiteBalanceNote}</div>
               )}
@@ -2727,24 +2733,24 @@ function App() {
                     </div>
                   </div>
                   <div class="review-wizard-nav">
-                    <button class="btn btn-secondary btn-sm" onClick={() => handleRetakeFace(face)}>
-                      Retake this face
+                    <button class="btn btn-secondary" onClick={() => handleRetakeFace(face)}>
+                      Retake {FACE_DISPLAY_LABEL[face].toLowerCase()}
                     </button>
                     <div class="review-wizard-nav-spacer" />
                     <button
-                      class="btn btn-secondary btn-sm"
+                      class="btn btn-secondary"
                       onClick={() => setReviewStep((s) => Math.max(0, s - 1))}
                       disabled={reviewStep === 0}
                     >
-                      ← Previous
+                      Previous
                     </button>
                     {isLast ? (
-                      <button class="btn btn-primary" onClick={handleConfirmReview}>
-                        ✓ Confirm & Assemble Cube
+                      <button class="btn btn-primary btn-review-next" onClick={handleConfirmReview}>
+                        Looks right — put the cube together
                       </button>
                     ) : (
-                      <button class="btn btn-primary" onClick={() => setReviewStep((s) => s + 1)}>
-                        Approve & Next →
+                      <button class="btn btn-primary btn-review-next" onClick={() => setReviewStep((s) => s + 1)}>
+                        Looks right — next side
                       </button>
                     )}
                   </div>

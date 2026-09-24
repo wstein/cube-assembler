@@ -877,7 +877,28 @@ textarea {
    ───────────────────────────────────────────────────────────────────────────── */
 
 .review-modal-content {
-  width: min(820px, 92vw);
+  width: min(1000px, 94vw);
+  max-width: none;
+}
+
+.review-header {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--spacing-md);
+  margin-bottom: var(--spacing-lg);
+}
+
+.review-header h2 {
+  margin: 0;
+  font-size: 1.9rem;
+  font-weight: 600;
+}
+
+.btn-review-next {
+  height: 48px;
+  padding: 0 1.4rem;
+  font-size: 0.95rem;
 }
 
 /* ─────────────────────────────────────────────────────────────────────────────
@@ -1092,8 +1113,14 @@ textarea {
 
 .review-progress-dots {
   display: flex;
-  gap: var(--spacing-xs);
-  margin-bottom: var(--spacing-md);
+  gap: 6px;
+}
+
+.review-progress-dots .progress-dot {
+  width: 36px;
+  height: 36px;
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
 }
 
 .review-progress-dots .progress-dot {
@@ -1119,10 +1146,11 @@ textarea {
 
 .review-pane-label {
   display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  column-gap: var(--spacing-sm);
-  min-height: 1.5rem;
+  flex-wrap: nowrap;
+  align-items: center;
+  column-gap: var(--spacing-md);
+  height: 1.5rem;
+  white-space: nowrap;
   font-size: 0.8rem;
   font-weight: 600;
   color: var(--color-text-secondary);
@@ -1145,12 +1173,15 @@ textarea {
   color: var(--color-warning);
 }
 
+/* The photo and the colors found share one frame, so they line up. */
 .review-face-image-wrapper {
   position: relative;
   aspect-ratio: 1;
-  border-radius: var(--radius-sm);
+  box-sizing: border-box;
+  padding: 8px;
+  border-radius: 14px;
   overflow: hidden;
-  background: #000;
+  background: #1b1b1f;
 }
 
 .review-face-image {
@@ -1158,15 +1189,17 @@ textarea {
   height: 100%;
   object-fit: cover;
   display: block;
+  border-radius: var(--radius-md);
 }
 
 .review-detected-grid {
   display: grid;
-  gap: 3px;
-  padding: 3px;
+  gap: 8px;
+  padding: 8px;
   aspect-ratio: 1;
-  border-radius: var(--radius-sm);
-  background: #1a1a1a;
+  box-sizing: border-box;
+  border-radius: 14px;
+  background: #1b1b1f;
   container-type: inline-size;
 }
 
@@ -1176,7 +1209,7 @@ textarea {
   align-items: center;
   justify-content: center;
   border: none;
-  border-radius: 3px;
+  border-radius: var(--radius-md);
   cursor: pointer;
   transition: transform 0.1s;
   padding: 0;
@@ -1254,6 +1287,19 @@ textarea {
   display: flex;
   align-items: center;
   gap: var(--spacing-sm);
+}
+
+/* The review's Retake/Previous/Looks-right row stays in reach whatever
+   the dialog's height. */
+.review-modal-content .review-wizard-nav {
+  position: sticky;
+  bottom: calc(-1 * var(--modal-pad));
+  z-index: 2;
+  flex-wrap: wrap;
+  margin: var(--spacing-md) calc(-1 * var(--modal-pad)) 0;
+  padding: var(--spacing-md) var(--modal-pad) var(--modal-pad);
+  background: var(--color-bg-primary);
+  border-top: 1px solid var(--color-border);
 }
 
 .review-wizard-nav-spacer {
@@ -1524,18 +1570,6 @@ label.capture-size-label {
     max-height: 38vh;
   }
 
-  /* The review's Retake/Previous/Approve row stays in reach below the
-     stacked photo and colors. */
-  .review-wizard-nav {
-    position: sticky;
-    bottom: calc(-1 * var(--modal-pad));
-    z-index: 2;
-    flex-wrap: wrap;
-    margin: 0 calc(-1 * var(--modal-pad));
-    padding: var(--spacing-sm) var(--modal-pad) var(--modal-pad);
-    background: var(--color-bg-primary);
-    border-top: 1px solid var(--color-border);
-  }
 
 }
 
