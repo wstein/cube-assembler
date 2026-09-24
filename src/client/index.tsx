@@ -2252,11 +2252,10 @@ function App() {
               {liveDetection && (
                 // Positioned from stickerSampleRect in percent of the guide
                 // square, so the overlay shows exactly what the detector
-                // reads. During sampling setup it switches from per-sticker
-                // confidence to the sampled zones themselves, outlined in the
-                // color each one reads as.
+                // reads: thin cell lines, and each sampled zone outlined in the
+                // color it reads as.
                 <div
-                  class={`capture-grid-overlay ${mirrorPreview ? 'mirrored' : ''} ${samplingSetupOpen ? 'is-setup' : ''}`}
+                  class={`capture-grid-overlay ${mirrorPreview ? 'mirrored' : ''}`}
                 >
                   {liveDetection.colors.map((row, r) =>
                     row.map((color, c) => {
@@ -2266,18 +2265,16 @@ function App() {
                       return (
                         <Fragment key={`${r}-${c}`}>
                           <div
-                            class={`capture-grid-cell confidence-${confidenceTier(liveDetection.cellConfidences[r][c])}`}
+                            class="capture-grid-cell"
                             style={{ left: `${cell.x}%`, top: `${cell.y}%`, width: `${cell.width}%`, height: `${cell.height}%` }}
                           />
-                          {samplingSetupOpen && (
-                            <div
-                              class="capture-sample-zone"
-                              style={{
-                                left: `${zone.x}%`, top: `${zone.y}%`, width: `${zone.width}%`, height: `${zone.height}%`,
-                                borderColor: STICKER_HEX[color] ?? '#888',
-                              }}
-                            />
-                          )}
+                          <div
+                            class="capture-sample-zone"
+                            style={{
+                              left: `${zone.x}%`, top: `${zone.y}%`, width: `${zone.width}%`, height: `${zone.height}%`,
+                              borderColor: STICKER_HEX[color] ?? '#888',
+                            }}
+                          />
                         </Fragment>
                       )
                     })
@@ -2288,10 +2285,9 @@ function App() {
                 // The band around the guide square that the background (white
                 // balance) sample skips - sized in percent of the wrapper,
                 // like the 60% guide square itself. Always shown when set, so
-                // fingers can be kept inside it while capturing; bolder while
-                // it's being adjusted.
+                // fingers can be kept inside it while capturing.
                 <div
-                  class={`capture-background-gap ${samplingSetupOpen ? 'is-setup' : ''}`}
+                  class="capture-background-gap"
                   style={{
                     width: `${60 * (1 + 2 * sampling.backgroundGap)}%`,
                     padding: `${60 * sampling.backgroundGap}%`,
