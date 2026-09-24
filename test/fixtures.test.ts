@@ -24,6 +24,7 @@ import { describe, it, expect } from 'vitest'
 import { existsSync, readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import jpeg from 'jpeg-js'
+import { wrgFaceletsToGrids } from '../src/client/notationOutput'
 import { DEFAULT_SAMPLING, extractColorsFromImageData, learnStickerColors, limitBackgroundGain, NEUTRAL_GAINS, type RGB, type SamplingGeometry, type StickerSample } from '../src/client/imageProcessing'
 
 const FIXTURES_DIR = join(__dirname, 'fixtures')
@@ -31,7 +32,10 @@ const FACE_ORDER = ['u', 'r', 'f', 'd', 'l', 'b']
 
 interface FixtureMeta {
   gridSize: number
-  faces: Record<string, { colors: string[][]; photo: string }>
+  // Human-verified colors, all 6 faces as one WRG facelets string in
+  // U R F D L B order, each face row-major as photographed.
+  colorsURFDLB: string
+  faces: Record<string, { photo: string }>
   // Free-text labels a human can add by hand to meta.json (e.g. "pastel",
   // "office-lighting") - combined with tags auto-derived from `capture`
   // below so a cluster of failures under one condition is visible from
@@ -110,6 +114,8 @@ describe('real-capture regression fixtures', () => {
       for (const faceKey of FACE_ORDER) {
         expect(meta.faces[faceKey], `fixture "${name}" is missing face ${faceKey.toUpperCase()}`).toBeDefined()
       }
+      const expectedColors = wrgFaceletsToGrids(meta.colorsURFDLB ?? '')
+      expect(expectedColors, `fixture "${name}": colorsURFDLB missing or malformed`).not.toBeNull()
 
       const samples: StickerSample[] = []
       const locations: { face: string; row: number; col: number }[] = []
@@ -152,7 +158,7 @@ describe('real-capture regression fixtures', () => {
       })
 
       for (const faceKey of FACE_ORDER) {
-        expect(finalColors[faceKey], `fixture "${name}", face ${faceKey.toUpperCase()}`).toEqual(meta.faces[faceKey].colors)
+        expect(finalColors[faceKey], `fixture "${name}", face ${faceKey.toUpperCase()}`).toEqual(expectedColors![faceKey.toUpperCase()])
       }
     })
   }

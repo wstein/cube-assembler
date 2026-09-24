@@ -15,9 +15,16 @@ POSTs each face's cropped photo plus its (corrected) color grid to
 
 ```
 test/fixtures/<name>/
-  meta.json       { gridSize, faces: { u: { colors, photo }, r: {...}, ... }, capture }
+  meta.json       { gridSize, colorsURFDLB, detectedURFDLB, faces: { u: { photo, ... }, ... }, capture }
   face-u.jpg       (etc. for r, f, d, l, b)
 ```
+
+`colorsURFDLB` holds the human-verified colors of all 6 faces as one line,
+in U R F D L B order with each face row-major as photographed (the app's
+WRG facelets notation), e.g.
+`"GRRYOYWYW WYWROGORB GRRYOYWYW YWYBROGWR GBGBGBOBO BGRGBOBWO"`.
+`detectedURFDLB` is the same for what detection produced before any hand
+correction.
 
 `capture` is informational context about how the shots were taken - camera
 label/resolution, the white balance mode and gains that were applied, the

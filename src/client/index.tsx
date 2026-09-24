@@ -9,7 +9,9 @@ import {
   type ColorDetectionResult, type FaceCaptureResult, type RGB,
 } from './imageProcessing'
 import { assembleCubeFromFaces, validateFaceColors, createSolvedCube, toCubeIR, solveFaceOrientations, type OrientedCandidate, type FaceKey } from './cubeAssembly'
-import { toWRGFacelets, fromWRGFacelets, toURFFacelets, fromURFFacelets, detectNotationFormat } from './notationOutput'
+import {
+  toWRGFacelets, fromWRGFacelets, toURFFacelets, fromURFFacelets, detectNotationFormat, gridsToWRGFacelets, wrgFaceletsToGrids,
+} from './notationOutput'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
@@ -1001,7 +1003,8 @@ function App() {
 
       let meta: {
         gridSize: number
-        faces: Record<string, { colors: string[][]; photo: string }>
+        colorsURFDLB: string
+        faces: Record<string, { photo: string }>
         capture?: { backgroundWhiteBalance?: Record<string, RGB>; sampling?: SamplingGeometry }
       }
       try {
@@ -1010,8 +1013,9 @@ function App() {
         setCaptureMessage(`❌ ${metaFile.name} is not valid JSON.`)
         return
       }
-      if (!meta.faces || typeof meta.gridSize !== 'number') {
-        setCaptureMessage(`❌ ${metaFile.name} doesn't look like a saved fixture (missing gridSize/faces).`)
+      const colorGrids = typeof meta.colorsURFDLB === 'string' ? wrgFaceletsToGrids(meta.colorsURFDLB) : null
+      if (!meta.faces || typeof meta.gridSize !== 'number' || !colorGrids) {
+        setCaptureMessage(`❌ ${metaFile.name} doesn't look like a saved fixture (missing gridSize/colorsURFDLB/faces).`)
         return
       }
 
@@ -1020,7 +1024,8 @@ function App() {
       const missing: string[] = []
       for (const [face, faceData] of Object.entries(meta.faces)) {
         const photoFile = photoFiles.find((f) => f.name === faceData.photo)
-        if (!photoFile || !validateFaceColors(faceData.colors, meta.gridSize)) {
+        const colors = colorGrids[face.toUpperCase()]
+        if (!photoFile || !colors || !validateFaceColors(colors, meta.gridSize)) {
           missing.push(face.toUpperCase())
           continue
         }
@@ -1031,7 +1036,7 @@ function App() {
           reader.readAsDataURL(photoFile)
         })
         newEntries[face.toUpperCase()] = {
-          colors: faceData.colors,
+          colors,
           confidence: 1,
           croppedImage: dataUrl,
           timestamp: Date.now(),
@@ -1237,15 +1242,11 @@ function App() {
     setLoading(true)
     setFixtureSaveMessage('Sending...')
     try {
-      const faces: Record<string, { photo: string; colors: string[][] } & Record<string, unknown>> = {}
+      const faces: Record<string, { photo: string } & Record<string, unknown>> = {}
       for (const f of FACE_ORDER) {
         const face = capturedFaces[f]
         faces[f] = {
           photo: face.croppedImage!,
-          colors: face.colors,
-          // What detection said before any hand correction - the diff
-          // against `colors` is exactly what a human had to fix.
-          detected: face.detectedColors,
           capturedAt: new Date(face.timestamp).toISOString(),
           background: face.backgroundColor,
           frame: face.frame,
@@ -1287,7 +1288,17 @@ function App() {
       const res = await fetch('/api/fixtures', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ gridSize: puzzleSize, faces, meta }),
+        body: JSON.stringify({
+          gridSize: puzzleSize,
+          colorsURFDLB: gridsToWRGFacelets(Object.fromEntries(FACE_ORDER.map((f) => [f, capturedFaces[f].colors]))),
+          // What detection said before any hand correction - the diff
+          // against colorsURFDLB is exactly what a human had to fix.
+          detectedURFDLB: FACE_ORDER.every((f) => capturedFaces[f].detectedColors)
+            ? gridsToWRGFacelets(Object.fromEntries(FACE_ORDER.map((f) => [f, capturedFaces[f].detectedColors!])))
+            : undefined,
+          faces,
+          meta,
+        }),
       })
       const result = await res.json()
       if (!res.ok) throw new Error(result.error ?? `Failed (${res.status})`)

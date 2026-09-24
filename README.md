@@ -272,19 +272,21 @@ grid after any manual corrections) as a regression test fixture under
 Reachable from the app itself via the **Send to Server** button once a
 cube has been confirmed. `meta` is optional, opaque capture context
 (camera, white balance, sampling setup, etc.) stored as-is under `capture`
-in the fixture's `meta.json`. Per-face fields beyond `photo` and `colors`
-(detection before correction, crop, camera settings at capture, ...) are
-stored as-is on that face.
+in the fixture's `meta.json`. `colorsURFDLB` is the human-verified colors of
+all 6 faces in U R F D L B order (WRG facelets, each face row-major as
+photographed); `detectedURFDLB`, optional, is detection's result before
+any hand correction. Per-face fields beyond `photo` (crop, camera settings
+at capture, ...) are stored as-is on that face.
 
 ```json
 {
   "name": "optional-name (defaults to a timestamp)",
   "gridSize": 3,
+  "colorsURFDLB": "GRRYOYWYW WYWROGORB GRRYOYWYW YWYBROGWR GBGBGBOBO BGRGBOBWO",
+  "detectedURFDLB": "RRRYOYWYW WYWROGORB GRRYOYWYW YWYBROGWR GBGBGBOBO BGRGBOBWO",
   "faces": {
     "U": {
       "photo": "data:image/jpeg;base64,...",
-      "colors": [["W","W","W"], ...],
-      "detected": [["W","W","Y"], ...],
       "crop": { "x": 636, "y": 216, "width": 648, "height": 648 }
     },
     "R": { ... }, "F": { ... }, "D": { ... }, "L": { ... }, "B": { ... }
