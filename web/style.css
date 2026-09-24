@@ -1757,8 +1757,10 @@ textarea {
 @media (prefers-reduced-motion: no-preference) {
   .capture-turn-side .capture-turn-cube { animation: capture-turn-side 2.4s ease-in-out forwards; }
   .capture-turn-top .capture-turn-cube { animation: capture-turn-top 2.4s ease-in-out forwards; }
-  .capture-turn-bottom .capture-turn-cube { animation: capture-turn-bottom 2.4s ease-in-out forwards; }
+  /* Face 5 -> Side 4 takes one full turn, pauses 300 ms, then Side 4 -> Face 6. */
+  .capture-turn-bottom .capture-turn-cube { animation: capture-turn-bottom 5.1s ease-in-out forwards; }
   .capture-turn-direction { animation: capture-arrow-lift 2.4s ease-in-out forwards; }
+  .capture-turn-bottom .capture-turn-direction { animation-duration: 5.1s; }
   .capture-turn-arrow-trail { opacity: 0; animation: capture-arrow-trail-in 450ms ease-out forwards; }
   .capture-turn-arrow-trail-1 { animation-delay: 350ms; }
   .capture-turn-arrow-trail-2 { animation-delay: 600ms; }
@@ -1786,8 +1788,9 @@ textarea {
 }
 
 @keyframes capture-turn-bottom {
-  0%, 14% { transform: translateZ(calc(-1 * var(--turn-depth))); }
-  80%, 100% { transform: translateZ(calc(-1 * var(--turn-depth))) rotateX(90deg); }
+  0% { transform: translateZ(calc(-1 * var(--turn-depth))); }
+  47.0588%, 52.9412% { transform: translateZ(calc(-1 * var(--turn-depth))) rotateX(90deg); }
+  100% { transform: translateZ(calc(-1 * var(--turn-depth))) rotateX(180deg); }
 }
 
 /* Always-on guide marking exactly which square region of the frame gets
