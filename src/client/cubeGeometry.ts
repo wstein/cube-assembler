@@ -44,13 +44,24 @@ function quarterTurn([x, y, z]: Vec, axis: Axis): Vec {
   }
 }
 
+// Grid cell at each 3D position, built once per cube size.
+const cellLookup = new Map<number, Map<string, [FaceKey, number, number]>>()
+function cellsBySize(n: number): Map<string, [FaceKey, number, number]> {
+  let cells = cellLookup.get(n)
+  if (!cells) {
+    cells = new Map()
+    for (const f of FACES) {
+      for (let r = 0; r < n; r++) for (let c = 0; c < n; c++) cells.set(cellPosition(f, r, c, n).join(','), [f, r, c])
+    }
+    cellLookup.set(n, cells)
+  }
+  return cells
+}
+
 function transform(faces: Faces, move: (p: Vec) => Vec): Faces {
   const n = faces.U.length
   const out = Object.fromEntries(FACES.map((f) => [f, Array.from({ length: n }, () => Array<string>(n).fill(''))])) as Faces
-  const cellOf = new Map<string, [FaceKey, number, number]>()
-  for (const f of FACES) {
-    for (let r = 0; r < n; r++) for (let c = 0; c < n; c++) cellOf.set(cellPosition(f, r, c, n).join(','), [f, r, c])
-  }
+  const cellOf = cellsBySize(n)
   for (const f of FACES) {
     for (let r = 0; r < n; r++) {
       for (let c = 0; c < n; c++) {
