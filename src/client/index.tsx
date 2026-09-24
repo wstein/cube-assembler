@@ -67,7 +67,6 @@ const CAMERA_CONSTRAINTS: MediaTrackConstraints = {
 
 // Injected at build time by vite.config.ts's `define`.
 declare const __APP_VERSION__: string
-declare const __APP_COMMIT__: string
 
 // The sampling setup is a property of the user's cube and camera, not of
 // one capture, so it's remembered in this browser between sessions.
@@ -1269,7 +1268,8 @@ function App() {
       }
       const meta = {
         capturedAt: new Date().toISOString(),
-        app: { version: __APP_VERSION__, commit: __APP_COMMIT__ },
+        // The commit is stamped by the server when it saves the fixture.
+        app: { version: __APP_VERSION__ },
         userAgent: navigator.userAgent,
         devicePixelRatio: window.devicePixelRatio,
         photo: { format: 'image/jpeg', quality: CROP_JPEG_QUALITY },
