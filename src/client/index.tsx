@@ -4,7 +4,7 @@ import '../../web/style.css'
 import {
   captureAndProcessFace, captureAndProcessImage, extractCubeFaceColors,
   runGlobalWhiteBalance, computeBackgroundGain, NEUTRAL_GAINS, CROP_JPEG_QUALITY,
-  DEFAULT_SAMPLING, stickerSampleRect, type SamplingGeometry,
+  DEFAULT_SAMPLING, stickerSampleRect, colorConfidences, STICKER_COLORS, type SamplingGeometry,
   rgbToOKLCH, hueCircularRange, hueRangesOverlap, linearRange,
   type ColorDetectionResult, type FaceCaptureResult, type RGB,
 } from './imageProcessing'
@@ -538,6 +538,10 @@ function App() {
   // today instead of the colors the fixture was saved with, so a capture
   // can be reviewed afresh without its earlier hand corrections.
   const [ignoreFixtureCorrections, setIgnoreFixtureCorrections] = useState(false)
+  // The 6 colors as learned from this capture's own stickers (null when the
+  // cross-face recalibration didn't run) - what the color-fix picker scores
+  // each alternative against.
+  const [learnedPalette, setLearnedPalette] = useState<Record<string, RGB> | null>(null)
   const updateSampling = (next: SamplingGeometry) => {
     setSampling(next)
     saveSampling(next)
@@ -939,6 +943,7 @@ function App() {
         setAppliedBackgroundGains(faceGains)
 
         const wb = await runGlobalWhiteBalance(images, puzzleSize, faceGains, sampling)
+        setLearnedPalette(wb.learned?.colors ?? null)
         if (wb.applied) {
           const recalibrated = { ...newCapturedFaces }
           for (const f of FACE_ORDER) {
@@ -953,6 +958,7 @@ function App() {
       } catch (err) {
         console.error('Global white balance error:', err)
         setGlobalWhiteBalanceNote(null)
+        setLearnedPalette(null)
       }
     }
 
@@ -1058,6 +1064,7 @@ function App() {
       setGlobalWhiteBalanceNote(wb.applied
         ? CALIBRATION_NOTE
         : null)
+      setLearnedPalette(wb.learned?.colors ?? null)
 
       setPuzzleSize(meta.gridSize)
       setCapturedFaces(newEntries)
@@ -2200,20 +2207,30 @@ function App() {
             onKeyDown={(e) => handleModalKeyDown(e, e.currentTarget, () => setReviewEditingCell(null))}
           >
             <h3>Fix color</h3>
-            <div class="color-palette">
-              {['W', 'Y', 'O', 'R', 'G', 'B'].map((color) => (
-                <button
-                  key={color}
-                  class="color-btn"
-                  style={{ background: STICKER_HEX[color] }}
-                  onClick={() =>
-                    handleFixCellColor(reviewEditingCell!.face, reviewEditingCell!.row, reviewEditingCell!.col, color)
-                  }
-                >
-                  {color}
-                </button>
-              ))}
-            </div>
+            {(() => {
+              // How well this sticker's measured color matches each option,
+              // so the likely alternatives stand out.
+              const { face, row, col } = reviewEditingCell
+              const rgb = capturedFaces[face]?.cellColors?.[row]?.[col]
+              const scores = rgb ? colorConfidences(rgb, learnedPalette ?? STICKER_COLORS) : null
+              const current = capturedFaces[face]?.colors[row]?.[col]
+              return (
+                <div class="color-palette">
+                  {['W', 'Y', 'O', 'R', 'G', 'B'].map((color) => (
+                    <button
+                      key={color}
+                      class={`color-btn ${color === current ? 'is-current' : ''}`}
+                      style={{ background: STICKER_HEX[color] }}
+                      aria-pressed={color === current}
+                      onClick={() => handleFixCellColor(face, row, col, color)}
+                    >
+                      <span class="color-btn-name">{COLOR_NAME[color]}</span>
+                      {scores && <span class="color-btn-confidence">{Math.round((scores[color] ?? 0) * 100)}%</span>}
+                    </button>
+                  ))}
+                </div>
+              )
+            })()}
             <button class="btn btn-secondary btn-sm" onClick={() => setReviewEditingCell(null)}>
               Cancel
             </button>
