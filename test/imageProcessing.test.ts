@@ -17,7 +17,7 @@ import { describe, it, expect } from 'vitest'
 import {
   learnStickerColors, rgbToOKLCH, formatOKLCHValues, hueCircularRange, hueRangesOverlap, linearRange,
   hungarianAssignment, trimmedMeanColor, STICKER_COLORS, extractBackgroundColor,
-  stickerSampleRect, DEFAULT_SAMPLING, measureSharpness, classifySticker, type RGB,
+  stickerSampleRect, DEFAULT_SAMPLING, measureSharpness, classifySticker, stickerColor, type RGB,
 } from '../src/client/imageProcessing'
 
 // A plain (unweighted) OKLab distance, built from the public API: rebuilds
@@ -696,5 +696,27 @@ describe('classifySticker', () => {
     const typicalGreen = classifySticker({ r: 0, g: 155, b: 72 }).confidence
     const yellowGreen = classifySticker({ r: 150, g: 190, b: 20 }).confidence
     expect(typicalGreen).toBeGreaterThan(yellowGreen)
+  })
+})
+
+describe('stickerColor', () => {
+  const repeat = (c: RGB, times: number) => Array.from({ length: times }, () => ({ ...c }))
+
+  it('measures a colored sticker through a reflection covering half of it', () => {
+    // An orange sticker, half of it mirroring a lamp as pale pink - the
+    // trimmed mean lands in between, the sticker's own pixels don't.
+    const orange = { r: 170, g: 62, b: 40 }
+    const pixels = [...repeat(orange, 50), ...repeat({ r: 209, g: 134, b: 198 }, 50)]
+    expect(classifySticker(trimmedMeanColor(pixels)!).color).not.toBe('O')
+    expect(stickerColor(pixels)).toEqual(orange)
+  })
+
+  it('keeps the plain trimmed mean for a white sticker', () => {
+    const pixels = [...repeat({ r: 200, g: 202, b: 205 }, 90), ...repeat({ r: 210, g: 150, b: 120 }, 10)]
+    expect(stickerColor(pixels)).toEqual(trimmedMeanColor(pixels))
+  })
+
+  it('is null without pixels', () => {
+    expect(stickerColor([])).toBeNull()
   })
 })
