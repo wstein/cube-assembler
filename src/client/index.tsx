@@ -484,14 +484,11 @@ function CaptureTurnOverlay({ step, startColors, onContinue }: { step: number; s
           {face('up')}
           {face('down')}
         </div>
-        <svg class="capture-turn-direction" viewBox="0 0 100 100" aria-hidden="true">
-          {kind === 'side' ? (
-            <path d="M18 55 C18 30 37 17 59 20 C76 22 84 36 84 55 M71 42 L84 55 L96 42" />
-          ) : kind === 'top' ? (
-            <path d="M50 83 L50 18 M29 39 L50 18 L71 39" />
-          ) : (
-            <path d="M50 17 L50 82 M29 61 L50 82 L71 61" />
-          )}
+        <svg class={`capture-turn-direction capture-turn-direction-${kind}`} viewBox="0 0 100 100" aria-hidden="true">
+          <path class="capture-turn-arrow-body" d="M41 70 V41 H24 C20 41 18 37 21 34 L45 7 C48 3 52 3 55 7 L79 34 C82 37 80 41 76 41 H59 V70 Q59 74 55 74 H45 Q41 74 41 70 Z" />
+          <path class="capture-turn-arrow-trail capture-turn-arrow-trail-1" d="M39 81 H61" />
+          <path class="capture-turn-arrow-trail capture-turn-arrow-trail-2" d="M37 89 H63" />
+          <path class="capture-turn-arrow-trail capture-turn-arrow-trail-3" d="M39 97 H61" />
         </svg>
       </div>
       <div class="capture-turn-copy">

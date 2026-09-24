@@ -1692,24 +1692,33 @@ textarea {
 .capture-turn-down { transform: rotateX(-90deg) translateZ(var(--turn-depth)); }
 
 .capture-turn-direction {
+  --arrow-angle: 0deg;
   position: absolute;
   top: 50%;
   left: 50%;
   width: 58%;
   height: 58%;
-  transform: translate(-50%, -50%);
+  transform: translate(-50%, -50%) rotate(var(--arrow-angle));
   overflow: visible;
   pointer-events: none;
+  filter: drop-shadow(0 0 3px #fff) drop-shadow(0 2px 3px #0c2641);
 }
 
-.capture-turn-direction path {
-  fill: none;
-  stroke: #142230;
-  stroke-width: 9;
-  stroke-linecap: round;
+.capture-turn-direction-side { --arrow-angle: 90deg; }
+.capture-turn-direction-bottom { --arrow-angle: 180deg; }
+
+.capture-turn-arrow-body {
+  fill: #399dea;
+  stroke: #133a60;
+  stroke-width: 2;
   stroke-linejoin: round;
-  paint-order: stroke;
-  filter: drop-shadow(0 0 3px #fff) drop-shadow(0 0 2px #fff);
+}
+
+.capture-turn-arrow-trail {
+  fill: none;
+  stroke: #399dea;
+  stroke-width: 5;
+  stroke-linecap: round;
 }
 
 .capture-turn-copy {
