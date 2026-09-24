@@ -948,13 +948,16 @@ function App() {
 
   // Live sticker-color preview: sample the video feed a few times a second
   // so the grid overlay shows detected colors before the user commits to a
-  // capture, instead of only finding out the result afterward.
+  // capture, instead of only finding out the result afterward. Paused while
+  // the turn cue covers the video - nobody can see the result then.
+  const turnCueShowing = turnOverlay !== null
   useEffect(() => {
     if (!webcamOpen) {
       setLiveDetection(null)
       setLiveFaceVisible(false)
       return
     }
+    if (turnCueShowing) return
 
     if (!sampleCanvasRef.current) {
       sampleCanvasRef.current = document.createElement('canvas')
@@ -981,7 +984,7 @@ function App() {
     }, 200)
 
     return () => clearInterval(intervalId)
-  }, [webcamOpen, puzzleSize, sampling, palette])
+  }, [webcamOpen, turnCueShowing, puzzleSize, sampling, palette])
 
   // Everything below belongs to one cube of one size, so switching sizes
   // starts over - keeping it drew e.g. a 5x5's 25 stickers per face into a
