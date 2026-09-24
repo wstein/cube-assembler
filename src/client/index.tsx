@@ -1100,15 +1100,12 @@ function App() {
       const newColors = faceData.colors.map((r) => [...r])
       newColors[row][col] = newColor
 
-      const newCellConfidences = faceData.cellConfidences?.map((r) => [...r])
-      if (newCellConfidences) newCellConfidences[row][col] = 1
-      // A human decided this one, so it's no longer in doubt.
-      const newCellLookalikes = faceData.cellLookalikes?.map((r) => [...r])
-      if (newCellLookalikes) newCellLookalikes[row][col] = null
-
+      // Detection's confidence and lookalike stay as measured (saved with
+      // fixtures); the review hides them while the sticker differs from
+      // what detection saw, and shows them again if it's set back.
       return {
         ...prev,
-        [face]: { ...faceData, colors: newColors, cellConfidences: newCellConfidences, cellLookalikes: newCellLookalikes },
+        [face]: { ...faceData, colors: newColors },
       }
     })
     setReviewEditingCell(null)
@@ -1247,6 +1244,11 @@ function App() {
         const face = capturedFaces[f]
         faces[f] = {
           photo: face.croppedImage!,
+          // What the browser measured for each sticker (row-major, after the
+          // face's gain) and detection's confidence in it, 0-100 - lets
+          // the fixture test check its own JPEG decode reads the same.
+          readings: face.cellColors?.flat().map(({ r, g, b }) => [r, g, b].map((v) => Math.round(v * 10) / 10)),
+          confidences: face.cellConfidences?.flat().map((c) => Math.round(c * 100)),
           capturedAt: new Date(face.timestamp).toISOString(),
           background: face.backgroundColor,
           frame: face.frame,
