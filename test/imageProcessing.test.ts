@@ -17,7 +17,7 @@ import { describe, it, expect } from 'vitest'
 import {
   learnStickerColors, rgbToOKLCH, formatOKLCHValues, hueCircularRange, hueRangesOverlap, linearRange,
   hungarianAssignment, trimmedMeanColor, STICKER_COLORS, extractBackgroundColor,
-  extractColorsFromImageData, stickerSampleRect, DEFAULT_SAMPLING, measureSharpness, type RGB,
+  stickerSampleRect, DEFAULT_SAMPLING, measureSharpness, type RGB,
 } from '../src/client/imageProcessing'
 
 // Mirrors the internal OKLab-based colorDistance (not exported): rebuilds
@@ -569,47 +569,48 @@ describe('extractBackgroundColor', () => {
   })
 })
 
-describe('extractColorsFromImageData sampling geometry', () => {
-  // A 3x3 face drawn inside a black border of `border` (fraction of the
-  // side), with a thin black gap line between stickers - the shape a real
-  // cube's plastic frame gives the photo.
-  const size = 300
-  const layout = [['R', 'G', 'B'], ['Y', 'W', 'O'], ['B', 'R', 'G']]
-  function drawFace(border: number): Uint8ClampedArray {
-    const data = new Uint8ClampedArray(size * size * 4)
-    const inner = size * (1 - 2 * border)
-    const cell = inner / 3
-    for (let y = 0; y < size; y++) {
-      for (let x = 0; x < size; x++) {
-        const gx = x - size * border, gy = y - size * border
-        const col = Math.floor(gx / cell), row = Math.floor(gy / cell)
-        const inCell = gx >= 0 && gy >= 0 && col < 3 && row < 3
-        const inGap = inCell && (gx % cell < cell * 0.1 || gy % cell < cell * 0.1)
-        const rgb = inCell && !inGap ? STICKER_COLORS[layout[row][col]] : { r: 0, g: 0, b: 0 }
-        const i = (y * size + x) * 4
-        data[i] = rgb.r; data[i + 1] = rgb.g; data[i + 2] = rgb.b; data[i + 3] = 255
-      }
-    }
-    return data
-  }
-
+describe('stickerSampleRect', () => {
   it('defaults to sampling the centered 60% of each cell of the whole square', () => {
     expect(stickerSampleRect(0, 0, 3, 300, 300)).toEqual({ x: 20, y: 20, width: 60, height: 60 })
-    expect(DEFAULT_SAMPLING).toEqual({ faceMargin: 0, stickerCore: 0.6 })
+    expect(DEFAULT_SAMPLING).toEqual({ backgroundGap: 0, stickerCore: 0.6 })
   })
 
-  it('insets the sticker grid by the face margin', () => {
-    const rect = stickerSampleRect(0, 0, 3, 300, 300, { faceMargin: 0.2, stickerCore: 0.5 })
-    // grid spans 60..240, cells are 60 wide, core is the middle 30
-    expect(rect).toEqual({ x: 75, y: 75, width: 30, height: 30 })
+  it('shrinks the sampled zone with a smaller sticker core, keeping it centered', () => {
+    expect(stickerSampleRect(1, 2, 3, 300, 300, { backgroundGap: 0.2, stickerCore: 0.5 }))
+      .toEqual({ x: 225, y: 125, width: 50, height: 50 })
+  })
+})
+
+describe('extractBackgroundColor background gap', () => {
+  // 500x500 frame: gray backdrop, with a red "hand" band hugging the
+  // 300px guide square (x/y 100..400) out to 40px beyond it.
+  function frameWithHand(): HTMLCanvasElement {
+    const size = 500
+    return {
+      width: size,
+      height: size,
+      getContext: () => ({
+        getImageData(sx: number, sy: number, sw: number, sh: number) {
+          const data = new Uint8ClampedArray(sw * sh * 4)
+          for (let y = 0; y < sh; y++) for (let x = 0; x < sw; x++) {
+            const fx = sx + x, fy = sy + y
+            const nearSquare = fx >= 60 && fx < 440 && fy >= 60 && fy < 440
+            data.set(nearSquare ? [200, 40, 40, 255] : [120, 120, 120, 255], (y * sw + x) * 4)
+          }
+          return { data, width: sw, height: sh }
+        },
+      }),
+    } as unknown as HTMLCanvasElement
+  }
+
+  it('picks up whatever surrounds the square without a gap', () => {
+    const result = extractBackgroundColor(frameWithHand())!
+    expect(result.r).toBeGreaterThan(result.g + 20)
   })
 
-  it('reads a face with a thick border only once the margin matches it', () => {
-    const data = drawFace(0.15)
-    const withoutMargin = extractColorsFromImageData(data, size, size, 3)
-    expect(withoutMargin.colors).not.toEqual(layout)
-    const withMargin = extractColorsFromImageData(data, size, size, 3, undefined, { faceMargin: 0.15, stickerCore: 0.6 })
-    expect(withMargin.colors).toEqual(layout)
+  it('leaves the band around the square out once the gap covers it', () => {
+    // 40px of a 300px square = 0.133 - round up to be sure it's all skipped
+    expect(extractBackgroundColor(frameWithHand(), 0.14)).toEqual({ r: 120, g: 120, b: 120 })
   })
 })
 

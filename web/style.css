@@ -930,16 +930,36 @@ textarea {
   transition: border-color 0.15s;
 }
 
-/* Sampling setup: the cells fade to thin guides so the sampled zones and
-   the sticker grid's outer edge (the face border) stand out. */
+/* Sampling setup: the cells fade to thin guides so the sampled zones
+   stand out. */
 .capture-grid-overlay.is-setup .capture-grid-cell {
   border: 1px solid rgba(255, 255, 255, 0.45);
 }
 
-.capture-grid-bounds {
+/* Sampling setup: the band around the guide square that the background
+   (white balance) sample skips. Padding (a percentage of the wrapper, set
+   inline) is the band's thickness; the mask cuts the guide square out so
+   only the band is striped. */
+.capture-background-gap {
   position: absolute;
-  border: 2px dashed #fff;
-  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.6);
+  top: 50%;
+  left: 50%;
+  aspect-ratio: 1;
+  box-sizing: border-box;
+  transform: translate(-50%, -50%);
+  background: repeating-linear-gradient(
+    45deg, rgba(255, 180, 0, 0.55) 0 6px, rgba(0, 0, 0, 0.25) 6px 12px
+  );
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
+  pointer-events: none;
+}
+
+.sampling-setup-title {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--color-text-secondary);
 }
 
 /* One sampled zone, outlined in the color it reads as - a dark halo keeps
