@@ -1201,6 +1201,9 @@ export function hasPlausibleStickerFace(data: Uint8ClampedArray, width: number, 
   // Rounded stickers expose the dark cube body mainly at four-sticker
   // intersections, even when their straight seams are too narrow or skewed
   // to align with the grid. Several real cropped captures have this shape.
+  // Like a seam, the corner must also be darker than the stickers around it
+  // (on average - dark blue or red stickers can be darker than a grey-lit
+  // body), or light grout between wall tiles would pass as a cube body.
   let visibleIntersections = 0
   const colorAt = (x: number, y: number) => {
     const px = Math.min(width - 1, Math.max(0, Math.round(x)))
@@ -1220,14 +1223,17 @@ export function hasPlausibleStickerFace(data: Uint8ClampedArray, width: number, 
         colorAt(x - cellW * 0.45, y + cellH * 0.45),
         colorAt(x + cellW * 0.45, y + cellH * 0.45),
       ]
+      const stickerLuminance = neighbors.reduce((sum, [r, g, b]) => sum + 0.2126 * r + 0.7152 * g + 0.0722 * b, 0) / 4
       let cornerContrast = 0
+      let darkestCorner = Infinity
       for (let dy = -2; dy <= 2; dy++) {
         for (let dx = -2; dx <= 2; dx++) {
           const corner = colorAt(x + dx * cellW * 0.06, y + dy * cellH * 0.06)
           cornerContrast = Math.max(cornerContrast, Math.min(...neighbors.map((neighbor) => colorDistance(corner, neighbor))))
+          darkestCorner = Math.min(darkestCorner, luminance(x + dx * cellW * 0.06, y + dy * cellH * 0.06))
         }
       }
-      if (cornerContrast >= 25) visibleIntersections++
+      if (cornerContrast >= 25 && darkestCorner < stickerLuminance) visibleIntersections++
     }
   }
   return visibleIntersections >= Math.ceil((gridSize - 1) ** 2 * 0.5)
