@@ -69,30 +69,38 @@ const CAMERA_CONSTRAINTS: MediaTrackConstraints = {
 declare const __APP_VERSION__: string
 
 // The sampling setup is a property of the user's cubes and camera, not of
-// one capture, so it's remembered in this browser between sessions - per
-// cube size, since a 7x7's stickers and gaps are much smaller than a 3x3's.
-const SAMPLING_STORAGE_KEY = 'cube-assembler.sampling-by-size'
+// one capture, so it's remembered between sessions - per cube size, since
+// a 7x7's stickers and gaps are much smaller than a 3x3's. Kept in a
+// cookie rather than localStorage: cookies aren't scoped by port, so the
+// dev server (5173) and the Bun server (3000) share one setup.
+const SAMPLING_COOKIE = 'cube-assembler-sampling'
+const SAMPLING_COOKIE_MAX_AGE = 60 * 60 * 24 * 365 * 5
 
 function isSamplingGeometry(value: unknown): value is SamplingGeometry {
   const v = value as SamplingGeometry | null
   return typeof v?.backgroundGap === 'number' && typeof v?.stickerCore === 'number'
 }
 
+// Keeps only well-formed entries for real cube sizes (2-7).
+function parseSamplingBySize(value: unknown): Record<number, SamplingGeometry> {
+  if (!value || typeof value !== 'object') return {}
+  return Object.fromEntries(
+    Object.entries(value).filter(([size, v]) => /^[2-7]$/.test(size) && isSamplingGeometry(v))
+  )
+}
+
 function loadSamplingBySize(): Record<number, SamplingGeometry> {
   try {
-    const saved = JSON.parse(localStorage.getItem(SAMPLING_STORAGE_KEY) ?? '{}')
-    return Object.fromEntries(Object.entries(saved ?? {}).filter(([, v]) => isSamplingGeometry(v)))
+    const cookie = document.cookie.split('; ').find((c) => c.startsWith(`${SAMPLING_COOKIE}=`))
+    return cookie ? parseSamplingBySize(JSON.parse(decodeURIComponent(cookie.split('=')[1]))) : {}
   } catch {
-    return {} // storage blocked or corrupt - every size uses the default
+    return {} // corrupt cookie - every size uses the default
   }
 }
 
 function saveSamplingBySize(samplingBySize: Record<number, SamplingGeometry>) {
-  try {
-    localStorage.setItem(SAMPLING_STORAGE_KEY, JSON.stringify(samplingBySize))
-  } catch {
-    // storage blocked - the setting just won't persist
-  }
+  const value = encodeURIComponent(JSON.stringify(samplingBySize))
+  document.cookie = `${SAMPLING_COOKIE}=${value}; path=/; max-age=${SAMPLING_COOKIE_MAX_AGE}; SameSite=Lax`
 }
 
 interface CameraInfo {
