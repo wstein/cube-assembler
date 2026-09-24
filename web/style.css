@@ -962,10 +962,24 @@ textarea {
   );
 }
 
-.sampling-setup-title {
-  font-size: 0.8rem;
-  font-weight: 600;
-  color: var(--color-text-secondary);
+.cube-profile-select {
+  min-width: 10rem;
+  padding: 0.3rem 0.5rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-bg-primary, #fff);
+  font: inherit;
+  font-size: 0.85rem;
+}
+
+.cube-profile-name {
+  font-family: inherit;
+  font-weight: 400;
+}
+
+label.capture-size-label {
+  font-weight: inherit;
+  margin: 0;
 }
 
 /* One sampled zone, outlined in the color it reads as - a dark halo keeps

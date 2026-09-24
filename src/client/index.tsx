@@ -10,6 +10,10 @@ import {
 } from './imageProcessing'
 import { assembleCubeFromFaces, validateFaceColors, createSolvedCube, toCubeIR, solveFaceOrientations, type OrientedCandidate, type FaceKey } from './cubeAssembly'
 import {
+  parseProfileStore, activeProfile, profilesForSize, saveProfile, selectProfile, deleteProfile, newProfileId,
+  type ProfileStore,
+} from './cubeProfiles'
+import {
   toWRGFacelets, fromWRGFacelets, toURFFacelets, fromURFFacelets, detectNotationFormat, gridsToWRGFacelets, wrgFaceletsToGrids,
 } from './notationOutput'
 
@@ -68,41 +72,40 @@ const CAMERA_CONSTRAINTS: MediaTrackConstraints = {
 // Injected at build time by vite.config.ts's `define`.
 declare const __APP_VERSION__: string
 
-// The sampling setup is a property of the user's cubes and camera, not of
-// one capture, so it's remembered between sessions - per cube size, since
-// a 7x7's stickers and gaps are much smaller than a 3x3's. Kept in a
-// cookie rather than localStorage: cookies aren't scoped by port, so the
-// dev server (5173) and the Bun server (3000) share one setup.
-const SAMPLING_COOKIE = 'cube-assembler-sampling'
-const SAMPLING_COOKIE_MAX_AGE = 60 * 60 * 24 * 365 * 5
+// Cube profiles (see cubeProfiles.ts) are a property of the user's cubes
+// and camera, not of one capture, so they're remembered between sessions.
+// Kept in a cookie rather than localStorage: cookies aren't scoped by
+// port, so the dev server (5173) and the Bun server (3000) share them.
+const PROFILES_COOKIE = 'cube-assembler-profiles'
+// Per-size sampling settings from before cube profiles existed - read once
+// and migrated into generic profiles.
+const LEGACY_SAMPLING_COOKIE = 'cube-assembler-sampling'
+const PROFILES_COOKIE_MAX_AGE = 60 * 60 * 24 * 365 * 5
+// Browsers drop cookies over ~4 KB, so refuse to save past this.
+const PROFILES_COOKIE_MAX_BYTES = 3800
 // Marks a downloaded settings file, so uploading some other JSON is refused.
-const SAMPLING_FILE_TYPE = 'cube-assembler-sampling'
+const PROFILES_FILE_TYPE = 'cube-assembler-profiles'
+const LEGACY_SAMPLING_FILE_TYPE = 'cube-assembler-sampling'
 
-function isSamplingGeometry(value: unknown): value is SamplingGeometry {
-  const v = value as SamplingGeometry | null
-  return typeof v?.backgroundGap === 'number' && typeof v?.stickerCore === 'number'
-}
-
-// Keeps only well-formed entries for real cube sizes (2-7).
-function parseSamplingBySize(value: unknown): Record<number, SamplingGeometry> {
-  if (!value || typeof value !== 'object') return {}
-  return Object.fromEntries(
-    Object.entries(value).filter(([size, v]) => /^[2-7]$/.test(size) && isSamplingGeometry(v))
-  )
-}
-
-function loadSamplingBySize(): Record<number, SamplingGeometry> {
+function readCookie(name: string): unknown {
   try {
-    const cookie = document.cookie.split('; ').find((c) => c.startsWith(`${SAMPLING_COOKIE}=`))
-    return cookie ? parseSamplingBySize(JSON.parse(decodeURIComponent(cookie.split('=')[1]))) : {}
+    const cookie = document.cookie.split('; ').find((c) => c.startsWith(`${name}=`))
+    return cookie ? JSON.parse(decodeURIComponent(cookie.slice(name.length + 1))) : null
   } catch {
-    return {} // corrupt cookie - every size uses the default
+    return null // corrupt cookie - treated as absent
   }
 }
 
-function saveSamplingBySize(samplingBySize: Record<number, SamplingGeometry>) {
-  const value = encodeURIComponent(JSON.stringify(samplingBySize))
-  document.cookie = `${SAMPLING_COOKIE}=${value}; path=/; max-age=${SAMPLING_COOKIE_MAX_AGE}; SameSite=Lax`
+function loadProfileStore(): ProfileStore {
+  return parseProfileStore(readCookie(PROFILES_COOKIE) ?? readCookie(LEGACY_SAMPLING_COOKIE))
+}
+
+// False when the store is too big to keep in a cookie.
+function saveProfileStore(store: ProfileStore): boolean {
+  const value = encodeURIComponent(JSON.stringify(store))
+  if (value.length > PROFILES_COOKIE_MAX_BYTES) return false
+  document.cookie = `${PROFILES_COOKIE}=${value}; path=/; max-age=${PROFILES_COOKIE_MAX_AGE}; SameSite=Lax`
+  return true
 }
 
 interface CameraInfo {
@@ -552,8 +555,9 @@ function App() {
   // let it be turned off for cameras that don't need it (e.g. a rear
   // phone camera fed in via some capture setups).
   const [mirrorPreview, setMirrorPreview] = useState(true)
-  const [samplingBySize, setSamplingBySize] = useState<Record<number, SamplingGeometry>>(loadSamplingBySize)
-  const sampling = samplingBySize[puzzleSize] ?? DEFAULT_SAMPLING
+  const [profileStore, setProfileStore] = useState<ProfileStore>(loadProfileStore)
+  const profile = activeProfile(profileStore, puzzleSize)
+  const sampling = profile.sampling
   const [samplingSetupOpen, setSamplingSetupOpen] = useState(false)
   // Upload Fixture option: start the review from what detection reads
   // today instead of the colors the fixture was saved with, so a capture
@@ -564,25 +568,37 @@ function App() {
   // each alternative against.
   const [learnedPalette, setLearnedPalette] = useState<Record<string, RGB> | null>(null)
   const [samplingFileMessage, setSamplingFileMessage] = useState('')
-  const applySamplingBySize = (updated: Record<number, SamplingGeometry>) => {
-    setSamplingBySize(updated)
-    saveSamplingBySize(updated)
+  const applyProfileStore = (updated: ProfileStore) => {
+    if (!saveProfileStore(updated)) {
+      setSamplingFileMessage('❌ Too many cube profiles to remember in this browser - delete one first')
+      return
+    }
+    setProfileStore(updated)
   }
-  // Settings file: every size's settings (defaults filled in), so a setup
-  // tuned on one machine or browser can be carried to another.
+  const updateSampling = (next: SamplingGeometry) => applyProfileStore(saveProfile(profileStore, { ...profile, sampling: next }))
+  const handleNewProfile = () => {
+    const count = profileStore.profiles.filter((p) => p.size === puzzleSize).length
+    applyProfileStore(saveProfile(profileStore, {
+      ...profile,
+      id: newProfileId(),
+      name: `My ${puzzleSize}×${puzzleSize} cube${count > 0 ? ` ${count + 1}` : ''}`,
+    }))
+    setSamplingSetupOpen(true)
+  }
+  // Settings file: all cube profiles, so a setup tuned in one browser or
+  // on one machine can be carried to another.
   const handleDownloadSampling = () => {
-    const allSizes = Object.fromEntries([2, 3, 4, 5, 6, 7].map((size) => [size, samplingBySize[size] ?? DEFAULT_SAMPLING]))
     const blob = new Blob(
-      [JSON.stringify({ type: SAMPLING_FILE_TYPE, version: 1, samplingBySize: allSizes }, null, 2)],
+      [JSON.stringify({ type: PROFILES_FILE_TYPE, version: 2, ...profileStore }, null, 2)],
       { type: 'application/json' }
     )
     const url = URL.createObjectURL(blob)
     const link = document.createElement('a')
     link.href = url
-    link.download = 'cube-assembler-sampling.json'
+    link.download = 'cube-assembler-profiles.json'
     link.click()
     URL.revokeObjectURL(url)
-    setSamplingFileMessage('✓ Settings downloaded')
+    setSamplingFileMessage('✓ Cube profiles downloaded')
   }
   const handleUploadSampling = async (e: Event) => {
     const input = e.currentTarget as HTMLInputElement
@@ -591,20 +607,22 @@ function App() {
     if (!file) return
     try {
       const data = JSON.parse(await file.text())
-      const uploaded = data?.type === SAMPLING_FILE_TYPE ? parseSamplingBySize(data.samplingBySize) : {}
-      const sizes = Object.keys(uploaded)
-      if (sizes.length === 0) {
-        setSamplingFileMessage(`❌ ${file.name} isn't a sampling settings file`)
+      // Files saved before cube profiles held per-size settings instead.
+      const uploaded = data?.type === PROFILES_FILE_TYPE ? parseProfileStore(data)
+        : data?.type === LEGACY_SAMPLING_FILE_TYPE ? parseProfileStore(data.samplingBySize)
+        : null
+      if (!uploaded || uploaded.profiles.length === 0) {
+        setSamplingFileMessage(`❌ ${file.name} isn't a cube profiles file`)
         return
       }
-      applySamplingBySize({ ...samplingBySize, ...uploaded })
-      setSamplingFileMessage(`✓ Loaded settings for ${sizes.map((n) => `${n}×${n}`).join(', ')}`)
+      // Profiles with the same id are replaced, others kept.
+      let merged = profileStore
+      for (const p of uploaded.profiles) merged = saveProfile(merged, p)
+      applyProfileStore({ ...merged, active: { ...merged.active, ...uploaded.active } })
+      setSamplingFileMessage(`✓ Loaded ${uploaded.profiles.map((p) => p.name).join(', ')}`)
     } catch {
       setSamplingFileMessage(`❌ ${file.name} isn't valid JSON`)
     }
-  }
-  const updateSampling = (next: SamplingGeometry) => {
-    applySamplingBySize({ ...samplingBySize, [puzzleSize]: next })
   }
   const [globalWhiteBalanceNote, setGlobalWhiteBalanceNote] = useState<string | null>(null)
   // The per-face background-derived gains actually applied this capture
@@ -1873,6 +1891,22 @@ function App() {
                 ))}
               </div>
             </div>
+            <div class="capture-size-row">
+              <label class="capture-size-label" for="cube-profile">Cube:</label>
+              <select
+                id="cube-profile"
+                class="cube-profile-select"
+                value={profile.id}
+                onChange={(e) => applyProfileStore(selectProfile(profileStore, puzzleSize, e.currentTarget.value))}
+              >
+                {profilesForSize(profileStore, puzzleSize).map((p) => (
+                  <option key={p.id} value={p.id}>{p.name}</option>
+                ))}
+              </select>
+              <button type="button" class="btn btn-secondary btn-sm" onClick={handleNewProfile}>
+                ＋ New cube
+              </button>
+            </div>
             <div class="capture-options-row">
               <label class="mirror-toggle">
                 <input
@@ -1893,7 +1927,19 @@ function App() {
             </div>
             {samplingSetupOpen && (
               <div class="sampling-setup">
-                <div class="sampling-setup-title">Settings for {puzzleSize}×{puzzleSize} cubes</div>
+                <label class="sampling-slider">
+                  <span>Cube name</span>
+                  <input
+                    type="text"
+                    class="cube-profile-name"
+                    maxLength={60}
+                    value={profile.name}
+                    onChange={(e) => {
+                      const name = e.currentTarget.value.trim()
+                      if (name) applyProfileStore(saveProfile(profileStore, { ...profile, name }))
+                    }}
+                  />
+                </label>
                 <label class="sampling-slider">
                   <span>
                     Skip around the face <output>{Math.round(sampling.backgroundGap * 100)}%</output>
@@ -1934,6 +1980,16 @@ function App() {
                     <input type="file" accept=".json,application/json" hidden onChange={handleUploadSampling} />
                   </label>
                   <div class="sampling-setup-actions-spacer" />
+                  {profileStore.profiles.some((p) => p.id === profile.id) && (
+                    <button
+                      type="button"
+                      class="btn btn-secondary btn-sm"
+                      title="Forget this cube's settings"
+                      onClick={() => applyProfileStore(deleteProfile(profileStore, profile.id))}
+                    >
+                      Delete cube
+                    </button>
+                  )}
                   <button type="button" class="btn btn-secondary btn-sm" onClick={() => updateSampling(DEFAULT_SAMPLING)}>
                     Reset
                   </button>
