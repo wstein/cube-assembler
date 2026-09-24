@@ -1530,14 +1530,16 @@ function App() {
 
   // "No, let me choose each side": the wizard, with every remaining
   // arrangement of the photos except the rejected ones.
+  // The arrangements the wizard would offer after a "no" - empty means
+  // there's nothing else to choose from, so the option isn't shown at all.
+  const rejectAlternatives = (approval: NonNullable<typeof orientationApproval>): OrientedCandidate[] => {
+    const rejected = new Set(approval.candidates.map((c) => orientationFreeSignature(c.faces)))
+    return (approval.fallback?.alternatives ?? []).filter((c) => !rejected.has(orientationFreeSignature(c.faces)))
+  }
   const handleRejectOrientation = () => {
     if (!orientationApproval) return
-    const rejected = new Set(orientationApproval.candidates.map((c) => orientationFreeSignature(c.faces)))
-    const remaining = (orientationApproval.fallback?.alternatives ?? []).filter((c) => !rejected.has(orientationFreeSignature(c.faces)))
-    if (remaining.length === 0) {
-      setOrientationApproval({ ...orientationApproval, note: 'No other arrangement fits these photos - retake a side or check the colors.', fallback: null })
-      return
-    }
+    const remaining = rejectAlternatives(orientationApproval)
+    if (remaining.length === 0) return
     setOrientationApproval(null)
     if (remaining.length === 1 && pickWizardFace(remaining) === null) {
       handleChooseOrientation(remaining[0])
@@ -2754,7 +2756,7 @@ function App() {
                 <button type="button" class="btn btn-secondary btn-sm" onClick={close}>
                   Back to the colors
                 </button>
-                {orientationApproval.fallback && (
+                {rejectAlternatives(orientationApproval).length > 0 && (
                   <button type="button" class="btn btn-secondary btn-sm" onClick={handleRejectOrientation}>
                     {single ? 'No, let me choose each side' : 'None of these - let me choose each side'}
                   </button>
