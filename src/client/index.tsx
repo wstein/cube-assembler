@@ -156,6 +156,12 @@ const STICKER_HEX: Record<string, string> = {
   W: '#ffffff', O: '#ff8000', G: '#44ee00', R: '#ff0000', B: '#2266ff', Y: '#f4f400',
 }
 
+const COLOR_NAME: Record<string, string> = {
+  W: 'White', O: 'Orange', G: 'Green', R: 'Red', B: 'Blue', Y: 'Yellow',
+}
+
+const CALIBRATION_NOTE = 'Colors double-checked by comparing all 6 sides.'
+
 function confidenceTier(c: number): 'high' | 'medium' | 'low' {
   return c >= 0.8 ? 'high' : c >= 0.5 ? 'medium' : 'low'
 }
@@ -902,7 +908,7 @@ function App() {
             recalibrated[f] = { ...recalibrated[f], colors: det.colors, detectedColors: det.colors, cellConfidences: det.cellConfidences, cellColors: det.cellColors, confidence: det.confidence }
           }
           setCapturedFaces(recalibrated)
-          setGlobalWhiteBalanceNote('Colors re-checked by learning each sticker color from all 6 faces together, instead of fixed reference values.')
+          setGlobalWhiteBalanceNote(CALIBRATION_NOTE)
         } else {
           setGlobalWhiteBalanceNote(null)
         }
@@ -1010,7 +1016,7 @@ function App() {
       }
       setAppliedBackgroundGains(recordedGains ?? null)
       setGlobalWhiteBalanceNote(wb.applied
-        ? 'Colors re-checked by learning each sticker color from all 6 faces together, instead of fixed reference values.'
+        ? CALIBRATION_NOTE
         : null)
 
       setPuzzleSize(meta.gridSize)
@@ -1865,12 +1871,12 @@ function App() {
                         }
                         return (
                           <div class="review-pane-label">
-                            <span>Detected</span>
+                            <span>Colors found</span>
                             {flaggedCount > 0 && (
-                              <span class="review-flagged-count">⚠ {flaggedCount} flagged for review</span>
+                              <span class="review-flagged-count">⚠ {flaggedCount} to double-check</span>
                             )}
                             {correctedCount > 0 && (
-                              <span class="review-corrected-count">✎ {correctedCount} set by hand</span>
+                              <span class="review-corrected-count">✎ {correctedCount} changed by you</span>
                             )}
                           </div>
                         )
@@ -1893,10 +1899,14 @@ function App() {
                             // records what automatic detection had said instead.
                             const detected = data.detectedColors?.[r]?.[c]
                             const corrected = detected !== undefined && detected !== color
-                            const reasons = [
-                              corrected ? `detected as ${detected}, set to ${color} by hand` : null,
-                              tier === 'low' ? 'low detection confidence' : null,
-                              overlaps.length > 0 ? `hue range overlaps ${overlaps.join(', ')} this capture` : null,
+                            const name = COLOR_NAME[color] ?? color
+                            const sure = confidence !== undefined ? `, ${Math.round(confidence * 100)}% sure` : ''
+                            const notes = [
+                              corrected ? `We saw ${COLOR_NAME[detected] ?? detected}, you picked ${name}.` : null,
+                              tier === 'low' ? 'Not sure about this one.' : null,
+                              overlaps.length > 0
+                                ? `${name} looks a lot like ${overlaps.map((o) => COLOR_NAME[o] ?? o).join(' and ')} in these photos.`
+                                : null,
                             ].filter(Boolean)
                             return (
                               <button
@@ -1904,7 +1914,7 @@ function App() {
                                 class={`review-detected-cell ${flagged ? 'review-detected-cell-flagged' : ''} ${corrected ? 'review-detected-cell-corrected' : ''}`}
                                 style={{ background: STICKER_HEX[color] || '#888' }}
                                 onClick={() => setReviewEditingCell({ face, row: r, col: c })}
-                                title={`Row ${r + 1}, Col ${c + 1}: ${color}${confidence !== undefined ? ` (${Math.round(confidence * 100)}%)` : ''}${reasons.length > 0 ? ` — ${reasons.join('; ')}` : ''} — tap to fix`}
+                                title={[`Row ${r + 1}, column ${c + 1}: ${name}${sure}.`, ...notes, 'Tap to change.'].join(' ')}
                               >
                                 {confidence !== undefined && (
                                   <span class="review-detected-confidence">{Math.round(confidence * 100)}%</span>

@@ -284,7 +284,7 @@ fixture's `meta.json`.
   },
   "meta": {
     "camera": { "label": "FaceTime HD Camera", "width": 1280, "height": 720 },
-    "colorCalibration": { "applied": true, "note": "Colors re-checked by learning each sticker color from all 6 faces together, instead of fixed reference values." }
+    "colorCalibration": { "applied": true, "note": "Colors double-checked by comparing all 6 sides." }
   }
 }
 ```
