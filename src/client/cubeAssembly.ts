@@ -910,6 +910,36 @@ export function checkGuidedCenters(photos: Array<string[][] | undefined>): Guide
   return issues
 }
 
+// Pairs of photos that look like the same face taken twice: at some
+// rotation nearly every sticker matches. Works on every size, unlike the
+// center check above. Up to ~10% of stickers may differ (at least 1 on 3x3
+// and up) so a single misread doesn't hide a repeat - two genuinely
+// different faces of a well-scrambled cube never come close (the most
+// alike seen in simulation: 6/9 on 3x3, 9/16 on 4x4, 18/49 on 7x7). A 2x2
+// needs an exact match, and still alarms falsely about once in 1,500 face
+// pairs - fine for a warning that can be dismissed.
+export function findRepeatedFaces(photos: Array<string[][] | undefined>): Array<[number, number]> {
+  const repeats: Array<[number, number]> = []
+  for (let i = 0; i < photos.length; i++) {
+    const a = photos[i]
+    if (!a) continue
+    const n = a.length
+    const allowed = n === 2 ? 0 : Math.max(1, Math.floor(n * n * 0.1))
+    for (let j = 0; j < i; j++) {
+      const b = photos[j]
+      if (!b || b.length !== n) continue
+      const alike = Math.max(...[0, 1, 2, 3].map((turns) => {
+        const rb = rotateGrid(b, turns)
+        let same = 0
+        for (let r = 0; r < n; r++) for (let c = 0; c < n; c++) if (a[r][c] === rb[r][c]) same++
+        return same
+      }))
+      if (alike >= n * n - allowed) repeats.push([j, i])
+    }
+  }
+  return repeats
+}
+
 export function faceColorsToString(colors: string[][]): string {
   return colors.map(row => row.join(' ')).join('\n')
 }

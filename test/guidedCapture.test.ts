@@ -10,7 +10,7 @@
  */
 import { describe, it, expect } from 'vitest'
 import { rotateCube, turnFace, allOrientations, solvedCubeFaces, type Faces } from '../src/client/cubeGeometry'
-import { solveGuidedCapture, checkGuidedCenters, type FaceKey, type GuidedCapture } from '../src/client/cubeAssembly'
+import { solveGuidedCapture, checkGuidedCenters, findRepeatedFaces, type FaceKey, type GuidedCapture } from '../src/client/cubeAssembly'
 
 const WCA: Record<FaceKey, string> = { U: 'W', R: 'R', F: 'G', D: 'Y', L: 'O', B: 'B' }
 const FACES: FaceKey[] = ['U', 'R', 'F', 'D', 'L', 'B']
@@ -133,5 +133,26 @@ describe('checkGuidedCenters', () => {
   it('stays quiet on even sizes, which have no fixed centers', () => {
     const even = photograph(scramble(4, 40, rng(12)), 'left', false, [0, 0])
     expect(checkGuidedCenters([even.sides[0], even.sides[0]])).toEqual([])
+  })
+})
+
+describe('findRepeatedFaces', () => {
+  for (const n of [2, 3, 4, 7]) {
+    it(`finds a ${n}x${n} face photographed twice, even turned and (from 3x3 up) with a misread`, () => {
+      const capture = photograph(scramble(n, 40, rng(20 + n)), 'left', false, [0, 0])
+      const again = rotateGrid(capture.sides[0], 3).map((row) => [...row])
+      if (n > 2) again[0][0] = again[0][0] === 'W' ? 'Y' : 'W'
+      expect(findRepeatedFaces([...capture.sides, again])).toEqual([[0, 4]])
+    })
+
+    it(`doesn't mistake the 6 different faces of a scrambled ${n}x${n} for repeats`, () => {
+      const capture = photograph(scramble(n, 40, rng(40 + n)), 'right', true, [1, 2])
+      expect(findRepeatedFaces([...capture.sides, ...capture.caps])).toEqual([])
+    })
+  }
+
+  it('ignores photos not taken yet', () => {
+    const capture = photograph(scramble(3, 40, rng(60)), 'left', false, [0, 0])
+    expect(findRepeatedFaces([capture.sides[0], undefined, capture.sides[0]])).toEqual([[0, 2]])
   })
 })

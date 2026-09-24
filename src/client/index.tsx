@@ -10,7 +10,7 @@ import {
 } from './imageProcessing'
 import {
   assembleCubeFromFaces, validateFaceColors, createSolvedCube, toCubeIR, solveFaceOrientations, solveGuidedCapture,
-  checkGuidedCenters, orientationFreeSignature,
+  checkGuidedCenters, findRepeatedFaces, orientationFreeSignature,
   type OrientedCandidate, type OrientationSolution, type FaceKey, type GuidedArrangement, type GuidedCenterIssue,
 } from './cubeAssembly'
 import {
@@ -1496,13 +1496,27 @@ function App() {
   // (see checkGuidedCenters) - only a hint, never blocking. Live colors are
   // first-pass readings that can confuse e.g. red and orange, so it only
   // speaks up when the centers involved were read with some confidence.
+  // A whole face matching an earlier one (any size) comes first.
   const captureWarning = (() => {
+    const photos = FACE_ORDER.map((f) => capturedFaces[f]?.colors)
+    for (const [j, i] of findRepeatedFaces(photos)) {
+      const key = `repeat:${j}:${i}`
+      if (!dismissedCaptureWarnings.includes(key)) {
+        return {
+          text: `${CAPTURE_STEPS[i].label} looks the same as ${CAPTURE_STEPS[j].label} - the same face photographed twice?`,
+          key,
+          retake: i,
+        }
+      }
+    }
     const mid = Math.floor(puzzleSize / 2)
     const sure = (i: number) => (capturedFaces[FACE_ORDER[i]]?.cellConfidences?.[mid]?.[mid] ?? 0) >= 0.6
-    for (const issue of checkGuidedCenters(FACE_ORDER.map((f) => capturedFaces[f]?.colors))) {
+    for (const issue of checkGuidedCenters(photos)) {
       const involved = issue.kind === 'turned-twice' ? [issue.photo - 1, issue.photo] : issue.photos
       const key = JSON.stringify(issue)
-      if (involved.every(sure) && !dismissedCaptureWarnings.includes(key)) return { issue, key, retake: Math.max(...involved) }
+      if (involved.every(sure) && !dismissedCaptureWarnings.includes(key)) {
+        return { text: describeCenterIssue(issue), key, retake: Math.max(...involved) }
+      }
     }
     return null
   })()
@@ -2420,7 +2434,7 @@ function App() {
               </p>
               {captureWarning && (
                 <div class="capture-warning capture-soft-warning" role="status">
-                  <span>⚠ {describeCenterIssue(captureWarning.issue)}</span>
+                  <span>⚠ {captureWarning.text}</span>
                   <button
                     type="button"
                     class="btn btn-secondary btn-sm"
