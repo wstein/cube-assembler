@@ -4,7 +4,7 @@ import '../../web/style.css'
 import {
   captureAndProcessFace, captureAndProcessImage, extractCubeFaceColors,
   runGlobalWhiteBalance, computeBackgroundGain, NEUTRAL_GAINS, CROP_JPEG_QUALITY,
-  rgbToOKLCH, formatOKLCHValues, hueCircularRange, hueRangesOverlap, linearRange,
+  rgbToOKLCH, hueCircularRange, hueRangesOverlap, linearRange,
   type ColorDetectionResult, type FaceCaptureResult, type RGB,
 } from './imageProcessing'
 import { assembleCubeFromFaces, validateFaceColors, createSolvedCube, toCubeIR, solveFaceOrientations, type OrientedCandidate, type FaceKey } from './cubeAssembly'
@@ -222,23 +222,6 @@ function computeColorStats(
     }
   }
   return stats
-}
-
-// Renders a sample's OKLCH components as 3 stacked lines (L%, C%, Hdeg)
-// rather than formatOKLCHValues' single space-separated line - meant for
-// small sticker-grid cells, where 3 short lines fit and read more clearly
-// than one long wrapped one.
-function OklchLines({ oklch, class: className }: { oklch: { l: number; c: number; h: number }; class?: string }) {
-  const lPct = Math.round(oklch.l * 100)
-  const cPct = Math.round((oklch.c / 0.4) * 100)
-  const h = Math.round(oklch.h)
-  return (
-    <span class={className}>
-      <span class="oklch-line">{lPct}%</span>
-      <span class="oklch-line">{cPct}%</span>
-      <span class="oklch-line">{h}deg</span>
-    </span>
-  )
 }
 
 // Renders one candidate orientation as a classic unfolded cube net (cross
@@ -1882,7 +1865,7 @@ function App() {
                         }
                         return (
                           <div class="review-pane-label">
-                            Detected — tap a sticker to fix
+                            <span>Detected</span>
                             {flaggedCount > 0 && (
                               <span class="review-flagged-count">⚠ {flaggedCount} flagged for review</span>
                             )}
@@ -1897,13 +1880,13 @@ function App() {
                         style={{
                           gridTemplateColumns: `repeat(${data.colors.length}, 1fr)`,
                           gridTemplateRows: `repeat(${data.colors.length}, 1fr)`,
+                          '--grid-n': String(data.colors.length),
                         }}
                       >
                         {data.colors.map((row, r) =>
                           row.map((color, c) => {
-                            const rgb = data.cellColors?.[r]?.[c]
-                            const oklch = rgb ? rgbToOKLCH(rgb) : null
-                            const tier = confidenceTier(data.cellConfidences?.[r]?.[c] ?? 1)
+                            const confidence = data.cellConfidences?.[r]?.[c]
+                            const tier = confidenceTier(confidence ?? 1)
                             const overlaps = colorStats[color]?.hueOverlapsWith ?? []
                             const flagged = tier === 'low' || overlaps.length > 0
                             // The final color stays the human choice; the badge only
@@ -1918,13 +1901,19 @@ function App() {
                             return (
                               <button
                                 key={`${r}-${c}`}
-                                class={`review-detected-cell confidence-${tier} ${flagged ? 'review-detected-cell-flagged' : ''} ${corrected ? 'review-detected-cell-corrected' : ''}`}
+                                class={`review-detected-cell ${flagged ? 'review-detected-cell-flagged' : ''} ${corrected ? 'review-detected-cell-corrected' : ''}`}
                                 style={{ background: STICKER_HEX[color] || '#888' }}
                                 onClick={() => setReviewEditingCell({ face, row: r, col: c })}
-                                title={`Row ${r + 1}, Col ${c + 1}: ${color}${oklch ? ` (${formatOKLCHValues(oklch)})` : ''}${reasons.length > 0 ? ` — ${reasons.join('; ')}` : ''} — tap to fix`}
+                                title={`Row ${r + 1}, Col ${c + 1}: ${color}${confidence !== undefined ? ` (${Math.round(confidence * 100)}%)` : ''}${reasons.length > 0 ? ` — ${reasons.join('; ')}` : ''} — tap to fix`}
                               >
-                                {oklch && <OklchLines class="review-detected-hue" oklch={oklch} />}
-                                {flagged && <span class="review-detected-cell-flag" aria-hidden="true">⚠</span>}
+                                {confidence !== undefined && (
+                                  <span class="review-detected-confidence">{Math.round(confidence * 100)}%</span>
+                                )}
+                                {/* Cells on bigger grids are too small for the badge next
+                                    to the percentage - the amber ring alone marks them. */}
+                                {flagged && data.colors.length <= 4 && (
+                                  <span class="review-detected-cell-flag" aria-hidden="true">⚠</span>
+                                )}
                                 {corrected && (
                                   <span
                                     class="review-detected-cell-was"
@@ -1939,6 +1928,7 @@ function App() {
                           })
                         )}
                       </div>
+                      <div class="review-pane-hint">Tap a sticker to fix it</div>
                     </div>
                   </div>
                   <div class="review-wizard-nav">
