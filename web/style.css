@@ -1692,7 +1692,7 @@ textarea {
 .capture-turn-down { transform: rotateX(-90deg) translateZ(var(--turn-depth)); }
 
 .capture-turn-direction {
-  --arrow-angle: 0deg;
+  --arrow-angle: 180deg;
   position: absolute;
   top: 50%;
   left: 50%;
@@ -1704,21 +1704,16 @@ textarea {
   filter: drop-shadow(0 0 3px #fff) drop-shadow(0 2px 3px #0c2641);
 }
 
-.capture-turn-direction-side { --arrow-angle: 90deg; }
-.capture-turn-direction-bottom { --arrow-angle: 180deg; }
+.capture-turn-direction-side { --arrow-angle: 270deg; }
+.capture-turn-direction-bottom { --arrow-angle: 0deg; }
+/* The back face is upside down after the second half turn. */
+.capture-turn-back .capture-turn-direction-bottom { --arrow-angle: 180deg; }
 
 .capture-turn-arrow-body {
   fill: #399dea;
   stroke: #133a60;
   stroke-width: 2;
   stroke-linejoin: round;
-}
-
-.capture-turn-arrow-trail {
-  fill: none;
-  stroke: #399dea;
-  stroke-width: 5;
-  stroke-linecap: round;
 }
 
 .capture-turn-copy {
@@ -1759,22 +1754,6 @@ textarea {
   .capture-turn-top .capture-turn-cube { animation: capture-turn-top 2.4s ease-in-out forwards; }
   /* Face 5 -> Side 4 takes one full turn, pauses 300 ms, then Side 4 -> Face 6. */
   .capture-turn-bottom .capture-turn-cube { animation: capture-turn-bottom 5.1s ease-in-out forwards; }
-  .capture-turn-direction { animation: capture-arrow-lift 2.4s ease-in-out forwards; }
-  .capture-turn-bottom .capture-turn-direction { animation-duration: 5.1s; }
-  .capture-turn-arrow-trail { opacity: 0; animation: capture-arrow-trail-in 450ms ease-out forwards; }
-  .capture-turn-arrow-trail-1 { animation-delay: 350ms; }
-  .capture-turn-arrow-trail-2 { animation-delay: 600ms; }
-  .capture-turn-arrow-trail-3 { animation-delay: 850ms; }
-}
-
-@keyframes capture-arrow-lift {
-  0%, 14% { transform: translate(-50%, -50%) rotate(var(--arrow-angle)) translateY(5%); }
-  80%, 100% { transform: translate(-50%, -50%) rotate(var(--arrow-angle)) translateY(-7%); }
-}
-
-@keyframes capture-arrow-trail-in {
-  from { opacity: 0; }
-  to { opacity: 1; }
 }
 
 @keyframes capture-turn-side {

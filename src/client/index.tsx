@@ -463,6 +463,11 @@ function CaptureTurnOverlay({ step, startColors, viaColors, onContinue }: { step
   const size = startColors.length
   const startStickers = startColors.flat()
   const viaStickers = viaColors?.flat()
+  const directionArrow = () => (
+    <svg class={`capture-turn-direction capture-turn-direction-${kind}`} viewBox="0 -10 100 100" aria-hidden="true">
+      <path class="capture-turn-arrow-body" d="M41 70 V41 H24 C20 41 18 37 21 34 L45 7 C48 3 52 3 55 7 L79 34 C82 37 80 41 76 41 H59 V70 Q59 74 55 74 H45 Q41 74 41 70 Z" />
+    </svg>
+  )
   const face = (name: string) => (
     <div class={`capture-turn-face capture-turn-${name}`}>
       <div class="capture-turn-stickers" style={{ gridTemplateColumns: `repeat(${size}, minmax(0, 1fr))` }}>
@@ -478,6 +483,7 @@ function CaptureTurnOverlay({ step, startColors, viaColors, onContinue }: { step
           />
         ))}
       </div>
+      {(name === 'front' || name === nextFace || (kind === 'bottom' && name === 'down')) && directionArrow()}
     </div>
   )
   return (
@@ -491,12 +497,6 @@ function CaptureTurnOverlay({ step, startColors, viaColors, onContinue }: { step
           {face('up')}
           {face('down')}
         </div>
-        <svg class={`capture-turn-direction capture-turn-direction-${kind}`} viewBox="0 0 100 100" aria-hidden="true">
-          <path class="capture-turn-arrow-body" d="M41 70 V41 H24 C20 41 18 37 21 34 L45 7 C48 3 52 3 55 7 L79 34 C82 37 80 41 76 41 H59 V70 Q59 74 55 74 H45 Q41 74 41 70 Z" />
-          <path class="capture-turn-arrow-trail capture-turn-arrow-trail-1" d="M39 81 H61" />
-          <path class="capture-turn-arrow-trail capture-turn-arrow-trail-2" d="M37 89 H63" />
-          <path class="capture-turn-arrow-trail capture-turn-arrow-trail-3" d="M39 97 H61" />
-        </svg>
       </div>
       <div class="capture-turn-copy">
         <strong>{title}</strong>
