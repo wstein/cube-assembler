@@ -17,12 +17,12 @@ import { describe, it, expect } from 'vitest'
 import {
   learnStickerColors, rgbToOKLCH, formatOKLCHValues, hueCircularRange, hueRangesOverlap, linearRange,
   hungarianAssignment, trimmedMeanColor, STICKER_COLORS, extractBackgroundColor,
-  stickerSampleRect, DEFAULT_SAMPLING, measureSharpness, type RGB,
+  stickerSampleRect, DEFAULT_SAMPLING, measureSharpness, classifySticker, type RGB,
 } from '../src/client/imageProcessing'
 
-// Mirrors the internal OKLab-based colorDistance (not exported): rebuilds
+// A plain (unweighted) OKLab distance, built from the public API: rebuilds
 // Cartesian (a,b) from the exported OKLCH's polar (c,h) - c·cos(h), c·sin(h)
-// - which is exactly what colorDistance itself measures Euclidean distance
+// - the Cartesian space OKLab distances are measured in, reached via the
 // over, just reached via the public rgbToOKLCH rather than the private
 // Cartesian conversion.
 function colorDistance(c1: RGB, c2: RGB): number {
@@ -650,5 +650,51 @@ describe('measureSharpness', () => {
   it('is 0 for a flat image', () => {
     const flat = new Uint8ClampedArray(size * size * 4).fill(128)
     expect(measureSharpness(flat, size, size)).toBe(0)
+  })
+})
+
+describe('classifySticker', () => {
+  const hex = (h: string): RGB => ({ r: parseInt(h.slice(1, 3), 16), g: parseInt(h.slice(3, 5), 16), b: parseInt(h.slice(5, 7), 16) })
+  const scale = (c: RGB, f: number): RGB => ({ r: c.r * f, g: c.g * f, b: c.b * f })
+  // Sticker shades differ a lot between manufacturers (W, Y, O, R, G, B).
+  const palettes: Record<string, string[]> = {
+    "Rubik's brand": ['#FFFFFF', '#FFD500', '#FF5800', '#B71234', '#009B48', '#0046AD'],
+    'stickerless bright': ['#FFFFFF', '#FFFF00', '#FF8C00', '#FF1010', '#00D800', '#0060FF'],
+    fluorescent: ['#F4F4F4', '#EBFF00', '#FF6A00', '#FF0040', '#39FF14', '#1F51FF'],
+    pastel: ['#FFFFFF', '#FFF3A0', '#FFB385', '#FF7A8A', '#8EE6A6', '#8AB6FF'],
+    'dark classic': ['#E8E8E8', '#E0C000', '#E05000', '#A00010', '#006030', '#002F80'],
+  }
+
+  for (const [name, colors] of Object.entries(palettes)) {
+    it(`reads the ${name} palette without a learned palette, at full and dim exposure`, () => {
+      for (const exposure of [1, 0.6, 0.4]) {
+        const read = colors.map((c) => classifySticker(scale(hex(c), exposure)).color)
+        expect(read, `exposure ${exposure}`).toEqual(['W', 'Y', 'O', 'R', 'G', 'B'])
+      }
+    })
+  }
+
+  it('reads a dim white as White, not Orange', () => {
+    expect(classifySticker({ r: 162, g: 167, b: 169 }).color).toBe('W')
+  })
+
+  it('uses a learned palette when given one, so a very red orange reads right', () => {
+    // A real 7x7's learned orange (hue ~33) sits closer to the typical red
+    // hue than the typical orange one - only its learned palette tells them apart.
+    const learned: Record<string, RGB> = {
+      W: { r: 168, g: 172, b: 172 }, Y: { r: 182, g: 200, b: 38 }, O: { r: 217, g: 69, b: 38 },
+      R: { r: 164, g: 22, b: 36 }, G: { r: 4, g: 142, b: 55 }, B: { r: 0, g: 58, b: 121 },
+    }
+    const orange = { r: 215, g: 65, b: 38 }
+    expect(classifySticker(orange).color).toBe('R')
+    const withPalette = classifySticker(orange, learned)
+    expect(withPalette.color).toBe('O')
+    expect(withPalette.confidence).toBeGreaterThan(0.8)
+  })
+
+  it('is less confident near the boundary between two hues than at a typical hue', () => {
+    const typicalGreen = classifySticker({ r: 0, g: 155, b: 72 }).confidence
+    const yellowGreen = classifySticker({ r: 150, g: 190, b: 20 }).confidence
+    expect(typicalGreen).toBeGreaterThan(yellowGreen)
   })
 })
