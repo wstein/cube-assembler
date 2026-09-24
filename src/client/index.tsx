@@ -50,6 +50,9 @@ interface FaceCaptureData {
   crop?: FaceCaptureResult['crop']
   sharpness?: number
   cameraSettings?: Partial<MediaTrackSettings>
+  // Where the photo came from: the live camera, an imported image file, or
+  // an uploaded fixture. Absent for faces without a photo (manual input).
+  source?: 'camera' | 'image-file' | 'fixture'
   timestamp: number
 }
 
@@ -874,6 +877,7 @@ function App() {
       crop?: FaceCaptureResult['crop']
       sharpness?: number
     },
+    source: 'camera' | 'image-file',
     cameraSettings?: Partial<MediaTrackSettings>
   ) => {
     if (!validateFaceColors(result.colors, puzzleSize)) {
@@ -895,6 +899,7 @@ function App() {
         crop: result.crop,
         sharpness: result.sharpness,
         cameraSettings,
+        source,
         timestamp: Date.now(),
       },
     }
@@ -1042,6 +1047,7 @@ function App() {
           colors,
           confidence: 1,
           croppedImage: dataUrl,
+          source: 'fixture',
           timestamp: Date.now(),
         }
       }
@@ -1252,6 +1258,7 @@ function App() {
           // the fixture test check its own JPEG decode reads the same.
           readings: face.cellColors?.flat().map(({ r, g, b }) => [r, g, b].map((v) => Math.round(v * 10) / 10)),
           confidences: face.cellConfidences?.flat().map((c) => Math.round(c * 100)),
+          source: face.source,
           capturedAt: new Date(face.timestamp).toISOString(),
           background: face.backgroundColor,
           frame: face.frame,
@@ -1267,7 +1274,9 @@ function App() {
         devicePixelRatio: window.devicePixelRatio,
         photo: { format: 'image/jpeg', quality: CROP_JPEG_QUALITY },
         mirrored: mirrorPreview,
-        camera: cameraInfo,
+        // Only meaningful when at least one face was shot with it - not for
+        // a re-saved uploaded fixture or imported image files.
+        camera: FACE_ORDER.some((f) => capturedFaces[f].source === 'camera') ? cameraInfo : null,
         // No fixed-preset/gray-world software white-balance runs at capture
         // time any more (see the "Gains" comment in imageProcessing.ts).
         // Two corrections actually run, both recorded here: the per-face
@@ -1333,7 +1342,7 @@ function App() {
       setCaptureMessage('Processing image...')
       const result = captureAndProcessFace(webcamRef.current, puzzleSize, NEUTRAL_GAINS, sampling)
       const track = (webcamRef.current.srcObject as MediaStream | null)?.getVideoTracks()[0]
-      await applyFaceCapture(webcamFace, result, track ? withoutDeviceIds(track.getSettings()) : undefined)
+      await applyFaceCapture(webcamFace, result, 'camera', track ? withoutDeviceIds(track.getSettings()) : undefined)
     } catch (err) {
       console.error('Capture error:', err)
       setCaptureMessage(`❌ Error: ${err instanceof Error ? err.message : 'Unknown error'}`)
@@ -1360,7 +1369,7 @@ function App() {
           img.src = url
         })
         const result = captureAndProcessImage(img, puzzleSize, NEUTRAL_GAINS, sampling)
-        await applyFaceCapture(webcamFace, result)
+        await applyFaceCapture(webcamFace, result, 'image-file')
       } finally {
         URL.revokeObjectURL(url)
       }
