@@ -235,21 +235,9 @@ export function linearRange(values: number[]): LinearRange | null {
   return { min: Math.min(...values), max: Math.max(...values) }
 }
 
-function oklabDistance(o1: Oklab, o2: Oklab): number {
-  const dl = o1.l - o2.l
-  const da = o1.a - o2.a
-  const db = o1.b - o2.b
-  return Math.sqrt(dl * dl + da * da + db * db)
-}
-
-function colorDistance(c1: RGB, c2: RGB): number {
-  return oklabDistance(rgbToOklab(c1), rgbToOklab(c2))
-}
-
 // How much less the L (lightness) axis counts than a/b (hue+chroma) in the
-// learnStickerColors clustering pipeline specifically - NOT the plain
-// colorDistance above, which closestSticker and CONFIDENCE_DISTANCE_SCALE
-// are calibrated against and which stays unweighted. Counterintuitive
+// learnStickerColors clustering pipeline (and classifySticker's palette
+// lookup) - rather than a plain, unweighted OKLab distance. Counterintuitive
 // finding (2026-09-23 real-fixture design discussion, "F3"): Red/Orange's
 // average L gap looked like the more reliable separator than hue in real
 // captures, so the first attempt WEIGHTED L UP - that made things much
@@ -320,19 +308,43 @@ function clusterDistance(c1: RGB, c2: RGB): number {
 // assigned color reads as ~0.
 const CONFIDENCE_DISTANCE_SCALE = 0.4
 
-function closestSticker(color: RGB): string {
-  let closest = 'W'
-  let minDist = Infinity
+// First-pass classification of a single sticker, before (or without) the
+// cross-face learning in learnStickerColors - what the live preview, the
+// sampling setup and each face's initial colors show.
+//
+// With a `palette` (the colors learned from an earlier capture of the same
+// cube, see cube profiles in index.tsx) it's simply the nearest of those.
+// Without one it must not assume particular sticker shades: comparing to
+// fixed swatches (STICKER_COLORS) misread 115 of 294 stickers on a real
+// 7x7 capture - a dim white is closer to orange than to pure white, and
+// real oranges (hue 30-45) are far redder than the swatch (53). So it
+// reads only what's stable across manufacturers and exposure: nearly no
+// chroma is White, otherwise the nearest typical hue. Red and orange sit
+// close in hue and where exactly varies by cube and lighting, so those two
+// stay the least reliable until a palette has been learned.
+const NEUTRAL_CHROMA = 0.04
+const TYPICAL_HUE: Record<string, number> = { R: 22, O: 45, Y: 105, G: 150, B: 255 }
 
-  for (const [stickerColor, stickerRGB] of Object.entries(STICKER_COLORS)) {
-    const dist = colorDistance(color, stickerRGB)
-    if (dist < minDist) {
-      minDist = dist
-      closest = stickerColor
+export function classifySticker(rgb: RGB, palette?: Record<string, RGB>): { color: string; confidence: number } {
+  if (palette) {
+    let color = 'W'
+    let distance = Infinity
+    for (const [name, centroid] of Object.entries(palette)) {
+      const d = clusterDistance(rgb, centroid)
+      if (d < distance) { distance = d; color = name }
     }
+    return { color, confidence: Math.max(0, 1 - distance / CONFIDENCE_DISTANCE_SCALE) }
   }
-
-  return closest
+  const { c, h } = rgbToOKLCH(rgb)
+  // Confidence fades to 0.5 as chroma approaches the neutral limit.
+  if (c < NEUTRAL_CHROMA) return { color: 'W', confidence: 1 - (c / NEUTRAL_CHROMA) * 0.5 }
+  const byHue = Object.entries(TYPICAL_HUE)
+    .map(([name, center]) => ({ name, d: Math.min(Math.abs(h - center), 360 - Math.abs(h - center)) }))
+    .sort((a, b) => a.d - b.d)
+  // 1 at a typical hue, 0 halfway to the next one; less sure near neutral.
+  const hueConfidence = (byHue[1].d - byHue[0].d) / (byHue[1].d + byHue[0].d)
+  const chromaConfidence = Math.min(1, c / (2 * NEUTRAL_CHROMA))
+  return { color: byHue[0].name, confidence: hueConfidence * chromaConfidence }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1018,7 +1030,8 @@ export function extractColorsFromImageData(
   faceHeight: number,
   gridSize = 3,
   gains: RGB = NEUTRAL_GAINS,
-  sampling: SamplingGeometry = DEFAULT_SAMPLING
+  sampling: SamplingGeometry = DEFAULT_SAMPLING,
+  palette?: Record<string, RGB>
 ): ColorDetectionResult {
   const colors: string[][] = []
   const cellConfidences: number[][] = []
@@ -1056,12 +1069,8 @@ export function extractColorsFromImageData(
       if (trimmedMean) {
         const avgColor: RGB = applyGains(trimmedMean, gains)
         rowRGB.push(avgColor)
-        const stickerColor = closestSticker(avgColor)
+        const { color: stickerColor, confidence: cellConfidence } = classifySticker(avgColor, palette)
         rowColors.push(stickerColor)
-
-        // Confidence based on OKLab color distance (0-1, higher = better match)
-        const dist = colorDistance(avgColor, STICKER_COLORS[stickerColor])
-        const cellConfidence = Math.max(0, 1 - dist / CONFIDENCE_DISTANCE_SCALE)
         rowConfidences.push(cellConfidence)
         totalConfidence += cellConfidence
       } else {
@@ -1084,10 +1093,11 @@ export function extractCubeFaceColors(
   canvas: HTMLCanvasElement,
   gridSize = 3,
   gains: RGB = NEUTRAL_GAINS,
-  sampling: SamplingGeometry = DEFAULT_SAMPLING
+  sampling: SamplingGeometry = DEFAULT_SAMPLING,
+  palette?: Record<string, RGB>
 ): ColorDetectionResult {
   const { imageData, faceWidth, faceHeight } = getFaceRegion(canvas)
-  return extractColorsFromImageData(imageData.data, faceWidth, faceHeight, gridSize, gains, sampling)
+  return extractColorsFromImageData(imageData.data, faceWidth, faceHeight, gridSize, gains, sampling, palette)
 }
 
 export interface FaceCaptureResult extends ColorDetectionResult {
@@ -1147,7 +1157,8 @@ export function captureAndProcessFace(
   video: HTMLVideoElement,
   gridSize = 3,
   gains: RGB = NEUTRAL_GAINS,
-  sampling: SamplingGeometry = DEFAULT_SAMPLING
+  sampling: SamplingGeometry = DEFAULT_SAMPLING,
+  palette?: Record<string, RGB>
 ): FaceCaptureResult {
   const canvas = document.createElement('canvas')
   canvas.width = video.videoWidth
@@ -1167,7 +1178,7 @@ export function captureAndProcessFace(
   // background-derived correction is supplied for this face instead (see
   // runGlobalWhiteBalance's faceGains parameter).
   return {
-    ...extractCubeFaceColors(canvas, gridSize, gains, sampling),
+    ...extractCubeFaceColors(canvas, gridSize, gains, sampling, palette),
     croppedImage: cropFaceRegionToDataUrl(canvas),
     backgroundColor: extractBackgroundColor(canvas, sampling.backgroundGap),
     ...describeCrop(canvas),
@@ -1178,7 +1189,8 @@ export function captureAndProcessImage(
   img: HTMLImageElement,
   gridSize = 3,
   gains: RGB = NEUTRAL_GAINS,
-  sampling: SamplingGeometry = DEFAULT_SAMPLING
+  sampling: SamplingGeometry = DEFAULT_SAMPLING,
+  palette?: Record<string, RGB>
 ): FaceCaptureResult {
   const canvas = document.createElement('canvas')
   canvas.width = img.naturalWidth
@@ -1191,7 +1203,7 @@ export function captureAndProcessImage(
 
   ctx.drawImage(img, 0, 0)
   return {
-    ...extractCubeFaceColors(canvas, gridSize, gains, sampling),
+    ...extractCubeFaceColors(canvas, gridSize, gains, sampling, palette),
     croppedImage: cropFaceRegionToDataUrl(canvas),
     backgroundColor: extractBackgroundColor(canvas, sampling.backgroundGap),
     ...describeCrop(canvas),
