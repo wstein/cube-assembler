@@ -295,7 +295,7 @@ at capture, ...) are stored as-is on that face.
     "app": { "version": "0.1.0", "commit": "460a4d1" },
     "camera": { "label": "FaceTime HD Camera", "requested": { ... }, "granted": { "width": 1920, "height": 1080, ... }, "supported": { ... } },
     "sampling": { "faceMargin": 0, "stickerCore": 0.6 },
-    "colorCalibration": { "applied": true, "note": "Colors double-checked by comparing all 6 sides." }
+    "colorCalibration": { "applied": true, "learnedColors": { "W": [214.2, 211.8, 205.1], "R": [196.3, 40.7, 45.9], ... } }
   }
 }
 ```
