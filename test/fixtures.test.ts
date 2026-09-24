@@ -25,6 +25,7 @@ import { existsSync, readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import jpeg from 'jpeg-js'
 import { wrgFaceletsToGrids } from '../src/client/notationOutput'
+import { readFixtureColors } from '../src/client/fixtureFormat'
 import { solveGuidedCapture, orientationFreeSignature, type FaceKey } from '../src/client/cubeAssembly'
 import { DEFAULT_SAMPLING, extractColorsFromImageData, learnStickerColors, limitBackgroundGain, NEUTRAL_GAINS, type RGB, type SamplingGeometry, type StickerSample } from '../src/client/imageProcessing'
 
@@ -41,11 +42,13 @@ const MAX_READING_DRIFT = 3
 interface FixtureMeta {
   gridSize: number
   // Human-verified colors, all 6 faces as one WRG facelets string in
-  // U R F D L B order, each face row-major as photographed.
-  colorsURFDLB: string
+  // capture-slot order, each face row-major as photographed - or, in
+  // fixtures saved before that format, per face as faces.u.colors (see
+  // readFixtureColors).
+  colorsURFDLB?: string
   // `readings`: what the browser measured for each sticker (row-major RGB,
   // after the face's gain) - absent on fixtures saved before it was recorded.
-  faces: Record<string, { photo: string; readings?: number[][] }>
+  faces: Record<string, { photo: string; readings?: number[][]; colors?: string[][] }>
   // Free-text labels a human can add by hand to meta.json (e.g. "pastel",
   // "office-lighting") - combined with tags auto-derived from `capture`
   // below so a cluster of failures under one condition is visible from
@@ -132,8 +135,8 @@ describe('real-capture regression fixtures', () => {
       for (const faceKey of FACE_ORDER) {
         expect(meta.faces[faceKey], `fixture "${name}" is missing face ${faceKey.toUpperCase()}`).toBeDefined()
       }
-      const expectedColors = wrgFaceletsToGrids(meta.colorsURFDLB ?? '')
-      expect(expectedColors, `fixture "${name}": colorsURFDLB missing or malformed`).not.toBeNull()
+      const expectedColors = readFixtureColors(meta)?.colors ?? null
+      expect(expectedColors, `fixture "${name}": colors missing or malformed`).not.toBeNull()
 
       const samples: StickerSample[] = []
       const locations: { face: string; row: number; col: number }[] = []
@@ -204,7 +207,7 @@ describe('guided-capture fixtures reassemble into the approved cube', () => {
   }
   for (const { name, meta } of guided) {
     it(`"${name}"`, () => {
-      const slots = wrgFaceletsToGrids(meta.colorsURFDLB)!
+      const slots = readFixtureColors(meta)!.colors
       const [s1, s2, s3, s4, cap1, cap2] = ['U', 'R', 'F', 'D', 'L', 'B'].map((k) => slots[k])
       const solution = solveGuidedCapture({ sides: [s1, s2, s3, s4], caps: [cap1, cap2] })!
       expect(solution.fullyValid, `fixture "${name}": the guided search found no valid cube`).toBe(true)
