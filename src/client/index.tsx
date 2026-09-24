@@ -10,7 +10,8 @@ import {
 } from './imageProcessing'
 import { assembleCubeFromFaces, validateFaceColors, createSolvedCube, toCubeIR, solveFaceOrientations, type OrientedCandidate, type FaceKey } from './cubeAssembly'
 import {
-  parseProfileStore, activeProfile, profilesForSize, saveProfile, selectProfile, deleteProfile, newProfileId,
+  parseProfileStore, activeProfile, profilesForSize, saveProfile, selectProfile, deleteProfile,
+  brandProfile, CUBE_BRANDS, CUBE_STYLES, type CubeStyle,
   profilePalette, withLearnedColors, withoutLearnedColors, suggestProfile, type CubeProfile, type ProfileStore,
 } from './cubeProfiles'
 import {
@@ -593,15 +594,13 @@ function App() {
     setProfileStore(updated)
   }
   const updateSampling = (next: SamplingGeometry) => applyProfileStore(saveProfile(profileStore, { ...profile, sampling: next }))
-  const handleNewProfile = () => {
-    const count = profileStore.profiles.filter((p) => p.size === puzzleSize).length
-    // Starts from the current cube's sampling settings, but its colors are
-    // its own - learned from its first capture.
-    applyProfileStore(saveProfile(profileStore, {
-      ...withoutLearnedColors(profile),
-      id: newProfileId(),
-      name: `My ${puzzleSize}×${puzzleSize} cube${count > 0 ? ` ${count + 1}` : ''}`,
-    }))
+  // "New cube" form: brand and construction style, remembered while open.
+  const [newCubeForm, setNewCubeForm] = useState<{ brand: string; style: CubeStyle } | null>(null)
+  const handleCreateCube = () => {
+    if (!newCubeForm) return
+    // Its colors are its own - learned from its first capture.
+    applyProfileStore(saveProfile(profileStore, brandProfile(profileStore, newCubeForm.brand, newCubeForm.style, puzzleSize)))
+    setNewCubeForm(null)
     setSamplingSetupOpen(true)
   }
   // Settings file: all cube profiles, so a setup tuned in one browser or
@@ -1963,10 +1962,39 @@ function App() {
                   <option key={p.id} value={p.id}>{p.name}</option>
                 ))}
               </select>
-              <button type="button" class="btn btn-secondary btn-sm" onClick={handleNewProfile}>
+              <button
+                type="button"
+                class="btn btn-secondary btn-sm"
+                aria-expanded={newCubeForm !== null}
+                onClick={() => setNewCubeForm(newCubeForm ? null : { brand: CUBE_BRANDS[0], style: 'stickerless' })}
+              >
                 ＋ New cube
               </button>
             </div>
+            {newCubeForm && (
+              <div class="capture-size-row new-cube-form">
+                <label class="capture-size-label" for="new-cube-brand">Brand:</label>
+                <select
+                  id="new-cube-brand"
+                  class="cube-profile-select"
+                  value={newCubeForm.brand}
+                  onChange={(e) => setNewCubeForm({ ...newCubeForm, brand: e.currentTarget.value })}
+                >
+                  {CUBE_BRANDS.map((brand) => <option key={brand} value={brand}>{brand}</option>)}
+                </select>
+                <select
+                  aria-label="Style"
+                  class="cube-profile-select"
+                  value={newCubeForm.style}
+                  onChange={(e) => setNewCubeForm({ ...newCubeForm, style: e.currentTarget.value as CubeStyle })}
+                >
+                  {Object.entries(CUBE_STYLES).map(([style, { label }]) => <option key={style} value={style}>{label}</option>)}
+                </select>
+                <button type="button" class="btn btn-primary btn-sm" onClick={handleCreateCube}>
+                  Add {newCubeForm.brand} {puzzleSize}×{puzzleSize}
+                </button>
+              </div>
+            )}
             <div class="capture-options-row">
               <label class="mirror-toggle">
                 <input

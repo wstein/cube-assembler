@@ -8,7 +8,7 @@
 import { describe, it, expect } from 'vitest'
 import {
   parseProfileStore, activeProfile, profilesForSize, saveProfile, selectProfile, deleteProfile,
-  genericProfile, profilePalette, withLearnedColors, withoutLearnedColors, suggestProfile, EMPTY_PROFILE_STORE, type CubeProfile,
+  genericProfile, profilePalette, withLearnedColors, withoutLearnedColors, suggestProfile, brandProfile, CUBE_STYLES, EMPTY_PROFILE_STORE, type CubeProfile,
 } from '../src/client/cubeProfiles'
 
 const rubiks: CubeProfile = { id: 'a', name: "Rubik's 3×3", size: 3, sampling: { backgroundGap: 0.05, stickerCore: 0.6 } }
@@ -115,5 +115,24 @@ describe('suggestProfile', () => {
     const other = saveProfile(store, withLearnedColors({ ...gocube, id: 'c', size: 4, name: 'Pastel 4×4' }, pastelColors, at))
     const onlyFour = { ...other, profiles: other.profiles.filter((p) => p.id !== 'b') }
     expect(suggestProfile(onlyFour, selectedRubiks, pastelColors)).toBeNull()
+  })
+})
+
+describe('brandProfile', () => {
+  it('names the cube after brand and size, with the style\'s starting sampling', () => {
+    const p = brandProfile(EMPTY_PROFILE_STORE, 'GoCube', 'stickerless', 3)
+    expect(p.name).toBe('GoCube 3×3')
+    expect(p.size).toBe(3)
+    expect(p.sampling).toEqual(CUBE_STYLES.stickerless.sampling)
+    expect(p.learnedColors).toBeUndefined()
+  })
+
+  it('numbers a second cube of the same brand and size', () => {
+    let store = saveProfile(EMPTY_PROFILE_STORE, brandProfile(EMPTY_PROFILE_STORE, 'GoCube', 'stickerless', 3))
+    const second = brandProfile(store, 'GoCube', 'stickered', 3)
+    expect(second.name).toBe('GoCube 3×3 (2)')
+    store = saveProfile(store, second)
+    expect(brandProfile(store, 'GoCube', 'stickered', 3).name).toBe('GoCube 3×3 (3)')
+    expect(brandProfile(store, 'GoCube', 'stickered', 4).name).toBe('GoCube 4×4')
   })
 })
