@@ -16,7 +16,8 @@
  */
 import { describe, it, expect } from 'vitest'
 import {
-  toWRGFacelets, fromWRGFacelets, toURFFacelets, fromURFFacelets, detectNotationFormat, type CubeState,
+  toWRGFacelets, fromWRGFacelets, toURFFacelets, fromURFFacelets, detectNotationFormat,
+  gridsToWRGFacelets, wrgFaceletsToGrids, type CubeState,
 } from '../src/client/notationOutput'
 
 function solvedCube(size: number): CubeState {
@@ -165,5 +166,23 @@ describe('detectNotationFormat', () => {
 
   it('returns null when letters unique to both alphabets are mixed together', () => {
     expect(detectNotationFormat('WWWWWWWWW UUUUUUUUU')).toBeNull()
+  })
+})
+
+describe('gridsToWRGFacelets / wrgFaceletsToGrids', () => {
+  const colors = 'GRRYOYWYW WYWROGORB GRRYOYWYW YWYBROGWR GBGBGBOBO BGRGBOBWO'
+
+  it('splits each face into row-major rows', () => {
+    const grids = wrgFaceletsToGrids(colors)!
+    expect(grids.U).toEqual([['G', 'R', 'R'], ['Y', 'O', 'Y'], ['W', 'Y', 'W']])
+    expect(grids.B).toEqual([['B', 'G', 'R'], ['G', 'B', 'O'], ['B', 'W', 'O']])
+  })
+
+  it('round-trips', () => {
+    expect(gridsToWRGFacelets(wrgFaceletsToGrids(colors)!)).toBe(colors)
+  })
+
+  it('rejects strings that are not 6 equal square faces', () => {
+    expect(wrgFaceletsToGrids('WWW')).toBeNull()
   })
 })

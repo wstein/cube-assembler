@@ -83,6 +83,26 @@ export function fromWRGFacelets(input: string): CubeState | null {
   return fromBlocks(input.toUpperCase(), WRG_LETTERS, (letter) => letter, 'WRG')
 }
 
+// Per-face row-major color grids (keyed U/R/F/D/L/B) <-> a WRG facelets
+// string - how saved fixtures store their colors ("colorsURFDLB"), one
+// readable line instead of six nested arrays.
+export function gridsToWRGFacelets(grids: Record<string, string[][]>): string {
+  const face = (key: string) => grids[key].flat()
+  return toWRGFacelets({ u: face('U'), r: face('R'), f: face('F'), d: face('D'), l: face('L'), b: face('B') })
+}
+
+export function wrgFaceletsToGrids(input: string): Record<string, string[][]> | null {
+  const cube = fromWRGFacelets(input)
+  if (!cube) return null
+  const map = faceMap(cube)
+  const n = Math.round(Math.sqrt(map.U.length))
+  const grids: Record<string, string[][]> = {}
+  for (const key of FACE_ORDER) {
+    grids[key] = Array.from({ length: n }, (_, r) => map[key].slice(r * n, (r + 1) * n))
+  }
+  return grids
+}
+
 export function toURFFacelets(cube: CubeState): string {
   return toBlocks(cube, (color) => COLOR_TO_FACE_LETTER[color] ?? '?')
 }

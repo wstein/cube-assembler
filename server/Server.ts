@@ -32,6 +32,7 @@ import { Alg } from "cubing/alg";
 import { puzzles } from "cubing/puzzles";
 import { mkdir } from "node:fs/promises";
 import { join } from "node:path";
+import { wrgFaceletsToGrids } from "../src/client/notationOutput";
 
 // ─── Types shared with client ─────────────────────────────────────────────────
 
@@ -728,9 +729,15 @@ app.get("/api/formats/:encoding", async (c) => {
 type SaveFixtureRequest = {
   name?: string;
   gridSize: number;
-  // Any other per-face fields (detection before correction, crop, camera
-  // settings, ...) are informational and stored as-is, like `meta`.
-  faces: Record<string, { photo: string; colors: string[][] } & Record<string, unknown>>;
+  // Human-verified colors of all 6 faces as one WRG facelets string in
+  // U R F D L B order (each face row-major, as photographed), e.g.
+  // "GRRYOYWYW WYWROGORB ...". `detectedURFDLB` is the same for what
+  // detection produced before any hand correction.
+  colorsURFDLB: string;
+  detectedURFDLB?: string;
+  // Any other per-face fields (crop, camera settings, ...) are
+  // informational and stored as-is, like `meta`.
+  faces: Record<string, { photo: string } & Record<string, unknown>>;
   // Informational capture context (camera, white balance, etc) - opaque to
   // the server, stored as-is alongside the fixture for later debugging.
   meta?: unknown;
@@ -752,6 +759,14 @@ app.post("/api/fixtures", async (c) => {
   if (!Number.isInteger(body.gridSize) || body.gridSize < 2 || body.gridSize > 7) {
     return c.json({ error: "gridSize must be an integer between 2 and 7" }, 400);
   }
+  for (const key of ["colorsURFDLB", "detectedURFDLB"] as const) {
+    const value = body[key];
+    if (value === undefined && key === "detectedURFDLB") continue;
+    const grids = typeof value === "string" ? wrgFaceletsToGrids(value) : null;
+    if (!grids || grids.U.length !== body.gridSize) {
+      return c.json({ error: `${key} must be 6 space-separated ${body.gridSize}x${body.gridSize} faces of W/O/G/R/B/Y` }, 400);
+    }
+  }
 
   // Written directly to disk below, so strip anything but a safe
   // directory-name character set - never trust a client-provided name as
@@ -765,8 +780,16 @@ app.post("/api/fixtures", async (c) => {
   const dir = join(FIXTURES_DIR, safeName);
   await mkdir(dir, { recursive: true });
 
-  const meta: { gridSize: number; faces: Record<string, { colors: string[][]; photo: string } & Record<string, unknown>>; capture?: unknown } = {
+  const meta: {
+    gridSize: number;
+    colorsURFDLB: string;
+    detectedURFDLB?: string;
+    faces: Record<string, { photo: string } & Record<string, unknown>>;
+    capture?: unknown;
+  } = {
     gridSize: body.gridSize,
+    colorsURFDLB: body.colorsURFDLB,
+    ...(body.detectedURFDLB !== undefined ? { detectedURFDLB: body.detectedURFDLB } : {}),
     faces: {},
     ...(body.meta !== undefined ? { capture: body.meta } : {}),
   };
@@ -780,8 +803,8 @@ app.post("/api/fixtures", async (c) => {
     const buffer = Buffer.from(match[2], "base64");
     const photoFilename = `face-${faceKey}.${ext}`;
     await Bun.write(join(dir, photoFilename), buffer);
-    const { photo: _photo, colors, ...extra } = faceData;
-    meta.faces[faceKey] = { colors, photo: photoFilename, ...extra };
+    const { photo: _photo, ...extra } = faceData;
+    meta.faces[faceKey] = { photo: photoFilename, ...extra };
   }
 
   await Bun.write(join(dir, "meta.json"), JSON.stringify(meta, null, 2));
