@@ -999,23 +999,15 @@ textarea {
   transform: translate(-50%, -50%) scaleX(-1);
 }
 
-/* Wireframe only - no fill/text, so the raw camera feed underneath stays
-   fully visible; the border color is the only per-cell signal, live
-   confidence at a glance. */
+/* Thin cell guides - the sampled zones (.capture-sample-zone) are what
+   stands out, the camera feed stays visible underneath. */
 .capture-grid-cell {
   position: absolute;
   box-sizing: border-box;
-  border: 3px solid rgba(255, 255, 255, 0.6);
-  transition: border-color 0.15s;
-}
-
-/* Sampling setup: the cells fade to thin guides so the sampled zones
-   stand out. */
-.capture-grid-overlay.is-setup .capture-grid-cell {
   border: 1px solid rgba(255, 255, 255, 0.45);
 }
 
-/* Sampling setup: the band around the guide square that the background
+/* The band around the guide square that the background
    (white balance) sample skips. Padding (a percentage of the wrapper, set
    inline) is the band's thickness; the mask cuts the guide square out so
    only the band is striped. */
@@ -1027,18 +1019,12 @@ textarea {
   box-sizing: border-box;
   transform: translate(-50%, -50%);
   background: repeating-linear-gradient(
-    45deg, rgba(255, 180, 0, 0.2) 0 6px, transparent 6px 12px
+    45deg, rgba(255, 180, 0, 0.55) 0 6px, rgba(0, 0, 0, 0.25) 6px 12px
   );
   -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
   -webkit-mask-composite: xor;
   mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
   pointer-events: none;
-}
-
-.capture-background-gap.is-setup {
-  background: repeating-linear-gradient(
-    45deg, rgba(255, 180, 0, 0.55) 0 6px, rgba(0, 0, 0, 0.25) 6px 12px
-  );
 }
 
 /* A text-styled button for small inline actions inside a sentence. */
@@ -1079,18 +1065,6 @@ label.capture-size-label {
   box-sizing: border-box;
   border: 3px solid;
   box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.8), inset 0 0 0 1px rgba(0, 0, 0, 0.8);
-}
-
-.capture-grid-cell.confidence-high {
-  border-color: var(--color-success);
-}
-
-.capture-grid-cell.confidence-medium {
-  border-color: var(--color-warning);
-}
-
-.capture-grid-cell.confidence-low {
-  border-color: var(--color-danger);
 }
 
 .capture-warning {
