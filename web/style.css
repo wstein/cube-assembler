@@ -1186,6 +1186,71 @@ label.capture-size-label {
   pointer-events: none;
 }
 
+/* A capture step's instruction, with its hint drawing floated left. */
+.capture-hint-text {
+  display: flow-root;
+  min-height: 56px;
+}
+
+/* Step hint drawing (see TurnHint). */
+.turn-hint {
+  float: left;
+  width: 56px;
+  height: 56px;
+  margin: 0 var(--spacing-sm) 0 0;
+}
+
+.turn-hint-face {
+  fill: var(--color-bg-secondary);
+  stroke: var(--color-text-secondary);
+  stroke-width: 1.2;
+}
+
+.turn-hint-top {
+  fill: var(--color-border);
+}
+
+.turn-hint-side {
+  fill: var(--color-border);
+}
+
+.turn-hint-row {
+  fill: var(--color-accent);
+  opacity: 0.8;
+}
+
+.turn-hint-arrow {
+  fill: none;
+  stroke: var(--color-accent-dark);
+  stroke-width: 3;
+  stroke-linecap: round;
+}
+
+.turn-hint-head {
+  fill: var(--color-accent-dark);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .turn-hint-turn .turn-hint-arrow {
+    animation: turn-hint-sway 1.4s ease-in-out infinite alternate;
+  }
+
+  .turn-hint-tip-top .turn-hint-arrow,
+  .turn-hint-tip-bottom .turn-hint-arrow {
+    animation: turn-hint-tip 1.4s ease-in-out infinite alternate;
+  }
+}
+
+@keyframes turn-hint-sway {
+  from { transform: translateX(-3px); }
+  to { transform: translateX(3px); }
+}
+
+@keyframes turn-hint-tip {
+  from { transform: translateY(-2px); }
+  to { transform: translateY(2px); }
+}
+
 .capture-live-confidence {
   color: var(--color-text-secondary);
   white-space: nowrap;

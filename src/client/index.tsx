@@ -404,6 +404,31 @@ function CaptureNet({ faces, current, size, onSelect }: {
   )
 }
 
+// Small drawing next to a capture step's instruction: a cube with its top
+// row highlighted (it stays on top) and a double-headed arrow for the side
+// steps (either way is fine), or an arrow tipping the top/bottom towards
+// the camera. Nothing for the first side.
+function TurnHint({ step }: { step: number }) {
+  if (step === 0) return null
+  const kind = step < 4 ? 'turn' : step === 4 ? 'tip-top' : 'tip-bottom'
+  return (
+    <svg class={`turn-hint turn-hint-${kind}`} viewBox="0 0 64 64" aria-hidden="true">
+      <defs>
+        <marker id="turn-hint-head" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse">
+          <path d="M0,0 L10,5 L0,10 z" class="turn-hint-head" />
+        </marker>
+      </defs>
+      <polygon points="16,24 42,24 52,14 26,14" class="turn-hint-face turn-hint-top" />
+      <polygon points="42,24 52,14 52,40 42,50" class="turn-hint-face turn-hint-side" />
+      <rect x="16" y="24" width="26" height="26" class="turn-hint-face" />
+      {kind === 'turn' && <rect x="16" y="24" width="26" height="8" class="turn-hint-row" />}
+      {kind === 'turn' && <path d="M8 56 Q32 66 56 54" class="turn-hint-arrow" marker-start="url(#turn-hint-head)" marker-end="url(#turn-hint-head)" />}
+      {kind === 'tip-top' && <path d="M30 8 Q60 6 58 34" class="turn-hint-arrow" marker-end="url(#turn-hint-head)" />}
+      {kind === 'tip-bottom' && <path d="M30 60 Q62 62 60 32" class="turn-hint-arrow" marker-end="url(#turn-hint-head)" />}
+    </svg>
+  )
+}
+
 // Moves `target` from where `from` was to where it is now (FLIP) - how a
 // just-captured face flies from the scan square into its net slot.
 // Skipped under prefers-reduced-motion.
@@ -2353,6 +2378,7 @@ function App() {
               </p>
             )}
             <p class="capture-hint-text">
+              <TurnHint step={FACE_ORDER.indexOf(webcamFace)} />
               {stepOf(webcamFace).instruction}
               <span class="capture-live-confidence">
                 {' Live confidence: '}
