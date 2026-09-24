@@ -8,7 +8,11 @@ import {
   rgbToOKLCH, hueCircularRange, hueRangesOverlap, linearRange,
   type ColorDetectionResult, type FaceCaptureResult, type RGB,
 } from './imageProcessing'
-import { assembleCubeFromFaces, validateFaceColors, createSolvedCube, toCubeIR, solveFaceOrientations, type OrientedCandidate, type FaceKey } from './cubeAssembly'
+import {
+  assembleCubeFromFaces, validateFaceColors, createSolvedCube, toCubeIR, solveFaceOrientations, solveGuidedCapture,
+  checkGuidedCenters, orientationFreeSignature,
+  type OrientedCandidate, type OrientationSolution, type FaceKey, type GuidedArrangement, type GuidedCenterIssue,
+} from './cubeAssembly'
 import {
   parseProfileStore, activeProfile, profilesForSize, saveProfile, selectProfile, deleteProfile,
   brandProfile, CUBE_BRANDS, CUBE_STYLES, type CubeStyle,
@@ -207,6 +211,31 @@ const CAPTURE_STEPS: Array<{ label: string; short: string; instruction: string }
   { label: 'Bottom', short: 'B', instruction: 'Now show the bottom - tip it the other way. Top and bottom may be swapped.' },
 ]
 const stepOf = (slot: string) => CAPTURE_STEPS[FACE_ORDER.indexOf(slot)]
+
+// A capture mistake read from odd-size centers (see checkGuidedCenters),
+// in words; photo indexes are capture steps.
+function describeCenterIssue(issue: GuidedCenterIssue): string {
+  const label = (i: number) => CAPTURE_STEPS[i].label
+  switch (issue.kind) {
+    case 'same-center': return `${label(issue.photos[0])} and ${label(issue.photos[1])} show the same center - the same face photographed twice?`
+    case 'turned-twice': return `${label(issue.photo)} shows the face opposite ${label(issue.photo - 1)} - the cube was probably turned twice.`
+    case 'not-opposite': return `${label(issue.photos[0])} and ${label(issue.photos[1])} should be opposite faces, but aren't.`
+  }
+}
+
+// How a top/bottom photo was held, from the quarter turns needed to undo it.
+const HELD_WORDS = ['', 'sideways', 'upside down', 'sideways']
+
+// What the search changed to make the photos fit, in words.
+function describeArrangement(a: GuidedArrangement): string[] {
+  const [topFix, bottomFix] = a.capsSwapped ? [a.capRotations[1], a.capRotations[0]] : a.capRotations
+  return [
+    `You turned the cube to the ${a.turn} between sides.`,
+    ...(a.capsSwapped ? ['Top and bottom were photographed the other way round.'] : []),
+    ...(topFix ? [`The top was held ${HELD_WORDS[topFix]}.`] : []),
+    ...(bottomFix ? [`The bottom was held ${HELD_WORDS[bottomFix]}.`] : []),
+  ]
+}
 const FACE_DISPLAY_LABEL: Record<string, string> = Object.fromEntries(FACE_ORDER.map((face) => [face, stepOf(face).label]))
 const FACE_SHORT_LABEL: Record<string, string> = Object.fromEntries(FACE_ORDER.map((face) => [face, stepOf(face).short]))
 
@@ -617,6 +646,19 @@ function App() {
   // True while a picked option is animating into the net - blocks a second
   // pick from landing mid-flight.
   const [wizardMorphing, setWizardMorphing] = useState(false)
+  // The arrangement(s) of the captured faces waiting for the customer's
+  // OK (see handleConfirmReview): one to approve, a few to pick from, or a
+  // closest match that isn't a valid cube. `fallback` feeds the wizard if
+  // they say no.
+  const [orientationApproval, setOrientationApproval] = useState<{
+    candidates: OrientedCandidate[]
+    arrangements?: GuidedArrangement[]
+    valid: boolean
+    note?: string
+    fallback: OrientationSolution | null
+  } | null>(null)
+  // A problem with the capture shown in the review dialog.
+  const [reviewNotice, setReviewNotice] = useState<string | null>(null)
   const [reviewEditingCell, setReviewEditingCell] = useState<{ face: string; row: number; col: number } | null>(null)
   // Most laptop/webcam feeds are shown mirrored by convention (like a
   // physical mirror), which is what most users expect; default on but
@@ -822,6 +864,8 @@ function App() {
     setReviewStep(0)
     setReviewEditingCell(null)
     setOrientationWizard(null)
+    setOrientationApproval(null)
+    setReviewNotice(null)
     setGlobalWhiteBalanceNote(null)
     setAppliedBackgroundGains(null)
     setLearnedPalette(null)
@@ -1335,61 +1379,88 @@ function App() {
     setWebcamOpen(true)
   }
 
-  const handleConfirmReview = async () => {
+  // After the per-face color review (so a misread sticker can't send a good
+  // capture to the fallback): works out how the 6 photos fit together and
+  // asks the customer to approve it, falling back step by step -
+  //   guided capture (camera, sides then top/bottom): the 64 arrangements
+  //   the turning pattern allows (solveGuidedCapture);
+  //   otherwise, or if none of those is a valid cube: any arrangement at
+  //   all (solveFaceOrientations), which also catches a capture that
+  //   didn't follow the pattern;
+  //   if nothing is a valid cube: the closest match, flagged, which can
+  //   still be used or rejected.
+  // Rejecting an arrangement opens the "Which way is your ... face?"
+  // wizard with the remaining ones.
+  const handleConfirmReview = () => {
+    setReviewNotice(null)
     const faceData: Record<string, string[][]> = {}
-    for (const [f, data] of Object.entries(capturedFaces)) {
-      faceData[f] = data.colors
-    }
+    for (const f of FACE_ORDER) faceData[f] = capturedFaces[f].colors
+    const free = solveFaceOrientations(faceData)
+    const guided = FACE_ORDER.every((f) => capturedFaces[f]?.source === 'camera')
 
-    // Capture order tells us nothing about which physical face is U vs R
-    // vs F etc, or which way up each was held. Odd sizes get identity for
-    // free from each face's fixed center sticker; even sizes search for
-    // identity jointly with rotation instead (see solveFaceOrientations).
-    // Either way, use the solved result (identity by validity, not
-    // capture order) instead of trusting capture order as identity.
-    let orientedFaceData = faceData
-    const solved = solveFaceOrientations(faceData)
-    if (solved) {
-      orientedFaceData = solved.faces
-      // A 2x2 has no edge pieces at all - every piece is a corner - so
-      // solveFaceOrientations reports edgeScore as NaN there rather than
-      // a real count; only mention edges when they actually exist.
-      const hasEdgeScore = !Number.isNaN(solved.edgeScore)
-      if (!solved.fullyValid) {
-        const edgePart = hasEdgeScore ? ` and ${solved.edgeScore}/12 edges` : ''
-        // cornerScore/edgeScore can both read 8/8 and 12/12 here despite
-        // fullyValid being false: those only check each position looks
-        // like SOME real piece independently, not that all 8/12 are
-        // DISTINCT pieces with correct orientation sums and matching
-        // permutation parity (see isFullyValid in cubeAssembly.ts) - so a
-        // perfect-looking score can still be a physically unreachable
-        // cube, which this message calls out explicitly rather than
-        // implying "8/8" alone means it's fine.
-        alert(
-          `⚠️ No fully valid orientation found (best: ${solved.cornerScore}/8 corners${edgePart} individually plausible, but not a physically reachable cube) — some captured colors may be misdetected. Check the assembled cube.`
-        )
-      } else if (solved.alternatives.length > 1) {
-        // Genuine ambiguity, not a bug: the same uniquely color-identified
-        // 6 photos support more than one physically-different, equally
-        // valid rotation reading (see isFullyValid/OrientationSolution's
-        // alternatives comment in cubeAssembly.ts) - only the person
-        // holding the actual cube can say which is real, so ask instead
-        // of silently picking one. Leaves the review dialog up; the
-        // orientation wizard renders on top of it and calls
-        // handleChooseOrientation once it narrows down to one candidate.
-        setOrientationWizard({ remaining: solved.alternatives, truncated: solved.truncated, picked: [] })
+    if (guided) {
+      const [s1, s2, s3, s4, cap1, cap2] = FACE_ORDER.map((f) => faceData[f])
+      const solution = solveGuidedCapture({ sides: [s1, s2, s3, s4], caps: [cap1, cap2] })
+      if (solution?.fullyValid) {
+        setOrientationApproval({ candidates: solution.alternatives, arrangements: solution.arrangements, valid: true, fallback: free })
         return
       }
-    } else {
-      alert(
-        '⚠️ Could not resolve face identity/orientation (need exactly 6 captured faces, or for odd sizes a duplicate/unreadable center) — used capture order as-is; verify results carefully.'
-      )
+      const issue = checkGuidedCenters(FACE_ORDER.map((f) => faceData[f]))[0]
+      const why = issue
+        ? describeCenterIssue(issue)
+        : "These photos don't fit together the way they were taken - the cube may have been turned the other way partway through, or tipped over."
+      if (free?.fullyValid) {
+        setOrientationApproval({ candidates: free.alternatives, valid: true, note: `${why} They do fit together another way:`, fallback: null })
+        return
+      }
+      const closest = solution ?? free
+      if (closest) {
+        setOrientationApproval({
+          candidates: [closest.alternatives[0]],
+          valid: false,
+          note: `${why} No arrangement makes a valid cube, so a color was probably misread - check the colors, or use the closest match anyway.`,
+          fallback: free,
+        })
+        return
+      }
     }
 
-    const cubeState = assembleCubeFromFaces(orientedFaceData, puzzleSize)
-    setCube(cubeState)
-    await updateParityStatus(cubeState)
-    setShowReviewDialog(false)
+    if (!free) {
+      setReviewNotice("⚠️ Couldn't work out how the faces fit together (a duplicate or unreadable center?) - check the colors, or retake a face.")
+      return
+    }
+    if (!free.fullyValid) {
+      setOrientationApproval({
+        candidates: [free.alternatives[0]],
+        valid: false,
+        note: 'No arrangement of these faces makes a valid cube, so a color was probably misread - check the colors, or use the closest match anyway.',
+        fallback: free,
+      })
+      return
+    }
+    if (free.alternatives.length > 1) {
+      setOrientationWizard({ remaining: free.alternatives, truncated: free.truncated, picked: [] })
+      return
+    }
+    handleChooseOrientation(free.alternatives[0])
+  }
+
+  // "No, let me choose each side": the wizard, with every remaining
+  // arrangement of the photos except the rejected ones.
+  const handleRejectOrientation = () => {
+    if (!orientationApproval) return
+    const rejected = new Set(orientationApproval.candidates.map((c) => orientationFreeSignature(c.faces)))
+    const remaining = (orientationApproval.fallback?.alternatives ?? []).filter((c) => !rejected.has(orientationFreeSignature(c.faces)))
+    if (remaining.length === 0) {
+      setOrientationApproval({ ...orientationApproval, note: 'No other arrangement fits these photos - retake a side or check the colors.', fallback: null })
+      return
+    }
+    setOrientationApproval(null)
+    if (remaining.length === 1 && pickWizardFace(remaining) === null) {
+      handleChooseOrientation(remaining[0])
+      return
+    }
+    setOrientationWizard({ remaining, truncated: orientationApproval.fallback!.truncated, picked: [] })
   }
 
   // Finishes assembly once the orientation wizard has narrowed down to a
@@ -1398,6 +1469,8 @@ function App() {
   // instead of auto-picking alternatives[0].
   const handleChooseOrientation = async (chosen: OrientedCandidate) => {
     setOrientationWizard(null)
+    setOrientationApproval(null)
+    setReviewNotice(null)
     const cubeState = assembleCubeFromFaces(chosen.faces, puzzleSize)
     setCube(cubeState)
     await updateParityStatus(cubeState)
@@ -2327,6 +2400,7 @@ function App() {
               {globalWhiteBalanceNote && (
                 <div class="global-wb-note">✓ {globalWhiteBalanceNote}</div>
               )}
+              {reviewNotice && <div class="capture-warning" role="alert">{reviewNotice}</div>}
               {profileSuggestion && (
                 <div class="profile-suggestion" role="status">
                   <span>
@@ -2489,6 +2563,66 @@ function App() {
       })()}
 
       {/* Orientation wizard - see orientationWizard/pickWizardFace/groupWizardOptions */}
+      {/* Approval of how the captured faces fit together (see
+          handleConfirmReview): one arrangement to confirm, a few to pick
+          from, or a closest match that isn't a valid cube. */}
+      {orientationApproval && !orientationWizard && (() => {
+        const { candidates, arrangements, valid, note } = orientationApproval
+        const close = () => setOrientationApproval(null)
+        const single = candidates.length === 1
+        return (
+          <div class="modal open">
+            <div
+              class="modal-content orientation-approval"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="orientation-approval-title"
+              tabIndex={-1}
+              ref={focusModalOnOpen}
+              onKeyDown={(e) => handleModalKeyDown(e, e.currentTarget, close)}
+            >
+              <div class="modal-header">
+                <h2 id="orientation-approval-title">
+                  {!valid ? 'These faces don\'t make a valid cube' : single ? 'Does this match your cube?' : 'Which of these is your cube?'}
+                </h2>
+                <button class="modal-close" aria-label="Close" onClick={close}>×</button>
+              </div>
+              {note && <p class={valid ? 'orientation-approval-note' : 'capture-warning'}>{note}</p>}
+              {!single && valid && (
+                <p class="orientation-approval-note">
+                  The photos fit your cube in {candidates.length} different ways - pick the one that matches it.
+                </p>
+              )}
+              <div class={`orientation-approval-options ${single ? 'is-single' : ''}`}>
+                {candidates.map((candidate, i) => (
+                  <div key={i} class="orientation-approval-option">
+                    <OrientationNetPreview faces={candidate.faces} />
+                    {arrangements?.[i] && (
+                      <ul class="orientation-approval-changes">
+                        {describeArrangement(arrangements[i]).map((line) => <li key={line}>{line}</li>)}
+                      </ul>
+                    )}
+                    <button type="button" class="btn btn-primary btn-sm" onClick={() => handleChooseOrientation(candidate)}>
+                      {!valid ? 'Use it anyway' : single ? 'Yes, use this' : 'This one'}
+                    </button>
+                  </div>
+                ))}
+              </div>
+              <div class="orientation-approval-actions">
+                <button type="button" class="btn btn-secondary btn-sm" onClick={close}>
+                  Back to the colors
+                </button>
+                {orientationApproval.fallback && (
+                  <button type="button" class="btn btn-secondary btn-sm" onClick={handleRejectOrientation}>
+                    {single ? 'No, let me choose each side' : 'None of these - let me choose each side'}
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+        )
+      })()}
+
       {orientationWizard && (() => {
         const { remaining, truncated, picked } = orientationWizard
         const askingFace = pickWizardFace(remaining)

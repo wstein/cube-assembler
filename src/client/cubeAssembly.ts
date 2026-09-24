@@ -811,7 +811,7 @@ function toStandardOrientation(faces: Record<FaceKey, string[][]>): Record<FaceK
 
 // Same content held differently is the same cube: the smallest signature
 // over all 24 orientations identifies it regardless of how it's held.
-function orientationFreeSignature(faces: Record<FaceKey, string[][]>): string {
+export function orientationFreeSignature(faces: Record<FaceKey, string[][]>): string {
   return allOrientations(faces).map(faceSetSignature).sort()[0]
 }
 

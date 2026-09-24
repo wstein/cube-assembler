@@ -588,6 +588,55 @@ textarea {
   opacity: 0.4;
 }
 
+/* Approval of how the captured faces fit together. */
+.orientation-approval-note {
+  margin: 0 0 var(--spacing-md);
+  font-size: 0.9rem;
+  color: var(--color-text-secondary);
+}
+
+.orientation-approval-options {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: var(--spacing-md);
+  margin-bottom: var(--spacing-md);
+}
+
+.orientation-approval-option {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-md);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-secondary);
+}
+
+.orientation-approval-options.is-single .orientation-net-face {
+  width: 64px;
+  height: 64px;
+}
+
+.orientation-approval-options.is-single .orientation-net-spacer {
+  width: 64px;
+  height: 64px;
+}
+
+.orientation-approval-changes {
+  margin: 0;
+  padding-left: 1.2rem;
+  font-size: 0.85rem;
+  align-self: stretch;
+}
+
+.orientation-approval-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: var(--spacing-sm);
+}
+
 .orientation-wizard-options {
   grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
   margin-top: var(--spacing-lg);
