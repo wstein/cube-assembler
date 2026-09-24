@@ -1277,9 +1277,18 @@ function App() {
         // Face border and sticker gap used to sample every face (see
         // SamplingGeometry) - replayed by the fixture test.
         sampling,
-        colorCalibration: globalWhiteBalanceNote
-          ? { applied: true, note: globalWhiteBalanceNote }
-          : { applied: false },
+        // The 6 colors learned from this capture's stickers, which every
+        // sticker was classified against (null when there weren't enough
+        // stickers to learn from and the canonical colors were used).
+        colorCalibration: {
+          applied: globalWhiteBalanceNote !== null,
+          learnedColors: learnedPalette
+            ? Object.fromEntries(Object.entries(learnedPalette).map(([color, { r, g, b }]) => [
+                color,
+                [r, g, b].map((v) => Math.round(v * 10) / 10),
+              ]))
+            : null,
+        },
         // Per-color detected count/lightness/chroma/hue spread across all 6
         // faces at confirm time (see computeColorStats) - no longer shown
         // live in the review wizard (raw OKLCH ranges aren't actionable
