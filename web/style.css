@@ -1642,11 +1642,10 @@ textarea {
 .capture-turn-scene {
   position: absolute;
   left: 50%;
-  top: 46%;
-  width: 60%;
+  top: 50%;
+  width: calc(60% + 6px);
   aspect-ratio: 1;
   transform: translate(-50%, -50%);
-  perspective: 150cqw;
 }
 
 .capture-turn-cube {
@@ -1654,8 +1653,8 @@ textarea {
   width: 100%;
   height: 100%;
   transform-style: preserve-3d;
-  --turn-depth: 30cqw;
-  transform: rotateX(-12deg) rotateY(-10deg);
+  --turn-depth: calc(30cqw + 3px);
+  transform: none;
 }
 
 .capture-turn-face {
@@ -1720,18 +1719,18 @@ textarea {
 }
 
 @keyframes capture-turn-side {
-  0%, 14% { transform: rotateX(-12deg) rotateY(-10deg); }
-  80%, 100% { transform: rotateX(-12deg) rotateY(-100deg); }
+  0%, 14% { transform: none; }
+  80%, 100% { transform: rotateY(-90deg); }
 }
 
 @keyframes capture-turn-top {
-  0%, 14% { transform: rotateX(-12deg) rotateY(-10deg); }
-  80%, 100% { transform: rotateX(78deg) rotateY(-10deg); }
+  0%, 14% { transform: none; }
+  80%, 100% { transform: rotateX(-90deg); }
 }
 
 @keyframes capture-turn-bottom {
-  0%, 14% { transform: rotateX(-12deg) rotateY(-10deg); }
-  80%, 100% { transform: rotateX(-102deg) rotateY(-10deg); }
+  0%, 14% { transform: none; }
+  80%, 100% { transform: rotateX(90deg); }
 }
 
 /* Always-on guide marking exactly which square region of the frame gets
