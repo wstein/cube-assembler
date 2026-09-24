@@ -1032,8 +1032,13 @@ textarea {
 
 .sampling-setup-actions {
   display: flex;
+  flex-wrap: wrap;
   justify-content: flex-end;
   gap: var(--spacing-sm);
+}
+
+.sampling-setup-actions-spacer {
+  flex: 1;
 }
 
 .capture-progress {
