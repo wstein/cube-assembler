@@ -2056,6 +2056,7 @@ function App() {
                 <div class={`status-line ${parity.valid ? 'success' : 'error'}`}>
                   <span class={`status-dot ${parity.valid ? 'success' : 'error'}`} aria-hidden="true"></span>
                   {parity.result}
+                  {parity.detail && <span class="status-detail">: {parity.detail}</span>}
                 </div>
               ) : (
                 <div class="status-line">No cube loaded. Capture all 6 faces to validate.</div>
@@ -2505,6 +2506,22 @@ function App() {
                 <div class="global-wb-note">✓ {globalWhiteBalanceNote}</div>
               )}
               {reviewNotice && <div class="capture-warning" role="alert">{reviewNotice}</div>}
+              {(() => {
+                // Detection always assigns every color exactly N² stickers, so
+                // an imbalance here means a sticker was set to the wrong color
+                // by hand - worth fixing before assembling.
+                const counts: Record<string, number> = {}
+                for (const f of FACE_ORDER) for (const row of capturedFaces[f]?.colors ?? []) for (const c of row) counts[c] = (counts[c] ?? 0) + 1
+                const expected = puzzleSize * puzzleSize
+                const off = COLOR_ORDER.filter((c) => (counts[c] ?? 0) !== expected)
+                if (off.length === 0 || !FACE_ORDER.every((f) => capturedFaces[f])) return null
+                return (
+                  <div class="capture-warning" role="status">
+                    ⚠ {off.map((c) => `${COLOR_NAME[c]} ${counts[c] ?? 0}`).join(', ')} - each color should appear{' '}
+                    {expected} times. A sticker was probably set to the wrong color.
+                  </div>
+                )
+              })()}
               {profileSuggestion && (
                 <div class="profile-suggestion" role="status">
                   <span>
