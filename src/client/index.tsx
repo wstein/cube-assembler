@@ -208,8 +208,8 @@ const CAPTURE_STEPS: Array<{ label: string; short: string; instruction: string }
   { label: 'Side 2', short: '2', instruction: 'Keep the same row on top and turn the cube a quarter turn, either way.' },
   { label: 'Side 3', short: '3', instruction: 'Keep the same row on top and turn another quarter turn, the same way.' },
   { label: 'Side 4', short: '4', instruction: 'One more quarter turn, the same way.' },
-  { label: 'Top', short: 'T', instruction: 'Tip the cube towards you so its top faces the camera - any angle is fine.' },
-  { label: 'Bottom', short: 'B', instruction: 'Now show the bottom - tip it the other way. Top and bottom may be swapped.' },
+  { label: 'Top', short: '5', instruction: 'Tip the cube towards you so its top faces the camera - any angle is fine.' },
+  { label: 'Bottom', short: '6', instruction: 'Now show the bottom - tip it the other way. Top and bottom may be swapped.' },
 ]
 const stepOf = (slot: string) => CAPTURE_STEPS[FACE_ORDER.indexOf(slot)]
 
@@ -377,7 +377,7 @@ function FaceGrid({ colors, undecided, current, auto }: { colors: string[][]; un
 }
 
 // Live net in the capture dialog: the 4 sides in the order taken, with Top
-// above and Bottom below Side 1 (which way the cube was turned, and which
+// (5) above and Bottom (6) below Side 4 (which way the cube was turned, and which
 // of the two is really the top, is only worked out once all 6 are in).
 // Each slot shows the colors detected for it, or a placeholder; tapping a
 // slot retakes it or jumps to it.
@@ -409,12 +409,12 @@ function CaptureNet({ faces, current, size, onSelect }: {
   const [s1, s2, s3, s4, top, bottom] = FACE_ORDER
   return (
     <div class="capture-net" role="group" aria-label="Captured faces">
-      {slot(top, '1 / 1')}
       {slot(s1, '2 / 1')}
       {slot(s2, '2 / 2')}
       {slot(s3, '2 / 3')}
       {slot(s4, '2 / 4')}
-      {slot(bottom, '3 / 1')}
+      {slot(top, '1 / 4')}
+      {slot(bottom, '3 / 4')}
     </div>
   )
 }
@@ -2194,295 +2194,112 @@ function App() {
             class="modal-content capture-modal-content"
             role="dialog"
             aria-modal="true"
+            aria-labelledby="capture-title"
             tabIndex={-1}
             ref={focusModalOnOpen}
             onKeyDown={(e) => handleModalKeyDown(e, e.currentTarget, () => setWebcamOpen(false))}
           >
-            <div class="modal-header">
-              <h2>{FACE_DISPLAY_LABEL[webcamFace]}{FACE_ORDER.indexOf(webcamFace) < 4 ? ' of 4' : ''}</h2>
-              <button class="modal-close" aria-label="Close" onClick={() => setWebcamOpen(false)}>×</button>
-            </div>
-            <div class="capture-progress">
-              <span class="capture-progress-label">
-                Step {FACE_ORDER.indexOf(webcamFace) + 1} of {FACE_ORDER.length}
-              </span>
-              <CaptureNet
-                faces={Object.fromEntries(FACE_ORDER.map((f) => [f, capturedFaces[f]?.colors]))}
-                current={webcamFace}
-                size={puzzleSize}
-                onSelect={(slot) => {
-                  setWebcamFace(slot)
-                  setCaptureMessage('')
-                }}
-              />
-            </div>
-            {/* Cube size, profile and camera options: folded into one summary
-                line once capturing is under way (and from the start on narrow
-                screens), so the live view and Capture button stay in reach. */}
-            <details
-              class="capture-settings"
-              open={FACE_ORDER.every((f) => !capturedFaces[f]) && !window.matchMedia('(max-width: 600px)').matches}
-            >
-              <summary>
-                Cube & camera settings
-                <span class="capture-settings-summary">
-                  {' '}{puzzleSize}×{puzzleSize} · {profile.name}{mirrorPreview ? ' · mirrored' : ''}
-                </span>
-              </summary>
-              <div class="capture-size-row">
-                <span class="capture-size-label">Cube size:</span>
-                <div class="capture-size-buttons">
-                  {[2, 3, 4, 5, 6, 7].map((size) => (
-                    <button
-                      key={size}
-                      class={`wb-btn ${puzzleSize === size ? 'active' : ''}`}
-                      onClick={() => changePuzzleSize(size)}
-                    >
-                      {size}×{size}
-                    </button>
-                  ))}
-                </div>
-              </div>
-              <div class="capture-size-row">
-                <label class="capture-size-label" for="cube-profile">Cube:</label>
-                <select
-                  id="cube-profile"
-                  class="cube-profile-select"
-                  value={profile.id}
-                  onChange={(e) => applyProfileStore(selectProfile(profileStore, puzzleSize, e.currentTarget.value))}
-                >
-                  {profilesForSize(profileStore, puzzleSize).map((p) => (
-                    <option key={p.id} value={p.id}>{p.name}</option>
-                  ))}
-                </select>
-                <button
-                  type="button"
-                  class="btn btn-secondary btn-sm"
-                  aria-expanded={newCubeForm !== null}
-                  onClick={() => setNewCubeForm(newCubeForm ? null : { brand: CUBE_BRANDS[0], style: 'stickerless' })}
-                >
-                  ＋ New cube
-                </button>
-              </div>
-              {newCubeForm && (
-                <div class="capture-size-row new-cube-form">
-                  <label class="capture-size-label" for="new-cube-brand">Brand:</label>
-                  <select
-                    id="new-cube-brand"
-                    class="cube-profile-select"
-                    value={newCubeForm.brand}
-                    onChange={(e) => setNewCubeForm({ ...newCubeForm, brand: e.currentTarget.value })}
-                  >
-                    {CUBE_BRANDS.map((brand) => <option key={brand} value={brand}>{brand}</option>)}
-                  </select>
-                  <select
-                    aria-label="Style"
-                    class="cube-profile-select"
-                    value={newCubeForm.style}
-                    onChange={(e) => setNewCubeForm({ ...newCubeForm, style: e.currentTarget.value as CubeStyle })}
-                  >
-                    {Object.entries(CUBE_STYLES).map(([style, { label }]) => <option key={style} value={style}>{label}</option>)}
-                  </select>
-                  <button type="button" class="btn btn-primary btn-sm" onClick={handleCreateCube}>
-                    Add {newCubeForm.brand} {puzzleSize}×{puzzleSize}
-                  </button>
-                </div>
-              )}
-              <div class="capture-options-row">
-                <label class="mirror-toggle">
-                  <input
-                    type="checkbox"
-                    checked={mirrorPreview}
-                    onChange={(e) => setMirrorPreview(e.currentTarget.checked)}
-                  />
-                  Mirror
-                </label>
-                <button
-                  type="button"
-                  class={`btn btn-secondary btn-sm ${samplingSetupOpen ? 'active' : ''}`}
-                  aria-expanded={samplingSetupOpen}
-                  onClick={() => setSamplingSetupOpen((open) => !open)}
-                >
-                  ⚙ Sampling setup
-                </button>
-              </div>
-            </details>
-            <div class="capture-video-wrapper">
-              <video
-                ref={webcamRef}
-                autoplay
-                muted
-                playsinline
-                class={`webcam-feed ${mirrorPreview ? 'mirrored' : ''}`}
-              />
-              {liveDetection && (
-                // Positioned from stickerSampleRect in percent of the guide
-                // square, so the overlay shows exactly what the detector
-                // reads: thin cell lines, and each sampled zone outlined in the
-                // color it reads as.
-                <div
-                  class={`capture-grid-overlay ${mirrorPreview ? 'mirrored' : ''}`}
-                >
-                  {liveDetection.colors.map((row, r) =>
-                    row.map((color, c) => {
-                      const n = liveDetection.colors.length
-                      const cell = stickerSampleRect(r, c, n, 100, 100, { ...sampling, stickerCore: 1 })
-                      const zone = stickerSampleRect(r, c, n, 100, 100, sampling)
-                      return (
-                        <Fragment key={`${r}-${c}`}>
-                          <div
-                            class="capture-grid-cell"
-                            style={{ left: `${cell.x}%`, top: `${cell.y}%`, width: `${cell.width}%`, height: `${cell.height}%` }}
-                          />
-                          <div
-                            class="capture-sample-zone"
-                            style={{
-                              left: `${zone.x}%`, top: `${zone.y}%`, width: `${zone.width}%`, height: `${zone.height}%`,
-                              borderColor: STICKER_HEX[color] ?? '#888',
-                            }}
-                          />
-                        </Fragment>
-                      )
-                    })
-                  )}
-                </div>
-              )}
-              {(samplingSetupOpen || sampling.backgroundGap > 0) && (
-                // The band around the guide square that the background (white
-                // balance) sample skips - sized in percent of the wrapper,
-                // like the 60% guide square itself. Always shown when set, so
-                // fingers can be kept inside it while capturing.
-                <div
-                  class="capture-background-gap"
-                  style={{
-                    width: `${60 * (1 + 2 * sampling.backgroundGap)}%`,
-                    padding: `${60 * sampling.backgroundGap}%`,
-                  }}
+            {/* Live view on the left, everything about the current step on the
+                right - so on a laptop nothing needs a scroll. */}
+            <div class="capture-live">
+              <div class="capture-video-wrapper">
+                <video
+                  ref={webcamRef}
+                  autoplay
+                  muted
+                  playsinline
+                  class={`webcam-feed ${mirrorPreview ? 'mirrored' : ''}`}
                 />
-              )}
-              {/* Always-visible guide framing exactly what region gets
-                  analyzed, on top of the grid so its border/dimming stays
-                  visible even once per-cell colors are drawn underneath. */}
-              <div class="capture-scan-frame">
-                <span class="capture-scan-label">Fit face in this square</span>
-              </div>
-            </div>
-            {/* Below the live view, so adjusting it never pushes the video off
-                screen (Chrome pauses muted videos that aren't visible). */}
-            {samplingSetupOpen && (
-              <div class="sampling-setup">
-                <label class="sampling-slider">
-                  <span>Cube name</span>
-                  <input
-                    type="text"
-                    class="cube-profile-name"
-                    maxLength={60}
-                    value={profile.name}
-                    onChange={(e) => {
-                      const name = e.currentTarget.value.trim()
-                      if (name) applyProfileStore(saveProfile(profileStore, { ...profile, name }))
+                {liveDetection && (
+                  // Positioned from stickerSampleRect in percent of the guide
+                  // square, so the overlay shows exactly what the detector
+                  // reads: thin cell lines, and each sampled zone outlined in the
+                  // color it reads as.
+                  <div
+                    class={`capture-grid-overlay ${mirrorPreview ? 'mirrored' : ''}`}
+                  >
+                    {liveDetection.colors.map((row, r) =>
+                      row.map((color, c) => {
+                        const n = liveDetection.colors.length
+                        const cell = stickerSampleRect(r, c, n, 100, 100, { ...sampling, stickerCore: 1 })
+                        const zone = stickerSampleRect(r, c, n, 100, 100, sampling)
+                        return (
+                          <Fragment key={`${r}-${c}`}>
+                            <div
+                              class="capture-grid-cell"
+                              style={{ left: `${cell.x}%`, top: `${cell.y}%`, width: `${cell.width}%`, height: `${cell.height}%` }}
+                            />
+                            <div
+                              class="capture-sample-zone"
+                              style={{
+                                left: `${zone.x}%`, top: `${zone.y}%`, width: `${zone.width}%`, height: `${zone.height}%`,
+                                borderColor: STICKER_HEX[color] ?? '#888',
+                              }}
+                            />
+                          </Fragment>
+                        )
+                      })
+                    )}
+                  </div>
+                )}
+                {(samplingSetupOpen || sampling.backgroundGap > 0) && (
+                  // The band around the guide square that the background (white
+                  // balance) sample skips - sized in percent of the wrapper,
+                  // like the 60% guide square itself. Always shown when set, so
+                  // fingers can be kept inside it while capturing.
+                  <div
+                    class="capture-background-gap"
+                    style={{
+                      width: `${60 * (1 + 2 * sampling.backgroundGap)}%`,
+                      padding: `${60 * sampling.backgroundGap}%`,
                     }}
                   />
-                </label>
-                <label class="sampling-slider">
-                  <span>
-                    Skip around the face <output>{Math.round(sampling.backgroundGap * 100)}%</output>
-                  </span>
-                  <input
-                    type="range"
-                    min={0}
-                    max={MAX_BACKGROUND_GAP * 100}
-                    step={1}
-                    value={Math.round(sampling.backgroundGap * 100)}
-                    onInput={(e) => updateSampling({ ...sampling, backgroundGap: Number(e.currentTarget.value) / 100 })}
-                  />
-                </label>
-                <label class="sampling-slider">
-                  <span>
-                    Gap around each sticker <output>{Math.round((1 - sampling.stickerCore) * 100)}%</output>
-                  </span>
-                  <input
-                    type="range"
-                    min={10}
-                    max={70}
-                    step={5}
-                    value={Math.round((1 - sampling.stickerCore) * 100)}
-                    onInput={(e) => updateSampling({ ...sampling, stickerCore: 1 - Number(e.currentTarget.value) / 100 })}
-                  />
-                </label>
-                <p class="sampling-setup-hint">
-                  {profile.learnedAt ? (
-                    <>
-                      Colors learned from this cube's capture on {new Date(profile.learnedAt).toLocaleString()}.{' '}
-                      <button
-                        type="button"
-                        class="link-button"
-                        onClick={() => applyProfileStore(saveProfile(profileStore, withoutLearnedColors(profile)))}
-                      >
-                        Forget them
-                      </button>
-                    </>
-                  ) : (
-                    "This cube's colors will be learned from its first capture."
-                  )}
-                </p>
-                <p class="sampling-setup-hint">
-                  Hold a face in the square. Each small box should sit fully inside its sticker, and its outline
-                  should show that sticker's color. The striped band around the square is left out when
-                  balancing colors - widen it until it covers your fingers and the edge of the cube.
-                </p>
-                <div class="sampling-setup-actions">
-                  <button type="button" class="btn btn-secondary btn-sm" onClick={handleDownloadSampling}>
-                    ↓ Download
-                  </button>
-                  <label class="btn btn-secondary btn-sm" title="Load a settings file downloaded earlier">
-                    ↑ Upload
-                    <input type="file" accept=".json,application/json" hidden onChange={handleUploadSampling} />
-                  </label>
-                  <div class="sampling-setup-actions-spacer" />
-                  {profileStore.profiles.some((p) => p.id === profile.id) && (
-                    <button
-                      type="button"
-                      class="btn btn-secondary btn-sm"
-                      title="Forget this cube's settings"
-                      onClick={() => applyProfileStore(deleteProfile(profileStore, profile.id))}
-                    >
-                      Delete cube
-                    </button>
-                  )}
-                  <button type="button" class="btn btn-secondary btn-sm" onClick={() => updateSampling(DEFAULT_SAMPLING)}>
-                    Reset
-                  </button>
-                  <button type="button" class="btn btn-primary btn-sm" onClick={() => setSamplingSetupOpen(false)}>
-                    Done
-                  </button>
-                </div>
-                {samplingFileMessage && (
-                  <p role="status" class="sampling-setup-hint">{samplingFileMessage}</p>
                 )}
+                {/* Always-visible guide framing exactly what region gets
+                    analyzed, on top of the grid so its border/dimming stays
+                    visible even once per-cell colors are drawn underneath. */}
+                <div class="capture-scan-frame">
+                  <span class="capture-scan-label">Fit face in this square</span>
+                </div>
               </div>
-            )}
-            {/* macOS reports its Portrait video effect as backgroundBlur, and
-                the browser can't turn it off - it blurs whatever it takes for
-                background, which can include the cube held up to the camera. */}
-            {cameraInfo?.granted.backgroundBlur === true && (
-              <p class="capture-warning" role="note">
-                ⚠ Your camera's background blur (Portrait) is on and can blur the cube. Turn it off in Control
-                Center → Video Effects.
-              </p>
-            )}
-            {/* What to do now and the Capture button, kept at the bottom of the
-                dialog while scrolling so capturing never needs a scroll on
-                small screens. */}
-            <div class="capture-actions">
+              <span class="capture-live-badge" aria-hidden="true">
+                <span class="capture-live-dot" />
+                Live · {liveDetection ? `${(liveDetection.confidence * 100).toFixed(0)}% sure` : '—'}
+              </span>
+            </div>
+            <div class="capture-side">
+              <div class="capture-side-header">
+                <div class="capture-side-title">
+                  <span class="capture-step-kicker">Step {FACE_ORDER.indexOf(webcamFace) + 1} of {FACE_ORDER.length}</span>
+                  <h2 id="capture-title">{FACE_DISPLAY_LABEL[webcamFace]}{FACE_ORDER.indexOf(webcamFace) < 4 ? ' of 4' : ''}</h2>
+                </div>
+                <button class="modal-close" aria-label="Close" onClick={() => setWebcamOpen(false)}>×</button>
+              </div>
               <p class="capture-hint-text" aria-live="polite">
                 <TurnHint step={FACE_ORDER.indexOf(webcamFace)} />
                 {stepOf(webcamFace).instruction}
-                <span class="capture-live-confidence">
-                  {' Live confidence: '}
-                  {liveDetection ? `${(liveDetection.confidence * 100).toFixed(0)}%` : '—'}
-                </span>
               </p>
+              <div class="capture-progress">
+                <span class="capture-progress-label">Captured so far · tap one to retake</span>
+                <CaptureNet
+                  faces={Object.fromEntries(FACE_ORDER.map((f) => [f, capturedFaces[f]?.colors]))}
+                  current={webcamFace}
+                  size={puzzleSize}
+                  onSelect={(slot) => {
+                    setWebcamFace(slot)
+                    setCaptureMessage('')
+                  }}
+                />
+              </div>
+              {/* macOS reports its Portrait video effect as backgroundBlur, and
+                  the browser can't turn it off - it blurs whatever it takes for
+                  background, which can include the cube held up to the camera. */}
+              {cameraInfo?.granted.backgroundBlur === true && (
+                <p class="capture-warning" role="note">
+                  ⚠ Your camera's background blur (Portrait) is on and can blur the cube. Turn it off in Control
+                  Center → Video Effects.
+                </p>
+              )}
               {captureWarning && (
                 <div class="capture-warning capture-soft-warning" role="status">
                   <span>⚠ {captureWarning.text}</span>
@@ -2505,22 +2322,212 @@ function App() {
                   </button>
                 </div>
               )}
-              <div
-                role="status"
-                class={`capture-message ${captureMessage ? (captureMessage.includes('✓') ? 'success' : captureMessage.includes('❌') ? 'error' : '') : 'is-empty'}`}
+              {/* Cube size, profile and camera options: folded into one summary
+                  line once capturing is under way (and from the start on narrow
+                  screens), so the live view and Capture button stay in reach. */}
+              <details
+                class="capture-settings"
+                open={FACE_ORDER.every((f) => !capturedFaces[f]) && !window.matchMedia('(max-width: 600px)').matches}
               >
-                {captureMessage || '—'}
+                <summary>
+                  Cube & camera settings
+                  <span class="capture-settings-summary">
+                    {' '}{puzzleSize}×{puzzleSize} · {profile.name}{mirrorPreview ? ' · mirrored' : ''}
+                  </span>
+                </summary>
+                <div class="capture-size-row">
+                  <span class="capture-size-label">Cube size:</span>
+                  <div class="capture-size-buttons">
+                    {[2, 3, 4, 5, 6, 7].map((size) => (
+                      <button
+                        key={size}
+                        class={`wb-btn ${puzzleSize === size ? 'active' : ''}`}
+                        onClick={() => changePuzzleSize(size)}
+                      >
+                        {size}×{size}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div class="capture-size-row">
+                  <label class="capture-size-label" for="cube-profile">Cube:</label>
+                  <select
+                    id="cube-profile"
+                    class="cube-profile-select"
+                    value={profile.id}
+                    onChange={(e) => applyProfileStore(selectProfile(profileStore, puzzleSize, e.currentTarget.value))}
+                  >
+                    {profilesForSize(profileStore, puzzleSize).map((p) => (
+                      <option key={p.id} value={p.id}>{p.name}</option>
+                    ))}
+                  </select>
+                  <button
+                    type="button"
+                    class="btn btn-secondary btn-sm"
+                    aria-expanded={newCubeForm !== null}
+                    onClick={() => setNewCubeForm(newCubeForm ? null : { brand: CUBE_BRANDS[0], style: 'stickerless' })}
+                  >
+                    ＋ New cube
+                  </button>
+                </div>
+                {newCubeForm && (
+                  <div class="capture-size-row new-cube-form">
+                    <label class="capture-size-label" for="new-cube-brand">Brand:</label>
+                    <select
+                      id="new-cube-brand"
+                      class="cube-profile-select"
+                      value={newCubeForm.brand}
+                      onChange={(e) => setNewCubeForm({ ...newCubeForm, brand: e.currentTarget.value })}
+                    >
+                      {CUBE_BRANDS.map((brand) => <option key={brand} value={brand}>{brand}</option>)}
+                    </select>
+                    <select
+                      aria-label="Style"
+                      class="cube-profile-select"
+                      value={newCubeForm.style}
+                      onChange={(e) => setNewCubeForm({ ...newCubeForm, style: e.currentTarget.value as CubeStyle })}
+                    >
+                      {Object.entries(CUBE_STYLES).map(([style, { label }]) => <option key={style} value={style}>{label}</option>)}
+                    </select>
+                    <button type="button" class="btn btn-primary btn-sm" onClick={handleCreateCube}>
+                      Add {newCubeForm.brand} {puzzleSize}×{puzzleSize}
+                    </button>
+                  </div>
+                )}
+                <div class="capture-options-row">
+                  <label class="mirror-toggle">
+                    <input
+                      type="checkbox"
+                      checked={mirrorPreview}
+                      onChange={(e) => setMirrorPreview(e.currentTarget.checked)}
+                    />
+                    Mirror
+                  </label>
+                  <button
+                    type="button"
+                    class={`btn btn-secondary btn-sm ${samplingSetupOpen ? 'active' : ''}`}
+                    aria-expanded={samplingSetupOpen}
+                    onClick={() => setSamplingSetupOpen((open) => !open)}
+                  >
+                    ⚙ Sampling setup
+                  </button>
+                </div>
+                <label class="capture-import">
+                  Or use a photo file for this step
+                  <input type="file" accept="image/*" onChange={handleImportImage} disabled={loading} />
+                </label>
+              </details>
+              {/* Below the live view, so adjusting it never pushes the video off
+                  screen (Chrome pauses muted videos that aren't visible). */}
+              {samplingSetupOpen && (
+                <div class="sampling-setup">
+                  <label class="sampling-slider">
+                    <span>Cube name</span>
+                    <input
+                      type="text"
+                      class="cube-profile-name"
+                      maxLength={60}
+                      value={profile.name}
+                      onChange={(e) => {
+                        const name = e.currentTarget.value.trim()
+                        if (name) applyProfileStore(saveProfile(profileStore, { ...profile, name }))
+                      }}
+                    />
+                  </label>
+                  <label class="sampling-slider">
+                    <span>
+                      Skip around the face <output>{Math.round(sampling.backgroundGap * 100)}%</output>
+                    </span>
+                    <input
+                      type="range"
+                      min={0}
+                      max={MAX_BACKGROUND_GAP * 100}
+                      step={1}
+                      value={Math.round(sampling.backgroundGap * 100)}
+                      onInput={(e) => updateSampling({ ...sampling, backgroundGap: Number(e.currentTarget.value) / 100 })}
+                    />
+                  </label>
+                  <label class="sampling-slider">
+                    <span>
+                      Gap around each sticker <output>{Math.round((1 - sampling.stickerCore) * 100)}%</output>
+                    </span>
+                    <input
+                      type="range"
+                      min={10}
+                      max={70}
+                      step={5}
+                      value={Math.round((1 - sampling.stickerCore) * 100)}
+                      onInput={(e) => updateSampling({ ...sampling, stickerCore: 1 - Number(e.currentTarget.value) / 100 })}
+                    />
+                  </label>
+                  <p class="sampling-setup-hint">
+                    {profile.learnedAt ? (
+                      <>
+                        Colors learned from this cube's capture on {new Date(profile.learnedAt).toLocaleString()}.{' '}
+                        <button
+                          type="button"
+                          class="link-button"
+                          onClick={() => applyProfileStore(saveProfile(profileStore, withoutLearnedColors(profile)))}
+                        >
+                          Forget them
+                        </button>
+                      </>
+                    ) : (
+                      "This cube's colors will be learned from its first capture."
+                    )}
+                  </p>
+                  <p class="sampling-setup-hint">
+                    Hold a face in the square. Each small box should sit fully inside its sticker, and its outline
+                    should show that sticker's color. The striped band around the square is left out when
+                    balancing colors - widen it until it covers your fingers and the edge of the cube.
+                  </p>
+                  <div class="sampling-setup-actions">
+                    <button type="button" class="btn btn-secondary btn-sm" onClick={handleDownloadSampling}>
+                      ↓ Download
+                    </button>
+                    <label class="btn btn-secondary btn-sm" title="Load a settings file downloaded earlier">
+                      ↑ Upload
+                      <input type="file" accept=".json,application/json" hidden onChange={handleUploadSampling} />
+                    </label>
+                    <div class="sampling-setup-actions-spacer" />
+                    {profileStore.profiles.some((p) => p.id === profile.id) && (
+                      <button
+                        type="button"
+                        class="btn btn-secondary btn-sm"
+                        title="Forget this cube's settings"
+                        onClick={() => applyProfileStore(deleteProfile(profileStore, profile.id))}
+                      >
+                        Delete cube
+                      </button>
+                    )}
+                    <button type="button" class="btn btn-secondary btn-sm" onClick={() => updateSampling(DEFAULT_SAMPLING)}>
+                      Reset
+                    </button>
+                    <button type="button" class="btn btn-primary btn-sm" onClick={() => setSamplingSetupOpen(false)}>
+                      Done
+                    </button>
+                  </div>
+                  {samplingFileMessage && (
+                    <p role="status" class="sampling-setup-hint">{samplingFileMessage}</p>
+                  )}
+                </div>
+              )}
+              <div class="capture-actions">
+                <div
+                  role="status"
+                  class={`capture-message ${captureMessage ? (captureMessage.includes('✓') ? 'success' : captureMessage.includes('❌') ? 'error' : '') : 'is-empty'}`}
+                >
+                  {captureMessage || '—'}
+                </div>
+                <button
+                  class="btn btn-primary"
+                  onClick={handleCapturePhoto}
+                  disabled={loading}
+                >
+                  {loading ? '⏳ Processing...' : `Capture ${FACE_DISPLAY_LABEL[webcamFace].toLowerCase()}`}
+                </button>
               </div>
-              <button
-                class="btn btn-primary"
-                onClick={handleCapturePhoto}
-                disabled={loading}
-              >
-                {loading ? '⏳ Processing...' : 'Capture Photo'}
-              </button>
             </div>
-            <label>Import from image file</label>
-            <input type="file" accept="image/*" onChange={handleImportImage} disabled={loading} />
           </div>
         </div>
       )}
