@@ -75,6 +75,8 @@ declare const __APP_VERSION__: string
 // dev server (5173) and the Bun server (3000) share one setup.
 const SAMPLING_COOKIE = 'cube-assembler-sampling'
 const SAMPLING_COOKIE_MAX_AGE = 60 * 60 * 24 * 365 * 5
+// Marks a downloaded settings file, so uploading some other JSON is refused.
+const SAMPLING_FILE_TYPE = 'cube-assembler-sampling'
 
 function isSamplingGeometry(value: unknown): value is SamplingGeometry {
   const v = value as SamplingGeometry | null
@@ -561,10 +563,48 @@ function App() {
   // cross-face recalibration didn't run) - what the color-fix picker scores
   // each alternative against.
   const [learnedPalette, setLearnedPalette] = useState<Record<string, RGB> | null>(null)
-  const updateSampling = (next: SamplingGeometry) => {
-    const updated = { ...samplingBySize, [puzzleSize]: next }
+  const [samplingFileMessage, setSamplingFileMessage] = useState('')
+  const applySamplingBySize = (updated: Record<number, SamplingGeometry>) => {
     setSamplingBySize(updated)
     saveSamplingBySize(updated)
+  }
+  // Settings file: every size's settings (defaults filled in), so a setup
+  // tuned on one machine or browser can be carried to another.
+  const handleDownloadSampling = () => {
+    const allSizes = Object.fromEntries([2, 3, 4, 5, 6, 7].map((size) => [size, samplingBySize[size] ?? DEFAULT_SAMPLING]))
+    const blob = new Blob(
+      [JSON.stringify({ type: SAMPLING_FILE_TYPE, version: 1, samplingBySize: allSizes }, null, 2)],
+      { type: 'application/json' }
+    )
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = 'cube-assembler-sampling.json'
+    link.click()
+    URL.revokeObjectURL(url)
+    setSamplingFileMessage('✓ Settings downloaded')
+  }
+  const handleUploadSampling = async (e: Event) => {
+    const input = e.currentTarget as HTMLInputElement
+    const file = input.files?.[0]
+    input.value = ''
+    if (!file) return
+    try {
+      const data = JSON.parse(await file.text())
+      const uploaded = data?.type === SAMPLING_FILE_TYPE ? parseSamplingBySize(data.samplingBySize) : {}
+      const sizes = Object.keys(uploaded)
+      if (sizes.length === 0) {
+        setSamplingFileMessage(`❌ ${file.name} isn't a sampling settings file`)
+        return
+      }
+      applySamplingBySize({ ...samplingBySize, ...uploaded })
+      setSamplingFileMessage(`✓ Loaded settings for ${sizes.map((n) => `${n}×${n}`).join(', ')}`)
+    } catch {
+      setSamplingFileMessage(`❌ ${file.name} isn't valid JSON`)
+    }
+  }
+  const updateSampling = (next: SamplingGeometry) => {
+    applySamplingBySize({ ...samplingBySize, [puzzleSize]: next })
   }
   const [globalWhiteBalanceNote, setGlobalWhiteBalanceNote] = useState<string | null>(null)
   // The per-face background-derived gains actually applied this capture
@@ -1886,6 +1926,14 @@ function App() {
                   balancing colors - widen it until it covers your fingers and the edge of the cube.
                 </p>
                 <div class="sampling-setup-actions">
+                  <button type="button" class="btn btn-secondary btn-sm" onClick={handleDownloadSampling}>
+                    ↓ Download
+                  </button>
+                  <label class="btn btn-secondary btn-sm" title="Load a settings file downloaded earlier">
+                    ↑ Upload
+                    <input type="file" accept=".json,application/json" hidden onChange={handleUploadSampling} />
+                  </label>
+                  <div class="sampling-setup-actions-spacer" />
                   <button type="button" class="btn btn-secondary btn-sm" onClick={() => updateSampling(DEFAULT_SAMPLING)}>
                     Reset
                   </button>
@@ -1893,6 +1941,9 @@ function App() {
                     Done
                   </button>
                 </div>
+                {samplingFileMessage && (
+                  <p role="status" class="sampling-setup-hint">{samplingFileMessage}</p>
+                )}
               </div>
             )}
             <div class="capture-video-wrapper">
