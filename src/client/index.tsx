@@ -68,23 +68,28 @@ const CAMERA_CONSTRAINTS: MediaTrackConstraints = {
 // Injected at build time by vite.config.ts's `define`.
 declare const __APP_VERSION__: string
 
-// The sampling setup is a property of the user's cube and camera, not of
-// one capture, so it's remembered in this browser between sessions.
-const SAMPLING_STORAGE_KEY = 'cube-assembler.sampling'
+// The sampling setup is a property of the user's cubes and camera, not of
+// one capture, so it's remembered in this browser between sessions - per
+// cube size, since a 7x7's stickers and gaps are much smaller than a 3x3's.
+const SAMPLING_STORAGE_KEY = 'cube-assembler.sampling-by-size'
 
-function loadSampling(): SamplingGeometry {
-  try {
-    const saved = JSON.parse(localStorage.getItem(SAMPLING_STORAGE_KEY) ?? 'null')
-    if (typeof saved?.backgroundGap === 'number' && typeof saved?.stickerCore === 'number') return saved
-  } catch {
-    // storage blocked or corrupt - fall back to the default
-  }
-  return DEFAULT_SAMPLING
+function isSamplingGeometry(value: unknown): value is SamplingGeometry {
+  const v = value as SamplingGeometry | null
+  return typeof v?.backgroundGap === 'number' && typeof v?.stickerCore === 'number'
 }
 
-function saveSampling(sampling: SamplingGeometry) {
+function loadSamplingBySize(): Record<number, SamplingGeometry> {
   try {
-    localStorage.setItem(SAMPLING_STORAGE_KEY, JSON.stringify(sampling))
+    const saved = JSON.parse(localStorage.getItem(SAMPLING_STORAGE_KEY) ?? '{}')
+    return Object.fromEntries(Object.entries(saved ?? {}).filter(([, v]) => isSamplingGeometry(v)))
+  } catch {
+    return {} // storage blocked or corrupt - every size uses the default
+  }
+}
+
+function saveSamplingBySize(samplingBySize: Record<number, SamplingGeometry>) {
+  try {
+    localStorage.setItem(SAMPLING_STORAGE_KEY, JSON.stringify(samplingBySize))
   } catch {
     // storage blocked - the setting just won't persist
   }
@@ -537,7 +542,8 @@ function App() {
   // let it be turned off for cameras that don't need it (e.g. a rear
   // phone camera fed in via some capture setups).
   const [mirrorPreview, setMirrorPreview] = useState(true)
-  const [sampling, setSampling] = useState<SamplingGeometry>(loadSampling)
+  const [samplingBySize, setSamplingBySize] = useState<Record<number, SamplingGeometry>>(loadSamplingBySize)
+  const sampling = samplingBySize[puzzleSize] ?? DEFAULT_SAMPLING
   const [samplingSetupOpen, setSamplingSetupOpen] = useState(false)
   // Upload Fixture option: start the review from what detection reads
   // today instead of the colors the fixture was saved with, so a capture
@@ -548,8 +554,9 @@ function App() {
   // each alternative against.
   const [learnedPalette, setLearnedPalette] = useState<Record<string, RGB> | null>(null)
   const updateSampling = (next: SamplingGeometry) => {
-    setSampling(next)
-    saveSampling(next)
+    const updated = { ...samplingBySize, [puzzleSize]: next }
+    setSamplingBySize(updated)
+    saveSamplingBySize(updated)
   }
   const [globalWhiteBalanceNote, setGlobalWhiteBalanceNote] = useState<string | null>(null)
   // The per-face background-derived gains actually applied this capture
@@ -1838,6 +1845,7 @@ function App() {
             </div>
             {samplingSetupOpen && (
               <div class="sampling-setup">
+                <div class="sampling-setup-title">Settings for {puzzleSize}×{puzzleSize} cubes</div>
                 <label class="sampling-slider">
                   <span>
                     Skip around the face <output>{Math.round(sampling.backgroundGap * 100)}%</output>
