@@ -253,6 +253,10 @@ function computeColorStats(
 // its own (never asked about), so the net shows at a glance which faces the
 // customer actually chose versus which were inferred from those choices.
 function FaceGrid({ colors, undecided, current, auto }: { colors: string[][]; undecided?: boolean; current?: boolean; auto?: boolean }) {
+  // On odd sizes the center sticker never moves when a face is turned, so
+  // it's known even while the face's orientation is still undecided.
+  const n = colors.length
+  const centerIndex = n % 2 === 1 ? (n * n - 1) / 2 : -1
   return (
     <div
       class={`orientation-net-face${undecided ? ' orientation-net-face-undecided' : ''}${current ? ' orientation-net-face-current' : ''}${auto ? ' orientation-net-face-auto' : ''}`}
@@ -262,7 +266,7 @@ function FaceGrid({ colors, undecided, current, auto }: { colors: string[][]; un
         <div
           key={i}
           class="orientation-net-sticker"
-          style={undecided ? undefined : { background: STICKER_HEX[color] ?? '#888' }}
+          style={undecided && i !== centerIndex ? undefined : { background: STICKER_HEX[color] ?? '#888' }}
         />
       ))}
     </div>
