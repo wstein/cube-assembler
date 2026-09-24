@@ -921,7 +921,8 @@ export function cropFaceRegionToDataUrl(canvas: HTMLCanvasElement): string {
   // and decoders then disagree on how to upsample it - jpeg-js vs Chrome
   // differed by up to 25 levels at sticker edges at 0.85, by at most 3 at
   // 1. This image is the source of truth that recalibration and saved
-  // fixtures re-analyze, so it's worth the ~4x size (~50 KB for 288px).
+  // fixtures re-analyze, so it's worth the ~4x size (~200 KB for a 648px
+  // crop from 1080p).
   return out.toDataURL('image/jpeg', CROP_JPEG_QUALITY)
 }
 
