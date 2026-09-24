@@ -423,28 +423,25 @@ function CaptureNet({ faces, current, size, predictedCenter, onSelect }: {
   )
 }
 
-// Small drawing next to a capture step's instruction: a cube with its top
-// row highlighted (it stays on top) and an arrow for the preferred
-// clockwise side turn, or an arrow tipping the top/bottom towards the
-// camera. The orientation search still accepts a different scan sequence.
-// Nothing for the first side.
+// Small drawing next to a capture step's instruction. The arrow is painted
+// on the front face in the same direction as the larger capture cue.
 function TurnHint({ step }: { step: number }) {
   if (step === 0) return null
   const kind = step < 4 ? 'turn' : step === 4 ? 'tip-top' : 'tip-bottom'
+  const arrowAngle = kind === 'turn' ? 270 : kind === 'tip-top' ? 180 : 0
   return (
     <svg class={`turn-hint turn-hint-${kind}`} viewBox="0 0 64 64" aria-hidden="true">
-      <defs>
-        <marker id="turn-hint-head" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse">
-          <path d="M0,0 L10,5 L0,10 z" class="turn-hint-head" />
-        </marker>
-      </defs>
       <polygon points="16,24 42,24 52,14 26,14" class="turn-hint-face turn-hint-top" />
       <polygon points="42,24 52,14 52,40 42,50" class="turn-hint-face turn-hint-side" />
       <rect x="16" y="24" width="26" height="26" class="turn-hint-face" />
       {kind === 'turn' && <rect x="16" y="24" width="26" height="8" class="turn-hint-row" />}
-      {kind === 'turn' && <path d="M8 56 Q32 66 56 54" class="turn-hint-arrow" marker-end="url(#turn-hint-head)" />}
-      {kind === 'tip-top' && <path d="M30 8 Q60 6 58 34" class="turn-hint-arrow" marker-end="url(#turn-hint-head)" />}
-      {kind === 'tip-bottom' && <path d="M44 8 C70 10 73 40 61 59" class="turn-hint-arrow" marker-end="url(#turn-hint-head)" />}
+      <g transform="translate(16 24) scale(.26)">
+        <path
+          class="turn-hint-painted-arrow"
+          transform={`rotate(${arrowAngle} 50 50)`}
+          d="M40 80 V43 H21 Q18 43 20 39 L45 10 Q50 5 55 10 L80 39 Q82 43 79 43 H60 V80 Q60 83 57 83 H43 Q40 83 40 80 Z"
+        />
+      </g>
     </svg>
   )
 }

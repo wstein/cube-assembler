@@ -2109,36 +2109,11 @@ label.capture-size-label {
   opacity: 0.8;
 }
 
-.turn-hint-arrow {
-  fill: none;
-  stroke: var(--color-accent-dark);
-  stroke-width: 3;
-  stroke-linecap: round;
-}
-
-.turn-hint-head {
-  fill: var(--color-accent-dark);
-}
-
-@media (prefers-reduced-motion: no-preference) {
-  .turn-hint-turn .turn-hint-arrow {
-    animation: turn-hint-sway 1.4s ease-in-out infinite alternate;
-  }
-
-  .turn-hint-tip-top .turn-hint-arrow,
-  .turn-hint-tip-bottom .turn-hint-arrow {
-    animation: turn-hint-tip 1.4s ease-in-out infinite alternate;
-  }
-}
-
-@keyframes turn-hint-sway {
-  from { transform: translateX(-3px); }
-  to { transform: translateX(3px); }
-}
-
-@keyframes turn-hint-tip {
-  from { transform: translateY(-2px); }
-  to { transform: translateY(2px); }
+.turn-hint-painted-arrow {
+  fill: #399dea;
+  stroke: #133a60;
+  stroke-width: 2;
+  stroke-linejoin: round;
 }
 
 .capture-live-confidence {
