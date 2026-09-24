@@ -430,7 +430,7 @@ function TurnHint({ step }: { step: number }) {
   const kind = step < 4 ? 'turn' : step === 4 ? 'tip-top' : 'tip-bottom'
   const arrowAngle = kind === 'turn' ? 270 : kind === 'tip-top' ? 180 : 0
   return (
-    <svg class={`turn-hint turn-hint-${kind}`} viewBox="0 0 64 64" aria-hidden="true">
+    <svg class="turn-hint" viewBox="0 0 64 64" aria-hidden="true">
       <polygon points="16,24 42,24 52,14 26,14" class="turn-hint-face turn-hint-top" />
       <polygon points="42,24 52,14 52,40 42,50" class="turn-hint-face turn-hint-side" />
       <rect x="16" y="24" width="26" height="26" class="turn-hint-face" />
