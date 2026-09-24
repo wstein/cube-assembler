@@ -81,6 +81,11 @@ describe('live face appearance', () => {
     expect(hasPlausibleStickerFace(frame(sticker), size, size, 3)).toBe(false)
   })
 
+  it('rejects tiles with light grout, which is no dark cube body', () => {
+    const wall = frame((x, y) => x % 30 < 2 || y % 30 < 2 ? { r: 235, g: 235, b: 230 } : STICKERS[4])
+    expect(hasPlausibleStickerFace(wall, size, size, 3)).toBe(false)
+  })
+
   it('rejects a two-color checkerboard', () => {
     const board = frame((x, y) => (Math.floor(x / 30) + Math.floor(y / 30)) % 2 ? STICKERS[0] : STICKERS[2])
     expect(hasPlausibleStickerFace(board, size, size, 3)).toBe(false)
