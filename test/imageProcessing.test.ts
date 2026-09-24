@@ -18,7 +18,7 @@ import {
   learnStickerColors, rgbToOKLCH, formatOKLCHValues, hueCircularRange, hueRangesOverlap, linearRange,
   hungarianAssignment, trimmedMeanColor, STICKER_COLORS, extractBackgroundColor,
   stickerSampleRect, DEFAULT_SAMPLING, measureSharpness, classifySticker, stickerColor,
-  extractColorsFromImageData, hasPlausibleStickerFace, type RGB,
+  extractColorsFromImageData, hasPlausibleStickerFace, hasVisibleCubeFace, type RGB,
 } from '../src/client/imageProcessing'
 
 describe('live face appearance', () => {
@@ -56,6 +56,36 @@ describe('live face appearance', () => {
       ? { r: 10, g: 10, b: 10 }
       : { r: 220, g: 105, b: 30 })
     expect(hasPlausibleStickerFace(face, size, size, 3)).toBe(false)
+  })
+
+  it('recognizes a solid-color face by its outline in the uncropped camera frame', () => {
+    const cameraSize = 150
+    const cameraData = new Uint8ClampedArray(cameraSize * cameraSize * 4)
+    for (let y = 0; y < cameraSize; y++) {
+      for (let x = 0; x < cameraSize; x++) {
+        const cube = x >= 30 && x < 120 && y >= 30 && y < 120
+        const color = cube ? [220, 105, 30] : [200, 190, 175]
+        const index = (y * cameraSize + x) * 4
+        cameraData.set([...color, 255], index)
+      }
+    }
+    const canvas = {
+      width: cameraSize,
+      height: cameraSize,
+      getContext: () => ({
+        getImageData: (x: number, y: number, width: number, height: number) => {
+          const data = new Uint8ClampedArray(width * height * 4)
+          for (let row = 0; row < height; row++) {
+            const source = ((y + row) * cameraSize + x) * 4
+            data.set(cameraData.subarray(source, source + width * 4), row * width * 4)
+          }
+          return { data }
+        },
+      }),
+    } as unknown as HTMLCanvasElement
+    expect(hasVisibleCubeFace(canvas, 3)).toBe(true)
+    for (let i = 0; i < cameraData.length; i += 4) cameraData.set([200, 190, 175], i)
+    expect(hasVisibleCubeFace(canvas, 3)).toBe(false)
   })
 })
 
