@@ -1298,7 +1298,7 @@ function App() {
         // live in the review wizard (raw OKLCH ranges aren't actionable
         // mid-capture), but valuable here for offline analysis of a
         // reported detection problem against this exact fixture.
-        detectedColors: computeColorStats(capturedFaces, puzzleSize),
+        colorStats: computeColorStats(capturedFaces, puzzleSize),
       }
       const res = await fetch('/api/fixtures', {
         method: 'POST',
