@@ -23,6 +23,43 @@ export interface RGB {
 // whole cell is being read.
 export const SAMPLE_CORE_FRACTION = 0.6
 
+// Where inside the guide square the stickers are sampled - adjustable in
+// the capture dialog's sampling setup, since cubes differ in how thick
+// their outer plastic border and the gaps between stickers are.
+export interface SamplingGeometry {
+  // Border between the guide square's edge and the sticker grid, as a
+  // fraction of the square's side, on each side (0 = grid fills the square).
+  faceMargin: number
+  // Fraction of each sticker cell that's sampled, centered (the rest is
+  // the gap/dead zone around it).
+  stickerCore: number
+}
+
+export const DEFAULT_SAMPLING: SamplingGeometry = { faceMargin: 0, stickerCore: SAMPLE_CORE_FRACTION }
+
+// A sticker cell's sampled rectangle within a face of the given size -
+// shared by the detector and the UI overlay so both draw the same zones.
+export function stickerSampleRect(
+  row: number,
+  col: number,
+  gridSize: number,
+  faceWidth: number,
+  faceHeight: number,
+  sampling: SamplingGeometry = DEFAULT_SAMPLING
+): { x: number; y: number; width: number; height: number } {
+  const gridX = faceWidth * sampling.faceMargin
+  const gridY = faceHeight * sampling.faceMargin
+  const cellWidth = (faceWidth - 2 * gridX) / gridSize
+  const cellHeight = (faceHeight - 2 * gridY) / gridSize
+  const inset = (1 - sampling.stickerCore) / 2
+  return {
+    x: gridX + (col + inset) * cellWidth,
+    y: gridY + (row + inset) * cellHeight,
+    width: cellWidth * sampling.stickerCore,
+    height: cellHeight * sampling.stickerCore,
+  }
+}
+
 // Standard cube sticker colors (WCA compliant)
 export const STICKER_COLORS: Record<string, RGB> = {
   W: { r: 255, g: 255, b: 255 }, // White
@@ -973,11 +1010,9 @@ export function extractColorsFromImageData(
   faceWidth: number,
   faceHeight: number,
   gridSize = 3,
-  gains: RGB = NEUTRAL_GAINS
+  gains: RGB = NEUTRAL_GAINS,
+  sampling: SamplingGeometry = DEFAULT_SAMPLING
 ): ColorDetectionResult {
-  const cellWidth = faceWidth / gridSize
-  const cellHeight = faceHeight / gridSize
-
   const colors: string[][] = []
   const cellConfidences: number[][] = []
   const cellColors: RGB[][] = []
@@ -993,11 +1028,11 @@ export function extractColorsFromImageData(
       // plastic bezel, and slight grid misalignment are most likely to
       // contaminate the average, so those pixels are excluded rather than
       // averaged in.
-      const deadZoneMargin = (1 - SAMPLE_CORE_FRACTION) / 2
-      const cellStartX = Math.round(col * cellWidth + cellWidth * deadZoneMargin)
-      const cellStartY = Math.round(row * cellHeight + cellHeight * deadZoneMargin)
-      const cellW = Math.round(cellWidth * SAMPLE_CORE_FRACTION)
-      const cellH = Math.round(cellHeight * SAMPLE_CORE_FRACTION)
+      const rect = stickerSampleRect(row, col, gridSize, faceWidth, faceHeight, sampling)
+      const cellStartX = Math.round(rect.x)
+      const cellStartY = Math.round(rect.y)
+      const cellW = Math.round(rect.width)
+      const cellH = Math.round(rect.height)
 
       const pixels: RGB[] = []
 
@@ -1041,10 +1076,11 @@ export function extractColorsFromImageData(
 export function extractCubeFaceColors(
   canvas: HTMLCanvasElement,
   gridSize = 3,
-  gains: RGB = NEUTRAL_GAINS
+  gains: RGB = NEUTRAL_GAINS,
+  sampling: SamplingGeometry = DEFAULT_SAMPLING
 ): ColorDetectionResult {
   const { imageData, faceWidth, faceHeight } = getFaceRegion(canvas)
-  return extractColorsFromImageData(imageData.data, faceWidth, faceHeight, gridSize, gains)
+  return extractColorsFromImageData(imageData.data, faceWidth, faceHeight, gridSize, gains, sampling)
 }
 
 export interface FaceCaptureResult extends ColorDetectionResult {
@@ -1072,7 +1108,8 @@ function describeCrop(canvas: HTMLCanvasElement): Pick<FaceCaptureResult, 'frame
 export function captureAndProcessFace(
   video: HTMLVideoElement,
   gridSize = 3,
-  gains: RGB = NEUTRAL_GAINS
+  gains: RGB = NEUTRAL_GAINS,
+  sampling: SamplingGeometry = DEFAULT_SAMPLING
 ): FaceCaptureResult {
   const canvas = document.createElement('canvas')
   canvas.width = video.videoWidth
@@ -1092,7 +1129,7 @@ export function captureAndProcessFace(
   // background-derived correction is supplied for this face instead (see
   // runGlobalWhiteBalance's faceGains parameter).
   return {
-    ...extractCubeFaceColors(canvas, gridSize, gains),
+    ...extractCubeFaceColors(canvas, gridSize, gains, sampling),
     croppedImage: cropFaceRegionToDataUrl(canvas),
     backgroundColor: extractBackgroundColor(canvas),
     ...describeCrop(canvas),
@@ -1102,7 +1139,8 @@ export function captureAndProcessFace(
 export function captureAndProcessImage(
   img: HTMLImageElement,
   gridSize = 3,
-  gains: RGB = NEUTRAL_GAINS
+  gains: RGB = NEUTRAL_GAINS,
+  sampling: SamplingGeometry = DEFAULT_SAMPLING
 ): FaceCaptureResult {
   const canvas = document.createElement('canvas')
   canvas.width = img.naturalWidth
@@ -1115,7 +1153,7 @@ export function captureAndProcessImage(
 
   ctx.drawImage(img, 0, 0)
   return {
-    ...extractCubeFaceColors(canvas, gridSize, gains),
+    ...extractCubeFaceColors(canvas, gridSize, gains, sampling),
     croppedImage: cropFaceRegionToDataUrl(canvas),
     backgroundColor: extractBackgroundColor(canvas),
     ...describeCrop(canvas),
@@ -1141,7 +1179,8 @@ function loadImageFromDataUrl(dataUrl: string): Promise<HTMLImageElement> {
 export async function redetectFaceColors(
   croppedImageDataUrl: string,
   gridSize: number,
-  gains: RGB
+  gains: RGB,
+  sampling: SamplingGeometry = DEFAULT_SAMPLING
 ): Promise<ColorDetectionResult> {
   const img = await loadImageFromDataUrl(croppedImageDataUrl)
   const canvas = document.createElement('canvas')
@@ -1169,7 +1208,7 @@ export async function redetectFaceColors(
   const offsetY = (padded.height - canvas.height) / 2
   pctx.drawImage(canvas, offsetX, offsetY)
 
-  return extractCubeFaceColors(padded, gridSize, gains)
+  return extractCubeFaceColors(padded, gridSize, gains, sampling)
 }
 
 export interface LearnedColorClassificationResult {
@@ -1221,12 +1260,13 @@ export function nearestOtherColor(rgb: RGB, label: string, colors: Record<string
 export async function runGlobalWhiteBalance(
   faceCroppedImages: Record<string, string>,
   gridSize: number,
-  faceGains?: Record<string, RGB>
+  faceGains?: Record<string, RGB>,
+  sampling: SamplingGeometry = DEFAULT_SAMPLING
 ): Promise<LearnedColorClassificationResult> {
   const baselineFaces: Record<string, ColorDetectionResult> = {}
   for (const [face, dataUrl] of Object.entries(faceCroppedImages)) {
     const gains = faceGains?.[face] ? limitBackgroundGain(faceGains[face]) : NEUTRAL_GAINS
-    baselineFaces[face] = await redetectFaceColors(dataUrl, gridSize, gains)
+    baselineFaces[face] = await redetectFaceColors(dataUrl, gridSize, gains, sampling)
   }
 
   const samples: StickerSample[] = []

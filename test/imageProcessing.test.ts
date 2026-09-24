@@ -16,7 +16,8 @@
 import { describe, it, expect } from 'vitest'
 import {
   learnStickerColors, rgbToOKLCH, formatOKLCHValues, hueCircularRange, hueRangesOverlap, linearRange,
-  hungarianAssignment, trimmedMeanColor, STICKER_COLORS, extractBackgroundColor, type RGB,
+  hungarianAssignment, trimmedMeanColor, STICKER_COLORS, extractBackgroundColor,
+  extractColorsFromImageData, stickerSampleRect, DEFAULT_SAMPLING, type RGB,
 } from '../src/client/imageProcessing'
 
 // Mirrors the internal OKLab-based colorDistance (not exported): rebuilds
@@ -565,5 +566,49 @@ describe('extractBackgroundColor', () => {
 
   it('returns null when the ring reads back too dark to be a reliable reference', () => {
     expect(extractBackgroundColor(fakeCanvas(640, 480, { r: 2, g: 2, b: 2 }))).toBeNull()
+  })
+})
+
+describe('extractColorsFromImageData sampling geometry', () => {
+  // A 3x3 face drawn inside a black border of `border` (fraction of the
+  // side), with a thin black gap line between stickers - the shape a real
+  // cube's plastic frame gives the photo.
+  const size = 300
+  const layout = [['R', 'G', 'B'], ['Y', 'W', 'O'], ['B', 'R', 'G']]
+  function drawFace(border: number): Uint8ClampedArray {
+    const data = new Uint8ClampedArray(size * size * 4)
+    const inner = size * (1 - 2 * border)
+    const cell = inner / 3
+    for (let y = 0; y < size; y++) {
+      for (let x = 0; x < size; x++) {
+        const gx = x - size * border, gy = y - size * border
+        const col = Math.floor(gx / cell), row = Math.floor(gy / cell)
+        const inCell = gx >= 0 && gy >= 0 && col < 3 && row < 3
+        const inGap = inCell && (gx % cell < cell * 0.1 || gy % cell < cell * 0.1)
+        const rgb = inCell && !inGap ? STICKER_COLORS[layout[row][col]] : { r: 0, g: 0, b: 0 }
+        const i = (y * size + x) * 4
+        data[i] = rgb.r; data[i + 1] = rgb.g; data[i + 2] = rgb.b; data[i + 3] = 255
+      }
+    }
+    return data
+  }
+
+  it('defaults to sampling the centered 60% of each cell of the whole square', () => {
+    expect(stickerSampleRect(0, 0, 3, 300, 300)).toEqual({ x: 20, y: 20, width: 60, height: 60 })
+    expect(DEFAULT_SAMPLING).toEqual({ faceMargin: 0, stickerCore: 0.6 })
+  })
+
+  it('insets the sticker grid by the face margin', () => {
+    const rect = stickerSampleRect(0, 0, 3, 300, 300, { faceMargin: 0.2, stickerCore: 0.5 })
+    // grid spans 60..240, cells are 60 wide, core is the middle 30
+    expect(rect).toEqual({ x: 75, y: 75, width: 30, height: 30 })
+  })
+
+  it('reads a face with a thick border only once the margin matches it', () => {
+    const data = drawFace(0.15)
+    const withoutMargin = extractColorsFromImageData(data, size, size, 3)
+    expect(withoutMargin.colors).not.toEqual(layout)
+    const withMargin = extractColorsFromImageData(data, size, size, 3, undefined, { faceMargin: 0.15, stickerCore: 0.6 })
+    expect(withMargin.colors).toEqual(layout)
   })
 })
