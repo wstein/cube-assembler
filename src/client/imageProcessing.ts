@@ -1123,6 +1123,70 @@ export function extractColorsFromImageData(
   return { colors, confidence, cellConfidences, cellColors }
 }
 
+// The color classifier assigns a color even to a wall or a hand. Require
+// coherent sticker interiors and repeated seams before showing its live
+// color score. A uniform wall passes the first check but fails the second.
+// This is only a framing hint: captures remain possible with unusual cubes.
+export function hasPlausibleStickerFace(data: Uint8ClampedArray, width: number, height: number, gridSize: number): boolean {
+  if (gridSize < 2 || width < gridSize * 8 || height < gridSize * 8) return false
+  const cellW = width / gridSize
+  const cellH = height / gridSize
+  const luminance = (x: number, y: number) => {
+    const index = (Math.min(height - 1, Math.max(0, Math.round(y))) * width + Math.min(width - 1, Math.max(0, Math.round(x)))) * 4
+    return 0.2126 * data[index] + 0.7152 * data[index + 1] + 0.0722 * data[index + 2]
+  }
+  let coherentCells = 0
+  for (let row = 0; row < gridSize; row++) {
+    for (let col = 0; col < gridSize; col++) {
+      const samples: number[][] = []
+      for (let dy = -2; dy <= 2; dy++) {
+        for (let dx = -2; dx <= 2; dx++) {
+          const x = Math.round((col + 0.5 + dx * 0.1) * cellW)
+          const y = Math.round((row + 0.5 + dy * 0.1) * cellH)
+          const index = (Math.min(height - 1, y) * width + Math.min(width - 1, x)) * 4
+          samples.push([data[index], data[index + 1], data[index + 2]])
+        }
+      }
+      const mean = [0, 1, 2].map((channel) => samples.reduce((sum, sample) => sum + sample[channel], 0) / samples.length)
+      const deviation = samples.reduce((sum, sample) => sum + sample.reduce((diff, value, channel) => diff + Math.abs(value - mean[channel]), 0) / 3, 0) / samples.length
+      if (deviation <= 35) coherentCells++
+    }
+  }
+  if (coherentCells < Math.ceil(gridSize * gridSize * 0.6)) return false
+  const segmentHasSeam = (vertical: boolean, boundary: number, segment: number) => {
+    const across = vertical ? cellW : cellH
+    const along = vertical ? cellH : cellW
+    const edge = boundary * across
+    const center = (segment + 0.5) * along
+    let seam = 0, near = 0, far = 0
+    for (let i = -2; i <= 2; i++) {
+      const offset = i * along * 0.07
+      const at = (distance: number) => vertical
+        ? luminance(edge + distance, center + offset)
+        : luminance(center + offset, edge + distance)
+      seam += at(0)
+      near += at(-across * 0.25)
+      far += at(across * 0.25)
+    }
+    return Math.min(near, far) / 5 - seam / 5 >= 15
+  }
+  const hasRepeatedSeams = (vertical: boolean) => {
+    let found = 0
+    for (let boundary = 1; boundary < gridSize; boundary++) {
+      for (let segment = 0; segment < gridSize; segment++) {
+        if (segmentHasSeam(vertical, boundary, segment)) found++
+      }
+    }
+    return found >= Math.ceil((gridSize - 1) * gridSize * 0.6)
+  }
+  return hasRepeatedSeams(true) && hasRepeatedSeams(false)
+}
+
+export function hasVisibleCubeFace(canvas: HTMLCanvasElement, gridSize: number): boolean {
+  const { imageData, faceWidth, faceHeight } = getFaceRegion(canvas)
+  return hasPlausibleStickerFace(imageData.data, faceWidth, faceHeight, gridSize)
+}
+
 export function extractCubeFaceColors(
   canvas: HTMLCanvasElement,
   gridSize = 3,

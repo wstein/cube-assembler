@@ -17,8 +17,47 @@ import { describe, it, expect } from 'vitest'
 import {
   learnStickerColors, rgbToOKLCH, formatOKLCHValues, hueCircularRange, hueRangesOverlap, linearRange,
   hungarianAssignment, trimmedMeanColor, STICKER_COLORS, extractBackgroundColor,
-  stickerSampleRect, DEFAULT_SAMPLING, measureSharpness, classifySticker, stickerColor, type RGB,
+  stickerSampleRect, DEFAULT_SAMPLING, measureSharpness, classifySticker, stickerColor,
+  extractColorsFromImageData, hasPlausibleStickerFace, type RGB,
 } from '../src/client/imageProcessing'
+
+describe('live face appearance', () => {
+  const size = 90
+  const frame = (pixel: (x: number, y: number) => RGB) => {
+    const data = new Uint8ClampedArray(size * size * 4)
+    for (let y = 0; y < size; y++) {
+      for (let x = 0; x < size; x++) {
+        const { r, g, b } = pixel(x, y)
+        const index = (y * size + x) * 4
+        data[index] = r
+        data[index + 1] = g
+        data[index + 2] = b
+        data[index + 3] = 255
+      }
+    }
+    return data
+  }
+
+  it('rejects a uniformly colored background despite its high color confidence', () => {
+    const blank = frame(() => ({ r: 210, g: 195, b: 170 }))
+    expect(extractColorsFromImageData(blank, size, size).confidence).toBeGreaterThan(0.5)
+    expect(hasPlausibleStickerFace(blank, size, size, 3)).toBe(false)
+  })
+
+  it('accepts coherent sticker colors separated by a regular dark grid', () => {
+    const face = frame((x, y) => x % 30 < 3 || y % 30 < 3
+      ? { r: 10, g: 10, b: 10 }
+      : { r: 220, g: 105, b: 30 })
+    expect(hasPlausibleStickerFace(face, size, size, 3)).toBe(true)
+  })
+
+  it('rejects a dark grid over heavily varied sticker interiors', () => {
+    const face = frame((x, y) => x % 30 < 3 || y % 30 < 3 || (x + y) % 2 === 0
+      ? { r: 10, g: 10, b: 10 }
+      : { r: 220, g: 105, b: 30 })
+    expect(hasPlausibleStickerFace(face, size, size, 3)).toBe(false)
+  })
+})
 
 // A plain (unweighted) OKLab distance, built from the public API: rebuilds
 // Cartesian (a,b) from the exported OKLCH's polar (c,h) - c·cos(h), c·sin(h)
