@@ -469,9 +469,11 @@ textarea {
 }
 
 .modal-content {
+  /* Named so edge-to-edge parts (e.g. .capture-actions) can match it. */
+  --modal-pad: var(--spacing-2xl);
   background: var(--color-bg-primary);
   border-radius: var(--radius-lg);
-  padding: var(--spacing-2xl);
+  padding: var(--modal-pad);
   max-width: 600px;
   width: 90%;
   max-height: 90vh;
@@ -1098,6 +1100,83 @@ label.capture-size-label {
   border-radius: var(--radius-md);
   background: rgba(250, 204, 21, 0.12);
   font-size: 0.85rem;
+}
+
+/* Cube size / profile / camera options, foldable (see the capture dialog). */
+.capture-settings {
+  margin-bottom: var(--spacing-sm);
+}
+
+.capture-settings summary {
+  cursor: pointer;
+  font-size: 0.85rem;
+  font-weight: 600;
+  margin-bottom: var(--spacing-sm);
+}
+
+.capture-settings-summary {
+  font-weight: 400;
+  color: var(--color-text-secondary);
+}
+
+/* Capture button (and its message) stay at the bottom of the scrolling
+   dialog. */
+.capture-actions {
+  position: sticky;
+  bottom: calc(-1 * var(--modal-pad));
+  z-index: 2;
+  display: grid;
+  gap: var(--spacing-sm);
+  margin: 0 calc(-1 * var(--modal-pad));
+  padding: var(--spacing-sm) var(--modal-pad) var(--modal-pad);
+  background: var(--color-bg-primary);
+  border-top: 1px solid var(--color-border);
+}
+
+/* Inside the bar an empty message takes no room - the bar already sits
+   at a fixed place, so there's no layout jump to prevent. */
+.capture-actions .capture-message {
+  margin: 0;
+}
+
+.capture-actions .capture-message.is-empty {
+  display: none;
+}
+
+.capture-actions .capture-hint-text {
+  margin: 0;
+}
+
+.capture-actions > .btn-primary {
+  justify-self: start;
+}
+
+@media (max-width: 600px) {
+  .modal-content {
+    --modal-pad: var(--spacing-lg);
+    width: 94vw;
+  }
+
+  .capture-video-wrapper {
+    max-height: 38vh;
+  }
+
+  /* The review's Retake/Previous/Approve row stays in reach below the
+     stacked photo and colors. */
+  .review-wizard-nav {
+    position: sticky;
+    bottom: calc(-1 * var(--modal-pad));
+    z-index: 2;
+    flex-wrap: wrap;
+    margin: 0 calc(-1 * var(--modal-pad));
+    padding: var(--spacing-sm) var(--modal-pad) var(--modal-pad);
+    background: var(--color-bg-primary);
+    border-top: 1px solid var(--color-border);
+  }
+
+  .capture-actions > .btn-primary {
+    justify-self: stretch;
+  }
 }
 
 .capture-soft-warning {

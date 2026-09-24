@@ -2150,83 +2150,97 @@ function App() {
                 }}
               />
             </div>
-            <div class="capture-size-row">
-              <span class="capture-size-label">Cube size:</span>
-              <div class="capture-size-buttons">
-                {[2, 3, 4, 5, 6, 7].map((size) => (
-                  <button
-                    key={size}
-                    class={`wb-btn ${puzzleSize === size ? 'active' : ''}`}
-                    onClick={() => changePuzzleSize(size)}
-                  >
-                    {size}×{size}
-                  </button>
-                ))}
+            {/* Cube size, profile and camera options: folded into one summary
+                line once capturing is under way (and from the start on narrow
+                screens), so the live view and Capture button stay in reach. */}
+            <details
+              class="capture-settings"
+              open={FACE_ORDER.every((f) => !capturedFaces[f]) && !window.matchMedia('(max-width: 600px)').matches}
+            >
+              <summary>
+                Cube & camera settings
+                <span class="capture-settings-summary">
+                  {' '}{puzzleSize}×{puzzleSize} · {profile.name}{mirrorPreview ? ' · mirrored' : ''}
+                </span>
+              </summary>
+              <div class="capture-size-row">
+                <span class="capture-size-label">Cube size:</span>
+                <div class="capture-size-buttons">
+                  {[2, 3, 4, 5, 6, 7].map((size) => (
+                    <button
+                      key={size}
+                      class={`wb-btn ${puzzleSize === size ? 'active' : ''}`}
+                      onClick={() => changePuzzleSize(size)}
+                    >
+                      {size}×{size}
+                    </button>
+                  ))}
+                </div>
               </div>
-            </div>
-            <div class="capture-size-row">
-              <label class="capture-size-label" for="cube-profile">Cube:</label>
-              <select
-                id="cube-profile"
-                class="cube-profile-select"
-                value={profile.id}
-                onChange={(e) => applyProfileStore(selectProfile(profileStore, puzzleSize, e.currentTarget.value))}
-              >
-                {profilesForSize(profileStore, puzzleSize).map((p) => (
-                  <option key={p.id} value={p.id}>{p.name}</option>
-                ))}
-              </select>
-              <button
-                type="button"
-                class="btn btn-secondary btn-sm"
-                aria-expanded={newCubeForm !== null}
-                onClick={() => setNewCubeForm(newCubeForm ? null : { brand: CUBE_BRANDS[0], style: 'stickerless' })}
-              >
-                ＋ New cube
-              </button>
-            </div>
-            {newCubeForm && (
-              <div class="capture-size-row new-cube-form">
-                <label class="capture-size-label" for="new-cube-brand">Brand:</label>
+              <div class="capture-size-row">
+                <label class="capture-size-label" for="cube-profile">Cube:</label>
                 <select
-                  id="new-cube-brand"
+                  id="cube-profile"
                   class="cube-profile-select"
-                  value={newCubeForm.brand}
-                  onChange={(e) => setNewCubeForm({ ...newCubeForm, brand: e.currentTarget.value })}
+                  value={profile.id}
+                  onChange={(e) => applyProfileStore(selectProfile(profileStore, puzzleSize, e.currentTarget.value))}
                 >
-                  {CUBE_BRANDS.map((brand) => <option key={brand} value={brand}>{brand}</option>)}
+                  {profilesForSize(profileStore, puzzleSize).map((p) => (
+                    <option key={p.id} value={p.id}>{p.name}</option>
+                  ))}
                 </select>
-                <select
-                  aria-label="Style"
-                  class="cube-profile-select"
-                  value={newCubeForm.style}
-                  onChange={(e) => setNewCubeForm({ ...newCubeForm, style: e.currentTarget.value as CubeStyle })}
+                <button
+                  type="button"
+                  class="btn btn-secondary btn-sm"
+                  aria-expanded={newCubeForm !== null}
+                  onClick={() => setNewCubeForm(newCubeForm ? null : { brand: CUBE_BRANDS[0], style: 'stickerless' })}
                 >
-                  {Object.entries(CUBE_STYLES).map(([style, { label }]) => <option key={style} value={style}>{label}</option>)}
-                </select>
-                <button type="button" class="btn btn-primary btn-sm" onClick={handleCreateCube}>
-                  Add {newCubeForm.brand} {puzzleSize}×{puzzleSize}
+                  ＋ New cube
                 </button>
               </div>
-            )}
-            <div class="capture-options-row">
-              <label class="mirror-toggle">
-                <input
-                  type="checkbox"
-                  checked={mirrorPreview}
-                  onChange={(e) => setMirrorPreview(e.currentTarget.checked)}
-                />
-                Mirror
-              </label>
-              <button
-                type="button"
-                class={`btn btn-secondary btn-sm ${samplingSetupOpen ? 'active' : ''}`}
-                aria-expanded={samplingSetupOpen}
-                onClick={() => setSamplingSetupOpen((open) => !open)}
-              >
-                ⚙ Sampling setup
-              </button>
-            </div>
+              {newCubeForm && (
+                <div class="capture-size-row new-cube-form">
+                  <label class="capture-size-label" for="new-cube-brand">Brand:</label>
+                  <select
+                    id="new-cube-brand"
+                    class="cube-profile-select"
+                    value={newCubeForm.brand}
+                    onChange={(e) => setNewCubeForm({ ...newCubeForm, brand: e.currentTarget.value })}
+                  >
+                    {CUBE_BRANDS.map((brand) => <option key={brand} value={brand}>{brand}</option>)}
+                  </select>
+                  <select
+                    aria-label="Style"
+                    class="cube-profile-select"
+                    value={newCubeForm.style}
+                    onChange={(e) => setNewCubeForm({ ...newCubeForm, style: e.currentTarget.value as CubeStyle })}
+                  >
+                    {Object.entries(CUBE_STYLES).map(([style, { label }]) => <option key={style} value={style}>{label}</option>)}
+                  </select>
+                  <button type="button" class="btn btn-primary btn-sm" onClick={handleCreateCube}>
+                    Add {newCubeForm.brand} {puzzleSize}×{puzzleSize}
+                  </button>
+                </div>
+              )}
+              <div class="capture-options-row">
+                <label class="mirror-toggle">
+                  <input
+                    type="checkbox"
+                    checked={mirrorPreview}
+                    onChange={(e) => setMirrorPreview(e.currentTarget.checked)}
+                  />
+                  Mirror
+                </label>
+                <button
+                  type="button"
+                  class={`btn btn-secondary btn-sm ${samplingSetupOpen ? 'active' : ''}`}
+                  aria-expanded={samplingSetupOpen}
+                  onClick={() => setSamplingSetupOpen((open) => !open)}
+                >
+                  ⚙ Sampling setup
+                </button>
+              </div>
+            </details>
             <div class="capture-video-wrapper">
               <video
                 ref={webcamRef}
@@ -2395,50 +2409,54 @@ function App() {
                 Center → Video Effects.
               </p>
             )}
-            <p class="capture-hint-text">
-              <TurnHint step={FACE_ORDER.indexOf(webcamFace)} />
-              {stepOf(webcamFace).instruction}
-              <span class="capture-live-confidence">
-                {' Live confidence: '}
-                {liveDetection ? `${(liveDetection.confidence * 100).toFixed(0)}%` : '—'}
-              </span>
-            </p>
-            {captureWarning && (
-              <div class="capture-warning capture-soft-warning" role="status">
-                <span>⚠ {describeCenterIssue(captureWarning.issue)}</span>
-                <button
-                  type="button"
-                  class="btn btn-secondary btn-sm"
-                  onClick={() => {
-                    setWebcamFace(FACE_ORDER[captureWarning.retake])
-                    setCaptureMessage('')
-                  }}
-                >
-                  Retake {CAPTURE_STEPS[captureWarning.retake].label}
-                </button>
-                <button
-                  type="button"
-                  class="link-button"
-                  onClick={() => setDismissedCaptureWarnings((keys) => [...keys, captureWarning.key])}
-                >
-                  Ignore
-                </button>
+            {/* What to do now and the Capture button, kept at the bottom of the
+                dialog while scrolling so capturing never needs a scroll on
+                small screens. */}
+            <div class="capture-actions">
+              <p class="capture-hint-text" aria-live="polite">
+                <TurnHint step={FACE_ORDER.indexOf(webcamFace)} />
+                {stepOf(webcamFace).instruction}
+                <span class="capture-live-confidence">
+                  {' Live confidence: '}
+                  {liveDetection ? `${(liveDetection.confidence * 100).toFixed(0)}%` : '—'}
+                </span>
+              </p>
+              {captureWarning && (
+                <div class="capture-warning capture-soft-warning" role="status">
+                  <span>⚠ {describeCenterIssue(captureWarning.issue)}</span>
+                  <button
+                    type="button"
+                    class="btn btn-secondary btn-sm"
+                    onClick={() => {
+                      setWebcamFace(FACE_ORDER[captureWarning.retake])
+                      setCaptureMessage('')
+                    }}
+                  >
+                    Retake {CAPTURE_STEPS[captureWarning.retake].label}
+                  </button>
+                  <button
+                    type="button"
+                    class="link-button"
+                    onClick={() => setDismissedCaptureWarnings((keys) => [...keys, captureWarning.key])}
+                  >
+                    Ignore
+                  </button>
+                </div>
+              )}
+              <div
+                role="status"
+                class={`capture-message ${captureMessage ? (captureMessage.includes('✓') ? 'success' : captureMessage.includes('❌') ? 'error' : '') : 'is-empty'}`}
+              >
+                {captureMessage || '—'}
               </div>
-            )}
-            <div
-              role="status"
-              class={`capture-message ${captureMessage ? (captureMessage.includes('✓') ? 'success' : captureMessage.includes('❌') ? 'error' : '') : 'is-empty'}`}
-            >
-              {captureMessage || '—'}
+              <button
+                class="btn btn-primary"
+                onClick={handleCapturePhoto}
+                disabled={loading}
+              >
+                {loading ? '⏳ Processing...' : 'Capture Photo'}
+              </button>
             </div>
-            <button
-              class="btn btn-primary"
-              onClick={handleCapturePhoto}
-              disabled={loading}
-            >
-              {loading ? '⏳ Processing...' : 'Capture Photo'}
-            </button>
-
             <label>Import from image file</label>
             <input type="file" accept="image/*" onChange={handleImportImage} disabled={loading} />
           </div>
