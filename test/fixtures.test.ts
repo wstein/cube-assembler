@@ -27,7 +27,7 @@ import jpeg from 'jpeg-js'
 import { wrgFaceletsToGrids } from '../src/client/notationOutput'
 import { readFixtureColors } from '../src/client/fixtureFormat'
 import { solveGuidedCapture, orientationFreeSignature, type FaceKey } from '../src/client/cubeAssembly'
-import { DEFAULT_SAMPLING, STICKER_MEASUREMENT, extractColorsFromImageData, learnStickerColors, limitBackgroundGain, NEUTRAL_GAINS, type RGB, type SamplingGeometry, type StickerSample } from '../src/client/imageProcessing'
+import { DEFAULT_SAMPLING, STICKER_MEASUREMENT, extractColorsFromImageData, learnStickerColors, NEUTRAL_GAINS, type RGB, type SamplingGeometry, type StickerSample } from '../src/client/imageProcessing'
 
 const FIXTURES_DIR = join(__dirname, 'fixtures')
 const FACE_ORDER = ['u', 'r', 'f', 'd', 'l', 'b']
@@ -71,11 +71,9 @@ interface FixtureMeta {
     measurement?: string
     assembledURFDLB?: string | null
     whiteBalance?: { mode?: string; lightSource?: string | null }
-    // Per-face gains the app actually applied before classification (see
-    // computeBackgroundGain / runGlobalWhiteBalance) - replayed below so the
-    // test reproduces the real pipeline. Absent on fixtures saved before
-    // the app started recording them; those replay with neutral gains.
-    backgroundWhiteBalance?: Record<string, RGB>
+    // Per-face background gains older versions applied before
+    // classification. No longer replayed: the app stopped applying them.
+    backgroundWhiteBalance?: Record<string, RGB> | null
     // Sampling setup (face border, sticker gap) the capture used - see
     // SamplingGeometry. Absent on older fixtures, which used the default.
     sampling?: SamplingGeometry
@@ -149,20 +147,16 @@ describe('real-capture regression fixtures', () => {
         const photoPath = join(FIXTURES_DIR, name, faceData.photo)
         const decoded = jpeg.decode(readFileSync(photoPath), { useTArray: true })
         const pixelData = Uint8ClampedArray.from(decoded.data)
-        // Same per-face gain the app's runGlobalWhiteBalance re-detects with -
-        // using NEUTRAL_GAINS here instead made this test disagree with what
-        // the customer actually saw (a fixture the app classified perfectly
-        // failed here, purely because its strong per-face correction was
-        // skipped).
-        // Limited like runGlobalWhiteBalance does, so gains recorded under
-        // an older, looser clamp replay with today's limit.
-        const recordedGains = meta.capture?.backgroundWhiteBalance?.[faceKey.toUpperCase()]
-        const gains = recordedGains ? limitBackgroundGain(recordedGains) : NEUTRAL_GAINS
+        // Neutral, like the app: it no longer applies the per-face background
+        // gains older fixtures recorded (they swapped red and orange on real
+        // captures - see finalizeAllFacesCaptured in index.tsx).
+        const gains = NEUTRAL_GAINS
         const sampling = meta.capture?.sampling ?? DEFAULT_SAMPLING
         const result = extractColorsFromImageData(pixelData, decoded.width, decoded.height, meta.gridSize, gains, sampling)
 
-        // Readings taken with a different measurement can't be compared.
-        if (faceData.readings && meta.capture?.measurement === STICKER_MEASUREMENT) {
+        // Readings taken with a different measurement, or with the per-face
+        // background gains older versions applied, can't be compared.
+        if (faceData.readings && meta.capture?.measurement === STICKER_MEASUREMENT && !meta.capture?.backgroundWhiteBalance) {
           const drift = Math.max(...result.cellColors.flat().map((rgb, i) => {
             const [r, g, b] = faceData.readings![i]
             return Math.max(Math.abs(rgb.r - r), Math.abs(rgb.g - g), Math.abs(rgb.b - b))
