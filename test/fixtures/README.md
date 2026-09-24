@@ -24,7 +24,13 @@ in U R F D L B order with each face row-major as photographed (the app's
 WRG facelets notation), e.g.
 `"GRRYOYWYW WYWROGORB GRRYOYWYW YWYBROGWR GBGBGBOBO BGRGBOBWO"`.
 `detectedURFDLB` is the same for what detection produced before any hand
-correction.
+correction. Despite the name, the six blocks are the capture slots in the
+order the photos were taken, not the cube's U/R/F/D/L/B faces.
+
+Captures made with the guided camera flow (4 sides turning one way, then
+top and bottom) also record `capture.protocol` and `capture.assembledURFDLB`,
+the cube the customer approved; `fixtures.test.ts` then additionally puts
+the photos together with the guided search and checks it finds that cube.
 
 `capture` is informational context about how the shots were taken - camera
 label/resolution, the white balance mode and gains that were applied, the

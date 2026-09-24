@@ -212,6 +212,10 @@ const CAPTURE_STEPS: Array<{ label: string; short: string; instruction: string }
 ]
 const stepOf = (slot: string) => CAPTURE_STEPS[FACE_ORDER.indexOf(slot)]
 
+// Saved with fixtures captured this way, so they can be put together (and
+// regression-tested) with the guided search again later.
+const GUIDED_PROTOCOL = 'sides-then-top-bottom/v1'
+
 // A capture mistake read from odd-size centers (see checkGuidedCenters),
 // in words; photo indexes are capture steps.
 function describeCenterIssue(issue: GuidedCenterIssue): string {
@@ -657,6 +661,8 @@ function App() {
     note?: string
     fallback: OrientationSolution | null
   } | null>(null)
+  // capture.protocol of the last uploaded fixture (see isGuidedCapture).
+  const [uploadedProtocol, setUploadedProtocol] = useState<string | null>(null)
   // A problem with the capture shown in the review dialog.
   const [reviewNotice, setReviewNotice] = useState<string | null>(null)
   const [reviewEditingCell, setReviewEditingCell] = useState<{ face: string; row: number; col: number } | null>(null)
@@ -1262,7 +1268,12 @@ function App() {
         gridSize: number
         colorsURFDLB: string
         faces: Record<string, { photo: string }>
-        capture?: { backgroundWhiteBalance?: Record<string, RGB>; sampling?: SamplingGeometry; profile?: { id?: string; name?: string } | null }
+        capture?: {
+          backgroundWhiteBalance?: Record<string, RGB>
+          sampling?: SamplingGeometry
+          profile?: { id?: string; name?: string } | null
+          protocol?: string | null
+        }
       }
       try {
         meta = JSON.parse(await metaFile.text())
@@ -1310,6 +1321,7 @@ function App() {
 
       setCaptureMessage('Detecting colors from the fixture photos...')
       setProfileSuggestion(null)
+      setUploadedProtocol(meta.capture?.protocol ?? null)
       const recordedProfile = meta.capture?.profile
       setCaptureProfile(recordedProfile?.name ? { id: recordedProfile.id, name: recordedProfile.name } : null)
       const recordedGains = meta.capture?.backgroundWhiteBalance
@@ -1396,7 +1408,7 @@ function App() {
     const faceData: Record<string, string[][]> = {}
     for (const f of FACE_ORDER) faceData[f] = capturedFaces[f].colors
     const free = solveFaceOrientations(faceData)
-    const guided = FACE_ORDER.every((f) => capturedFaces[f]?.source === 'camera')
+    const guided = isGuidedCapture()
 
     if (guided) {
       const [s1, s2, s3, s4, cap1, cap2] = FACE_ORDER.map((f) => faceData[f])
@@ -1444,6 +1456,13 @@ function App() {
     }
     handleChooseOrientation(free.alternatives[0])
   }
+
+  // Whether the current faces followed the guided protocol: a camera
+  // capture, or an uploaded fixture that recorded it. Faces mixed with
+  // imported photos may not have, so they use the any-order search.
+  const isGuidedCapture = () =>
+    FACE_ORDER.every((f) => capturedFaces[f]?.source === 'camera')
+    || (FACE_ORDER.every((f) => capturedFaces[f]?.source === 'fixture') && uploadedProtocol === GUIDED_PROTOCOL)
 
   // "No, let me choose each side": the wizard, with every remaining
   // arrangement of the photos except the rejected ones.
@@ -1562,6 +1581,11 @@ function App() {
         // The cube profile the capture was taken with - same condition as
         // camera, since a re-saved upload wasn't shot with the current one.
         profile: FACE_ORDER.some((f) => capturedFaces[f].source === 'camera') ? captureProfile : null,
+        // How the photos were taken (see CAPTURE_STEPS) and the cube they
+        // were approved as - the fixture test puts the photos together
+        // again and checks it gets that cube.
+        protocol: isGuidedCapture() ? GUIDED_PROTOCOL : null,
+        assembledURFDLB: cube ? toWRGFacelets(cube) : null,
         // No fixed-preset/gray-world software white-balance runs at capture
         // time any more (see the "Gains" comment in imageProcessing.ts).
         // Two corrections actually run, both recorded here: the per-face

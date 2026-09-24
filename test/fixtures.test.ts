@@ -25,6 +25,7 @@ import { existsSync, readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import jpeg from 'jpeg-js'
 import { wrgFaceletsToGrids } from '../src/client/notationOutput'
+import { solveGuidedCapture, orientationFreeSignature, type FaceKey } from '../src/client/cubeAssembly'
 import { DEFAULT_SAMPLING, extractColorsFromImageData, learnStickerColors, limitBackgroundGain, NEUTRAL_GAINS, type RGB, type SamplingGeometry, type StickerSample } from '../src/client/imageProcessing'
 
 const FIXTURES_DIR = join(__dirname, 'fixtures')
@@ -58,6 +59,11 @@ interface FixtureMeta {
     camera?: { label?: string }
     // Cube profile used for the capture (see cubeProfiles.ts).
     profile?: { name?: string } | null
+    // Set when the faces were captured with the guided protocol (4 sides
+    // turning one way, then top and bottom) - capture slots u..b are then
+    // those steps in order - together with the cube the customer approved.
+    protocol?: string | null
+    assembledURFDLB?: string | null
     whiteBalance?: { mode?: string; lightSource?: string | null }
     // Per-face gains the app actually applied before classification (see
     // computeBackgroundGain / runGlobalWhiteBalance) - replayed below so the
@@ -180,6 +186,30 @@ describe('real-capture regression fixtures', () => {
       for (const faceKey of FACE_ORDER) {
         expect(finalColors[faceKey], `fixture "${name}", face ${faceKey.toUpperCase()}`).toEqual(expectedColors![faceKey.toUpperCase()])
       }
+    })
+  }
+})
+
+// Guided captures also replay how the faces fit together: the guided search
+// on the saved (human-verified) colors must find the cube the customer
+// approved - as one of its answers, since some patterns genuinely fit more
+// than one way.
+describe('guided-capture fixtures reassemble into the approved cube', () => {
+  const guided = fixtureNames
+    .map((name) => ({ name, meta: JSON.parse(readFileSync(join(FIXTURES_DIR, name, 'meta.json'), 'utf8')) as FixtureMeta }))
+    .filter(({ meta }) => meta.capture?.protocol && meta.capture.assembledURFDLB)
+  if (guided.length === 0) {
+    it.skip('no guided-capture fixtures saved yet', () => {})
+    return
+  }
+  for (const { name, meta } of guided) {
+    it(`"${name}"`, () => {
+      const slots = wrgFaceletsToGrids(meta.colorsURFDLB)!
+      const [s1, s2, s3, s4, cap1, cap2] = ['U', 'R', 'F', 'D', 'L', 'B'].map((k) => slots[k])
+      const solution = solveGuidedCapture({ sides: [s1, s2, s3, s4], caps: [cap1, cap2] })!
+      expect(solution.fullyValid, `fixture "${name}": the guided search found no valid cube`).toBe(true)
+      const approved = orientationFreeSignature(wrgFaceletsToGrids(meta.capture!.assembledURFDLB!) as Record<FaceKey, string[][]>)
+      expect(solution.alternatives.map((a) => orientationFreeSignature(a.faces))).toContain(approved)
     })
   }
 })
