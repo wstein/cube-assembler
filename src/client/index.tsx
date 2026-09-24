@@ -2713,7 +2713,7 @@ function App() {
                                 {/* Cells on bigger grids are too small for the badge next
                                     to the percentage - the amber ring alone marks them. */}
                                 {flagged && data.colors.length <= 4 && (
-                                  <span class="review-detected-cell-flag" aria-hidden="true">⚠</span>
+                                  <span class="review-detected-cell-flag" aria-hidden="true">!</span>
                                 )}
                                 {corrected && (
                                   <span

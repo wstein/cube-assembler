@@ -1457,13 +1457,37 @@ textarea {
   box-shadow: inset 0 0 0 3px var(--color-warning), inset 0 0 0 4px rgba(0, 0, 0, 0.5);
 }
 
+/* The ring breathes - thicker and brighter - so the cells to double-check
+   catch the eye; the sticker's own color is left untouched. */
+@media (prefers-reduced-motion: no-preference) {
+  .review-detected-cell-flagged {
+    animation: review-flag-pulse 1.1s ease-in-out infinite alternate;
+  }
+}
+
+@keyframes review-flag-pulse {
+  from { box-shadow: inset 0 0 0 3px var(--color-warning), inset 0 0 0 4px rgba(0, 0, 0, 0.5); }
+  to { box-shadow: inset 0 0 0 8px #f5a524, inset 0 0 0 9px rgba(0, 0, 0, 0.5); }
+}
+
+/* Warning badge, scaled with the cell like the percentage. */
 .review-detected-cell-flag {
   position: absolute;
-  top: 3px;
-  right: 4px;
-  font-size: 0.65rem;
+  top: 6%;
+  right: 6%;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: clamp(1.1rem, calc(22cqi / var(--grid-n, 3)), 2.25rem);
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: var(--color-warning);
+  box-shadow: 0 0 0 2px #fff, 0 1px 3px rgba(0, 0, 0, 0.5);
+  color: #fff;
+  font-size: clamp(0.7rem, calc(13cqi / var(--grid-n, 3)), 1.3rem);
+  font-weight: 700;
   line-height: 1;
-  text-shadow: 0 0 2px #000, 0 0 2px #000;
   pointer-events: none;
 }
 
