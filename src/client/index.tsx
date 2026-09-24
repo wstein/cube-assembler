@@ -1989,12 +1989,14 @@ function App() {
                   )}
                 </div>
               )}
-              {samplingSetupOpen && (
+              {(samplingSetupOpen || sampling.backgroundGap > 0) && (
                 // The band around the guide square that the background (white
                 // balance) sample skips - sized in percent of the wrapper,
-                // like the 60% guide square itself.
+                // like the 60% guide square itself. Always shown when set, so
+                // fingers can be kept inside it while capturing; bolder while
+                // it's being adjusted.
                 <div
-                  class="capture-background-gap"
+                  class={`capture-background-gap ${samplingSetupOpen ? 'is-setup' : ''}`}
                   style={{
                     width: `${60 * (1 + 2 * sampling.backgroundGap)}%`,
                     padding: `${60 * sampling.backgroundGap}%`,

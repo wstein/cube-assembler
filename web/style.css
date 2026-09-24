@@ -948,12 +948,18 @@ textarea {
   box-sizing: border-box;
   transform: translate(-50%, -50%);
   background: repeating-linear-gradient(
-    45deg, rgba(255, 180, 0, 0.55) 0 6px, rgba(0, 0, 0, 0.25) 6px 12px
+    45deg, rgba(255, 180, 0, 0.2) 0 6px, transparent 6px 12px
   );
   -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
   -webkit-mask-composite: xor;
   mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
   pointer-events: none;
+}
+
+.capture-background-gap.is-setup {
+  background: repeating-linear-gradient(
+    45deg, rgba(255, 180, 0, 0.55) 0 6px, rgba(0, 0, 0, 0.25) 6px 12px
+  );
 }
 
 .sampling-setup-title {
