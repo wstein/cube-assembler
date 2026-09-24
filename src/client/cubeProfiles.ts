@@ -4,13 +4,48 @@
 // profile, and a size without any profile uses a built-in generic one.
 // Pure data handling only - storage (cookie/file) lives in index.tsx.
 
-import { DEFAULT_SAMPLING, type SamplingGeometry } from './imageProcessing'
+import { DEFAULT_SAMPLING, type RGB, type SamplingGeometry } from './imageProcessing'
 
 export interface CubeProfile {
   id: string
   name: string
   size: number
   sampling: SamplingGeometry
+  // The 6 sticker colors learned from this cube's last camera capture
+  // (rounded RGB), so later captures can read its stickers right from the
+  // start - its shades rather than assumed ones. Absent until then.
+  learnedColors?: Record<string, [number, number, number]>
+  learnedAt?: string
+}
+
+const COLOR_KEYS = ['W', 'Y', 'O', 'R', 'G', 'B']
+
+function isLearnedColors(value: unknown): value is Record<string, [number, number, number]> {
+  if (!value || typeof value !== 'object') return false
+  const v = value as Record<string, unknown>
+  return COLOR_KEYS.every((k) => Array.isArray(v[k]) && (v[k] as unknown[]).length === 3
+    && (v[k] as unknown[]).every((c) => typeof c === 'number' && c >= 0 && c <= 255))
+}
+
+// A profile's learned colors as a palette for classifySticker, if any.
+export function profilePalette(profile: CubeProfile): Record<string, RGB> | undefined {
+  if (!profile.learnedColors) return undefined
+  return Object.fromEntries(Object.entries(profile.learnedColors).map(([k, [r, g, b]]) => [k, { r, g, b }]))
+}
+
+export function withLearnedColors(profile: CubeProfile, palette: Record<string, RGB>, at: Date): CubeProfile {
+  return {
+    ...profile,
+    learnedColors: Object.fromEntries(
+      COLOR_KEYS.map((k) => [k, [palette[k].r, palette[k].g, palette[k].b].map(Math.round) as [number, number, number]])
+    ),
+    learnedAt: at.toISOString(),
+  }
+}
+
+export function withoutLearnedColors(profile: CubeProfile): CubeProfile {
+  const { learnedColors: _colors, learnedAt: _at, ...rest } = profile
+  return rest
 }
 
 export interface ProfileStore {
@@ -41,7 +76,12 @@ function parseProfile(value: unknown): CubeProfile | null {
   const v = value as Partial<CubeProfile> | null
   if (typeof v?.id !== 'string' || typeof v.name !== 'string') return null
   if (!CUBE_SIZES.includes(v.size as number) || !isSamplingGeometry(v.sampling)) return null
-  return { id: v.id, name: v.name.slice(0, 60), size: v.size as number, sampling: v.sampling }
+  const profile: CubeProfile = { id: v.id, name: v.name.slice(0, 60), size: v.size as number, sampling: v.sampling }
+  if (isLearnedColors(v.learnedColors)) {
+    profile.learnedColors = v.learnedColors
+    if (typeof v.learnedAt === 'string') profile.learnedAt = v.learnedAt
+  }
+  return profile
 }
 
 // Reads a stored or uploaded store, dropping anything malformed. Also

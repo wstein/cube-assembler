@@ -8,7 +8,7 @@
 import { describe, it, expect } from 'vitest'
 import {
   parseProfileStore, activeProfile, profilesForSize, saveProfile, selectProfile, deleteProfile,
-  genericProfile, EMPTY_PROFILE_STORE, type CubeProfile,
+  genericProfile, profilePalette, withLearnedColors, withoutLearnedColors, EMPTY_PROFILE_STORE, type CubeProfile,
 } from '../src/client/cubeProfiles'
 
 const rubiks: CubeProfile = { id: 'a', name: "Rubik's 3×3", size: 3, sampling: { backgroundGap: 0.05, stickerCore: 0.6 } }
@@ -60,5 +60,27 @@ describe('parseProfileStore', () => {
   it('returns an empty store for anything else', () => {
     expect(parseProfileStore(null)).toEqual(EMPTY_PROFILE_STORE)
     expect(parseProfileStore('nope')).toEqual(EMPTY_PROFILE_STORE)
+  })
+})
+
+describe('learned colors', () => {
+  const palette = {
+    W: { r: 168.4, g: 172, b: 172 }, Y: { r: 182, g: 200, b: 38 }, O: { r: 217, g: 69, b: 38 },
+    R: { r: 164, g: 22, b: 36 }, G: { r: 4, g: 142, b: 55 }, B: { r: 0, g: 58, b: 121.6 },
+  }
+
+  it('stores them rounded and gives them back as a palette', () => {
+    const learned = withLearnedColors(rubiks, palette, new Date('2026-09-24T10:00:00Z'))
+    expect(learned.learnedColors!.W).toEqual([168, 172, 172])
+    expect(learned.learnedAt).toBe('2026-09-24T10:00:00.000Z')
+    expect(profilePalette(learned)!.B).toEqual({ r: 0, g: 58, b: 122 })
+    expect(profilePalette(withoutLearnedColors(learned))).toBeUndefined()
+  })
+
+  it('survives parsing, and incomplete color sets are dropped', () => {
+    const learned = withLearnedColors(rubiks, palette, new Date())
+    expect(parseProfileStore({ profiles: [learned], active: {} }).profiles[0]).toEqual(learned)
+    const broken = { ...learned, learnedColors: { W: [1, 2, 3] } }
+    expect(parseProfileStore({ profiles: [broken], active: {} }).profiles[0].learnedColors).toBeUndefined()
   })
 })

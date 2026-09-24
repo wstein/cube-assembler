@@ -1,5 +1,5 @@
 import { render, h, Fragment } from 'preact'
-import { useState, useEffect, useRef } from 'preact/hooks'
+import { useState, useEffect, useRef, useMemo } from 'preact/hooks'
 import '../../web/style.css'
 import {
   captureAndProcessFace, captureAndProcessImage, extractCubeFaceColors,
@@ -11,7 +11,7 @@ import {
 import { assembleCubeFromFaces, validateFaceColors, createSolvedCube, toCubeIR, solveFaceOrientations, type OrientedCandidate, type FaceKey } from './cubeAssembly'
 import {
   parseProfileStore, activeProfile, profilesForSize, saveProfile, selectProfile, deleteProfile, newProfileId,
-  type ProfileStore,
+  profilePalette, withLearnedColors, withoutLearnedColors, type ProfileStore,
 } from './cubeProfiles'
 import {
   toWRGFacelets, fromWRGFacelets, toURFFacelets, fromURFFacelets, detectNotationFormat, gridsToWRGFacelets, wrgFaceletsToGrids,
@@ -558,6 +558,9 @@ function App() {
   const [profileStore, setProfileStore] = useState<ProfileStore>(loadProfileStore)
   const profile = activeProfile(profileStore, puzzleSize)
   const sampling = profile.sampling
+  // This cube's colors from its last capture, if any - what the live
+  // preview and each face's first-pass colors are read against.
+  const palette = useMemo(() => profilePalette(profile), [profile.id, profile.learnedAt])
   const [samplingSetupOpen, setSamplingSetupOpen] = useState(false)
   // Upload Fixture option: start the review from what detection reads
   // today instead of the colors the fixture was saved with, so a capture
@@ -578,8 +581,10 @@ function App() {
   const updateSampling = (next: SamplingGeometry) => applyProfileStore(saveProfile(profileStore, { ...profile, sampling: next }))
   const handleNewProfile = () => {
     const count = profileStore.profiles.filter((p) => p.size === puzzleSize).length
+    // Starts from the current cube's sampling settings, but its colors are
+    // its own - learned from its first capture.
     applyProfileStore(saveProfile(profileStore, {
-      ...profile,
+      ...withoutLearnedColors(profile),
       id: newProfileId(),
       name: `My ${puzzleSize}×${puzzleSize} cube${count > 0 ? ` ${count + 1}` : ''}`,
     }))
@@ -698,14 +703,14 @@ function App() {
       ctx.drawImage(video, 0, 0)
 
       try {
-        setLiveDetection(extractCubeFaceColors(canvas, puzzleSize, NEUTRAL_GAINS, sampling))
+        setLiveDetection(extractCubeFaceColors(canvas, puzzleSize, NEUTRAL_GAINS, sampling, palette))
       } catch {
         // Transient frame read failure (e.g. camera still warming up) — skip this tick.
       }
     }, 200)
 
     return () => clearInterval(intervalId)
-  }, [webcamOpen, puzzleSize, sampling])
+  }, [webcamOpen, puzzleSize, sampling, palette])
 
   // ─────────────────────────────────────────────────────────────────────────
   // Features: Scramble Generation (#8)
@@ -1026,6 +1031,11 @@ function App() {
 
         const wb = await runGlobalWhiteBalance(images, puzzleSize, faceGains, sampling)
         setLearnedPalette(wb.learned?.colors ?? null)
+        // Remember this cube's colors for its next capture - only from the
+        // camera, since imported photos may be of another cube or light.
+        if (wb.learned && FACE_ORDER.every((f) => newCapturedFaces[f].source === 'camera')) {
+          applyProfileStore(saveProfile(profileStore, withLearnedColors(profile, wb.learned.colors, new Date())))
+        }
         if (wb.applied) {
           const recalibrated = { ...newCapturedFaces }
           for (const f of FACE_ORDER) {
@@ -1413,7 +1423,7 @@ function App() {
     try {
       setLoading(true)
       setCaptureMessage('Processing image...')
-      const result = captureAndProcessFace(webcamRef.current, puzzleSize, NEUTRAL_GAINS, sampling)
+      const result = captureAndProcessFace(webcamRef.current, puzzleSize, NEUTRAL_GAINS, sampling, palette)
       const track = (webcamRef.current.srcObject as MediaStream | null)?.getVideoTracks()[0]
       await applyFaceCapture(webcamFace, result, 'camera', track ? withoutDeviceIds(track.getSettings()) : undefined)
     } catch (err) {
@@ -1441,7 +1451,7 @@ function App() {
           img.onerror = () => reject(new Error('Could not load image file'))
           img.src = url
         })
-        const result = captureAndProcessImage(img, puzzleSize, NEUTRAL_GAINS, sampling)
+        const result = captureAndProcessImage(img, puzzleSize, NEUTRAL_GAINS, sampling, palette)
         await applyFaceCapture(webcamFace, result, 'image-file')
       } finally {
         URL.revokeObjectURL(url)
@@ -1967,6 +1977,22 @@ function App() {
                   />
                 </label>
                 <p class="sampling-setup-hint">
+                  {profile.learnedAt ? (
+                    <>
+                      Colors learned from this cube's capture on {new Date(profile.learnedAt).toLocaleString()}.{' '}
+                      <button
+                        type="button"
+                        class="link-button"
+                        onClick={() => applyProfileStore(saveProfile(profileStore, withoutLearnedColors(profile)))}
+                      >
+                        Forget them
+                      </button>
+                    </>
+                  ) : (
+                    "This cube's colors will be learned from its first capture."
+                  )}
+                </p>
+                <p class="sampling-setup-hint">
                   Hold a face in the square. Each small box should sit fully inside its sticker, and its outline
                   should show that sticker's color. The striped band around the square is left out when
                   balancing colors - widen it until it covers your fingers and the edge of the cube.
@@ -2391,7 +2417,7 @@ function App() {
               // so the likely alternatives stand out.
               const { face, row, col } = reviewEditingCell
               const rgb = capturedFaces[face]?.cellColors?.[row]?.[col]
-              const scores = rgb ? colorConfidences(rgb, learnedPalette ?? STICKER_COLORS) : null
+              const scores = rgb ? colorConfidences(rgb, learnedPalette ?? palette ?? STICKER_COLORS) : null
               const current = capturedFaces[face]?.colors[row]?.[col]
               return (
                 <div class="color-palette">
