@@ -95,13 +95,261 @@ h1, h2, h3 {
 
 .app-main {
   width: 100%;
-  max-width: 900px;
+  max-width: 1344px;
   margin: 0 auto;
-  padding: var(--spacing-lg);
+  padding: var(--spacing-xl) var(--spacing-2xl);
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 440px;
+  align-items: start;
+  gap: var(--spacing-lg);
+  box-sizing: border-box;
+}
+
+.main-column,
+.side-column {
   display: flex;
   flex-direction: column;
   gap: var(--spacing-lg);
+  min-width: 0;
+}
+
+@media (max-width: 1024px) {
+  .app-main {
+    grid-template-columns: minmax(0, 1fr);
+    padding: var(--spacing-lg);
+  }
+
+  /* One column: the cards line up on their own, capture first - it's
+     where getting a cube in starts. */
+  .main-column,
+  .side-column {
+    display: contents;
+  }
+
+  .capture-card {
+    order: -1;
+  }
+}
+
+@media (max-width: 600px) {
+  .app-main {
+    padding: var(--spacing-md);
+  }
+}
+
+/* A white card on the paper page - the main page's building block. */
+.card {
+  background: var(--color-bg-primary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-xl);
+  padding: var(--spacing-lg) var(--spacing-xl);
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
   box-sizing: border-box;
+}
+
+.card h2 {
+  margin: 0;
+  font-size: 1.15rem;
+  font-weight: 600;
+}
+
+.card-header {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--spacing-sm) var(--spacing-md);
+}
+
+.cube-card .card-header h2 {
+  font-size: 1.4rem;
+}
+
+.header-spacer {
+  flex-grow: 1;
+}
+
+.card-hint {
+  margin: 0;
+  font-size: 0.875rem;
+  color: var(--color-text-secondary);
+}
+
+.card-divider {
+  height: 1px;
+  background: var(--color-border);
+}
+
+.empty-state {
+  margin: 0;
+  padding: var(--spacing-xl) var(--spacing-md);
+  text-align: center;
+  color: var(--color-text-secondary);
+  background: var(--color-bg-secondary);
+  border-radius: var(--radius-lg);
+}
+
+/* Parity verdict next to "Your cube". */
+.verdict {
+  display: inline-flex;
+  align-items: center;
+  min-height: 30px;
+  padding: 0.2rem 0.75rem;
+  border-radius: 15px;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.verdict.is-valid {
+  background: var(--color-success-soft);
+  color: var(--color-success);
+}
+
+.verdict.is-invalid {
+  background: color-mix(in srgb, var(--color-danger) 12%, transparent);
+  color: var(--color-danger);
+}
+
+/* The individual parity checks, as small tiles. */
+.parity-checks {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(104px, 1fr));
+  gap: var(--spacing-sm);
+}
+
+.parity-check {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 0.6rem 0.75rem;
+  background: var(--color-bg-secondary);
+  border-radius: var(--radius-md);
+}
+
+.parity-check-name {
+  font-size: 0.75rem;
+  color: var(--color-text-secondary);
+}
+
+.parity-check-result {
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.parity-check.is-ok .parity-check-result {
+  color: var(--color-success);
+}
+
+.parity-check.is-failed .parity-check-result {
+  color: var(--color-danger);
+}
+
+/* Two-option pill switch (notation format). */
+.segmented {
+  display: inline-flex;
+  gap: 2px;
+  padding: 3px;
+  background: var(--color-bg-page);
+  border-radius: var(--radius-md);
+}
+
+.segmented button {
+  height: 32px;
+  padding: 0 0.75rem;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--color-text-secondary);
+  font-size: 0.8rem;
+  font-weight: 500;
+}
+
+.segmented button.active {
+  background: var(--color-bg-primary);
+  color: var(--color-text-primary);
+  font-weight: 600;
+  box-shadow: var(--shadow-sm);
+}
+
+.notation-output {
+  min-height: 0;
+  height: auto;
+  padding: 0.85rem 1rem;
+  background: var(--color-bg-secondary);
+  font-size: 0.95rem;
+  letter-spacing: 0.04em;
+  line-height: 1.6;
+  resize: none;
+  field-sizing: content;
+}
+
+.btn-lg {
+  height: 56px;
+  font-size: 1rem;
+  border-radius: 14px;
+}
+
+.btn-dark {
+  background: var(--color-text-primary);
+  color: var(--color-bg-primary);
+  border: 1px solid transparent;
+}
+
+.btn-dark:hover:not(:disabled) {
+  background: var(--color-accent-dark);
+  color: var(--color-on-accent);
+}
+
+.face-status-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--spacing-sm) var(--spacing-md);
+}
+
+.capture-alternatives {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--spacing-sm);
+}
+
+.capture-alternatives .btn {
+  width: 100%;
+  padding: 0 var(--spacing-sm);
+}
+
+.checkbox-option {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  margin: 0;
+  font-size: 0.85rem;
+  font-weight: 400;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+}
+
+/* Algorithm / Scramble tabs. */
+.tabs {
+  display: flex;
+  gap: var(--spacing-lg);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.tabs button {
+  height: 40px;
+  padding: 0;
+  background: transparent;
+  border-bottom: 2px solid transparent;
+  color: var(--color-text-secondary);
+  font-size: 0.95rem;
+  font-weight: 500;
+}
+
+.tabs button.active {
+  border-bottom-color: var(--color-accent);
+  color: var(--color-text-primary);
+  font-weight: 600;
 }
 
 /* ─────────────────────────────────────────────────────────────────────────────
@@ -189,8 +437,8 @@ h1, h2, h3 {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   grid-template-rows: repeat(3, auto);
-  gap: 4px;
-  max-width: 480px;
+  gap: 6px;
+  max-width: 600px;
   margin: 0 auto;
 }
 
@@ -203,15 +451,24 @@ h1, h2, h3 {
 
 .net-face-grid {
   display: grid;
-  gap: 1px;
-  background: var(--color-border);
-  border: 1px solid var(--color-border);
+  gap: 3px;
+  padding: 3px;
+  background: #1b1b1f;
+  border-radius: var(--radius-md);
   aspect-ratio: 1;
 }
 
 .net-cell {
   aspect-ratio: 1;
   position: relative;
+  border-radius: 4px;
+}
+
+/* Inside the cube card the net needs no box of its own. */
+.cube-card .net-region {
+  border: none;
+  padding: var(--spacing-sm) 0;
+  background: transparent;
 }
 
 /* A parity failure implicating specific stickers (see ParityResponse's
@@ -1526,28 +1783,101 @@ label.capture-size-label {
 .app-header {
   background: var(--color-bg-primary);
   border-bottom: 1px solid var(--color-border);
-  padding: var(--spacing-lg);
+  padding: 0.75rem 0;
   width: 100%;
   box-sizing: border-box;
 }
 
 .header-content {
-  max-width: 900px;
+  max-width: 1344px;
   margin: 0 auto;
   width: 100%;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--spacing-sm) var(--spacing-md);
+  padding: 0 var(--spacing-xl);
+  box-sizing: border-box;
+}
+
+.app-logo {
+  flex-shrink: 0;
+  color: var(--color-text-primary);
 }
 
 .header-content h1 {
-  font-size: 1.6rem;
+  font-size: 1.25rem;
   font-weight: 700;
-  margin: 0 0 var(--spacing-xs) 0;
+  margin: 0;
+  line-height: 1.2;
   color: var(--color-text-primary);
 }
 
 .header-content p {
   color: var(--color-text-secondary);
-  font-size: 0.95rem;
+  font-size: 0.8rem;
   margin: 0;
+}
+
+.header-content .size-selector {
+  padding: 4px;
+  gap: 2px;
+  background: var(--color-bg-page);
+  border-radius: 12px;
+}
+
+.header-content .size-btn {
+  min-width: 52px;
+  height: 40px;
+  border: none;
+  background: transparent;
+  color: var(--color-text-secondary);
+  font-family: var(--font-mono);
+}
+
+.header-content .size-btn.active {
+  background: var(--color-bg-primary);
+  color: var(--color-text-primary);
+  box-shadow: var(--shadow-sm);
+}
+
+.header-profile {
+  height: 44px;
+  padding: 0 0.85rem;
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  background: var(--color-bg-primary);
+  color: var(--color-text-primary);
+  font: 500 0.875rem var(--font-sans);
+}
+
+@media (max-width: 600px) {
+  .header-content {
+    padding: 0 var(--spacing-md);
+  }
+
+  .header-content .header-spacer {
+    display: none;
+  }
+
+  /* Sizes share one row; the profile picker takes the next. */
+  .header-content .size-selector {
+    flex: 1 1 100%;
+    flex-wrap: nowrap;
+  }
+
+  .header-content .size-btn {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .header-profile {
+    flex: 1 1 100%;
+  }
+
+  .card {
+    padding: var(--spacing-lg) var(--spacing-md);
+  }
 }
 
 /* ─────────────────────────────────────────────────────────────────────────────
