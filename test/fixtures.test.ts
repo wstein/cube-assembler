@@ -30,12 +30,21 @@ import { DEFAULT_SAMPLING, extractColorsFromImageData, learnStickerColors, limit
 const FIXTURES_DIR = join(__dirname, 'fixtures')
 const FACE_ORDER = ['u', 'r', 'f', 'd', 'l', 'b']
 
+// Largest per-channel difference allowed between this test's reading of a
+// sticker (jpeg-js decode) and the browser's recorded one. Photos are saved
+// at full chroma resolution (see cropFaceRegionToDataUrl), where the two
+// decoders agree to within a few levels per pixel; a bigger gap means the
+// test is no longer reproducing what the app saw.
+const MAX_READING_DRIFT = 3
+
 interface FixtureMeta {
   gridSize: number
   // Human-verified colors, all 6 faces as one WRG facelets string in
   // U R F D L B order, each face row-major as photographed.
   colorsURFDLB: string
-  faces: Record<string, { photo: string }>
+  // `readings`: what the browser measured for each sticker (row-major RGB,
+  // after the face's gain) - absent on fixtures saved before it was recorded.
+  faces: Record<string, { photo: string; readings?: number[][] }>
   // Free-text labels a human can add by hand to meta.json (e.g. "pastel",
   // "office-lighting") - combined with tags auto-derived from `capture`
   // below so a cluster of failures under one condition is visible from
@@ -136,6 +145,14 @@ describe('real-capture regression fixtures', () => {
         const gains = recordedGains ? limitBackgroundGain(recordedGains) : NEUTRAL_GAINS
         const sampling = meta.capture?.sampling ?? DEFAULT_SAMPLING
         const result = extractColorsFromImageData(pixelData, decoded.width, decoded.height, meta.gridSize, gains, sampling)
+
+        if (faceData.readings) {
+          const drift = Math.max(...result.cellColors.flat().map((rgb, i) => {
+            const [r, g, b] = faceData.readings![i]
+            return Math.max(Math.abs(rgb.r - r), Math.abs(rgb.g - g), Math.abs(rgb.b - b))
+          }))
+          expect(drift, `fixture "${name}", face ${faceKey.toUpperCase()}: sticker readings differ from the browser's by up to ${drift.toFixed(1)} levels`).toBeLessThanOrEqual(MAX_READING_DRIFT)
+        }
 
         for (let r = 0; r < meta.gridSize; r++) {
           for (let c = 0; c < meta.gridSize; c++) {
