@@ -4,7 +4,7 @@
 // profile, and a size without any profile uses a built-in generic one.
 // Pure data handling only - storage (cookie/file) lives in index.tsx.
 
-import { DEFAULT_SAMPLING, type RGB, type SamplingGeometry } from './imageProcessing'
+import { DEFAULT_SAMPLING, paletteDistance, type RGB, type SamplingGeometry } from './imageProcessing'
 
 export interface CubeProfile {
   id: string
@@ -131,4 +131,27 @@ export function deleteProfile(store: ProfileStore, id: string): ProfileStore {
   const active = { ...store.active }
   for (const [size, activeId] of Object.entries(active)) if (activeId === id) delete active[Number(size)]
   return { profiles: store.profiles.filter((p) => p.id !== id), active }
+}
+
+// Another cube's colors have to be at least this much closer than the
+// selected cube's own before it's suggested - lighting alone shifts a
+// cube's colors between captures, so a narrow lead isn't evidence.
+const SUGGEST_RATIO = 0.7
+
+// The saved cube a capture's learned colors most resemble, when that's
+// clearly not the selected one - a hint that the wrong profile is picked.
+// Only compares against cubes whose colors are known, the selected one
+// included; with nothing to compare to, no suggestion.
+export function suggestProfile(store: ProfileStore, selected: CubeProfile, learned: Record<string, RGB>): CubeProfile | null {
+  const ownPalette = profilePalette(selected)
+  if (!ownPalette) return null
+  const ownDistance = paletteDistance(learned, ownPalette)
+  let best: { profile: CubeProfile; distance: number } | null = null
+  for (const profile of store.profiles) {
+    const palette = profile.size === selected.size && profile.id !== selected.id ? profilePalette(profile) : undefined
+    if (!palette) continue
+    const distance = paletteDistance(learned, palette)
+    if (!best || distance < best.distance) best = { profile, distance }
+  }
+  return best && best.distance < ownDistance * SUGGEST_RATIO ? best.profile : null
 }

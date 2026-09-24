@@ -1299,6 +1299,15 @@ export function colorConfidences(rgb: RGB, palette: Record<string, RGB> = STICKE
   )
 }
 
+// How different two 6-color palettes are: the mean distance between their
+// same-named colors, in the clustering metric. Used to tell which saved
+// cube profile a capture's learned colors most resemble.
+export function paletteDistance(a: Record<string, RGB>, b: Record<string, RGB>): number {
+  const keys = Object.keys(a).filter((k) => b[k])
+  if (keys.length === 0) return Infinity
+  return keys.reduce((sum, k) => sum + clusterDistance(a[k], b[k]), 0) / keys.length
+}
+
 // How far along the way from its own learned color to the nearest other
 // one a sticker may sit before it's worth a second look: distance to its
 // own color divided by distance to the nearest other. 0 is dead center,

@@ -11,7 +11,7 @@ import {
 import { assembleCubeFromFaces, validateFaceColors, createSolvedCube, toCubeIR, solveFaceOrientations, type OrientedCandidate, type FaceKey } from './cubeAssembly'
 import {
   parseProfileStore, activeProfile, profilesForSize, saveProfile, selectProfile, deleteProfile, newProfileId,
-  profilePalette, withLearnedColors, withoutLearnedColors, type ProfileStore,
+  profilePalette, withLearnedColors, withoutLearnedColors, suggestProfile, type CubeProfile, type ProfileStore,
 } from './cubeProfiles'
 import {
   toWRGFacelets, fromWRGFacelets, toURFFacelets, fromURFFacelets, detectNotationFormat, gridsToWRGFacelets, wrgFaceletsToGrids,
@@ -571,6 +571,16 @@ function App() {
   // each alternative against.
   const [learnedPalette, setLearnedPalette] = useState<Record<string, RGB> | null>(null)
   const [samplingFileMessage, setSamplingFileMessage] = useState('')
+  // Set after a capture whose colors clearly match another saved cube
+  // better than the selected one: that cube, plus what's needed to move the
+  // just-learned colors over to it (and give the selected cube its old ones
+  // back) if the user switches.
+  const [profileSuggestion, setProfileSuggestion] = useState<{
+    suggested: CubeProfile
+    previous: CubeProfile
+    learned: Record<string, RGB>
+    at: Date
+  } | null>(null)
   const applyProfileStore = (updated: ProfileStore) => {
     if (!saveProfileStore(updated)) {
       setSamplingFileMessage('❌ Too many cube profiles to remember in this browser - delete one first')
@@ -1034,7 +1044,10 @@ function App() {
         // Remember this cube's colors for its next capture - only from the
         // camera, since imported photos may be of another cube or light.
         if (wb.learned && FACE_ORDER.every((f) => newCapturedFaces[f].source === 'camera')) {
-          applyProfileStore(saveProfile(profileStore, withLearnedColors(profile, wb.learned.colors, new Date())))
+          const at = new Date()
+          const suggested = suggestProfile(profileStore, profile, wb.learned.colors)
+          setProfileSuggestion(suggested ? { suggested, previous: profile, learned: wb.learned.colors, at } : null)
+          applyProfileStore(saveProfile(profileStore, withLearnedColors(profile, wb.learned.colors, at)))
         }
         if (wb.applied) {
           const recalibrated = { ...newCapturedFaces }
@@ -1142,6 +1155,7 @@ function App() {
       }
 
       setCaptureMessage('Detecting colors from the fixture photos...')
+      setProfileSuggestion(null)
       const recordedGains = meta.capture?.backgroundWhiteBalance
       const images = Object.fromEntries(Object.entries(newEntries).map(([f, d]) => [f, d.croppedImage!]))
       const wb = await runGlobalWhiteBalance(images, meta.gridSize, recordedGains, meta.capture?.sampling ?? DEFAULT_SAMPLING)
@@ -2166,6 +2180,29 @@ function App() {
               </div>
               {globalWhiteBalanceNote && (
                 <div class="global-wb-note">✓ {globalWhiteBalanceNote}</div>
+              )}
+              {profileSuggestion && (
+                <div class="profile-suggestion" role="status">
+                  <span>
+                    These colors look more like your <strong>{profileSuggestion.suggested.name}</strong> than{' '}
+                    <strong>{profileSuggestion.previous.name}</strong>.
+                  </span>
+                  <button
+                    type="button"
+                    class="btn btn-secondary btn-sm"
+                    onClick={() => {
+                      const { suggested, previous, learned, at } = profileSuggestion
+                      const restored = saveProfile(profileStore, previous)
+                      applyProfileStore(saveProfile(restored, withLearnedColors(suggested, learned, at)))
+                      setProfileSuggestion(null)
+                    }}
+                  >
+                    Switch to {profileSuggestion.suggested.name}
+                  </button>
+                  <button type="button" class="btn btn-secondary btn-sm" onClick={() => setProfileSuggestion(null)}>
+                    Keep
+                  </button>
+                </div>
               )}
               {data && (
                 <>
