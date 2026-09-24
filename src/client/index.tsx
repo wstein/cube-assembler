@@ -10,7 +10,7 @@ import {
 } from './imageProcessing'
 import {
   assembleCubeFromFaces, validateFaceColors, createSolvedCube, toCubeIR, solveFaceOrientations, solveGuidedCapture,
-  checkGuidedCenters, findRepeatedFaces, orientationFreeSignature,
+  checkGuidedCenters, findRepeatedFaces, orientationFreeSignature, predictGuidedSideCenter,
   type OrientedCandidate, type OrientationSolution, type FaceKey, type GuidedArrangement, type GuidedCenterIssue,
 } from './cubeAssembly'
 import {
@@ -381,15 +381,19 @@ function FaceGrid({ colors, undecided, current, auto }: { colors: string[][]; un
 // of the two is really the top, is only worked out once all 6 are in).
 // Each slot shows the colors detected for it, or a placeholder; tapping a
 // slot retakes it or jumps to it.
-function CaptureNet({ faces, current, size, onSelect }: {
+function CaptureNet({ faces, current, size, predictedCenter, onSelect }: {
   faces: Record<string, string[][] | undefined>
   current: string
   size: number
+  predictedCenter: string | null
   onSelect: (slot: string) => void
 }) {
   const empty = Array.from({ length: size }, () => Array<string>(size).fill(''))
   const slot = (key: string, gridArea: string) => {
     const colors = faces[key]
+    const suggested = !colors && key === current ? predictedCenter : null
+    const preview = suggested ? empty.map((row) => row.slice()) : empty
+    if (suggested) preview[Math.floor(size / 2)][Math.floor(size / 2)] = suggested
     return (
       <button
         type="button"
@@ -397,11 +401,11 @@ function CaptureNet({ faces, current, size, onSelect }: {
         class="capture-net-slot"
         style={{ gridArea }}
         data-slot={key}
-        aria-label={`${FACE_DISPLAY_LABEL[key]}: ${colors ? 'captured, tap to retake' : 'not captured yet'}`}
+        aria-label={`${FACE_DISPLAY_LABEL[key]}: ${colors ? 'captured, tap to retake' : suggested ? `suggested ${COLOR_NAME[suggested]} center, not captured yet` : 'not captured yet'}`}
         aria-current={key === current ? 'step' : undefined}
         onClick={() => onSelect(key)}
       >
-        <FaceGrid colors={colors ?? empty} undecided={!colors} current={key === current} />
+        <FaceGrid colors={colors ?? preview} undecided={!colors} current={key === current} />
         <span class="capture-net-label" aria-hidden="true">{FACE_SHORT_LABEL[key]}</span>
       </button>
     )
@@ -1560,6 +1564,11 @@ function App() {
     FACE_ORDER.every((f) => capturedFaces[f]?.source === 'camera')
     || (FACE_ORDER.every((f) => capturedFaces[f]?.source === 'fixture') && uploadedProtocol === GUIDED_PROTOCOL)
 
+  const predictedCenter = predictGuidedSideCenter(
+    FACE_ORDER.map((f) => capturedFaces[f]?.colors),
+    FACE_ORDER.indexOf(webcamFace)
+  )
+
   // A likely capture mistake visible from odd-size centers while capturing
   // (see checkGuidedCenters) - only a hint, never blocking. Live colors are
   // first-pass readings that can confuse e.g. red and orange, so it only
@@ -2327,6 +2336,12 @@ function App() {
               <p class="capture-hint-text" aria-live="polite">
                 <TurnHint step={FACE_ORDER.indexOf(webcamFace)} />
                 {stepOf(webcamFace).instruction}
+                {predictedCenter && (
+                  <span class="capture-expected-center">
+                    Suggested center: <span class="capture-expected-swatch" style={{ background: STICKER_HEX[predictedCenter] }} />
+                    <strong>{COLOR_NAME[predictedCenter]}</strong>
+                  </span>
+                )}
               </p>
               <div class="capture-progress">
                 <span class="capture-progress-label">Captured so far · tap one to retake</span>
@@ -2334,6 +2349,7 @@ function App() {
                   faces={Object.fromEntries(FACE_ORDER.map((f) => [f, capturedFaces[f]?.colors]))}
                   current={webcamFace}
                   size={puzzleSize}
+                  predictedCenter={predictedCenter}
                   onSelect={(slot) => {
                     dismissTurnOverlay()
                     setWebcamFace(slot)

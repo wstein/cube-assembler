@@ -10,7 +10,7 @@
  */
 import { describe, it, expect } from 'vitest'
 import { rotateCube, turnFace, allOrientations, solvedCubeFaces, type Faces } from '../src/client/cubeGeometry'
-import { solveGuidedCapture, checkGuidedCenters, findRepeatedFaces, type FaceKey, type GuidedCapture } from '../src/client/cubeAssembly'
+import { solveGuidedCapture, checkGuidedCenters, findRepeatedFaces, predictGuidedSideCenter, type FaceKey, type GuidedCapture } from '../src/client/cubeAssembly'
 
 const WCA: Record<FaceKey, string> = { U: 'W', R: 'R', F: 'G', D: 'Y', L: 'O', B: 'B' }
 const FACES: FaceKey[] = ['U', 'R', 'F', 'D', 'L', 'B']
@@ -133,6 +133,28 @@ describe('checkGuidedCenters', () => {
   it('stays quiet on even sizes, which have no fixed centers', () => {
     const even = photograph(scramble(4, 40, rng(12)), 'left', false, [0, 0])
     expect(checkGuidedCenters([even.sides[0], even.sides[0]])).toEqual([])
+  })
+})
+
+describe('predictGuidedSideCenter', () => {
+  for (const n of [3, 5, 7]) {
+    for (const turn of ['left', 'right'] as const) {
+      it(`previews opposite centers for ${n}x${n} sides turned ${turn}`, () => {
+        const sides = photograph(solvedCubeFaces(n, WCA), turn, false, [0, 0]).sides
+        expect(predictGuidedSideCenter([sides[0], sides[1]], 2)).toBe(sides[2][Math.floor(n / 2)][Math.floor(n / 2)])
+        expect(predictGuidedSideCenter([sides[0], sides[1]], 3)).toBe(sides[3][Math.floor(n / 2)][Math.floor(n / 2)])
+      })
+    }
+  }
+
+  it('does not guess for even sizes, invalid first steps, or an already captured side', () => {
+    const sides = photograph(solvedCubeFaces(3, WCA), 'left', false, [0, 0]).sides
+    const even = photograph(solvedCubeFaces(4, WCA), 'left', false, [0, 0]).sides
+    expect(predictGuidedSideCenter([even[0], even[1]], 2)).toBeNull()
+    expect(predictGuidedSideCenter([sides[0]], 2)).toBeNull()
+    expect(predictGuidedSideCenter([sides[0], sides[2]], 2)).toBeNull()
+    expect(predictGuidedSideCenter([sides[0], sides[1], sides[2]], 2)).toBeNull()
+    expect(predictGuidedSideCenter([sides[0], sides[1]], 4)).toBeNull()
   })
 })
 
