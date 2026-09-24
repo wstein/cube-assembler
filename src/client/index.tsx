@@ -321,10 +321,69 @@ function FaceGrid({ colors, undecided, current, auto }: { colors: string[][]; un
         <div
           key={i}
           class="orientation-net-sticker"
-          style={undecided && i !== centerIndex ? undefined : { background: STICKER_HEX[color] ?? '#888' }}
+          style={(undecided && i !== centerIndex) || !color ? undefined : { background: STICKER_HEX[color] ?? '#888' }}
         />
       ))}
     </div>
+  )
+}
+
+// Live net in the capture dialog: the 4 sides in the order taken, with Top
+// above and Bottom below Side 1 (which way the cube was turned, and which
+// of the two is really the top, is only worked out once all 6 are in).
+// Each slot shows the colors detected for it, or a placeholder; tapping a
+// slot retakes it or jumps to it.
+function CaptureNet({ faces, current, size, onSelect }: {
+  faces: Record<string, string[][] | undefined>
+  current: string
+  size: number
+  onSelect: (slot: string) => void
+}) {
+  const empty = Array.from({ length: size }, () => Array<string>(size).fill(''))
+  const slot = (key: string, gridArea: string) => {
+    const colors = faces[key]
+    return (
+      <button
+        type="button"
+        key={key}
+        class="capture-net-slot"
+        style={{ gridArea }}
+        data-slot={key}
+        aria-label={`${FACE_DISPLAY_LABEL[key]}: ${colors ? 'captured, tap to retake' : 'not captured yet'}`}
+        aria-current={key === current ? 'step' : undefined}
+        onClick={() => onSelect(key)}
+      >
+        <FaceGrid colors={colors ?? empty} undecided={!colors} current={key === current} />
+        <span class="capture-net-label" aria-hidden="true">{FACE_SHORT_LABEL[key]}</span>
+      </button>
+    )
+  }
+  const [s1, s2, s3, s4, top, bottom] = FACE_ORDER
+  return (
+    <div class="capture-net" role="group" aria-label="Captured faces">
+      {slot(top, '1 / 1')}
+      {slot(s1, '2 / 1')}
+      {slot(s2, '2 / 2')}
+      {slot(s3, '2 / 3')}
+      {slot(s4, '2 / 4')}
+      {slot(bottom, '3 / 1')}
+    </div>
+  )
+}
+
+// Moves `target` from where `from` was to where it is now (FLIP) - how a
+// just-captured face flies from the scan square into its net slot.
+// Skipped under prefers-reduced-motion.
+function flyInto(target: HTMLElement, from: DOMRect) {
+  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
+  const to = target.getBoundingClientRect()
+  if (to.width === 0) return
+  target.animate(
+    [
+      { transform: `translate(${from.left - to.left}px, ${from.top - to.top}px) scale(${from.width / to.width})`, transformOrigin: 'top left', opacity: 0.6 },
+      { transform: 'none', transformOrigin: 'top left', opacity: 1 },
+    ],
+    { duration: 500, easing: 'cubic-bezier(0.2, 0.8, 0.2, 1)' }
   )
 }
 
@@ -663,6 +722,9 @@ function App() {
   // and which controls (white balance, exposure, ...) it supports at all.
   const [cameraInfo, setCameraInfo] = useState<CameraInfo | null>(null)
   const webcamRef = useRef<HTMLVideoElement>(null)
+  // A face just captured, to fly from the scan square into its net slot
+  // once the slot has rendered it (see CaptureNet / flyInto).
+  const pendingFlyIn = useRef<{ slot: string; from: DOMRect } | null>(null)
   const sampleCanvasRef = useRef<HTMLCanvasElement | null>(null)
 
   // ─────────────────────────────────────────────────────────────────────────
@@ -697,6 +759,14 @@ function App() {
       }
     }
   }, [webcamOpen])
+
+  useEffect(() => {
+    const fly = pendingFlyIn.current
+    if (!fly || !capturedFaces[fly.slot]) return
+    pendingFlyIn.current = null
+    const target = document.querySelector<HTMLElement>(`.capture-net [data-slot="${fly.slot}"] .orientation-net-face`)
+    if (target) flyInto(target, fly.from)
+  }, [capturedFaces])
 
   // Live sticker-color preview: sample the video feed a few times a second
   // so the grid overlay shows detected colors before the user commits to a
@@ -1478,6 +1548,8 @@ function App() {
 
   const handleCapturePhoto = async () => {
     if (!webcamRef.current) return
+    const frame = document.querySelector('.capture-scan-frame')?.getBoundingClientRect()
+    if (frame) pendingFlyIn.current = { slot: webcamFace, from: frame }
 
     try {
       setLoading(true)
@@ -1928,21 +2000,15 @@ function App() {
               <span class="capture-progress-label">
                 Step {FACE_ORDER.indexOf(webcamFace) + 1} of {FACE_ORDER.length}
               </span>
-              <div class="capture-progress-dots">
-                {FACE_ORDER.map((face) => (
-                  <span
-                    key={face}
-                    class={`progress-dot ${capturedFaces[face] ? 'done' : ''} ${face === webcamFace ? 'current' : ''}`}
-                    title={`${FACE_DISPLAY_LABEL[face]}${capturedFaces[face] ? ' (captured)' : ''} — click to retake or jump here`}
-                    onClick={() => {
-                      setWebcamFace(face)
-                      setCaptureMessage('')
-                    }}
-                  >
-                    {FACE_SHORT_LABEL[face]}
-                  </span>
-                ))}
-              </div>
+              <CaptureNet
+                faces={Object.fromEntries(FACE_ORDER.map((f) => [f, capturedFaces[f]?.colors]))}
+                current={webcamFace}
+                size={puzzleSize}
+                onSelect={(slot) => {
+                  setWebcamFace(slot)
+                  setCaptureMessage('')
+                }}
+              />
             </div>
             <div class="capture-size-row">
               <span class="capture-size-label">Cube size:</span>
