@@ -656,12 +656,21 @@ textarea {
 
 .review-pane-label {
   display: flex;
+  flex-wrap: wrap;
   align-items: baseline;
-  gap: var(--spacing-xs);
+  column-gap: var(--spacing-sm);
+  min-height: 1.5rem;
   font-size: 0.8rem;
   font-weight: 600;
   color: var(--color-text-secondary);
   margin-bottom: var(--spacing-xs);
+}
+
+.review-pane-hint {
+  margin-top: var(--spacing-xs);
+  font-size: 0.75rem;
+  color: var(--color-text-secondary);
+  text-align: center;
 }
 
 /* Count of cells flagged in .review-detected-cell-flagged below - lets a
@@ -691,10 +700,11 @@ textarea {
 .review-detected-grid {
   display: grid;
   gap: 3px;
+  padding: 3px;
   aspect-ratio: 1;
   border-radius: var(--radius-sm);
-  overflow: hidden;
-  background: var(--color-border);
+  background: #1a1a1a;
+  container-type: inline-size;
 }
 
 .review-detected-cell {
@@ -702,30 +712,21 @@ textarea {
   display: flex;
   align-items: center;
   justify-content: center;
-  border: 3px solid transparent;
+  border: none;
+  border-radius: 3px;
   cursor: pointer;
-  transition: transform 0.1s, border-color 0.15s;
+  transition: transform 0.1s;
   padding: 0;
 }
 
-/* .oklch-line styles the shared 3-line (L%, C%, Hdeg) OKLCH readout used
-   by the review wizard's detected grid (see the OklchLines component) -
-   .review-detected-hue just positions that stack within its own cell. */
-.oklch-line {
-  display: block;
-  font-weight: 600;
+/* Detection confidence (0-100%), scaled with the cell so it fits on a 7x7
+   grid as well as a 2x2. */
+.review-detected-confidence {
+  font-size: clamp(0.55rem, calc(14cqi / var(--grid-n, 3)), 1rem);
+  font-weight: 700;
   color: #fff;
   text-shadow: 0 0 3px rgba(0, 0, 0, 0.9), 0 1px 2px rgba(0, 0, 0, 0.9);
   font-variant-numeric: tabular-nums;
-}
-
-.review-detected-hue {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.05rem;
-  font-size: 0.6rem;
-  line-height: 1.15;
   pointer-events: none;
 }
 
@@ -733,32 +734,18 @@ textarea {
   transform: scale(0.94);
 }
 
-.review-detected-cell.confidence-high {
-  border-color: var(--color-success);
-}
-
-.review-detected-cell.confidence-medium {
-  border-color: var(--color-warning);
-}
-
-.review-detected-cell.confidence-low {
-  border-color: var(--color-danger);
-}
-
 /* Cells worth a second look - low detection confidence OR a color whose
-   hue range overlaps another color present this capture (see
-   overlapsByColor). Border color alone (confidence-*) is easy to miss at
-   this size, so a flagged cell also gets a corner badge and a stronger
-   outline instead of relying on color alone. */
+   hue range overlaps another color present this capture. One amber ring
+   plus a corner badge, drawn inside the cell so it never collides with
+   the grid gaps or the sticker's own color. */
 .review-detected-cell-flagged {
-  border-style: dashed;
-  box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.25) inset;
+  box-shadow: inset 0 0 0 3px var(--color-warning), inset 0 0 0 4px rgba(0, 0, 0, 0.5);
 }
 
 .review-detected-cell-flag {
   position: absolute;
-  top: 1px;
-  right: 2px;
+  top: 3px;
+  right: 4px;
   font-size: 0.65rem;
   line-height: 1;
   text-shadow: 0 0 2px #000, 0 0 2px #000;
@@ -768,11 +755,10 @@ textarea {
 /* A sticker whose final color was set by hand, differing from what
    detection produced: the cell shows the human choice, and this corner
    swatch (labeled with its letter) records what was detected instead.
-   Solid purple border so it can't be mistaken for the dashed "unsure"
-   flag above - this is a known disagreement, not doubt. */
+   Purple ring, replacing the amber "unsure" ring when both apply - this
+   is a known disagreement, not doubt. */
 .review-detected-cell-corrected {
-  border-color: #8b5cf6;
-  border-style: solid;
+  box-shadow: inset 0 0 0 3px #8b5cf6, inset 0 0 0 4px rgba(0, 0, 0, 0.5);
 }
 
 .review-detected-cell-was {
