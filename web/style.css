@@ -755,7 +755,121 @@ textarea {
    (live confidence, the grid-size hint, capture messages) changes —
    those areas reserve their own space instead (see .is-empty above). */
 .capture-modal-content {
-  width: min(600px, 90vw);
+  width: min(1160px, 94vw);
+  max-width: none;
+  padding: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(360px, 1fr);
+  overflow: hidden;
+}
+
+/* Left: the live view on a dark stage. */
+.capture-live {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--spacing-lg);
+  background: #121215;
+  min-height: 0;
+}
+
+.capture-live .capture-video-wrapper {
+  width: min(100%, 600px, calc(90vh - 2 * var(--spacing-lg)));
+  max-height: none;
+  margin: 0;
+  background: #2a2b30;
+  border-radius: var(--radius-lg);
+}
+
+.capture-live-badge {
+  position: absolute;
+  left: calc(var(--spacing-lg) + 12px);
+  bottom: calc(var(--spacing-lg) + 12px);
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.12);
+  color: #ffffff;
+  font: 500 0.8rem var(--font-mono);
+}
+
+.capture-live-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #3ddc84;
+}
+
+/* Right: the current step, its instruction, the captured faces, the
+   settings and the Capture button. */
+.capture-side {
+  display: flex;
+  flex-direction: column;
+  gap: 1.1rem;
+  padding: var(--spacing-xl) var(--spacing-xl) 1.75rem;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-sizing: border-box;
+}
+
+.capture-side-header {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--spacing-sm);
+}
+
+.capture-side-title {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex-grow: 1;
+}
+
+.capture-step-kicker {
+  font: 500 0.8rem var(--font-mono);
+  text-transform: uppercase;
+  color: var(--color-text-secondary);
+}
+
+.capture-side-title h2 {
+  margin: 0;
+  font-size: 2rem;
+  font-weight: 600;
+  line-height: 1.15;
+}
+
+.capture-side > .capture-hint-text {
+  margin: 0;
+  padding: var(--spacing-md);
+  background: var(--color-bg-secondary);
+  border-radius: var(--radius-lg);
+  font-size: 1.05rem;
+  line-height: 1.45;
+}
+
+.capture-import {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+  margin-top: var(--spacing-sm);
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--color-text-secondary);
+}
+
+@media (max-width: 860px) {
+  .capture-modal-content {
+    grid-template-columns: minmax(0, 1fr);
+    overflow-y: auto;
+  }
+
+  .capture-side {
+    max-height: none;
+    overflow: visible;
+  }
 }
 
 /* ─────────────────────────────────────────────────────────────────────────────
@@ -1367,18 +1481,17 @@ label.capture-size-label {
   color: var(--color-text-secondary);
 }
 
-/* Capture button (and its message) stay at the bottom of the scrolling
-   dialog. */
+/* Capture button (and its message) at the bottom of the step panel -
+   kept in view (sticky) wherever the panel scrolls. */
 .capture-actions {
   position: sticky;
-  bottom: calc(-1 * var(--modal-pad));
+  bottom: 0;
   z-index: 2;
   display: grid;
   gap: var(--spacing-sm);
-  margin: 0 calc(-1 * var(--modal-pad));
-  padding: var(--spacing-sm) var(--modal-pad) var(--modal-pad);
+  margin-top: auto;
+  padding-top: var(--spacing-sm);
   background: var(--color-bg-primary);
-  border-top: 1px solid var(--color-border);
 }
 
 /* Inside the bar an empty message takes no room - the bar already sits
@@ -1396,7 +1509,9 @@ label.capture-size-label {
 }
 
 .capture-actions > .btn-primary {
-  justify-self: start;
+  height: 60px;
+  font-size: 1.05rem;
+  border-radius: var(--radius-lg);
 }
 
 @media (max-width: 600px) {
@@ -1422,9 +1537,6 @@ label.capture-size-label {
     border-top: 1px solid var(--color-border);
   }
 
-  .capture-actions > .btn-primary {
-    justify-self: stretch;
-  }
 }
 
 .capture-soft-warning {
@@ -1504,8 +1616,9 @@ label.capture-size-label {
 }
 
 .capture-net-slot .orientation-net-face {
-  width: 34px;
-  height: 34px;
+  width: 56px;
+  height: 56px;
+  border-radius: var(--radius-md);
 }
 
 .capture-net-slot:focus-visible {
@@ -1596,16 +1709,15 @@ label.capture-size-label {
 
 .capture-progress {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--spacing-md);
-  margin-bottom: var(--spacing-sm);
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--spacing-sm);
 }
 
 .capture-progress-label {
   font-size: 0.85rem;
+  font-weight: 600;
   color: var(--color-text-secondary);
-  white-space: nowrap;
 }
 
 .capture-progress-dots {
