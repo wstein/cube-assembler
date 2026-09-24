@@ -8,7 +8,7 @@
 import { describe, it, expect } from 'vitest'
 import {
   parseProfileStore, activeProfile, profilesForSize, saveProfile, selectProfile, deleteProfile,
-  genericProfile, profilePalette, withLearnedColors, withoutLearnedColors, EMPTY_PROFILE_STORE, type CubeProfile,
+  genericProfile, profilePalette, withLearnedColors, withoutLearnedColors, suggestProfile, EMPTY_PROFILE_STORE, type CubeProfile,
 } from '../src/client/cubeProfiles'
 
 const rubiks: CubeProfile = { id: 'a', name: "Rubik's 3×3", size: 3, sampling: { backgroundGap: 0.05, stickerCore: 0.6 } }
@@ -82,5 +82,38 @@ describe('learned colors', () => {
     expect(parseProfileStore({ profiles: [learned], active: {} }).profiles[0]).toEqual(learned)
     const broken = { ...learned, learnedColors: { W: [1, 2, 3] } }
     expect(parseProfileStore({ profiles: [broken], active: {} }).profiles[0].learnedColors).toBeUndefined()
+  })
+})
+
+describe('suggestProfile', () => {
+  const hex = (h: string) => ({ r: parseInt(h.slice(1, 3), 16), g: parseInt(h.slice(3, 5), 16), b: parseInt(h.slice(5, 7), 16) })
+  const palette = (colors: string[]) => Object.fromEntries(['W', 'Y', 'O', 'R', 'G', 'B'].map((k, i) => [k, hex(colors[i])]))
+  const rubiksColors = palette(['#FFFFFF', '#FFD500', '#FF5800', '#B71234', '#009B48', '#0046AD'])
+  const pastelColors = palette(['#FFFFFF', '#FFF3A0', '#FFB385', '#FF7A8A', '#8EE6A6', '#8AB6FF'])
+  const at = new Date()
+  const store = saveProfile(
+    saveProfile(EMPTY_PROFILE_STORE, withLearnedColors(rubiks, rubiksColors, at)),
+    withLearnedColors({ ...gocube, name: 'Pastel 3×3' }, pastelColors, at)
+  )
+  const selectedRubiks = store.profiles[0]
+  const nudge = (p: Record<string, { r: number; g: number; b: number }>) =>
+    Object.fromEntries(Object.entries(p).map(([k, c]) => [k, { r: c.r * 0.9, g: c.g * 0.9, b: c.b * 0.9 }]))
+
+  it('suggests the cube whose colors a capture clearly matches better', () => {
+    expect(suggestProfile(store, selectedRubiks, nudge(pastelColors))?.name).toBe('Pastel 3×3')
+  })
+
+  it('stays quiet when the selected cube matches best', () => {
+    expect(suggestProfile(store, selectedRubiks, nudge(rubiksColors))).toBeNull()
+  })
+
+  it('stays quiet when the selected cube has no colors to compare yet', () => {
+    expect(suggestProfile(store, withoutLearnedColors(selectedRubiks), pastelColors)).toBeNull()
+  })
+
+  it('only considers cubes of the same size', () => {
+    const other = saveProfile(store, withLearnedColors({ ...gocube, id: 'c', size: 4, name: 'Pastel 4×4' }, pastelColors, at))
+    const onlyFour = { ...other, profiles: other.profiles.filter((p) => p.id !== 'b') }
+    expect(suggestProfile(onlyFour, selectedRubiks, pastelColors)).toBeNull()
   })
 })
