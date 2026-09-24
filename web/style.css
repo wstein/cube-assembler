@@ -962,6 +962,17 @@ textarea {
   );
 }
 
+/* A text-styled button for small inline actions inside a sentence. */
+.link-button {
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--color-accent-dark);
+  font: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
 .cube-profile-select {
   min-width: 10rem;
   padding: 0.3rem 0.5rem;
