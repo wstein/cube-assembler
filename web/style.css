@@ -1752,7 +1752,9 @@ textarea {
 @media (prefers-reduced-motion: no-preference) {
   .capture-turn-side .capture-turn-cube { animation: capture-turn-side 2.4s ease-in-out forwards; }
   .capture-turn-top .capture-turn-cube { animation: capture-turn-top 2.4s ease-in-out forwards; }
-  /* Face 5 -> Side 4 takes one full turn, pauses 300 ms, then Side 4 -> Face 6. */
+  /* Face 5 -> Side 4 takes one full turn (2.4 s), pauses 300 ms, then
+     Side 4 -> Face 6 (2.4 s): 5.1 s, with the pause at 2.4/5.1 and 2.7/5.1
+     in the keyframes below. The dialog closes on animationend. */
   .capture-turn-bottom .capture-turn-cube { animation: capture-turn-bottom 5.1s ease-in-out forwards; }
 }
 
