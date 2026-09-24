@@ -910,9 +910,6 @@ textarea {
   width: 60%;
   aspect-ratio: 1;
   transform: translate(-50%, -50%);
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  grid-template-rows: repeat(3, 1fr);
   pointer-events: none;
 }
 
@@ -927,8 +924,31 @@ textarea {
    fully visible; the border color is the only per-cell signal, live
    confidence at a glance. */
 .capture-grid-cell {
+  position: absolute;
+  box-sizing: border-box;
   border: 3px solid rgba(255, 255, 255, 0.6);
   transition: border-color 0.15s;
+}
+
+/* Sampling setup: the cells fade to thin guides so the sampled zones and
+   the sticker grid's outer edge (the face border) stand out. */
+.capture-grid-overlay.is-setup .capture-grid-cell {
+  border: 1px solid rgba(255, 255, 255, 0.45);
+}
+
+.capture-grid-bounds {
+  position: absolute;
+  border: 2px dashed #fff;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.6);
+}
+
+/* One sampled zone, outlined in the color it reads as - a dark halo keeps
+   the outline visible on a sticker of the same color. */
+.capture-sample-zone {
+  position: absolute;
+  box-sizing: border-box;
+  border: 3px solid;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.8), inset 0 0 0 1px rgba(0, 0, 0, 0.8);
 }
 
 .capture-grid-cell.confidence-high {
@@ -941,6 +961,50 @@ textarea {
 
 .capture-grid-cell.confidence-low {
   border-color: var(--color-danger);
+}
+
+.sampling-setup {
+  display: grid;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-md);
+  margin-bottom: var(--spacing-md);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-secondary);
+}
+
+.sampling-slider {
+  display: grid;
+  gap: var(--spacing-xs);
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.sampling-slider span {
+  display: flex;
+  justify-content: space-between;
+}
+
+.sampling-slider output {
+  font-variant-numeric: tabular-nums;
+  color: var(--color-text-secondary);
+}
+
+.sampling-slider input[type='range'] {
+  width: 100%;
+  accent-color: var(--color-accent);
+}
+
+.sampling-setup-hint {
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--color-text-secondary);
+}
+
+.sampling-setup-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--spacing-sm);
 }
 
 .capture-progress {
