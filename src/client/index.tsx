@@ -206,8 +206,8 @@ const FACE_ORDER = ['U', 'R', 'F', 'D', 'L', 'B']
 const CAPTURE_STEPS: Array<{ label: string; short: string; instruction: string }> = [
   { label: 'Side 1', short: '1', instruction: 'Hold the cube upright and show any side.' },
   { label: 'Side 2', short: '2', instruction: 'Keep the same row on top and turn the whole cube clockwise a quarter turn. Either way works.' },
-  { label: 'Side 3', short: '3', instruction: 'Turn another quarter turn, preferably the same way. Other faces still work.' },
-  { label: 'Side 4', short: '4', instruction: 'Turn another quarter turn. Any remaining side is fine.' },
+  { label: 'Side 3', short: '3', instruction: 'Keep turning clockwise another quarter turn. Other directions still work.' },
+  { label: 'Side 4', short: '4', instruction: 'Turn clockwise one more quarter turn. Any remaining side still works.' },
   { label: 'Top', short: '5', instruction: 'Tip the cube towards you so its top faces the camera - any angle is fine.' },
   { label: 'Bottom', short: '6', instruction: 'Now show the bottom - tip it the other way. Top and bottom may be swapped.' },
 ]
@@ -424,9 +424,10 @@ function CaptureNet({ faces, current, size, predictedCenter, onSelect }: {
 }
 
 // Small drawing next to a capture step's instruction: a cube with its top
-// row highlighted (it stays on top) and a double-headed arrow for the side
-// steps (either way is fine), or an arrow tipping the top/bottom towards
-// the camera. Nothing for the first side.
+// row highlighted (it stays on top) and an arrow for the preferred
+// clockwise side turn, or an arrow tipping the top/bottom towards the
+// camera. The orientation search still accepts a different scan sequence.
+// Nothing for the first side.
 function TurnHint({ step }: { step: number }) {
   if (step === 0) return null
   const kind = step < 4 ? 'turn' : step === 4 ? 'tip-top' : 'tip-bottom'
@@ -441,7 +442,7 @@ function TurnHint({ step }: { step: number }) {
       <polygon points="42,24 52,14 52,40 42,50" class="turn-hint-face turn-hint-side" />
       <rect x="16" y="24" width="26" height="26" class="turn-hint-face" />
       {kind === 'turn' && <rect x="16" y="24" width="26" height="8" class="turn-hint-row" />}
-      {kind === 'turn' && <path d="M8 56 Q32 66 56 54" class="turn-hint-arrow" marker-start="url(#turn-hint-head)" marker-end="url(#turn-hint-head)" />}
+      {kind === 'turn' && <path d="M8 56 Q32 66 56 54" class="turn-hint-arrow" marker-end="url(#turn-hint-head)" />}
       {kind === 'tip-top' && <path d="M30 8 Q60 6 58 34" class="turn-hint-arrow" marker-end="url(#turn-hint-head)" />}
       {kind === 'tip-bottom' && <path d="M30 60 Q62 62 60 32" class="turn-hint-arrow" marker-end="url(#turn-hint-head)" />}
     </svg>
@@ -450,23 +451,48 @@ function TurnHint({ step }: { step: number }) {
 
 // A brief visual cue between successful captures. The turn shown is only an
 // example: the guided solver determines the real face orientation afterward.
-function CaptureTurnOverlay({ step, onContinue }: { step: number; onContinue: () => void }) {
+function CaptureTurnOverlay({ step, startColors, onContinue }: { step: number; startColors: string[][]; onContinue: () => void }) {
   const kind = step < 4 ? 'side' : step === 4 ? 'top' : 'bottom'
   const title = kind === 'side' ? 'Turn to another side' : kind === 'top' ? 'Show a remaining face' : 'Show the last face'
   const detail = kind === 'side'
     ? 'Clockwise is suggested; either direction works.'
     : kind === 'top' ? 'Tip the cube up or down.' : 'Tip to the opposite face.'
+  const nextFace = kind === 'side' ? 'right' : kind === 'top' ? 'up' : 'down'
+  const size = startColors.length
+  const capturedStickers = startColors.flat()
+  const face = (name: string) => (
+    <div class={`capture-turn-face capture-turn-${name}`}>
+      <div class="capture-turn-stickers" style={{ gridTemplateColumns: `repeat(${size}, minmax(0, 1fr))` }}>
+        {Array.from({ length: size * size }, (_, i) => (
+          <span
+            key={i}
+            class={`capture-turn-sticker${name === nextFace ? ' capture-turn-sticker-next' : ''}`}
+            style={name === 'front' ? { backgroundColor: STICKER_HEX[capturedStickers[i]] ?? '#888' } : undefined}
+          />
+        ))}
+      </div>
+    </div>
+  )
   return (
     <div class={`capture-turn-overlay capture-turn-${kind}`} role="status" aria-label={`${title}. ${detail}`}>
       <div class="capture-turn-scene" aria-hidden="true">
         <div class="capture-turn-cube">
-          <div class="capture-turn-face capture-turn-front" />
-          <div class="capture-turn-face capture-turn-back" />
-          <div class="capture-turn-face capture-turn-right" />
-          <div class="capture-turn-face capture-turn-left" />
-          <div class="capture-turn-face capture-turn-up" />
-          <div class="capture-turn-face capture-turn-down" />
+          {face('front')}
+          {face('back')}
+          {face('right')}
+          {face('left')}
+          {face('up')}
+          {face('down')}
         </div>
+        <svg class="capture-turn-direction" viewBox="0 0 100 100" aria-hidden="true">
+          {kind === 'side' ? (
+            <path d="M18 55 C18 30 37 17 59 20 C76 22 84 36 84 55 M71 42 L84 55 L96 42" />
+          ) : kind === 'top' ? (
+            <path d="M50 83 L50 18 M29 39 L50 18 L71 39" />
+          ) : (
+            <path d="M50 17 L50 82 M29 61 L50 82 L71 61" />
+          )}
+        </svg>
       </div>
       <div class="capture-turn-copy">
         <strong>{title}</strong>
@@ -703,7 +729,7 @@ function App() {
   const [faceConfidence, setFaceConfidence] = useState<Record<string, number>>({})
   const [loading, setLoading] = useState(false)
   const [captureMessage, setCaptureMessage] = useState('')
-  const [turnOverlayStep, setTurnOverlayStep] = useState<number | null>(null)
+  const [turnOverlay, setTurnOverlay] = useState<{ step: number; startColors: string[][] } | null>(null)
   const turnOverlayTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const [fixtureSaveMessage, setFixtureSaveMessage] = useState('')
   const [manualColorInput, setManualColorInput] = useState('')
@@ -856,7 +882,7 @@ function App() {
   const dismissTurnOverlay = () => {
     if (turnOverlayTimer.current !== null) clearTimeout(turnOverlayTimer.current)
     turnOverlayTimer.current = null
-    setTurnOverlayStep(null)
+    setTurnOverlay(null)
   }
 
   useEffect(() => {
@@ -1267,7 +1293,7 @@ function App() {
         setWebcamFace(nextFace)
         setCaptureMessage('')
         dismissTurnOverlay()
-        setTurnOverlayStep(FACE_ORDER.indexOf(nextFace))
+        setTurnOverlay({ step: FACE_ORDER.indexOf(nextFace), startColors: result.colors })
         turnOverlayTimer.current = setTimeout(dismissTurnOverlay, 2400)
       }
     }
@@ -1780,7 +1806,7 @@ function App() {
   }
 
   const handleCapturePhoto = async () => {
-    if (!webcamRef.current || turnOverlayStep !== null) return
+    if (!webcamRef.current || turnOverlay !== null) return
     const frame = document.querySelector('.capture-scan-frame')?.getBoundingClientRect()
     if (frame) pendingFlyIn.current = { slot: webcamFace, from: frame }
 
@@ -2316,8 +2342,8 @@ function App() {
                 <div class="capture-scan-frame">
                   <span class="capture-scan-label">Fit face in this square</span>
                 </div>
-                {turnOverlayStep !== null && (
-                  <CaptureTurnOverlay step={turnOverlayStep} onContinue={dismissTurnOverlay} />
+                {turnOverlay && (
+                  <CaptureTurnOverlay step={turnOverlay.step} startColors={turnOverlay.startColors} onContinue={dismissTurnOverlay} />
                 )}
               </div>
               <span class="capture-live-badge" aria-hidden="true">
@@ -2480,7 +2506,7 @@ function App() {
                 </div>
                 <label class="capture-import">
                   Or use a photo file for this step
-                  <input type="file" accept="image/*" onChange={handleImportImage} disabled={loading || turnOverlayStep !== null} />
+                  <input type="file" accept="image/*" onChange={handleImportImage} disabled={loading || turnOverlay !== null} />
                 </label>
               </details>
               {/* Below the live view, so adjusting it never pushes the video off
@@ -2588,7 +2614,7 @@ function App() {
                 <button
                   class="btn btn-primary"
                   onClick={handleCapturePhoto}
-                  disabled={loading || turnOverlayStep !== null}
+                  disabled={loading || turnOverlay !== null}
                 >
                   {loading ? '⏳ Processing...' : `Capture ${FACE_DISPLAY_LABEL[webcamFace].toLowerCase()}`}
                 </button>
