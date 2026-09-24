@@ -1935,6 +1935,72 @@ function App() {
                 ⚙ Sampling setup
               </button>
             </div>
+            <div class="capture-video-wrapper">
+              <video
+                ref={webcamRef}
+                autoplay
+                muted
+                playsinline
+                class={`webcam-feed ${mirrorPreview ? 'mirrored' : ''}`}
+              />
+              {liveDetection && (
+                // Positioned from stickerSampleRect in percent of the guide
+                // square, so the overlay shows exactly what the detector
+                // reads. During sampling setup it switches from per-sticker
+                // confidence to the sampled zones themselves, outlined in the
+                // color each one reads as.
+                <div
+                  class={`capture-grid-overlay ${mirrorPreview ? 'mirrored' : ''} ${samplingSetupOpen ? 'is-setup' : ''}`}
+                >
+                  {liveDetection.colors.map((row, r) =>
+                    row.map((color, c) => {
+                      const n = liveDetection.colors.length
+                      const cell = stickerSampleRect(r, c, n, 100, 100, { ...sampling, stickerCore: 1 })
+                      const zone = stickerSampleRect(r, c, n, 100, 100, sampling)
+                      return (
+                        <Fragment key={`${r}-${c}`}>
+                          <div
+                            class={`capture-grid-cell confidence-${confidenceTier(liveDetection.cellConfidences[r][c])}`}
+                            style={{ left: `${cell.x}%`, top: `${cell.y}%`, width: `${cell.width}%`, height: `${cell.height}%` }}
+                          />
+                          {samplingSetupOpen && (
+                            <div
+                              class="capture-sample-zone"
+                              style={{
+                                left: `${zone.x}%`, top: `${zone.y}%`, width: `${zone.width}%`, height: `${zone.height}%`,
+                                borderColor: STICKER_HEX[color] ?? '#888',
+                              }}
+                            />
+                          )}
+                        </Fragment>
+                      )
+                    })
+                  )}
+                </div>
+              )}
+              {(samplingSetupOpen || sampling.backgroundGap > 0) && (
+                // The band around the guide square that the background (white
+                // balance) sample skips - sized in percent of the wrapper,
+                // like the 60% guide square itself. Always shown when set, so
+                // fingers can be kept inside it while capturing; bolder while
+                // it's being adjusted.
+                <div
+                  class={`capture-background-gap ${samplingSetupOpen ? 'is-setup' : ''}`}
+                  style={{
+                    width: `${60 * (1 + 2 * sampling.backgroundGap)}%`,
+                    padding: `${60 * sampling.backgroundGap}%`,
+                  }}
+                />
+              )}
+              {/* Always-visible guide framing exactly what region gets
+                  analyzed, on top of the grid so its border/dimming stays
+                  visible even once per-cell colors are drawn underneath. */}
+              <div class="capture-scan-frame">
+                <span class="capture-scan-label">Fit face in this square</span>
+              </div>
+            </div>
+            {/* Below the live view, so adjusting it never pushes the video off
+                screen (Chrome pauses muted videos that aren't visible). */}
             {samplingSetupOpen && (
               <div class="sampling-setup">
                 <label class="sampling-slider">
@@ -2028,70 +2094,6 @@ function App() {
                 )}
               </div>
             )}
-            <div class="capture-video-wrapper">
-              <video
-                ref={webcamRef}
-                autoplay
-                muted
-                playsinline
-                class={`webcam-feed ${mirrorPreview ? 'mirrored' : ''}`}
-              />
-              {liveDetection && (
-                // Positioned from stickerSampleRect in percent of the guide
-                // square, so the overlay shows exactly what the detector
-                // reads. During sampling setup it switches from per-sticker
-                // confidence to the sampled zones themselves, outlined in the
-                // color each one reads as.
-                <div
-                  class={`capture-grid-overlay ${mirrorPreview ? 'mirrored' : ''} ${samplingSetupOpen ? 'is-setup' : ''}`}
-                >
-                  {liveDetection.colors.map((row, r) =>
-                    row.map((color, c) => {
-                      const n = liveDetection.colors.length
-                      const cell = stickerSampleRect(r, c, n, 100, 100, { ...sampling, stickerCore: 1 })
-                      const zone = stickerSampleRect(r, c, n, 100, 100, sampling)
-                      return (
-                        <Fragment key={`${r}-${c}`}>
-                          <div
-                            class={`capture-grid-cell confidence-${confidenceTier(liveDetection.cellConfidences[r][c])}`}
-                            style={{ left: `${cell.x}%`, top: `${cell.y}%`, width: `${cell.width}%`, height: `${cell.height}%` }}
-                          />
-                          {samplingSetupOpen && (
-                            <div
-                              class="capture-sample-zone"
-                              style={{
-                                left: `${zone.x}%`, top: `${zone.y}%`, width: `${zone.width}%`, height: `${zone.height}%`,
-                                borderColor: STICKER_HEX[color] ?? '#888',
-                              }}
-                            />
-                          )}
-                        </Fragment>
-                      )
-                    })
-                  )}
-                </div>
-              )}
-              {(samplingSetupOpen || sampling.backgroundGap > 0) && (
-                // The band around the guide square that the background (white
-                // balance) sample skips - sized in percent of the wrapper,
-                // like the 60% guide square itself. Always shown when set, so
-                // fingers can be kept inside it while capturing; bolder while
-                // it's being adjusted.
-                <div
-                  class={`capture-background-gap ${samplingSetupOpen ? 'is-setup' : ''}`}
-                  style={{
-                    width: `${60 * (1 + 2 * sampling.backgroundGap)}%`,
-                    padding: `${60 * sampling.backgroundGap}%`,
-                  }}
-                />
-              )}
-              {/* Always-visible guide framing exactly what region gets
-                  analyzed, on top of the grid so its border/dimming stays
-                  visible even once per-cell colors are drawn underneath. */}
-              <div class="capture-scan-frame">
-                <span class="capture-scan-label">Fit face in this square</span>
-              </div>
-            </div>
             {/* macOS reports its Portrait video effect as backgroundBlur, and
                 the browser can't turn it off - it blurs whatever it takes for
                 background, which can include the cube held up to the camera. */}
