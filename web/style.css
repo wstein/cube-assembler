@@ -1646,6 +1646,7 @@ textarea {
   width: calc(60% + 6px);
   aspect-ratio: 1;
   transform: translate(-50%, -50%);
+  perspective: 160cqw;
 }
 
 .capture-turn-cube {
@@ -1654,7 +1655,7 @@ textarea {
   height: 100%;
   transform-style: preserve-3d;
   --turn-depth: calc(30cqw + 3px);
-  transform: none;
+  transform: translateZ(calc(-1 * var(--turn-depth)));
 }
 
 .capture-turn-face {
@@ -1719,18 +1720,18 @@ textarea {
 }
 
 @keyframes capture-turn-side {
-  0%, 14% { transform: none; }
-  80%, 100% { transform: rotateY(-90deg); }
+  0%, 14% { transform: translateZ(calc(-1 * var(--turn-depth))); }
+  80%, 100% { transform: translateZ(calc(-1 * var(--turn-depth))) rotateY(-90deg); }
 }
 
 @keyframes capture-turn-top {
-  0%, 14% { transform: none; }
-  80%, 100% { transform: rotateX(-90deg); }
+  0%, 14% { transform: translateZ(calc(-1 * var(--turn-depth))); }
+  80%, 100% { transform: translateZ(calc(-1 * var(--turn-depth))) rotateX(-90deg); }
 }
 
 @keyframes capture-turn-bottom {
-  0%, 14% { transform: none; }
-  80%, 100% { transform: rotateX(90deg); }
+  0%, 14% { transform: translateZ(calc(-1 * var(--turn-depth))); }
+  80%, 100% { transform: translateZ(calc(-1 * var(--turn-depth))) rotateX(90deg); }
 }
 
 /* Always-on guide marking exactly which square region of the frame gets
