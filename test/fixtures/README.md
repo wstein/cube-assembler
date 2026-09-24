@@ -55,8 +55,8 @@ readable and honest instead of it turning into a flat, noisy pass/fail list
 (hand-edit `meta.json` to add either):
 
 - **`"tags": ["pastel", "office-lighting"]`** - free-text labels you add by
-  hand. Combined with tags auto-derived from `capture` (camera label, white
-  balance mode, light source), they're appended to the test's title, e.g.
+  hand. Combined with tags auto-derived from `capture` (camera label, cube
+  profile, white balance mode, light source), they're appended to the test's title, e.g.
   `"my-cube" [light:Fluorescent (green cast), pastel]`. That's enough for a
   pattern across failures (e.g. "every failure mentions Fluorescent") to be
   visible straight from `npm test` output - no separate report to run.

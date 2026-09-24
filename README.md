@@ -294,7 +294,8 @@ at capture, ...) are stored as-is on that face.
   "meta": {
     "app": { "version": "0.1.0", "commit": "460a4d1" },
     "camera": { "label": "FaceTime HD Camera", "requested": { ... }, "granted": { "width": 1920, "height": 1080, ... }, "supported": { ... } },
-    "sampling": { "faceMargin": 0, "stickerCore": 0.6 },
+    "profile": { "id": "cube-mfx2k1-8q3d", "name": "Rubik's 3×3" },
+    "sampling": { "backgroundGap": 0.05, "stickerCore": 0.6 },
     "colorCalibration": { "applied": true, "learnedColors": { "W": [214.2, 211.8, 205.1], "R": [196.3, 40.7, 45.9], ... } }
   }
 }

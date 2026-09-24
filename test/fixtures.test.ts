@@ -56,6 +56,8 @@ interface FixtureMeta {
   // to derive display tags.
   capture?: {
     camera?: { label?: string }
+    // Cube profile used for the capture (see cubeProfiles.ts).
+    profile?: { name?: string } | null
     whiteBalance?: { mode?: string; lightSource?: string | null }
     // Per-face gains the app actually applied before classification (see
     // computeBackgroundGain / runGlobalWhiteBalance) - replayed below so the
@@ -84,6 +86,7 @@ interface FixtureMeta {
 function fixtureTags(meta: FixtureMeta): string[] {
   const tags = new Set(meta.tags ?? [])
   if (meta.capture?.camera?.label) tags.add(`camera:${meta.capture.camera.label}`)
+  if (meta.capture?.profile?.name) tags.add(`cube:${meta.capture.profile.name}`)
   if (meta.capture?.whiteBalance?.mode) tags.add(`wb:${meta.capture.whiteBalance.mode}`)
   if (meta.capture?.whiteBalance?.lightSource) tags.add(`light:${meta.capture.whiteBalance.lightSource}`)
   return [...tags].sort()

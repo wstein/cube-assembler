@@ -1374,6 +1374,9 @@ function App() {
         // Only meaningful when at least one face was shot with it - not for
         // a re-saved uploaded fixture or imported image files.
         camera: FACE_ORDER.some((f) => capturedFaces[f].source === 'camera') ? cameraInfo : null,
+        // The cube profile the capture was taken with - same condition as
+        // camera, since a re-saved upload wasn't shot with the current one.
+        profile: FACE_ORDER.some((f) => capturedFaces[f].source === 'camera') ? { id: profile.id, name: profile.name } : null,
         // No fixed-preset/gray-world software white-balance runs at capture
         // time any more (see the "Gains" comment in imageProcessing.ts).
         // Two corrections actually run, both recorded here: the per-face
