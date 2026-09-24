@@ -18,8 +18,9 @@ import {
   brandProfile, CUBE_BRANDS, CUBE_STYLES, type CubeStyle,
   profilePalette, withLearnedColors, withoutLearnedColors, suggestProfile, type CubeProfile, type ProfileStore,
 } from './cubeProfiles'
+import { readFixtureColors } from './fixtureFormat'
 import {
-  toWRGFacelets, fromWRGFacelets, toURFFacelets, fromURFFacelets, detectNotationFormat, gridsToWRGFacelets, wrgFaceletsToGrids,
+  toWRGFacelets, fromWRGFacelets, toURFFacelets, fromURFFacelets, detectNotationFormat, gridsToWRGFacelets,
 } from './notationOutput'
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1294,8 +1295,8 @@ function App() {
 
       let meta: {
         gridSize: number
-        colorsURFDLB: string
-        faces: Record<string, { photo: string }>
+        colorsURFDLB?: string
+        faces: Record<string, { photo: string } & Record<string, unknown>>
         capture?: {
           backgroundWhiteBalance?: Record<string, RGB>
           sampling?: SamplingGeometry
@@ -1309,9 +1310,10 @@ function App() {
         setCaptureMessage(`❌ ${metaFile.name} is not valid JSON.`)
         return
       }
-      const colorGrids = typeof meta.colorsURFDLB === 'string' ? wrgFaceletsToGrids(meta.colorsURFDLB) : null
+      // Either fixture format (see readFixtureColors).
+      const colorGrids = readFixtureColors(meta)?.colors ?? null
       if (!meta.faces || typeof meta.gridSize !== 'number' || !colorGrids) {
-        setCaptureMessage(`❌ ${metaFile.name} doesn't look like a saved fixture (missing gridSize/colorsURFDLB/faces).`)
+        setCaptureMessage(`❌ ${metaFile.name} doesn't look like a saved fixture (missing gridSize, faces or their colors).`)
         return
       }
 
