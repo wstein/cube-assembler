@@ -571,6 +571,10 @@ function App() {
   // each alternative against.
   const [learnedPalette, setLearnedPalette] = useState<Record<string, RGB> | null>(null)
   const [samplingFileMessage, setSamplingFileMessage] = useState('')
+  // The cube profile the current capture was taken with (its settings and
+  // remembered colors drove detection) - or, for an uploaded fixture, the
+  // one it recorded. Can differ from the dropdown if that's changed later.
+  const [captureProfile, setCaptureProfile] = useState<{ id?: string; name: string } | null>(null)
   // Set after a capture whose colors clearly match another saved cube
   // better than the selected one: that cube, plus what's needed to move the
   // just-learned colors over to it (and give the selected cube its old ones
@@ -1041,6 +1045,7 @@ function App() {
 
         const wb = await runGlobalWhiteBalance(images, puzzleSize, faceGains, sampling)
         setLearnedPalette(wb.learned?.colors ?? null)
+        setCaptureProfile({ id: profile.id, name: profile.name })
         // Remember this cube's colors for its next capture - only from the
         // camera, since imported photos may be of another cube or light.
         if (wb.learned && FACE_ORDER.every((f) => newCapturedFaces[f].source === 'camera')) {
@@ -1108,7 +1113,7 @@ function App() {
         gridSize: number
         colorsURFDLB: string
         faces: Record<string, { photo: string }>
-        capture?: { backgroundWhiteBalance?: Record<string, RGB>; sampling?: SamplingGeometry }
+        capture?: { backgroundWhiteBalance?: Record<string, RGB>; sampling?: SamplingGeometry; profile?: { id?: string; name?: string } | null }
       }
       try {
         meta = JSON.parse(await metaFile.text())
@@ -1156,6 +1161,8 @@ function App() {
 
       setCaptureMessage('Detecting colors from the fixture photos...')
       setProfileSuggestion(null)
+      const recordedProfile = meta.capture?.profile
+      setCaptureProfile(recordedProfile?.name ? { id: recordedProfile.id, name: recordedProfile.name } : null)
       const recordedGains = meta.capture?.backgroundWhiteBalance
       const images = Object.fromEntries(Object.entries(newEntries).map(([f, d]) => [f, d.croppedImage!]))
       const wb = await runGlobalWhiteBalance(images, meta.gridSize, recordedGains, meta.capture?.sampling ?? DEFAULT_SAMPLING)
@@ -1376,7 +1383,7 @@ function App() {
         camera: FACE_ORDER.some((f) => capturedFaces[f].source === 'camera') ? cameraInfo : null,
         // The cube profile the capture was taken with - same condition as
         // camera, since a re-saved upload wasn't shot with the current one.
-        profile: FACE_ORDER.some((f) => capturedFaces[f].source === 'camera') ? { id: profile.id, name: profile.name } : null,
+        profile: FACE_ORDER.some((f) => capturedFaces[f].source === 'camera') ? captureProfile : null,
         // No fixed-preset/gray-world software white-balance runs at capture
         // time any more (see the "Gains" comment in imageProcessing.ts).
         // Two corrections actually run, both recorded here: the per-face
@@ -1670,6 +1677,12 @@ function App() {
               >
                 ✎ Edit Colors
               </button>
+            )}
+            {captureProfile && FACE_ORDER.every((f) => capturedFaces[f]?.croppedImage) && (
+              <span class="capture-profile-used" title="Cube profile this capture was taken with">
+                Cube: {captureProfile.name}
+                {profileSuggestion && ` · looks like ${profileSuggestion.suggested.name}`}
+              </span>
             )}
             <div class="face-status-dots">
               {FACE_ORDER.map((face) => (
@@ -2169,6 +2182,12 @@ function App() {
                 <h2>Approve Face {FACE_DISPLAY_LABEL[face]} of {FACE_ORDER.length}</h2>
                 <button class="modal-close" aria-label="Close" onClick={() => setShowReviewDialog(false)}>×</button>
               </div>
+              {captureProfile && (
+                <p class="capture-profile-used review-profile-used">
+                  Cube: <strong>{captureProfile.name}</strong>
+                  {profileSuggestion && <> · looks like <strong>{profileSuggestion.suggested.name}</strong></>}
+                </p>
+              )}
               <div class="review-progress-dots">
                 {FACE_ORDER.map((f, i) => (
                   <span
@@ -2197,6 +2216,7 @@ function App() {
                       const { suggested, previous, learned, at } = profileSuggestion
                       const restored = saveProfile(profileStore, previous)
                       applyProfileStore(saveProfile(restored, withLearnedColors(suggested, learned, at)))
+                      setCaptureProfile({ id: suggested.id, name: suggested.name })
                       setProfileSuggestion(null)
                     }}
                   >
