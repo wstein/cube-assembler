@@ -534,6 +534,10 @@ function App() {
   const [mirrorPreview, setMirrorPreview] = useState(true)
   const [sampling, setSampling] = useState<SamplingGeometry>(loadSampling)
   const [samplingSetupOpen, setSamplingSetupOpen] = useState(false)
+  // Upload Fixture option: start the review from what detection reads
+  // today instead of the colors the fixture was saved with, so a capture
+  // can be reviewed afresh without its earlier hand corrections.
+  const [ignoreFixtureCorrections, setIgnoreFixtureCorrections] = useState(false)
   const updateSampling = (next: SamplingGeometry) => {
     setSampling(next)
     saveSampling(next)
@@ -1048,6 +1052,7 @@ function App() {
         entry.cellLookalikes = det.cellLookalikes
         entry.confidence = det.confidence
         entry.colors.forEach((row, r) => row.forEach((color, c) => { if (det.colors[r][c] !== color) mismatches++ }))
+        if (ignoreFixtureCorrections) entry.colors = det.colors.map((row) => [...row])
       }
       setAppliedBackgroundGains(recordedGains ?? null)
       setGlobalWhiteBalanceNote(wb.applied
@@ -1057,9 +1062,12 @@ function App() {
       setPuzzleSize(meta.gridSize)
       setCapturedFaces(newEntries)
       setFaceConfidence(Object.fromEntries(Object.entries(newEntries).map(([f, d]) => [f, d.confidence])))
+      const stickers = `${mismatches} sticker${mismatches === 1 ? '' : 's'}`
       setCaptureMessage(mismatches === 0
         ? `✓ Loaded fixture - detection matches all stickers.`
-        : `✓ Loaded fixture - detection differs on ${mismatches} sticker${mismatches === 1 ? '' : 's'} (marked in the review).`)
+        : ignoreFixtureCorrections
+        ? `✓ Loaded fixture with detected colors only - dropped the saved choice on ${stickers}.`
+        : `✓ Loaded fixture - detection differs on ${stickers} (marked in the review).`)
       setReviewStep(0)
       setShowReviewDialog(true)
     } finally {
@@ -1498,6 +1506,17 @@ function App() {
                 disabled={loading}
                 onChange={handleUploadFixture}
               />
+            </label>
+            <label
+              class="mirror-toggle"
+              title="Review the fixture from what detection reads now, without the colors that were picked by hand when it was saved"
+            >
+              <input
+                type="checkbox"
+                checked={ignoreFixtureCorrections}
+                onChange={(e) => setIgnoreFixtureCorrections(e.currentTarget.checked)}
+              />
+              Ignore saved corrections
             </label>
             {FACE_ORDER.every((f) => f in capturedFaces) && (
               <button
