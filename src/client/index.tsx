@@ -3,7 +3,7 @@ import { useState, useEffect, useRef, useMemo } from 'preact/hooks'
 import '../../web/style.css'
 import {
   captureAndProcessFace, captureAndProcessImage, extractCubeFaceColors,
-  runGlobalWhiteBalance, computeBackgroundGain, NEUTRAL_GAINS, CROP_JPEG_QUALITY,
+  runGlobalWhiteBalance, NEUTRAL_GAINS, CROP_JPEG_QUALITY,
   DEFAULT_SAMPLING, MAX_BACKGROUND_GAP, STICKER_MEASUREMENT, stickerSampleRect, colorConfidences, STICKER_COLORS, type SamplingGeometry,
   rgbToOKLCH, hueCircularRange, hueRangesOverlap, linearRange,
   type ColorDetectionResult, type FaceCaptureResult, type RGB,
@@ -1224,21 +1224,15 @@ function App() {
         const images: Record<string, string> = {}
         for (const f of FACE_ORDER) images[f] = newCapturedFaces[f].croppedImage!
 
-        // Cross-face correction from the background around the cube (see
-        // computeBackgroundGain): face 1 is the reference, every other
-        // face's gain rescales ITS OWN background reading to match
-        // face 1's. Skipped (stays neutral) for any face whose
-        // background wasn't sampleable, rather than failing the whole
-        // capture over one bad reading.
-        const referenceBackground = newCapturedFaces[FACE_ORDER[0]].backgroundColor
-        const faceGains: Record<string, RGB> = {}
-        for (const f of FACE_ORDER) {
-          const bg = newCapturedFaces[f].backgroundColor
-          faceGains[f] = referenceBackground && bg ? computeBackgroundGain(referenceBackground, bg) : NEUTRAL_GAINS
-        }
-        setAppliedBackgroundGains(faceGains)
+        // No per-face correction from the background around the cube any
+        // more: rescaling each face to match face 1's background swapped
+        // red and orange on real captures (12 stickers on a 4x4 whose
+        // photos read perfectly without it, 2 on a 2x2), and every real
+        // fixture reads as well or better without it. The background is
+        // still recorded per face (FaceCaptureData.backgroundColor).
+        setAppliedBackgroundGains(null)
 
-        const wb = await runGlobalWhiteBalance(images, puzzleSize, faceGains, sampling)
+        const wb = await runGlobalWhiteBalance(images, puzzleSize, undefined, sampling)
         setLearnedPalette(wb.learned?.colors ?? null)
         setCaptureProfile({ id: profile.id, name: profile.name })
         // Remember this cube's colors for its next capture - only from the
@@ -1365,9 +1359,9 @@ function App() {
       setUploadedProtocol(meta.capture?.protocol ?? null)
       const recordedProfile = meta.capture?.profile
       setCaptureProfile(recordedProfile?.name ? { id: recordedProfile.id, name: recordedProfile.name } : null)
-      const recordedGains = meta.capture?.backgroundWhiteBalance
       const images = Object.fromEntries(Object.entries(newEntries).map(([f, d]) => [f, d.croppedImage!]))
-      const wb = await runGlobalWhiteBalance(images, meta.gridSize, recordedGains, meta.capture?.sampling ?? DEFAULT_SAMPLING)
+      // Recorded gains aren't replayed - see finalizeAllFacesCaptured.
+      const wb = await runGlobalWhiteBalance(images, meta.gridSize, undefined, meta.capture?.sampling ?? DEFAULT_SAMPLING)
       let mismatches = 0
       for (const [f, entry] of Object.entries(newEntries)) {
         const det = wb.faces[f]
@@ -1379,7 +1373,7 @@ function App() {
         entry.colors.forEach((row, r) => row.forEach((color, c) => { if (det.colors[r][c] !== color) mismatches++ }))
         if (ignoreFixtureCorrections) entry.colors = det.colors.map((row) => [...row])
       }
-      setAppliedBackgroundGains(recordedGains ?? null)
+      setAppliedBackgroundGains(null)
       setGlobalWhiteBalanceNote(wb.applied
         ? CALIBRATION_NOTE
         : null)
@@ -1659,14 +1653,12 @@ function App() {
         measurement: STICKER_MEASUREMENT,
         assembledURFDLB: cube ? toWRGFacelets(cube) : null,
         // No fixed-preset/gray-world software white-balance runs at capture
-        // time any more (see the "Gains" comment in imageProcessing.ts).
-        // Two corrections actually run, both recorded here: the per-face
-        // background-derived gain (backgroundWhiteBalance - see
-        // computeBackgroundGain, "G1") applied BEFORE reclassification,
-        // and the post-capture target-shift recalibration
-        // (colorCalibration - learnStickerColors) applied AFTER, which
-        // shifts each of the 6 reference colors to match what this
-        // capture's own (already background-corrected) stickers measured.
+        // time any more (see the "Gains" comment in imageProcessing.ts), and
+        // no per-face background gain either (backgroundWhiteBalance stays
+        // null - see finalizeAllFacesCaptured; each face's background is
+        // still recorded per face). What runs is the post-capture
+        // recalibration (colorCalibration - learnStickerColors), which
+        // learns the 6 colors from this capture's own stickers.
         backgroundWhiteBalance: appliedBackgroundGains,
         // Face border and sticker gap used to sample every face (see
         // SamplingGeometry) - replayed by the fixture test.
