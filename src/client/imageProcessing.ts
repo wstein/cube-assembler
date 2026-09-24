@@ -1123,18 +1123,12 @@ export function extractColorsFromImageData(
   return { colors, confidence, cellConfidences, cellColors }
 }
 
-// The color classifier assigns a color even to a wall or a hand. Require
-// coherent sticker interiors and repeated seams before showing its live
-// color score. A uniform wall passes the first check but fails the second.
-// This is only a framing hint: captures remain possible with unusual cubes.
-export function hasPlausibleStickerFace(data: Uint8ClampedArray, width: number, height: number, gridSize: number): boolean {
+// A cropped face can be one solid color, so seams are optional when the
+// uncropped camera frame shows the cube's outer silhouette instead.
+export function hasCoherentStickerInteriors(data: Uint8ClampedArray, width: number, height: number, gridSize: number): boolean {
   if (gridSize < 2 || width < gridSize * 8 || height < gridSize * 8) return false
   const cellW = width / gridSize
   const cellH = height / gridSize
-  const luminance = (x: number, y: number) => {
-    const index = (Math.min(height - 1, Math.max(0, Math.round(y))) * width + Math.min(width - 1, Math.max(0, Math.round(x)))) * 4
-    return 0.2126 * data[index] + 0.7152 * data[index + 1] + 0.0722 * data[index + 2]
-  }
   let coherentCells = 0
   for (let row = 0; row < gridSize; row++) {
     for (let col = 0; col < gridSize; col++) {
@@ -1152,23 +1146,46 @@ export function hasPlausibleStickerFace(data: Uint8ClampedArray, width: number, 
       if (deviation <= 35) coherentCells++
     }
   }
-  if (coherentCells < Math.ceil(gridSize * gridSize * 0.6)) return false
+  return coherentCells >= Math.ceil(gridSize * gridSize * 0.6)
+}
+
+// The classifier assigns a color even to a wall. Look for repeated sticker
+// seams, allowing for small perspective/framing offsets around each expected
+// boundary. A plain wall can have coherent pixels but cannot supply seams.
+export function hasPlausibleStickerFace(data: Uint8ClampedArray, width: number, height: number, gridSize: number): boolean {
+  if (!hasCoherentStickerInteriors(data, width, height, gridSize)) return false
+  const cellW = width / gridSize
+  const cellH = height / gridSize
+  const luminance = (x: number, y: number) => {
+    const index = (Math.min(height - 1, Math.max(0, Math.round(y))) * width + Math.min(width - 1, Math.max(0, Math.round(x)))) * 4
+    return 0.2126 * data[index] + 0.7152 * data[index + 1] + 0.0722 * data[index + 2]
+  }
   const segmentHasSeam = (vertical: boolean, boundary: number, segment: number) => {
     const across = vertical ? cellW : cellH
     const along = vertical ? cellH : cellW
     const edge = boundary * across
     const center = (segment + 0.5) * along
-    let seam = 0, near = 0, far = 0
+    let near = 0, far = 0
     for (let i = -2; i <= 2; i++) {
       const offset = i * along * 0.07
       const at = (distance: number) => vertical
         ? luminance(edge + distance, center + offset)
         : luminance(center + offset, edge + distance)
-      seam += at(0)
-      near += at(-across * 0.25)
-      far += at(across * 0.25)
+      near += at(-across * 0.38)
+      far += at(across * 0.38)
     }
-    return Math.min(near, far) / 5 - seam / 5 >= 15
+    let darkest = Infinity
+    for (let shift = -4; shift <= 4; shift++) {
+      let seam = 0
+      for (let i = -2; i <= 2; i++) {
+        const offset = i * along * 0.07
+        seam += vertical
+          ? luminance(edge + shift * across * 0.04, center + offset)
+          : luminance(center + offset, edge + shift * across * 0.04)
+      }
+      darkest = Math.min(darkest, seam / 5)
+    }
+    return Math.min(near, far) / 5 - darkest >= 12
   }
   const hasRepeatedSeams = (vertical: boolean) => {
     let found = 0
@@ -1177,14 +1194,82 @@ export function hasPlausibleStickerFace(data: Uint8ClampedArray, width: number, 
         if (segmentHasSeam(vertical, boundary, segment)) found++
       }
     }
-    return found >= Math.ceil((gridSize - 1) * gridSize * 0.6)
+    return found >= Math.ceil((gridSize - 1) * gridSize * 0.5)
   }
-  return hasRepeatedSeams(true) && hasRepeatedSeams(false)
+  if (hasRepeatedSeams(true) && hasRepeatedSeams(false)) return true
+
+  // Rounded stickers expose the dark cube body mainly at four-sticker
+  // intersections, even when their straight seams are too narrow or skewed
+  // to align with the grid. Several real cropped captures have this shape.
+  let visibleIntersections = 0
+  const colorAt = (x: number, y: number) => {
+    const px = Math.min(width - 1, Math.max(0, Math.round(x)))
+    const py = Math.min(height - 1, Math.max(0, Math.round(y)))
+    const index = (py * width + px) * 4
+    return [data[index], data[index + 1], data[index + 2]]
+  }
+  const colorDistance = (a: number[], b: number[]) =>
+    (Math.abs(a[0] - b[0]) + Math.abs(a[1] - b[1]) + Math.abs(a[2] - b[2])) / 3
+  for (let row = 1; row < gridSize; row++) {
+    for (let col = 1; col < gridSize; col++) {
+      const x = col * cellW
+      const y = row * cellH
+      const neighbors = [
+        colorAt(x - cellW * 0.45, y - cellH * 0.45),
+        colorAt(x + cellW * 0.45, y - cellH * 0.45),
+        colorAt(x - cellW * 0.45, y + cellH * 0.45),
+        colorAt(x + cellW * 0.45, y + cellH * 0.45),
+      ]
+      let cornerContrast = 0
+      for (let dy = -2; dy <= 2; dy++) {
+        for (let dx = -2; dx <= 2; dx++) {
+          const corner = colorAt(x + dx * cellW * 0.06, y + dy * cellH * 0.06)
+          cornerContrast = Math.max(cornerContrast, Math.min(...neighbors.map((neighbor) => colorDistance(corner, neighbor))))
+        }
+      }
+      if (cornerContrast >= 25) visibleIntersections++
+    }
+  }
+  return visibleIntersections >= Math.ceil((gridSize - 1) ** 2 * 0.5)
 }
 
 export function hasVisibleCubeFace(canvas: HTMLCanvasElement, gridSize: number): boolean {
   const { imageData, faceWidth, faceHeight } = getFaceRegion(canvas)
-  return hasPlausibleStickerFace(imageData.data, faceWidth, faceHeight, gridSize)
+  if (!hasCoherentStickerInteriors(imageData.data, faceWidth, faceHeight, gridSize)) return false
+  if (hasPlausibleStickerFace(imageData.data, faceWidth, faceHeight, gridSize)) return true
+
+  const ctx = canvas.getContext('2d')
+  if (!ctx) return false
+  const frame = ctx.getImageData(0, 0, canvas.width, canvas.height).data
+  const bounds = computeFaceBounds(canvas)
+  const colorAt = (x: number, y: number) => {
+    const px = Math.min(canvas.width - 1, Math.max(0, Math.round(x)))
+    const py = Math.min(canvas.height - 1, Math.max(0, Math.round(y)))
+    const index = (py * canvas.width + px) * 4
+    return [frame[index], frame[index + 1], frame[index + 2]]
+  }
+  const contrast = (a: number[], b: number[]) => (Math.abs(a[0] - b[0]) + Math.abs(a[1] - b[1]) + Math.abs(a[2] - b[2])) / 3
+  const inset = Math.min(faceWidth, faceHeight) * 0.06
+  let visibleSides = 0
+  for (let side = 0; side < 4; side++) {
+    let contrasted = 0
+    for (let i = 1; i <= 9; i++) {
+      const t = i / 10
+      const x = bounds.startX + t * faceWidth
+      const y = bounds.startY + t * faceHeight
+      const inside = side === 0 ? colorAt(bounds.startX + inset, y)
+        : side === 1 ? colorAt(bounds.startX + faceWidth - inset, y)
+        : side === 2 ? colorAt(x, bounds.startY + inset)
+        : colorAt(x, bounds.startY + faceHeight - inset)
+      const outside = side === 0 ? colorAt(bounds.startX - inset, y)
+        : side === 1 ? colorAt(bounds.startX + faceWidth + inset, y)
+        : side === 2 ? colorAt(x, bounds.startY - inset)
+        : colorAt(x, bounds.startY + faceHeight + inset)
+      if (contrast(inside, outside) >= 25) contrasted++
+    }
+    if (contrasted >= 6) visibleSides++
+  }
+  return visibleSides >= 3
 }
 
 export function extractCubeFaceColors(
