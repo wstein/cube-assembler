@@ -1236,6 +1236,19 @@ export interface LearnedColorClassificationResult {
  * OWN background patch read the same as face 1's did. A face missing from
  * `faceGains` (background unavailable that shot) falls back to neutral.
  */
+// How well `rgb` matches each of the 6 colors, 0-1 on the same scale as
+// cellConfidences - for showing a human how plausible each alternative is
+// when fixing a sticker. `palette` is the learned colors when the
+// cross-face recalibration ran, the canonical ones otherwise.
+export function colorConfidences(rgb: RGB, palette: Record<string, RGB> = STICKER_COLORS): Record<string, number> {
+  return Object.fromEntries(
+    Object.entries(palette).map(([color, centroid]) => [
+      color,
+      Math.max(0, 1 - clusterDistance(rgb, centroid) / CONFIDENCE_DISTANCE_SCALE),
+    ])
+  )
+}
+
 // How far along the way from its own learned color to the nearest other
 // one a sticker may sit before it's worth a second look: distance to its
 // own color divided by distance to the nearest other. 0 is dead center,
