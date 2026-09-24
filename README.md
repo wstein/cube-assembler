@@ -271,19 +271,28 @@ grid after any manual corrections) as a regression test fixture under
 `test/fixtures/<name>/` — see [Regression fixtures](test/fixtures/README.md).
 Reachable from the app itself via the **Send to Server** button once a
 cube has been confirmed. `meta` is optional, opaque capture context
-(camera, white balance, etc.) stored as-is under `capture` in the
-fixture's `meta.json`.
+(camera, white balance, sampling setup, etc.) stored as-is under `capture`
+in the fixture's `meta.json`. Per-face fields beyond `photo` and `colors`
+(detection before correction, crop, camera settings at capture, ...) are
+stored as-is on that face.
 
 ```json
 {
   "name": "optional-name (defaults to a timestamp)",
   "gridSize": 3,
   "faces": {
-    "U": { "photo": "data:image/jpeg;base64,...", "colors": [["W","W","W"], ...] },
+    "U": {
+      "photo": "data:image/jpeg;base64,...",
+      "colors": [["W","W","W"], ...],
+      "detected": [["W","W","Y"], ...],
+      "crop": { "x": 636, "y": 216, "width": 648, "height": 648 }
+    },
     "R": { ... }, "F": { ... }, "D": { ... }, "L": { ... }, "B": { ... }
   },
   "meta": {
-    "camera": { "label": "FaceTime HD Camera", "width": 1280, "height": 720 },
+    "app": { "version": "0.1.0", "commit": "460a4d1" },
+    "camera": { "label": "FaceTime HD Camera", "requested": { ... }, "granted": { "width": 1920, "height": 1080, ... }, "supported": { ... } },
+    "sampling": { "faceMargin": 0, "stickerCore": 0.6 },
     "colorCalibration": { "applied": true, "note": "Colors double-checked by comparing all 6 sides." }
   }
 }
