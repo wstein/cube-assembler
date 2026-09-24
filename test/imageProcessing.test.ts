@@ -17,7 +17,7 @@ import { describe, it, expect } from 'vitest'
 import {
   learnStickerColors, rgbToOKLCH, formatOKLCHValues, hueCircularRange, hueRangesOverlap, linearRange,
   hungarianAssignment, trimmedMeanColor, STICKER_COLORS, extractBackgroundColor,
-  extractColorsFromImageData, stickerSampleRect, DEFAULT_SAMPLING, type RGB,
+  extractColorsFromImageData, stickerSampleRect, DEFAULT_SAMPLING, measureSharpness, type RGB,
 } from '../src/client/imageProcessing'
 
 // Mirrors the internal OKLab-based colorDistance (not exported): rebuilds
@@ -610,5 +610,44 @@ describe('extractColorsFromImageData sampling geometry', () => {
     expect(withoutMargin.colors).not.toEqual(layout)
     const withMargin = extractColorsFromImageData(data, size, size, 3, undefined, { faceMargin: 0.15, stickerCore: 0.6 })
     expect(withMargin.colors).toEqual(layout)
+  })
+})
+
+describe('measureSharpness', () => {
+  // 8px checkerboard, then the same image box-blurred - blur must score lower.
+  const size = 64
+  function checkerboard(): Uint8ClampedArray {
+    const data = new Uint8ClampedArray(size * size * 4)
+    for (let y = 0; y < size; y++) for (let x = 0; x < size; x++) {
+      const v = ((x >> 3) + (y >> 3)) % 2 ? 230 : 20
+      data.set([v, v, v, 255], (y * size + x) * 4)
+    }
+    return data
+  }
+  function boxBlur(src: Uint8ClampedArray, radius: number): Uint8ClampedArray {
+    const out = new Uint8ClampedArray(src.length)
+    for (let y = 0; y < size; y++) for (let x = 0; x < size; x++) {
+      let sum = 0, n = 0
+      for (let dy = -radius; dy <= radius; dy++) for (let dx = -radius; dx <= radius; dx++) {
+        const xx = Math.min(size - 1, Math.max(0, x + dx)), yy = Math.min(size - 1, Math.max(0, y + dy))
+        sum += src[(yy * size + xx) * 4]; n++
+      }
+      const v = sum / n
+      out.set([v, v, v, 255], (y * size + x) * 4)
+    }
+    return out
+  }
+
+  it('scores a blurred image lower than the sharp original', () => {
+    const sharp = checkerboard()
+    const soft = measureSharpness(boxBlur(sharp, 1), size, size)
+    const softer = measureSharpness(boxBlur(sharp, 3), size, size)
+    expect(measureSharpness(sharp, size, size)).toBeGreaterThan(soft)
+    expect(soft).toBeGreaterThan(softer)
+  })
+
+  it('is 0 for a flat image', () => {
+    const flat = new Uint8ClampedArray(size * size * 4).fill(128)
+    expect(measureSharpness(flat, size, size)).toBe(0)
   })
 })
