@@ -613,6 +613,8 @@ app.use("/api/*", cors({ origin: "*" }));
 app.use("/lib/*", serveStatic({ root: "./" }));   // ReScript compiled ESM
 app.use("/web/*", serveStatic({ root: "./" }));   // CSS + client TS
 app.use("/public/*", serveStatic({ root: "./" }));
+app.get("/favicon.svg", serveStatic({ path: "./public/favicon.svg" }));
+app.get("/favicon.ico", serveStatic({ path: "./public/favicon.svg" }));
 
 app.get("/", serveStatic({ path: "./index.html" }));
 
