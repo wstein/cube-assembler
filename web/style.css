@@ -2027,6 +2027,22 @@ label.capture-size-label {
   min-height: 56px;
 }
 
+.capture-expected-center {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 6px;
+  font-size: 0.82rem;
+}
+
+.capture-expected-swatch {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border: 1px solid #596574;
+  border-radius: 3px;
+}
+
 /* Step hint drawing (see TurnHint). */
 .turn-hint {
   float: left;

@@ -775,6 +775,22 @@ export interface GuidedSolution extends OrientationSolution {
 
 const OPPOSITE_COLOR: Record<string, string> = { W: 'Y', Y: 'W', R: 'O', O: 'R', G: 'B', B: 'G' }
 
+// For either direction around the four upright sides, side 3 is opposite
+// side 1 and side 4 is opposite side 2. This is only a preview; a user may
+// present the faces in another order, and the final search resolves that.
+export function predictGuidedSideCenter(photos: Array<string[][] | undefined>, nextSide: number): string | null {
+  const n = photos[0]?.length
+  if (n !== 3 && n !== 5 && n !== 7) return null
+  if (nextSide !== 2 && nextSide !== 3) return null
+  if (photos[1]?.length !== n || photos[nextSide]) return null
+  const mid = Math.floor(n / 2)
+  const first = photos[0]?.[mid]?.[mid]
+  const second = photos[1]?.[mid]?.[mid]
+  if (!first || !second || !OPPOSITE_COLOR[first] || !OPPOSITE_COLOR[second]) return null
+  if (first === second || OPPOSITE_COLOR[first] === second) return null
+  return OPPOSITE_COLOR[nextSide === 2 ? first : second]
+}
+
 // How many stickers already sit on the face of their own color - used to
 // pick which of the 24 whole-cube orientations to present an arrangement
 // in. Centers count far more on odd sizes, since they pin each face's
@@ -969,4 +985,3 @@ export function createSolvedCube(size = 3): CubeState {
     b: Array(size * size).fill('B'),
   }
 }
-
