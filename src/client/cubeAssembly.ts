@@ -1,5 +1,7 @@
 // Cube state assembly from captured faces
 
+import { allOrientations } from './cubeGeometry'
+
 export interface CubeState {
   u: string[]
   r: string[]
@@ -735,6 +737,177 @@ export function solveFaceOrientations(
   return size % 2 === 1
     ? solveOddSizeOrientations(capturedFaces, size)
     : solveEvenSizeOrientations(capturedFaces)
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Guided capture: the 4 side faces are photographed in order while the cube
+// is turned a quarter turn at a time around its vertical axis (either way,
+// top row kept on top), then the top and bottom faces in either order and
+// at any rotation. That leaves 2 turning directions x 2 top/bottom orders x
+// 4 x 4 top/bottom rotations = 64 arrangements to check, instead of
+// solveFaceOrientations' 4,096 (odd) or 122,880 (even) - and no assumption
+// about which colors are on the sides or on top.
+// ─────────────────────────────────────────────────────────────────────────────
+
+export interface GuidedCapture {
+  // The 4 side photos in capture order, each taken upright.
+  sides: [string[][], string[][], string[][], string[][]]
+  // The two remaining photos in capture order - top and bottom, either way
+  // round, each at any rotation.
+  caps: [string[][], string[][]]
+}
+
+// How the photos were put together for one arrangement.
+export interface GuidedArrangement {
+  // Which way the cube was turned between side photos: 'left' means the
+  // face that was on the right came to the front next.
+  turn: 'left' | 'right'
+  // True if the second of the two cap photos is the top.
+  capsSwapped: boolean
+  // Quarter turns clockwise applied to cap photo 1 and 2.
+  capRotations: [number, number]
+}
+
+export interface GuidedSolution extends OrientationSolution {
+  // Parallel to `alternatives`: how each was put together.
+  arrangements: GuidedArrangement[]
+}
+
+const OPPOSITE_COLOR: Record<string, string> = { W: 'Y', Y: 'W', R: 'O', O: 'R', G: 'B', B: 'G' }
+
+// How many stickers already sit on the face of their own color - used to
+// pick which of the 24 whole-cube orientations to present an arrangement
+// in. Centers count far more on odd sizes, since they pin each face's
+// identity; even sizes have none, so the orientation closest to the
+// standard look is as good as any other (all are equally valid there).
+function standardLookScore(faces: Record<FaceKey, string[][]>): number {
+  const n = faces.U.length
+  const mid = Math.floor(n / 2)
+  let score = 0
+  for (const f of FACE_KEYS) {
+    const color = SOLVED_FACE_COLOR[f]
+    for (let r = 0; r < n; r++) for (let c = 0; c < n; c++) if (faces[f][r][c] === color) score++
+    if (n % 2 === 1 && faces[f][mid][mid] === color) score += 1000
+  }
+  return score
+}
+
+// On odd sizes the cube's validity depends on how the whole cube is held:
+// piece identities and parity are judged against the standard color
+// scheme (SOLVED_FACE_COLOR), which puts white on U. So an arrangement in
+// the capture's own frame - any color on top - must be turned into
+// standard orientation before it's judged. (Even sizes have no fixed
+// centers; every orientation of a valid cube is valid, so this only picks
+// a familiar-looking one.)
+function toStandardOrientation(faces: Record<FaceKey, string[][]>): Record<FaceKey, string[][]> {
+  let best = faces
+  let bestScore = -1
+  for (const oriented of allOrientations(faces)) {
+    const score = standardLookScore(oriented)
+    if (score > bestScore) { best = oriented; bestScore = score }
+  }
+  return best
+}
+
+// Same content held differently is the same cube: the smallest signature
+// over all 24 orientations identifies it regardless of how it's held.
+function orientationFreeSignature(faces: Record<FaceKey, string[][]>): string {
+  return allOrientations(faces).map(faceSetSignature).sort()[0]
+}
+
+export function solveGuidedCapture(capture: GuidedCapture): GuidedSolution | null {
+  const n = capture.sides[0]?.length
+  if (!n || [...capture.sides, ...capture.caps].some((g) => g?.length !== n)) return null
+  const [s1, s2, s3, s4] = capture.sides
+
+  type Scored = { faces: Record<FaceKey, string[][]>; arrangement: GuidedArrangement; fullyValid: boolean; cornerScore: number; edgeScore: number }
+  const scored: Scored[] = []
+  for (const turn of ['left', 'right'] as const) {
+    for (const capsSwapped of [false, true]) {
+      for (let r1 = 0; r1 < 4; r1++) {
+        for (let r2 = 0; r2 < 4; r2++) {
+          const cap1 = rotateGrid(capture.caps[0], r1)
+          const cap2 = rotateGrid(capture.caps[1], r2)
+          // Turning left brings the right-hand face to the front, so the
+          // second side photo is R; turning right, it's L.
+          const frame: Record<FaceKey, string[][]> = {
+            F: s1, R: turn === 'left' ? s2 : s4, B: s3, L: turn === 'left' ? s4 : s2,
+            U: capsSwapped ? cap2 : cap1, D: capsSwapped ? cap1 : cap2,
+          }
+          const faces = toStandardOrientation(frame)
+          scored.push({
+            faces,
+            arrangement: { turn, capsSwapped, capRotations: [r1, r2] },
+            fullyValid: isFullyValid(faces),
+            cornerScore: scoreCorners(faces),
+            edgeScore: n > 2 ? scoreEdges(faces) : NaN,
+          })
+        }
+      }
+    }
+  }
+
+  const rank = (a: Scored) => [a.fullyValid ? 1 : 0, a.cornerScore, Number.isNaN(a.edgeScore) ? 0 : a.edgeScore]
+  const compare = (a: Scored, b: Scored) => {
+    const [ra, rb] = [rank(a), rank(b)]
+    for (let i = 0; i < ra.length; i++) if (ra[i] !== rb[i]) return rb[i] - ra[i]
+    return 0
+  }
+  scored.sort(compare)
+  const top = scored.filter((c) => compare(c, scored[0]) === 0)
+
+  const seen = new Set<string>()
+  const unique = top.filter((c) => {
+    const signature = orientationFreeSignature(c.faces)
+    if (seen.has(signature)) return false
+    seen.add(signature)
+    return true
+  })
+  const kept = unique.slice(0, MAX_ALTERNATIVES)
+  const none = { U: 0, R: 0, F: 0, D: 0, L: 0, B: 0 }
+  return {
+    faces: kept[0].faces,
+    rotations: none,
+    cornerScore: kept[0].cornerScore,
+    edgeScore: kept[0].edgeScore,
+    fullyValid: kept[0].fullyValid,
+    alternatives: kept.map((c) => ({ faces: c.faces, rotations: none })),
+    arrangements: kept.map((c) => c.arrangement),
+    truncated: unique.length > kept.length,
+  }
+}
+
+// Photo positions in a guided capture: 0-3 the sides, 4-5 top/bottom.
+export type GuidedCenterIssue =
+  | { kind: 'same-center'; photos: [number, number] }
+  | { kind: 'turned-twice'; photo: number }
+  | { kind: 'not-opposite'; photos: [number, number] }
+
+// Odd sizes only: the centers alone show several capture mistakes before
+// any search - two photos of the same face, a side turned 180° instead of
+// 90° (it shows the face opposite the one before it), or two photos that
+// should face away from each other but don't. Empty when all is well, and
+// always empty on even sizes (no fixed centers) or for missing photos.
+export function checkGuidedCenters(photos: Array<string[][] | undefined>): GuidedCenterIssue[] {
+  const n = photos.find(Boolean)?.length
+  if (!n || n % 2 === 0) return []
+  const mid = Math.floor(n / 2)
+  const center = photos.map((p) => p?.[mid]?.[mid])
+  const issues: GuidedCenterIssue[] = []
+  for (let i = 0; i < center.length; i++) {
+    for (let j = 0; j < i; j++) {
+      if (center[i] && center[i] === center[j]) issues.push({ kind: 'same-center', photos: [j, i] })
+    }
+  }
+  if (issues.length > 0) return issues
+  const opposite = (a?: string, b?: string) => !!a && !!b && OPPOSITE_COLOR[a] === b
+  for (let i = 1; i < 4; i++) {
+    if (opposite(center[i - 1], center[i])) issues.push({ kind: 'turned-twice', photo: i })
+  }
+  for (const [a, b] of [[0, 2], [1, 3], [4, 5]] as Array<[number, number]>) {
+    if (center[a] && center[b] && !opposite(center[a], center[b])) issues.push({ kind: 'not-opposite', photos: [a, b] })
+  }
+  return issues
 }
 
 export function faceColorsToString(colors: string[][]): string {
