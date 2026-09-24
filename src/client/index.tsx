@@ -686,6 +686,8 @@ function App() {
     note?: string
     fallback: OrientationSolution | null
   } | null>(null)
+  // Capture-time warnings the customer chose to ignore (see captureWarning).
+  const [dismissedCaptureWarnings, setDismissedCaptureWarnings] = useState<string[]>([])
   // capture.protocol of the last uploaded fixture (see isGuidedCapture).
   const [uploadedProtocol, setUploadedProtocol] = useState<string | null>(null)
   // A problem with the capture shown in the review dialog.
@@ -1126,6 +1128,7 @@ function App() {
     const nextFace = allCaptured ? FACE_ORDER[0] : FACE_ORDER.find((f) => !(f in capturedFaces))!
     setWebcamFace(nextFace)
     setCaptureMessage('')
+    if (allCaptured) setDismissedCaptureWarnings([])
     setGlobalWhiteBalanceNote(null)
     setAppliedBackgroundGains(null)
     setWebcamOpen(true)
@@ -1488,6 +1491,21 @@ function App() {
   const isGuidedCapture = () =>
     FACE_ORDER.every((f) => capturedFaces[f]?.source === 'camera')
     || (FACE_ORDER.every((f) => capturedFaces[f]?.source === 'fixture') && uploadedProtocol === GUIDED_PROTOCOL)
+
+  // A likely capture mistake visible from odd-size centers while capturing
+  // (see checkGuidedCenters) - only a hint, never blocking. Live colors are
+  // first-pass readings that can confuse e.g. red and orange, so it only
+  // speaks up when the centers involved were read with some confidence.
+  const captureWarning = (() => {
+    const mid = Math.floor(puzzleSize / 2)
+    const sure = (i: number) => (capturedFaces[FACE_ORDER[i]]?.cellConfidences?.[mid]?.[mid] ?? 0) >= 0.6
+    for (const issue of checkGuidedCenters(FACE_ORDER.map((f) => capturedFaces[f]?.colors))) {
+      const involved = issue.kind === 'turned-twice' ? [issue.photo - 1, issue.photo] : issue.photos
+      const key = JSON.stringify(issue)
+      if (involved.every(sure) && !dismissedCaptureWarnings.includes(key)) return { issue, key, retake: Math.max(...involved) }
+    }
+    return null
+  })()
 
   // "No, let me choose each side": the wizard, with every remaining
   // arrangement of the photos except the rejected ones.
@@ -2385,6 +2403,28 @@ function App() {
                 {liveDetection ? `${(liveDetection.confidence * 100).toFixed(0)}%` : '—'}
               </span>
             </p>
+            {captureWarning && (
+              <div class="capture-warning capture-soft-warning" role="status">
+                <span>⚠ {describeCenterIssue(captureWarning.issue)}</span>
+                <button
+                  type="button"
+                  class="btn btn-secondary btn-sm"
+                  onClick={() => {
+                    setWebcamFace(FACE_ORDER[captureWarning.retake])
+                    setCaptureMessage('')
+                  }}
+                >
+                  Retake {CAPTURE_STEPS[captureWarning.retake].label}
+                </button>
+                <button
+                  type="button"
+                  class="link-button"
+                  onClick={() => setDismissedCaptureWarnings((keys) => [...keys, captureWarning.key])}
+                >
+                  Ignore
+                </button>
+              </div>
+            )}
             <div
               role="status"
               class={`capture-message ${captureMessage ? (captureMessage.includes('✓') ? 'success' : captureMessage.includes('❌') ? 'error' : '') : 'is-empty'}`}

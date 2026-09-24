@@ -1100,6 +1100,17 @@ label.capture-size-label {
   font-size: 0.85rem;
 }
 
+.capture-soft-warning {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--spacing-sm);
+}
+
+.capture-soft-warning span {
+  flex: 1 1 14rem;
+}
+
 .sampling-setup {
   display: grid;
   gap: var(--spacing-sm);
