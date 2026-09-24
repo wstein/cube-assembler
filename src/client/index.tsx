@@ -4,7 +4,7 @@ import '../../web/style.css'
 import {
   captureAndProcessFace, captureAndProcessImage, extractCubeFaceColors,
   runGlobalWhiteBalance, computeBackgroundGain, NEUTRAL_GAINS, CROP_JPEG_QUALITY,
-  DEFAULT_SAMPLING, MAX_BACKGROUND_GAP, stickerSampleRect, colorConfidences, STICKER_COLORS, type SamplingGeometry,
+  DEFAULT_SAMPLING, MAX_BACKGROUND_GAP, STICKER_MEASUREMENT, stickerSampleRect, colorConfidences, STICKER_COLORS, type SamplingGeometry,
   rgbToOKLCH, hueCircularRange, hueRangesOverlap, linearRange,
   type ColorDetectionResult, type FaceCaptureResult, type RGB,
 } from './imageProcessing'
@@ -1655,6 +1655,8 @@ function App() {
         // were approved as - the fixture test puts the photos together
         // again and checks it gets that cube.
         protocol: isGuidedCapture() ? GUIDED_PROTOCOL : null,
+        // How the per-face `readings` were measured (see stickerColor).
+        measurement: STICKER_MEASUREMENT,
         assembledURFDLB: cube ? toWRGFacelets(cube) : null,
         // No fixed-preset/gray-world software white-balance runs at capture
         // time any more (see the "Gains" comment in imageProcessing.ts).

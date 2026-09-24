@@ -1015,6 +1015,40 @@ export function trimmedMeanColor(pixels: RGB[], trimFraction = OUTLIER_TRIM_FRAC
   return { r: sumR / kept.length, g: sumG / kept.length, b: sumB / kept.length }
 }
 
+// A sticker's color from its sampled pixels. Glossy stickers can mirror a
+// lamp or window across half their area, and that reflection isn't just
+// bright - on a real capture it turned red and orange stickers alike pale
+// pink-purple (e.g. an orange read as rgb(209,134,198)), more than the
+// trimmed mean's 15% tails can reject. The sticker's own color survives in
+// its most colorful pixels, so a colored sticker is measured from the
+// most colorful STICKER_CORE_SATURATED_FRACTION of them (ranked by RGB
+// channel spread, which ranks like OKLab chroma here at a fraction of the
+// cost - this runs on every live-preview frame). A near-white sticker
+// (trimmed-mean chroma below STICKER_WHITE_CHROMA) keeps the trimmed mean:
+// its "most colorful" pixels are only colored fringes. On the real
+// fixtures this fixed a glare capture (6 misreads -> 0) and a 2x2 (2 -> 0)
+// with every clean capture unchanged; 25-35% and 0.06-0.08 all scored the
+// same, these are the middle.
+const STICKER_CORE_SATURATED_FRACTION = 0.3
+const STICKER_WHITE_CHROMA = 0.07
+
+// Names how stickerColor measures, saved with fixtures next to their
+// per-sticker readings: readings from an older measurement can't be
+// compared with today's. (Fixtures without it used the plain trimmed mean.)
+export const STICKER_MEASUREMENT = 'colorful-30/v1'
+
+export function stickerColor(pixels: RGB[]): RGB | null {
+  const plain = trimmedMeanColor(pixels)
+  if (!plain || rgbToOKLCH(plain).c < STICKER_WHITE_CHROMA) return plain
+  const spread = (c: RGB) => Math.max(c.r, c.g, c.b) - Math.min(c.r, c.g, c.b)
+  const colorful = [...pixels].sort((a, b) => spread(b) - spread(a)).slice(0, Math.ceil(pixels.length * STICKER_CORE_SATURATED_FRACTION))
+  return {
+    r: colorful.reduce((sum, c) => sum + c.r, 0) / colorful.length,
+    g: colorful.reduce((sum, c) => sum + c.g, 0) / colorful.length,
+    b: colorful.reduce((sum, c) => sum + c.b, 0) / colorful.length,
+  }
+}
+
 // The actual per-sticker sampling and classification logic, operating on
 // already-extracted raw pixel data rather than a browser HTMLCanvasElement
 // - split out from extractCubeFaceColors so it can run against a real,
@@ -1065,9 +1099,9 @@ export function extractColorsFromImageData(
         }
       }
 
-      const trimmedMean = trimmedMeanColor(pixels)
-      if (trimmedMean) {
-        const avgColor: RGB = applyGains(trimmedMean, gains)
+      const measured = stickerColor(pixels)
+      if (measured) {
+        const avgColor: RGB = applyGains(measured, gains)
         rowRGB.push(avgColor)
         const { color: stickerColor, confidence: cellConfidence } = classifySticker(avgColor, palette)
         rowColors.push(stickerColor)

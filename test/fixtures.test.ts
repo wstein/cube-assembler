@@ -27,7 +27,7 @@ import jpeg from 'jpeg-js'
 import { wrgFaceletsToGrids } from '../src/client/notationOutput'
 import { readFixtureColors } from '../src/client/fixtureFormat'
 import { solveGuidedCapture, orientationFreeSignature, type FaceKey } from '../src/client/cubeAssembly'
-import { DEFAULT_SAMPLING, extractColorsFromImageData, learnStickerColors, limitBackgroundGain, NEUTRAL_GAINS, type RGB, type SamplingGeometry, type StickerSample } from '../src/client/imageProcessing'
+import { DEFAULT_SAMPLING, STICKER_MEASUREMENT, extractColorsFromImageData, learnStickerColors, limitBackgroundGain, NEUTRAL_GAINS, type RGB, type SamplingGeometry, type StickerSample } from '../src/client/imageProcessing'
 
 const FIXTURES_DIR = join(__dirname, 'fixtures')
 const FACE_ORDER = ['u', 'r', 'f', 'd', 'l', 'b']
@@ -66,6 +66,9 @@ interface FixtureMeta {
     // turning one way, then top and bottom) - capture slots u..b are then
     // those steps in order - together with the cube the customer approved.
     protocol?: string | null
+    // How the per-face readings were measured (see stickerColor); absent
+    // on fixtures from before it was recorded, which used the trimmed mean.
+    measurement?: string
     assembledURFDLB?: string | null
     whiteBalance?: { mode?: string; lightSource?: string | null }
     // Per-face gains the app actually applied before classification (see
@@ -158,7 +161,8 @@ describe('real-capture regression fixtures', () => {
         const sampling = meta.capture?.sampling ?? DEFAULT_SAMPLING
         const result = extractColorsFromImageData(pixelData, decoded.width, decoded.height, meta.gridSize, gains, sampling)
 
-        if (faceData.readings) {
+        // Readings taken with a different measurement can't be compared.
+        if (faceData.readings && meta.capture?.measurement === STICKER_MEASUREMENT) {
           const drift = Math.max(...result.cellColors.flat().map((rgb, i) => {
             const [r, g, b] = faceData.readings![i]
             return Math.max(Math.abs(rgb.r - r), Math.abs(rgb.g - g), Math.abs(rgb.b - b))
