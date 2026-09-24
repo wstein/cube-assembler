@@ -983,6 +983,15 @@ textarea {
   border-color: var(--color-danger);
 }
 
+.capture-warning {
+  margin: 0 0 var(--spacing-sm);
+  padding: var(--spacing-sm) var(--spacing-md);
+  border-left: 4px solid var(--color-warning);
+  border-radius: var(--radius-md);
+  background: rgba(250, 204, 21, 0.12);
+  font-size: 0.85rem;
+}
+
 .sampling-setup {
   display: grid;
   gap: var(--spacing-sm);

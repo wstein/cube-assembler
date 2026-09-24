@@ -1949,6 +1949,15 @@ function App() {
                 <span class="capture-scan-label">Fit face in this square</span>
               </div>
             </div>
+            {/* macOS reports its Portrait video effect as backgroundBlur, and
+                the browser can't turn it off - it blurs whatever it takes for
+                background, which can include the cube held up to the camera. */}
+            {cameraInfo?.granted.backgroundBlur === true && (
+              <p class="capture-warning" role="note">
+                ⚠ Your camera's background blur (Portrait) is on and can blur the cube. Turn it off in Control
+                Center → Video Effects.
+              </p>
+            )}
             <p class="capture-hint-text">
               Align cube face in center
               {' — live confidence: '}
