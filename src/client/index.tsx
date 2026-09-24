@@ -2787,12 +2787,41 @@ function App() {
                 <button class="modal-close" aria-label="Close" onClick={close}>×</button>
               </div>
               {note && <p class={valid ? 'orientation-approval-note' : 'capture-warning'}>{note}</p>}
+              {!note && single && valid && (
+                <p class="orientation-approval-note">
+                  The photos fit together one way.
+                  {puzzleSize % 2 === 1 && ' Hold your cube with white on top and green in front to compare.'}
+                </p>
+              )}
               {!single && valid && (
                 <p class="orientation-approval-note">
                   The photos fit your cube in {candidates.length} different ways - pick the one that matches it.
                 </p>
               )}
-              <div class={`orientation-approval-options ${single ? 'is-single' : ''}`}>
+              {single ? (
+                <div class="approval-single">
+                  <div class="approval-net">
+                    <OrientationNetPreview faces={candidates[0].faces} />
+                  </div>
+                  {arrangements?.[0] && (
+                    <div class="approval-changes">
+                      <span class="approval-changes-title">How the photos were put together</span>
+                      <ul class="approval-checklist">
+                        {describeArrangement(arrangements[0]).map((line) => (
+                          <li key={line}>
+                            <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true">
+                              <circle cx="9" cy="9" r="8" fill="var(--color-accent-soft)" />
+                              <path d="m5.5 9.2 2.3 2.3 4.7-4.8" fill="none" stroke="var(--color-accent)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+                            </svg>
+                            {line}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+              ) : (
+              <div class="orientation-approval-options">
                 {candidates.map((candidate, i) => (
                   <div key={i} class="orientation-approval-option">
                     <OrientationNetPreview faces={candidate.faces} />
@@ -2802,18 +2831,25 @@ function App() {
                       </ul>
                     )}
                     <button type="button" class="btn btn-primary btn-sm" onClick={() => handleChooseOrientation(candidate)}>
-                      {!valid ? 'Use it anyway' : single ? 'Yes, use this' : 'This one'}
+                      {valid ? 'This one' : 'Use it anyway'}
                     </button>
                   </div>
                 ))}
               </div>
+              )}
               <div class="orientation-approval-actions">
-                <button type="button" class="btn btn-secondary btn-sm" onClick={close}>
+                <button type="button" class="btn btn-secondary" onClick={close}>
                   Back to the colors
                 </button>
+                <div class="header-spacer" />
                 {rejectAlternatives(orientationApproval).length > 0 && (
-                  <button type="button" class="btn btn-secondary btn-sm" onClick={handleRejectOrientation}>
+                  <button type="button" class="btn btn-secondary" onClick={handleRejectOrientation}>
                     {single ? 'No, let me choose each side' : 'None of these - let me choose each side'}
+                  </button>
+                )}
+                {single && (
+                  <button type="button" class="btn btn-primary btn-review-next" onClick={() => handleChooseOrientation(candidates[0])}>
+                    {valid ? 'Yes, this is my cube' : 'Use it anyway'}
                   </button>
                 )}
               </div>

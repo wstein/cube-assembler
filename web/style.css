@@ -1020,15 +1020,6 @@ textarea {
   background: var(--color-bg-secondary);
 }
 
-.orientation-approval-options.is-single .orientation-net-face {
-  width: 64px;
-  height: 64px;
-}
-
-.orientation-approval-options.is-single .orientation-net-spacer {
-  width: 64px;
-  height: 64px;
-}
 
 .orientation-approval-changes {
   margin: 0;
@@ -1040,8 +1031,103 @@ textarea {
 .orientation-approval-actions {
   display: flex;
   flex-wrap: wrap;
-  justify-content: flex-end;
+  align-items: center;
   gap: var(--spacing-sm);
+}
+
+.orientation-approval {
+  width: min(880px, 94vw);
+  max-width: none;
+}
+
+.orientation-approval .modal-header h2 {
+  font-size: 1.9rem;
+  font-weight: 600;
+}
+
+/* One arrangement: the net beside how it was put together. */
+.approval-single {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 300px;
+  align-items: center;
+  gap: var(--spacing-lg);
+  margin-bottom: var(--spacing-lg);
+}
+
+.approval-net {
+  display: flex;
+  justify-content: center;
+  padding: var(--spacing-lg);
+  background: var(--color-bg-secondary);
+  border-radius: var(--radius-lg);
+}
+
+.approval-net .orientation-net-face,
+.approval-net .orientation-net-spacer {
+  width: 96px;
+  height: 96px;
+}
+
+.approval-net .orientation-net-face {
+  gap: 2px;
+  padding: 2px;
+  background: #1b1b1f;
+  border-radius: 8px;
+}
+
+.approval-net .orientation-net-sticker {
+  border-radius: 4px;
+}
+
+.approval-net .orientation-net-row,
+.approval-net .orientation-net {
+  gap: 5px;
+}
+
+.approval-changes {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+}
+
+.approval-changes-title {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+}
+
+.approval-checklist {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+  font-size: 0.95rem;
+  line-height: 1.4;
+}
+
+.approval-checklist li {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--spacing-sm);
+}
+
+.approval-checklist svg {
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+@media (max-width: 700px) {
+  .approval-single {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .approval-net .orientation-net-face,
+  .approval-net .orientation-net-spacer {
+    width: 64px;
+    height: 64px;
+  }
 }
 
 .orientation-wizard-options {
