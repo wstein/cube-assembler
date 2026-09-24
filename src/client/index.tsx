@@ -2,7 +2,7 @@ import { render, h, Fragment } from 'preact'
 import { useState, useEffect, useRef, useMemo } from 'preact/hooks'
 import '../../web/style.css'
 import {
-  captureAndProcessFace, captureAndProcessImage, extractCubeFaceColors,
+  captureAndProcessFace, captureAndProcessImage, extractCubeFaceColors, hasVisibleCubeFace,
   runGlobalWhiteBalance, NEUTRAL_GAINS, CROP_JPEG_QUALITY,
   DEFAULT_SAMPLING, MAX_BACKGROUND_GAP, STICKER_MEASUREMENT, stickerSampleRect, colorConfidences, STICKER_COLORS, type SamplingGeometry,
   rgbToOKLCH, hueCircularRange, hueRangesOverlap, linearRange,
@@ -738,6 +738,7 @@ function App() {
   const [notationFormat, setNotationFormat] = useState<'wrg' | 'urf'>('wrg')
   const [movesTab, setMovesTab] = useState<'algorithm' | 'scramble'>('algorithm')
   const [liveDetection, setLiveDetection] = useState<ColorDetectionResult | null>(null)
+  const [liveFaceVisible, setLiveFaceVisible] = useState(false)
   const [showReviewDialog, setShowReviewDialog] = useState(false)
   // Non-null only when solveFaceOrientations found genuine ambiguity (see
   // its alternatives field) - drives the step-by-step orientation wizard
@@ -951,6 +952,7 @@ function App() {
   useEffect(() => {
     if (!webcamOpen) {
       setLiveDetection(null)
+      setLiveFaceVisible(false)
       return
     }
 
@@ -972,6 +974,7 @@ function App() {
 
       try {
         setLiveDetection(extractCubeFaceColors(canvas, puzzleSize, NEUTRAL_GAINS, sampling, palette))
+        setLiveFaceVisible(hasVisibleCubeFace(canvas, puzzleSize))
       } catch {
         // Transient frame read failure (e.g. camera still warming up) — skip this tick.
       }
@@ -2293,7 +2296,7 @@ function App() {
                   playsinline
                   class={`webcam-feed ${mirrorPreview ? 'mirrored' : ''}`}
                 />
-                {liveDetection && (
+                {liveDetection && liveFaceVisible && (
                   // Positioned from stickerSampleRect in percent of the guide
                   // square, so the overlay shows exactly what the detector
                   // reads: thin cell lines, and each sampled zone outlined in the
@@ -2350,7 +2353,7 @@ function App() {
               </div>
               <span class="capture-live-badge" aria-hidden="true">
                 <span class="capture-live-dot" />
-                Live · {liveDetection ? `${(liveDetection.confidence * 100).toFixed(0)}% sure` : '—'}
+                Live · {liveDetection ? (liveFaceVisible ? `${(liveDetection.confidence * 100).toFixed(0)}% color match` : 'Align face in guide') : '—'}
               </span>
             </div>
             <div class="capture-side">
