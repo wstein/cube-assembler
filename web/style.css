@@ -627,6 +627,17 @@ textarea {
   color: var(--color-text-primary);
 }
 
+/* Which cube profile a capture used (and, if different, which one its
+   colors look like). */
+.capture-profile-used {
+  font-size: 0.8rem;
+  color: var(--color-text-secondary);
+}
+
+.review-profile-used {
+  margin: calc(-1 * var(--spacing-md)) 0 var(--spacing-md);
+}
+
 .profile-suggestion {
   display: flex;
   flex-wrap: wrap;
