@@ -244,8 +244,11 @@ function describeArrangement(a: GuidedArrangement): string[] {
 const FACE_DISPLAY_LABEL: Record<string, string> = Object.fromEntries(FACE_ORDER.map((face) => [face, stepOf(face).label]))
 const FACE_SHORT_LABEL: Record<string, string> = Object.fromEntries(FACE_ORDER.map((face) => [face, stepOf(face).short]))
 
+// How each color is drawn on screen (nets, review, picker) - slightly
+// calmer than pure RGB so the six still read at a glance without glaring.
+// Display only: detection never compares against these.
 const STICKER_HEX: Record<string, string> = {
-  W: '#ffffff', O: '#ff8000', G: '#44ee00', R: '#ff0000', B: '#2266ff', Y: '#f4f400',
+  W: '#f7f6f1', O: '#ff7a1a', G: '#1e9e57', R: '#cf2a3a', B: '#2459d6', Y: '#f2d21b',
 }
 
 const COLOR_NAME: Record<string, string> = {
