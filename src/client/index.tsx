@@ -209,7 +209,7 @@ const CAPTURE_STEPS: Array<{ label: string; short: string; instruction: string }
   { label: 'Side 3', short: '3', instruction: 'Keep turning clockwise another quarter turn. Other directions still work.' },
   { label: 'Side 4', short: '4', instruction: 'Turn clockwise one more quarter turn. Any remaining side still works.' },
   { label: 'Top', short: '5', instruction: 'Tip the cube towards you so its top faces the camera - any angle is fine.' },
-  { label: 'Bottom', short: '6', instruction: 'Now show the bottom - tip it the other way. Top and bottom may be swapped.' },
+  { label: 'Bottom', short: '6', instruction: 'Bring Side 4 back to the camera, then continue tipping to the opposite face. Top and bottom may be swapped.' },
 ]
 const stepOf = (slot: string) => CAPTURE_STEPS[FACE_ORDER.indexOf(slot)]
 
@@ -444,22 +444,25 @@ function TurnHint({ step }: { step: number }) {
       {kind === 'turn' && <rect x="16" y="24" width="26" height="8" class="turn-hint-row" />}
       {kind === 'turn' && <path d="M8 56 Q32 66 56 54" class="turn-hint-arrow" marker-end="url(#turn-hint-head)" />}
       {kind === 'tip-top' && <path d="M30 8 Q60 6 58 34" class="turn-hint-arrow" marker-end="url(#turn-hint-head)" />}
-      {kind === 'tip-bottom' && <path d="M30 60 Q62 62 60 32" class="turn-hint-arrow" marker-end="url(#turn-hint-head)" />}
+      {kind === 'tip-bottom' && <path d="M44 8 C70 10 73 40 61 59" class="turn-hint-arrow" marker-end="url(#turn-hint-head)" />}
     </svg>
   )
 }
 
 // A brief visual cue between successful captures. The turn shown is only an
 // example: the guided solver determines the real face orientation afterward.
-function CaptureTurnOverlay({ step, startColors, onContinue }: { step: number; startColors: string[][]; onContinue: () => void }) {
+const TURN_ANIMATION_MS = 2400
+const TURN_VIA_PAUSE_MS = 300
+function CaptureTurnOverlay({ step, startColors, viaColors, onContinue }: { step: number; startColors: string[][]; viaColors?: string[][]; onContinue: () => void }) {
   const kind = step < 4 ? 'side' : step === 4 ? 'top' : 'bottom'
   const title = kind === 'side' ? 'Turn to another side' : kind === 'top' ? 'Show a remaining face' : 'Show the last face'
   const detail = kind === 'side'
     ? 'Clockwise is suggested; either direction works.'
-    : kind === 'top' ? 'Tip the cube up or down.' : 'Tip to the opposite face.'
-  const nextFace = kind === 'side' ? 'right' : kind === 'top' ? 'up' : 'down'
+    : kind === 'top' ? 'Tip the cube up or down.' : 'Move through Side 4 to the opposite face.'
+  const nextFace = kind === 'side' ? 'right' : kind === 'top' ? 'up' : 'back'
   const size = startColors.length
-  const capturedStickers = startColors.flat()
+  const startStickers = startColors.flat()
+  const viaStickers = viaColors?.flat()
   const face = (name: string) => (
     <div class={`capture-turn-face capture-turn-${name}`}>
       <div class="capture-turn-stickers" style={{ gridTemplateColumns: `repeat(${size}, minmax(0, 1fr))` }}>
@@ -467,7 +470,11 @@ function CaptureTurnOverlay({ step, startColors, onContinue }: { step: number; s
           <span
             key={i}
             class={`capture-turn-sticker${name === nextFace ? ' capture-turn-sticker-next' : ''}`}
-            style={name === 'front' ? { backgroundColor: STICKER_HEX[capturedStickers[i]] ?? '#888' } : undefined}
+            style={name === 'front'
+              ? { backgroundColor: STICKER_HEX[startStickers[i]] ?? '#888' }
+              : kind === 'bottom' && name === 'down' && viaStickers
+                ? { backgroundColor: STICKER_HEX[viaStickers[i]] ?? '#888' }
+                : undefined}
           />
         ))}
       </div>
@@ -726,7 +733,7 @@ function App() {
   const [faceConfidence, setFaceConfidence] = useState<Record<string, number>>({})
   const [loading, setLoading] = useState(false)
   const [captureMessage, setCaptureMessage] = useState('')
-  const [turnOverlay, setTurnOverlay] = useState<{ step: number; startColors: string[][] } | null>(null)
+  const [turnOverlay, setTurnOverlay] = useState<{ step: number; startColors: string[][]; viaColors?: string[][] } | null>(null)
   const turnOverlayTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const [fixtureSaveMessage, setFixtureSaveMessage] = useState('')
   const [manualColorInput, setManualColorInput] = useState('')
@@ -1290,8 +1297,9 @@ function App() {
         setWebcamFace(nextFace)
         setCaptureMessage('')
         dismissTurnOverlay()
-        setTurnOverlay({ step: FACE_ORDER.indexOf(nextFace), startColors: result.colors })
-        turnOverlayTimer.current = setTimeout(dismissTurnOverlay, 2400)
+        const step = FACE_ORDER.indexOf(nextFace)
+        setTurnOverlay({ step, startColors: result.colors, viaColors: step === 5 ? newCapturedFaces[FACE_ORDER[3]]?.colors : undefined })
+        turnOverlayTimer.current = setTimeout(dismissTurnOverlay, step === 5 ? TURN_ANIMATION_MS * 2 + TURN_VIA_PAUSE_MS : TURN_ANIMATION_MS)
       }
     }
   }
@@ -2340,7 +2348,7 @@ function App() {
                   <span class="capture-scan-label">Fit face in this square</span>
                 </div>
                 {turnOverlay && (
-                  <CaptureTurnOverlay step={turnOverlay.step} startColors={turnOverlay.startColors} onContinue={dismissTurnOverlay} />
+                  <CaptureTurnOverlay step={turnOverlay.step} startColors={turnOverlay.startColors} viaColors={turnOverlay.viaColors} onContinue={dismissTurnOverlay} />
                 )}
               </div>
               <span class="capture-live-badge" aria-hidden="true">
