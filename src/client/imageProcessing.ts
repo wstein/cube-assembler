@@ -23,19 +23,26 @@ export interface RGB {
 // whole cell is being read.
 export const SAMPLE_CORE_FRACTION = 0.6
 
-// Where inside the guide square the stickers are sampled - adjustable in
-// the capture dialog's sampling setup, since cubes differ in how thick
-// their outer plastic border and the gaps between stickers are.
+// Which parts of the frame get sampled - adjustable per cube size in the
+// capture dialog's sampling setup, since cubes differ in how wide the gaps
+// between stickers are, and in how much cube body and hand shows around
+// the face.
 export interface SamplingGeometry {
-  // Border between the guide square's edge and the sticker grid, as a
-  // fraction of the square's side, on each side (0 = grid fills the square).
-  faceMargin: number
+  // Band around the guide square that's left out of the background sample
+  // (see extractBackgroundColor), as a fraction of the square's side on
+  // each side - covers the cube's own plastic edge and the fingers holding
+  // it, which aren't the constant backdrop the white balance relies on.
+  backgroundGap: number
   // Fraction of each sticker cell that's sampled, centered (the rest is
   // the gap/dead zone around it).
   stickerCore: number
 }
 
-export const DEFAULT_SAMPLING: SamplingGeometry = { faceMargin: 0, stickerCore: SAMPLE_CORE_FRACTION }
+export const DEFAULT_SAMPLING: SamplingGeometry = { backgroundGap: 0, stickerCore: SAMPLE_CORE_FRACTION }
+
+// Largest backgroundGap that still leaves some background inside the frame
+// (the guide square is SAMPLE_FACE_FRACTION of the frame's shorter side).
+export const MAX_BACKGROUND_GAP = 0.3
 
 // A sticker cell's sampled rectangle within a face of the given size -
 // shared by the detector and the UI overlay so both draw the same zones.
@@ -47,14 +54,12 @@ export function stickerSampleRect(
   faceHeight: number,
   sampling: SamplingGeometry = DEFAULT_SAMPLING
 ): { x: number; y: number; width: number; height: number } {
-  const gridX = faceWidth * sampling.faceMargin
-  const gridY = faceHeight * sampling.faceMargin
-  const cellWidth = (faceWidth - 2 * gridX) / gridSize
-  const cellHeight = (faceHeight - 2 * gridY) / gridSize
+  const cellWidth = faceWidth / gridSize
+  const cellHeight = faceHeight / gridSize
   const inset = (1 - sampling.stickerCore) / 2
   return {
-    x: gridX + (col + inset) * cellWidth,
-    y: gridY + (row + inset) * cellHeight,
+    x: (col + inset) * cellWidth,
+    y: (row + inset) * cellHeight,
     width: cellWidth * sampling.stickerCore,
     height: cellHeight * sampling.stickerCore,
   }
@@ -856,11 +861,13 @@ const BACKGROUND_REGION_FRACTION = 1.0
 // why this is captured once at capture time (captureAndProcessFace /
 // captureAndProcessImage) rather than re-derivable later like
 // redetectFaceColors' sticker re-extraction is.
-export function extractBackgroundColor(canvas: HTMLCanvasElement): RGB | null {
+export function extractBackgroundColor(canvas: HTMLCanvasElement, backgroundGap = 0): RGB | null {
   const ctx = canvas.getContext('2d')
   if (!ctx) return null
 
-  const inner = computeFaceBounds(canvas, SAMPLE_FACE_FRACTION)
+  // Skip the guide square plus `backgroundGap` of its side on each side.
+  const gap = Math.min(MAX_BACKGROUND_GAP, Math.max(0, backgroundGap))
+  const inner = computeFaceBounds(canvas, SAMPLE_FACE_FRACTION * (1 + 2 * gap))
   const outer = computeFaceBounds(canvas, BACKGROUND_REGION_FRACTION)
   if (outer.faceWidth < 40 || outer.faceHeight < 40) return null
 
@@ -1162,7 +1169,7 @@ export function captureAndProcessFace(
   return {
     ...extractCubeFaceColors(canvas, gridSize, gains, sampling),
     croppedImage: cropFaceRegionToDataUrl(canvas),
-    backgroundColor: extractBackgroundColor(canvas),
+    backgroundColor: extractBackgroundColor(canvas, sampling.backgroundGap),
     ...describeCrop(canvas),
   }
 }
@@ -1186,7 +1193,7 @@ export function captureAndProcessImage(
   return {
     ...extractCubeFaceColors(canvas, gridSize, gains, sampling),
     croppedImage: cropFaceRegionToDataUrl(canvas),
-    backgroundColor: extractBackgroundColor(canvas),
+    backgroundColor: extractBackgroundColor(canvas, sampling.backgroundGap),
     ...describeCrop(canvas),
   }
 }

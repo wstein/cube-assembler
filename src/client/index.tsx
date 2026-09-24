@@ -4,7 +4,7 @@ import '../../web/style.css'
 import {
   captureAndProcessFace, captureAndProcessImage, extractCubeFaceColors,
   runGlobalWhiteBalance, computeBackgroundGain, NEUTRAL_GAINS, CROP_JPEG_QUALITY,
-  DEFAULT_SAMPLING, stickerSampleRect, colorConfidences, STICKER_COLORS, type SamplingGeometry,
+  DEFAULT_SAMPLING, MAX_BACKGROUND_GAP, stickerSampleRect, colorConfidences, STICKER_COLORS, type SamplingGeometry,
   rgbToOKLCH, hueCircularRange, hueRangesOverlap, linearRange,
   type ColorDetectionResult, type FaceCaptureResult, type RGB,
 } from './imageProcessing'
@@ -75,7 +75,7 @@ const SAMPLING_STORAGE_KEY = 'cube-assembler.sampling'
 function loadSampling(): SamplingGeometry {
   try {
     const saved = JSON.parse(localStorage.getItem(SAMPLING_STORAGE_KEY) ?? 'null')
-    if (typeof saved?.faceMargin === 'number' && typeof saved?.stickerCore === 'number') return saved
+    if (typeof saved?.backgroundGap === 'number' && typeof saved?.stickerCore === 'number') return saved
   } catch {
     // storage blocked or corrupt - fall back to the default
   }
@@ -1840,15 +1840,15 @@ function App() {
               <div class="sampling-setup">
                 <label class="sampling-slider">
                   <span>
-                    Border around face <output>{Math.round(sampling.faceMargin * 100)}%</output>
+                    Skip around the face <output>{Math.round(sampling.backgroundGap * 100)}%</output>
                   </span>
                   <input
                     type="range"
                     min={0}
-                    max={20}
+                    max={MAX_BACKGROUND_GAP * 100}
                     step={1}
-                    value={Math.round(sampling.faceMargin * 100)}
-                    onInput={(e) => updateSampling({ ...sampling, faceMargin: Number(e.currentTarget.value) / 100 })}
+                    value={Math.round(sampling.backgroundGap * 100)}
+                    onInput={(e) => updateSampling({ ...sampling, backgroundGap: Number(e.currentTarget.value) / 100 })}
                   />
                 </label>
                 <label class="sampling-slider">
@@ -1866,7 +1866,8 @@ function App() {
                 </label>
                 <p class="sampling-setup-hint">
                   Hold a face in the square. Each small box should sit fully inside its sticker, and its outline
-                  should show that sticker's color.
+                  should show that sticker's color. The striped band around the square is left out when
+                  balancing colors - widen it until it covers your fingers and the edge of the cube.
                 </p>
                 <div class="sampling-setup-actions">
                   <button type="button" class="btn btn-secondary btn-sm" onClick={() => updateSampling(DEFAULT_SAMPLING)}>
@@ -1895,9 +1896,6 @@ function App() {
                 <div
                   class={`capture-grid-overlay ${mirrorPreview ? 'mirrored' : ''} ${samplingSetupOpen ? 'is-setup' : ''}`}
                 >
-                  {samplingSetupOpen && (
-                    <div class="capture-grid-bounds" style={{ inset: `${sampling.faceMargin * 100}%` }} />
-                  )}
                   {liveDetection.colors.map((row, r) =>
                     row.map((color, c) => {
                       const n = liveDetection.colors.length
@@ -1923,6 +1921,18 @@ function App() {
                     })
                   )}
                 </div>
+              )}
+              {samplingSetupOpen && (
+                // The band around the guide square that the background (white
+                // balance) sample skips - sized in percent of the wrapper,
+                // like the 60% guide square itself.
+                <div
+                  class="capture-background-gap"
+                  style={{
+                    width: `${60 * (1 + 2 * sampling.backgroundGap)}%`,
+                    padding: `${60 * sampling.backgroundGap}%`,
+                  }}
+                />
               )}
               {/* Always-visible guide framing exactly what region gets
                   analyzed, on top of the grid so its border/dimming stays
