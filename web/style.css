@@ -1100,6 +1100,11 @@ label.capture-size-label {
   flex: 1;
 }
 
+.capture-live-confidence {
+  color: var(--color-text-secondary);
+  white-space: nowrap;
+}
+
 .capture-progress {
   display: flex;
   align-items: center;

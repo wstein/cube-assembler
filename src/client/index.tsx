@@ -192,15 +192,23 @@ function extractCubeFromApplyAlgResult(result: any): any {
 
 const FACE_ORDER = ['U', 'R', 'F', 'D', 'L', 'B']
 
-// Face identity (which physical face is U vs R vs F...) can't actually be
-// determined from a photo — it depends on how the user is holding the cube,
-// which this app has no way to verify. So capture asks for 6 neutral faces
-// in a fixed order rather than claiming to know which is "the U face";
-// FACE_ORDER's positions still map 1:1 to U/R/F/D/L/B internally, since
-// cube assembly/notation/the server API all key off those letters.
-const FACE_DISPLAY_LABEL: Record<string, string> = Object.fromEntries(
-  FACE_ORDER.map((face, i) => [face, String(i + 1)])
-)
+// Guided capture: the 4 sides in turn while the cube is turned a quarter
+// turn at a time (either way, same row kept on top), then top and bottom
+// (see solveGuidedCapture). Which physical face is which isn't known until
+// all 6 are in, so the capture slots keep the neutral U..B keys of
+// FACE_ORDER (fixtures, uploads and the review key off them) and only
+// their meaning is a step in this order - slot U is Side 1, R Side 2, ...
+const CAPTURE_STEPS: Array<{ label: string; short: string; instruction: string }> = [
+  { label: 'Side 1', short: '1', instruction: 'Hold the cube upright and show any side.' },
+  { label: 'Side 2', short: '2', instruction: 'Keep the same row on top and turn the cube a quarter turn, either way.' },
+  { label: 'Side 3', short: '3', instruction: 'Keep the same row on top and turn another quarter turn, the same way.' },
+  { label: 'Side 4', short: '4', instruction: 'One more quarter turn, the same way.' },
+  { label: 'Top', short: 'T', instruction: 'Tip the cube towards you so its top faces the camera - any angle is fine.' },
+  { label: 'Bottom', short: 'B', instruction: 'Now show the bottom - tip it the other way. Top and bottom may be swapped.' },
+]
+const stepOf = (slot: string) => CAPTURE_STEPS[FACE_ORDER.indexOf(slot)]
+const FACE_DISPLAY_LABEL: Record<string, string> = Object.fromEntries(FACE_ORDER.map((face) => [face, stepOf(face).label]))
+const FACE_SHORT_LABEL: Record<string, string> = Object.fromEntries(FACE_ORDER.map((face) => [face, stepOf(face).short]))
 
 const STICKER_HEX: Record<string, string> = {
   W: '#ffffff', O: '#ff8000', G: '#44ee00', R: '#ff0000', B: '#2266ff', Y: '#f4f400',
@@ -1024,7 +1032,7 @@ function App() {
 
     setCapturedFaces(newCapturedFaces)
     setFaceConfidence({ ...faceConfidence, [face]: result.confidence })
-    setCaptureMessage(`✓ Face ${FACE_DISPLAY_LABEL[face]} captured (${(result.confidence * 100).toFixed(0)}% confidence)`)
+    setCaptureMessage(`✓ ${FACE_DISPLAY_LABEL[face]} captured (${(result.confidence * 100).toFixed(0)}% confidence)`)
 
     const allFacesCaptured = FACE_ORDER.every(f => f in newCapturedFaces)
     if (allFacesCaptured) {
@@ -1716,9 +1724,9 @@ function App() {
                 <span
                   key={face}
                   class={`progress-dot ${capturedFaces[face] ? 'done' : ''}`}
-                  title={`Face ${FACE_DISPLAY_LABEL[face]}${capturedFaces[face] ? ' (captured)' : ' (not captured)'}`}
+                  title={`${FACE_DISPLAY_LABEL[face]}${capturedFaces[face] ? ' (captured)' : ' (not captured)'}`}
                 >
-                  {FACE_DISPLAY_LABEL[face]}
+                  {FACE_SHORT_LABEL[face]}
                 </span>
               ))}
             </div>
@@ -1913,25 +1921,25 @@ function App() {
             onKeyDown={(e) => handleModalKeyDown(e, e.currentTarget, () => setWebcamOpen(false))}
           >
             <div class="modal-header">
-              <h2>Capturing: Face {FACE_DISPLAY_LABEL[webcamFace]}</h2>
+              <h2>{FACE_DISPLAY_LABEL[webcamFace]}{FACE_ORDER.indexOf(webcamFace) < 4 ? ' of 4' : ''}</h2>
               <button class="modal-close" aria-label="Close" onClick={() => setWebcamOpen(false)}>×</button>
             </div>
             <div class="capture-progress">
               <span class="capture-progress-label">
-                Face {FACE_ORDER.indexOf(webcamFace) + 1} of {FACE_ORDER.length}
+                Step {FACE_ORDER.indexOf(webcamFace) + 1} of {FACE_ORDER.length}
               </span>
               <div class="capture-progress-dots">
                 {FACE_ORDER.map((face) => (
                   <span
                     key={face}
                     class={`progress-dot ${capturedFaces[face] ? 'done' : ''} ${face === webcamFace ? 'current' : ''}`}
-                    title={`Face ${FACE_DISPLAY_LABEL[face]}${capturedFaces[face] ? ' (captured)' : ''} — click to jump here`}
+                    title={`${FACE_DISPLAY_LABEL[face]}${capturedFaces[face] ? ' (captured)' : ''} — click to retake or jump here`}
                     onClick={() => {
                       setWebcamFace(face)
                       setCaptureMessage('')
                     }}
                   >
-                    {FACE_DISPLAY_LABEL[face]}
+                    {FACE_SHORT_LABEL[face]}
                   </span>
                 ))}
               </div>
@@ -2182,9 +2190,11 @@ function App() {
               </p>
             )}
             <p class="capture-hint-text">
-              Align cube face in center
-              {' — live confidence: '}
-              {liveDetection ? `${(liveDetection.confidence * 100).toFixed(0)}%` : '—'}
+              {stepOf(webcamFace).instruction}
+              <span class="capture-live-confidence">
+                {' Live confidence: '}
+                {liveDetection ? `${(liveDetection.confidence * 100).toFixed(0)}%` : '—'}
+              </span>
             </p>
             <div
               role="status"
@@ -2227,7 +2237,7 @@ function App() {
               onKeyDown={(e) => handleModalKeyDown(e, e.currentTarget, () => setShowReviewDialog(false))}
             >
               <div class="modal-header">
-                <h2>Approve Face {FACE_DISPLAY_LABEL[face]} of {FACE_ORDER.length}</h2>
+                <h2>Approve {FACE_DISPLAY_LABEL[face]}</h2>
                 <button class="modal-close" aria-label="Close" onClick={() => setShowReviewDialog(false)}>×</button>
               </div>
               {captureProfile && (
@@ -2242,9 +2252,9 @@ function App() {
                     key={f}
                     class={`progress-dot ${i < reviewStep ? 'done' : ''} ${i === reviewStep ? 'current' : ''}`}
                     onClick={() => setReviewStep(i)}
-                    title={`Face ${FACE_DISPLAY_LABEL[f]}`}
+                    title={FACE_DISPLAY_LABEL[f]}
                   >
-                    {FACE_DISPLAY_LABEL[f]}
+                    {FACE_SHORT_LABEL[f]}
                   </span>
                 ))}
               </div>
@@ -2285,7 +2295,7 @@ function App() {
                           <img
                             src={data.croppedImage}
                             class="review-face-image"
-                            alt={`Captured photo of face ${FACE_DISPLAY_LABEL[face]}`}
+                            alt={`Captured photo of ${FACE_DISPLAY_LABEL[face]}`}
                           />
                         )}
                       </div>
