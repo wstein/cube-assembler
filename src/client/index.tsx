@@ -4,6 +4,7 @@ import '../../web/style.css'
 import {
   captureAndProcessFace, captureAndProcessImage, extractCubeFaceColors,
   runGlobalWhiteBalance, computeBackgroundGain, NEUTRAL_GAINS, CROP_JPEG_QUALITY,
+  DEFAULT_SAMPLING, stickerSampleRect, type SamplingGeometry,
   rgbToOKLCH, hueCircularRange, hueRangesOverlap, linearRange,
   type ColorDetectionResult, type FaceCaptureResult, type RGB,
 } from './imageProcessing'
@@ -61,6 +62,28 @@ const CAMERA_CONSTRAINTS: MediaTrackConstraints = {
 // Injected at build time by vite.config.ts's `define`.
 declare const __APP_VERSION__: string
 declare const __APP_COMMIT__: string
+
+// The sampling setup is a property of the user's cube and camera, not of
+// one capture, so it's remembered in this browser between sessions.
+const SAMPLING_STORAGE_KEY = 'cube-assembler.sampling'
+
+function loadSampling(): SamplingGeometry {
+  try {
+    const saved = JSON.parse(localStorage.getItem(SAMPLING_STORAGE_KEY) ?? 'null')
+    if (typeof saved?.faceMargin === 'number' && typeof saved?.stickerCore === 'number') return saved
+  } catch {
+    // storage blocked or corrupt - fall back to the default
+  }
+  return DEFAULT_SAMPLING
+}
+
+function saveSampling(sampling: SamplingGeometry) {
+  try {
+    localStorage.setItem(SAMPLING_STORAGE_KEY, JSON.stringify(sampling))
+  } catch {
+    // storage blocked - the setting just won't persist
+  }
+}
 
 interface CameraInfo {
   label: string
@@ -509,6 +532,12 @@ function App() {
   // let it be turned off for cameras that don't need it (e.g. a rear
   // phone camera fed in via some capture setups).
   const [mirrorPreview, setMirrorPreview] = useState(true)
+  const [sampling, setSampling] = useState<SamplingGeometry>(loadSampling)
+  const [samplingSetupOpen, setSamplingSetupOpen] = useState(false)
+  const updateSampling = (next: SamplingGeometry) => {
+    setSampling(next)
+    saveSampling(next)
+  }
   const [globalWhiteBalanceNote, setGlobalWhiteBalanceNote] = useState<string | null>(null)
   // The per-face background-derived gains actually applied this capture
   // (see computeFaceBackgroundGains below) - kept only so a saved fixture
@@ -583,14 +612,14 @@ function App() {
       ctx.drawImage(video, 0, 0)
 
       try {
-        setLiveDetection(extractCubeFaceColors(canvas, puzzleSize))
+        setLiveDetection(extractCubeFaceColors(canvas, puzzleSize, NEUTRAL_GAINS, sampling))
       } catch {
         // Transient frame read failure (e.g. camera still warming up) — skip this tick.
       }
     }, 200)
 
     return () => clearInterval(intervalId)
-  }, [webcamOpen, puzzleSize])
+  }, [webcamOpen, puzzleSize, sampling])
 
   // ─────────────────────────────────────────────────────────────────────────
   // Features: Scramble Generation (#8)
@@ -905,7 +934,7 @@ function App() {
         }
         setAppliedBackgroundGains(faceGains)
 
-        const wb = await runGlobalWhiteBalance(images, puzzleSize, faceGains)
+        const wb = await runGlobalWhiteBalance(images, puzzleSize, faceGains, sampling)
         if (wb.applied) {
           const recalibrated = { ...newCapturedFaces }
           for (const f of FACE_ORDER) {
@@ -963,7 +992,7 @@ function App() {
       let meta: {
         gridSize: number
         faces: Record<string, { colors: string[][]; photo: string }>
-        capture?: { backgroundWhiteBalance?: Record<string, RGB> }
+        capture?: { backgroundWhiteBalance?: Record<string, RGB>; sampling?: SamplingGeometry }
       }
       try {
         meta = JSON.parse(await metaFile.text())
@@ -1009,7 +1038,7 @@ function App() {
       setCaptureMessage('Detecting colors from the fixture photos...')
       const recordedGains = meta.capture?.backgroundWhiteBalance
       const images = Object.fromEntries(Object.entries(newEntries).map(([f, d]) => [f, d.croppedImage!]))
-      const wb = await runGlobalWhiteBalance(images, meta.gridSize, recordedGains)
+      const wb = await runGlobalWhiteBalance(images, meta.gridSize, recordedGains, meta.capture?.sampling ?? DEFAULT_SAMPLING)
       let mismatches = 0
       for (const [f, entry] of Object.entries(newEntries)) {
         const det = wb.faces[f]
@@ -1227,6 +1256,9 @@ function App() {
         // shifts each of the 6 reference colors to match what this
         // capture's own (already background-corrected) stickers measured.
         backgroundWhiteBalance: appliedBackgroundGains,
+        // Face border and sticker gap used to sample every face (see
+        // SamplingGeometry) - replayed by the fixture test.
+        sampling,
         colorCalibration: globalWhiteBalanceNote
           ? { applied: true, note: globalWhiteBalanceNote }
           : { applied: false },
@@ -1258,7 +1290,7 @@ function App() {
     try {
       setLoading(true)
       setCaptureMessage('Processing image...')
-      const result = captureAndProcessFace(webcamRef.current, puzzleSize)
+      const result = captureAndProcessFace(webcamRef.current, puzzleSize, NEUTRAL_GAINS, sampling)
       const track = (webcamRef.current.srcObject as MediaStream | null)?.getVideoTracks()[0]
       await applyFaceCapture(webcamFace, result, track ? withoutDeviceIds(track.getSettings()) : undefined)
     } catch (err) {
@@ -1286,7 +1318,7 @@ function App() {
           img.onerror = () => reject(new Error('Could not load image file'))
           img.src = url
         })
-        const result = captureAndProcessImage(img, puzzleSize)
+        const result = captureAndProcessImage(img, puzzleSize, NEUTRAL_GAINS, sampling)
         await applyFaceCapture(webcamFace, result)
       } finally {
         URL.revokeObjectURL(url)
@@ -1734,7 +1766,57 @@ function App() {
                 />
                 Mirror
               </label>
+              <button
+                type="button"
+                class={`btn btn-secondary btn-sm ${samplingSetupOpen ? 'active' : ''}`}
+                aria-expanded={samplingSetupOpen}
+                onClick={() => setSamplingSetupOpen((open) => !open)}
+              >
+                ⚙ Sampling setup
+              </button>
             </div>
+            {samplingSetupOpen && (
+              <div class="sampling-setup">
+                <label class="sampling-slider">
+                  <span>
+                    Border around face <output>{Math.round(sampling.faceMargin * 100)}%</output>
+                  </span>
+                  <input
+                    type="range"
+                    min={0}
+                    max={20}
+                    step={1}
+                    value={Math.round(sampling.faceMargin * 100)}
+                    onInput={(e) => updateSampling({ ...sampling, faceMargin: Number(e.currentTarget.value) / 100 })}
+                  />
+                </label>
+                <label class="sampling-slider">
+                  <span>
+                    Gap around each sticker <output>{Math.round((1 - sampling.stickerCore) * 100)}%</output>
+                  </span>
+                  <input
+                    type="range"
+                    min={10}
+                    max={70}
+                    step={5}
+                    value={Math.round((1 - sampling.stickerCore) * 100)}
+                    onInput={(e) => updateSampling({ ...sampling, stickerCore: 1 - Number(e.currentTarget.value) / 100 })}
+                  />
+                </label>
+                <p class="sampling-setup-hint">
+                  Hold a face in the square. Each small box should sit fully inside its sticker, and its outline
+                  should show that sticker's color.
+                </p>
+                <div class="sampling-setup-actions">
+                  <button type="button" class="btn btn-secondary btn-sm" onClick={() => updateSampling(DEFAULT_SAMPLING)}>
+                    Reset
+                  </button>
+                  <button type="button" class="btn btn-primary btn-sm" onClick={() => setSamplingSetupOpen(false)}>
+                    Done
+                  </button>
+                </div>
+              </div>
+            )}
             <div class="capture-video-wrapper">
               <video
                 ref={webcamRef}
@@ -1744,20 +1826,40 @@ function App() {
                 class={`webcam-feed ${mirrorPreview ? 'mirrored' : ''}`}
               />
               {liveDetection && (
+                // Positioned from stickerSampleRect in percent of the guide
+                // square, so the overlay shows exactly what the detector
+                // reads. During sampling setup it switches from per-sticker
+                // confidence to the sampled zones themselves, outlined in the
+                // color each one reads as.
                 <div
-                  class={`capture-grid-overlay ${mirrorPreview ? 'mirrored' : ''}`}
-                  style={{
-                    gridTemplateColumns: `repeat(${puzzleSize}, 1fr)`,
-                    gridTemplateRows: `repeat(${puzzleSize}, 1fr)`,
-                  }}
+                  class={`capture-grid-overlay ${mirrorPreview ? 'mirrored' : ''} ${samplingSetupOpen ? 'is-setup' : ''}`}
                 >
+                  {samplingSetupOpen && (
+                    <div class="capture-grid-bounds" style={{ inset: `${sampling.faceMargin * 100}%` }} />
+                  )}
                   {liveDetection.colors.map((row, r) =>
-                    row.map((_color, c) => (
-                      <div
-                        key={`${r}-${c}`}
-                        class={`capture-grid-cell confidence-${confidenceTier(liveDetection.cellConfidences[r][c])}`}
-                      />
-                    ))
+                    row.map((color, c) => {
+                      const n = liveDetection.colors.length
+                      const cell = stickerSampleRect(r, c, n, 100, 100, { ...sampling, stickerCore: 1 })
+                      const zone = stickerSampleRect(r, c, n, 100, 100, sampling)
+                      return (
+                        <Fragment key={`${r}-${c}`}>
+                          <div
+                            class={`capture-grid-cell confidence-${confidenceTier(liveDetection.cellConfidences[r][c])}`}
+                            style={{ left: `${cell.x}%`, top: `${cell.y}%`, width: `${cell.width}%`, height: `${cell.height}%` }}
+                          />
+                          {samplingSetupOpen && (
+                            <div
+                              class="capture-sample-zone"
+                              style={{
+                                left: `${zone.x}%`, top: `${zone.y}%`, width: `${zone.width}%`, height: `${zone.height}%`,
+                                borderColor: STICKER_HEX[color] ?? '#888',
+                              }}
+                            />
+                          )}
+                        </Fragment>
+                      )
+                    })
                   )}
                 </div>
               )}
