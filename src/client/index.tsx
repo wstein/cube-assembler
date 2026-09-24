@@ -726,6 +726,34 @@ function App() {
     return () => clearInterval(intervalId)
   }, [webcamOpen, puzzleSize, sampling, palette])
 
+  // Everything below belongs to one cube of one size, so switching sizes
+  // starts over - keeping it drew e.g. a 5x5's 25 stickers per face into a
+  // 6x6 net. Shared by the main size bar and the capture dialog.
+  const changePuzzleSize = (size: number) => {
+    if (size === puzzleSize) return
+    setPuzzleSize(size)
+    setCube(null)
+    setScramble('')
+    setAssemblyResults([])
+    setParity(null)
+    setHoveredHighlightGroup(null)
+    setCapturedFaces({})
+    setFaceConfidence({})
+    setWebcamFace(FACE_ORDER[0])
+    setLiveDetection(null)
+    setShowReviewDialog(false)
+    setReviewStep(0)
+    setReviewEditingCell(null)
+    setOrientationWizard(null)
+    setGlobalWhiteBalanceNote(null)
+    setAppliedBackgroundGains(null)
+    setLearnedPalette(null)
+    setCaptureProfile(null)
+    setProfileSuggestion(null)
+    setCaptureMessage('')
+    setFixtureSaveMessage('')
+  }
+
   // ─────────────────────────────────────────────────────────────────────────
   // Features: Scramble Generation (#8)
   // ─────────────────────────────────────────────────────────────────────────
@@ -1546,7 +1574,7 @@ function App() {
               <button
                 key={size}
                 class={`size-btn ${puzzleSize === size ? 'active' : ''}`}
-                onClick={() => setPuzzleSize(size)}
+                onClick={() => changePuzzleSize(size)}
               >
                 {size}×{size}
               </button>
@@ -1916,15 +1944,7 @@ function App() {
                   <button
                     key={size}
                     class={`wb-btn ${puzzleSize === size ? 'active' : ''}`}
-                    onClick={() => {
-                      if (size === puzzleSize) return
-                      if (Object.keys(capturedFaces).length > 0) {
-                        setCapturedFaces({})
-                        setFaceConfidence({})
-                        setWebcamFace(FACE_ORDER[0])
-                      }
-                      setPuzzleSize(size)
-                    }}
+                    onClick={() => changePuzzleSize(size)}
                   >
                     {size}×{size}
                   </button>
