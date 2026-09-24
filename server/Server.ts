@@ -746,6 +746,28 @@ type SaveFixtureRequest = {
 const FIXTURES_DIR = join(import.meta.dir, "..", "test", "fixtures");
 const REQUIRED_FACES = ["u", "r", "f", "d", "l", "b"];
 
+function stampCommit(meta: unknown): Record<string, unknown> {
+  const capture = meta && typeof meta === "object" ? (meta as Record<string, unknown>) : {};
+  const app = capture.app && typeof capture.app === "object" ? capture.app : {};
+  return { ...capture, app: { ...app, commit: gitCommit() } };
+}
+
+// Which code produced a saved fixture: short commit hash, plus "-dirty"
+// for uncommitted changes, read when the fixture is saved. Stamped here
+// rather than baked into the client bundle, which the dev server computes
+// once at startup and hot reload never refreshes - so it went stale as
+// soon as anything was committed. "unknown" outside a git checkout.
+function gitCommit(): string {
+  const git = (...args: string[]) => {
+    const result = Bun.spawnSync(["git", ...args], { cwd: import.meta.dir });
+    return result.success ? result.stdout.toString().trim() : null;
+  };
+  const hash = git("rev-parse", "--short", "HEAD");
+  if (!hash) return "unknown";
+  const status = git("status", "--porcelain", "--untracked-files=no");
+  return status ? `${hash}-dirty` : hash;
+}
+
 app.post("/api/fixtures", async (c) => {
   const body = await c.req.json<SaveFixtureRequest>();
 
@@ -791,7 +813,7 @@ app.post("/api/fixtures", async (c) => {
     colorsURFDLB: body.colorsURFDLB,
     ...(body.detectedURFDLB !== undefined ? { detectedURFDLB: body.detectedURFDLB } : {}),
     faces: {},
-    ...(body.meta !== undefined ? { capture: body.meta } : {}),
+    capture: stampCommit(body.meta),
   };
 
   for (const [faceKey, faceData] of faceEntries) {
