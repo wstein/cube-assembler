@@ -205,9 +205,9 @@ const FACE_ORDER = ['U', 'R', 'F', 'D', 'L', 'B']
 // their meaning is a step in this order - slot U is Side 1, R Side 2, ...
 const CAPTURE_STEPS: Array<{ label: string; short: string; instruction: string }> = [
   { label: 'Side 1', short: '1', instruction: 'Hold the cube upright and show any side.' },
-  { label: 'Side 2', short: '2', instruction: 'Keep the same row on top and turn the cube a quarter turn, either way.' },
-  { label: 'Side 3', short: '3', instruction: 'Keep the same row on top and turn another quarter turn, the same way.' },
-  { label: 'Side 4', short: '4', instruction: 'One more quarter turn, the same way.' },
+  { label: 'Side 2', short: '2', instruction: 'Keep the same row on top and turn the whole cube clockwise a quarter turn. Either way works.' },
+  { label: 'Side 3', short: '3', instruction: 'Turn another quarter turn, preferably the same way. Other faces still work.' },
+  { label: 'Side 4', short: '4', instruction: 'Turn another quarter turn. Any remaining side is fine.' },
   { label: 'Top', short: '5', instruction: 'Tip the cube towards you so its top faces the camera - any angle is fine.' },
   { label: 'Bottom', short: '6', instruction: 'Now show the bottom - tip it the other way. Top and bottom may be swapped.' },
 ]
@@ -444,6 +444,35 @@ function TurnHint({ step }: { step: number }) {
   )
 }
 
+// A brief visual cue between successful captures. The turn shown is only an
+// example: the guided solver determines the real face orientation afterward.
+function CaptureTurnOverlay({ step, onContinue }: { step: number; onContinue: () => void }) {
+  const kind = step < 4 ? 'side' : step === 4 ? 'top' : 'bottom'
+  const title = kind === 'side' ? 'Turn to another side' : kind === 'top' ? 'Show a remaining face' : 'Show the last face'
+  const detail = kind === 'side'
+    ? 'Clockwise is suggested; either direction works.'
+    : kind === 'top' ? 'Tip the cube up or down.' : 'Tip to the opposite face.'
+  return (
+    <div class={`capture-turn-overlay capture-turn-${kind}`} role="status" aria-label={`${title}. ${detail}`}>
+      <div class="capture-turn-scene" aria-hidden="true">
+        <div class="capture-turn-cube">
+          <div class="capture-turn-face capture-turn-front" />
+          <div class="capture-turn-face capture-turn-back" />
+          <div class="capture-turn-face capture-turn-right" />
+          <div class="capture-turn-face capture-turn-left" />
+          <div class="capture-turn-face capture-turn-up" />
+          <div class="capture-turn-face capture-turn-down" />
+        </div>
+      </div>
+      <div class="capture-turn-copy">
+        <strong>{title}</strong>
+        <span>{detail}</span>
+      </div>
+      <button type="button" class="capture-turn-continue" onClick={onContinue}>Continue</button>
+    </div>
+  )
+}
+
 // Moves `target` from where `from` was to where it is now (FLIP) - how a
 // just-captured face flies from the scan square into its net slot.
 // Skipped under prefers-reduced-motion.
@@ -670,6 +699,8 @@ function App() {
   const [faceConfidence, setFaceConfidence] = useState<Record<string, number>>({})
   const [loading, setLoading] = useState(false)
   const [captureMessage, setCaptureMessage] = useState('')
+  const [turnOverlayStep, setTurnOverlayStep] = useState<number | null>(null)
+  const turnOverlayTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const [fixtureSaveMessage, setFixtureSaveMessage] = useState('')
   const [manualColorInput, setManualColorInput] = useState('')
   const [showColorInput, setShowColorInput] = useState(false)
@@ -817,6 +848,19 @@ function App() {
   // once the slot has rendered it (see CaptureNet / flyInto).
   const pendingFlyIn = useRef<{ slot: string; from: DOMRect } | null>(null)
   const sampleCanvasRef = useRef<HTMLCanvasElement | null>(null)
+
+  const dismissTurnOverlay = () => {
+    if (turnOverlayTimer.current !== null) clearTimeout(turnOverlayTimer.current)
+    turnOverlayTimer.current = null
+    setTurnOverlayStep(null)
+  }
+
+  useEffect(() => {
+    if (!webcamOpen) dismissTurnOverlay()
+    return () => {
+      if (turnOverlayTimer.current !== null) clearTimeout(turnOverlayTimer.current)
+    }
+  }, [webcamOpen])
 
   // ─────────────────────────────────────────────────────────────────────────
   // Webcam Capture
@@ -1147,6 +1191,7 @@ function App() {
   // completely over from U, so "Recapture Faces" actually re-walks all 6
   // faces instead of silently reusing the other 5's stale data.
   const handleOpenCapture = () => {
+    dismissTurnOverlay()
     const allCaptured = FACE_ORDER.every((f) => f in capturedFaces)
     if (allCaptured) {
       setCapturedFaces({})
@@ -1215,10 +1260,11 @@ function App() {
     } else {
       const nextFace = FACE_ORDER.find(f => !(f in newCapturedFaces))
       if (nextFace) {
-        setTimeout(() => {
-          setWebcamFace(nextFace)
-          setCaptureMessage('')
-        }, 900)
+        setWebcamFace(nextFace)
+        setCaptureMessage('')
+        dismissTurnOverlay()
+        setTurnOverlayStep(FACE_ORDER.indexOf(nextFace))
+        turnOverlayTimer.current = setTimeout(dismissTurnOverlay, 2400)
       }
     }
   }
@@ -1725,7 +1771,7 @@ function App() {
   }
 
   const handleCapturePhoto = async () => {
-    if (!webcamRef.current) return
+    if (!webcamRef.current || turnOverlayStep !== null) return
     const frame = document.querySelector('.capture-scan-frame')?.getBoundingClientRect()
     if (frame) pendingFlyIn.current = { slot: webcamFace, from: frame }
 
@@ -2261,6 +2307,9 @@ function App() {
                 <div class="capture-scan-frame">
                   <span class="capture-scan-label">Fit face in this square</span>
                 </div>
+                {turnOverlayStep !== null && (
+                  <CaptureTurnOverlay step={turnOverlayStep} onContinue={dismissTurnOverlay} />
+                )}
               </div>
               <span class="capture-live-badge" aria-hidden="true">
                 <span class="capture-live-dot" />
@@ -2286,6 +2335,7 @@ function App() {
                   current={webcamFace}
                   size={puzzleSize}
                   onSelect={(slot) => {
+                    dismissTurnOverlay()
                     setWebcamFace(slot)
                     setCaptureMessage('')
                   }}
@@ -2414,7 +2464,7 @@ function App() {
                 </div>
                 <label class="capture-import">
                   Or use a photo file for this step
-                  <input type="file" accept="image/*" onChange={handleImportImage} disabled={loading} />
+                  <input type="file" accept="image/*" onChange={handleImportImage} disabled={loading || turnOverlayStep !== null} />
                 </label>
               </details>
               {/* Below the live view, so adjusting it never pushes the video off
@@ -2522,7 +2572,7 @@ function App() {
                 <button
                   class="btn btn-primary"
                   onClick={handleCapturePhoto}
-                  disabled={loading}
+                  disabled={loading || turnOverlayStep !== null}
                 >
                   {loading ? '⏳ Processing...' : `Capture ${FACE_DISPLAY_LABEL[webcamFace].toLowerCase()}`}
                 </button>

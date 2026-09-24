@@ -1626,6 +1626,108 @@ textarea {
   margin-bottom: var(--spacing-md);
 }
 
+/* A camera-view cue after each capture. It illustrates one possible move;
+   the capture search still accepts the other direction and cap order. */
+.capture-turn-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 16px;
+  box-sizing: border-box;
+  background: rgba(12, 17, 24, 0.82);
+  color: #fff;
+  text-align: center;
+}
+
+.capture-turn-scene {
+  width: 100px;
+  aspect-ratio: 1;
+  perspective: 500px;
+  margin-block: 12px;
+}
+
+.capture-turn-cube {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  transform-style: preserve-3d;
+  --turn-depth: 50px;
+  transform: rotateX(-18deg) rotateY(-25deg);
+}
+
+.capture-turn-face {
+  position: absolute;
+  inset: 0;
+  box-sizing: border-box;
+  border: 3px solid #17212b;
+  border-radius: 8px;
+  backface-visibility: hidden;
+  background-color: #d7e4ee;
+  background-image: linear-gradient(to right, transparent 32%, #17212b 32%, #17212b 35%, transparent 35%, transparent 65%, #17212b 65%, #17212b 68%, transparent 68%),
+    linear-gradient(to bottom, transparent 32%, #17212b 32%, #17212b 35%, transparent 35%, transparent 65%, #17212b 65%, #17212b 68%, transparent 68%);
+}
+
+.capture-turn-front { background-color: #52b788; transform: translateZ(var(--turn-depth)); }
+.capture-turn-back { transform: rotateY(180deg) translateZ(var(--turn-depth)); }
+.capture-turn-right { background-color: #74a9d8; transform: rotateY(90deg) translateZ(var(--turn-depth)); }
+.capture-turn-left { transform: rotateY(-90deg) translateZ(var(--turn-depth)); }
+.capture-turn-up { background-color: #f0cc69; transform: rotateX(90deg) translateZ(var(--turn-depth)); }
+.capture-turn-down { background-color: #ec9b72; transform: rotateX(-90deg) translateZ(var(--turn-depth)); }
+
+.capture-turn-copy {
+  display: grid;
+  gap: 3px;
+  max-width: 25ch;
+  line-height: 1.25;
+  text-shadow: 0 1px 3px #000;
+}
+
+.capture-turn-copy strong { font-size: clamp(0.95rem, 3vw, 1.2rem); }
+.capture-turn-copy span { font-size: clamp(0.78rem, 2.5vw, 0.95rem); }
+
+.capture-turn-continue {
+  border: 1px solid rgba(255, 255, 255, 0.7);
+  border-radius: 99px;
+  padding: 5px 14px;
+  background: rgba(255, 255, 255, 0.14);
+  color: #fff;
+  font: inherit;
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+
+@media (max-width: 600px) {
+  .capture-turn-overlay { gap: 6px; padding: 10px; }
+  .capture-turn-scene { width: 76px; margin-block: 4px; }
+  .capture-turn-cube { --turn-depth: 38px; }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .capture-turn-side .capture-turn-cube { animation: capture-turn-side 2.4s ease-in-out forwards; }
+  .capture-turn-top .capture-turn-cube { animation: capture-turn-top 2.4s ease-in-out forwards; }
+  .capture-turn-bottom .capture-turn-cube { animation: capture-turn-bottom 2.4s ease-in-out forwards; }
+}
+
+@keyframes capture-turn-side {
+  0%, 14% { transform: rotateX(-18deg) rotateY(-25deg); }
+  80%, 100% { transform: rotateX(-18deg) rotateY(-115deg); }
+}
+
+@keyframes capture-turn-top {
+  0%, 14% { transform: rotateX(-18deg) rotateY(-25deg); }
+  80%, 100% { transform: rotateX(72deg) rotateY(-25deg); }
+}
+
+@keyframes capture-turn-bottom {
+  0%, 14% { transform: rotateX(-18deg) rotateY(-25deg); }
+  80%, 100% { transform: rotateX(-108deg) rotateY(-25deg); }
+}
+
 /* Always-on guide marking exactly which square region of the frame gets
    analyzed, visible from the moment the modal opens (not gated behind a
    detection result landing first). */
