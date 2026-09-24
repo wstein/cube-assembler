@@ -58,6 +58,34 @@ describe('live face appearance', () => {
     expect(hasPlausibleStickerFace(face, size, size, 3)).toBe(false)
   })
 
+  // Six sticker colors laid out 3x3, one per 30 px cell.
+  const STICKERS: RGB[] = [
+    { r: 220, g: 105, b: 30 }, { r: 30, g: 150, b: 80 }, { r: 240, g: 240, b: 235 },
+    { r: 200, g: 40, b: 50 }, { r: 40, g: 80, b: 200 }, { r: 240, g: 210, b: 30 },
+  ]
+  const sticker = (x: number, y: number) => STICKERS[(Math.floor(x / 30) + 3 * Math.floor(y / 30)) % 6]
+
+  it('accepts rounded stickers that show the dark body only at their corners', () => {
+    // Corner radius 9 px, no gap between stickers along their edges: no
+    // straight seams, only dark four-sticker intersections.
+    const radius = 9
+    const face = frame((x, y) => {
+      const dx = Math.max(0, Math.abs((x % 30) - 14.5) - (14.5 - radius))
+      const dy = Math.max(0, Math.abs((y % 30) - 14.5) - (14.5 - radius))
+      return dx * dx + dy * dy > radius * radius ? { r: 15, g: 15, b: 15 } : sticker(x, y)
+    })
+    expect(hasPlausibleStickerFace(face, size, size, 3)).toBe(true)
+  })
+
+  it('rejects a gapless mosaic of colored tiles', () => {
+    expect(hasPlausibleStickerFace(frame(sticker), size, size, 3)).toBe(false)
+  })
+
+  it('rejects a two-color checkerboard', () => {
+    const board = frame((x, y) => (Math.floor(x / 30) + Math.floor(y / 30)) % 2 ? STICKERS[0] : STICKERS[2])
+    expect(hasPlausibleStickerFace(board, size, size, 3)).toBe(false)
+  })
+
   it('recognizes a solid-color face by its outline in the uncropped camera frame', () => {
     const cameraSize = 150
     const cameraData = new Uint8ClampedArray(cameraSize * cameraSize * 4)
