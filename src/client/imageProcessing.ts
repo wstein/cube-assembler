@@ -1095,13 +1095,44 @@ export interface FaceCaptureResult extends ColorDetectionResult {
   // privacy, so this is the only record of how it was framed).
   frame: { width: number; height: number }
   crop: { x: number; y: number; width: number; height: number }
+  // measureSharpness of the cropped face region.
+  sharpness: number
 }
 
-function describeCrop(canvas: HTMLCanvasElement): Pick<FaceCaptureResult, 'frame' | 'crop'> {
-  const bounds = computeFaceBounds(canvas)
+// Focus measure for a photo: variance of the Laplacian of its luminance
+// (a standard blur metric - edges produce large Laplacian values, so a
+// sharp image has a wide spread and a blurred one a narrow spread). Only
+// comparable between photos of similar content and size, e.g. the 6 faces
+// of one capture or recaptures of the same cube; saved with fixtures so an
+// out-of-focus face can be spotted.
+export function measureSharpness(data: Uint8ClampedArray, width: number, height: number): number {
+  if (width < 3 || height < 3) return 0
+  const luma = new Float32Array(width * height)
+  for (let i = 0; i < width * height; i++) {
+    luma[i] = 0.2126 * data[i * 4] + 0.7152 * data[i * 4 + 1] + 0.0722 * data[i * 4 + 2]
+  }
+  let sum = 0
+  let sumSq = 0
+  let count = 0
+  for (let y = 1; y < height - 1; y++) {
+    for (let x = 1; x < width - 1; x++) {
+      const i = y * width + x
+      const laplacian = luma[i - 1] + luma[i + 1] + luma[i - width] + luma[i + width] - 4 * luma[i]
+      sum += laplacian
+      sumSq += laplacian * laplacian
+      count++
+    }
+  }
+  const mean = sum / count
+  return sumSq / count - mean * mean
+}
+
+function describeCrop(canvas: HTMLCanvasElement): Pick<FaceCaptureResult, 'frame' | 'crop' | 'sharpness'> {
+  const { imageData, startX, startY, faceWidth, faceHeight } = getFaceRegion(canvas)
   return {
     frame: { width: canvas.width, height: canvas.height },
-    crop: { x: bounds.startX, y: bounds.startY, width: bounds.faceWidth, height: bounds.faceHeight },
+    crop: { x: startX, y: startY, width: faceWidth, height: faceHeight },
+    sharpness: measureSharpness(imageData.data, faceWidth, faceHeight),
   }
 }
 

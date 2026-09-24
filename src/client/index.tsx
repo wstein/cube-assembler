@@ -48,6 +48,7 @@ interface FaceCaptureData {
   // balance can drift between faces. All absent for uploaded fixtures.
   frame?: FaceCaptureResult['frame']
   crop?: FaceCaptureResult['crop']
+  sharpness?: number
   cameraSettings?: Partial<MediaTrackSettings>
   timestamp: number
 }
@@ -871,6 +872,7 @@ function App() {
       backgroundColor?: RGB | null
       frame?: FaceCaptureResult['frame']
       crop?: FaceCaptureResult['crop']
+      sharpness?: number
     },
     cameraSettings?: Partial<MediaTrackSettings>
   ) => {
@@ -891,6 +893,7 @@ function App() {
         backgroundColor: result.backgroundColor,
         frame: result.frame,
         crop: result.crop,
+        sharpness: result.sharpness,
         cameraSettings,
         timestamp: Date.now(),
       },
@@ -1253,6 +1256,7 @@ function App() {
           background: face.backgroundColor,
           frame: face.frame,
           crop: face.crop,
+          sharpness: face.sharpness !== undefined ? Math.round(face.sharpness * 10) / 10 : undefined,
           camera: face.cameraSettings,
         }
       }
