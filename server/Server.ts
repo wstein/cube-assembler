@@ -75,10 +75,14 @@ export type ParityResponse = {
   // triplet, or the over-represented wing-edge pairs hiding a misread
   // sticker) - so a human can go look at exactly those cubies instead of
   // re-deriving positions from the text. Omitted for failures that are
-  // inherently global rather than pointing at specific stickers
-  // (colorBalance, an orientation-sum parity mismatch, or corner-vs-edge
-  // permutation parity itself - see each return site's own comment).
+  // inherently global rather than pointing at specific stickers (an
+  // orientation-sum parity mismatch, or corner-vs-edge permutation parity
+  // itself - see each return site's own comment). An invalid color balance
+  // highlights every sticker of each over-represented color.
   highlight?: HighlightGroup[];
+  // A readable explanation of `result`, where there's more to say (e.g.
+  // which colors are off for an invalid color balance).
+  detail?: string;
 };
 
 export type ApplyAlgRequest  = { cube: CubeIR; alg: string };
@@ -150,6 +154,28 @@ function validateColorBalance(cube: CubeIR): boolean {
   const counts = countColors(cube);
   const expected = cube.size ** 2;
   return Object.values(counts).every((c) => c === expected);
+}
+
+const COLOR_NAMES: Record<FaceColor, string> = { W: "White", O: "Orange", G: "Green", R: "Red", B: "Blue", Y: "Yellow" };
+
+// Which colors are off, for an invalid color balance: a sentence for the
+// customer, and every sticker of each over-represented color as one
+// highlight group - one of those is the misread sticker (or one set to the
+// wrong color by hand).
+function colorBalanceReport(cube: CubeIR): { detail: string; highlight: HighlightGroup[] } {
+  const counts = countColors(cube);
+  const expected = cube.size ** 2;
+  const off = (Object.keys(counts) as FaceColor[]).filter((c) => counts[c] !== expected);
+  const detail = `${off.map((c) => `${COLOR_NAMES[c]} ${counts[c]}`).join(", ")} - each color should appear ${expected} times`;
+  const highlight = off
+    .filter((c) => counts[c] > expected)
+    .map((c) => ({
+      group: `${COLOR_NAMES[c]} ×${counts[c]}`,
+      facelets: (["u", "r", "f", "d", "l", "b"] as const).flatMap((face) =>
+        cube[face].data.flatMap((color, index) => (color === c ? [{ face, index }] : []))
+      ),
+    }));
+  return { detail, highlight };
 }
 
 // ─── Corner facelet-slot geometry (size-independent) ──────────────────────────
@@ -387,7 +413,7 @@ function runFullParity(cube: CubeIR): ParityResponse {
 
   checks.colorBalance = validateColorBalance(cube);
   if (!checks.colorBalance)
-    return { valid: false, result: "Invalid color balance", checks };
+    return { valid: false, result: "Invalid color balance", checks, ...colorBalanceReport(cube) };
 
   // Corner analysis — meaningful for every N (see CORNER_SLOTS above).
   const cornerPieces: number[] = [];
