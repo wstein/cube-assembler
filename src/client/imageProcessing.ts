@@ -5,6 +5,10 @@ export interface ColorDetectionResult {
   confidence: number
   cellConfidences: number[][]
   cellColors: RGB[][]
+  // Per sticker, the other color it sits close to the boundary with (see
+  // nearestOtherColor), or null when it's clearly its own color. Only set
+  // after the cross-face recalibration, since it needs the learned colors.
+  cellLookalikes?: (string | null)[][]
 }
 
 export interface RGB {
@@ -1192,6 +1196,27 @@ export interface LearnedColorClassificationResult {
  * OWN background patch read the same as face 1's did. A face missing from
  * `faceGains` (background unavailable that shot) falls back to neutral.
  */
+// How far along the way from its own learned color to the nearest other
+// one a sticker may sit before it's worth a second look: distance to its
+// own color divided by distance to the nearest other. 0 is dead center,
+// 1 is exactly on the boundary.
+export const LOOKALIKE_RATIO = 0.6
+
+// The nearest learned color other than `label`, and how close `rgb` is to
+// the boundary with it (see LOOKALIKE_RATIO).
+export function nearestOtherColor(rgb: RGB, label: string, colors: Record<string, RGB>): { color: string; ratio: number } | null {
+  const own = colors[label]
+  if (!own) return null
+  const ownDistance = clusterDistance(rgb, own)
+  let best: { color: string; distance: number } | null = null
+  for (const [color, centroid] of Object.entries(colors)) {
+    if (color === label) continue
+    const distance = clusterDistance(rgb, centroid)
+    if (!best || distance < best.distance) best = { color, distance }
+  }
+  return best ? { color: best.color, ratio: ownDistance / Math.max(best.distance, 1e-9) } : null
+}
+
 export async function runGlobalWhiteBalance(
   faceCroppedImages: Record<string, string>,
   gridSize: number,
@@ -1228,6 +1253,7 @@ export async function runGlobalWhiteBalance(
       colors: det.colors.map((row) => [...row]),
       cellConfidences: det.cellConfidences.map((row) => [...row]),
       cellColors: det.cellColors,
+      cellLookalikes: det.colors.map((row) => row.map(() => null)),
       confidence: 0,
     }
   }
@@ -1242,6 +1268,8 @@ export async function runGlobalWhiteBalance(
 
     reclassifiedFaces[face].colors[row][col] = label
     reclassifiedFaces[face].cellConfidences[row][col] = cellConfidence
+    const nearest = nearestOtherColor(samples[i].rgb, label, learned.colors)
+    reclassifiedFaces[face].cellLookalikes![row][col] = nearest && nearest.ratio >= LOOKALIKE_RATIO ? nearest.color : null
     faceTotals[face].sum += cellConfidence
     faceTotals[face].count++
   })
