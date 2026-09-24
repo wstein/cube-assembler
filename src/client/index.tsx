@@ -810,9 +810,20 @@ function App() {
   useEffect(() => {
     if (!webcamOpen || !webcamRef.current) return
 
+    // The stream is kept here, not read back from the <video> on cleanup:
+    // closing the dialog unmounts the video first, so it would find none
+    // and leave the camera on. A stream arriving after the dialog already
+    // closed is stopped right away.
+    let stream: MediaStream | null = null
+    let closed = false
     navigator.mediaDevices
       .getUserMedia({ video: CAMERA_CONSTRAINTS })
-      .then((stream) => {
+      .then((opened) => {
+        if (closed) {
+          opened.getTracks().forEach((t) => t.stop())
+          return
+        }
+        stream = opened
         if (webcamRef.current) {
           webcamRef.current.srcObject = stream
         }
@@ -830,9 +841,9 @@ function App() {
       .catch((err) => console.error('Webcam error:', err))
 
     return () => {
-      if (webcamRef.current?.srcObject) {
-        (webcamRef.current.srcObject as MediaStream).getTracks().forEach((t) => t.stop())
-      }
+      closed = true
+      stream?.getTracks().forEach((t) => t.stop())
+      if (webcamRef.current) webcamRef.current.srcObject = null
     }
   }, [webcamOpen])
 
