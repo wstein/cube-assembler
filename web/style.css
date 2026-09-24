@@ -872,6 +872,139 @@ textarea {
   }
 }
 
+/* Phones: a dark full-screen camera screen - step on top, live view, the
+   captured faces, then a white panel with the instruction and the Capture
+   button at the bottom, within thumb reach. The step panel's pieces are
+   reordered around the live view (display: contents), so desktop and
+   phone share one markup. */
+@media (max-width: 600px) {
+  .modal-content.capture-modal-content {
+    width: 100vw;
+    height: 100dvh;
+    max-height: none;
+    border-radius: 0;
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-sm);
+    overflow-y: auto;
+    background: #121215;
+    color: #edebe6;
+  }
+
+  .capture-modal-content .capture-side {
+    display: contents;
+  }
+
+  /* Nothing shrinks: the screen scrolls instead of overlapping. */
+  .capture-modal-content > *,
+  .capture-modal-content .capture-side > * {
+    flex-shrink: 0;
+  }
+
+  .capture-modal-content .capture-side-header {
+    order: 1;
+    align-items: center;
+    padding: var(--spacing-md) var(--spacing-md) 0;
+  }
+
+  .capture-modal-content .capture-side-title h2 {
+    font-size: 1.4rem;
+    color: #ffffff;
+  }
+
+  .capture-modal-content .capture-step-kicker {
+    color: #b9b6ae;
+  }
+
+  .capture-modal-content .capture-side-header .modal-close {
+    order: -1;
+    width: 44px;
+    height: 44px;
+    border-radius: 22px;
+    background: rgba(255, 255, 255, 0.12);
+    color: #ffffff;
+  }
+
+  .capture-modal-content .capture-live {
+    order: 2;
+    padding: 0 var(--spacing-md);
+    background: transparent;
+  }
+
+  .capture-modal-content .capture-live .capture-video-wrapper {
+    width: min(100%, 42vh);
+  }
+
+  .capture-modal-content .capture-live-badge {
+    left: calc(var(--spacing-md) + 12px);
+    bottom: 12px;
+  }
+
+  .capture-modal-content .capture-progress {
+    order: 3;
+    align-items: center;
+    padding: var(--spacing-xs) var(--spacing-md) 0;
+  }
+
+  .capture-modal-content .capture-progress-label {
+    color: #b9b6ae;
+  }
+
+  .capture-modal-content .capture-net-slot .orientation-net-face {
+    width: 44px;
+    height: 44px;
+  }
+
+  .capture-modal-content .capture-net-slot .orientation-net-face-undecided .orientation-net-sticker {
+    background: #3a3b40;
+  }
+
+  .capture-modal-content .capture-side > .capture-warning,
+  .capture-modal-content .capture-settings,
+  .capture-modal-content .sampling-setup {
+    order: 4;
+    margin: 0 var(--spacing-md);
+  }
+
+  .capture-modal-content .capture-settings summary {
+    color: #edebe6;
+  }
+
+  .capture-modal-content .capture-settings[open] {
+    padding: var(--spacing-sm) var(--spacing-md);
+    background: var(--color-bg-primary);
+    color: var(--color-text-primary);
+    border-radius: var(--radius-lg);
+  }
+
+  .capture-modal-content .capture-settings[open] summary {
+    color: var(--color-text-primary);
+  }
+
+  .capture-modal-content .capture-side > .capture-hint-text {
+    order: 5;
+    margin: auto 12px calc(-1 * var(--spacing-sm));
+    padding: 18px var(--spacing-md) var(--spacing-sm);
+    background: #ffffff;
+    color: #17171b;
+    border-radius: 22px 22px 0 0;
+    font-size: 0.95rem;
+  }
+
+  .capture-modal-content .capture-actions {
+    order: 6;
+    position: static;
+    margin: 0 12px 12px;
+    padding: var(--spacing-sm) var(--spacing-md) var(--spacing-md);
+    background: #ffffff;
+    border-radius: 0 0 22px 22px;
+  }
+
+  .capture-modal-content .capture-actions > .btn-primary {
+    height: 56px;
+  }
+}
+
 /* ─────────────────────────────────────────────────────────────────────────────
    POST-CAPTURE REVIEW DIALOG
    ───────────────────────────────────────────────────────────────────────────── */
