@@ -168,12 +168,33 @@ function validateColorBalance(cube: CubeIR): boolean {
   return Object.values(counts).every((c) => c === expected)
 }
 
+const COLOR_NAMES: Record<FaceColor, string> = { W: 'White', O: 'Orange', G: 'Green', R: 'Red', B: 'Blue', Y: 'Yellow' }
+// Which colors are off, for an invalid color balance: a sentence for the
+// customer, and every sticker of each over-represented color as one
+// highlight group - one of those is the misread sticker (or one set to the
+// wrong color by hand).
+function colorBalanceReport(cube: CubeIR): { detail: string; highlight: HighlightGroup[] } {
+  const counts = countColors(cube)
+  const expected = cube.size ** 2
+  const off = (Object.keys(counts) as FaceColor[]).filter((c) => counts[c] !== expected)
+  const detail = `${off.map((c) => `${COLOR_NAMES[c]} ${counts[c]}`).join(', ')} - each color should appear ${expected} times`
+  const highlight = off
+    .filter((c) => counts[c] > expected)
+    .map((c) => ({
+      group: `${COLOR_NAMES[c]} ×${counts[c]}`,
+      facelets: (['u', 'r', 'f', 'd', 'l', 'b'] as const).flatMap((face) =>
+        cube[face].data.flatMap((color, index) => (color === c ? [{ face, index }] : []))
+      ),
+    }))
+  return { detail, highlight }
+}
+
 // Faithful port of runFullParity's full corner/edge/orientation/permutation
 // logic, generalized across puzzle sizes the same way the server is.
-function checkParity(cube: CubeIR): { valid: boolean; result: string; highlight?: HighlightGroup[] } {
+function checkParity(cube: CubeIR): { valid: boolean; result: string; highlight?: HighlightGroup[]; detail?: string } {
   const n = cube.size
 
-  if (!validateColorBalance(cube)) return { valid: false, result: 'Invalid color balance' }
+  if (!validateColorBalance(cube)) return { valid: false, result: 'Invalid color balance', ...colorBalanceReport(cube) }
 
   const cornerPieces: number[] = []
   const cornerOrients: number[] = []
@@ -394,7 +415,15 @@ describe('server parity: non-3x3 sizes (no center-block uniformity check)', () =
   it('rejects a 2x2 with an invalid color balance', () => {
     const cube = solvedCube(2)
     cube.u.data[0] = 'R' // now 5 R, 3 W - breaks the N² == 4-per-color invariant
-    expect(checkParity(cube)).toEqual({ valid: false, result: 'Invalid color balance' })
+    const result = checkParity(cube)
+    expect(result.valid).toBe(false)
+    expect(result.result).toBe('Invalid color balance')
+    expect(result.detail).toBe('White 3, Red 5 - each color should appear 4 times')
+    // Every Red sticker is a candidate for the misread one - the 4 on R plus the one on U.
+    expect(result.highlight).toEqual([{
+      group: 'Red ×5',
+      facelets: [{ face: 'u', index: 0 }, ...[0, 1, 2, 3].map((index) => ({ face: 'r', index }))],
+    }])
   })
 
   it('rejects a 2x2 with a genuinely broken corner triplet', () => {
