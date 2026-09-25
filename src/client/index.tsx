@@ -910,7 +910,7 @@ function App() {
     const canvas = sampleCanvasRef.current
     let progress: AutoCaptureProgress | null = null
     let hold: LiveHold<ColorDetectionResult> = NO_HOLD
-    let lastSizeCheck = 0
+    let lastSizeCheck = -Infinity
     let sizeCandidate = 0
     let sizeCandidateFrames = 0
 
