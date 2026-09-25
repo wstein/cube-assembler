@@ -3,11 +3,10 @@
  *
  * Architecture:
  *   - Hono handles routing (no dependencies beyond hono)
- *   - Bun serves ReScript compiled .js and static web/ assets directly
+ *   - Bun serves static web/ assets directly
  *
  * Routes:
  *   GET  /                         → serves index.html
- *   GET  /lib/*                    → serves ReScript compiled ESM (.js)
  *   GET  /web/*                    → serves web assets (CSS, client TS)
  *   POST /api/parity               → synchronous parity check result
  *   POST /api/fixtures             → save a human-verified capture to
@@ -532,7 +531,6 @@ app.use("*", logger());
 app.use("/api/*", cors({ origin: "*" }));
 
 // ── Static assets (no bundler needed) ──────────────────────────────────────
-app.use("/lib/*", serveStatic({ root: "./" }));   // ReScript compiled ESM
 app.use("/web/*", serveStatic({ root: "./" }));   // CSS + client TS
 app.use("/public/*", serveStatic({ root: "./" }));
 app.get("/favicon.svg", serveStatic({ path: "./public/favicon.svg" }));

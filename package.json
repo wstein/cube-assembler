@@ -1,21 +1,17 @@
 {
   "name": "cube-assembler",
   "version": "0.1.0",
-  "description": "Full-stack Rubik's Cube assembler: ReScript + Hono + Bun. Supports 2x2–7x7, WCA notation, webcam capture, scramble generation, SSE-streamed parity pipeline.",
+  "description": "Rubik's Cube scanner: reads a physical 2x2-7x7 cube from six camera photos and checks the result (Preact + Hono + Bun).",
   "type": "module",
   "scripts": {
-    "build:res": "rescript build",
-    "clean:res": "rescript clean",
-    "watch:res": "rescript build -w",
     "dev:server": "bun run --watch server/Server.ts",
     "dev:client": "vite",
     "dev": "concurrently \"npm:dev:server\" \"npm:dev:client\"",
-    "build": "npm run build:res && vite build",
+    "build": "vite build",
     "start": "bun run server/Server.ts",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:ui": "vitest --ui",
-    "lint": "rescript build 2>&1"
+    "test:ui": "vitest --ui"
   },
   "dependencies": {
     "cubing": "file:./vendor/cubing.js",
@@ -28,7 +24,6 @@
     "@vitest/ui": "^5.0.1",
     "concurrently": "^10.0.5",
     "jpeg-js": "^0.4.4",
-    "rescript": "^12.3.1",
     "terser": "^5.30.3",
     "vite": "^8.3.0",
     "vitest": "^5.0.1"
@@ -41,7 +36,6 @@
   },
   "keywords": [
     "rubiks-cube",
-    "rescript",
     "cubing",
     "hono",
     "bun",

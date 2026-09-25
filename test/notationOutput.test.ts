@@ -9,9 +9,6 @@
  *     whose solved color the sticker matches, so a solved cube reads
  *     "UUUUUUUUU RRRRRRRRR FFFFFFFFF DDDDDDDDD LLLLLLLLL BBBBBBBBB").
  *
- * (Not to be confused with test/notation.test.ts, which covers the
- * separate, alphabet-parameterised ReScript Notation module.)
- *
  * Run: npx vitest run test/notationOutput.test.ts
  */
 import { describe, it, expect } from 'vitest'
