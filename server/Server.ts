@@ -1,13 +1,10 @@
 /**
  * server/Server.ts — CubeAssembler Hono + Bun Server
  *
- * Architecture:
- *   - Hono handles routing (no dependencies beyond hono)
- *   - Bun serves static web/ assets directly
+ * The API behind the Vite app: the page itself is served by Vite in
+ * development (which forwards /api here) and by GitHub Pages in production.
  *
  * Routes:
- *   GET  /                         → serves index.html
- *   GET  /web/*                    → serves web assets (CSS, client TS)
  *   POST /api/parity               → synchronous parity check result
  *   POST /api/fixtures             → save a human-verified capture to
  *                                     test/fixtures/ as a regression fixture
@@ -16,7 +13,6 @@
 import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { logger } from "hono/logger";
-import { serveStatic } from "hono/bun";
 import { mkdir } from "node:fs/promises";
 import { join } from "node:path";
 import { wrgFaceletsToGrids } from "../src/client/notationOutput";
@@ -529,14 +525,6 @@ const app = new Hono();
 
 app.use("*", logger());
 app.use("/api/*", cors({ origin: "*" }));
-
-// ── Static assets (no bundler needed) ──────────────────────────────────────
-app.use("/web/*", serveStatic({ root: "./" }));   // CSS + client TS
-app.use("/public/*", serveStatic({ root: "./" }));
-app.get("/favicon.svg", serveStatic({ path: "./public/favicon.svg" }));
-app.get("/favicon.ico", serveStatic({ path: "./public/favicon.svg" }));
-
-app.get("/", serveStatic({ path: "./index.html" }));
 
 // ── POST /api/parity ─────────────────────────────────────────────────────────
 app.post("/api/parity", async (c) => {
