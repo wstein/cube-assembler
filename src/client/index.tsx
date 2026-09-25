@@ -9,7 +9,7 @@ import { scaleBounds, type LiveAnalysisRequest } from './liveAnalysis'
 import type { LiveFrameMessage, LiveResultMessage } from './liveAnalysis.worker'
 import { WIZARD_FACE_ORDER, faceContentKey, groupWizardOptions, pickWizardFace, preferredGuidedArrangementIndex } from './orientationWizard'
 import {
-  faceBoundsForMode, detectFaceGridSize, captureAndProcessFace, captureAndProcessCanvas, captureAndProcessImage, hasVisibleCubeFace,
+  faceBoundsForMode, captureAndProcessFace, captureAndProcessCanvas, captureAndProcessImage, hasVisibleCubeFace,
   runGlobalWhiteBalance, NEUTRAL_GAINS, CROP_JPEG_QUALITY,
   DEFAULT_SAMPLING, MAX_BACKGROUND_GAP, STICKER_MEASUREMENT, stickerSampleRect, colorConfidences, STICKER_COLORS, type SamplingGeometry,
   rgbToOKLCH, hueCircularRange, hueRangesOverlap, linearRange,
@@ -657,7 +657,6 @@ const ORIENTATION_CHOICES_PER_PAGE = 2
 
 function App() {
   const [puzzleSize, setPuzzleSize] = useState(3)
-  const sizeManuallyChosen = useRef(false)
   const [cube, setCube] = useState<any>(null)
   const [assemblyResults, setAssemblyResults] = useState<any[]>([])
   const [parity, setParity] = useState<any>(null)
@@ -919,9 +918,6 @@ function App() {
     const canvas = sampleCanvasRef.current
     let progress: AutoCaptureProgress | null = null
     let hold: LiveHold<ColorDetectionResult> = NO_HOLD
-    let lastSizeCheck = -Infinity
-    let sizeCandidate = 0
-    let sizeCandidateFrames = 0
 
     // Frames are analyzed in a worker, scaled down to LIVE_ANALYSIS_HEIGHT
     // there (see liveAnalysis.worker.ts), one at a time. The worker hands
@@ -938,18 +934,6 @@ function App() {
       try {
         if ('error' in event.data) throw new Error(event.data.error)
         const { result } = event.data
-        if (result.size) {
-          const visibleSize = result.size.visible ? result.size.size : null
-          sizeCandidateFrames = visibleSize && visibleSize === sizeCandidate ? sizeCandidateFrames + 1 : 1
-          sizeCandidate = visibleSize ?? 0
-          if (visibleSize && visibleSize !== puzzleSize && sizeCandidateFrames >= 2) {
-            progress = null
-            setAutoCaptureFrames(0)
-            changePuzzleSize(visibleSize, true)
-            setCaptureMessage(`Detected ${visibleSize}×${visibleSize} cube size`)
-            return
-          }
-        }
         // Bounds in the camera frame's pixels; colors and the check come
         // from the worker's single read of the face.
         const bounds = scaleBounds(result.bounds, event.data.scale)
@@ -1029,17 +1013,12 @@ function App() {
       try {
         const frame = await createImageBitmap(video)
         if (!active || inFlight !== id) { frame.close(); return }
-        const detectSize = captureMode === 'cv' && webcamFace === FACE_ORDER[0]
-          && FACE_ORDER.every((f) => !capturedFaces[f]) && !sizeManuallyChosen.current
-          && performance.now() - lastSizeCheck >= 500
-        if (detectSize) lastSizeCheck = performance.now()
         const request: LiveAnalysisRequest = {
           gridSize: puzzleSize,
           mode: captureMode === 'cv' ? 'aligned' : 'fixed',
           requireOutline: captureMode === 'cv',
           sampling,
           palette,
-          detectSize,
         }
         worker.postMessage({ id, frame, maxHeight: LIVE_ANALYSIS_HEIGHT, request } satisfies LiveFrameMessage, [frame])
       } catch {
@@ -1058,8 +1037,7 @@ function App() {
   // Everything below belongs to one cube of one size, so switching sizes
   // starts over - keeping it drew e.g. a 5x5's 25 stickers per face into a
   // 6x6 net. Shared by the main size bar and the capture dialog.
-  const changePuzzleSize = (size: number, automatic = false) => {
-    if (!automatic) sizeManuallyChosen.current = true
+  const changePuzzleSize = (size: number) => {
     if (size === puzzleSize) return
     setPuzzleSize(size)
     setCube(null)
@@ -1230,7 +1208,6 @@ function App() {
     const allCaptured = FACE_ORDER.every((f) => f in capturedFaces)
     const startOver = restart || allCaptured
     if (startOver) {
-      sizeManuallyChosen.current = false
       setCapturedFaces({})
       setFaceConfidence({})
     }
@@ -1868,24 +1845,11 @@ function App() {
         const ctx = canvas.getContext('2d')
         if (!ctx || !canvas.width || !canvas.height) throw new Error('Camera frame unavailable')
         ctx.drawImage(video, 0, 0)
-        let captureSize = puzzleSize
-        if (FACE_ORDER.every((f) => !capturedFaces[f]) && !sizeManuallyChosen.current) {
-          const estimated = detectFaceGridSize(canvas)
-          if (estimated) {
-            const estimatedBounds = faceBoundsForMode(canvas, estimated, 'aligned')
-            if (estimatedBounds.gridFound && hasVisibleCubeFace(canvas, estimated, estimatedBounds, true)) {
-              captureSize = estimated
-              if (estimated !== puzzleSize) changePuzzleSize(estimated, true)
-            }
-          }
-        }
-        const bounds = faceBoundsForMode(canvas, captureSize, 'aligned')
-        if (!bounds.gridFound || !hasVisibleCubeFace(canvas, captureSize, bounds, true)) {
+        const bounds = faceBoundsForMode(canvas, puzzleSize, 'aligned')
+        if (!bounds.gridFound || !hasVisibleCubeFace(canvas, puzzleSize, bounds, true)) {
           throw new Error('No cube face detected. Show the face clearly or choose Guide grid.')
         }
-        const captureProfile = activeProfile(profileStore, captureSize)
-        result = captureAndProcessCanvas(canvas, captureSize, NEUTRAL_GAINS, captureProfile.sampling,
-          profilePalette(captureProfile), 'aligned', bounds)
+        result = captureAndProcessCanvas(canvas, puzzleSize, NEUTRAL_GAINS, sampling, palette, 'aligned', bounds)
       } else {
         result = captureAndProcessFace(webcamRef.current, puzzleSize, NEUTRAL_GAINS, sampling, palette, 'fixed')
       }

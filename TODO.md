@@ -29,9 +29,9 @@ real cubes" design discussion. Numbering matches that discussion's ratings;
   color across the six sides.
 - **"Choose each side"** starts from every arrangement, so a face that fits
   either way is asked about instead of filled in.
-- **First-face size detection** counts regular seam lines from 2×2 to 7×7
-  before locking the capture size; a confirmed face is held through two
-  weak live frames; a clear message appears when the API server isn't running.
+- **The live preview runs in a worker** at 720p; a confirmed face is held
+  through two weak live frames; a clear message appears when the API server
+  isn't running.
 
 ## Next
 
