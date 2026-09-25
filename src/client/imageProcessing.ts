@@ -959,7 +959,7 @@ const BACKGROUND_REGION_FRACTION = 1.0
 // why this is captured once at capture time (captureAndProcessFace /
 // captureAndProcessImage) rather than re-derivable later like
 // redetectFaceColors' sticker re-extraction is.
-export function extractBackgroundColor(canvas: HTMLCanvasElement, backgroundGap = 0): RGB | null {
+export function extractBackgroundColor(canvas: HTMLCanvasElement, backgroundGap = 0, face?: FaceBounds): RGB | null {
   const ctx = canvas.getContext('2d')
   if (!ctx) return null
 
@@ -975,12 +975,24 @@ export function extractBackgroundColor(canvas: HTMLCanvasElement, backgroundGap 
   const innerTop = inner.startY - outer.startY
   const innerRight = innerLeft + inner.faceWidth
   const innerBottom = innerTop + inner.faceHeight
+  // The face as captured (aligned off the guide, maybe larger or tilted) is
+  // skipped too: its bounding box plus the same gap.
+  let faceLeft = 0, faceTop = 0, faceRight = 0, faceBottom = 0
+  if (face) {
+    const turn = face.angle ?? 0
+    const half = (face.faceWidth / 2) * (Math.abs(Math.cos(turn)) + Math.abs(Math.sin(turn))) + gap * face.faceWidth
+    const cx = face.startX + face.faceWidth / 2 - outer.startX
+    const cy = face.startY + face.faceHeight / 2 - outer.startY
+    faceLeft = cx - half; faceRight = cx + half; faceTop = cy - half; faceBottom = cy + half
+  }
 
   const pixels: RGB[] = []
   for (let y = 0; y < outer.faceHeight; y++) {
     const inRow = y >= innerTop && y < innerBottom
+    const inFaceRow = y >= faceTop && y < faceBottom
     for (let x = 0; x < outer.faceWidth; x++) {
       if (inRow && x >= innerLeft && x < innerRight) continue // inside the sticker square - skip
+      if (inFaceRow && x >= faceLeft && x < faceRight) continue // on the captured face - skip
       const idx = (y * outer.faceWidth + x) * 4
       pixels.push({ r: data[idx], g: data[idx + 1], b: data[idx + 2] })
     }
@@ -1459,7 +1471,7 @@ export function captureAndProcessFace(
   return {
     ...extractCubeFaceColors(canvas, gridSize, gains, sampling, palette, bounds),
     croppedImage: cropFaceRegionToDataUrl(canvas, bounds),
-    backgroundColor: extractBackgroundColor(canvas, sampling.backgroundGap),
+    backgroundColor: extractBackgroundColor(canvas, sampling.backgroundGap, bounds),
     ...describeCrop(canvas, bounds),
   }
 }
@@ -1487,7 +1499,7 @@ export function captureAndProcessImage(
   return {
     ...extractCubeFaceColors(canvas, gridSize, gains, sampling, palette, bounds),
     croppedImage: cropFaceRegionToDataUrl(canvas, bounds),
-    backgroundColor: extractBackgroundColor(canvas, sampling.backgroundGap),
+    backgroundColor: extractBackgroundColor(canvas, sampling.backgroundGap, bounds),
     ...describeCrop(canvas, bounds),
   }
 }
