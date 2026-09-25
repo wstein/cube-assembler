@@ -4,6 +4,7 @@ import '../../web/style.css'
 import { apiFetch } from './api'
 import { AUTO_CAPTURE_STABLE_FRAMES, nextAutoCaptureProgress, type AutoCaptureProgress } from './autoCapture'
 import { diagnoseFaceDetection } from './detectionDiagnostics'
+import { holdConfirmedFace, NO_HOLD, type LiveHold } from './liveHold'
 import { WIZARD_FACE_ORDER, faceContentKey, groupWizardOptions, pickWizardFace } from './orientationWizard'
 import {
   faceBoundsForMode, captureAndProcessFace, captureAndProcessCanvas, captureAndProcessImage, extractCubeFaceColors, hasVisibleCubeFace,
@@ -932,6 +933,7 @@ function App() {
     }
     const canvas = sampleCanvasRef.current
     let progress: AutoCaptureProgress | null = null
+    let hold: LiveHold<ColorDetectionResult> = NO_HOLD
 
     const intervalId = setInterval(() => {
       const video = webcamRef.current
@@ -950,8 +952,13 @@ function App() {
         const bounds = faceBoundsForMode(canvas, puzzleSize, captureMode === 'cv' ? 'aligned' : 'fixed')
         const detection = extractCubeFaceColors(canvas, puzzleSize, NEUTRAL_GAINS, sampling, palette, bounds)
         const visible = (captureMode === 'guide' || bounds.gridFound === true) && hasVisibleCubeFace(canvas, puzzleSize, bounds)
-        setLiveDetection(detection)
-        setLiveFaceVisible(visible)
+        // Detect face holds a confirmed face through a weak frame or two
+        // (display only - see holdConfirmedFace); everything below still
+        // judges this frame on its own.
+        const shown = captureMode === 'cv' ? holdConfirmedFace(hold, detection, visible) : { hold, show: detection, visible }
+        hold = shown.hold
+        setLiveDetection(shown.show)
+        setLiveFaceVisible(shown.visible)
         if (captureMode === 'cv' && autoCapture && !autoCaptureInFlight.current) {
           progress = nextAutoCaptureProgress(progress, visible && bounds.gridFound ? {
             colors: detection.colors,
