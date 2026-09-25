@@ -144,16 +144,6 @@ function withoutDeviceIds<T extends { deviceId?: unknown; groupId?: unknown }>(i
   return rest
 }
 
-interface AssemblyResult {
-  type: 'start' | 'stage' | 'result' | 'error'
-  total?: number
-  stage?: string
-  count?: number
-  tested?: number
-  states?: any[]
-  message?: string
-}
-
 // ─────────────────────────────────────────────────────────────────────────────
 // API Calls
 // ─────────────────────────────────────────────────────────────────────────────
@@ -169,12 +159,6 @@ async function checkParity(cube: any, size: number): Promise<any> {
     throw new Error(`Parity check failed (${res.status}): ${text.slice(0, 200)}`)
   }
   return res.json()
-}
-
-function streamAssembly(faces: any, size: number): EventSource {
-  return new EventSource(
-    `/api/assemble?faces=${encodeURIComponent(JSON.stringify(faces))}&size=${size}`
-  )
 }
 
 const FACE_ORDER = ['U', 'R', 'F', 'D', 'L', 'B']
@@ -658,7 +642,6 @@ const ORIENTATION_CHOICES_PER_PAGE = 2
 function App() {
   const [puzzleSize, setPuzzleSize] = useState(3)
   const [cube, setCube] = useState<any>(null)
-  const [assemblyResults, setAssemblyResults] = useState<any[]>([])
   const [parity, setParity] = useState<any>(null)
   // Which highlight group (see server/Server.ts's HighlightGroup) is
   // currently moused-over in the Cube Net, if any - lets hovering one
@@ -1041,7 +1024,6 @@ function App() {
     if (size === puzzleSize) return
     setPuzzleSize(size)
     setCube(null)
-    setAssemblyResults([])
     setParity(null)
     setHoveredHighlightGroup(null)
     setCapturedFaces({})
@@ -1147,52 +1129,6 @@ function App() {
         result: err instanceof Error ? err.message : 'Parity check failed',
         checks: {},
       })
-    }
-  }
-
-  // ─────────────────────────────────────────────────────────────────────────
-  // Features: WRG Notation Parser (#5, #6 partial)
-  // ─────────────────────────────────────────────────────────────────────────
-
-  const handleParseWRG = async (notation: string) => {
-    if (!notation.trim()) return
-    const res = await apiFetch('/api/parse-wrg', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ notation, size: puzzleSize }),
-    })
-    const data = await res.json()
-    if (data.cube) {
-      setCube(data.cube)
-      await updateParityStatus(data.cube)
-    }
-  }
-
-  // ─────────────────────────────────────────────────────────────────────────
-  // Features: Assembly Pipeline (#6)
-  // ─────────────────────────────────────────────────────────────────────────
-
-  const handleRunAssembly = async () => {
-    if (!cube) return
-
-    const eventSource = streamAssembly([cube.u, cube.r, cube.f, cube.d, cube.l, cube.b], puzzleSize)
-
-    eventSource.onmessage = (e) => {
-      const msg = JSON.parse(e.data) as AssemblyResult
-      setAssemblyResults((prev) => [...prev, msg])
-
-      if (msg.type === 'result' && msg.states && msg.states.length > 0) {
-        setCube(msg.states[0])
-        updateParityStatus(msg.states[0])
-      }
-
-      if (msg.type === 'error') {
-        console.error('Assembly error:', msg.message)
-      }
-    }
-
-    eventSource.onerror = () => {
-      eventSource.close()
     }
   }
 

@@ -86,7 +86,6 @@ export type ParityResponse = {
 };
 
 export type ApplyAlgRequest  = { cube: CubeIR; alg: string };
-export type ApplyAlgResponse = { cube: CubeIR } | { error: string };
 
 // ─── Puzzle loaders via registry ─────────────────────────────────────────────
 
@@ -103,19 +102,6 @@ const wcaEventIds: Record<number, string> = {
 };
 
 // ─── Color / IR utilities (server-side JS — mirrors ReScript IR) ──────────────
-
-function makeSolidFace(n: number, color: FaceColor): FaceGrid {
-  return { n, data: Array(n * n).fill(color) };
-}
-
-function makeIdentity(n: number): CubeIR {
-  return {
-    size: n,
-    u: makeSolidFace(n, "W"), r: makeSolidFace(n, "R"),
-    f: makeSolidFace(n, "G"), d: makeSolidFace(n, "Y"),
-    l: makeSolidFace(n, "O"), b: makeSolidFace(n, "B"),
-  };
-}
 
 /** Rotate a face grid 90° clockwise, k times. */
 function rotateFace(grid: FaceGrid, rotations: number): FaceGrid {
