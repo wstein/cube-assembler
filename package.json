@@ -31,7 +31,7 @@
     "rescript": "^12.3.1",
     "terser": "^5.30.3",
     "vite": "^5.0.10",
-    "vitest": "^2.1.0"
+    "vitest": "^5.0.1"
   },
   "trustedDependencies": [
     "cubing"
