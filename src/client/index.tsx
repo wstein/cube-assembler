@@ -2310,6 +2310,11 @@ function App() {
                   // color it reads as.
                   <div
                     class={`capture-grid-overlay ${mirrorPreview ? 'mirrored' : ''}`}
+                    style={liveDetection.gridOffset && {
+                      '--grid-x': liveDetection.gridOffset.x,
+                      '--grid-y': liveDetection.gridOffset.y,
+                      '--grid-scale': liveDetection.gridOffset.scale,
+                    }}
                   >
                     {liveDetection.colors.map((row, r) =>
                       row.map((color, c) => {
