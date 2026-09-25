@@ -3,7 +3,7 @@ import { useState, useEffect, useRef, useMemo } from 'preact/hooks'
 import '../../web/style.css'
 import { apiFetch } from './api'
 import {
-  alignedFaceBounds, captureAndProcessFace, captureAndProcessImage, extractCubeFaceColors, hasVisibleCubeFace,
+  faceBoundsForMode, captureAndProcessFace, captureAndProcessImage, extractCubeFaceColors, hasVisibleCubeFace,
   runGlobalWhiteBalance, NEUTRAL_GAINS, CROP_JPEG_QUALITY,
   DEFAULT_SAMPLING, MAX_BACKGROUND_GAP, STICKER_MEASUREMENT, stickerSampleRect, colorConfidences, STICKER_COLORS, type SamplingGeometry,
   rgbToOKLCH, hueCircularRange, hueRangesOverlap, linearRange,
@@ -66,6 +66,8 @@ interface FaceCaptureData {
   source?: 'camera' | 'image-file' | 'fixture'
   timestamp: number
 }
+
+type CaptureMode = 'cv' | 'guide'
 
 // Without an explicit size most webcams default to 640x480, which leaves a
 // 7x7 sticker's sample area only ~25px wide. `ideal` (not `exact`) so a
@@ -727,6 +729,7 @@ function App() {
   // over-represented pair), not just itself.
   const [hoveredHighlightGroup, setHoveredHighlightGroup] = useState<string | null>(null)
   const [webcamOpen, setWebcamOpen] = useState(false)
+  const [captureMode, setCaptureMode] = useState<CaptureMode>('cv')
   const [webcamFace, setWebcamFace] = useState('U')
   const [capturedFaces, setCapturedFaces] = useState<Record<string, FaceCaptureData>>({})
   const [faceConfidence, setFaceConfidence] = useState<Record<string, number>>({})
@@ -978,17 +981,21 @@ function App() {
       ctx.drawImage(video, 0, 0)
 
       try {
-        // Align once; colors and the cube check read the same square.
-        const bounds = alignedFaceBounds(canvas, puzzleSize)
+        // Detect face uses this branch's grid alignment. Guide uses the
+        // centered square exactly, so both preview and capture agree.
+        const bounds = faceBoundsForMode(canvas, puzzleSize, captureMode === 'cv' ? 'aligned' : 'fixed')
         setLiveDetection(extractCubeFaceColors(canvas, puzzleSize, NEUTRAL_GAINS, sampling, palette, bounds))
-        setLiveFaceVisible(hasVisibleCubeFace(canvas, puzzleSize, bounds))
+        setLiveFaceVisible((captureMode === 'guide' || bounds.gridFound === true)
+          && hasVisibleCubeFace(canvas, puzzleSize, bounds))
       } catch {
-        // Transient frame read failure (e.g. camera still warming up) — skip this tick.
+        // Transient frame read failure (e.g. camera still warming up).
+        setLiveDetection(null)
+        setLiveFaceVisible(false)
       }
     }, 200)
 
-    return () => clearInterval(intervalId)
-  }, [webcamOpen, turnCueShowing, puzzleSize, sampling, palette])
+    return () => { clearInterval(intervalId) }
+  }, [webcamOpen, turnCueShowing, puzzleSize, sampling, palette, captureMode])
 
   // Everything below belongs to one cube of one size, so switching sizes
   // starts over - keeping it drew e.g. a 5x5's 25 stickers per face into a
@@ -1828,7 +1835,8 @@ function App() {
     try {
       setLoading(true)
       setCaptureMessage('Processing image...')
-      const result = captureAndProcessFace(webcamRef.current, puzzleSize, NEUTRAL_GAINS, sampling, palette)
+      const result = captureAndProcessFace(webcamRef.current, puzzleSize, NEUTRAL_GAINS, sampling, palette,
+        captureMode === 'cv' ? 'aligned' : 'fixed')
       const track = (webcamRef.current.srcObject as MediaStream | null)?.getVideoTracks()[0]
       await applyFaceCapture(webcamFace, result, 'camera', track ? withoutDeviceIds(track.getSettings()) : undefined)
     } catch (err) {
@@ -1856,7 +1864,8 @@ function App() {
           img.onerror = () => reject(new Error('Could not load image file'))
           img.src = url
         })
-        const result = captureAndProcessImage(img, puzzleSize, NEUTRAL_GAINS, sampling, palette)
+        const result = captureAndProcessImage(img, puzzleSize, NEUTRAL_GAINS, sampling, palette,
+          captureMode === 'cv' ? 'aligned' : 'fixed')
         await applyFaceCapture(webcamFace, result, 'image-file')
       } finally {
         URL.revokeObjectURL(url)
@@ -2345,7 +2354,7 @@ function App() {
                     )}
                   </div>
                 )}
-                {(samplingSetupOpen || sampling.backgroundGap > 0) && (
+                {captureMode === 'guide' && (samplingSetupOpen || sampling.backgroundGap > 0) && (
                   // The band around the guide square that the background (white
                   // balance) sample skips - sized in percent of the wrapper,
                   // like the 60% guide square itself. Always shown when set, so
@@ -2358,11 +2367,10 @@ function App() {
                     }}
                   />
                 )}
-                {/* Always-visible guide framing exactly what region gets
-                    analyzed, on top of the grid so its border/dimming stays
-                    visible even once per-cell colors are drawn underneath. */}
-                <div class="capture-scan-frame">
-                  <span class="capture-scan-label">Fit face in this square</span>
+                {/* Guide mode frames the exact sample square. Detect face shows
+                    the wider seam search area; its moving grid marks the crop. */}
+                <div class={`capture-scan-frame ${captureMode === 'cv' ? 'cv-search-frame' : ''}`}>
+                  <span class="capture-scan-label">{captureMode === 'cv' ? 'Show one face in this area' : 'Fit face in this square'}</span>
                 </div>
                 {turnOverlay && (
                   <CaptureTurnOverlay step={turnOverlay.step} startColors={turnOverlay.startColors} viaColors={turnOverlay.viaColors} onContinue={dismissTurnOverlay} />
@@ -2370,7 +2378,9 @@ function App() {
               </div>
               <span class="capture-live-badge" aria-hidden="true">
                 <span class="capture-live-dot" />
-                Live · {liveDetection ? (liveFaceVisible ? `${(liveDetection.confidence * 100).toFixed(0)}% color match` : 'Align face in guide') : '—'}
+                Live · {liveDetection
+                  ? (liveFaceVisible ? `${(liveDetection.confidence * 100).toFixed(0)}% color match` : captureMode === 'cv' ? 'Align face in view' : 'Align face in guide')
+                  : '—'}
               </span>
             </div>
             <div class="capture-side">
@@ -2380,6 +2390,10 @@ function App() {
                   <h2 id="capture-title">{FACE_DISPLAY_LABEL[webcamFace]}{FACE_ORDER.indexOf(webcamFace) < 4 ? ' of 4' : ''}</h2>
                 </div>
                 <button class="modal-close" aria-label="Close" onClick={() => setWebcamOpen(false)}>×</button>
+              </div>
+              <div class="capture-mode-switch" role="group" aria-label="Face detection mode">
+                <button type="button" class={captureMode === 'cv' ? 'active' : ''} aria-pressed={captureMode === 'cv'} onClick={() => { setCaptureMode('cv'); setLiveDetection(null); setLiveFaceVisible(false) }}>Detect face</button>
+                <button type="button" class={captureMode === 'guide' ? 'active' : ''} aria-pressed={captureMode === 'guide'} onClick={() => { setCaptureMode('guide'); setLiveDetection(null); setLiveFaceVisible(false) }}>Guide grid</button>
               </div>
               <p class="capture-hint-text" aria-live="polite">
                 <TurnHint step={FACE_ORDER.indexOf(webcamFace)} />

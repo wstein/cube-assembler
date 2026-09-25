@@ -801,6 +801,9 @@ export interface FaceBounds {
   // Tilt (radians, canvas rotate() direction) about the square's center;
   // the square is read turned upright.
   angle?: number
+  // Set by seam alignment. False means the returned guide is only a
+  // placeholder; Detect face must not capture it as an automatic result.
+  gridFound?: boolean
 }
 
 interface FaceRegion extends FaceBounds {
@@ -818,7 +821,7 @@ const SAMPLE_FACE_FRACTION = 0.6
 // `fraction` defaults to the sticker guide square itself; callers pass a
 // larger value (see BACKGROUND_REGION_FRACTION) to get a bigger, concentric
 // square for sampling the area AROUND the stickers instead.
-function computeFaceBounds(canvas: HTMLCanvasElement, fraction = SAMPLE_FACE_FRACTION): FaceBounds {
+export function computeFaceBounds(canvas: HTMLCanvasElement, fraction = SAMPLE_FACE_FRACTION): FaceBounds {
   const width = canvas.width
   const height = canvas.height
 
@@ -857,7 +860,7 @@ function computeFaceBounds(canvas: HTMLCanvasElement, fraction = SAMPLE_FACE_FRA
 export function alignedFaceBounds(canvas: HTMLCanvasElement, gridSize: number): FaceBounds {
   const guide = computeFaceBounds(canvas)
   const ctx = canvas.getContext('2d')
-  if (!ctx || guide.faceWidth !== guide.faceHeight) return guide
+  if (!ctx || guide.faceWidth !== guide.faceHeight) return { ...guide, gridFound: false }
   // Room for the largest offset plus the largest face (1.12x the guide),
   // and for the corners of a tilted one.
   const margin = Math.ceil(guide.faceWidth * (ALIGNMENT_MAX_OFFSET + 0.06 + 0.2))
@@ -869,7 +872,7 @@ export function alignedFaceBounds(canvas: HTMLCanvasElement, gridSize: number): 
   const square = { x: guide.startX - x0, y: guide.startY - y0, size: guide.faceWidth }
   const found = alignFace(region.data, region.width, region.height, square, gridSize)
   const angle = found.angle
-  if (!found.aligned && !angle) return guide
+  if (!found.aligned && !angle) return { ...guide, gridFound: found.seams }
   const size = Math.round(found.size)
   // Keep the square's center on the canvas; a tilted square is read through
   // a rotation, which clamps nothing else.
@@ -881,7 +884,16 @@ export function alignedFaceBounds(canvas: HTMLCanvasElement, gridSize: number): 
     faceWidth: size,
     faceHeight: size,
     ...(angle && { angle }),
+    gridFound: found.seams,
   }
+}
+
+export type FaceGeometryMode = 'aligned' | 'fixed'
+
+// Shared by the live overlay and both capture sources. A manual guide always
+// samples its drawn square; the default scanner searches nearby grid seams.
+export function faceBoundsForMode(canvas: HTMLCanvasElement, gridSize: number, mode: FaceGeometryMode): FaceBounds {
+  return mode === 'fixed' ? computeFaceBounds(canvas) : alignedFaceBounds(canvas, gridSize)
 }
 
 // Draws the square of `bounds` from `canvas` onto a new canvas of its size,
@@ -1460,7 +1472,8 @@ export function captureAndProcessFace(
   gridSize = 3,
   gains: RGB = NEUTRAL_GAINS,
   sampling: SamplingGeometry = DEFAULT_SAMPLING,
-  palette?: Record<string, RGB>
+  palette?: Record<string, RGB>,
+  geometry: FaceGeometryMode = 'aligned'
 ): FaceCaptureResult {
   const canvas = document.createElement('canvas')
   canvas.width = video.videoWidth
@@ -1481,7 +1494,8 @@ export function captureAndProcessFace(
   // runGlobalWhiteBalance's faceGains parameter).
   // One aligned square for the colors, the saved photo and its crop record,
   // so everything later re-analyzed from the photo sees the same face.
-  const bounds = alignedFaceBounds(canvas, gridSize)
+  const bounds = faceBoundsForMode(canvas, gridSize, geometry)
+  if (geometry === 'aligned' && !bounds.gridFound) throw new Error('No aligned face found. Show a face in the camera view or choose Guide grid.')
   return {
     ...extractCubeFaceColors(canvas, gridSize, gains, sampling, palette, bounds),
     croppedImage: cropFaceRegionToDataUrl(canvas, bounds),
@@ -1495,7 +1509,8 @@ export function captureAndProcessImage(
   gridSize = 3,
   gains: RGB = NEUTRAL_GAINS,
   sampling: SamplingGeometry = DEFAULT_SAMPLING,
-  palette?: Record<string, RGB>
+  palette?: Record<string, RGB>,
+  geometry: FaceGeometryMode = 'aligned'
 ): FaceCaptureResult {
   const canvas = document.createElement('canvas')
   canvas.width = img.naturalWidth
@@ -1509,7 +1524,8 @@ export function captureAndProcessImage(
   ctx.drawImage(img, 0, 0)
   // One aligned square for the colors, the saved photo and its crop record,
   // so everything later re-analyzed from the photo sees the same face.
-  const bounds = alignedFaceBounds(canvas, gridSize)
+  const bounds = faceBoundsForMode(canvas, gridSize, geometry)
+  if (geometry === 'aligned' && !bounds.gridFound) throw new Error('No aligned face found in the image. Choose another image or Guide grid.')
   return {
     ...extractCubeFaceColors(canvas, gridSize, gains, sampling, palette, bounds),
     croppedImage: cropFaceRegionToDataUrl(canvas, bounds),

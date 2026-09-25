@@ -19,8 +19,27 @@ import {
   learnStickerColors, rgbToOKLCH, formatOKLCHValues, hueCircularRange, hueRangesOverlap, linearRange,
   hungarianAssignment, trimmedMeanColor, STICKER_COLORS, extractBackgroundColor,
   stickerSampleRect, DEFAULT_SAMPLING, measureSharpness, classifySticker, stickerColor,
-  extractColorsFromImageData, hasPlausibleStickerFace, hasVisibleCubeFace, type RGB,
+  extractColorsFromImageData, hasPlausibleStickerFace, hasVisibleCubeFace, faceBoundsForMode, type RGB,
 } from '../src/client/imageProcessing'
+
+describe('capture geometry modes', () => {
+  it('keeps the manual guide fixed and only searches in Detect face mode', () => {
+    let contextReads = 0
+    const canvas = {
+      width: 200,
+      height: 100,
+      getContext: () => { contextReads++; return null },
+    } as unknown as HTMLCanvasElement
+    expect(faceBoundsForMode(canvas, 3, 'fixed')).toEqual({
+      startX: 70, startY: 20, faceWidth: 60, faceHeight: 60,
+    })
+    expect(contextReads).toBe(0)
+    expect(faceBoundsForMode(canvas, 3, 'aligned')).toEqual({
+      ...faceBoundsForMode(canvas, 3, 'fixed'), gridFound: false,
+    })
+    expect(contextReads).toBe(1)
+  })
+})
 
 describe('live face appearance', () => {
   const size = 90
