@@ -9,9 +9,10 @@ caught, instead of only living in a bug report.
 
 In the app, capture and review a cube as normal, correcting any wrong
 stickers via the review wizard's "tap a sticker to fix" flow. Once you've
-confirmed the cube, use **Send to server** to save that capture - the app
-POSTs each face's cropped photo plus its (corrected) color grid to
-`POST /api/fixtures`, which writes a new `test/fixtures/<name>/` directory:
+confirmed the cube, use **Save as test fixture**: the browser downloads
+`<name>.zip` with each face's cropped photo plus its (corrected) color grid.
+Unzip it into `test/fixtures/` to get a new `test/fixtures/<name>/` directory
+(**Upload fixture** takes the zip back into the app):
 
 ```
 test/fixtures/<name>/

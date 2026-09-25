@@ -2,18 +2,18 @@
 
 ## Project Structure & Module Organization
 
-`src/client/` contains the Preact scanner, capture flow, color processing, and cube assembly UI. The Detect face pipeline is in `gridAlignment.ts`; `imageProcessing.ts` classifies sticker colors. The live preview's per-frame analysis runs in a worker (`liveAnalysis.ts`, `liveAnalysis.worker.ts`). The parity check is in `parity.ts`. The Bun/Hono API (fixture saving) is in `server/Server.ts`. Browser styles live in `web/style.css`, static assets in `public/`, and Vitest tests in `test/`. Saved capture photos and metadata live in `test/fixtures/`.
+`src/client/` contains the Preact scanner, capture flow, color processing, and cube assembly UI. The Detect face pipeline is in `gridAlignment.ts`; `imageProcessing.ts` classifies sticker colors. The live preview's per-frame analysis runs in a worker (`liveAnalysis.ts`, `liveAnalysis.worker.ts`). The parity check is in `parity.ts`; fixtures are saved and loaded as zip files in `fixtureZip.ts`. The app runs entirely in the browser, with no server. Browser styles live in `web/style.css`, static assets in `public/`, and Vitest tests in `test/`. Saved capture photos and metadata live in `test/fixtures/`.
 
 ## Build, Test, and Development Commands
 
-- `npm install` installs dependencies; Bun 1.3 or newer is required for the server.
-- `npm run dev` starts Vite and the Bun API locally.
+- `npm install` installs dependencies.
+- `npm run dev` starts the Vite dev server.
 - `npm run build` builds the client with Vite.
 - `npm test` runs Vitest once; `npm run test:watch` reruns tests during edits.
 
 ## Coding Style & Naming Conventions
 
-Use two-space indentation and follow the surrounding file's quote and semicolon style. Client TypeScript and TSX generally use single quotes without semicolons; server TypeScript uses double quotes with semicolons. Name tests `<feature>.test.ts`. Keep geometry, color classification, capture state, and UI presentation in their existing modules rather than mixing them into components. There is no project-wide formatter.
+Use two-space indentation and follow the surrounding file's quote and semicolon style. TypeScript and TSX generally use single quotes without semicolons. Name tests `<feature>.test.ts`. Keep geometry, color classification, capture state, and UI presentation in their existing modules rather than mixing them into components. There is no project-wide formatter.
 
 ## Testing Guidelines
 

@@ -30,23 +30,21 @@ real cubes" design discussion. Numbering matches that discussion's ratings;
 - **"Choose each side"** starts from every arrangement, so a face that fits
   either way is asked about instead of filled in.
 - **The live preview runs in a worker** at 720p; a confirmed face is held
-  through two weak live frames; a clear message appears when the API server
-  isn't running.
+  through two weak live frames.
 - **Removed what the app no longer used**: automatic cube-size detection,
   the server-side assembly worker, the scramble/algorithm/parse endpoints,
   the ReScript library, the vendored cubing.js, preact-router and the
-  server's broken static page. The server keeps `/api/fixtures`.
-- **Parity check runs in the browser** (`src/client/parity.ts`), so the
-  GitHub Pages demo validates cubes too; `/api/parity` is gone.
+  server's broken static page.
+- **No server any more**: the parity check runs in the browser
+  (`src/client/parity.ts`), and fixtures download and upload as zip files
+  (`src/client/fixtureZip.ts`), so the GitHub Pages demo does everything.
 
 ## Next
 
-3. **Consent + review queue for fixtures from other people.** Right now
-   `POST /api/fixtures` writes straight to `test/fixtures/` on whatever
-   machine is running the server - fine solo, not for a deployed instance.
-   Needs a pending/ holding area + a review step before anything is
-   promoted into the real suite. Only worth doing once fixtures are
-   actually wanted from people other than the person running the server.
+3. **A way for other people to send fixtures.** Anyone can now download a
+   fixture zip from the Pages demo, but there's no agreed channel (e.g. an
+   issue template to attach it to) or consent note for their photos, and
+   each zip still needs a human look before it joins `test/fixtures/`.
 
 4. **Learned per-color centroids from the fixture corpus.** Offline script:
    average (in OKLab) every human-confirmed sample of each color across all

@@ -429,7 +429,7 @@ h1, h2, h3 {
 /* A parity failure implicating specific stickers (see ParityResponse's
    highlight field in src/client/parity.ts) outlines exactly those cells here,
    distinct from the review wizard's own dashed low-confidence flagging
-   (.review-detected-cell-flagged) - this is "the server says this is
+   (.review-detected-cell-flagged) - this is "the check says this is
    wrong", not "detection wasn't sure". outline (not border) so it doesn't
    shift the 1px grid gap other cells rely on for alignment. */
 .net-cell-highlighted {

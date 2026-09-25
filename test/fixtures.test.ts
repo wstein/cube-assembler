@@ -2,8 +2,8 @@
  * test/fixtures.test.ts
  * Runs the real color-detection pipeline against every saved fixture in
  * test/fixtures/: real photos plus the human-verified (post-correction)
- * color grid, saved via the review wizard's "Send to server" button
- * (POST /api/fixtures in server/Server.ts). Each fixture becomes a
+ * color grid, saved with the app's "Save as test fixture" button (a zip
+ * to unzip into test/fixtures/, see fixtureZip.ts). Each fixture becomes a
  * permanent regression check - a misclassification a human caught once
  * stays caught, instead of only living in a bug report.
  *
@@ -56,7 +56,7 @@ interface FixtureMeta {
   tags?: string[]
   // Informational capture context saved by the app (camera, white
   // balance, light source) - see src/client/index.tsx's
-  // handleSendFixtureToServer. Shape isn't load-bearing here, only used
+  // handleSaveFixture. Shape isn't load-bearing here, only used
   // to derive display tags.
   capture?: {
     camera?: { label?: string }
@@ -115,7 +115,7 @@ const fixtureNames = loadFixtureNames()
 
 describe('real-capture regression fixtures', () => {
   if (fixtureNames.length === 0) {
-    it.skip('no fixtures saved yet - use the review wizard\'s "Send to server" button to add one', () => {})
+    it.skip('no fixtures saved yet - use the app\'s "Save as test fixture" button to add one', () => {})
     return
   }
 
