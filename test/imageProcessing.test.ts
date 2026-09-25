@@ -17,7 +17,7 @@ import { cellEdges } from '../src/client/gridAlignment'
 import { describe, it, expect } from 'vitest'
 import {
   learnStickerColors, rgbToOKLCH, hueCircularRange, hueRangesOverlap, linearRange,
-  hungarianAssignment, trimmedMeanColor, STICKER_COLORS, extractBackgroundColor,
+  hungarianAssignment, trimmedMeanColor, STICKER_COLORS, extractBackgroundColor, BACKGROUND_CUBE_GAP,
   stickerSampleRect, DEFAULT_SAMPLING, measureSharpness, classifySticker, stickerColor,
   extractColorsFromImageData, hasPlausibleStickerFace, hasVisibleCubeFace, faceVisibility, faceBoundsForMode, type RGB,
 } from '../src/client/imageProcessing'
@@ -776,60 +776,50 @@ describe('stickerSampleRect', () => {
   })
 })
 
-describe('extractBackgroundColor background gap', () => {
-  // 500x500 frame: gray backdrop, with a red "hand" band hugging the
-  // 300px guide square (x/y 100..400) out to 40px beyond it.
-  function frameWithHand(): HTMLCanvasElement {
-    const size = 500
+describe('extractBackgroundColor gap to the cube', () => {
+  // A frame with a grey backdrop and red pixels wherever `red` says - a
+  // face, or a hand hugging it.
+  function frame(width: number, height: number, red: (x: number, y: number) => boolean): HTMLCanvasElement {
     return {
-      width: size,
-      height: size,
+      width,
+      height,
       getContext: () => ({
         getImageData(sx: number, sy: number, sw: number, sh: number) {
           const data = new Uint8ClampedArray(sw * sh * 4)
           for (let y = 0; y < sh; y++) for (let x = 0; x < sw; x++) {
-            const fx = sx + x, fy = sy + y
-            const nearSquare = fx >= 60 && fx < 440 && fy >= 60 && fy < 440
-            data.set(nearSquare ? [200, 40, 40, 255] : [120, 120, 120, 255], (y * sw + x) * 4)
+            data.set(red(sx + x, sy + y) ? [200, 40, 40, 255] : [120, 120, 120, 255], (y * sw + x) * 4)
           }
           return { data, width: sw, height: sh }
         },
       }),
     } as unknown as HTMLCanvasElement
   }
+  // 800x500: the 300px guide square is x 250..550, y 100..400.
+  const handBand = (reach: number) => frame(800, 500, (x, y) => x >= 250 - reach && x < 550 + reach && y >= 100 - reach && y < 400 + reach)
 
-  it('picks up whatever surrounds the square without a gap', () => {
-    const result = extractBackgroundColor(frameWithHand())!
-    expect(result.r).toBeGreaterThan(result.g + 20)
+  it('always leaves out a band of BACKGROUND_CUBE_GAP around the face', () => {
+    expect(BACKGROUND_CUBE_GAP * 300).toBe(75)
+    expect(extractBackgroundColor(handBand(70))).toEqual({ r: 120, g: 120, b: 120 })
   })
 
-  it('leaves the band around the square out once the gap covers it', () => {
-    // 40px of a 300px square = 0.133 - round up to be sure it's all skipped
-    expect(extractBackgroundColor(frameWithHand(), 0.14)).toEqual({ r: 120, g: 120, b: 120 })
+  it('widens the band by the sampling gap for more hand around the face', () => {
+    const wide = handBand(100)
+    expect(extractBackgroundColor(wide)!.r).toBeGreaterThan(extractBackgroundColor(wide)!.g + 5)
+    // 100px of a 300px face = 0.333 - BACKGROUND_CUBE_GAP covers 0.25.
+    expect(extractBackgroundColor(wide, 0.09)).toEqual({ r: 120, g: 120, b: 120 })
   })
 
-  it('leaves out a face captured off the guide', () => {
-    // A red face aligned 60px right of and a bit larger than the guide
-    // (x 130..470, y 90..430) reaches well into the background ring.
-    const face = { startX: 130, startY: 90, faceWidth: 340, faceHeight: 340 }
-    const frame = {
-      width: 500,
-      height: 500,
-      getContext: () => ({
-        getImageData(sx: number, sy: number, sw: number, sh: number) {
-          const data = new Uint8ClampedArray(sw * sh * 4)
-          for (let y = 0; y < sh; y++) for (let x = 0; x < sw; x++) {
-            const fx = sx + x, fy = sy + y
-            const onFace = fx >= 130 && fx < 470 && fy >= 90 && fy < 430
-            data.set(onFace ? [200, 40, 40, 255] : [120, 120, 120, 255], (y * sw + x) * 4)
-          }
-          return { data, width: sw, height: sh }
-        },
-      }),
-    } as unknown as HTMLCanvasElement
-    // Without the face's bounds its red leaks into the grey sample.
-    expect(extractBackgroundColor(frame)).not.toEqual({ r: 120, g: 120, b: 120 })
-    expect(extractBackgroundColor(frame, 0, face)).toEqual({ r: 120, g: 120, b: 120 })
+  it('goes by the detected face, not the guide square', () => {
+    // 900x500: the guide square is x 300..600; a 220px red face sits at
+    // x 670..890, y 140..360, mostly outside it and its gap.
+    const face = { startX: 670, startY: 140, faceWidth: 220, faceHeight: 220 }
+    const offGuide = frame(900, 500, (x, y) => x >= 670 && x < 890 && y >= 140 && y < 360)
+    expect(extractBackgroundColor(offGuide)).not.toEqual({ r: 120, g: 120, b: 120 })
+    expect(extractBackgroundColor(offGuide, 0, face)).toEqual({ r: 120, g: 120, b: 120 })
+  })
+
+  it('gives up when the cube leaves too little backdrop', () => {
+    expect(extractBackgroundColor(frame(300, 300, () => false), 0, { startX: 0, startY: 0, faceWidth: 300, faceHeight: 300 })).toBeNull()
   })
 })
 
