@@ -5,7 +5,7 @@
 ![License: MIT](https://img.shields.io/badge/License-MIT-cyan.svg)
 ![npm](https://img.shields.io/badge/runtime-npm-black)
 ![ReScript](https://img.shields.io/badge/lang-ReScript-e6484f)
-![Tests](https://img.shields.io/badge/tests-123%2F123%20%E2%9C%85-brightgreen)
+![Tests](https://img.shields.io/badge/tests-vitest-brightgreen)
 
 A full-stack library and web app that solves two geometric ambiguities when reconstructing a physical cube from 6 unordered face photographs:
 
@@ -18,6 +18,65 @@ The scanner defaults to **Detect face**: it finds sticker seams near the camera
 guide, aligns and straightens the face, then reads its colors. **Guide grid**
 is a manual switch that reads the fixed center square shown on screen. Both
 modes use the same color classifier, and neither requires a downloaded model.
+
+---
+
+## The scanner
+
+The capture dialog has two modes; neither needs a downloaded model.
+
+- **Detect face** (default) finds the cube face on its own near the dashed
+  area and reads it. It never falls back to the fixed square: if no face
+  is found it says *Align face in view* and waits.
+- **Guide grid** reads exactly the square drawn on screen.
+
+### How Detect face finds a face
+
+`src/client/gridAlignment.ts` searches around the centered guide for the
+square whose grid lines sit on the seams between stickers:
+
+- **Position and size** - offsets up to half a cell (15% of the guide for
+  a 3x3, ~6% for a 7x7; further, a grid can slip one row) and sizes from
+  0.8 to 1.12 of the guide, scored on 1-D profiles so a frame takes a few
+  milliseconds.
+- **Seams by each pixel's strongest channel**, not brightness: red and blue
+  stickers are as dark as grey-brown plastic in brightness, but stand far
+  above it in their own color.
+- **Tilt** up to 35 degrees, measured from the face's edge directions and
+  kept only when a grid shows under it; the face is then read upright.
+- **Wider perimeter cubies** on big cubes (measured up to 1.56x the inner
+  ones on 6x6/7x7): the search and the color sampling use that layout.
+
+The live check (`faceVisibility` in `imageProcessing.ts`) then requires
+evenly colored sticker cells and a visible face outline (Guide grid accepts
+a sticker pattern instead of the outline). A
+confirmed face stays shown through up to two weak frames (display only,
+`liveHold.ts`). **Auto capture** takes the face once 5 frames in a row agree
+at 80% confidence or more (`autoCapture.ts`).
+
+On the real-capture benchmark (`test/gridAlignmentRealCrops.test.ts`) a
+7x7 held 4% off-center goes from 16% misread stickers to 0%, and tilted
+10 degrees from 23% to 0%.
+
+### Centers of odd cubes
+
+The center cell of 3x3, 5x5 and 7x7 is read past its logo (the larger of
+two color groups over a wider zone), and after all six sides the six
+centers are assigned one of each color, so a misread center can't push a
+real sticker to the wrong color (`classifyAcrossFaces`).
+
+### Diagnostics
+
+With **Save missed faces for diagnosis** (Cube & camera settings, Detect face
+only, off by default) the app saves frames it turned down that still look
+like a face - three or more colors - with the detector's own report of why
+(`detectionDiagnostics.ts`): at most one every 5 s and 10 per session, at
+full camera resolution. They go to `test/diagnostics/<time>/` (`frame.jpg`,
+`meta.json`) in the checkout the API server runs from, which is gitignored;
+frames can show whoever holds the cube. `npm run diagnostics:replay`
+re-runs every saved frame through the current code and prints the result
+then and now. Reasons: `no-grid`, `incoherent-stickers`, `no-face-outline`,
+`no-sticker-pattern`.
 
 ---
 
@@ -39,12 +98,17 @@ modes use the same color classifier, and neither requires a downloaded model.
 # Install
 npm install
 
-# Dev server with hot-reload
+# Dev server with hot-reload: the app (Vite) plus the API server (Bun)
 npm run dev
-# → http://localhost:3000
+# → app on http://localhost:5173, API on http://localhost:3000
+#   (Vite forwards /api to it; without it the app says
+#   "Can't reach the cube server")
 
 # Run tests
 npm test
+
+# Replay camera frames Detect face missed (see "Diagnostics" below)
+npm run diagnostics:replay
 
 # Build ReScript (optional — npm serves compiled .js directly)
 npm run build:res
@@ -65,8 +129,18 @@ cube-assembler/
 ├── src/
 │   ├── client/                    Preact browser app: webcam capture, review, notation I/O
 │   │   ├── index.tsx              App shell, capture/review flow, cube net view
-│   │   ├── imageProcessing.ts     Sticker color extraction (OKLCH), white balance, sticker-color learning
-│   │   ├── cubeAssembly.ts        Face assembly + center-sticker identity/orientation solving
+│   │   ├── imageProcessing.ts     Sticker color extraction (OKLCH), live face check, cross-face color learning
+│   │   ├── gridAlignment.ts       Detect face: grid position, size, tilt and perimeter layout from seams
+│   │   ├── detectionDiagnostics.ts  Why Detect face did or didn't find a face in one frame
+│   │   ├── autoCapture.ts         Captures once live detections stay stable
+│   │   ├── liveHold.ts            Holds a confirmed face through weak live frames
+│   │   ├── cubeAssembly.ts        Face assembly, guided capture, orientation solving
+│   │   ├── orientationWizard.ts   "Choose each side": which face to ask about next
+│   │   ├── cubeGeometry.ts        Whole-cube rotations and layer turns
+│   │   ├── cubeProfiles.ts        Saved cubes: brand, sticker style, sampling
+│   │   ├── capturePresentation.ts Capture dialog wording and layout helpers
+│   │   ├── fixtureFormat.ts       Reading saved fixtures, old formats included
+│   │   ├── api.ts                 /api calls, with a clear message when the server is down
 │   │   └── notationOutput.ts      WRG/URF facelet notation + format auto-detection
 │   │
 │   └── (ReScript domain library, served as compiled ES modules)
@@ -85,16 +159,29 @@ cube-assembler/
 │           ├── Parity.res         Full 4-condition parity check
 │           └── CubeAssembler.res  5-stage pipeline orchestrator
 │
+├── scripts/
+│   └── replayDiagnostics.ts       npm run diagnostics:replay
+│
 └── test/
-    ├── notation.test.ts           23 tests — ReScript Notation module (WRG/URF/Kociemba/Numeric)
-    ├── cubeAssembly.test.ts       15 tests — face identity/orientation solver (odd + even sizes)
-    ├── notationOutput.test.ts     22 tests — WRG/URF facelet formats + format auto-detection
-    ├── imageProcessing.test.ts    41 tests — OKLCH conversion/formatting, range math, hue-overlap detection, optimal assignment, outlier-robust sampling, sticker-color learning
-    ├── parity.test.ts             14 tests — server-side corner/edge/wing-edge facelet-index tables
-    ├── assemblyWorker.test.ts     7 tests — /api/assemble worker's corner/edge validation
-    ├── fixtures.test.ts           1+ tests — real captures vs. human-verified colors (see below)
+    ├── notation.test.ts           ReScript Notation module (WRG/URF/Kociemba/Numeric)
+    ├── cubeAssembly.test.ts       Face identity/orientation solver (odd + even sizes)
+    ├── guidedCapture.test.ts      Guided capture arrangements, predicted centers
+    ├── orientationWizard.test.ts  "Choose each side" on an ambiguous pattern cube
+    ├── imageProcessing.test.ts    Color extraction, live face check, logo-safe centers
+    ├── crossFace.test.ts          Cross-face color assignment, one of each center
+    ├── gridAlignment.test.ts      Grid search: offset, size, tilt, perimeter, grey seams
+    ├── gridAlignmentRealCrops.test.ts  Benchmark on saved captures held off-center/tilted
+    ├── detectionDiagnostics.test.ts, liveHold.test.ts, autoCapture.test.ts, api.test.ts
+    ├── notationOutput.test.ts     WRG/URF facelet formats + format auto-detection
+    ├── parity.test.ts             Server-side corner/edge/wing-edge facelet-index tables
+    ├── assemblyWorker.test.ts     /api/assemble worker's corner/edge validation
+    ├── fixtures.test.ts           Real captures vs. human-verified colors (see below)
+    ├── liveFaceAppearance.test.ts Live face check on every saved capture
     └── fixtures/                  Saved captures for fixtures.test.ts (see fixtures/README.md)
 ```
+
+Real captures in `test/fixtures/capture-*` and saved diagnostics in
+`test/diagnostics/` are gitignored; the tests that need them skip without.
 
 ---
 
@@ -166,10 +253,13 @@ or imported photos and reconstructs its state:
    is searched jointly with rotation instead, using the same corner/edge
    validity scoring. Falls back to capture order, with a warning, only if
    fewer/more than 6 faces were captured (or, for odd sizes, a duplicate
-   or unreadable center).
+   or unreadable center). When the photos fit together more than one way,
+   *No, let me choose each side* asks about one face at a time, starting
+   from every arrangement - the turned-down suggestion included, so a
+   face that fits either way is always asked about.
 4. **Cube net** — the resolved state renders as a standard unfolded net
    (U top, L-F-R-B row, D bottom) alongside the 3D viewer.
-5. **Send to Server** — once a cube is confirmed, saves that exact
+5. **Save as test fixture** — once a cube is confirmed, saves that exact
    capture (every face's actual photo plus its color grid after any
    manual corrections) as a permanent regression test fixture (`POST
    /api/fixtures`, `test/fixtures/<name>/`). A misclassification a human
@@ -270,11 +360,28 @@ Parse WRG/Kociemba/Numeric notation into a `cubeIR`.
 { "notation": "W W W W W W W W W  R R R...", "size": 3 }
 ```
 
+### `POST /api/parse-urf`, `GET /api/formats/:encoding`
+Stubs: `parse-urf` only splits URF cubie notation into corners, edges and
+centers; `formats` points to `parse-wrg`.
+
+### `POST /api/diagnostics`
+Saves a camera frame Detect face turned down, with its report, to
+`test/diagnostics/<time>/` - sent by the app when *Save missed faces for
+diagnosis* is on. At most 5 MB per frame and 200 saved diagnostics.
+
+```json
+{
+  "frame": "data:image/jpeg;base64,...",
+  "report": { "gridSize": 3, "detected": false, "reason": "no-grid", "alignment": { "score": -4.8, "...": "..." } },
+  "meta": { "cube": "Generic 3×3", "mirrored": true, "camera": { "label": "FaceTime HD Camera" } }
+}
+```
+
 ### `POST /api/fixtures`
 Saves a human-verified capture (each face's actual photo plus its color
 grid after any manual corrections) as a regression test fixture under
 `test/fixtures/<name>/` — see [Regression fixtures](test/fixtures/README.md).
-Reachable from the app itself via the **Send to Server** button once a
+Reachable from the app itself via the **Save as test fixture** button once a
 cube has been confirmed. `meta` is optional, opaque capture context
 (camera, white balance, sampling setup, etc.) stored as-is under `capture`
 in the fixture's `meta.json`. `colorsURFDLB` is the human-verified colors of
