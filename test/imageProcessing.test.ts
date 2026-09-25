@@ -71,6 +71,36 @@ describe('live face appearance', () => {
     expect(hasPlausibleStickerFace(face, size, size, 3)).toBe(true)
   })
 
+  it("reads an odd cube's center past a large logo", () => {
+    // 3x3, 100px cells with dark seams; the center is a white cap with a
+    // thick blue logo (three bars) across its middle, like a GAN center.
+    const n = 3, big = 300
+    const logo = (x: number, y: number) => x >= 125 && x < 175 && y >= 125 && y < 175 && ((y - 125) % 18 < 11 || (x - 125) % 25 < 8)
+    const draw = (center: number[]) => {
+      const face = new Uint8ClampedArray(big * big * 4)
+      for (let y = 0; y < big; y++) {
+        for (let x = 0; x < big; x++) {
+          const seam = x % 100 < 4 || x % 100 > 95 || y % 100 < 4 || y % 100 > 95
+          const isCenter = x >= 100 && x < 200 && y >= 100 && y < 200
+          const rgb = seam ? [15, 15, 15] : isCenter ? (logo(x, y) ? [30, 70, 190] : center) : [30, 150, 80]
+          face.set([rgb[0], rgb[1], rgb[2], 255], (y * big + x) * 4)
+        }
+      }
+      return face
+    }
+    const logoed = extractColorsFromImageData(draw([240, 240, 235]), big, big, n)
+    expect(logoed.colors[1][1]).toBe('W')
+    // The recorded reading itself is untouched - still pulled to the logo.
+    expect(classifySticker(logoed.cellColors[1][1]).color).toBe('B')
+    // Plain centers read as before.
+    const plainBlue = draw([30, 70, 190])
+    for (let y = 125; y < 175; y++) for (let x = 125; x < 175; x++) plainBlue.set([30, 70, 190, 255], (y * big + x) * 4)
+    expect(extractColorsFromImageData(plainBlue, big, big, n).colors[1][1]).toBe('B')
+    const plainWhite = draw([240, 240, 235])
+    for (let y = 125; y < 175; y++) for (let x = 125; x < 175; x++) plainWhite.set([240, 240, 235, 255], (y * big + x) * 4)
+    expect(extractColorsFromImageData(plainWhite, big, big, n).colors[1][1]).toBe('W')
+  })
+
   it('judges a stickerless big-cube face in its wide-perimeter layout', () => {
     // A white 7x7 whose outer cubies are 1.6x the inner ones (real 6x6/7x7
     // faces measured up to 1.56x), with the faint grey lines of a

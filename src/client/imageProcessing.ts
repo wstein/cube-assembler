@@ -18,6 +18,9 @@ export interface ColorDetectionResult {
   // Width of the outer rows/columns relative to the inner ones, when the
   // face showed wider perimeter cubies (see cellEdges); sampled that way.
   outerCellRatio?: number
+  // Odd cubes: the center cell measured past its logo (centerStickerColor),
+  // which its color is classified from. cellColors keeps the plain reading.
+  centerColor?: RGB
 }
 
 export interface RGB {
@@ -1095,6 +1098,46 @@ export function stickerColor(pixels: RGB[]): RGB | null {
   }
 }
 
+// Center pieces of odd cubes carry the maker's logo, often large and in a
+// sticker color. On a GAN white center the blue logo pulled the cap's mean
+// to blue, and stickerColor's colorful-core step then picked exactly the
+// logo pixels (98% "blue"). This splits the cell into two color groups
+// (2-means in OKLab, seeded by its lightest and its most colorful pixel)
+// and measures only the larger one, the cap; over the wider CENTER_CORE
+// the cap's plain ring outnumbers the logo (72-75% vs 25-28% on the GAN
+// cap, 54-62% with the usual core). A plain sticker splits into two halves
+// of its own color, so its reading barely moves.
+export const CENTER_CORE = 0.85
+export function centerStickerColor(pixels: RGB[]): RGB | null {
+  if (pixels.length < 8) return stickerColor(pixels)
+  const step = Math.max(1, Math.floor(pixels.length / 4000))
+  const sample = pixels.filter((_, i) => i % step === 0)
+  const lab = sample.map((p) => rgbToOklab(p))
+  const chroma = (c: Oklab) => Math.hypot(c.a, c.b)
+  let seeds = [
+    lab.reduce((best, c) => (c.l > best.l ? c : best)),
+    lab.reduce((best, c) => (chroma(c) > chroma(best) ? c : best)),
+  ]
+  let groups: number[] = []
+  for (let iteration = 0; iteration < 8; iteration++) {
+    groups = lab.map((c) => {
+      const d = seeds.map((seed) => (c.l - seed.l) ** 2 + (c.a - seed.a) ** 2 + (c.b - seed.b) ** 2)
+      return d[0] <= d[1] ? 0 : 1
+    })
+    seeds = [0, 1].map((g) => {
+      const members = lab.filter((_, i) => groups[i] === g)
+      if (members.length === 0) return seeds[g]
+      return {
+        l: members.reduce((sum, c) => sum + c.l, 0) / members.length,
+        a: members.reduce((sum, c) => sum + c.a, 0) / members.length,
+        b: members.reduce((sum, c) => sum + c.b, 0) / members.length,
+      }
+    })
+  }
+  const larger = groups.filter((g) => g === 0).length >= groups.length / 2 ? 0 : 1
+  return stickerColor(sample.filter((_, i) => groups[i] === larger))
+}
+
 // The actual per-sticker sampling and classification logic, operating on
 // already-extracted raw pixel data rather than a browser HTMLCanvasElement
 // - split out from extractCubeFaceColors so it can run against a real,
@@ -1118,6 +1161,7 @@ export function extractColorsFromImageData(
   const colors: string[][] = []
   const cellConfidences: number[][] = []
   const cellColors: RGB[][] = []
+  let centerColor: RGB | undefined
   let totalConfidence = 0
 
   for (let row = 0; row < gridSize; row++) {
@@ -1151,7 +1195,13 @@ export function extractColorsFromImageData(
       if (measured) {
         const avgColor: RGB = applyGains(measured, gains)
         rowRGB.push(avgColor)
-        const { color: stickerColor, confidence: cellConfidence } = classifySticker(avgColor, palette)
+        let judged = avgColor
+        if (gridSize % 2 === 1 && gridSize >= 3 && row === (gridSize - 1) / 2 && col === row) {
+          const logoSafe = centerStickerColor(samplePixels(data, faceWidth, faceHeight,
+            stickerSampleRect(row, col, gridSize, faceWidth, faceHeight, { ...sampling, stickerCore: Math.max(sampling.stickerCore, CENTER_CORE) }, outerCellRatio)))
+          if (logoSafe) centerColor = judged = applyGains(logoSafe, gains)
+        }
+        const { color: stickerColor, confidence: cellConfidence } = classifySticker(judged, palette)
         rowColors.push(stickerColor)
         rowConfidences.push(cellConfidence)
         totalConfidence += cellConfidence
@@ -1168,7 +1218,22 @@ export function extractColorsFromImageData(
 
   const confidence = Math.min(1, totalConfidence / (gridSize * gridSize))
 
-  return { colors, confidence, cellConfidences, cellColors, ...(outerCellRatio !== 1 && { outerCellRatio }) }
+  return { colors, confidence, cellConfidences, cellColors, ...(outerCellRatio !== 1 && { outerCellRatio }), ...(centerColor && { centerColor }) }
+}
+
+// The pixels of `rect` (clipped to the face).
+function samplePixels(data: Uint8ClampedArray, faceWidth: number, faceHeight: number, rect: { x: number; y: number; width: number; height: number }): RGB[] {
+  const pixels: RGB[] = []
+  const x0 = Math.round(rect.x), y0 = Math.round(rect.y)
+  for (let y = y0; y < y0 + Math.round(rect.height); y++) {
+    for (let x = x0; x < x0 + Math.round(rect.width); x++) {
+      if (x >= 0 && x < faceWidth && y >= 0 && y < faceHeight) {
+        const idx = (y * faceWidth + x) * 4
+        pixels.push({ r: data[idx], g: data[idx + 1], b: data[idx + 2] })
+      }
+    }
+  }
+  return pixels
 }
 
 // A cropped face can be one solid color, so seams are optional when the
