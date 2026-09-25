@@ -4,10 +4,9 @@
 
 [Open the static scanner demo](https://wstein.github.io/cube-assembler/) · [Source repository](https://github.com/wstein/cube-assembler)
 
-The GitHub Pages demo runs the scanner, review and parity check entirely in
-the browser. Only saving captures as test fixtures needs the Bun `/api`
-server; run the project locally with `npm run dev` for that. The demo reports
-this limit when it is attempted.
+Everything runs in the browser: scanning, review, the parity check, and
+saving or loading test fixtures (as zip files). The GitHub Pages demo can do
+everything a local copy can.
 
 ![License: MIT](https://img.shields.io/badge/License-MIT-cyan.svg)
 ![npm](https://img.shields.io/badge/runtime-npm-black)
@@ -88,9 +87,7 @@ real sticker to the wrong color (`classifyAcrossFaces`).
 
 | | |
 |---|---|
-| **Runtime** | [Bun](https://bun.sh) ≥ 1.3 |
 | **App** | [Preact](https://preactjs.com), built and served by [Vite](https://vitejs.dev) |
-| **Server** | [Hono](https://hono.dev) — fixture saving under `/api` |
 | **Tests** | [Vitest](https://vitest.dev) |
 
 ---
@@ -101,11 +98,9 @@ real sticker to the wrong color (`classifyAcrossFaces`).
 # Install
 npm install
 
-# Dev server with hot-reload: the app (Vite) plus the API server (Bun)
+# Dev server with hot-reload
 npm run dev
-# → app on http://localhost:5173, API on http://localhost:3000
-#   (Vite forwards /api to it; without it the app says
-#   "Can't reach the cube server")
+# → app on http://localhost:5173
 
 # Run tests
 npm test
@@ -119,10 +114,6 @@ workflow builds and tests pushes and pull requests. The publishing source is
 **Settings → Pages → Build and deployment → GitHub Actions**. To
 preview the static build locally, run
 `VITE_BASE_PATH=/cube-assembler/ npm run build` and `npx vite preview`.
-GitHub Pages cannot run the Bun server. To host the API separately, build with
-`VITE_API_BASE_URL=https://your-api.example.com` and configure that server to
-allow browser requests from your Pages origin. Local development includes the
-API without this setting.
 
 ---
 
@@ -131,9 +122,6 @@ API without this setting.
 ```
 cube-assembler/
 ├── index.html                     App entry, built and served by Vite
-│
-├── server/
-│   └── Server.ts                  Hono API: fixture saving
 │
 ├── src/
 │   └── client/                    Preact browser app: webcam capture, review, notation I/O
@@ -151,7 +139,7 @@ cube-assembler/
 │       ├── cubeProfiles.ts        Saved cubes: brand, sticker style, sampling
 │       ├── capturePresentation.ts Capture dialog wording and layout helpers
 │       ├── fixtureFormat.ts       Reading saved fixtures, old formats included
-│       ├── api.ts                 /api calls, with a clear message when the server is down
+│       ├── fixtureZip.ts          Test fixtures as zip files: save (download) and upload
 │       └── notationOutput.ts      WRG/URF facelet notation + format auto-detection
 │
 └── test/
@@ -163,9 +151,10 @@ cube-assembler/
     ├── gridAlignment.test.ts      Grid search: offset, size, tilt, perimeter, grey seams
     ├── gridAlignmentRealCrops.test.ts  Benchmark on saved captures held off-center/tilted
     ├── liveAnalysis.test.ts       Live frame analysis, incl. a 720p copy of a 1080p frame
-    ├── liveHold.test.ts, autoCapture.test.ts, api.test.ts
+    ├── liveHold.test.ts, autoCapture.test.ts
     ├── notationOutput.test.ts     WRG/URF facelet formats + format auto-detection
-    ├── parity.test.ts             Server-side corner/edge/wing-edge facelet-index tables
+    ├── parity.test.ts             Parity check: corner/edge/wing-edge facelet-index tables
+    ├── fixtureZip.test.ts         Fixture zips: layout, names, hand-made zips
     ├── fixtures.test.ts           Real captures vs. human-verified colors (see below)
     ├── liveFaceAppearance.test.ts Live face check on every saved capture
     └── fixtures/                  Saved captures for fixtures.test.ts (see fixtures/README.md)
@@ -248,8 +237,8 @@ or imported photos and reconstructs its state:
    (U top, L-F-R-B row, D bottom) alongside the 3D viewer.
 5. **Save as test fixture** — once a cube is confirmed, saves that exact
    capture (every face's actual photo plus its color grid after any
-   manual corrections) as a permanent regression test fixture (`POST
-   /api/fixtures`, `test/fixtures/<name>/`). A misclassification a human
+   manual corrections) as a zip to unzip into `test/fixtures/<name>/`,
+   a permanent regression test fixture. A misclassification a human
    caught once in the review wizard stays caught: `test/fixtures.test.ts`
    re-runs the real detection pipeline against every saved fixture and
    fails if it stops matching. Fixtures can be hand-tagged (surfaced in
@@ -285,49 +274,16 @@ alone rather than guessed).
 
 ---
 
-## API
+## Test fixtures
 
-The endpoint is served by the Hono server on `http://localhost:3000`.
-
-### `POST /api/fixtures`
-Saves a human-verified capture (each face's actual photo plus its color
-grid after any manual corrections) as a regression test fixture under
-`test/fixtures/<name>/` — see [Regression fixtures](test/fixtures/README.md).
-Reachable from the app itself via the **Save as test fixture** button once a
-cube has been confirmed. `meta` is optional, opaque capture context
-(camera, white balance, sampling setup, etc.) stored as-is under `capture`
-in the fixture's `meta.json`. `colorsURFDLB` is the human-verified colors of
-all 6 faces in U R F D L B order (WRG facelets, each face row-major as
-photographed); `detectedURFDLB`, optional, is detection's result before
-any hand correction. Per-face fields beyond `photo` (crop, camera settings
-at capture, ...) are stored as-is on that face.
-
-```json
-{
-  "name": "optional-name (defaults to a timestamp)",
-  "gridSize": 3,
-  "colorsURFDLB": "GRRYOYWYW WYWROGORB GRRYOYWYW YWYBROGWR GBGBGBOBO BGRGBOBWO",
-  "detectedURFDLB": "RRRYOYWYW WYWROGORB GRRYOYWYW YWYBROGWR GBGBGBOBO BGRGBOBWO",
-  "faces": {
-    "U": {
-      "photo": "data:image/jpeg;base64,...",
-      "crop": { "x": 636, "y": 216, "width": 648, "height": 648 }
-    },
-    "R": { ... }, "F": { ... }, "D": { ... }, "L": { ... }, "B": { ... }
-  },
-  "meta": {
-    "app": { "version": "0.1.0", "commit": "460a4d1" },
-    "camera": { "label": "FaceTime HD Camera", "requested": { ... }, "granted": { "width": 1920, "height": 1080, ... }, "supported": { ... } },
-    "profile": { "id": "cube-mfx2k1-8q3d", "name": "Rubik's 3×3" },
-    "sampling": { "backgroundGap": 0.05, "stickerCore": 0.6 },
-    "colorCalibration": { "applied": true, "learnedColors": { "W": [214.2, 211.8, 205.1], "R": [196.3, 40.7, 45.9], ... } }
-  }
-}
-```
-
-```json
-{ "success": true, "name": "capture-2026-01-15T10-30-00-000Z", "path": "test/fixtures/capture-2026-01-15T10-30-00-000Z" }
-```
+**Save as test fixture** (once a cube is confirmed) downloads `<name>.zip`
+with `<name>/meta.json` and the six face photos. Unzipped into
+`test/fixtures/`, it becomes a regression test; **Upload fixture** loads the
+zip (or a fixture folder's files) back into the app. `meta.json` holds the
+human-verified colors (`colorsURFDLB`), detection's own result before any
+hand correction (`detectedURFDLB`), per-face capture details, and `capture`,
+informational context (app version and commit, camera, sampling, learned
+colors). See [Regression fixtures](test/fixtures/README.md).
 
 ---
 
