@@ -4,7 +4,7 @@
 // test/fixtures.test.ts runs (see test/fixtures/README.md). Uploading
 // takes the same zip back.
 
-import { strToU8, unzipSync, zipSync } from 'fflate'
+import { strFromU8, strToU8, unzipSync, zipSync } from 'fflate'
 import { wrgFaceletsToGrids } from './notationOutput'
 
 export interface FixtureRequest {
@@ -103,4 +103,52 @@ export function unzipFixture(zip: Uint8Array): File[] {
     .map(([path, data]) => new File([data as BlobPart], path.slice(folder.length), {
       type: path.endsWith('.json') ? 'application/json' : path.endsWith('.png') ? 'image/png' : 'image/jpeg',
     }))
+}
+
+export interface FixturePhoto {
+  // The capture slot (u, r, f, d, l, b) and its file in the zip.
+  face: string
+  file: string
+  bytes: Uint8Array
+}
+
+export interface FixtureSummary {
+  photos: FixturePhoto[]
+  // What meta.json records, as label/value pairs to show before saving.
+  rows: Array<[string, string]>
+}
+
+const FACE_KEYS = ['u', 'r', 'f', 'd', 'l', 'b']
+const SOURCE_NAMES: Record<string, string> = { camera: 'camera', 'image-file': 'image files', fixture: 'an uploaded fixture' }
+
+// What a fixture holds - its photos and a readable digest of meta.json -
+// so the customer sees what they're about to save or share.
+export function summarizeFixture(fixture: Fixture): FixtureSummary {
+  const meta = JSON.parse(strFromU8(fixture.files['meta.json']))
+  const capture = meta.capture ?? {}
+  const photos = FACE_KEYS.filter((face) => meta.faces[face]).map((face) => {
+    const file = meta.faces[face].photo
+    return { face, file, bytes: fixture.files[file] }
+  })
+  const rows: Array<[string, string]> = [['Cube', `${meta.gridSize}×${meta.gridSize}`]]
+  if (meta.detectedURFDLB) {
+    const fixed = [...meta.colorsURFDLB].filter((c, i) => c !== meta.detectedURFDLB[i]).length
+    rows.push(['Fixed by hand', fixed === 0 ? 'nothing - detection was right' : `${fixed} sticker${fixed === 1 ? '' : 's'}`])
+  } else {
+    rows.push(['Fixed by hand', 'not recorded'])
+  }
+  rows.push(['Capture', capture.protocol ? 'guided (4 sides, then top and bottom)' : 'free order'])
+  const sources = [...new Set(FACE_KEYS.map((face) => meta.faces[face]?.source).filter(Boolean))]
+  if (sources.length) rows.push(['Photos from', sources.map((s) => SOURCE_NAMES[s as string] ?? s).join(', ')])
+  if (capture.camera) {
+    const { width, height } = capture.camera.granted ?? {}
+    rows.push(['Camera', `${capture.camera.label}${width && height ? `, ${width}×${height}` : ''}`])
+  }
+  if (capture.profile?.name) rows.push(['Cube profile', capture.profile.name])
+  if (capture.colorCalibration) {
+    rows.push(['Colors learned', capture.colorCalibration.learnedColors ? 'from this capture' : 'no - standard colors used'])
+  }
+  if (capture.app) rows.push(['App', `${capture.app.version ?? '?'}${capture.app.commit ? ` (${capture.app.commit})` : ''}`])
+  if (capture.capturedAt) rows.push(['Saved', new Date(capture.capturedAt).toLocaleString()])
+  return { photos, rows }
 }

@@ -26,7 +26,7 @@ import {
   profilePalette, withLearnedColors, withoutLearnedColors, suggestProfile, type CubeProfile, type ProfileStore,
 } from './cubeProfiles'
 import { readFixtureColors } from './fixtureFormat'
-import { buildFixture, unzipFixture, zipFixture } from './fixtureZip'
+import { buildFixture, summarizeFixture, unzipFixture, zipFixture, type FixtureSummary } from './fixtureZip'
 import {
   toWRGFacelets, fromWRGFacelets, toURFFacelets, fromURFFacelets, detectNotationFormat, gridsToWRGFacelets,
 } from './notationOutput'
@@ -621,6 +621,11 @@ function handleModalKeyDown(e: KeyboardEvent, container: HTMLElement, onClose: (
 // inside this modal is what limits the focus grab to that first moment:
 // once the container (or something in it) is focused, later re-renders
 // while the customer is actually using the modal leave it alone.
+// File sizes for the fixture download dialog.
+function formatBytes(bytes: number): string {
+  return bytes < 1024 ? `${bytes} B` : bytes < 1024 * 1024 ? `${Math.round(bytes / 1024)} KB` : `${(bytes / 1024 / 1024).toFixed(1)} MB`
+}
+
 function focusModalOnOpen(el: HTMLElement | null) {
   if (el && !el.contains(document.activeElement)) el.focus()
 }
@@ -656,6 +661,14 @@ function App() {
   const [turnOverlay, setTurnOverlay] = useState<{ step: number; startColors: string[][]; viaColors?: string[][] } | null>(null)
   const turnOverlayTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const [fixtureSaveMessage, setFixtureSaveMessage] = useState('')
+  // A fixture zip ready to download, shown first with its photos (as blob
+  // URLs, revoked on close) and a summary of its meta.json.
+  const [fixtureDownload, setFixtureDownload] = useState<{
+    name: string
+    zip: Uint8Array
+    summary: FixtureSummary
+    photoUrls: string[]
+  } | null>(null)
   const [manualColorInput, setManualColorInput] = useState('')
   const [showColorInput, setShowColorInput] = useState(false)
   const [notationFormat, setNotationFormat] = useState<'wrg' | 'urf'>('wrg')
@@ -1659,10 +1672,11 @@ function App() {
     setTimeout(removeClone, 0)
   }
 
-  // Downloads this capture - each face's actual photo plus its (human-
-  // reviewed/corrected) color grid - as a fixture zip (see fixtureZip.ts):
-  // unzipped into test/fixtures/, it is a permanent regression fixture
-  // (see test/fixtures.test.ts). Only meaningful once a
+  // Packs this capture - each face's actual photo plus its (human-
+  // reviewed/corrected) color grid - into a fixture zip (see fixtureZip.ts)
+  // and shows what's in it before downloading (downloadFixture): unzipped
+  // into test/fixtures/, it is a permanent regression fixture (see
+  // test/fixtures.test.ts). Only meaningful once a
   // cube has actually been confirmed: that's the point at which
   // capturedFaces' colors reflect whatever corrections were made in the
   // review wizard, not just the raw first-pass detection.
@@ -1753,16 +1767,34 @@ function App() {
         faces,
         meta,
       })
-      const url = URL.createObjectURL(new Blob([zipFixture(fixture) as BlobPart], { type: 'application/zip' }))
-      const link = document.createElement('a')
-      link.href = url
-      link.download = `${fixture.name}.zip`
-      link.click()
-      setTimeout(() => URL.revokeObjectURL(url), 0)
-      setFixtureSaveMessage(`✓ Downloaded ${fixture.name}.zip - unzip it into test/fixtures/ to add it to the tests`)
+      const summary = summarizeFixture(fixture)
+      setFixtureSaveMessage('')
+      setFixtureDownload({
+        name: fixture.name,
+        zip: zipFixture(fixture),
+        summary,
+        photoUrls: summary.photos.map((p) => URL.createObjectURL(new Blob([p.bytes as BlobPart], { type: p.file.endsWith('.png') ? 'image/png' : 'image/jpeg' }))),
+      })
     } catch (err) {
       setFixtureSaveMessage(`❌ Failed to save fixture: ${err instanceof Error ? err.message : String(err)}`)
     }
+  }
+
+  const closeFixtureDownload = () => {
+    fixtureDownload?.photoUrls.forEach((url) => URL.revokeObjectURL(url))
+    setFixtureDownload(null)
+  }
+
+  const downloadFixture = () => {
+    if (!fixtureDownload) return
+    const url = URL.createObjectURL(new Blob([fixtureDownload.zip as BlobPart], { type: 'application/zip' }))
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `${fixtureDownload.name}.zip`
+    link.click()
+    setTimeout(() => URL.revokeObjectURL(url), 0)
+    setFixtureSaveMessage(`✓ Downloaded ${fixtureDownload.name}.zip - unzip it into test/fixtures/ to add it to the tests`)
+    closeFixtureDownload()
   }
 
   const handleCapturePhoto = async () => {
@@ -3070,6 +3102,51 @@ function App() {
             <button class="btn btn-secondary btn-sm" onClick={() => setReviewEditingCell(null)}>
               Cancel
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* What a fixture zip holds, before it's downloaded */}
+      {fixtureDownload && (
+        <div class="modal open">
+          <div
+            class="modal-content fixture-download-content"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="fixture-download-title"
+            tabIndex={-1}
+            ref={focusModalOnOpen}
+            onKeyDown={(e) => handleModalKeyDown(e, e.currentTarget, closeFixtureDownload)}
+          >
+            <div class="modal-header">
+              <h2 id="fixture-download-title">Save as test fixture</h2>
+              <button class="modal-close" aria-label="Close" onClick={closeFixtureDownload}>×</button>
+            </div>
+            <p class="fixture-download-file">
+              <code>{fixtureDownload.name}.zip</code> · {formatBytes(fixtureDownload.zip.length)}
+            </p>
+            <ul class="fixture-download-photos" aria-label="Photos in the zip">
+              {fixtureDownload.summary.photos.map((photo, i) => (
+                <li key={photo.face}>
+                  <img src={fixtureDownload.photoUrls[i]} alt={`${FACE_DISPLAY_LABEL[photo.face.toUpperCase()]} photo`} />
+                  <span>{FACE_DISPLAY_LABEL[photo.face.toUpperCase()]}</span>
+                  <span class="fixture-download-meta">{photo.file} · {formatBytes(photo.bytes.length)}</span>
+                </li>
+              ))}
+            </ul>
+            <dl class="fixture-download-summary">
+              {fixtureDownload.summary.rows.map(([label, value]) => (
+                <div key={label}>
+                  <dt>{label}</dt>
+                  <dd>{value}</dd>
+                </div>
+              ))}
+            </dl>
+            <p class="fixture-download-hint">Unzip it into <code>test/fixtures/</code> to add it to the tests; <strong>Upload fixture</strong> loads it back.</p>
+            <div class="input-actions">
+              <button type="button" class="btn btn-secondary btn-sm" onClick={closeFixtureDownload}>Cancel</button>
+              <button type="button" class="btn btn-primary btn-sm" onClick={downloadFixture}>Download zip</button>
+            </div>
           </div>
         </div>
       )}
