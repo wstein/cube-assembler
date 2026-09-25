@@ -852,8 +852,9 @@ function computeFaceBounds(canvas: HTMLCanvasElement, fraction = SAMPLE_FACE_FRA
 // The guide square moved onto the cube's actual sticker grid (see
 // findGridAlignment), so a face held a little off-center or away from the
 // camera is still sampled cell by cell. Falls back to the guide itself when
-// no convincing grid shows, e.g. a stickerless cube.
-function alignedFaceBounds(canvas: HTMLCanvasElement, gridSize: number): FaceBounds {
+// no convincing grid shows. Exported so one live frame is aligned once for
+// both extractCubeFaceColors and hasVisibleCubeFace.
+export function alignedFaceBounds(canvas: HTMLCanvasElement, gridSize: number): FaceBounds {
   const guide = computeFaceBounds(canvas)
   const ctx = canvas.getContext('2d')
   if (!ctx || guide.faceWidth !== guide.faceHeight) return guide
