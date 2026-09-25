@@ -4,12 +4,18 @@
 // Vite answers an empty 500 - shown as-is, that reads like a problem with
 // the cube. The server itself always answers errors with a JSON body.
 
-export const SERVER_UNREACHABLE = "Can't reach the cube server - start it with npm run dev (it serves /api on port 3000)"
+const apiBaseUrl = (import.meta.env.VITE_API_BASE_URL || '').replace(/\/$/, '')
+const staticSiteWithoutApi = import.meta.env.BASE_URL !== '/' && !apiBaseUrl
+
+export const SERVER_UNREACHABLE = staticSiteWithoutApi
+  ? 'This static demo has no cube API. Run npm run dev locally for server-backed actions.'
+  : "Can't reach the cube server - start it with npm run dev (it serves /api on port 3000)"
 
 export async function apiFetch(path: string, init?: RequestInit): Promise<Response> {
+  if (staticSiteWithoutApi) throw new Error(SERVER_UNREACHABLE)
   let res: Response
   try {
-    res = await fetch(path, init)
+    res = await fetch(`${apiBaseUrl}${path}`, init)
   } catch {
     throw new Error(SERVER_UNREACHABLE)
   }
