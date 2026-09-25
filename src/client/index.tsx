@@ -1,6 +1,7 @@
 import { render, h, Fragment } from 'preact'
 import { useState, useEffect, useRef, useMemo } from 'preact/hooks'
 import '../../web/style.css'
+import { apiFetch } from './api'
 import {
   alignedFaceBounds, captureAndProcessFace, captureAndProcessImage, extractCubeFaceColors, hasVisibleCubeFace,
   runGlobalWhiteBalance, NEUTRAL_GAINS, CROP_JPEG_QUALITY,
@@ -144,13 +145,13 @@ interface AssemblyResult {
 // ─────────────────────────────────────────────────────────────────────────────
 
 async function generateScramble(size: number): Promise<string> {
-  const res = await fetch(`/api/scramble?size=${size}`)
+  const res = await apiFetch(`/api/scramble?size=${size}`)
   const data = await res.json()
   return data.scramble || 'Failed to generate scramble'
 }
 
 async function applyAlgorithm(cube: any, alg: string, size: number): Promise<any> {
-  const res = await fetch('/api/apply-alg', {
+  const res = await apiFetch('/api/apply-alg', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ cube: toCubeIR(cube, size), alg }),
@@ -163,7 +164,7 @@ async function applyAlgorithm(cube: any, alg: string, size: number): Promise<any
 }
 
 async function checkParity(cube: any, size: number): Promise<any> {
-  const res = await fetch('/api/parity', {
+  const res = await apiFetch('/api/parity', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ cube: toCubeIR(cube, size) }),
@@ -1182,7 +1183,7 @@ function App() {
 
   const handleParseWRG = async (notation: string) => {
     if (!notation.trim()) return
-    const res = await fetch('/api/parse-wrg', {
+    const res = await apiFetch('/api/parse-wrg', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ notation, size: puzzleSize }),
@@ -1794,7 +1795,7 @@ function App() {
         // reported detection problem against this exact fixture.
         colorStats: computeColorStats(capturedFaces, puzzleSize),
       }
-      const res = await fetch('/api/fixtures', {
+      const res = await apiFetch('/api/fixtures', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
