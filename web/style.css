@@ -1643,6 +1643,11 @@ textarea {
   perspective: 160cqw;
 }
 
+/* Mirror the whole 3D cue as one camera image, including stickers and arrow. */
+.capture-turn-scene.mirrored {
+  transform: translate(-50%, -50%) scaleX(-1);
+}
+
 .capture-turn-cube {
   position: relative;
   width: 100%;
@@ -2106,6 +2111,10 @@ label.capture-size-label {
   border-radius: var(--radius-md);
 }
 
+.capture-net.mirrored .orientation-net-face {
+  transform: scaleX(-1);
+}
+
 .capture-net-slot:focus-visible {
   outline: 2px solid var(--color-accent-dark);
   outline-offset: 2px;
@@ -2150,6 +2159,10 @@ label.capture-size-label {
   width: 56px;
   height: 56px;
   margin: 0 var(--spacing-sm) 0 0;
+}
+
+.turn-hint.mirrored {
+  transform: scaleX(-1);
 }
 
 .turn-hint-face {
