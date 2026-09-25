@@ -4,10 +4,10 @@
 
 [Open the static scanner demo](https://wstein.github.io/cube-assembler/) · [Source repository](https://github.com/wstein/cube-assembler)
 
-The GitHub Pages demo serves the scanner and review UI. Parity checks and
-saving captures as test fixtures use the Bun `/api` server; run the project
-locally with `npm run dev` for those actions. The demo reports this limit when
-an API action is attempted.
+The GitHub Pages demo runs the scanner, review and parity check entirely in
+the browser. Only saving captures as test fixtures needs the Bun `/api`
+server; run the project locally with `npm run dev` for that. The demo reports
+this limit when it is attempted.
 
 ![License: MIT](https://img.shields.io/badge/License-MIT-cyan.svg)
 ![npm](https://img.shields.io/badge/runtime-npm-black)
@@ -23,8 +23,8 @@ On odd cubes each face's center color says which face it is, leaving
 4⁶ = 4,096 rotation combinations; on even cubes identity and rotation are
 searched together (122,880 combinations); a guided capture narrows it to 64
 arrangements. The browser keeps the arrangements whose corners and edges are
-valid, asks when more than one fits, and the server's parity check verifies
-the result.
+valid, asks when more than one fits, and the full parity check verifies the
+result.
 
 The scanner defaults to **Detect face**: it finds sticker seams near the camera
 guide, aligns and straightens the face, then reads its colors. **Guide grid**
@@ -90,7 +90,7 @@ real sticker to the wrong color (`classifyAcrossFaces`).
 |---|---|
 | **Runtime** | [Bun](https://bun.sh) ≥ 1.3 |
 | **App** | [Preact](https://preactjs.com), built and served by [Vite](https://vitejs.dev) |
-| **Server** | [Hono](https://hono.dev) — parity check and fixture saving under `/api` |
+| **Server** | [Hono](https://hono.dev) — fixture saving under `/api` |
 | **Tests** | [Vitest](https://vitest.dev) |
 
 ---
@@ -133,7 +133,7 @@ cube-assembler/
 ├── index.html                     App entry, built and served by Vite
 │
 ├── server/
-│   └── Server.ts                  Hono API: parity check, fixture saving
+│   └── Server.ts                  Hono API: fixture saving
 │
 ├── src/
 │   └── client/                    Preact browser app: webcam capture, review, notation I/O
@@ -145,6 +145,7 @@ cube-assembler/
 │       ├── autoCapture.ts         Captures once live detections stay stable
 │       ├── liveHold.ts            Holds a confirmed face through weak live frames
 │       ├── cubeAssembly.ts        Face assembly, guided capture, orientation solving
+│       ├── parity.ts              Parity check, with the stickers to look at when it fails
 │       ├── orientationWizard.ts   "Choose each side": which face to ask about next
 │       ├── cubeGeometry.ts        Whole-cube rotations and layer turns
 │       ├── cubeProfiles.ts        Saved cubes: brand, sticker style, sampling
@@ -286,27 +287,7 @@ alone rather than guessed).
 
 ## API
 
-All endpoints are served by the Hono server on `http://localhost:3000`.
-
-### `POST /api/parity`
-Full 4-condition parity check for a `cubeIR` (3×3×3 shown; 4×4–7×7 return
-`colorBalance`, `cornerColors`, `cornerOrientation`, and `wingEdgeColors`
-only — see [Parity Validation](#parity-validation)).
-
-```json
-{
-  "valid": true,
-  "result": "Valid — all parity checks passed",
-  "checks": {
-    "colorBalance": true,
-    "cornerColors": true,
-    "cornerOrientation": true,
-    "edgeColors": true,
-    "edgeOrientation": true,
-    "permutationParity": true
-  }
-}
-```
+The endpoint is served by the Hono server on `http://localhost:3000`.
 
 ### `POST /api/fixtures`
 Saves a human-verified capture (each face's actual photo plus its color
@@ -397,7 +378,7 @@ first step of the standard big-cube solving method. Enforcing uniformity
 there rejected valid scrambles with "Center cores not uniform"; see
 `test/parity.test.ts` for the real 4×4 capture that caught it.
 
-`CORNER_SLOTS`/`EDGE_FACELETS_3x3` (`server/Server.ts`) map each
+`CORNER_SLOTS`/`EDGE_FACELETS_3x3` (`src/client/parity.ts`) map each
 corner/edge cubie to its facelet positions on the B (back) face, which is
 viewed from outside the cube — mirrored left/right relative to F. A
 previous version of these tables got that mirroring backwards for the

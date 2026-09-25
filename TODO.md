@@ -35,8 +35,9 @@ real cubes" design discussion. Numbering matches that discussion's ratings;
 - **Removed what the app no longer used**: automatic cube-size detection,
   the server-side assembly worker, the scramble/algorithm/parse endpoints,
   the ReScript library, the vendored cubing.js, preact-router and the
-  server's broken static page. The server keeps `/api/parity` and
-  `/api/fixtures`.
+  server's broken static page. The server keeps `/api/fixtures`.
+- **Parity check runs in the browser** (`src/client/parity.ts`), so the
+  GitHub Pages demo validates cubes too; `/api/parity` is gone.
 
 ## Next
 
