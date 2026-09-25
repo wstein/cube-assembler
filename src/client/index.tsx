@@ -1207,22 +1207,21 @@ function App() {
   // Features: Face Capture Modal (#5)
   // ─────────────────────────────────────────────────────────────────────────
 
-  // Single capture entry point: resume at the first uncaptured face, or -
-  // once all 6 are already done - clear every prior capture and start
-  // completely over from U, so "Recapture Faces" actually re-walks all 6
-  // faces instead of silently reusing the other 5's stale data.
-  const handleOpenCapture = () => {
+  // Continue from the first empty slot, or start over when requested (and
+  // after all six are already complete).
+  const handleOpenCapture = (restart = false) => {
     dismissTurnOverlay()
     lastCapturedColors.current = null
     const allCaptured = FACE_ORDER.every((f) => f in capturedFaces)
-    if (allCaptured) {
+    const startOver = restart || allCaptured
+    if (startOver) {
       setCapturedFaces({})
       setFaceConfidence({})
     }
-    const nextFace = allCaptured ? FACE_ORDER[0] : FACE_ORDER.find((f) => !(f in capturedFaces))!
+    const nextFace = startOver ? FACE_ORDER[0] : FACE_ORDER.find((f) => !(f in capturedFaces))!
     setWebcamFace(nextFace)
     setCaptureMessage('')
-    if (allCaptured) setDismissedCaptureWarnings([])
+    if (startOver) setDismissedCaptureWarnings([])
     setGlobalWhiteBalanceNote(null)
     setAppliedBackgroundGains(null)
     setWebcamOpen(true)
@@ -2106,7 +2105,7 @@ function App() {
           {/* Getting a cube in: guided capture, fixture upload, typed colors */}
           <section class="card capture-card">
             <h2>Capture</h2>
-            <button type="button" class="btn btn-primary btn-lg" onClick={handleOpenCapture}>
+            <button type="button" class="btn btn-primary btn-lg" onClick={() => handleOpenCapture()}>
               <svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true">
                 <path d="M2.5 6.5A1.5 1.5 0 0 1 4 5h2.2l1.3-2h5l1.3 2H16a1.5 1.5 0 0 1 1.5 1.5V15A1.5 1.5 0 0 1 16 16.5H4A1.5 1.5 0 0 1 2.5 15Z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" />
                 <circle cx="10" cy="10.5" r="3" fill="none" stroke="currentColor" stroke-width="1.6" />
@@ -2117,6 +2116,11 @@ function App() {
                 ? `Continue capturing (${FACE_ORDER.filter((f) => f in capturedFaces).length}/${FACE_ORDER.length})`
                 : 'Capture faces'}
             </button>
+            {FACE_ORDER.some((f) => f in capturedFaces) && !FACE_ORDER.every((f) => f in capturedFaces) && (
+              <button type="button" class="btn btn-secondary btn-lg" onClick={() => handleOpenCapture(true)}>
+                Capture again
+              </button>
+            )}
             <p class="card-hint">Four sides while turning the cube, then top and bottom — about a minute.</p>
             <div class="face-status-row">
               <div class="face-status-dots">
