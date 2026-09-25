@@ -1953,6 +1953,15 @@ label.capture-size-label {
   background: var(--color-bg-primary);
 }
 
+.auto-capture-toggle {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  font-size: 0.9rem;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+}
+
 /* Inside the bar an empty message takes no room - the bar already sits
    at a fixed place, so there's no layout jump to prevent. */
 .capture-actions .capture-message {
