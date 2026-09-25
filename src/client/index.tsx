@@ -5,9 +5,11 @@ import { apiFetch } from './api'
 import { AUTO_CAPTURE_STABLE_FRAMES, nextAutoCaptureProgress, type AutoCaptureProgress } from './autoCapture'
 import { oppositeFacePreview } from './capturePresentation'
 import { holdConfirmedFace, NO_HOLD, type LiveHold } from './liveHold'
+import { scaleBounds, type LiveAnalysisRequest } from './liveAnalysis'
+import type { LiveFrameMessage, LiveResultMessage } from './liveAnalysis.worker'
 import { WIZARD_FACE_ORDER, faceContentKey, groupWizardOptions, pickWizardFace, preferredGuidedArrangementIndex } from './orientationWizard'
 import {
-  faceBoundsForMode, detectFaceGridSize, captureAndProcessFace, captureAndProcessCanvas, captureAndProcessImage, extractCubeFaceColors, hasVisibleCubeFace,
+  faceBoundsForMode, detectFaceGridSize, captureAndProcessFace, captureAndProcessCanvas, captureAndProcessImage, hasVisibleCubeFace,
   runGlobalWhiteBalance, NEUTRAL_GAINS, CROP_JPEG_QUALITY,
   DEFAULT_SAMPLING, MAX_BACKGROUND_GAP, STICKER_MEASUREMENT, stickerSampleRect, colorConfidences, STICKER_COLORS, type SamplingGeometry,
   rgbToOKLCH, hueCircularRange, hueRangesOverlap, linearRange,
@@ -132,6 +134,11 @@ interface CameraInfo {
 // Drops the per-browser device/group ids from settings/capabilities
 // before they end up in a saved fixture - they identify the user's
 // hardware and say nothing about how the photo was taken.
+// The live preview analyzes frames scaled down to this height: detection
+// found the same faces on 720p copies of 1080p frames at well under half
+// the cost (see liveAnalysis.test.ts); captures still read full resolution.
+const LIVE_ANALYSIS_HEIGHT = 720
+
 function withoutDeviceIds<T extends { deviceId?: unknown; groupId?: unknown }>(info: T): Omit<T, 'deviceId' | 'groupId'> {
   const { deviceId: _deviceId, groupId: _groupId, ...rest } = info
   return rest
@@ -823,6 +830,8 @@ function App() {
   // once the slot has rendered it (see CaptureNet / flyInto).
   const pendingFlyIn = useRef<{ slot: string; from: DOMRect } | null>(null)
   const sampleCanvasRef = useRef<HTMLCanvasElement | null>(null)
+  const liveWorker = useRef<Worker | null>(null)
+  useEffect(() => () => { liveWorker.current?.terminate() }, [])
 
   const dismissTurnOverlay = () => {
     if (turnOverlayTimer.current !== null) clearTimeout(turnOverlayTimer.current)
@@ -914,25 +923,23 @@ function App() {
     let sizeCandidate = 0
     let sizeCandidateFrames = 0
 
-    const intervalId = setInterval(() => {
-      const video = webcamRef.current
-      if (!video || video.videoWidth === 0 || video.videoHeight === 0) return
+    // Frames are analyzed in a worker, scaled down to LIVE_ANALYSIS_HEIGHT
+    // there (see liveAnalysis.worker.ts), one at a time. The worker hands
+    // each full-resolution frame back with its result, so a capture reads
+    // the very image the detection judged.
+    const worker = liveWorker.current ??= new Worker(new URL('./liveAnalysis.worker.ts', import.meta.url), { type: 'module' })
+    let active = true
+    let frameId = 0
+    let inFlight: number | null = null
 
-      canvas.width = video.videoWidth
-      canvas.height = video.videoHeight
-      const ctx = canvas.getContext('2d')
-      if (!ctx) return
-
-      ctx.drawImage(video, 0, 0)
-
+    const onResult = (event: MessageEvent<LiveResultMessage>) => {
+      const full = event.data.frame
+      if (!active || event.data.id !== inFlight) { full.close(); return }
       try {
-        if (captureMode === 'cv' && webcamFace === FACE_ORDER[0]
-          && FACE_ORDER.every((f) => !capturedFaces[f]) && !sizeManuallyChosen.current
-          && performance.now() - lastSizeCheck >= 500) {
-          lastSizeCheck = performance.now()
-          const size = detectFaceGridSize(canvas)
-          const sizeBounds = size ? faceBoundsForMode(canvas, size, 'aligned') : null
-          const visibleSize = sizeBounds?.gridFound && size !== null && hasVisibleCubeFace(canvas, size, sizeBounds, true) ? size : null
+        if ('error' in event.data) throw new Error(event.data.error)
+        const { result } = event.data
+        if (result.size) {
+          const visibleSize = result.size.visible ? result.size.size : null
           sizeCandidateFrames = visibleSize && visibleSize === sizeCandidate ? sizeCandidateFrames + 1 : 1
           sizeCandidate = visibleSize ?? 0
           if (visibleSize && visibleSize !== puzzleSize && sizeCandidateFrames >= 2) {
@@ -943,12 +950,10 @@ function App() {
             return
           }
         }
-        // Detect face uses this branch's grid alignment. Guide uses the
-        // centered square exactly, so both preview and capture agree.
-        const bounds = faceBoundsForMode(canvas, puzzleSize, captureMode === 'cv' ? 'aligned' : 'fixed')
-        const detection = extractCubeFaceColors(canvas, puzzleSize, NEUTRAL_GAINS, sampling, palette, bounds)
-        const visible = (captureMode === 'guide' || bounds.gridFound === true)
-          && hasVisibleCubeFace(canvas, puzzleSize, bounds, captureMode === 'cv')
+        // Bounds in the camera frame's pixels; colors and the check come
+        // from the worker's single read of the face.
+        const bounds = scaleBounds(result.bounds, event.data.scale)
+        const { detection, visible } = result
         // Detect face holds a confirmed face through a weak frame or two
         // (display only - see holdConfirmedFace); everything below still
         // judges this frame on its own.
@@ -984,9 +989,13 @@ function App() {
             const frame = document.querySelector('.capture-scan-frame')?.getBoundingClientRect()
             if (frame) pendingFlyIn.current = { slot: webcamFace, from: frame }
             try {
-              // Capture exactly the frame whose grid and colors stayed stable.
+              // Capture exactly the frame whose grid and colors stayed stable:
+              // its full-resolution snapshot, not a newer camera frame.
+              canvas.width = full.width
+              canvas.height = full.height
+              canvas.getContext('2d')?.drawImage(full, 0, 0)
               const result = captureAndProcessCanvas(canvas, puzzleSize, NEUTRAL_GAINS, sampling, palette, 'aligned', bounds)
-              const track = (video.srcObject as MediaStream | null)?.getVideoTracks()[0]
+              const track = (webcamRef.current?.srcObject as MediaStream | null)?.getVideoTracks()[0]
               setLoading(true)
               setCaptureMessage('Processing image...')
               void applyFaceCapture(webcamFace, result, 'camera', track ? withoutDeviceIds(track.getSettings()) : undefined)
@@ -1005,10 +1014,45 @@ function App() {
         setLiveCapturedFace(null)
         progress = null
         setAutoCaptureFrames(0)
+      } finally {
+        full.close()
+        inFlight = null
+      }
+    }
+    worker.addEventListener('message', onResult)
+
+    const intervalId = setInterval(async () => {
+      const video = webcamRef.current
+      if (inFlight || !video || video.videoWidth === 0 || video.videoHeight === 0) return
+      const id = ++frameId
+      inFlight = id
+      try {
+        const frame = await createImageBitmap(video)
+        if (!active || inFlight !== id) { frame.close(); return }
+        const detectSize = captureMode === 'cv' && webcamFace === FACE_ORDER[0]
+          && FACE_ORDER.every((f) => !capturedFaces[f]) && !sizeManuallyChosen.current
+          && performance.now() - lastSizeCheck >= 500
+        if (detectSize) lastSizeCheck = performance.now()
+        const request: LiveAnalysisRequest = {
+          gridSize: puzzleSize,
+          mode: captureMode === 'cv' ? 'aligned' : 'fixed',
+          requireOutline: captureMode === 'cv',
+          sampling,
+          palette,
+          detectSize,
+        }
+        worker.postMessage({ id, frame, maxHeight: LIVE_ANALYSIS_HEIGHT, request } satisfies LiveFrameMessage, [frame])
+      } catch {
+        if (inFlight === id) inFlight = null
       }
     }, 200)
 
-    return () => { clearInterval(intervalId) }
+    return () => {
+      active = false
+      clearInterval(intervalId)
+      worker.removeEventListener('message', onResult)
+      inFlight = null
+    }
   }, [webcamOpen, turnCueShowing, loading, webcamFace, puzzleSize, sampling, palette, captureMode, autoCapture, capturedFaces, faceConfidence, mirrorPreview, profile.name])
 
   // Everything below belongs to one cube of one size, so switching sizes
