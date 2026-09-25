@@ -15,7 +15,7 @@ import {
 } from './imageProcessing'
 import {
   assembleCubeFromFaces, validateFaceColors, createSolvedCube, toCubeIR, solveFaceOrientations, solveGuidedCapture,
-  checkGuidedCenters, findRepeatedFaces, orientationFreeSignature, predictGuidedCenters,
+  checkGuidedCenters, findRepeatedFaces, findCapturedFaceMatch, findCaptureSlotForOrientedFace, orientationFreeSignature, predictGuidedCenters,
   type OrientedCandidate, type OrientationSolution, type FaceKey, type GuidedArrangement, type GuidedCenterIssue,
 } from './cubeAssembly'
 import {
@@ -576,14 +576,15 @@ function morphInto(source: HTMLElement, target: HTMLElement): Promise<() => void
 }
 
 function OrientationNetPreview({
-  faces, undecidedFaces, currentFace, autoFaces,
+  faces, undecidedFaces, currentFace, autoFaces, onFaceClick,
 }: {
   faces: Record<string, string[][]>
   undecidedFaces?: Set<string>
   currentFace?: string
   autoFaces?: Set<string>
+  onFaceClick?: (face: string) => void
 }) {
-  const grid = (face: string) => (
+  const faceGrid = (face: string) => (
     <FaceGrid
       colors={faces[face]}
       undecided={undecidedFaces?.has(face)}
@@ -591,6 +592,9 @@ function OrientationNetPreview({
       auto={autoFaces?.has(face)}
     />
   )
+  const grid = (face: string) => onFaceClick
+    ? <button type="button" class="orientation-net-face-button" aria-label={`Check colors for ${face} face`} onClick={() => onFaceClick(face)}>{faceGrid(face)}</button>
+    : faceGrid(face)
   return (
     <div class="orientation-net">
       <div class="orientation-net-row">
@@ -701,6 +705,7 @@ function App() {
   const [movesTab, setMovesTab] = useState<'algorithm' | 'scramble'>('algorithm')
   const [liveDetection, setLiveDetection] = useState<ColorDetectionResult | null>(null)
   const [liveFaceVisible, setLiveFaceVisible] = useState(false)
+  const [liveCapturedFace, setLiveCapturedFace] = useState<string | null>(null)
   const [showReviewDialog, setShowReviewDialog] = useState(false)
   // Non-null only when solveFaceOrientations found genuine ambiguity (see
   // its alternatives field) - drives the step-by-step orientation wizard
@@ -925,6 +930,7 @@ function App() {
     if (!webcamOpen) {
       setLiveDetection(null)
       setLiveFaceVisible(false)
+      setLiveCapturedFace(null)
       return
     }
     if (turnCueShowing || loading) return
@@ -960,8 +966,20 @@ function App() {
         hold = shown.hold
         setLiveDetection(shown.show)
         setLiveFaceVisible(shown.visible)
+        const mid = Math.floor(puzzleSize / 2)
+        const matchedSlot = captureMode === 'cv' && visible && detection.confidence >= 0.8
+          ? findCapturedFaceMatch(
+              FACE_ORDER.map((face) => capturedFaces[face] && {
+                colors: capturedFaces[face].colors,
+                centerConfidence: capturedFaces[face].cellConfidences?.[mid]?.[mid],
+              }),
+              { colors: detection.colors, centerConfidence: detection.cellConfidences?.[mid]?.[mid] },
+              FACE_ORDER.indexOf(webcamFace)
+            )
+          : null
+        setLiveCapturedFace(matchedSlot === null ? null : FACE_ORDER[matchedSlot])
         if (captureMode === 'cv' && autoCapture && !autoCaptureInFlight.current) {
-          progress = nextAutoCaptureProgress(progress, visible && bounds.gridFound ? {
+          progress = nextAutoCaptureProgress(progress, visible && bounds.gridFound && matchedSlot === null ? {
             colors: detection.colors,
             confidence: detection.confidence,
             centerX: bounds.startX + bounds.faceWidth / 2,
@@ -995,6 +1013,7 @@ function App() {
         // Transient frame read failure (e.g. camera still warming up).
         setLiveDetection(null)
         setLiveFaceVisible(false)
+        setLiveCapturedFace(null)
         progress = null
         setAutoCaptureFrames(0)
       }
@@ -2438,9 +2457,9 @@ function App() {
                   <CaptureTurnOverlay step={turnOverlay.step} startColors={turnOverlay.startColors} viaColors={turnOverlay.viaColors} onContinue={dismissTurnOverlay} />
                 )}
               </div>
-              <span class="capture-live-badge" aria-hidden="true">
+              <span class="capture-live-badge" role="status">
                 <span class="capture-live-dot" />
-                Live · {liveDetection
+                Live · {liveCapturedFace ? `Already captured ${FACE_DISPLAY_LABEL[liveCapturedFace]}` : liveDetection
                   ? (liveFaceVisible ? `${(liveDetection.confidence * 100).toFixed(0)}% color match` : captureMode === 'cv' ? 'Align face in view' : 'Align face in guide')
                   : '—'}
               </span>
@@ -2987,6 +3006,17 @@ function App() {
       {orientationApproval && !orientationWizard && (() => {
         const { candidates, arrangements, valid, note, suggestedFrom } = orientationApproval
         const close = () => setOrientationApproval(null)
+        const checkFace = (candidate: OrientedCandidate, face: string) => {
+          const slot = findCaptureSlotForOrientedFace(
+            FACE_ORDER.map((key) => capturedFaces[key]?.colors), candidate.faces[face as FaceKey]
+          )
+          if (slot === null) return
+          setOrientationApproval(null)
+          setReviewStep(slot)
+          setReviewEditingCell(null)
+          setReviewNotice(null)
+          setShowReviewDialog(true)
+        }
         const single = candidates.length === 1
         const page = Math.min(orientationApproval.page ?? 0, Math.floor((candidates.length - 1) / ORIENTATION_CHOICES_PER_PAGE))
         const first = page * ORIENTATION_CHOICES_PER_PAGE
@@ -3009,6 +3039,7 @@ function App() {
                 <button class="modal-close" aria-label="Close" onClick={close}>×</button>
               </div>
               {note && <p class={valid ? 'orientation-approval-note' : 'capture-warning'}>{note}</p>}
+              {!valid && <p class="orientation-approval-note">Tap a face to check its colors or retake that photo.</p>}
               {!note && single && valid && (
                 <p class="orientation-approval-note">
                   {suggestedFrom && suggestedFrom > 1
@@ -3025,7 +3056,7 @@ function App() {
               {single ? (
                 <div class="approval-single">
                   <div class="approval-net">
-                    <OrientationNetPreview faces={candidates[0].faces} />
+                    <OrientationNetPreview faces={candidates[0].faces} onFaceClick={!valid ? (face) => checkFace(candidates[0], face) : undefined} />
                   </div>
                   {arrangements?.[0] && (
                     <div class="approval-changes">
@@ -3049,7 +3080,7 @@ function App() {
               <div class="orientation-approval-options">
                 {shown.map(({ candidate, i }) => (
                   <div key={i} class="orientation-approval-option">
-                    <OrientationNetPreview faces={candidate.faces} />
+                    <OrientationNetPreview faces={candidate.faces} onFaceClick={!valid ? (face) => checkFace(candidate, face) : undefined} />
                     {arrangements?.[i] && (
                       <ul class="orientation-approval-changes">
                         {describeArrangement(arrangements[i]).map((line) => <li key={line}>{line}</li>)}
