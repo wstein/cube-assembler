@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { cellEdges, estimateOuterCellRatio, estimateTilt, findGridAlignment, type FaceSquare } from '../src/client/gridAlignment'
+import { alignFace, cellEdges, estimateOuterCellRatio, estimateTilt, findGridAlignment, type FaceSquare } from '../src/client/gridAlignment'
 
 const STICKERS = [
   [220, 105, 30], [30, 150, 80], [240, 240, 235],
@@ -164,6 +164,29 @@ describe('findGridAlignment', () => {
       expect(Math.abs(found.size - face.size)).toBeLessThan(guideSize * 0.03)
     })
   }
+
+  it('keeps a measured tilt only when a grid shows under it', () => {
+    const guideSize = 300
+    const width = Math.round(guideSize * 1.4)
+    const guide = { x: (width - guideSize) / 2, y: (width - guideSize) / 2, size: guideSize }
+    // Diagonal stripes: edges agree on a direction, but there is no grid.
+    const stripes = new Uint8ClampedArray(width * width * 4)
+    const turn = (20 * Math.PI) / 180
+    for (let y = 0; y < width; y++) {
+      for (let x = 0; x < width; x++) {
+        const band = Math.floor((x * Math.cos(turn) + y * Math.sin(turn)) / 18) % 2
+        stripes.set(band ? [200, 60, 50, 255] : [240, 230, 220, 255], (y * width + x) * 4)
+      }
+    }
+    expect(estimateTilt(stripes, width, width, guide)).not.toBe(0)
+    const striped = alignFace(stripes, width, width, guide, 3)
+    expect(striped.angle).toBe(0)
+    expect(striped.aligned).toBe(false)
+
+    const face = placed(guide, 0.03, 0.02, 0.85)
+    const { data, height } = scene(4, face, guideSize, { tilt: 14 })
+    expect((alignFace(data, width, height, guide, 4).angle * 180) / Math.PI).toBeCloseTo(14, 0)
+  })
 
   it('keeps the guide for a face without any grid lines', () => {
     const guideSize = 300

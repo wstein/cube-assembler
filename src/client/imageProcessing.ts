@@ -1,6 +1,6 @@
 // Image processing utilities for cube face detection and color extraction
 
-import { ALIGNMENT_MAX_OFFSET, cellEdges, estimateOuterCellRatio, estimateTilt, findGridAlignment } from './gridAlignment'
+import { ALIGNMENT_MAX_OFFSET, alignFace, cellEdges, estimateOuterCellRatio } from './gridAlignment'
 
 export interface ColorDetectionResult {
   colors: string[][]
@@ -866,8 +866,8 @@ function alignedFaceBounds(canvas: HTMLCanvasElement, gridSize: number): FaceBou
   const y1 = Math.min(canvas.height, guide.startY + guide.faceHeight + margin)
   const region = ctx.getImageData(x0, y0, x1 - x0, y1 - y0)
   const square = { x: guide.startX - x0, y: guide.startY - y0, size: guide.faceWidth }
-  const angle = estimateTilt(region.data, region.width, region.height, square)
-  const found = findGridAlignment(region.data, region.width, region.height, square, gridSize, angle)
+  const found = alignFace(region.data, region.width, region.height, square, gridSize)
+  const angle = found.angle
   if (!found.aligned && !angle) return guide
   const size = Math.round(found.size)
   // Keep the square's center on the canvas; a tilted square is read through
