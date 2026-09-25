@@ -1,5 +1,7 @@
 // Image processing utilities for cube face detection and color extraction
 
+import { ALIGNMENT_MAX_OFFSET, findGridAlignment } from './gridAlignment'
+
 export interface ColorDetectionResult {
   colors: string[][]
   confidence: number
@@ -823,18 +825,41 @@ function computeFaceBounds(canvas: HTMLCanvasElement, fraction = SAMPLE_FACE_FRA
   }
 }
 
-function getFaceRegion(canvas: HTMLCanvasElement): FaceRegion {
+// The guide square moved onto the cube's actual sticker grid (see
+// findGridAlignment), so a face held a little off-center or away from the
+// camera is still sampled cell by cell. Falls back to the guide itself when
+// no convincing grid shows, e.g. a stickerless cube.
+function alignedFaceBounds(canvas: HTMLCanvasElement, gridSize: number): FaceBounds {
+  const guide = computeFaceBounds(canvas)
+  const ctx = canvas.getContext('2d')
+  if (!ctx || guide.faceWidth !== guide.faceHeight) return guide
+  // Room for the largest offset plus the largest face (1.12x the guide).
+  const margin = Math.ceil(guide.faceWidth * (ALIGNMENT_MAX_OFFSET + 0.06))
+  const x0 = Math.max(0, guide.startX - margin)
+  const y0 = Math.max(0, guide.startY - margin)
+  const x1 = Math.min(canvas.width, guide.startX + guide.faceWidth + margin)
+  const y1 = Math.min(canvas.height, guide.startY + guide.faceHeight + margin)
+  const region = ctx.getImageData(x0, y0, x1 - x0, y1 - y0)
+  const found = findGridAlignment(region.data, region.width, region.height,
+    { x: guide.startX - x0, y: guide.startY - y0, size: guide.faceWidth }, gridSize)
+  if (!found.aligned) return guide
+  const size = Math.round(found.size)
+  const startX = Math.min(canvas.width - size, Math.max(0, Math.round(x0 + found.x)))
+  const startY = Math.min(canvas.height - size, Math.max(0, Math.round(y0 + found.y)))
+  return { startX, startY, faceWidth: size, faceHeight: size }
+}
+
+function readFaceRegion(canvas: HTMLCanvasElement, bounds: FaceBounds): FaceRegion {
   const ctx = canvas.getContext('2d')
   if (!ctx) {
     throw new Error('Could not get canvas context')
   }
-
-  const bounds = computeFaceBounds(canvas)
   return {
     ...bounds,
     imageData: ctx.getImageData(bounds.startX, bounds.startY, bounds.faceWidth, bounds.faceHeight),
   }
 }
+
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Background-based cross-face correction
@@ -956,8 +981,7 @@ export function computeBackgroundGain(reference: RGB, current: RGB): RGB {
 // high-frequency live-preview path that doesn't need an image, only text.
 export const CROP_JPEG_QUALITY = 1
 
-export function cropFaceRegionToDataUrl(canvas: HTMLCanvasElement): string {
-  const bounds = computeFaceBounds(canvas)
+export function cropFaceRegionToDataUrl(canvas: HTMLCanvasElement, bounds: FaceBounds = computeFaceBounds(canvas)): string {
   const out = document.createElement('canvas')
   out.width = bounds.faceWidth
   out.height = bounds.faceHeight
@@ -1240,7 +1264,7 @@ export function hasPlausibleStickerFace(data: Uint8ClampedArray, width: number, 
 }
 
 export function hasVisibleCubeFace(canvas: HTMLCanvasElement, gridSize: number): boolean {
-  const { imageData, faceWidth, faceHeight } = getFaceRegion(canvas)
+  const { imageData, faceWidth, faceHeight } = readFaceRegion(canvas, alignedFaceBounds(canvas, gridSize))
   if (!hasCoherentStickerInteriors(imageData.data, faceWidth, faceHeight, gridSize)) return false
   if (hasPlausibleStickerFace(imageData.data, faceWidth, faceHeight, gridSize)) return true
 
@@ -1283,9 +1307,10 @@ export function extractCubeFaceColors(
   gridSize = 3,
   gains: RGB = NEUTRAL_GAINS,
   sampling: SamplingGeometry = DEFAULT_SAMPLING,
-  palette?: Record<string, RGB>
+  palette?: Record<string, RGB>,
+  bounds: FaceBounds = alignedFaceBounds(canvas, gridSize)
 ): ColorDetectionResult {
-  const { imageData, faceWidth, faceHeight } = getFaceRegion(canvas)
+  const { imageData, faceWidth, faceHeight } = readFaceRegion(canvas, bounds)
   return extractColorsFromImageData(imageData.data, faceWidth, faceHeight, gridSize, gains, sampling, palette)
 }
 
@@ -1333,8 +1358,8 @@ export function measureSharpness(data: Uint8ClampedArray, width: number, height:
   return sumSq / count - mean * mean
 }
 
-function describeCrop(canvas: HTMLCanvasElement): Pick<FaceCaptureResult, 'frame' | 'crop' | 'sharpness'> {
-  const { imageData, startX, startY, faceWidth, faceHeight } = getFaceRegion(canvas)
+function describeCrop(canvas: HTMLCanvasElement, bounds: FaceBounds): Pick<FaceCaptureResult, 'frame' | 'crop' | 'sharpness'> {
+  const { imageData, startX, startY, faceWidth, faceHeight } = readFaceRegion(canvas, bounds)
   return {
     frame: { width: canvas.width, height: canvas.height },
     crop: { x: startX, y: startY, width: faceWidth, height: faceHeight },
@@ -1366,11 +1391,14 @@ export function captureAndProcessFace(
   // was passed in here (see the "Gains" comment above) - unless a
   // background-derived correction is supplied for this face instead (see
   // runGlobalWhiteBalance's faceGains parameter).
+  // One aligned square for the colors, the saved photo and its crop record,
+  // so everything later re-analyzed from the photo sees the same face.
+  const bounds = alignedFaceBounds(canvas, gridSize)
   return {
-    ...extractCubeFaceColors(canvas, gridSize, gains, sampling, palette),
-    croppedImage: cropFaceRegionToDataUrl(canvas),
+    ...extractCubeFaceColors(canvas, gridSize, gains, sampling, palette, bounds),
+    croppedImage: cropFaceRegionToDataUrl(canvas, bounds),
     backgroundColor: extractBackgroundColor(canvas, sampling.backgroundGap),
-    ...describeCrop(canvas),
+    ...describeCrop(canvas, bounds),
   }
 }
 
@@ -1391,11 +1419,14 @@ export function captureAndProcessImage(
   }
 
   ctx.drawImage(img, 0, 0)
+  // One aligned square for the colors, the saved photo and its crop record,
+  // so everything later re-analyzed from the photo sees the same face.
+  const bounds = alignedFaceBounds(canvas, gridSize)
   return {
-    ...extractCubeFaceColors(canvas, gridSize, gains, sampling, palette),
-    croppedImage: cropFaceRegionToDataUrl(canvas),
+    ...extractCubeFaceColors(canvas, gridSize, gains, sampling, palette, bounds),
+    croppedImage: cropFaceRegionToDataUrl(canvas, bounds),
     backgroundColor: extractBackgroundColor(canvas, sampling.backgroundGap),
-    ...describeCrop(canvas),
+    ...describeCrop(canvas, bounds),
   }
 }
 
@@ -1447,7 +1478,9 @@ export async function redetectFaceColors(
   const offsetY = (padded.height - canvas.height) / 2
   pctx.drawImage(canvas, offsetX, offsetY)
 
-  return extractCubeFaceColors(padded, gridSize, gains, sampling)
+  // The stored photo was cropped to the aligned square at capture time -
+  // sample exactly the guide here instead of aligning it a second time.
+  return extractCubeFaceColors(padded, gridSize, gains, sampling, undefined, computeFaceBounds(padded))
 }
 
 export interface LearnedColorClassificationResult {
