@@ -3,6 +3,7 @@ import { useState, useEffect, useRef, useMemo } from 'preact/hooks'
 import '../../web/style.css'
 import { apiFetch } from './api'
 import { AUTO_CAPTURE_STABLE_FRAMES, nextAutoCaptureProgress, type AutoCaptureProgress } from './autoCapture'
+import { oppositeFacePreview } from './capturePresentation'
 import { diagnoseFaceDetection } from './detectionDiagnostics'
 import { holdConfirmedFace, NO_HOLD, type LiveHold } from './liveHold'
 import { WIZARD_FACE_ORDER, faceContentKey, groupWizardOptions, pickWizardFace, preferredGuidedArrangementIndex } from './orientationWizard'
@@ -227,7 +228,9 @@ const CAPTURE_STEPS: Array<{ label: string; short: string; instruction: string }
 const stepOf = (slot: string) => CAPTURE_STEPS[FACE_ORDER.indexOf(slot)]
 
 function captureInstruction(step: number, mirrored: boolean): string {
-  if (!mirrored || step === 0 || step >= 4) return CAPTURE_STEPS[step].instruction
+  if (!mirrored || step === 0) return CAPTURE_STEPS[step].instruction
+  if (step === 4) return 'Tip the cube towards you so its top faces the camera. The mirrored view shows the bottom face.'
+  if (step === 5) return 'Bring Side 4 back to the camera, then continue tipping to the opposite face. The mirrored view shows the top face.'
   if (step === 1) return 'Keep the same row on top and turn the whole cube counterclockwise in the mirrored view. Either direction works.'
   if (step === 2) return 'Keep turning counterclockwise in the mirrored view. Other directions still work.'
   return 'Turn counterclockwise in the mirrored view one more quarter turn. Any remaining side still works.'
@@ -416,6 +419,7 @@ function CaptureNet({ faces, current, size, predictedCenters, mirrored, onSelect
     const suggested = !colors ? predictedCenters[FACE_ORDER.indexOf(key)] : null
     const preview = suggested ? empty.map((row) => row.slice()) : empty
     if (suggested) preview[Math.floor(size / 2)][Math.floor(size / 2)] = suggested
+    const shown = mirrored ? oppositeFacePreview(colors ?? preview, Object.values(faces)) : colors ?? preview
     return (
       <button
         type="button"
@@ -423,11 +427,11 @@ function CaptureNet({ faces, current, size, predictedCenters, mirrored, onSelect
         class="capture-net-slot"
         style={{ gridArea }}
         data-slot={key}
-        aria-label={`${FACE_DISPLAY_LABEL[key]}: ${colors ? 'captured, tap to retake' : suggested ? `suggested ${COLOR_NAME[suggested]} center, not captured yet` : 'not captured yet'}`}
+        aria-label={`${FACE_DISPLAY_LABEL[key]}: ${colors ? 'captured, tap to retake' : suggested ? `suggested ${COLOR_NAME[suggested]} center, not captured yet` : 'not captured yet'}${mirrored ? '; opposite face shown' : ''}`}
         aria-current={key === current ? 'step' : undefined}
         onClick={() => onSelect(key)}
       >
-        <FaceGrid colors={colors ?? preview} undecided={!colors} current={key === current} />
+        <FaceGrid colors={shown} undecided={shown.flat().some((color) => !color)} current={key === current} />
         <span class="capture-net-label" aria-hidden="true">{FACE_SHORT_LABEL[key]}</span>
       </button>
     )
@@ -450,7 +454,7 @@ function CaptureNet({ faces, current, size, predictedCenters, mirrored, onSelect
 function TurnHint({ step, mirrored }: { step: number; mirrored: boolean }) {
   if (step === 0) return null
   const kind = step < 4 ? 'turn' : step === 4 ? 'tip-top' : 'tip-bottom'
-  const arrowAngle = kind === 'turn' ? 270 : kind === 'tip-top' ? 180 : 0
+  const arrowAngle = kind === 'turn' ? 270 : kind === 'tip-top' ? mirrored ? 0 : 180 : mirrored ? 180 : 0
   return (
     <svg class={`turn-hint ${mirrored ? 'mirrored' : ''}`} viewBox="0 0 64 64" aria-hidden="true">
       <polygon points="16,24 42,24 52,14 26,14" class="turn-hint-face turn-hint-top" />
@@ -473,16 +477,19 @@ function TurnHint({ step, mirrored }: { step: number; mirrored: boolean }) {
 // It closes when the cube's turn animation ends, so its length lives only in
 // the CSS; the timer is a fallback in case that animation never runs.
 const TURN_CUE_FALLBACK_MS = 4500
-function CaptureTurnOverlay({ step, startColors, viaColors, mirrored, onContinue }: { step: number; startColors: string[][]; viaColors?: string[][]; mirrored: boolean; onContinue: () => void }) {
+function CaptureTurnOverlay({ step, startColors, viaColors, capturedColors, mirrored, onContinue }: { step: number; startColors: string[][]; viaColors?: string[][]; capturedColors: Array<string[][] | undefined>; mirrored: boolean; onContinue: () => void }) {
   const kind = step < 4 ? 'side' : step === 4 ? 'top' : 'bottom'
   const title = kind === 'side' ? 'Turn to another side' : kind === 'top' ? 'Show a remaining face' : 'Show the last face'
   const detail = kind === 'side'
     ? mirrored ? 'Counterclockwise in the mirrored view is suggested; either direction works.' : 'Clockwise is suggested; either direction works.'
-    : kind === 'top' ? 'Tip the cube up or down.' : 'Move through Side 4 to the opposite face.'
-  const nextFace = kind === 'side' ? 'right' : kind === 'top' ? 'up' : 'back'
+    : kind === 'top'
+      ? mirrored ? 'Tip to the top; the mirror shows the bottom.' : 'Tip the cube up or down.'
+      : mirrored ? 'Move through Side 4; the mirror shows the top.' : 'Move through Side 4 to the opposite face.'
+  const nextFace = kind === 'side' ? 'right' : kind === 'top' ? mirrored ? 'down' : 'up' : 'back'
+  const viaFace = mirrored ? 'up' : 'down'
   const size = startColors.length
-  const startStickers = startColors.flat()
-  const viaStickers = viaColors?.flat()
+  const startStickers = (mirrored ? oppositeFacePreview(startColors, capturedColors) : startColors).flat()
+  const viaStickers = viaColors && (mirrored ? oppositeFacePreview(viaColors, capturedColors) : viaColors).flat()
   const directionArrow = () => (
     <svg class={`capture-turn-direction capture-turn-direction-${kind}`} viewBox="0 -10 100 100" aria-hidden="true">
       <path class="capture-turn-arrow-body" d="M41 70 V41 H24 C20 41 18 37 21 34 L45 7 C48 3 52 3 55 7 L79 34 C82 37 80 41 76 41 H59 V70 Q59 74 55 74 H45 Q41 74 41 70 Z" />
@@ -494,20 +501,20 @@ function CaptureTurnOverlay({ step, startColors, viaColors, mirrored, onContinue
         {Array.from({ length: size * size }, (_, i) => (
           <span
             key={i}
-            class={`capture-turn-sticker${name === nextFace ? ' capture-turn-sticker-next' : ''}`}
+            class={`capture-turn-sticker${name === nextFace || name === 'front' && !startStickers[i] ? ' capture-turn-sticker-next' : ''}`}
             style={name === 'front'
-              ? { backgroundColor: STICKER_HEX[startStickers[i]] ?? '#888' }
-              : kind === 'bottom' && name === 'down' && viaStickers
+              ? startStickers[i] ? { backgroundColor: STICKER_HEX[startStickers[i]] ?? '#888' } : undefined
+              : kind === 'bottom' && name === viaFace && viaStickers && viaStickers[i]
                 ? { backgroundColor: STICKER_HEX[viaStickers[i]] ?? '#888' }
                 : undefined}
           />
         ))}
       </div>
-      {(name === 'front' || name === nextFace || (kind === 'bottom' && name === 'down')) && directionArrow()}
+      {(name === 'front' || name === nextFace || (kind === 'bottom' && name === viaFace)) && directionArrow()}
     </div>
   )
   return (
-    <div class={`capture-turn-overlay capture-turn-${kind}`} role="status" aria-label={`${title}. ${detail}`}>
+    <div class={`capture-turn-overlay capture-turn-${kind} ${mirrored ? 'mirrored' : ''}`} role="status" aria-label={`${title}. ${detail}`}>
       <div class={`capture-turn-scene ${mirrored ? 'mirrored' : ''}`} aria-hidden="true">
         <div class="capture-turn-cube" onAnimationEnd={(e) => { if (e.target === e.currentTarget) onContinue() }}>
           {face('front')}
@@ -2463,7 +2470,7 @@ function App() {
                   <span class="capture-scan-label">{captureMode === 'cv' ? 'Show one face in this area' : 'Fit face in this square'}</span>
                 </div>
                 {turnOverlay && (
-                  <CaptureTurnOverlay step={turnOverlay.step} startColors={turnOverlay.startColors} viaColors={turnOverlay.viaColors} mirrored={mirrorPreview} onContinue={dismissTurnOverlay} />
+                  <CaptureTurnOverlay step={turnOverlay.step} startColors={turnOverlay.startColors} viaColors={turnOverlay.viaColors} capturedColors={Object.values(capturedFaces).map((face) => face.colors)} mirrored={mirrorPreview} onContinue={dismissTurnOverlay} />
                 )}
               </div>
               <span class={`capture-live-badge ${liveCapturedFace ? 'already-captured' : ''}`} role="status">
@@ -2496,7 +2503,7 @@ function App() {
                 )}
               </p>
               <div class="capture-progress">
-                <span class="capture-progress-label">Captured so far · tap one to retake</span>
+                <span class="capture-progress-label">Captured so far · {mirrorPreview ? 'opposite faces shown · ' : ''}tap one to retake</span>
                 <CaptureNet
                   faces={Object.fromEntries(FACE_ORDER.map((f) => [f, capturedFaces[f]?.colors]))}
                   current={webcamFace}
