@@ -32,6 +32,10 @@ real cubes" design discussion. Numbering matches that discussion's ratings;
 - **The live preview runs in a worker** at 720p; a confirmed face is held
   through two weak live frames; a clear message appears when the API server
   isn't running.
+- **Removed what the app no longer used**: automatic cube-size detection,
+  the server-side assembly worker, the scramble/algorithm/parse endpoints
+  and the ReScript library. The server keeps `/api/parity` and
+  `/api/fixtures`.
 
 ## Next
 

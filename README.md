@@ -11,15 +11,20 @@ action is attempted.
 
 ![License: MIT](https://img.shields.io/badge/License-MIT-cyan.svg)
 ![npm](https://img.shields.io/badge/runtime-npm-black)
-![ReScript](https://img.shields.io/badge/lang-ReScript-e6484f)
 ![Tests](https://img.shields.io/badge/tests-vitest-brightgreen)
 
-A full-stack library and web app that solves two geometric ambiguities when reconstructing a physical cube from 6 unordered face photographs:
+A web app that reads a physical Rubik's cube (2×2–7×7) from six camera photos
+and reconstructs its state. Two ambiguities have to be resolved:
 
-1. **Face Placement** — which of the 6! = 720 position assignments is valid?
-2. **Face Orientation** — which of the 4⁶ = 4,096 rotation combinations is valid?
+1. **Face placement** — which photo shows which face?
+2. **Face orientation** — how was each photo rotated?
 
-The multi-stage pipeline filters 2,949,120 candidates down to physically reachable states using color balance, center uniformity, edge/corner adjacency, and full parity checks.
+On odd cubes each face's center color says which face it is, leaving
+4⁶ = 4,096 rotation combinations; on even cubes identity and rotation are
+searched together (122,880 combinations); a guided capture narrows it to 64
+arrangements. The browser keeps the arrangements whose corners and edges are
+valid, asks when more than one fits, and the server's parity check verifies
+the result.
 
 The scanner defaults to **Detect face**: it finds sticker seams near the camera
 guide, aligns and straightens the face, then reads its colors. **Guide grid**
@@ -85,8 +90,6 @@ real sticker to the wrong color (`classifyAcrossFaces`).
 |---|---|
 | **Runtime** | [Bun](https://bun.sh) ≥ 1.3 |
 | **Server** | [Hono](https://hono.dev) — HTTP + SSE streaming, no middleware bloat |
-| **Domain logic** | [ReScript](https://rescript-lang.org) → ES modules (served directly, no bundler) |
-| **Puzzle engine** | [cubing.js](https://github.com/cubing/cubing.js) — WCA scrambles, KPuzzle, TwistyPlayer |
 | **Tests** | [Vitest](https://vitest.dev) |
 
 ---
@@ -105,9 +108,6 @@ npm run dev
 
 # Run tests
 npm test
-
-# Build ReScript (optional — npm serves compiled .js directly)
-npm run build:res
 ```
 
 ### GitHub Pages deployment
@@ -132,44 +132,27 @@ cube-assembler/
 ├── index.html                     Web app (served by Hono, no bundler)
 │
 ├── server/
-│   ├── Server.ts                  Hono app + all API routes
-│   └── AssemblyWorker.ts          npm Worker: 2.9M-candidate search off main thread
+│   └── Server.ts                  Hono app: parity check, fixture saving, static files
 │
 ├── src/
-│   ├── client/                    Preact browser app: webcam capture, review, notation I/O
-│   │   ├── index.tsx              App shell, capture/review flow, cube net view
-│   │   ├── imageProcessing.ts     Sticker color extraction (OKLCH), live face check, cross-face color learning
-│   │   ├── gridAlignment.ts       Detect face: grid position, size, tilt and perimeter layout from seams
-│   │   ├── detectionDiagnostics.ts  Why Detect face did or didn't find a face in one frame
-│   │   ├── autoCapture.ts         Captures once live detections stay stable
-│   │   ├── liveHold.ts            Holds a confirmed face through weak live frames
-│   │   ├── cubeAssembly.ts        Face assembly, guided capture, orientation solving
-│   │   ├── orientationWizard.ts   "Choose each side": which face to ask about next
-│   │   ├── cubeGeometry.ts        Whole-cube rotations and layer turns
-│   │   ├── cubeProfiles.ts        Saved cubes: brand, sticker style, sampling
-│   │   ├── capturePresentation.ts Capture dialog wording and layout helpers
-│   │   ├── fixtureFormat.ts       Reading saved fixtures, old formats included
-│   │   ├── api.ts                 /api calls, with a clear message when the server is down
-│   │   └── notationOutput.ts      WRG/URF facelet notation + format auto-detection
-│   │
-│   └── (ReScript domain library, served as compiled ES modules)
-│       ├── Index.res              Public API
-│       ├── ir/
-│       │   ├── CubeIR.res         Core IR: puzzleSize, faceGrid, cubeIR, rotateFace
-│       │   └── CubeIRUtils.res    Color balance, orbit extraction, adjacency tables
-│       ├── notation/
-│       │   └── Notation.res       Unified WRG + URF parser/printer (alphabet-parameterised)
-│       ├── cubingjs/
-│       │   ├── CubingJsBindings.res  @module bindings to cubing.js
-│       │   ├── IRBridge.res       cubeIR ↔ KPatternData (3×3 full, NxN stub)
-│       │   └── WCANotation.res    Full WCA move parser: face/wide/slice/rotation/depth
-│       └── assembler/
-│           ├── PermGen.res        Heap's algorithm — 720 permutations
-│           ├── Parity.res         Full 4-condition parity check
-│           └── CubeAssembler.res  5-stage pipeline orchestrator
+│   └── client/                    Preact browser app: webcam capture, review, notation I/O
+│       ├── index.tsx              App shell, capture/review flow, cube net view
+│       ├── imageProcessing.ts     Sticker color extraction (OKLCH), live face check, cross-face color learning
+│       ├── gridAlignment.ts       Detect face: grid position, size, tilt and perimeter layout from seams
+│       ├── liveAnalysis.ts        One live frame analyzed on raw pixels (colors + cube check)
+│       ├── liveAnalysis.worker.ts Runs that analysis off the page's thread, at 720p
+│       ├── autoCapture.ts         Captures once live detections stay stable
+│       ├── liveHold.ts            Holds a confirmed face through weak live frames
+│       ├── cubeAssembly.ts        Face assembly, guided capture, orientation solving
+│       ├── orientationWizard.ts   "Choose each side": which face to ask about next
+│       ├── cubeGeometry.ts        Whole-cube rotations and layer turns
+│       ├── cubeProfiles.ts        Saved cubes: brand, sticker style, sampling
+│       ├── capturePresentation.ts Capture dialog wording and layout helpers
+│       ├── fixtureFormat.ts       Reading saved fixtures, old formats included
+│       ├── api.ts                 /api calls, with a clear message when the server is down
+│       └── notationOutput.ts      WRG/URF facelet notation + format auto-detection
 │
 └── test/
-    ├── notation.test.ts           ReScript Notation module (WRG/URF/Kociemba/Numeric)
     ├── cubeAssembly.test.ts       Face identity/orientation solver (odd + even sizes)
     ├── guidedCapture.test.ts      Guided capture arrangements, predicted centers
     ├── orientationWizard.test.ts  "Choose each side" on an ambiguous pattern cube
@@ -177,11 +160,10 @@ cube-assembler/
     ├── crossFace.test.ts          Cross-face color assignment, one of each center
     ├── gridAlignment.test.ts      Grid search: offset, size, tilt, perimeter, grey seams
     ├── gridAlignmentRealCrops.test.ts  Benchmark on saved captures held off-center/tilted
-    ├── gridSizeDetection.test.ts   First-face grid count on saved captures and synthetic sizes
+    ├── liveAnalysis.test.ts       Live frame analysis, incl. a 720p copy of a 1080p frame
     ├── liveHold.test.ts, autoCapture.test.ts, api.test.ts
     ├── notationOutput.test.ts     WRG/URF facelet formats + format auto-detection
     ├── parity.test.ts             Server-side corner/edge/wing-edge facelet-index tables
-    ├── assemblyWorker.test.ts     /api/assemble worker's corner/edge validation
     ├── fixtures.test.ts           Real captures vs. human-verified colors (see below)
     ├── liveFaceAppearance.test.ts Live face check on every saved capture
     └── fixtures/                  Saved captures for fixtures.test.ts (see fixtures/README.md)
@@ -289,9 +271,7 @@ formats, toggled with the same switch in both places (see
   for a solved 3×3: `UUUUUUUUU RRRRRRRRR FFFFFFFFF DDDDDDDDD LLLLLLLLL
   BBBBBBBBB`.
 
-Both are client-only formats, distinct from the ReScript `Notation`
-module described below, which the server-side parity/assembly pipeline
-uses instead.
+Both are client-only formats.
 
 Pasting into the manual-entry textarea auto-detects which of the two
 formats the pasted text is in and switches the toggle to match, so you
@@ -306,28 +286,6 @@ alone rather than guessed).
 ## API
 
 All endpoints are served by the Hono server on `http://localhost:3000`.
-
-### `GET /api/scramble?size=N`
-Generate a WCA-quality random scramble for puzzle size N (2–7).
-
-```json
-{ "scramble": "R U R' U' F' U F ...", "size": 4 }
-```
-
-### `POST /api/assemble` → SSE stream
-Run the full assembly pipeline. Sends Server-Sent Events:
-
-```
-data: {"type":"start","total":2949120}
-data: {"type":"stage","stage":"balance","count":1024,"tested":500000}
-data: {"type":"stage","stage":"parity","count":2,"tested":2949120}
-data: {"type":"result","states":[...cubeIR...]}
-```
-
-**Request body:**
-```json
-{ "faces": [ { "n": 4, "data": ["W","W",...] }, ... ], "size": 4 }
-```
 
 ### `POST /api/parity`
 Full 4-condition parity check for a `cubeIR` (3×3×3 shown; 4×4–7×7 return
@@ -348,24 +306,6 @@ only — see [Parity Validation](#parity-validation)).
   }
 }
 ```
-
-### `POST /api/apply-alg`
-Apply a WCA algorithm string to a cube state (via cubing.js KPuzzle).
-
-```json
-{ "cube": { ...cubeIR... }, "alg": "R U R' U'" }
-```
-
-### `POST /api/parse-wrg`
-Parse WRG/Kociemba/Numeric notation into a `cubeIR`.
-
-```json
-{ "notation": "W W W W W W W W W  R R R...", "size": 3 }
-```
-
-### `POST /api/parse-urf`, `GET /api/formats/:encoding`
-Stubs: `parse-urf` only splits URF cubie notation into corners, edges and
-centers; `formats` points to `parse-wrg`.
 
 ### `POST /api/fixtures`
 Saves a human-verified capture (each face's actual photo plus its color
@@ -405,31 +345,6 @@ at capture, ...) are stored as-is on that face.
 
 ```json
 { "success": true, "name": "capture-2026-01-15T10-30-00-000Z", "path": "test/fixtures/capture-2026-01-15T10-30-00-000Z" }
-```
-
----
-
-## Notation System
-
-The `Notation` module is alphabet-parameterised — WRG and URF are the same parser with a different 6-character symbol map:
-
-| Notation | Alphabet | Format |
-|---|---|---|
-| **WRG** (default) | `W O G R B Y` | Flat / labeled facelet |
-| **URF** (Singmaster) | `W O G R B Y` | Grouped by cubie type |
-| **Kociemba** | `U L F R B D` | Flat facelet (solver input) |
-| **Numeric** | `0 1 2 3 4 5` | ML / computer vision |
-| **Custom** | any 6 distinct chars | Both formats |
-
-```typescript
-// Transcode Kociemba → WRG
-Notation.transcode(s, ~from_=kociembaAlphabet, ~to_=wrgAlphabet, ())
-
-// Print in URF cubie-grouped format
-Notation.print(cube, ~format=Cubie, ())
-// → Corners: UFR:WRG  UBR:WBR  ...
-//   Edges:   UF:WG  UR:WR  ...
-//   Centers: U:W  R:R  F:G  D:Y  L:O  B:B
 ```
 
 ---
@@ -504,39 +419,8 @@ edge. Re-derived from explicit 3D coordinates for all 6 faces instead
 finding which cells of two adjacent faces coincide), which is what
 `EDGE_LINES`'s `reverse` flags now encode.
 
-`server/AssemblyWorker.ts` (the `/api/assemble` brute-force face-
-orientation search, currently unreachable from the UI) mirrors this same
-corner/edge/color-balance logic in a separate copy to avoid a circular
-import, and had drifted: it still had the old B-face-mirroring bug, the
-same removed center-uniformity check, and its own `VALID_CORNERS` lookup
-table used the *opposite* chirality from the corner triples it's checked
-against — rejecting every cube, including a solved one. All three are
-fixed now too, with their own regression coverage in
-`test/assemblyWorker.test.ts`. Separately (not fixed, since it's
-unrelated to any of the above): the `/api/assemble` route itself
-currently throws on every request (`loaders is not defined` in
-`server/Server.ts`), so this pipeline is fully inert regardless.
-
----
-
-## Bug Fixes vs. Original Code
-
-The starting `CubeAssembler.res` sketch had 7 bugs, all corrected:
-
-| # | Bug | Fix |
-|---|-----|-----|
-| 1 | `let p =` — no initialiser | Heap's initialises `[0..5]` |
-| 2 | `rotateFace` was counter-clockwise | `dst[c][N-1-r] = src[r][c]` (CW) |
-| 3 | `extractEdges` returned face-grid tuples | Returns facelet color pairs |
-| 4 | `extractCorners` same issue | Returns color triplets with correct indices |
-| 5 | `validateCenterCores` always returned `true` | Per-face center-block uniformity |
-| 6 | `candidateCube` applied rotation to whole `perm` | Indexes `perm[0]`…`perm[5]` |
-| 7 | No real parity check | Full 4-condition (orientation + permutation) |
-
 ---
 
 ## License
 
 MIT © 2026 Werner Stein. See [LICENSE](LICENSE).
-
-This project uses [cubing.js](https://github.com/cubing/cubing.js) which is dual-licensed MPL-2.0 / GPL-3.0.
