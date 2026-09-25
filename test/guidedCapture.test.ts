@@ -9,7 +9,7 @@
  * Run: npx vitest run test/guidedCapture.test.ts
  */
 import { describe, it, expect } from 'vitest'
-import { readFileSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 import { rotateCube, turnFace, allOrientations, solvedCubeFaces, type Faces } from '../src/client/cubeGeometry'
 import { solveGuidedCapture, checkGuidedCenters, findRepeatedFaces, findCapturedFaceMatch, findCaptureSlotForOrientedFace, predictGuidedCenters, captureCenterSlots, captureSlotForCenter, type FaceKey, type GuidedCapture } from '../src/client/cubeAssembly'
 import { preferredGuidedArrangementIndex } from '../src/client/orientationWizard'
@@ -17,8 +17,11 @@ import { preferredGuidedArrangementIndex } from '../src/client/orientationWizard
 const WCA: Record<FaceKey, string> = { U: 'W', R: 'R', F: 'G', D: 'Y', L: 'O', B: 'B' }
 const FACES: FaceKey[] = ['U', 'R', 'F', 'D', 'L', 'B']
 
-it('suggests the guided 7x7 fixture’s photographed arrangement first', () => {
-  const meta = JSON.parse(readFileSync(new URL('./fixtures/capture-2026-09-25T12-43-31-363Z/meta.json', import.meta.url), 'utf8'))
+const guidedFixture = new URL('./fixtures/capture-2026-09-25T12-43-31-363Z/meta.json', import.meta.url)
+const savedFixtureTest = existsSync(guidedFixture) ? it : it.skip
+
+savedFixtureTest('suggests the guided 7x7 fixture’s photographed arrangement first', () => {
+  const meta = JSON.parse(readFileSync(guidedFixture, 'utf8'))
   const n: number = meta.gridSize
   const photographed = meta.colorsURFDLB.split(' ').map((face: string) =>
     Array.from({ length: n }, (_, row) => face.slice(row * n, (row + 1) * n).split('')))

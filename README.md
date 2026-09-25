@@ -2,6 +2,13 @@
 
 > Assemble valid Rubik's Cube states from unlabelled face images — 2×2 to 7×7.
 
+[Open the static scanner demo](https://wstein.github.io/cube-assembler/) · [Source repository](https://github.com/wstein/cube-assembler)
+
+The GitHub Pages demo serves the browser UI only. Assembly, parity, scramble,
+and fixture-saving requests use the Bun `/api` server; run the project locally
+with `npm run dev` for those actions. The demo reports this limit when an API
+action is attempted.
+
 ![License: MIT](https://img.shields.io/badge/License-MIT-cyan.svg)
 ![npm](https://img.shields.io/badge/runtime-npm-black)
 ![ReScript](https://img.shields.io/badge/lang-ReScript-e6484f)
@@ -102,6 +109,19 @@ npm test
 # Build ReScript (optional — npm serves compiled .js directly)
 npm run build:res
 ```
+
+### GitHub Pages deployment
+
+The `Publish Pages` workflow builds the Vite client with the repository's
+subpath as its asset base and deploys `dist/` on pushes to `main`. The `CI`
+workflow builds and tests pushes and pull requests. Enable **Settings → Pages →
+Build and deployment → GitHub Actions** after creating the repository. To
+preview the static build locally, run
+`VITE_BASE_PATH=/cube-assembler/ npm run build` and `npx vite preview`.
+GitHub Pages cannot run the Bun server. To host the API separately, build with
+`VITE_API_BASE_URL=https://your-api.example.com` and configure that server to
+allow browser requests from your Pages origin. Local development includes the
+API without this setting.
 
 ---
 
