@@ -1,7 +1,6 @@
 import { render, h, Fragment } from 'preact'
 import { useState, useEffect, useRef, useMemo } from 'preact/hooks'
 import '../../web/style.css'
-import { apiFetch } from './api'
 import { AUTO_CAPTURE_STABLE_FRAMES, nextAutoCaptureProgress, type AutoCaptureProgress } from './autoCapture'
 import { oppositeFacePreview } from './capturePresentation'
 import { holdConfirmedFace, NO_HOLD, type LiveHold } from './liveHold'
@@ -27,6 +26,7 @@ import {
   profilePalette, withLearnedColors, withoutLearnedColors, suggestProfile, type CubeProfile, type ProfileStore,
 } from './cubeProfiles'
 import { readFixtureColors } from './fixtureFormat'
+import { buildFixture, unzipFixture, zipFixture } from './fixtureZip'
 import {
   toWRGFacelets, fromWRGFacelets, toURFFacelets, fromURFFacelets, detectNotationFormat, gridsToWRGFacelets,
 } from './notationOutput'
@@ -88,6 +88,7 @@ const CAMERA_CONSTRAINTS: MediaTrackConstraints = {
 
 // Injected at build time by vite.config.ts's `define`.
 declare const __APP_VERSION__: string
+declare const __APP_COMMIT__: string
 
 // Cube profiles (see cubeProfiles.ts) are a property of the user's cubes
 // and camera, not of one capture, so they're remembered between sessions.
@@ -1288,10 +1289,10 @@ function App() {
     setShowReviewDialog(true)
   }
 
-  // Restores a fixture saved earlier via handleSendFixtureToServer (see
-  // server/Server.ts's POST /api/fixtures and test/fixtures/<name>/) -
-  // the customer selects that directory's meta.json together with its 6
-  // face-*.jpg photos (one multi-file picker covers both). Colors are
+  // Restores a fixture saved earlier via handleSaveFixture - the customer
+  // selects its zip, or a fixture directory's (test/fixtures/<name>/)
+  // meta.json together with its 6 face-*.jpg photos (one multi-file
+  // picker covers both). Colors are
   // re-detected from the photos through the same pipeline a live capture
   // uses (runGlobalWhiteBalance), replaying the per-face gains recorded at
   // capture time - so a detection problem reproduces exactly as the
@@ -1306,16 +1307,29 @@ function App() {
   // solveFaceOrientations would have seen the first time.
   const handleUploadFixture = async (e: Event) => {
     const input = e.currentTarget as HTMLInputElement
-    const files = Array.from(input.files ?? [])
-    if (files.length === 0) return
+    const selected = Array.from(input.files ?? [])
+    if (selected.length === 0) return
 
     setLoading(true)
     setCaptureMessage('Loading fixture...')
 
     try {
+      const files: File[] = []
+      for (const file of selected) {
+        if (!file.name.toLowerCase().endsWith('.zip')) {
+          files.push(file)
+          continue
+        }
+        try {
+          files.push(...unzipFixture(new Uint8Array(await file.arrayBuffer())))
+        } catch (err) {
+          setCaptureMessage(`❌ ${file.name} isn't a fixture zip: ${err instanceof Error ? err.message : String(err)}`)
+          return
+        }
+      }
       const metaFile = files.find((f) => f.name.toLowerCase().endsWith('.json'))
       if (!metaFile) {
-        setCaptureMessage("❌ No .json file found - select a fixture's meta.json together with its 6 face-*.jpg photos.")
+        setCaptureMessage("❌ No .json file found - select a fixture zip, or a fixture's meta.json together with its 6 face-*.jpg photos.")
         return
       }
 
@@ -1645,21 +1659,19 @@ function App() {
     setTimeout(removeClone, 0)
   }
 
-  // Saves this capture - each face's actual photo plus its (human-
-  // reviewed/corrected) color grid - as a permanent regression fixture on
-  // the server (test/fixtures/<name>/, see server/Server.ts's
-  // POST /api/fixtures and test/fixtures.test.ts). Only meaningful once a
+  // Downloads this capture - each face's actual photo plus its (human-
+  // reviewed/corrected) color grid - as a fixture zip (see fixtureZip.ts):
+  // unzipped into test/fixtures/, it is a permanent regression fixture
+  // (see test/fixtures.test.ts). Only meaningful once a
   // cube has actually been confirmed: that's the point at which
   // capturedFaces' colors reflect whatever corrections were made in the
   // review wizard, not just the raw first-pass detection.
-  const handleSendFixtureToServer = async () => {
+  const handleSaveFixture = () => {
     const allCaptured = FACE_ORDER.every((f) => capturedFaces[f]?.croppedImage)
     if (!allCaptured) {
       setFixtureSaveMessage('❌ Capture and confirm all 6 faces first.')
       return
     }
-    setLoading(true)
-    setFixtureSaveMessage('Sending...')
     try {
       const faces: Record<string, { photo: string } & Record<string, unknown>> = {}
       for (const f of FACE_ORDER) {
@@ -1682,8 +1694,7 @@ function App() {
       }
       const meta = {
         capturedAt: new Date().toISOString(),
-        // The commit is stamped by the server when it saves the fixture.
-        app: { version: __APP_VERSION__ },
+        app: { version: __APP_VERSION__, commit: __APP_COMMIT__ },
         userAgent: navigator.userAgent,
         devicePixelRatio: window.devicePixelRatio,
         photo: { format: 'image/jpeg', quality: CROP_JPEG_QUALITY },
@@ -1731,28 +1742,26 @@ function App() {
         // reported detection problem against this exact fixture.
         colorStats: computeColorStats(capturedFaces, puzzleSize),
       }
-      const res = await apiFetch('/api/fixtures', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          gridSize: puzzleSize,
-          colorsURFDLB: gridsToWRGFacelets(Object.fromEntries(FACE_ORDER.map((f) => [f, capturedFaces[f].colors]))),
-          // What detection said before any hand correction - the diff
-          // against colorsURFDLB is exactly what a human had to fix.
-          detectedURFDLB: FACE_ORDER.every((f) => capturedFaces[f].detectedColors)
-            ? gridsToWRGFacelets(Object.fromEntries(FACE_ORDER.map((f) => [f, capturedFaces[f].detectedColors!])))
-            : undefined,
-          faces,
-          meta,
-        }),
+      const fixture = buildFixture({
+        gridSize: puzzleSize,
+        colorsURFDLB: gridsToWRGFacelets(Object.fromEntries(FACE_ORDER.map((f) => [f, capturedFaces[f].colors]))),
+        // What detection said before any hand correction - the diff
+        // against colorsURFDLB is exactly what a human had to fix.
+        detectedURFDLB: FACE_ORDER.every((f) => capturedFaces[f].detectedColors)
+          ? gridsToWRGFacelets(Object.fromEntries(FACE_ORDER.map((f) => [f, capturedFaces[f].detectedColors!])))
+          : undefined,
+        faces,
+        meta,
       })
-      const result = await res.json()
-      if (!res.ok) throw new Error(result.error ?? `Failed (${res.status})`)
-      setFixtureSaveMessage(`✓ Saved as regression fixture: ${result.path}`)
+      const url = URL.createObjectURL(new Blob([zipFixture(fixture) as BlobPart], { type: 'application/zip' }))
+      const link = document.createElement('a')
+      link.href = url
+      link.download = `${fixture.name}.zip`
+      link.click()
+      setTimeout(() => URL.revokeObjectURL(url), 0)
+      setFixtureSaveMessage(`✓ Downloaded ${fixture.name}.zip - unzip it into test/fixtures/ to add it to the tests`)
     } catch (err) {
       setFixtureSaveMessage(`❌ Failed to save fixture: ${err instanceof Error ? err.message : String(err)}`)
-    } finally {
-      setLoading(false)
     }
   }
 
@@ -2014,11 +2023,11 @@ function App() {
                 <button
                   type="button"
                   class="btn btn-secondary btn-sm"
-                  onClick={handleSendFixtureToServer}
+                  onClick={handleSaveFixture}
                   disabled={loading}
-                  title="Save this capture's photos + reviewed colors on the server as a permanent regression test fixture"
+                  title="Download this capture's photos + reviewed colors as a zip - unzipped into test/fixtures/ it becomes a regression test"
                 >
-                  {loading ? '⏳ Saving...' : 'Save as test fixture'}
+                  Save as test fixture
                 </button>
               )}
               <button type="button" class="btn btn-primary btn-sm" onClick={() => cube && copyToClipboard(getNotationOutput())} disabled={!cube}>
@@ -2095,12 +2104,12 @@ function App() {
             <div class="capture-alternatives">
               <label
                 class={`btn btn-secondary btn-sm ${loading ? 'btn-disabled' : ''}`}
-                title="Select a fixture's meta.json together with its 6 face-*.jpg photos"
+                title="Select a fixture zip (from Save as test fixture), or a fixture's meta.json together with its 6 face-*.jpg photos"
               >
                 Upload fixture
                 <input
                   type="file"
-                  accept=".json,image/*"
+                  accept=".zip,.json,image/*"
                   multiple
                   hidden
                   disabled={loading}
