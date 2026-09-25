@@ -12,8 +12,9 @@ import {
 // The first live step that turned the frame down.
 //   no-grid             - no square around the guide had its lines on seams
 //   incoherent-stickers - the square's cells aren't evenly colored
+//   no-face-outline     - grid-like lines have no square cube boundary
 //   no-sticker-pattern  - neither a sticker pattern nor a face outline
-export type RejectionReason = 'no-grid' | 'incoherent-stickers' | 'no-sticker-pattern'
+export type RejectionReason = 'no-grid' | 'incoherent-stickers' | 'no-face-outline' | 'no-sticker-pattern'
 
 export interface DetectionReport {
   gridSize: number
@@ -64,10 +65,11 @@ export function diagnoseFaceDetection(frame: Uint8ClampedArray, width: number, h
 
   const square = readSquare(frame, width, height, bounds)
   const { visible, ...visibility } = faceVisibility(square, bounds.faceWidth, bounds.faceHeight, gridSize,
-    () => outlineVisible(frame, width, height, bounds))
+    () => outlineVisible(frame, width, height, bounds), true)
   const colors = extractColorsFromImageData(square, bounds.faceWidth, bounds.faceHeight, gridSize).colors
   const reason: RejectionReason | null = !bounds.gridFound ? 'no-grid'
     : !visibility.coherent ? 'incoherent-stickers'
+    : !visible && visibility.plausible ? 'no-face-outline'
     : !visible ? 'no-sticker-pattern'
     : null
 

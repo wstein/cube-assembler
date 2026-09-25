@@ -19,7 +19,7 @@ import {
   learnStickerColors, rgbToOKLCH, hueCircularRange, hueRangesOverlap, linearRange,
   hungarianAssignment, trimmedMeanColor, STICKER_COLORS, extractBackgroundColor,
   stickerSampleRect, DEFAULT_SAMPLING, measureSharpness, classifySticker, stickerColor,
-  extractColorsFromImageData, hasPlausibleStickerFace, hasVisibleCubeFace, faceBoundsForMode, type RGB,
+  extractColorsFromImageData, hasPlausibleStickerFace, hasVisibleCubeFace, faceVisibility, faceBoundsForMode, type RGB,
 } from '../src/client/imageProcessing'
 
 describe('capture geometry modes', () => {
@@ -69,6 +69,17 @@ describe('live face appearance', () => {
       ? { r: 10, g: 10, b: 10 }
       : { r: 220, g: 105, b: 30 })
     expect(hasPlausibleStickerFace(face, size, size, 3)).toBe(true)
+  })
+
+  it('does not call room lines a cube in Detect face without an outer boundary', () => {
+    const gridLikeRoom = frame((x, y) => x % 30 < 3 || y % 30 < 3
+      ? { r: 10, g: 10, b: 10 }
+      : { r: 220, g: 105, b: 30 })
+    expect(faceVisibility(gridLikeRoom, size, size, 3, () => false).visible).toBe(true)
+    expect(faceVisibility(gridLikeRoom, size, size, 3, () => false, true)).toEqual({
+      visible: false, coherent: true, plausible: true, outline: false,
+    })
+    expect(faceVisibility(gridLikeRoom, size, size, 3, () => true, true).visible).toBe(true)
   })
 
   it("reads an odd cube's center past a large logo", () => {
@@ -186,6 +197,7 @@ describe('live face appearance', () => {
       }),
     } as unknown as HTMLCanvasElement
     expect(hasVisibleCubeFace(canvas, 3)).toBe(true)
+    expect(hasVisibleCubeFace(canvas, 3, { startX: 30, startY: 30, faceWidth: 90, faceHeight: 90 }, true)).toBe(true)
     for (let i = 0; i < cameraData.length; i += 4) cameraData.set([200, 190, 175], i)
     expect(hasVisibleCubeFace(canvas, 3)).toBe(false)
   })
