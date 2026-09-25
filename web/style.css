@@ -289,17 +289,6 @@ h1, h2, h3 {
   border-radius: 14px;
 }
 
-.btn-dark {
-  background: var(--color-text-primary);
-  color: var(--color-bg-primary);
-  border: 1px solid transparent;
-}
-
-.btn-dark:hover:not(:disabled) {
-  background: var(--color-accent-dark);
-  color: var(--color-on-accent);
-}
-
 .face-status-row {
   display: flex;
   align-items: center;
@@ -327,29 +316,6 @@ h1, h2, h3 {
   font-weight: 400;
   color: var(--color-text-secondary);
   cursor: pointer;
-}
-
-/* Algorithm / Scramble tabs. */
-.tabs {
-  display: flex;
-  gap: var(--spacing-lg);
-  border-bottom: 1px solid var(--color-border);
-}
-
-.tabs button {
-  height: 40px;
-  padding: 0;
-  background: transparent;
-  border-bottom: 2px solid transparent;
-  color: var(--color-text-secondary);
-  font-size: 0.95rem;
-  font-weight: 500;
-}
-
-.tabs button.active {
-  border-bottom-color: var(--color-accent);
-  color: var(--color-text-primary);
-  font-weight: 600;
 }
 
 /* ─────────────────────────────────────────────────────────────────────────────
@@ -552,27 +518,6 @@ button {
   font-size: 0.85rem;
 }
 
-.btn-row {
-  display: flex;
-  gap: var(--spacing-sm);
-  flex-wrap: wrap;
-  align-items: center;
-}
-
-.btn-row .btn {
-  flex: 1 1 180px;
-}
-
-/* ─────────────────────────────────────────────────────────────────────────────
-   PANELS & SECTIONS
-   ───────────────────────────────────────────────────────────────────────────── */
-
-.control-section {
-  display: flex;
-  flex-direction: column;
-  gap: var(--spacing-sm);
-}
-
 /* ─────────────────────────────────────────────────────────────────────────────
    FORMS & INPUTS
    ───────────────────────────────────────────────────────────────────────────── */
@@ -616,52 +561,6 @@ textarea {
   min-height: 80px;
   font-family: var(--font-mono);
   line-height: 1.4;
-}
-
-/* ─────────────────────────────────────────────────────────────────────────────
-   ALGORITHM PRESETS
-   ───────────────────────────────────────────────────────────────────────────── */
-
-.algo-presets {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--spacing-xs);
-  margin: var(--spacing-xs) 0;
-}
-
-.preset-btn {
-  padding: 0.25rem 0.75rem;
-  min-height: 28px;
-  border: 1px solid var(--color-border);
-  border-radius: 999px;
-  background: var(--color-bg-primary);
-  color: var(--color-text-secondary);
-  font-weight: 500;
-  font-size: 0.8rem;
-  cursor: pointer;
-  transition: all 0.15s ease;
-  display: inline-flex;
-  align-items: center;
-}
-
-.preset-btn:hover {
-  border-color: var(--color-accent);
-  color: var(--color-text-primary);
-  background: var(--color-bg-secondary);
-}
-
-.scramble-display {
-  font-family: var(--font-mono);
-  font-size: 0.95rem;
-  line-height: 1.5;
-  padding: var(--spacing-md);
-  background: var(--color-bg-primary);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-  color: var(--color-text-primary);
-  word-break: break-word;
-  user-select: all;
-  box-sizing: border-box;
 }
 
 .parity-checks {
@@ -2581,14 +2480,6 @@ label.capture-size-label {
     width: 100%;
   }
 
-  .btn-row {
-    flex-direction: column;
-  }
-
-  .btn-row .btn {
-    width: 100%;
-    flex: none;
-  }
 }
 
 @media (prefers-reduced-motion: reduce) {
