@@ -1,6 +1,6 @@
 // Image processing utilities for cube face detection and color extraction
 
-import { ALIGNMENT_MAX_OFFSET, alignFace, cellEdges, estimateOuterCellRatio } from './gridAlignment'
+import { ALIGNMENT_MAX_OFFSET, alignFace, cellEdges, estimateOuterCellRatio, type GridAlignment } from './gridAlignment'
 
 export interface ColorDetectionResult {
   colors: string[][]
@@ -788,8 +788,11 @@ const SAMPLE_FACE_FRACTION = 0.6
 // larger value (see BACKGROUND_REGION_FRACTION) to get a bigger, concentric
 // square for sampling the area AROUND the stickers instead.
 export function computeFaceBounds(canvas: HTMLCanvasElement, fraction = SAMPLE_FACE_FRACTION): FaceBounds {
-  const width = canvas.width
-  const height = canvas.height
+  return guideBounds(canvas.width, canvas.height, fraction)
+}
+
+// computeFaceBounds for a frame of the given size.
+export function guideBounds(width: number, height: number, fraction = SAMPLE_FACE_FRACTION): FaceBounds {
 
   const centerX = width / 2
   const centerY = height / 2
@@ -827,23 +830,38 @@ export function alignedFaceBounds(canvas: HTMLCanvasElement, gridSize: number): 
   const guide = computeFaceBounds(canvas)
   const ctx = canvas.getContext('2d')
   if (!ctx || guide.faceWidth !== guide.faceHeight) return { ...guide, gridFound: false }
-  // Room for the largest offset plus the largest face (1.12x the guide),
-  // and for the corners of a tilted one.
+  const area = alignmentArea(guide, canvas.width, canvas.height)
+  const region = ctx.getImageData(area.x0, area.y0, area.x1 - area.x0, area.y1 - area.y0)
+  return boundsFromAlignment(alignFaceInArea(region.data, region.width, region.height, guide, area, gridSize), guide, area, canvas.width, canvas.height)
+}
+
+// The part of a width x height frame searched around `guide`: room for
+// the largest offset plus the largest face (1.12x the guide), and for the
+// corners of a tilted one.
+export function alignmentArea(guide: FaceBounds, width: number, height: number): { x0: number; y0: number; x1: number; y1: number } {
   const margin = Math.ceil(guide.faceWidth * (ALIGNMENT_MAX_OFFSET + 0.06 + 0.2))
-  const x0 = Math.max(0, guide.startX - margin)
-  const y0 = Math.max(0, guide.startY - margin)
-  const x1 = Math.min(canvas.width, guide.startX + guide.faceWidth + margin)
-  const y1 = Math.min(canvas.height, guide.startY + guide.faceHeight + margin)
-  const region = ctx.getImageData(x0, y0, x1 - x0, y1 - y0)
-  const square = { x: guide.startX - x0, y: guide.startY - y0, size: guide.faceWidth }
-  const found = alignFace(region.data, region.width, region.height, square, gridSize)
+  return {
+    x0: Math.max(0, guide.startX - margin),
+    y0: Math.max(0, guide.startY - margin),
+    x1: Math.min(width, guide.startX + guide.faceWidth + margin),
+    y1: Math.min(height, guide.startY + guide.faceHeight + margin),
+  }
+}
+
+// alignFace on `data`, the alignmentArea's pixels.
+export function alignFaceInArea(data: Uint8ClampedArray, width: number, height: number, guide: FaceBounds, area: { x0: number; y0: number }, gridSize: number): GridAlignment {
+  return alignFace(data, width, height, { x: guide.startX - area.x0, y: guide.startY - area.y0, size: guide.faceWidth }, gridSize)
+}
+
+// The frame bounds an alignment (found in `area`) leads to.
+export function boundsFromAlignment(found: GridAlignment, guide: FaceBounds, area: { x0: number; y0: number }, width: number, height: number): FaceBounds {
   const angle = found.angle
   if (!found.aligned && !angle) return { ...guide, gridFound: found.seams }
   const size = Math.round(found.size)
   // Keep the square's center on the canvas; a tilted square is read through
   // a rotation, which clamps nothing else.
-  const centerX = Math.min(canvas.width - size / 2, Math.max(size / 2, x0 + found.center[0]))
-  const centerY = Math.min(canvas.height - size / 2, Math.max(size / 2, y0 + found.center[1]))
+  const centerX = Math.min(width - size / 2, Math.max(size / 2, area.x0 + found.center[0]))
+  const centerY = Math.min(height - size / 2, Math.max(size / 2, area.y0 + found.center[1]))
   return {
     startX: Math.round(centerX - size / 2),
     startY: Math.round(centerY - size / 2),
@@ -1361,18 +1379,34 @@ export function hasPlausibleStickerFace(data: Uint8ClampedArray, width: number, 
 
 export function hasVisibleCubeFace(canvas: HTMLCanvasElement, gridSize: number, bounds: FaceBounds = alignedFaceBounds(canvas, gridSize)): boolean {
   const { imageData, faceWidth, faceHeight } = readFaceRegion(canvas, bounds)
-  // Judge the face in the layout it is sampled in (see extractColorsFromImageData).
-  const outer = estimateOuterCellRatio(imageData.data, faceWidth, faceHeight, gridSize)
-  if (!hasCoherentStickerInteriors(imageData.data, faceWidth, faceHeight, gridSize, outer)) return false
-  if (hasPlausibleStickerFace(imageData.data, faceWidth, faceHeight, gridSize, outer)) return true
+  return faceVisibility(imageData.data, faceWidth, faceHeight, gridSize, () => {
+    const ctx = canvas.getContext('2d')
+    return !!ctx && outlineVisible(ctx.getImageData(0, 0, canvas.width, canvas.height).data, canvas.width, canvas.height, bounds)
+  }).visible
+}
 
-  const ctx = canvas.getContext('2d')
-  if (!ctx) return false
-  const frame = ctx.getImageData(0, 0, canvas.width, canvas.height).data
+// The live cube check on the read square `data`, step by step: coherent
+// sticker interiors, then a sticker pattern - or, failing that, a visible
+// outline (`outline`, asked only then).
+export function faceVisibility(
+  data: Uint8ClampedArray, faceWidth: number, faceHeight: number, gridSize: number, outline: () => boolean
+): { visible: boolean; coherent: boolean; plausible?: boolean; outline?: boolean } {
+  // Judge the face in the layout it is sampled in (see extractColorsFromImageData).
+  const outer = estimateOuterCellRatio(data, faceWidth, faceHeight, gridSize)
+  if (!hasCoherentStickerInteriors(data, faceWidth, faceHeight, gridSize, outer)) return { visible: false, coherent: false }
+  if (hasPlausibleStickerFace(data, faceWidth, faceHeight, gridSize, outer)) return { visible: true, coherent: true, plausible: true }
+  const edge = outline()
+  return { visible: edge, coherent: true, plausible: false, outline: edge }
+}
+
+// Whether the square of `bounds` stands out from its surroundings along at
+// least 3 of its sides, in the full width x height `frame`.
+export function outlineVisible(frame: Uint8ClampedArray, width: number, height: number, bounds: FaceBounds): boolean {
+  const { faceWidth, faceHeight } = bounds
   const colorAt = (x: number, y: number) => {
-    const px = Math.min(canvas.width - 1, Math.max(0, Math.round(x)))
-    const py = Math.min(canvas.height - 1, Math.max(0, Math.round(y)))
-    const index = (py * canvas.width + px) * 4
+    const px = Math.min(width - 1, Math.max(0, Math.round(x)))
+    const py = Math.min(height - 1, Math.max(0, Math.round(y)))
+    const index = (py * width + px) * 4
     return [frame[index], frame[index + 1], frame[index + 2]]
   }
   const contrast = (a: number[], b: number[]) => (Math.abs(a[0] - b[0]) + Math.abs(a[1] - b[1]) + Math.abs(a[2] - b[2])) / 3
