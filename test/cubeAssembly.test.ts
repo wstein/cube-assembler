@@ -259,7 +259,7 @@ describe('solveFaceOrientations', () => {
       // "representative" wing sticker per edge side using the same raw
       // index on both faces, but 4 of the 12 edges (UR, UB, DB, DL) read
       // their two faces' wing positions in OPPOSITE directions - the same
-      // class of bug server/Server.ts's EDGE_LINES table documents
+      // class of bug src/client/parity.ts's EDGE_LINES table documents
       // already hitting (and fixing) for the wing-edge parity check. This
       // capture (posted as evidence of a real, valid cube that the app
       // nonetheless warned about) used to score 11/12 - DB specifically -

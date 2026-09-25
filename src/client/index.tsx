@@ -7,6 +7,7 @@ import { oppositeFacePreview } from './capturePresentation'
 import { holdConfirmedFace, NO_HOLD, type LiveHold } from './liveHold'
 import { scaleBounds, type LiveAnalysisRequest } from './liveAnalysis'
 import type { LiveFrameMessage, LiveResultMessage } from './liveAnalysis.worker'
+import { runFullParity, type ParityResult } from './parity'
 import { WIZARD_FACE_ORDER, faceContentKey, groupWizardOptions, pickWizardFace, preferredGuidedArrangementIndex } from './orientationWizard'
 import {
   faceBoundsForMode, captureAndProcessFace, captureAndProcessCanvas, captureAndProcessImage, hasVisibleCubeFace,
@@ -145,20 +146,11 @@ function withoutDeviceIds<T extends { deviceId?: unknown; groupId?: unknown }>(i
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// API Calls
+// Parity Check
 // ─────────────────────────────────────────────────────────────────────────────
 
-async function checkParity(cube: any, size: number): Promise<any> {
-  const res = await apiFetch('/api/parity', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ cube: toCubeIR(cube, size) }),
-  })
-  if (!res.ok) {
-    const text = await res.text()
-    throw new Error(`Parity check failed (${res.status}): ${text.slice(0, 200)}`)
-  }
-  return res.json()
+function checkParity(cube: any, size: number): ParityResult {
+  return runFullParity(toCubeIR(cube, size))
 }
 
 const FACE_ORDER = ['U', 'R', 'F', 'D', 'L', 'B']
@@ -223,7 +215,7 @@ const FACE_SHORT_LABEL: Record<string, string> = Object.fromEntries(FACE_ORDER.m
 // How each color is drawn on screen (nets, review, picker) - slightly
 // calmer than pure RGB so the six still read at a glance without glaring.
 // Display only: detection never compares against these.
-// Readable names for the server's parity checks (unknown ones show as-is).
+// Readable names for parity.ts's checks (unknown ones show as-is).
 const PARITY_CHECK_NAMES: Record<string, string> = {
   colorBalance: 'Color balance',
   cornerColors: 'Corner colors',
@@ -643,7 +635,7 @@ function App() {
   const [puzzleSize, setPuzzleSize] = useState(3)
   const [cube, setCube] = useState<any>(null)
   const [parity, setParity] = useState<any>(null)
-  // Which highlight group (see server/Server.ts's HighlightGroup) is
+  // Which highlight group (see parity.ts's HighlightGroup) is
   // currently moused-over in the Cube Net, if any - lets hovering one
   // implicated sticker cross-highlight every other reading that shares
   // its same color combination (e.g. all the wings that matched an
@@ -1063,7 +1055,7 @@ function App() {
       }
     }
     setCapturedFaces(newCapturedFaces)
-    await updateParityStatus(solved)
+    updateParityStatus(solved)
   }
 
   const handleApplyFacelets = async () => {
@@ -1104,7 +1096,7 @@ function App() {
       }
       setCapturedFaces(newCapturedFaces)
 
-      await updateParityStatus(newCube, size)
+      updateParityStatus(newCube, size)
       setManualColorInput('')
       setShowColorInput(false)
     } catch (err) {
@@ -1118,9 +1110,9 @@ function App() {
   // Features: Parity Validation (#10)
   // ─────────────────────────────────────────────────────────────────────────
 
-  const updateParityStatus = async (cubeState: any, sizeOverride?: number) => {
+  const updateParityStatus = (cubeState: any, sizeOverride?: number) => {
     try {
-      const result = await checkParity(cubeState, sizeOverride ?? puzzleSize)
+      const result = checkParity(cubeState, sizeOverride ?? puzzleSize)
       setParity(result)
     } catch (err) {
       console.error('Parity check error:', err)
@@ -1613,7 +1605,7 @@ function App() {
     setReviewNotice(null)
     const cubeState = assembleCubeFromFaces(chosen.faces, puzzleSize)
     setCube(cubeState)
-    await updateParityStatus(cubeState)
+    updateParityStatus(cubeState)
     setShowReviewDialog(false)
   }
 
@@ -1928,7 +1920,7 @@ function App() {
               )}
             </div>
             {cube ? (() => {
-              // parity.highlight (see server/Server.ts's HighlightGroup) is a
+              // parity.highlight (see parity.ts's HighlightGroup) is a
               // list of readings, each with its own `group` tag (the color
               // combination or matched piece name it read as) and the facelets
               // backing it. Multiple entries can share a `group` - e.g. every

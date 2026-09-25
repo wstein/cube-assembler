@@ -11,7 +11,7 @@ export interface CubeState {
   b: string[]
 }
 
-// Server-side wire format: each face carries its own grid dimension + colors
+// What parity.ts checks: each face carries its own grid dimension + colors
 export interface CubeIR {
   size: number
   u: { n: number; data: string[] }
@@ -130,7 +130,7 @@ const FACE_EDGES: Record<FaceKey, Record<EdgePos, string>> = {
 // geometric chirality (consistently CW or CCW as viewed from outside) —
 // NOT a naive "U/D axis first" pattern, which looks reasonable but silently
 // breaks validity checks on half the corners (verified against this app's
-// server-side CORNER_SLOTS/SOLVED_CORNERS tables in server/Server.ts).
+// CORNER_SLOTS/SOLVED_CORNERS tables in parity.ts).
 const CORNER_FACES: Record<string, [FaceKey, FaceKey, FaceKey]> = {
   UFR: ['U', 'R', 'F'], UFL: ['U', 'F', 'L'], UBR: ['U', 'B', 'R'], UBL: ['U', 'L', 'B'],
   DFR: ['D', 'F', 'R'], DFL: ['D', 'L', 'F'], DBR: ['D', 'R', 'B'], DBL: ['D', 'B', 'L'],
@@ -193,7 +193,7 @@ function scoreCorners(faces: Record<FaceKey, string[][]>): number {
 // positions in the same direction: UR/UB/DB/DL's second-listed face (R/B/
 // B/L respectively) reads its wing index MIRRORED relative to the first
 // face (U/U/D/D), while the other 8 edges read both faces the same way.
-// This exactly mirrors server/Server.ts's EDGE_LINES table (reverseB),
+// This exactly mirrors parity.ts's EDGE_LINES table (reverseB),
 // which was derived from explicit 3D coordinates after a naive corner-
 // adjacency-based guess got these same 4 edges wrong - see that table's
 // comment for the full story. Invisible on N=3 (single, self-symmetric
@@ -217,7 +217,7 @@ function scoreEdges(faces: Record<FaceKey, string[][]>): number {
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Full validity (distinct pieces + orientation sums + matching permutation
-// parity) - mirrors server/Server.ts's runFullParity exactly, but as a
+// parity) - mirrors parity.ts's runFullParity exactly, but as a
 // filter the rotation SEARCH itself optimizes for, not a check the server
 // runs afterward on whatever the search already committed to.
 //
@@ -297,7 +297,7 @@ function permParity(perm: number[]): boolean {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Wing-edge validity for N>3 - mirrors server/Server.ts's EDGE_LINES/
+// Wing-edge validity for N>3 - mirrors parity.ts's EDGE_LINES/
 // validateWingEdges, ported to this file's string[][] grid representation
 // (server's tables index a flat per-face array; these read the same
 // positions via row/col on a 2D grid instead).
@@ -309,7 +309,7 @@ function permParity(perm: number[]): boolean {
 // signal telling it a corner-valid candidate's WINGS were scrambled, and
 // could - and did, on a real reported capture - settle on one with U
 // rotated 180deg and R rotated 90deg CW away from the only wing-consistent
-// answer. Confirmed live: server/Server.ts's validateWingEdges (which
+// answer. Confirmed live: parity.ts's validateWingEdges (which
 // DOES check this, just after the fact rather than inside the search)
 // correctly flagged that exact capture's result as wing-unbalanced.
 // ─────────────────────────────────────────────────────────────────────────────
@@ -330,7 +330,7 @@ function edgeLineSticker(grid: string[][], line: EdgeLineType, reverse: boolean,
 // parallel with EDGE_NAMES (both derived from/matching EDGE_FACES' key
 // order). reverse=true means the wing at distance w from the edge's
 // first-listed corner endpoint reads that face's line at (N-1-w), not w -
-// see server/Server.ts's EDGE_LINES for the full derivation story (a
+// see parity.ts's EDGE_LINES for the full derivation story (a
 // naive corner-adjacency guess got UR/UB/DB/DL backwards; this is
 // reverse-checked against that already-verified table, not re-derived).
 const WING_EDGE_LINES: Array<[FaceKey, EdgeLineType, boolean, FaceKey, EdgeLineType, boolean]> = [
@@ -349,7 +349,7 @@ const WING_EDGE_LINES: Array<[FaceKey, EdgeLineType, boolean, FaceKey, EdgeLineT
 ]
 
 // Counting check only (not full permutation/orientation, which would need
-// per-wing-depth orbit tracking on N>=5 - see server/Server.ts's
+// per-wing-depth orbit tracking on N>=5 - see parity.ts's
 // validateWingEdges for why that's future work, not a gap introduced
 // here): every wing sticker pair must be one of the 12 canonical pairs
 // (opposite/same colors touching is physically impossible anywhere on a
