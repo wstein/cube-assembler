@@ -13,6 +13,7 @@
  *
  * Run: npx vitest run test/imageProcessing.test.ts
  */
+import { cellEdges } from '../src/client/gridAlignment'
 import { describe, it, expect } from 'vitest'
 import {
   learnStickerColors, rgbToOKLCH, formatOKLCHValues, hueCircularRange, hueRangesOverlap, linearRange,
@@ -49,6 +50,25 @@ describe('live face appearance', () => {
       ? { r: 10, g: 10, b: 10 }
       : { r: 220, g: 105, b: 30 })
     expect(hasPlausibleStickerFace(face, size, size, 3)).toBe(true)
+  })
+
+  it('judges a stickerless big-cube face in its wide-perimeter layout', () => {
+    // A white 7x7 whose outer cubies are 1.6x the inner ones (real 6x6/7x7
+    // faces measured up to 1.56x), with the faint grey lines of a
+    // stickerless cube: an even grid misses a third of them.
+    const n = 7, big = 420
+    const edges = cellEdges(n, 1.6).map((edge) => edge * big)
+    const cellOf = (p: number) => Math.min(n - 1, edges.findIndex((edge) => edge > p) - 1)
+    const face = new Uint8ClampedArray(big * big * 4)
+    for (let y = 0; y < big; y++) {
+      for (let x = 0; x < big; x++) {
+        const c = cellOf(x), r = cellOf(y)
+        const line = x - edges[c] < 1.5 || edges[c + 1] - x < 1.5 || y - edges[r] < 1.5 || edges[r + 1] - y < 1.5
+        face.set(line ? [220, 220, 216, 255] : [240, 240, 236, 255], (y * big + x) * 4)
+      }
+    }
+    expect(hasPlausibleStickerFace(face, big, big, n)).toBe(false)
+    expect(hasPlausibleStickerFace(face, big, big, n, 1.6)).toBe(true)
   })
 
   it('rejects a dark grid over heavily varied sticker interiors', () => {

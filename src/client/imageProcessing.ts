@@ -1211,18 +1211,20 @@ export function extractColorsFromImageData(
 
 // A cropped face can be one solid color, so seams are optional when the
 // uncropped camera frame shows the cube's outer silhouette instead.
-export function hasCoherentStickerInteriors(data: Uint8ClampedArray, width: number, height: number, gridSize: number): boolean {
+// `outerCellRatio` widens the outer rows and columns (see cellEdges).
+export function hasCoherentStickerInteriors(data: Uint8ClampedArray, width: number, height: number, gridSize: number, outerCellRatio = 1): boolean {
   if (gridSize < 2 || width < gridSize * 8 || height < gridSize * 8) return false
-  const cellW = width / gridSize
-  const cellH = height / gridSize
+  const edges = cellEdges(gridSize, outerCellRatio)
   let coherentCells = 0
   for (let row = 0; row < gridSize; row++) {
     for (let col = 0; col < gridSize; col++) {
       const samples: number[][] = []
+      const cellW = (edges[col + 1] - edges[col]) * width, cellH = (edges[row + 1] - edges[row]) * height
+      const centerX = (edges[col] + edges[col + 1]) / 2 * width, centerY = (edges[row] + edges[row + 1]) / 2 * height
       for (let dy = -2; dy <= 2; dy++) {
         for (let dx = -2; dx <= 2; dx++) {
-          const x = Math.round((col + 0.5 + dx * 0.1) * cellW)
-          const y = Math.round((row + 0.5 + dy * 0.1) * cellH)
+          const x = Math.round(centerX + dx * 0.1 * cellW)
+          const y = Math.round(centerY + dy * 0.1 * cellH)
           const index = (Math.min(height - 1, y) * width + Math.min(width - 1, x)) * 4
           samples.push([data[index], data[index + 1], data[index + 2]])
         }
@@ -1238,19 +1240,23 @@ export function hasCoherentStickerInteriors(data: Uint8ClampedArray, width: numb
 // The classifier assigns a color even to a wall. Look for repeated sticker
 // seams, allowing for small perspective/framing offsets around each expected
 // boundary. A plain wall can have coherent pixels but cannot supply seams.
-export function hasPlausibleStickerFace(data: Uint8ClampedArray, width: number, height: number, gridSize: number): boolean {
-  if (!hasCoherentStickerInteriors(data, width, height, gridSize)) return false
-  const cellW = width / gridSize
-  const cellH = height / gridSize
+// `outerCellRatio` widens the outer rows and columns (see cellEdges).
+export function hasPlausibleStickerFace(data: Uint8ClampedArray, width: number, height: number, gridSize: number, outerCellRatio = 1): boolean {
+  if (!hasCoherentStickerInteriors(data, width, height, gridSize, outerCellRatio)) return false
+  const edges = cellEdges(gridSize, outerCellRatio)
+  const xs = edges.map((edge) => edge * width), ys = edges.map((edge) => edge * height)
+  // Size of the narrower cell on either side of grid line i.
+  const narrower = (lines: number[], i: number) => Math.min(lines[i] - lines[i - 1], lines[i + 1] - lines[i])
   const luminance = (x: number, y: number) => {
     const index = (Math.min(height - 1, Math.max(0, Math.round(y))) * width + Math.min(width - 1, Math.max(0, Math.round(x)))) * 4
     return 0.2126 * data[index] + 0.7152 * data[index + 1] + 0.0722 * data[index + 2]
   }
   const segmentHasSeam = (vertical: boolean, boundary: number, segment: number) => {
-    const across = vertical ? cellW : cellH
-    const along = vertical ? cellH : cellW
-    const edge = boundary * across
-    const center = (segment + 0.5) * along
+    const acrossLines = vertical ? xs : ys, alongLines = vertical ? ys : xs
+    const across = narrower(acrossLines, boundary)
+    const along = alongLines[segment + 1] - alongLines[segment]
+    const edge = acrossLines[boundary]
+    const center = (alongLines[segment] + alongLines[segment + 1]) / 2
     let near = 0, far = 0
     for (let i = -2; i <= 2; i++) {
       const offset = i * along * 0.07
@@ -1301,8 +1307,9 @@ export function hasPlausibleStickerFace(data: Uint8ClampedArray, width: number, 
     (Math.abs(a[0] - b[0]) + Math.abs(a[1] - b[1]) + Math.abs(a[2] - b[2])) / 3
   for (let row = 1; row < gridSize; row++) {
     for (let col = 1; col < gridSize; col++) {
-      const x = col * cellW
-      const y = row * cellH
+      const x = xs[col]
+      const y = ys[row]
+      const cellW = narrower(xs, col), cellH = narrower(ys, row)
       const neighbors = [
         colorAt(x - cellW * 0.45, y - cellH * 0.45),
         colorAt(x + cellW * 0.45, y - cellH * 0.45),
@@ -1327,8 +1334,10 @@ export function hasPlausibleStickerFace(data: Uint8ClampedArray, width: number, 
 
 export function hasVisibleCubeFace(canvas: HTMLCanvasElement, gridSize: number): boolean {
   const { imageData, faceWidth, faceHeight } = readFaceRegion(canvas, alignedFaceBounds(canvas, gridSize))
-  if (!hasCoherentStickerInteriors(imageData.data, faceWidth, faceHeight, gridSize)) return false
-  if (hasPlausibleStickerFace(imageData.data, faceWidth, faceHeight, gridSize)) return true
+  // Judge the face in the layout it is sampled in (see extractColorsFromImageData).
+  const outer = estimateOuterCellRatio(imageData.data, faceWidth, faceHeight, gridSize)
+  if (!hasCoherentStickerInteriors(imageData.data, faceWidth, faceHeight, gridSize, outer)) return false
+  if (hasPlausibleStickerFace(imageData.data, faceWidth, faceHeight, gridSize, outer)) return true
 
   const ctx = canvas.getContext('2d')
   if (!ctx) return false
