@@ -70,19 +70,6 @@ two color groups over a wider zone), and after all six sides the six
 centers are assigned one of each color, so a misread center can't push a
 real sticker to the wrong color (`classifyAcrossFaces`).
 
-### Diagnostics
-
-With **Save missed faces for diagnosis** (Cube & camera settings, Detect face
-only, off by default) the app saves frames it turned down that still look
-like a face - three or more colors - with the detector's own report of why
-(`detectionDiagnostics.ts`): at most one every 5 s and 10 per session, at
-full camera resolution. They go to `test/diagnostics/<time>/` (`frame.jpg`,
-`meta.json`) in the checkout the API server runs from, which is gitignored;
-frames can show whoever holds the cube. `npm run diagnostics:replay`
-re-runs every saved frame through the current code and prints the result
-then and now. Reasons: `no-grid`, `incoherent-stickers`, `no-face-outline`,
-`no-sticker-pattern`.
-
 ---
 
 ## Stack
@@ -111,9 +98,6 @@ npm run dev
 
 # Run tests
 npm test
-
-# Replay camera frames Detect face missed (see "Diagnostics" below)
-npm run diagnostics:replay
 
 # Build ReScript (optional — npm serves compiled .js directly)
 npm run build:res
@@ -164,9 +148,6 @@ cube-assembler/
 │           ├── Parity.res         Full 4-condition parity check
 │           └── CubeAssembler.res  5-stage pipeline orchestrator
 │
-├── scripts/
-│   └── replayDiagnostics.ts       npm run diagnostics:replay
-│
 └── test/
     ├── notation.test.ts           ReScript Notation module (WRG/URF/Kociemba/Numeric)
     ├── cubeAssembly.test.ts       Face identity/orientation solver (odd + even sizes)
@@ -176,7 +157,8 @@ cube-assembler/
     ├── crossFace.test.ts          Cross-face color assignment, one of each center
     ├── gridAlignment.test.ts      Grid search: offset, size, tilt, perimeter, grey seams
     ├── gridAlignmentRealCrops.test.ts  Benchmark on saved captures held off-center/tilted
-    ├── detectionDiagnostics.test.ts, liveHold.test.ts, autoCapture.test.ts, api.test.ts
+    ├── gridSizeDetection.test.ts   First-face grid count on saved captures and synthetic sizes
+    ├── liveHold.test.ts, autoCapture.test.ts, api.test.ts
     ├── notationOutput.test.ts     WRG/URF facelet formats + format auto-detection
     ├── parity.test.ts             Server-side corner/edge/wing-edge facelet-index tables
     ├── assemblyWorker.test.ts     /api/assemble worker's corner/edge validation
@@ -185,8 +167,8 @@ cube-assembler/
     └── fixtures/                  Saved captures for fixtures.test.ts (see fixtures/README.md)
 ```
 
-Real captures in `test/fixtures/capture-*` and saved diagnostics in
-`test/diagnostics/` are gitignored; the tests that need them skip without.
+Real captures in `test/fixtures/capture-*` are gitignored; the tests that
+need them skip without.
 
 ---
 
@@ -364,19 +346,6 @@ Parse WRG/Kociemba/Numeric notation into a `cubeIR`.
 ### `POST /api/parse-urf`, `GET /api/formats/:encoding`
 Stubs: `parse-urf` only splits URF cubie notation into corners, edges and
 centers; `formats` points to `parse-wrg`.
-
-### `POST /api/diagnostics`
-Saves a camera frame Detect face turned down, with its report, to
-`test/diagnostics/<time>/` - sent by the app when *Save missed faces for
-diagnosis* is on. At most 5 MB per frame and 200 saved diagnostics.
-
-```json
-{
-  "frame": "data:image/jpeg;base64,...",
-  "report": { "gridSize": 3, "detected": false, "reason": "no-grid", "alignment": { "score": -4.8, "...": "..." } },
-  "meta": { "cube": "Generic 3×3", "mirrored": true, "camera": { "label": "FaceTime HD Camera" } }
-}
-```
 
 ### `POST /api/fixtures`
 Saves a human-verified capture (each face's actual photo plus its color

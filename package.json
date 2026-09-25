@@ -15,8 +15,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:ui": "vitest --ui",
-    "lint": "rescript build 2>&1",
-    "diagnostics:replay": "bun scripts/replayDiagnostics.ts"
+    "lint": "rescript build 2>&1"
   },
   "dependencies": {
     "cubing": "file:./vendor/cubing.js",

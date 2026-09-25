@@ -1,7 +1,7 @@
 // Detect face's live display holds a confirmed face through a weak frame
 // or two - motion blur, a finger passing - instead of flickering between
 // the colors and "Align face in view". Display only: capturing, automatic
-// capture and saved diagnostics still judge every frame on its own, and a
+// capture still judges every frame on its own, and a
 // held face never lends its bounds to a new frame.
 
 export const LIVE_HOLD_FRAMES = 2
