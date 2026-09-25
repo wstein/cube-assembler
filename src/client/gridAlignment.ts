@@ -10,7 +10,8 @@
 // seams, row means for horizontal ones), so shift and scale are searched
 // per axis in a few hundred cheap evaluations - fast enough for the live
 // preview. A face without dark seams (stickerless, washed out) finds no
-// alignment that beats the guide, and the guide is kept.
+// alignment that beats the guide, and the guide is kept. A tilted face is
+// first measured (estimateTilt) and turned upright, then searched the same.
 
 export interface FaceSquare {
   x: number
@@ -25,6 +26,75 @@ export interface GridAlignment extends FaceSquare {
   aligned: boolean
   // Width of the outer rows and columns relative to the inner ones.
   outer: number
+  // In-plane tilt (radians, canvas rotate() direction) the square is turned
+  // by about its center, and that center in the input's coordinates. x/y
+  // are the square's corner before the turn, i.e. center - size / 2.
+  angle: number
+  center: [number, number]
+}
+
+// Tilts corrected, and the least worth turning the face upright for.
+export const MAX_TILT = (35 * Math.PI) / 180
+const MIN_TILT = (1.5 * Math.PI) / 180
+// How much the edge directions must agree (0-1) to trust a tilt.
+const MIN_TILT_COHERENCE = 0.25
+
+// In-plane tilt of the face inside `square`, from the directions of its
+// edges: a grid's seams and sticker borders run two ways 90 degrees apart,
+// so gradient directions folded to 90 degrees (angle x 4 on the circle,
+// weighted by strength) point at the tilt. 0 when the edges show no common
+// direction, when the tilt is too small to matter, or beyond MAX_TILT,
+// where rows and columns become ambiguous.
+export function estimateTilt(data: Uint8ClampedArray, width: number, height: number, square: FaceSquare): number {
+  // Luminance averaged over small blocks (~150 across the square): smooths
+  // pixel staircases along tilted edges, which would pull the tilt toward
+  // the pixel axes, and keeps this cheap.
+  const block = Math.max(1, Math.round(square.size / 150))
+  const x0 = Math.max(0, Math.round(square.x + square.size * 0.05))
+  const y0 = Math.max(0, Math.round(square.y + square.size * 0.05))
+  const cols = Math.floor((Math.min(width, Math.round(square.x + square.size * 0.95)) - x0) / block)
+  const rows = Math.floor((Math.min(height, Math.round(square.y + square.size * 0.95)) - y0) / block)
+  if (cols < 8 || rows < 8) return 0
+  const grid = new Float64Array(cols * rows)
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
+      let sum = 0
+      for (let y = y0 + r * block; y < y0 + (r + 1) * block; y++) {
+        for (let x = x0 + c * block; x < x0 + (c + 1) * block; x++) {
+          const i = (y * width + x) * 4
+          sum += 0.2126 * data[i] + 0.7152 * data[i + 1] + 0.0722 * data[i + 2]
+        }
+      }
+      grid[r * cols + c] = sum / (block * block)
+    }
+  }
+  // One 3x3 box blur, then Scharr gradients - both keep the measured
+  // direction from leaning toward the grid of blocks.
+  const smooth = new Float64Array(cols * rows)
+  for (let r = 1; r < rows - 1; r++) {
+    for (let c = 1; c < cols - 1; c++) {
+      let sum = 0
+      for (let dr = -1; dr <= 1; dr++) for (let dc = -1; dc <= 1; dc++) sum += grid[(r + dr) * cols + c + dc]
+      smooth[r * cols + c] = sum / 9
+    }
+  }
+  const at = (c: number, r: number) => smooth[r * cols + c]
+  let sin = 0, cos = 0, total = 0
+  for (let r = 2; r < rows - 2; r++) {
+    for (let c = 2; c < cols - 2; c++) {
+      const gx = 3 * (at(c + 1, r - 1) + at(c + 1, r + 1) - at(c - 1, r - 1) - at(c - 1, r + 1)) + 10 * (at(c + 1, r) - at(c - 1, r))
+      const gy = 3 * (at(c - 1, r + 1) + at(c + 1, r + 1) - at(c - 1, r - 1) - at(c + 1, r - 1)) + 10 * (at(c, r + 1) - at(c, r - 1))
+      const magnitude = Math.hypot(gx, gy)
+      if (magnitude < 60) continue
+      const angle = 4 * Math.atan2(gy, gx)
+      sin += magnitude * Math.sin(angle)
+      cos += magnitude * Math.cos(angle)
+      total += magnitude
+    }
+  }
+  if (total === 0 || Math.hypot(sin, cos) / total < MIN_TILT_COHERENCE) return 0
+  const tilt = Math.atan2(sin, cos) / 4
+  return Math.abs(tilt) < MIN_TILT || Math.abs(tilt) > MAX_TILT ? 0 : tilt
 }
 
 // Big cubes have wider perimeter cubies: on real 6x6 and 7x7 faces the
@@ -51,7 +121,7 @@ function outerRatios(gridSize: number): number[] {
 export const ALIGNMENT_MAX_OFFSET = 0.15
 const MAX_OFFSET_CELLS = 0.45
 const SCALE_RANGE: [number, number] = [0.8, 1.12]
-const SCALE_STEP = 0.02
+const SCALE_STEP = 0.01
 // A seam must be this much darker (luminance levels) than the stickers on
 // both sides, on average over the grid lines, to count as found...
 const MIN_SEAM_SCORE = 6
@@ -67,21 +137,31 @@ function luminanceAt(data: Uint8ClampedArray, index: number): number {
   return 0.2126 * data[index] + 0.7152 * data[index + 1] + 0.0722 * data[index + 2]
 }
 
+// A turn about (cx, cy): profiles are then taken across the face as if it
+// were upright, reading each point through the rotation.
+interface Turn { cx: number; cy: number; cos: number; sin: number }
+
 // Mean luminance of each column (vertical) or row over `from..to` of the
-// other axis.
-function profile(data: Uint8ClampedArray, width: number, height: number, vertical: boolean, from: number, to: number): Float64Array {
+// other axis, averaging every `step`-th line - a mean loses nothing by
+// skipping rows on a large guide.
+function profile(data: Uint8ClampedArray, width: number, height: number, vertical: boolean, from: number, to: number, turn?: Turn, step = 1): Float64Array {
   const length = vertical ? width : height
   const out = new Float64Array(length)
   const start = Math.max(0, Math.round(from))
   const end = Math.min(vertical ? height : width, Math.round(to))
-  const count = Math.max(1, end - start)
-  for (let along = start; along < end; along++) {
+  let count = 0
+  for (let along = start; along < end; along += step, count++) {
     for (let p = 0; p < length; p++) {
-      const index = vertical ? (along * width + p) * 4 : (p * width + along) * 4
-      out[p] += luminanceAt(data, index)
+      let x = vertical ? p : along, y = vertical ? along : p
+      if (turn) {
+        const dx = x - turn.cx, dy = y - turn.cy
+        x = Math.min(width - 1, Math.max(0, Math.round(turn.cx + turn.cos * dx - turn.sin * dy)))
+        y = Math.min(height - 1, Math.max(0, Math.round(turn.cy + turn.sin * dx + turn.cos * dy)))
+      }
+      out[p] += luminanceAt(data, (y * width + x) * 4)
     }
   }
-  for (let p = 0; p < length; p++) out[p] /= count
+  for (let p = 0; p < length; p++) out[p] /= Math.max(1, count)
   return out
 }
 
@@ -132,19 +212,39 @@ function axisScore(values: Float64Array, offset: number, size: number, gridSize:
 }
 
 // Finds the face square whose grid lines best match dark seams, within
-// ALIGNMENT_MAX_OFFSET and SCALE_RANGE of `guide`. `data` is an RGBA
-// region (width x height) containing the guide plus a margin around it.
+// ALIGNMENT_MAX_OFFSET and SCALE_RANGE of `guide` and turned by `angle`
+// (see estimateTilt). `data` is an RGBA region (width x height) containing
+// the guide plus a margin around it.
 export function findGridAlignment(
   data: Uint8ClampedArray,
   width: number,
   height: number,
   guide: FaceSquare,
-  gridSize: number
+  gridSize: number,
+  angle = 0
 ): GridAlignment {
+  const cx = guide.x + guide.size / 2, cy = guide.y + guide.size / 2
+  const turn = angle ? { cx, cy, cos: Math.cos(angle), sin: Math.sin(angle) } : undefined
+  const found = searchUpright(data, width, height, guide, gridSize, turn)
+  // Back from the upright copy: turn the square's center about the guide's.
+  const ux = found.x + found.size / 2 - cx, uy = found.y + found.size / 2 - cy
+  const center: [number, number] = [cx + Math.cos(angle) * ux - Math.sin(angle) * uy, cy + Math.sin(angle) * ux + Math.cos(angle) * uy]
+  return { ...found, angle, center, x: center[0] - found.size / 2, y: center[1] - found.size / 2 }
+}
+
+function searchUpright(
+  data: Uint8ClampedArray,
+  width: number,
+  height: number,
+  guide: FaceSquare,
+  gridSize: number,
+  turn?: Turn
+): Omit<GridAlignment, 'angle' | 'center'> {
   // Profiles span the middle of the guide on the other axis, which stays
   // on the face even when it is offset.
-  const columns = profile(data, width, height, true, guide.y + guide.size * 0.2, guide.y + guide.size * 0.8)
-  const rows = profile(data, width, height, false, guide.x + guide.size * 0.2, guide.x + guide.size * 0.8)
+  const lines = Math.max(1, Math.round(guide.size / 300))
+  const columns = profile(data, width, height, true, guide.y + guide.size * 0.2, guide.y + guide.size * 0.8, turn, lines)
+  const rows = profile(data, width, height, false, guide.x + guide.size * 0.2, guide.x + guide.size * 0.8, turn, lines)
   const layouts = outerRatios(gridSize).map((outer) => ({ outer, edges: cellEdges(gridSize, outer) }))
   // The guide as it is, with its best-fitting outer-cell ratio.
   let stay = { score: -Infinity, outer: 1 }
@@ -156,7 +256,7 @@ export function findGridAlignment(
   // Offsets stay under half of the narrowest (inner) cell.
   const maxOffset = guide.size * Math.min(ALIGNMENT_MAX_OFFSET, MAX_OFFSET_CELLS / gridSize)
   const step = Math.max(1, guide.size / 200)
-  let best: GridAlignment = { ...guide, score: stay.score, aligned: false, outer: stay.outer }
+  let best: Omit<GridAlignment, 'angle' | 'center'> = { ...guide, score: stay.score, aligned: false, outer: stay.outer }
   for (let scale = SCALE_RANGE[0]; scale <= SCALE_RANGE[1] + 1e-9; scale += SCALE_STEP) {
     const size = guide.size * scale
     const centered = (guide.size - size) / 2

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { cellEdges, estimateOuterCellRatio, findGridAlignment, type FaceSquare } from '../src/client/gridAlignment'
+import { cellEdges, estimateOuterCellRatio, estimateTilt, findGridAlignment, type FaceSquare } from '../src/client/gridAlignment'
 
 const STICKERS = [
   [220, 105, 30], [30, 150, 80], [240, 240, 235],
@@ -15,12 +15,16 @@ interface Look {
   outer?: number
   // Sticker color by cell; defaults to six colors in turn.
   sticker?: (row: number, col: number) => number[]
+  // In-plane tilt in degrees (canvas rotate() direction), about the face center.
+  tilt?: number
 }
 
 // A region 1.4x the guide with the guide centered, and an N x N face drawn
 // at `face` on a mid-grey background.
 function scene(gridSize: number, face: FaceSquare, guideSize = 300, look: Look = {}) {
-  const { seam = [15, 15, 15], gap = 0.08, outer = 1, sticker = (row: number, col: number) => STICKERS[(row * gridSize + col) % 6] } = look
+  const { seam = [15, 15, 15], gap = 0.08, outer = 1, sticker = (row: number, col: number) => STICKERS[(row * gridSize + col) % 6], tilt = 0 } = look
+  const turn = (tilt * Math.PI) / 180, cos = Math.cos(turn), sin = Math.sin(turn)
+  const fcx = face.x + face.size / 2, fcy = face.y + face.size / 2
   const width = Math.round(guideSize * 1.4)
   const height = width
   const guide = { x: (width - guideSize) / 2, y: (height - guideSize) / 2, size: guideSize }
@@ -30,7 +34,9 @@ function scene(gridSize: number, face: FaceSquare, guideSize = 300, look: Look =
   const cellOf = (p: number) => Math.min(gridSize - 1, edges.findIndex((edge) => edge > p) - 1)
   for (let y = 0; y < height; y++) {
     for (let x = 0; x < width; x++) {
-      const u = x - face.x, v = y - face.y
+      // Back into the untilted face's frame.
+      const u = cos * (x - fcx) + sin * (y - fcy) + face.size / 2
+      const v = -sin * (x - fcx) + cos * (y - fcy) + face.size / 2
       let rgb = [128, 128, 128]
       if (u >= 0 && v >= 0 && u < face.size && v < face.size) {
         const col = cellOf(u), row = cellOf(v)
@@ -125,6 +131,39 @@ describe('findGridAlignment', () => {
     expect(estimateOuterCellRatio(crop(4, 1), size, size, 4)).toBe(1)
     expect(estimateOuterCellRatio(crop(3, 1), size, size, 3)).toBe(1)
   })
+
+  it('measures how far a face is tilted', () => {
+    const guideSize = 300
+    const width = Math.round(guideSize * 1.4)
+    const guide = { x: (width - guideSize) / 2, y: (width - guideSize) / 2, size: guideSize }
+    const face = placed(guide, 0, 0, 0.8)
+    const degrees = (gridSize: number, tilt: number) => {
+      const { data, height } = scene(gridSize, face, guideSize, { tilt })
+      return (estimateTilt(data, width, height, guide) * 180) / Math.PI
+    }
+    expect(degrees(3, 0)).toBe(0)
+    expect(degrees(3, 8)).toBeCloseTo(8, 0)
+    expect(degrees(4, -20)).toBeCloseTo(-20, 0)
+    expect(degrees(7, 30)).toBeCloseTo(30, 0)
+    const blank = new Uint8ClampedArray(width * width * 4).fill(128)
+    expect(estimateTilt(blank, width, width, guide)).toBe(0)
+  })
+
+  for (const [gridSize, tilt] of [[3, 12], [5, -18], [7, 25]]) {
+    it(`finds a ${gridSize}x${gridSize} face tilted ${tilt} degrees and held off-center`, () => {
+      const guideSize = 360
+      const width = Math.round(guideSize * 1.4)
+      const guide = { x: (width - guideSize) / 2, y: (width - guideSize) / 2, size: guideSize }
+      const offset = Math.min(0.06, 0.8 * 0.45 / gridSize)
+      const face = placed(guide, offset, -offset * 0.6, 0.85)
+      const { data, height } = scene(gridSize, face, guideSize, { tilt, outer: gridSize >= 5 ? 1.4 : 1 })
+      const angle = estimateTilt(data, width, height, guide)
+      const found = findGridAlignment(data, width, height, guide, gridSize, angle)
+      expect((found.angle * 180) / Math.PI).toBeCloseTo(tilt, 0)
+      expect(Math.hypot(found.center[0] - (face.x + face.size / 2), found.center[1] - (face.y + face.size / 2))).toBeLessThan(guideSize * 0.02)
+      expect(Math.abs(found.size - face.size)).toBeLessThan(guideSize * 0.03)
+    })
+  }
 
   it('keeps the guide for a face without any grid lines', () => {
     const guideSize = 300
