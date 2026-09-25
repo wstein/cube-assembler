@@ -3056,7 +3056,7 @@ function App() {
                 <button class="modal-close" aria-label="Close" onClick={close}>×</button>
               </div>
               {note && <p class={valid ? 'orientation-approval-note' : 'capture-warning'}>{note}</p>}
-              {!valid && <p class="orientation-approval-note">Tap a face to check its colors or retake that photo.</p>}
+              <p class="orientation-approval-note">Tap any face to check its colors or retake that photo.</p>
               {!note && single && valid && (
                 <p class="orientation-approval-note">
                   {suggestedFrom && suggestedFrom > 1
@@ -3073,7 +3073,7 @@ function App() {
               {single ? (
                 <div class="approval-single">
                   <div class="approval-net">
-                    <OrientationNetPreview faces={candidates[0].faces} onFaceClick={!valid ? (face) => checkFace(candidates[0], face) : undefined} />
+                    <OrientationNetPreview faces={candidates[0].faces} onFaceClick={(face) => checkFace(candidates[0], face)} />
                   </div>
                   {arrangements?.[0] && (
                     <div class="approval-changes">
@@ -3097,7 +3097,7 @@ function App() {
               <div class="orientation-approval-options">
                 {shown.map(({ candidate, i }) => (
                   <div key={i} class="orientation-approval-option">
-                    <OrientationNetPreview faces={candidate.faces} onFaceClick={!valid ? (face) => checkFace(candidate, face) : undefined} />
+                    <OrientationNetPreview faces={candidate.faces} onFaceClick={(face) => checkFace(candidate, face)} />
                     {arrangements?.[i] && (
                       <ul class="orientation-approval-changes">
                         {describeArrangement(arrangements[i], mirrorPreview).map((line) => <li key={line}>{line}</li>)}
