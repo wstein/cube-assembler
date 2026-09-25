@@ -40,10 +40,10 @@ export const SAMPLE_CORE_FRACTION = 0.6
 // between stickers are, and in how much cube body and hand shows around
 // the face.
 export interface SamplingGeometry {
-  // Band around the guide square that's left out of the background sample
-  // (see extractBackgroundColor), as a fraction of the square's side on
-  // each side - covers the cube's own plastic edge and the fingers holding
-  // it, which aren't the constant backdrop the white balance relies on.
+  // Extra band around the detected face left out of the background sample,
+  // on top of BACKGROUND_CUBE_GAP (see extractBackgroundColor), as a
+  // fraction of the face's side on each side - for cubes held with more
+  // hand or body showing around the face.
   backgroundGap: number
   // Fraction of each sticker cell that's sampled, centered (the rest is
   // the gap/dead zone around it).
@@ -52,8 +52,8 @@ export interface SamplingGeometry {
 
 export const DEFAULT_SAMPLING: SamplingGeometry = { backgroundGap: 0, stickerCore: SAMPLE_CORE_FRACTION }
 
-// Largest backgroundGap that still leaves some background inside the frame
-// (the guide square is SAMPLE_FACE_FRACTION of the frame's shorter side).
+// Largest backgroundGap: with BACKGROUND_CUBE_GAP it leaves out a square
+// 2.1 times the face's side, still leaving backdrop beside it.
 export const MAX_BACKGROUND_GAP = 0.3
 
 // A sticker cell's sampled rectangle within a face of the given size -
@@ -778,15 +778,12 @@ interface FaceRegion extends FaceBounds {
 
 // Fraction of the frame (of min(width,height)) the sticker guide square
 // covers - the ONLY thing extractColorsFromImageData ever samples for
-// classification. Named so BACKGROUND_REGION_FRACTION below can be stated
-// relative to it, unchanged from the plain 0.6 this was before.
+// classification.
 const SAMPLE_FACE_FRACTION = 0.6
 
 // Cube face is assumed centered in frame, matching the fixed guide square
 // shown to the user during capture (see capture-grid-overlay in index.tsx).
-// `fraction` defaults to the sticker guide square itself; callers pass a
-// larger value (see BACKGROUND_REGION_FRACTION) to get a bigger, concentric
-// square for sampling the area AROUND the stickers instead.
+// `fraction` defaults to the sticker guide square itself.
 export function computeFaceBounds(canvas: HTMLCanvasElement, fraction = SAMPLE_FACE_FRACTION): FaceBounds {
   return guideBounds(canvas.width, canvas.height, fraction)
 }
@@ -807,7 +804,7 @@ export function guideBounds(width: number, height: number, fraction = SAMPLE_FAC
   // the ImageData it returns is necessarily integer-pixel-sized, so a
   // caller that reuses these fractional bounds as BOTH the getImageData
   // argument AND its own manual (row * width + col) pixel-index math (as
-  // extractBackgroundColor's background-area scan does, unlike the
+  // extractBackgroundColor's background-area scan did, unlike the
   // sticker-cell scan in extractColorsFromImageData, which stays safely
   // inset from any edge) risks the two disagreeing on the actual row
   // stride - drifting further off with every row until it reads past the real buffer end
@@ -922,78 +919,63 @@ function readFaceRegion(canvas: HTMLCanvasElement, bounds: FaceBounds): FaceRegi
 // ─────────────────────────────────────────────────────────────────────────────
 // Background-based cross-face correction
 //
-// The area around the cube (table, hand, backdrop) stays the SAME physical
+// The area around the cube (table, wall, backdrop) stays the SAME physical
 // surface across all 6 face captures, unlike the cube's own stickers (whose
 // colors are exactly what's being measured, and can't double as a
 // reference). Sampling it doesn't require knowing what color it "should"
 // be (unlike the gray-world estimate this replaced, which wrongly assumed
 // the whole scene averages to neutral gray) - only that it's CONSTANT, so
-// any difference between how face 2's patch reads vs. face 1's patch is,
-// by construction, illumination/camera drift rather than scene content.
+// any difference between how one face's backdrop reads and the others' is
+// illumination/camera drift rather than scene content.
 // See the 2026-09-23 real-fixture design discussion ("G1").
 // ─────────────────────────────────────────────────────────────────────────────
 
-// Outer edge of the area sampled for the background reference, as a
-// fraction of min(width,height) - the whole frame (1.0) outside the
-// sticker guide square, not just a band near it. A narrow band is MORE
-// exposed to a single localized contamination (a shadow, a reflection, a
-// stray object at that exact radius) skewing the entire reading; the full
-// remaining area lets trimmedMeanColor average that out instead. (A
-// smaller value was tried first, to dodge lens vignetting at the true
-// edge - reconsidered after a live capture showed a background reading
-// extreme enough to turn a correctly-classifiable White sticker into
-// Blue, which pointed at contamination, not genuine illumination drift -
-// see the 2026-09-23 real-fixture design discussion, "G1".)
-const BACKGROUND_REGION_FRACTION = 1.0
+// Band around the detected cube that's always left out of the background
+// sample, as a fraction of the face's side on each side: the cube's own
+// body (its other sides show at any angle) and the fingers holding it sit
+// right around the face, and neither is the constant backdrop the white
+// balance relies on. SamplingGeometry.backgroundGap widens it further.
+export const BACKGROUND_CUBE_GAP = 0.25
 
-// Samples the whole area between the sticker guide square and
-// BACKGROUND_REGION_FRACTION on a LIVE captured frame - null if the frame
-// is too small to have a meaningful background area, or if it came back
-// too dark to be a reliable reading (mirrors estimateGrayWorldGains' old
-// too-dark guard). Only meaningful on a live, uncropped canvas - a stored
-// croppedImage (see cropFaceRegionToDataUrl) is already cropped down to
-// just the sticker square and has no background left to sample, which is
-// why this is captured once at capture time (captureAndProcessFace /
-// captureAndProcessImage) rather than re-derivable later like
-// redetectFaceColors' sticker re-extraction is.
-export function extractBackgroundColor(canvas: HTMLCanvasElement, backgroundGap = 0, face?: FaceBounds): RGB | null {
+// Every BACKGROUND_STRIDE-th pixel in each direction is sampled - the
+// trimmed mean needs a representative sample, not all ~2M pixels of a
+// 1080p frame.
+const BACKGROUND_STRIDE = 2
+
+// The backdrop's color on a LIVE captured frame: the trimmed mean of the
+// whole frame outside the detected face (the guide square without one),
+// its rotated bounding box grown by BACKGROUND_CUBE_GAP + backgroundGap of
+// its side on each side. The whole remaining frame rather than a band near
+// the cube, so one local contamination (a shadow, a reflection) is averaged
+// out instead of skewing the reading. Null if the frame is too small, too
+// little of it is left, or it reads too dark to be a reliable reference.
+// Only meaningful on a live, uncropped canvas - a stored croppedImage (see
+// cropFaceRegionToDataUrl) has no background left - so it's captured once
+// at capture time (captureAndProcessCanvas / captureAndProcessImage).
+export function extractBackgroundColor(canvas: HTMLCanvasElement, backgroundGap = 0, face: FaceBounds = computeFaceBounds(canvas)): RGB | null {
   const ctx = canvas.getContext('2d')
   if (!ctx) return null
+  const { width, height } = canvas
+  if (width < 40 || height < 40) return null
 
-  // Skip the guide square plus `backgroundGap` of its side on each side.
-  const gap = Math.min(MAX_BACKGROUND_GAP, Math.max(0, backgroundGap))
-  const inner = computeFaceBounds(canvas, SAMPLE_FACE_FRACTION * (1 + 2 * gap))
-  const outer = computeFaceBounds(canvas, BACKGROUND_REGION_FRACTION)
-  if (outer.faceWidth < 40 || outer.faceHeight < 40) return null
+  const gap = BACKGROUND_CUBE_GAP + Math.min(MAX_BACKGROUND_GAP, Math.max(0, backgroundGap))
+  const turn = face.angle ?? 0
+  const half = (face.faceWidth / 2) * (Math.abs(Math.cos(turn)) + Math.abs(Math.sin(turn))) + gap * face.faceWidth
+  const cx = face.startX + face.faceWidth / 2, cy = face.startY + face.faceHeight / 2
+  const left = cx - half, right = cx + half, top = cy - half, bottom = cy + half
 
-  const imageData = ctx.getImageData(outer.startX, outer.startY, outer.faceWidth, outer.faceHeight)
-  const data = imageData.data
-  const innerLeft = inner.startX - outer.startX
-  const innerTop = inner.startY - outer.startY
-  const innerRight = innerLeft + inner.faceWidth
-  const innerBottom = innerTop + inner.faceHeight
-  // The face as captured (aligned off the guide, maybe larger or tilted) is
-  // skipped too: its bounding box plus the same gap.
-  let faceLeft = 0, faceTop = 0, faceRight = 0, faceBottom = 0
-  if (face) {
-    const turn = face.angle ?? 0
-    const half = (face.faceWidth / 2) * (Math.abs(Math.cos(turn)) + Math.abs(Math.sin(turn))) + gap * face.faceWidth
-    const cx = face.startX + face.faceWidth / 2 - outer.startX
-    const cy = face.startY + face.faceHeight / 2 - outer.startY
-    faceLeft = cx - half; faceRight = cx + half; faceTop = cy - half; faceBottom = cy + half
-  }
-
+  const data = ctx.getImageData(0, 0, width, height).data
   const pixels: RGB[] = []
-  for (let y = 0; y < outer.faceHeight; y++) {
-    const inRow = y >= innerTop && y < innerBottom
-    const inFaceRow = y >= faceTop && y < faceBottom
-    for (let x = 0; x < outer.faceWidth; x++) {
-      if (inRow && x >= innerLeft && x < innerRight) continue // inside the sticker square - skip
-      if (inFaceRow && x >= faceLeft && x < faceRight) continue // on the captured face - skip
-      const idx = (y * outer.faceWidth + x) * 4
+  for (let y = 0; y < height; y += BACKGROUND_STRIDE) {
+    const inCubeRow = y >= top && y < bottom
+    for (let x = 0; x < width; x += BACKGROUND_STRIDE) {
+      if (inCubeRow && x >= left && x < right) continue
+      const idx = (y * width + x) * 4
       pixels.push({ r: data[idx], g: data[idx + 1], b: data[idx + 2] })
     }
   }
+  // Too little backdrop left (the cube fills the frame) to stand for it.
+  if (pixels.length < 0.05 * (width / BACKGROUND_STRIDE) * (height / BACKGROUND_STRIDE)) return null
 
   const mean = trimmedMeanColor(pixels)
   if (!mean || !Number.isFinite(mean.r) || !Number.isFinite(mean.g) || !Number.isFinite(mean.b)) return null
@@ -1030,6 +1012,7 @@ export function limitBackgroundGain(gains: RGB): RGB {
     Number.isFinite(g) ? Math.max(1 / MAX_BACKGROUND_GAIN, Math.min(MAX_BACKGROUND_GAIN, g)) : 1
   return { r: clampGain(gains.r), g: clampGain(gains.g), b: clampGain(gains.b) }
 }
+
 
 // Crops just the analyzed face region out of a captured frame, for showing
 // the user what was actually sampled (e.g. in a post-capture review step) —

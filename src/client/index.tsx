@@ -10,7 +10,7 @@ import { runFullParity, type ParityResult } from './parity'
 import { WIZARD_FACE_ORDER, faceContentKey, groupWizardOptions, pickWizardFace, preferredGuidedArrangementIndex } from './orientationWizard'
 import {
   faceBoundsForMode, captureAndProcessFace, captureAndProcessCanvas, captureAndProcessImage, hasVisibleCubeFace,
-  runGlobalWhiteBalance, NEUTRAL_GAINS, CROP_JPEG_QUALITY,
+  runGlobalWhiteBalance, BACKGROUND_CUBE_GAP, NEUTRAL_GAINS, CROP_JPEG_QUALITY,
   DEFAULT_SAMPLING, MAX_BACKGROUND_GAP, STICKER_MEASUREMENT, stickerSampleRect, colorConfidences, STICKER_COLORS, type SamplingGeometry,
   rgbToOKLCH, hueCircularRange, hueRangesOverlap, linearRange,
   type ColorDetectionResult, type FaceCaptureResult, type RGB,
@@ -2289,15 +2289,16 @@ function App() {
                   </div>
                 )}
                 {captureMode === 'guide' && (samplingSetupOpen || sampling.backgroundGap > 0) && (
-                  // The band around the guide square that the background (white
-                  // balance) sample skips - sized in percent of the wrapper,
-                  // like the 60% guide square itself. Always shown when set, so
-                  // fingers can be kept inside it while capturing.
+                  // The band around the face that the background (white
+                  // balance) sample skips - BACKGROUND_CUBE_GAP plus the extra
+                  // gap, sized in percent of the wrapper like the 60% guide
+                  // square itself. Always shown when widened, so fingers can
+                  // be kept inside it while capturing.
                   <div
                     class="capture-background-gap"
                     style={{
-                      width: `${60 * (1 + 2 * sampling.backgroundGap)}%`,
-                      padding: `${60 * sampling.backgroundGap}%`,
+                      width: `${60 * (1 + 2 * (BACKGROUND_CUBE_GAP + sampling.backgroundGap))}%`,
+                      padding: `${60 * (BACKGROUND_CUBE_GAP + sampling.backgroundGap)}%`,
                     }}
                   />
                 )}
@@ -2501,7 +2502,7 @@ function App() {
                   </label>
                   <label class="sampling-slider">
                     <span>
-                      Skip around the face <output>{Math.round(sampling.backgroundGap * 100)}%</output>
+                      Skip around the face <output>{Math.round((BACKGROUND_CUBE_GAP + sampling.backgroundGap) * 100)}%</output>
                     </span>
                     <input
                       type="range"
