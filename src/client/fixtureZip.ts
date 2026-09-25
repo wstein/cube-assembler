@@ -145,6 +145,11 @@ export function summarizeFixture(fixture: Fixture): FixtureSummary {
     rows.push(['Camera', `${capture.camera.label}${width && height ? `, ${width}×${height}` : ''}`])
   }
   if (capture.profile?.name) rows.push(['Cube profile', capture.profile.name])
+  if ('backgroundWhiteBalance' in capture) {
+    const gains = Object.values(capture.backgroundWhiteBalance ?? {}) as Array<{ r: number; g: number; b: number }>
+    const largest = Math.max(1, ...gains.flatMap(({ r, g, b }) => [r, g, b].map((v) => Math.max(v, 1 / v))))
+    rows.push(['Backdrop balance', gains.length === 0 ? 'not applied' : largest < 1.005 ? 'sides already matched' : `sides matched, largest correction ×${largest.toFixed(2)}`])
+  }
   if (capture.colorCalibration) {
     rows.push(['Colors learned', capture.colorCalibration.learnedColors ? 'from this capture' : 'no - standard colors used'])
   }

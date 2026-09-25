@@ -378,9 +378,10 @@ export function classifySticker(rgb: RGB, palette?: Record<string, RGB>): { colo
 // to match what THIS capture's stickers actually measured, which directly
 // addresses the failure vector (distance to the wrong reference color)
 // instead of trying to normalize pixels toward an assumed-neutral state
-// first. `gains` stays as plain shared infrastructure through the
-// extraction pipeline below - every caller now always passes
-// NEUTRAL_GAINS (or omits the argument, defaulting to it).
+// first. The one gain that is applied is relative, not absolute: after
+// all 6 faces are in, each face's backdrop is brought to the others'
+// (computeBackgroundGains), evening out drift between the shots. Live
+// preview and single captures use NEUTRAL_GAINS.
 // ─────────────────────────────────────────────────────────────────────────────
 
 export const NEUTRAL_GAINS: RGB = { r: 1, g: 1, b: 1 }
@@ -1013,6 +1014,32 @@ export function limitBackgroundGain(gains: RGB): RGB {
   return { r: clampGain(gains.r), g: clampGain(gains.g), b: clampGain(gains.b) }
 }
 
+// How background white balance is computed, saved with fixtures so only
+// gains made this way are replayed (older captures recorded gains relative
+// to face 1 over a region without a gap to the cube, which swapped red and
+// orange on real captures).
+export const BACKGROUND_WB_METHOD = 'median-around-cube/v1'
+
+const median = (values: number[]) => {
+  const sorted = [...values].sort((a, b) => a - b)
+  const mid = sorted.length >> 1
+  return sorted.length % 2 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2
+}
+
+// Per-face gains that bring each face's backdrop to the median backdrop of
+// all faces - the median rather than face 1, so one odd reading (a hand in
+// the frame, a shadow) moves only its own face, and the corrections stay
+// small. On the saved fixtures' backdrop readings it misread 15 stickers
+// against 17 without gains and 19 relative to face 1. A face without a
+// backdrop reading stays neutral; null with fewer than 3 readings.
+export function computeBackgroundGains(backgrounds: Record<string, RGB | null | undefined>): Record<string, RGB> | null {
+  const readings = Object.values(backgrounds).filter((bg): bg is RGB => !!bg)
+  if (readings.length < 3) return null
+  const reference = { r: median(readings.map((bg) => bg.r)), g: median(readings.map((bg) => bg.g)), b: median(readings.map((bg) => bg.b)) }
+  return Object.fromEntries(Object.entries(backgrounds).map(([face, bg]) => [face, bg
+    ? limitBackgroundGain({ r: reference.r / Math.max(1, bg.r), g: reference.g / Math.max(1, bg.g), b: reference.b / Math.max(1, bg.b) })
+    : NEUTRAL_GAINS]))
+}
 
 // Crops just the analyzed face region out of a captured frame, for showing
 // the user what was actually sampled (e.g. in a post-capture review step) —

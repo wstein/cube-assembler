@@ -10,7 +10,7 @@ import { runFullParity, type ParityResult } from './parity'
 import { WIZARD_FACE_ORDER, faceContentKey, groupWizardOptions, pickWizardFace, preferredGuidedArrangementIndex } from './orientationWizard'
 import {
   faceBoundsForMode, captureAndProcessFace, captureAndProcessCanvas, captureAndProcessImage, hasVisibleCubeFace,
-  runGlobalWhiteBalance, BACKGROUND_CUBE_GAP, NEUTRAL_GAINS, CROP_JPEG_QUALITY,
+  runGlobalWhiteBalance, computeBackgroundGains, BACKGROUND_WB_METHOD, BACKGROUND_CUBE_GAP, NEUTRAL_GAINS, CROP_JPEG_QUALITY,
   DEFAULT_SAMPLING, MAX_BACKGROUND_GAP, STICKER_MEASUREMENT, stickerSampleRect, colorConfidences, STICKER_COLORS, type SamplingGeometry,
   rgbToOKLCH, hueCircularRange, hueRangesOverlap, linearRange,
   type ColorDetectionResult, type FaceCaptureResult, type RGB,
@@ -57,9 +57,9 @@ interface FaceCaptureData {
   croppedImage?: string
   // Live-sampled at capture time from the area around the cube (see
   // extractBackgroundColor) - null when unavailable (frame too small, or
-  // the ring read back unreliably dark). Used to derive a per-face
+  // the backdrop read back unreliably dark). Used to derive a per-face
   // cross-face correction gain once all 6 faces are in; see
-  // computeFaceBackgroundGains.
+  // computeBackgroundGains.
   backgroundColor?: RGB | null
   // Capture context saved with fixtures - see FaceCaptureResult. The camera
   // settings are read at the moment of capture since exposure and white
@@ -803,8 +803,8 @@ function App() {
   }
   const [globalWhiteBalanceNote, setGlobalWhiteBalanceNote] = useState<string | null>(null)
   // The per-face background-derived gains actually applied this capture
-  // (see computeFaceBackgroundGains below) - kept only so a saved fixture
-  // can record what correction was in play, for later debugging/analysis.
+  // (see computeBackgroundGains) - recorded in saved fixtures, which
+  // replay them.
   const [appliedBackgroundGains, setAppliedBackgroundGains] = useState<Record<string, RGB> | null>(null)
   const [reviewStep, setReviewStep] = useState(0)
   // Captured once per webcam session (device label isn't available until
@@ -1259,15 +1259,13 @@ function App() {
         const images: Record<string, string> = {}
         for (const f of FACE_ORDER) images[f] = newCapturedFaces[f].croppedImage!
 
-        // No per-face correction from the background around the cube any
-        // more: rescaling each face to match face 1's background swapped
-        // red and orange on real captures (12 stickers on a 4x4 whose
-        // photos read perfectly without it, 2 on a 2x2), and every real
-        // fixture reads as well or better without it. The background is
-        // still recorded per face (FaceCaptureData.backgroundColor).
-        setAppliedBackgroundGains(null)
+        // Each face's backdrop brought to the median of all six (see
+        // computeBackgroundGains) before the colors are learned; neutral
+        // without enough backdrop readings (e.g. imported photos).
+        const faceGains = computeBackgroundGains(Object.fromEntries(FACE_ORDER.map((f) => [f, newCapturedFaces[f].backgroundColor])))
+        setAppliedBackgroundGains(faceGains)
 
-        const wb = await runGlobalWhiteBalance(images, puzzleSize, undefined, sampling)
+        const wb = await runGlobalWhiteBalance(images, puzzleSize, faceGains ?? undefined, sampling)
         setLearnedPalette(wb.learned?.colors ?? null)
         setCaptureProfile({ id: profile.id, name: profile.name })
         // Remember this cube's colors for its next capture - only from the
@@ -1351,7 +1349,8 @@ function App() {
         colorsURFDLB?: string
         faces: Record<string, { photo: string } & Record<string, unknown>>
         capture?: {
-          backgroundWhiteBalance?: Record<string, RGB>
+          backgroundWhiteBalance?: Record<string, RGB> | null
+          backgroundWhiteBalanceMethod?: string
           sampling?: SamplingGeometry
           profile?: { id?: string; name?: string } | null
           protocol?: string | null
@@ -1408,8 +1407,12 @@ function App() {
       const recordedProfile = meta.capture?.profile
       setCaptureProfile(recordedProfile?.name ? { id: recordedProfile.id, name: recordedProfile.name } : null)
       const images = Object.fromEntries(Object.entries(newEntries).map(([f, d]) => [f, d.croppedImage!]))
-      // Recorded gains aren't replayed - see finalizeAllFacesCaptured.
-      const wb = await runGlobalWhiteBalance(images, meta.gridSize, undefined, meta.capture?.sampling ?? DEFAULT_SAMPLING)
+      // Background gains are replayed only if made the current way (see
+      // BACKGROUND_WB_METHOD); older ones swapped red and orange.
+      const recordedGains = meta.capture?.backgroundWhiteBalanceMethod === BACKGROUND_WB_METHOD
+        ? meta.capture.backgroundWhiteBalance ?? null
+        : null
+      const wb = await runGlobalWhiteBalance(images, meta.gridSize, recordedGains ?? undefined, meta.capture?.sampling ?? DEFAULT_SAMPLING)
       let mismatches = 0
       for (const [f, entry] of Object.entries(newEntries)) {
         const det = wb.faces[f]
@@ -1421,7 +1424,7 @@ function App() {
         entry.colors.forEach((row, r) => row.forEach((color, c) => { if (det.colors[r][c] !== color) mismatches++ }))
         if (ignoreFixtureCorrections) entry.colors = det.colors.map((row) => [...row])
       }
-      setAppliedBackgroundGains(null)
+      setAppliedBackgroundGains(recordedGains)
       setGlobalWhiteBalanceNote(wb.applied
         ? CALIBRATION_NOTE
         : null)
@@ -1726,14 +1729,13 @@ function App() {
         // How the per-face `readings` were measured (see stickerColor).
         measurement: STICKER_MEASUREMENT,
         assembledURFDLB: cube ? toWRGFacelets(cube) : null,
-        // No fixed-preset/gray-world software white-balance runs at capture
-        // time any more (see the "Gains" comment in imageProcessing.ts), and
-        // no per-face background gain either (backgroundWhiteBalance stays
-        // null - see finalizeAllFacesCaptured; each face's background is
-        // still recorded per face). What runs is the post-capture
-        // recalibration (colorCalibration - learnStickerColors), which
-        // learns the 6 colors from this capture's own stickers.
+        // Two corrections run after all 6 faces are in: each face's
+        // backdrop brought to the median of all six (backgroundWhiteBalance,
+        // per-face gains - see computeBackgroundGains; each face's backdrop
+        // reading is recorded per face), then the 6 colors learned from
+        // this capture's own stickers (colorCalibration).
         backgroundWhiteBalance: appliedBackgroundGains,
+        backgroundWhiteBalanceMethod: appliedBackgroundGains ? BACKGROUND_WB_METHOD : null,
         // Face border and sticker gap used to sample every face (see
         // SamplingGeometry) - replayed by the fixture test.
         sampling,

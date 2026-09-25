@@ -17,9 +17,9 @@ import { cellEdges } from '../src/client/gridAlignment'
 import { describe, it, expect } from 'vitest'
 import {
   learnStickerColors, rgbToOKLCH, hueCircularRange, hueRangesOverlap, linearRange,
-  hungarianAssignment, trimmedMeanColor, STICKER_COLORS, extractBackgroundColor, BACKGROUND_CUBE_GAP,
+  hungarianAssignment, trimmedMeanColor, STICKER_COLORS, extractBackgroundColor, BACKGROUND_CUBE_GAP, computeBackgroundGains,
   stickerSampleRect, DEFAULT_SAMPLING, measureSharpness, classifySticker, stickerColor,
-  extractColorsFromImageData, hasPlausibleStickerFace, hasVisibleCubeFace, faceVisibility, faceBoundsForMode, type RGB,
+  extractColorsFromImageData, hasPlausibleStickerFace, hasVisibleCubeFace, faceVisibility, faceBoundsForMode, NEUTRAL_GAINS, type RGB,
 } from '../src/client/imageProcessing'
 
 describe('capture geometry modes', () => {
@@ -820,6 +820,27 @@ describe('extractBackgroundColor gap to the cube', () => {
 
   it('gives up when the cube leaves too little backdrop', () => {
     expect(extractBackgroundColor(frame(300, 300, () => false), 0, { startX: 0, startY: 0, faceWidth: 300, faceHeight: 300 })).toBeNull()
+  })
+})
+
+describe('computeBackgroundGains', () => {
+  const grey = (v: number, tint: Partial<RGB> = {}): RGB => ({ r: v, g: v, b: v, ...tint })
+
+  it('brings each face to the median backdrop, so one odd face moves only itself', () => {
+    const gains = computeBackgroundGains({ U: grey(100), R: grey(100), F: grey(100), D: grey(100), L: grey(100), B: grey(100, { b: 125 }) })!
+    for (const f of ['U', 'R', 'F', 'D', 'L']) expect(gains[f]).toEqual({ r: 1, g: 1, b: 1 })
+    expect(gains.B).toEqual({ r: 1, g: 1, b: 0.8 })
+  })
+
+  it('caps each gain and leaves faces without a reading neutral', () => {
+    const gains = computeBackgroundGains({ U: grey(100), R: grey(100), F: grey(100), D: grey(50), L: null, B: undefined })!
+    expect(gains.D).toEqual({ r: 1.3, g: 1.3, b: 1.3 })
+    expect(gains.L).toEqual(NEUTRAL_GAINS)
+    expect(gains.B).toEqual(NEUTRAL_GAINS)
+  })
+
+  it('needs at least 3 readings', () => {
+    expect(computeBackgroundGains({ U: grey(100), R: grey(90), F: null })).toBeNull()
   })
 })
 
