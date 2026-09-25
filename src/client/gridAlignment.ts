@@ -24,6 +24,9 @@ export interface GridAlignment extends FaceSquare {
   score: number
   // Whether the seams were convincing enough to move off the guide.
   aligned: boolean
+  // Whether the returned square's grid lines sit on seams at all - true
+  // for an aligned square, and for a kept guide that already fits.
+  seams: boolean
   // Width of the outer rows and columns relative to the inner ones.
   outer: number
   // In-plane tilt (radians, canvas rotate() direction) the square is turned
@@ -232,6 +235,24 @@ export function findGridAlignment(
   return { ...found, angle, center, x: center[0] - found.size / 2, y: center[1] - found.size / 2 }
 }
 
+// Tilt, position and size of the face around `guide`: the measured tilt is
+// kept only when a grid shows up under it. Edge directions alone can point
+// at a tilt in anything striped; then the face is searched upright.
+export function alignFace(
+  data: Uint8ClampedArray,
+  width: number,
+  height: number,
+  guide: FaceSquare,
+  gridSize: number
+): GridAlignment {
+  const angle = estimateTilt(data, width, height, guide)
+  if (angle) {
+    const tilted = findGridAlignment(data, width, height, guide, gridSize, angle)
+    if (tilted.seams) return tilted
+  }
+  return findGridAlignment(data, width, height, guide, gridSize)
+}
+
 function searchUpright(
   data: Uint8ClampedArray,
   width: number,
@@ -256,7 +277,7 @@ function searchUpright(
   // Offsets stay under half of the narrowest (inner) cell.
   const maxOffset = guide.size * Math.min(ALIGNMENT_MAX_OFFSET, MAX_OFFSET_CELLS / gridSize)
   const step = Math.max(1, guide.size / 200)
-  let best: Omit<GridAlignment, 'angle' | 'center'> = { ...guide, score: stay.score, aligned: false, outer: stay.outer }
+  let best: Omit<GridAlignment, 'angle' | 'center' | 'seams'> = { ...guide, score: stay.score, aligned: false, outer: stay.outer }
   for (let scale = SCALE_RANGE[0]; scale <= SCALE_RANGE[1] + 1e-9; scale += SCALE_STEP) {
     const size = guide.size * scale
     const centered = (guide.size - size) / 2
@@ -278,9 +299,10 @@ function searchUpright(
   }
 
   if (!best.aligned || best.score < MIN_SEAM_SCORE || best.score - stay.score < MIN_IMPROVEMENT) {
-    return { ...guide, score: stay.score, aligned: false, outer: stay.score >= MIN_SEAM_SCORE ? stay.outer : 1 }
+    const seams = stay.score >= MIN_SEAM_SCORE
+    return { ...guide, score: stay.score, aligned: false, seams, outer: seams ? stay.outer : 1 }
   }
-  return best
+  return { ...best, seams: true }
 }
 
 // The outer-cell ratio of a face that already fills `data` (an aligned
