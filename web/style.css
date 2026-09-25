@@ -1142,6 +1142,17 @@ textarea {
   margin-bottom: var(--spacing-md);
 }
 
+.orientation-choice-pages {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: var(--spacing-sm);
+  margin: var(--spacing-md) 0;
+  color: var(--color-text-secondary);
+  font-size: 0.9rem;
+}
+
 .orientation-approval-option {
   display: flex;
   flex-direction: column;
