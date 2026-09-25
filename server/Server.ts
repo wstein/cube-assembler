@@ -4,14 +4,11 @@
  * Architecture:
  *   - Hono handles routing (zero dependencies beyond hono + cubing)
  *   - Bun serves ReScript compiled .js and static web/ assets directly
- *   - Heavy assembly pipeline runs in a Bun Worker thread
- *   - Results streamed back to client via Server-Sent Events (SSE)
  *
  * Routes:
  *   GET  /                         → serves index.html
  *   GET  /lib/*                    → serves ReScript compiled ESM (.js)
  *   GET  /web/*                    → serves web assets (CSS, client TS)
- *   POST /api/assemble             → SSE stream of assembly pipeline stages
  *   POST /api/parity               → synchronous parity check result
  *   POST /api/apply-alg            → apply WCA alg to cube state
  *   GET  /api/scramble?size=4      → generate WCA scramble for puzzle size
@@ -26,7 +23,6 @@ import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { logger } from "hono/logger";
 import { serveStatic } from "hono/bun";
-import { streamSSE } from "hono/streaming";
 import { randomScrambleForEvent } from "cubing/scramble";
 import { Alg } from "cubing/alg";
 import { puzzles } from "cubing/puzzles";
@@ -43,17 +39,6 @@ export type CubeIR = {
   u: FaceGrid; r: FaceGrid; f: FaceGrid;
   d: FaceGrid; l: FaceGrid; b: FaceGrid;
 };
-
-export type AssembleRequest = {
-  faces: FaceGrid[]; // 6 face grids in any order (unlabelled)
-  size: number;      // puzzle size N (2..7)
-};
-
-export type AssembleSSEEvent =
-  | { type: "start";   total: number }
-  | { type: "stage";   stage: string; count: number; tested: number }
-  | { type: "result";  states: CubeIR[] }
-  | { type: "error";   message: string };
 
 export type ParityRequest  = { cube: CubeIR };
 export type FaceletRef = { face: string; index: number };
@@ -439,8 +424,8 @@ function runFullParity(cube: CubeIR): ParityResponse {
   // is an actual permutation of 0..7. A real capture demonstrated this
   // exact gap: every individual triple read as a valid corner, yet the
   // piece list was [0,1,1,0,7,6,6,7] - not a permutation at all (2026-09-23
-  // design discussion; same fix mirrored in AssemblyWorker.ts's
-  // checkFullParity and src/client/cubeAssembly.ts's isFullyValid).
+  // design discussion; same fix mirrored in src/client/cubeAssembly.ts's
+  // isFullyValid).
   {
     const firstSlotForPiece = new Map<number, number>();
     for (let slot = 0; slot < cornerPieces.length; slot++) {
@@ -640,45 +625,6 @@ app.post("/api/apply-alg", async (c) => {
   } catch (e) {
     return c.json({ error: String(e) }, 400);
   }
-});
-
-// ── POST /api/assemble — SSE streaming pipeline ───────────────────────────────
-app.post("/api/assemble", async (c) => {
-  const body = await c.req.json<AssembleRequest>();
-  const { faces, size } = body;
-
-  if (faces.length !== 6 || !wcaEventIds[size]) {
-    return c.json({ error: "Need exactly 6 faces and valid size (2–7)" }, 400);
-  }
-
-  return streamSSE(c, async (sse) => {
-    const TOTAL = 720 * 4096; // 6! × 4^6 candidates
-
-    await sse.writeSSE({ data: JSON.stringify({ type: "start", total: TOTAL }) });
-
-    // Run in a Bun Worker to avoid blocking the event loop
-    const worker = new Worker(
-      new URL("./AssemblyWorker.ts", import.meta.url),
-      { type: "module" }
-    );
-
-    worker.postMessage({ faces, size });
-
-    const done = new Promise<void>((resolve, reject) => {
-      worker.onmessage = async (e) => {
-        const msg = e.data as AssembleSSEEvent;
-        await sse.writeSSE({ data: JSON.stringify(msg) });
-
-        if (msg.type === "result" || msg.type === "error") {
-          worker.terminate();
-          resolve();
-        }
-      };
-      worker.onerror = (err) => { reject(err); worker.terminate(); };
-    });
-
-    await done;
-  });
 });
 
 // ── POST /api/parse-wrg ───────────────────────────────────────────────────────
