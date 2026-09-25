@@ -463,7 +463,7 @@ function TurnHint({ step }: { step: number }) {
 // example: the guided solver determines the real face orientation afterward.
 // It closes when the cube's turn animation ends, so its length lives only in
 // the CSS; the timer is a fallback in case that animation never runs.
-const TURN_CUE_FALLBACK_MS = 8000
+const TURN_CUE_FALLBACK_MS = 4500
 function CaptureTurnOverlay({ step, startColors, viaColors, onContinue }: { step: number; startColors: string[][]; viaColors?: string[][]; onContinue: () => void }) {
   const kind = step < 4 ? 'side' : step === 4 ? 'top' : 'bottom'
   const title = kind === 'side' ? 'Turn to another side' : kind === 'top' ? 'Show a remaining face' : 'Show the last face'

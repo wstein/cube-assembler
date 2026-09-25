@@ -1721,12 +1721,12 @@ textarea {
 }
 
 @media (prefers-reduced-motion: no-preference) {
-  .capture-turn-side .capture-turn-cube { animation: capture-turn-side 2.4s ease-in-out forwards; }
-  .capture-turn-top .capture-turn-cube { animation: capture-turn-top 2.4s ease-in-out forwards; }
-  /* Face 5 -> Side 4 takes one full turn (2.4 s), pauses 300 ms, then
-     Side 4 -> Face 6 (2.4 s): 5.1 s, with the pause at 2.4/5.1 and 2.7/5.1
+  .capture-turn-side .capture-turn-cube { animation: capture-turn-side 1.2s ease-in-out forwards; }
+  .capture-turn-top .capture-turn-cube { animation: capture-turn-top 1.2s ease-in-out forwards; }
+  /* Face 5 -> Side 4 takes one full turn (1.2 s), pauses 300 ms, then
+     Side 4 -> Face 6 (1.2 s): 2.7 s, with the pause at 1.2/2.7 and 1.5/2.7
      in the keyframes below. The dialog closes on animationend. */
-  .capture-turn-bottom .capture-turn-cube { animation: capture-turn-bottom 5.1s ease-in-out forwards; }
+  .capture-turn-bottom .capture-turn-cube { animation: capture-turn-bottom 2.7s ease-in-out forwards; }
 }
 
 @keyframes capture-turn-side {
@@ -1741,7 +1741,7 @@ textarea {
 
 @keyframes capture-turn-bottom {
   0% { transform: translateZ(calc(-1 * var(--turn-depth))); }
-  47.0588%, 52.9412% { transform: translateZ(calc(-1 * var(--turn-depth))) rotateX(90deg); }
+  44.4444%, 55.5556% { transform: translateZ(calc(-1 * var(--turn-depth))) rotateX(90deg); }
   100% { transform: translateZ(calc(-1 * var(--turn-depth))) rotateX(180deg); }
 }
 
