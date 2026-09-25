@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { strToU8, zipSync } from 'fflate'
-import { buildFixture, unzipFixture, zipFixture, type FixtureRequest } from '../src/client/fixtureZip'
+import { buildFixture, summarizeFixture, unzipFixture, zipFixture, type FixtureRequest } from '../src/client/fixtureZip'
 
 const DIR = join(__dirname, 'fixtures', 'synthetic-sanity-check')
 const saved = JSON.parse(readFileSync(join(DIR, 'meta.json'), 'utf8'))
@@ -67,5 +67,33 @@ describe('fixture zips', () => {
 
   it('says when a zip holds no fixture', () => {
     expect(() => unzipFixture(zipSync({ 'notes.txt': strToU8('hi') }))).toThrow('No meta.json in the zip')
+  })
+
+  it('summarizes what a fixture holds', () => {
+    const colors: string = saved.colorsURFDLB
+    const summary = summarizeFixture(buildFixture(request({
+      detectedURFDLB: `Y${colors.slice(1, -1)}W`,
+      meta: {
+        capturedAt: '2026-09-25T18:50:01.234Z',
+        app: { version: '0.1.0', commit: 'abc1234' },
+        camera: { label: 'FaceTime HD Camera', granted: { width: 1920, height: 1080 } },
+        profile: { name: 'QiYi 3×3' },
+        protocol: 'sides-then-top-bottom/v1',
+        colorCalibration: { applied: true, learnedColors: { W: [250, 250, 250] } },
+      },
+    })))
+    expect(summary.photos.map((p) => [p.face, p.file, p.bytes.length])).toEqual(
+      ['u', 'r', 'f', 'd', 'l', 'b'].map((face) => [face, `face-${face}.jpg`, photo(face).length]))
+    expect(Object.fromEntries(summary.rows)).toMatchObject({
+      Cube: '3×3',
+      'Fixed by hand': '2 stickers',
+      Capture: 'guided (4 sides, then top and bottom)',
+      'Photos from': 'camera',
+      Camera: 'FaceTime HD Camera, 1920×1080',
+      'Cube profile': 'QiYi 3×3',
+      'Colors learned': 'from this capture',
+      App: '0.1.0 (abc1234)',
+    })
+    expect(Object.fromEntries(summarizeFixture(buildFixture(request())).rows)).toMatchObject({ 'Fixed by hand': 'not recorded', Capture: 'free order' })
   })
 })
