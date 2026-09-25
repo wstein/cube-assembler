@@ -2,10 +2,11 @@ import { render, h, Fragment } from 'preact'
 import { useState, useEffect, useRef, useMemo } from 'preact/hooks'
 import '../../web/style.css'
 import { apiFetch } from './api'
+import { AUTO_CAPTURE_STABLE_FRAMES, nextAutoCaptureProgress, type AutoCaptureProgress } from './autoCapture'
 import { diagnoseFaceDetection } from './detectionDiagnostics'
 import { WIZARD_FACE_ORDER, faceContentKey, groupWizardOptions, pickWizardFace } from './orientationWizard'
 import {
-  faceBoundsForMode, captureAndProcessFace, captureAndProcessImage, extractCubeFaceColors, hasVisibleCubeFace,
+  faceBoundsForMode, captureAndProcessFace, captureAndProcessCanvas, captureAndProcessImage, extractCubeFaceColors, hasVisibleCubeFace,
   runGlobalWhiteBalance, NEUTRAL_GAINS, CROP_JPEG_QUALITY,
   DEFAULT_SAMPLING, MAX_BACKGROUND_GAP, STICKER_MEASUREMENT, stickerSampleRect, colorConfidences, STICKER_COLORS, type SamplingGeometry,
   rgbToOKLCH, hueCircularRange, hueRangesOverlap, linearRange,
@@ -681,6 +682,10 @@ function App() {
   const [hoveredHighlightGroup, setHoveredHighlightGroup] = useState<string | null>(null)
   const [webcamOpen, setWebcamOpen] = useState(false)
   const [captureMode, setCaptureMode] = useState<CaptureMode>('cv')
+  const [autoCapture, setAutoCapture] = useState(true)
+  const [autoCaptureFrames, setAutoCaptureFrames] = useState(0)
+  const autoCaptureInFlight = useRef(false)
+  const lastCapturedColors = useRef<string[][] | null>(null)
   const [webcamFace, setWebcamFace] = useState('U')
   const [capturedFaces, setCapturedFaces] = useState<Record<string, FaceCaptureData>>({})
   const [faceConfidence, setFaceConfidence] = useState<Record<string, number>>({})
@@ -914,17 +919,19 @@ function App() {
   // the turn cue covers the video - nobody can see the result then.
   const turnCueShowing = turnOverlay !== null
   useEffect(() => {
+    setAutoCaptureFrames(0)
     if (!webcamOpen) {
       setLiveDetection(null)
       setLiveFaceVisible(false)
       return
     }
-    if (turnCueShowing) return
+    if (turnCueShowing || loading) return
 
     if (!sampleCanvasRef.current) {
       sampleCanvasRef.current = document.createElement('canvas')
     }
     const canvas = sampleCanvasRef.current
+    let progress: AutoCaptureProgress | null = null
 
     const intervalId = setInterval(() => {
       const video = webcamRef.current
@@ -945,16 +952,48 @@ function App() {
         const visible = (captureMode === 'guide' || bounds.gridFound === true) && hasVisibleCubeFace(canvas, puzzleSize, bounds)
         setLiveDetection(detection)
         setLiveFaceVisible(visible)
+        if (captureMode === 'cv' && autoCapture && !autoCaptureInFlight.current) {
+          progress = nextAutoCaptureProgress(progress, visible && bounds.gridFound ? {
+            colors: detection.colors,
+            confidence: detection.confidence,
+            centerX: bounds.startX + bounds.faceWidth / 2,
+            centerY: bounds.startY + bounds.faceHeight / 2,
+            size: bounds.faceWidth,
+            angle: bounds.angle ?? 0,
+          } : null, lastCapturedColors.current)
+          setAutoCaptureFrames(progress?.frames ?? 0)
+          if (progress && progress.frames >= AUTO_CAPTURE_STABLE_FRAMES) {
+            autoCaptureInFlight.current = true
+            progress = null
+            const frame = document.querySelector('.capture-scan-frame')?.getBoundingClientRect()
+            if (frame) pendingFlyIn.current = { slot: webcamFace, from: frame }
+            try {
+              // Capture exactly the frame whose grid and colors stayed stable.
+              const result = captureAndProcessCanvas(canvas, puzzleSize, NEUTRAL_GAINS, sampling, palette, 'aligned', bounds)
+              const track = (video.srcObject as MediaStream | null)?.getVideoTracks()[0]
+              setLoading(true)
+              setCaptureMessage('Processing image...')
+              void applyFaceCapture(webcamFace, result, 'camera', track ? withoutDeviceIds(track.getSettings()) : undefined)
+                .catch((err) => setCaptureMessage(`❌ Error: ${err instanceof Error ? err.message : 'Unknown error'}`))
+                .finally(() => { autoCaptureInFlight.current = false; setLoading(false) })
+            } catch (err) {
+              autoCaptureInFlight.current = false
+              setCaptureMessage(`❌ Error: ${err instanceof Error ? err.message : 'Unknown error'}`)
+            }
+          }
+        }
         if (saveDiagnostics && captureMode === 'cv' && !visible) maybeSaveDiagnostic(canvas, detection)
       } catch {
         // Transient frame read failure (e.g. camera still warming up).
         setLiveDetection(null)
         setLiveFaceVisible(false)
+        progress = null
+        setAutoCaptureFrames(0)
       }
     }, 200)
 
     return () => { clearInterval(intervalId) }
-  }, [webcamOpen, turnCueShowing, puzzleSize, sampling, palette, captureMode, saveDiagnostics, mirrorPreview, profile.name])
+  }, [webcamOpen, turnCueShowing, loading, webcamFace, puzzleSize, sampling, palette, captureMode, autoCapture, capturedFaces, faceConfidence, saveDiagnostics, mirrorPreview, profile.name])
 
   // Opt-in: saves a live frame Detect face turned down, with its diagnosis
   // (diagnoseFaceDetection), to test/diagnostics/ on this computer - so a
@@ -1007,6 +1046,7 @@ function App() {
     setHoveredHighlightGroup(null)
     setCapturedFaces({})
     setFaceConfidence({})
+    lastCapturedColors.current = null
     setWebcamFace(FACE_ORDER[0])
     setLiveDetection(null)
     setShowReviewDialog(false)
@@ -1237,6 +1277,7 @@ function App() {
   // faces instead of silently reusing the other 5's stale data.
   const handleOpenCapture = () => {
     dismissTurnOverlay()
+    lastCapturedColors.current = null
     const allCaptured = FACE_ORDER.every((f) => f in capturedFaces)
     if (allCaptured) {
       setCapturedFaces({})
@@ -1296,6 +1337,7 @@ function App() {
     }
 
     setCapturedFaces(newCapturedFaces)
+    lastCapturedColors.current = result.colors
     setFaceConfidence({ ...faceConfidence, [face]: result.confidence })
     setCaptureMessage(`✓ ${FACE_DISPLAY_LABEL[face]} captured (${(result.confidence * 100).toFixed(0)}% confidence)`)
 
@@ -2411,6 +2453,7 @@ function App() {
                   predictedCenter={predictedCenter}
                   onSelect={(slot) => {
                     dismissTurnOverlay()
+                    lastCapturedColors.current = null
                     setWebcamFace(slot)
                     setCaptureMessage('')
                   }}
@@ -2432,6 +2475,7 @@ function App() {
                     type="button"
                     class="btn btn-secondary btn-sm"
                     onClick={() => {
+                      lastCapturedColors.current = null
                       setWebcamFace(FACE_ORDER[captureWarning.retake])
                       setCaptureMessage('')
                     }}
@@ -2659,6 +2703,12 @@ function App() {
                 </div>
               )}
               <div class="capture-actions">
+                {captureMode === 'cv' && (
+                  <label class="auto-capture-toggle">
+                    <input type="checkbox" checked={autoCapture} onChange={(e) => setAutoCapture(e.currentTarget.checked)} />
+                    <span>{autoCapture ? `Auto capture · hold steady ${autoCaptureFrames}/${AUTO_CAPTURE_STABLE_FRAMES}` : 'Auto capture'}</span>
+                  </label>
+                )}
                 <div
                   role="status"
                   class={`capture-message ${captureMessage ? (captureMessage.includes('✓') ? 'success' : captureMessage.includes('❌') ? 'error' : '') : 'is-empty'}`}
@@ -2670,7 +2720,7 @@ function App() {
                   onClick={handleCapturePhoto}
                   disabled={loading || turnOverlay !== null}
                 >
-                  {loading ? '⏳ Processing...' : `Capture ${FACE_DISPLAY_LABEL[webcamFace].toLowerCase()}`}
+                  {loading ? '⏳ Processing...' : autoCapture && captureMode === 'cv' ? 'Capture now' : `Capture ${FACE_DISPLAY_LABEL[webcamFace].toLowerCase()}`}
                 </button>
               </div>
             </div>
