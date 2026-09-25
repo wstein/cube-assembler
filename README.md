@@ -30,6 +30,11 @@ The capture dialog has two modes; neither needs a downloaded model.
   is found it says *Align face in view* and waits.
 - **Guide grid** reads exactly the square drawn on screen.
 
+On the first face in Detect face mode, the app counts repeating seams in
+both directions to identify a 2×2–7×7 grid. It changes the size only after
+two agreeing live readings of a visible face. A manually selected size takes
+precedence, and the size stays fixed after the first face is captured.
+
 ### How Detect face finds a face
 
 `src/client/gridAlignment.ts` searches around the centered guide for the
@@ -192,19 +197,15 @@ or imported photos and reconstructs its state:
 
 1. **Capture** — one neutral entry point walks through 6 faces (labeled
    1–6, not U/R/F/D/L/B — the app has no way to know a face's identity
-   from a photo alone). Grid size (2×2–7×7) is picked explicitly with a
-   selector in the capture dialog (changing it mid-session clears any
-   already-captured faces, since they'd otherwise mix grid sizes); a
-   manual or auto-estimated white balance (gray-world light-source
-   detection) is applied per shot. Auto mode estimates live while framing
-   face 1, then locks to whatever it was at the moment face 1 was
-   captured — faces 2–6 reuse that same gain instead of each
-   re-estimating from their own (possibly differently-framed) shot. The
-   live overlay is a plain wireframe — just each cell's confidence-
-   colored border over the raw camera feed, no fill or text — so the
-   photo itself stays fully visible for framing; the full per-sticker
-   OKLCH breakdown (and a color swatch) shows up once you're in the
-   review wizard instead, where there's room for it.
+   from a photo alone). Detect face estimates the grid size from the first
+   visible face; the 2×2–7×7 selector remains available for manual choice.
+   Changing size after a capture clears the saved faces. The first two
+   adjacent odd-size faces keep their photographed slots. If the second
+   face is opposite the first, it goes to slot 3 and slot 2 waits for an
+   adjacent face. Later 3×3, 5×5 and 7×7 faces are placed by their fixed
+   center colors even when photographed out of order. Even cubes have no
+   fixed center, so they stay in capture order. The saved net always shows
+   the captured colors, including with Mirror enabled.
 2. **Review** — after all 6 faces are captured, a global recalibration
    pass re-clusters all stickers together (k-means, with each iteration's
    assignment step solved as a genuine optimal balanced assignment —
