@@ -714,6 +714,30 @@ describe('extractBackgroundColor background gap', () => {
     // 40px of a 300px square = 0.133 - round up to be sure it's all skipped
     expect(extractBackgroundColor(frameWithHand(), 0.14)).toEqual({ r: 120, g: 120, b: 120 })
   })
+
+  it('leaves out a face captured off the guide', () => {
+    // A red face aligned 60px right of and a bit larger than the guide
+    // (x 130..470, y 90..430) reaches well into the background ring.
+    const face = { startX: 130, startY: 90, faceWidth: 340, faceHeight: 340 }
+    const frame = {
+      width: 500,
+      height: 500,
+      getContext: () => ({
+        getImageData(sx: number, sy: number, sw: number, sh: number) {
+          const data = new Uint8ClampedArray(sw * sh * 4)
+          for (let y = 0; y < sh; y++) for (let x = 0; x < sw; x++) {
+            const fx = sx + x, fy = sy + y
+            const onFace = fx >= 130 && fx < 470 && fy >= 90 && fy < 430
+            data.set(onFace ? [200, 40, 40, 255] : [120, 120, 120, 255], (y * sw + x) * 4)
+          }
+          return { data, width: sw, height: sh }
+        },
+      }),
+    } as unknown as HTMLCanvasElement
+    // Without the face's bounds its red leaks into the grey sample.
+    expect(extractBackgroundColor(frame)).not.toEqual({ r: 120, g: 120, b: 120 })
+    expect(extractBackgroundColor(frame, 0, face)).toEqual({ r: 120, g: 120, b: 120 })
+  })
 })
 
 describe('measureSharpness', () => {
