@@ -1477,7 +1477,12 @@ export function extractCubeFaceColors(
 ): ColorDetectionResult {
   const { imageData, faceWidth, faceHeight } = readFaceRegion(canvas, bounds)
   const result = extractColorsFromImageData(imageData.data, faceWidth, faceHeight, gridSize, gains, sampling, palette)
-  const guide = computeFaceBounds(canvas)
+  return withGridOffset(result, bounds, computeFaceBounds(canvas))
+}
+
+// `result` with where its square sat relative to the guide (gridOffset), when
+// it was moved off the guide - what the live overlay is drawn from.
+export function withGridOffset(result: ColorDetectionResult, bounds: FaceBounds, guide: FaceBounds): ColorDetectionResult {
   if (bounds.startX === guide.startX && bounds.startY === guide.startY && bounds.faceWidth === guide.faceWidth && !bounds.angle) return result
   return {
     ...result,
