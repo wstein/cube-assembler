@@ -11,7 +11,7 @@
 import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { rotateCube, turnFace, allOrientations, solvedCubeFaces, type Faces } from '../src/client/cubeGeometry'
-import { solveGuidedCapture, checkGuidedCenters, findRepeatedFaces, findCapturedFaceMatch, findCaptureSlotForOrientedFace, predictGuidedCenters, type FaceKey, type GuidedCapture } from '../src/client/cubeAssembly'
+import { solveGuidedCapture, checkGuidedCenters, findRepeatedFaces, findCapturedFaceMatch, findCaptureSlotForOrientedFace, predictGuidedCenters, captureCenterSlots, captureSlotForCenter, type FaceKey, type GuidedCapture } from '../src/client/cubeAssembly'
 import { preferredGuidedArrangementIndex } from '../src/client/orientationWizard'
 
 const WCA: Record<FaceKey, string> = { U: 'W', R: 'R', F: 'G', D: 'Y', L: 'O', B: 'B' }
@@ -177,6 +177,44 @@ describe('predictGuidedCenters', () => {
       .toEqual([null, null, 'B', 'G', null, null])
     expect(predictGuidedCenters([face(4, 'G'), face(4, 'R')]))
       .toEqual([null, null, null, null, null, null])
+  })
+})
+
+describe('center-routed capture slots', () => {
+  const face = (n: number, color: string) => Array.from({ length: n }, () => Array(n).fill(color))
+
+  for (const n of [3, 5, 7]) {
+    it(`keeps the first two ${n}x${n} photos and routes later faces regardless of arrival order`, () => {
+      const photos: Array<string[][] | undefined> = Array(6).fill(undefined)
+      expect(captureSlotForCenter(photos, 4, face(n, 'O'))).toBe(0)
+      photos[0] = face(n, 'O')
+      expect(captureSlotForCenter(photos, 5, face(n, 'Y'))).toBe(1)
+      photos[1] = face(n, 'Y')
+      expect(captureCenterSlots(photos).slice(0, 4)).toEqual(['O', 'Y', 'R', 'W'])
+      for (const slot of [5, 3, 4, 2]) {
+        const color = captureCenterSlots(photos)[slot]!
+        expect(captureSlotForCenter(photos, 2, face(n, color))).toBe(slot)
+        photos[slot] = face(n, color)
+      }
+      expect(photos.map((photo) => photo?.[Math.floor(n / 2)]?.[Math.floor(n / 2)])).toEqual(captureCenterSlots(photos))
+    })
+  }
+
+  it('does not replace an existing face when its center appears again', () => {
+    const photos = [face(3, 'O'), face(3, 'Y'), undefined, undefined, undefined, undefined]
+    expect(captureSlotForCenter(photos, 2, face(3, 'O'))).toBeNull()
+    expect(captureSlotForCenter(photos, 0, face(3, 'O'))).toBe(0)
+  })
+
+  it('keeps opposite first captures and gives the other centers distinct slots', () => {
+    const photos = [face(3, 'G'), face(3, 'B'), undefined, undefined, undefined, undefined]
+    expect(captureCenterSlots(photos)).toEqual(['G', 'B', 'W', 'Y', 'R', 'O'])
+    expect(captureSlotForCenter(photos, 2, face(3, 'O'))).toBe(5)
+  })
+
+  it('leaves even-size faces in capture order because they have no fixed center', () => {
+    const photos = [face(4, 'O'), face(4, 'Y'), undefined, undefined, undefined, undefined]
+    expect(captureSlotForCenter(photos, 2, face(4, 'G'))).toBe(2)
   })
 })
 

@@ -830,6 +830,40 @@ export function predictGuidedCenters(photos: Array<string[][] | undefined>): Arr
   return predictions
 }
 
+// The first two photos define capture slots, regardless of which physical
+// faces were shown. Once their fixed centers are known, reserve a stable slot
+// for each remaining center so later photos can arrive in any order.
+export function captureCenterSlots(photos: Array<string[][] | undefined>): Array<string | null> {
+  if (!photos[0] || !photos[1]) return predictGuidedCenters(photos)
+  const n = photos[0].length
+  if (![3, 5, 7].includes(n) || photos[1].length !== n) return Array(6).fill(null)
+  const mid = Math.floor(n / 2)
+  const first = photos[0][mid]?.[mid], second = photos[1][mid]?.[mid]
+  if (!first || !second || !OPPOSITE_COLOR[first] || !OPPOSITE_COLOR[second] || first === second) return Array(6).fill(null)
+  if (OPPOSITE_COLOR[first] === second) {
+    const remaining = Object.keys(OPPOSITE_COLOR).filter((color) => color !== first && color !== second)
+    return [first, second, ...remaining]
+  }
+  const suggested = predictGuidedCenters([photos[0], photos[1]])
+  return [first, second, ...suggested.slice(2)]
+}
+
+// An occupied slot is an explicit retake. Otherwise, slots 1 and 2 stay in
+// acquisition order; later odd-size faces follow their center color.
+// A center already present in another slot is a duplicate, not a new face.
+export function captureSlotForCenter(
+  photos: Array<string[][] | undefined>, requestedIndex: number, candidate: string[][]
+): number | null {
+  if (photos[requestedIndex]) return requestedIndex
+  const firstMissing = [0, 1].find((index) => !photos[index])
+  if (firstMissing !== undefined) return firstMissing
+  const n = candidate.length
+  if (![3, 5, 7].includes(n)) return requestedIndex
+  const center = candidate[Math.floor(n / 2)]?.[Math.floor(n / 2)]
+  const index = captureCenterSlots(photos).indexOf(center)
+  return index < 0 || photos[index] ? null : index
+}
+
 // How many stickers already sit on the face of their own color - used to
 // pick which of the 24 whole-cube orientations to present an arrangement
 // in. Centers count far more on odd sizes, since they pin each face's
