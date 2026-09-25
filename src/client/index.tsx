@@ -2319,8 +2319,9 @@ function App() {
                     {liveDetection.colors.map((row, r) =>
                       row.map((color, c) => {
                         const n = liveDetection.colors.length
-                        const cell = stickerSampleRect(r, c, n, 100, 100, { ...sampling, stickerCore: 1 })
-                        const zone = stickerSampleRect(r, c, n, 100, 100, sampling)
+                        const outer = liveDetection.outerCellRatio ?? 1
+                        const cell = stickerSampleRect(r, c, n, 100, 100, { ...sampling, stickerCore: 1 }, outer)
+                        const zone = stickerSampleRect(r, c, n, 100, 100, sampling, outer)
                         return (
                           <Fragment key={`${r}-${c}`}>
                             <div
