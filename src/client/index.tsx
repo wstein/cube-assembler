@@ -91,16 +91,16 @@ declare const __APP_VERSION__: string
 declare const __APP_COMMIT__: string
 
 // Cube profiles (see cubeProfiles.ts) are a property of the user's cubes
-// and camera, not of one capture, so they're remembered between sessions.
-// Kept in a cookie rather than localStorage: cookies aren't scoped by
-// port, so dev servers on different ports (5173, 5180, ...) share them.
-const PROFILES_COOKIE = 'cube-assembler-profiles'
-// Per-size sampling settings from before cube profiles existed - read once
-// and migrated into generic profiles.
+// and camera, not of one capture, so they're remembered between sessions -
+// in localStorage, which has room for any number of them (a cookie, used
+// before, held about 9). Storage is per origin: the Pages site and each
+// local dev port keep their own; the settings file moves them between.
+const PROFILES_KEY = 'cube-assembler-profiles'
+// Where earlier versions kept them - read once, moved over and cleared.
+const LEGACY_PROFILES_COOKIE = 'cube-assembler-profiles'
+// Per-size sampling settings from before cube profiles existed - migrated
+// into generic profiles the same way.
 const LEGACY_SAMPLING_COOKIE = 'cube-assembler-sampling'
-const PROFILES_COOKIE_MAX_AGE = 60 * 60 * 24 * 365 * 5
-// Browsers drop cookies over ~4 KB, so refuse to save past this.
-const PROFILES_COOKIE_MAX_BYTES = 3800
 // Marks a downloaded settings file, so uploading some other JSON is refused.
 const PROFILES_FILE_TYPE = 'cube-assembler-profiles'
 const LEGACY_SAMPLING_FILE_TYPE = 'cube-assembler-sampling'
@@ -115,15 +115,28 @@ function readCookie(name: string): unknown {
 }
 
 function loadProfileStore(): ProfileStore {
-  return parseProfileStore(readCookie(PROFILES_COOKIE) ?? readCookie(LEGACY_SAMPLING_COOKIE))
+  try {
+    const saved = localStorage.getItem(PROFILES_KEY)
+    if (saved !== null) return parseProfileStore(JSON.parse(saved))
+  } catch {
+    // Storage unavailable or corrupt - fall back to the old cookies.
+  }
+  const legacy = readCookie(LEGACY_PROFILES_COOKIE) ?? readCookie(LEGACY_SAMPLING_COOKIE)
+  const store = parseProfileStore(legacy)
+  if (legacy !== null && saveProfileStore(store)) {
+    for (const name of [LEGACY_PROFILES_COOKIE, LEGACY_SAMPLING_COOKIE]) document.cookie = `${name}=; path=/; max-age=0; SameSite=Lax`
+  }
+  return store
 }
 
-// False when the store is too big to keep in a cookie.
+// False when the browser won't store it (storage blocked or full).
 function saveProfileStore(store: ProfileStore): boolean {
-  const value = encodeURIComponent(JSON.stringify(store))
-  if (value.length > PROFILES_COOKIE_MAX_BYTES) return false
-  document.cookie = `${PROFILES_COOKIE}=${value}; path=/; max-age=${PROFILES_COOKIE_MAX_AGE}; SameSite=Lax`
-  return true
+  try {
+    localStorage.setItem(PROFILES_KEY, JSON.stringify(store))
+    return true
+  } catch {
+    return false
+  }
 }
 
 interface CameraInfo {
@@ -745,10 +758,10 @@ function App() {
     learned: Record<string, RGB>
     at: Date
   } | null>(null)
+  // Applied for this session even when the browser won't keep it.
   const applyProfileStore = (updated: ProfileStore) => {
     if (!saveProfileStore(updated)) {
-      setSamplingFileMessage('❌ Too many cube profiles to remember in this browser - delete one first')
-      return
+      setSamplingFileMessage("❌ This browser won't keep cube profiles (storage blocked or full) - download the settings file to save them")
     }
     setProfileStore(updated)
   }

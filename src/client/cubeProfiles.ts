@@ -2,7 +2,7 @@
 // differ in size, sticker gaps and how much of the cube body shows around
 // a face. Each profile belongs to one cube size; each size has one active
 // profile, and a size without any profile uses a built-in generic one.
-// Pure data handling only - storage (cookie/file) lives in index.tsx.
+// Pure data handling only - storage (localStorage/file) lives in index.tsx.
 
 import { DEFAULT_SAMPLING, paletteDistance, type RGB, type SamplingGeometry } from './imageProcessing'
 
