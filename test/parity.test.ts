@@ -1,312 +1,19 @@
 /**
  * test/parity.test.ts
- * Regression tests for server/Server.ts's runFullParity and its facelet-
- * index tables (CORNER_SLOTS, EDGE_FACELETS_3x3, EDGE_LINES).
- *
- * Mirrors the fixed logic inline (matching test/notation.test.ts's own
- * "inline minimal mirrors" approach) rather than importing server/Server.ts
- * directly: that file's default export ({ port, fetch }) is Bun's
- * auto-serve convention, and importing it could risk binding a port
- * already held by a running dev server.
+ * Regression tests for src/client/parity.ts's runFullParity and its
+ * facelet-index tables (CORNER_SLOTS, EDGE_FACELETS_3x3, EDGE_LINES).
  *
  * Run: npx vitest run test/parity.test.ts
  */
 import { describe, it, expect } from 'vitest'
+import type { CubeIR } from '../src/client/cubeAssembly'
+import { runFullParity as checkParity, validateWingEdges } from '../src/client/parity'
 
-type FaceColor = 'W' | 'O' | 'G' | 'R' | 'B' | 'Y'
-type FaceGrid = { n: number; data: FaceColor[] }
-type CubeIR = { size: number; u: FaceGrid; r: FaceGrid; f: FaceGrid; d: FaceGrid; l: FaceGrid; b: FaceGrid }
-type FaceletRef = { face: string; index: number }
-type HighlightGroup = { group: string; facelets: FaceletRef[] }
-
-const SOLVED_CORNERS: Array<[FaceColor, FaceColor, FaceColor]> = [
-  ['W', 'R', 'G'], ['W', 'B', 'R'], ['W', 'O', 'B'], ['W', 'G', 'O'],
-  ['Y', 'G', 'R'], ['Y', 'R', 'B'], ['Y', 'B', 'O'], ['Y', 'O', 'G'],
-]
-const CORNER_NAMES = ['UFR', 'UBR', 'UBL', 'UFL', 'DFR', 'DBR', 'DBL', 'DFL']
-const SOLVED_EDGES: Array<[FaceColor, FaceColor]> = [
-  ['W', 'G'], ['W', 'R'], ['W', 'B'], ['W', 'O'],
-  ['Y', 'G'], ['Y', 'R'], ['Y', 'B'], ['Y', 'O'],
-  ['G', 'R'], ['G', 'O'], ['B', 'R'], ['B', 'O'],
-]
-const EDGE_NAMES = ['UF', 'UR', 'UB', 'UL', 'DF', 'DR', 'DB', 'DL', 'FR', 'FL', 'BR', 'BL']
-
-// Corners are always single unit cubies regardless of puzzle size N, so
-// their 4 grid-corner slots (top-left/top-right/bottom-left/bottom-right)
-// on each face generalize cleanly to any N; only the literal facelet
-// index of a slot depends on N.
-type CornerSlot = 'TL' | 'TR' | 'BL' | 'BR'
-function cornerFaceletIdx(n: number, slot: CornerSlot): number {
-  switch (slot) {
-    case 'TL': return 0
-    case 'TR': return n - 1
-    case 'BL': return n * (n - 1)
-    case 'BR': return n * n - 1
-  }
-}
-
-// [faceA, slotA, faceB, slotB, faceC, slotC] per corner: UFR, UBR, UBL, UFL,
-// DFR, DBR, DBL, DFL. The B (back) face is viewed from outside the cube
-// (mirrored left/right relative to F), which the UBR/UBL entries'
-// `b`/`l` slots originally got backwards - confirmed against a real
-// scrambled capture that a correct table accepts and the original one
-// rejected with "Unknown corner color triplet" despite colorBalance
-// passing.
-const CORNER_SLOTS = [
-  ['u', 'BR', 'r', 'TL', 'f', 'TR'], ['u', 'TR', 'b', 'TL', 'r', 'TR'], ['u', 'TL', 'l', 'TL', 'b', 'TR'], ['u', 'BL', 'f', 'TL', 'l', 'TR'],
-  ['d', 'TR', 'f', 'BR', 'r', 'BL'], ['d', 'BR', 'r', 'BR', 'b', 'BL'], ['d', 'BL', 'b', 'BR', 'l', 'BL'], ['d', 'TL', 'l', 'BR', 'f', 'BL'],
-] as const
-
-// UF, UR, UB, UL, DF, DR, DB, DL, FR, FL, BR, BL. Same B-face mirroring
-// mistake as CORNER_SLOTS hit the BR/BL entries' `b` index.
-const EDGE_FACELETS_3x3 = [
-  ['u', 7, 'f', 1], ['u', 5, 'r', 1], ['u', 1, 'b', 1], ['u', 3, 'l', 1],
-  ['d', 1, 'f', 7], ['d', 5, 'r', 7], ['d', 7, 'b', 7], ['d', 3, 'l', 7],
-  ['f', 5, 'r', 3], ['f', 3, 'l', 5], ['b', 3, 'r', 5], ['b', 5, 'l', 3],
-] as const
-
-// Wing-edge geometry for N>3: derived from explicit 3D coordinates for all
-// 6 faces (not the corner-slot shortcut, which can't distinguish a
-// "forward" pairing from a "reversed" one - the only cross-check available
-// at N=3 has a single, self-symmetric wing position where both coincide).
-// reverse=true means the wing at distance w from the first-listed corner
-// reads that face's line at position (N-1-w), not w.
-type EdgeLineType = 'TOP' | 'BOTTOM' | 'LEFT' | 'RIGHT'
-function lineFaceletIdx(n: number, line: EdgeLineType, w: number): number {
-  switch (line) {
-    case 'TOP': return w
-    case 'BOTTOM': return n * (n - 1) + w
-    case 'LEFT': return w * n
-    case 'RIGHT': return w * n + (n - 1)
-  }
-}
-const EDGE_LINES = [
-  ['UF', 'u', 'BOTTOM', false, 'f', 'TOP', false],
-  ['UR', 'u', 'RIGHT', false, 'r', 'TOP', true],
-  ['UB', 'u', 'TOP', false, 'b', 'TOP', true],
-  ['UL', 'u', 'LEFT', false, 'l', 'TOP', false],
-  ['DF', 'd', 'TOP', false, 'f', 'BOTTOM', false],
-  ['DR', 'd', 'RIGHT', false, 'r', 'BOTTOM', false],
-  ['DB', 'd', 'BOTTOM', false, 'b', 'BOTTOM', true],
-  ['DL', 'd', 'LEFT', false, 'l', 'BOTTOM', true],
-  ['FR', 'f', 'RIGHT', false, 'r', 'LEFT', false],
-  ['FL', 'f', 'LEFT', false, 'l', 'RIGHT', false],
-  ['BR', 'b', 'LEFT', false, 'r', 'RIGHT', false],
-  ['BL', 'b', 'RIGHT', false, 'l', 'LEFT', false],
-] as const
-function edgeLineFaceletIdx(n: number, line: EdgeLineType, reverse: boolean, w: number): number {
-  return lineFaceletIdx(n, line, reverse ? n - 1 - w : w)
-}
-
-function validateWingEdges(cube: CubeIR): { valid: boolean; result?: string; highlight?: HighlightGroup[] } {
-  const n = cube.size
-  const counts = new Array(SOLVED_EDGES.length).fill(0)
-  const faceletsByPair: FaceletRef[][][] = SOLVED_EDGES.map(() => [])
-  for (const [edgeName, faceA, lineA, reverseA, faceB, lineB, reverseB] of EDGE_LINES) {
-    for (let w = 1; w <= n - 2; w++) {
-      const idxA = edgeLineFaceletIdx(n, lineA as EdgeLineType, reverseA, w)
-      const idxB = edgeLineFaceletIdx(n, lineB as EdgeLineType, reverseB, w)
-      const c0 = getFace(cube, faceA).data[idxA]
-      const c1 = getFace(cube, faceB).data[idxB]
-      const facelets: FaceletRef[] = [{ face: faceA, index: idxA }, { face: faceB, index: idxB }]
-      let found = false
-      for (let pi = 0; pi < SOLVED_EDGES.length; pi++) {
-        const se = SOLVED_EDGES[pi]
-        if ((c0 === se[0] && c1 === se[1]) || (c0 === se[1] && c1 === se[0])) { counts[pi]++; faceletsByPair[pi].push(facelets); found = true; break }
-      }
-      if (!found) {
-        return {
-          valid: false,
-          result: `Unknown wing edge color pair "${c0}-${c1}" at edge ${edgeName} (wing ${w} of ${n - 2}, reading ${faceA}+${faceB}) - two same or opposite colors can never physically touch, so one of these two stickers was misread`,
-          highlight: [{ group: `${c0}-${c1}`, facelets }],
-        }
-      }
-    }
-  }
-  const expected = n - 2
-  if (!counts.every((c) => c === expected)) {
-    const offending = SOLVED_EDGES
-      .map((se, i) => ({ pair: se.join('-'), count: counts[i] }))
-      .filter((p) => p.count !== expected)
-      .map((p) => `${p.pair} has ${p.count} (expected ${expected})`)
-    const highlight: HighlightGroup[] = counts.flatMap((c, i) =>
-      c > expected ? faceletsByPair[i].map((facelets) => ({ group: SOLVED_EDGES[i].join('-'), facelets })) : []
-    )
-    return { valid: false, result: `Wing edge color-pair counts unbalanced: ${offending.join(', ')}`, highlight }
-  }
-  return { valid: true }
-}
-
-function getFace(cube: CubeIR, key: string): FaceGrid {
-  return (cube as any)[key]
-}
-
-function permParity(perm: number[]): boolean {
-  const visited = new Array(perm.length).fill(false)
-  let cycles = 0
-  for (let i = 0; i < perm.length; i++) {
-    if (!visited[i]) {
-      let j = i
-      while (!visited[j]) { visited[j] = true; j = perm[j] }
-      cycles++
-    }
-  }
-  return (perm.length - cycles) % 2 === 0
-}
-
-function countColors(cube: CubeIR): Record<FaceColor, number> {
-  const counts: any = { W: 0, O: 0, G: 0, R: 0, B: 0, Y: 0 }
-  for (const face of [cube.u, cube.r, cube.f, cube.d, cube.l, cube.b]) {
-    for (const c of face.data) counts[c]++
-  }
-  return counts
-}
-
-function validateColorBalance(cube: CubeIR): boolean {
-  const counts = countColors(cube)
-  const expected = cube.size ** 2
-  return Object.values(counts).every((c) => c === expected)
-}
-
-const COLOR_NAMES: Record<FaceColor, string> = { W: 'White', O: 'Orange', G: 'Green', R: 'Red', B: 'Blue', Y: 'Yellow' }
-// Which colors are off, for an invalid color balance: a sentence for the
-// customer, and every sticker of each over-represented color as one
-// highlight group - one of those is the misread sticker (or one set to the
-// wrong color by hand).
-function colorBalanceReport(cube: CubeIR): { detail: string; highlight: HighlightGroup[] } {
-  const counts = countColors(cube)
-  const expected = cube.size ** 2
-  const off = (Object.keys(counts) as FaceColor[]).filter((c) => counts[c] !== expected)
-  const detail = `${off.map((c) => `${COLOR_NAMES[c]} ${counts[c]}`).join(', ')} - each color should appear ${expected} times`
-  const highlight = off
-    .filter((c) => counts[c] > expected)
-    .map((c) => ({
-      group: `${COLOR_NAMES[c]} ×${counts[c]}`,
-      facelets: (['u', 'r', 'f', 'd', 'l', 'b'] as const).flatMap((face) =>
-        cube[face].data.flatMap((color, index) => (color === c ? [{ face, index }] : []))
-      ),
-    }))
-  return { detail, highlight }
-}
-
-// Faithful port of runFullParity's full corner/edge/orientation/permutation
-// logic, generalized across puzzle sizes the same way the server is.
-function checkParity(cube: CubeIR): { valid: boolean; result: string; highlight?: HighlightGroup[]; detail?: string } {
-  const n = cube.size
-
-  if (!validateColorBalance(cube)) return { valid: false, result: 'Invalid color balance', ...colorBalanceReport(cube) }
-
-  const cornerPieces: number[] = []
-  const cornerOrients: number[] = []
-  const cornerFacelets: FaceletRef[][] = []
-  for (const [fa, ca, fb, cb, fc, cc] of CORNER_SLOTS) {
-    const idxA = cornerFaceletIdx(n, ca as CornerSlot)
-    const idxB = cornerFaceletIdx(n, cb as CornerSlot)
-    const idxC = cornerFaceletIdx(n, cc as CornerSlot)
-    const colors: FaceColor[] = [
-      getFace(cube, fa).data[idxA],
-      getFace(cube, fb).data[idxB],
-      getFace(cube, fc).data[idxC],
-    ]
-    const facelets: FaceletRef[] = [{ face: fa, index: idxA }, { face: fb, index: idxB }, { face: fc, index: idxC }]
-    let found = false
-    for (let pi = 0; pi < SOLVED_CORNERS.length && !found; pi++) {
-      const sc = SOLVED_CORNERS[pi]
-      for (let rot = 0; rot < 3; rot++) {
-        if (colors[rot % 3] === sc[0] && colors[(rot + 1) % 3] === sc[1] && colors[(rot + 2) % 3] === sc[2]) {
-          cornerPieces.push(pi); cornerOrients.push(rot); cornerFacelets.push(facelets); found = true; break
-        }
-      }
-    }
-    if (!found) return { valid: false, result: 'Unknown corner color triplet', highlight: [{ group: colors.join('-'), facelets }] }
-  }
-  {
-    const firstSlotForPiece = new Map<number, number>()
-    for (let slot = 0; slot < cornerPieces.length; slot++) {
-      const piece = cornerPieces[slot]
-      const firstSlot = firstSlotForPiece.get(piece)
-      if (firstSlot !== undefined) {
-        const pieceName = CORNER_NAMES[piece]
-        return {
-          valid: false,
-          result: 'Duplicate corner piece (two positions read the same physical corner)',
-          highlight: [
-            { group: pieceName, facelets: cornerFacelets[firstSlot] },
-            { group: pieceName, facelets: cornerFacelets[slot] },
-          ],
-        }
-      }
-      firstSlotForPiece.set(piece, slot)
-    }
-  }
-
-  const cornerOrientSum = cornerOrients.reduce((a, b) => a + b, 0)
-  if (cornerOrientSum % 3 !== 0) {
-    return {
-      valid: false,
-      result: 'Corner orientation sum not 0 mod 3',
-      highlight: cornerFacelets.map((facelets, slot) => ({ group: CORNER_NAMES[cornerPieces[slot]], facelets })),
-    }
-  }
-
-  if (n === 2) return { valid: true, result: 'OK' }
-  if (n !== 3) {
-    const wingResult = validateWingEdges(cube)
-    if (!wingResult.valid) return { valid: false, result: wingResult.result!, highlight: wingResult.highlight }
-    return { valid: true, result: 'OK (structural + corner + wing-edge count check)' }
-  }
-
-  const edgePieces: number[] = []
-  const edgeOrients: number[] = []
-  const edgeFacelets: FaceletRef[][] = []
-  for (const [fa, ia, fb, ib] of EDGE_FACELETS_3x3) {
-    const c0 = getFace(cube, fa).data[ia]
-    const c1 = getFace(cube, fb).data[ib]
-    const facelets: FaceletRef[] = [{ face: fa, index: ia }, { face: fb, index: ib }]
-    let found = false
-    for (let pi = 0; pi < SOLVED_EDGES.length; pi++) {
-      const se = SOLVED_EDGES[pi]
-      if (c0 === se[0] && c1 === se[1]) { edgePieces.push(pi); edgeOrients.push(0); edgeFacelets.push(facelets); found = true; break }
-      if (c0 === se[1] && c1 === se[0]) { edgePieces.push(pi); edgeOrients.push(1); edgeFacelets.push(facelets); found = true; break }
-    }
-    if (!found) return { valid: false, result: 'Unknown edge color pair', highlight: [{ group: `${c0}-${c1}`, facelets }] }
-  }
-  {
-    const firstSlotForPiece = new Map<number, number>()
-    for (let slot = 0; slot < edgePieces.length; slot++) {
-      const piece = edgePieces[slot]
-      const firstSlot = firstSlotForPiece.get(piece)
-      if (firstSlot !== undefined) {
-        const pieceName = EDGE_NAMES[piece]
-        return {
-          valid: false,
-          result: 'Duplicate edge piece (two positions read the same physical edge)',
-          highlight: [
-            { group: pieceName, facelets: edgeFacelets[firstSlot] },
-            { group: pieceName, facelets: edgeFacelets[slot] },
-          ],
-        }
-      }
-      firstSlotForPiece.set(piece, slot)
-    }
-  }
-
-  if (edgeOrients.reduce((a, b) => a + b, 0) % 2 !== 0) {
-    return {
-      valid: false,
-      result: 'Edge orientation sum not 0 mod 2',
-      highlight: edgeFacelets.map((facelets, slot) => ({ group: EDGE_NAMES[edgePieces[slot]], facelets })),
-    }
-  }
-  if (permParity(cornerPieces) !== permParity(edgePieces)) {
-    return { valid: false, result: 'Corner perm parity != edge perm parity' }
-  }
-  return { valid: true, result: 'OK' }
-}
+type FaceGrid = CubeIR['u']
 
 function toGrid(s: string): FaceGrid {
   const n = Math.round(Math.sqrt(s.length))
-  return { n, data: s.split('') as FaceColor[] }
+  return { n, data: s.split('') }
 }
 
 function cubeFromFacelets(spaced: string): CubeIR {
@@ -320,9 +27,9 @@ function solvedCube(n = 3): CubeIR {
   return cubeFromFacelets(colors.map((c) => c.repeat(n * n)).join(' '))
 }
 
-describe('server parity: 3x3 corner/edge facelet-index tables', () => {
+describe('parity: 3x3 corner/edge facelet-index tables', () => {
   it('accepts a solved cube', () => {
-    expect(checkParity(solvedCube())).toEqual({ valid: true, result: 'OK' })
+    expect(checkParity(solvedCube())).toMatchObject({ valid: true, result: 'Valid — all parity checks passed' })
   })
 
   it('accepts a real scrambled capture (the reported false-positive case)', () => {
@@ -332,7 +39,7 @@ describe('server parity: 3x3 corner/edge facelet-index tables', () => {
     const cube = cubeFromFacelets(
       'ROGYWBWYG ROROROYWY GBYBGWGBO YWBWYGORB WROYORWRO WGBYBGRGB'
     )
-    expect(checkParity(cube)).toEqual({ valid: true, result: 'OK' })
+    expect(checkParity(cube)).toMatchObject({ valid: true, result: 'Valid — all parity checks passed' })
   })
 
   it('rejects a cube with a genuinely broken corner (negative control)', () => {
@@ -369,15 +76,15 @@ describe('server parity: 3x3 corner/edge facelet-index tables', () => {
     cube.r.data[0] = cube.r.data[1] = cube.r.data[2] = 'G'
     cube.b.data[0] = cube.b.data[1] = cube.b.data[2] = 'R'
     cube.l.data[0] = cube.l.data[1] = cube.l.data[2] = 'B'
-    expect(checkParity(cube)).toEqual({ valid: true, result: 'OK' })
+    expect(checkParity(cube)).toMatchObject({ valid: true, result: 'Valid — all parity checks passed' })
   })
 })
 
-describe('server parity: non-3x3 sizes (no center-block uniformity check)', () => {
+describe('parity: non-3x3 sizes (no center-block uniformity check)', () => {
   it('accepts a solved 2x2, and 4x4-7x7', () => {
-    expect(checkParity(solvedCube(2))).toEqual({ valid: true, result: 'OK' })
+    expect(checkParity(solvedCube(2))).toMatchObject({ valid: true, result: 'Valid — all parity checks passed' })
     for (const n of [4, 5, 6, 7]) {
-      expect(checkParity(solvedCube(n))).toEqual({ valid: true, result: 'OK (structural + corner + wing-edge count check)' })
+      expect(checkParity(solvedCube(n))).toMatchObject({ valid: true, result: 'Valid (structural + corner + wing-edge count check)' })
     }
   })
 
@@ -392,7 +99,7 @@ describe('server parity: non-3x3 sizes (no center-block uniformity check)', () =
     const cube = cubeFromFacelets(
       'YOOWWRRYWYRRRRRG YBGORBBBWBBBOOOO GGGOOGYYGRYBRYRW BGWBROOYRYOYBOOB GBGWBOGBRGGWWYWY GGGRYWWOYWWBYWWR'
     )
-    expect(checkParity(cube)).toEqual({ valid: true, result: 'OK (structural + corner + wing-edge count check)' })
+    expect(checkParity(cube)).toMatchObject({ valid: true, result: 'Valid (structural + corner + wing-edge count check)' })
   })
 
   it('accepts the same real 4x4 capture under wing-edge counting (the reported direction-bug false-positive)', () => {
