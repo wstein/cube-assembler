@@ -2,7 +2,7 @@
 
 ## Project Structure & Module Organization
 
-`src/client/` contains the Preact scanner, capture flow, color processing, and cube assembly UI. The Detect face pipeline is in `gridAlignment.ts`; `imageProcessing.ts` classifies sticker colors. The live preview's per-frame analysis runs in a worker (`liveAnalysis.ts`, `liveAnalysis.worker.ts`). The Bun/Hono API (parity check, fixture saving) is in `server/Server.ts`. Browser styles live in `web/style.css`, static assets in `public/`, and Vitest tests in `test/`. Saved capture photos and metadata live in `test/fixtures/`.
+`src/client/` contains the Preact scanner, capture flow, color processing, and cube assembly UI. The Detect face pipeline is in `gridAlignment.ts`; `imageProcessing.ts` classifies sticker colors. The live preview's per-frame analysis runs in a worker (`liveAnalysis.ts`, `liveAnalysis.worker.ts`). The parity check is in `parity.ts`. The Bun/Hono API (fixture saving) is in `server/Server.ts`. Browser styles live in `web/style.css`, static assets in `public/`, and Vitest tests in `test/`. Saved capture photos and metadata live in `test/fixtures/`.
 
 ## Build, Test, and Development Commands
 
