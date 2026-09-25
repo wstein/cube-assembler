@@ -2094,11 +2094,6 @@ label.capture-size-label {
   fill: var(--color-border);
 }
 
-.turn-hint-row {
-  fill: var(--color-accent);
-  opacity: 0.8;
-}
-
 .turn-hint-painted-arrow {
   fill: #399dea;
   stroke: #133a60;
