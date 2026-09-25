@@ -3,7 +3,6 @@
 // the page's thread. The face's square is read once and serves both the
 // colors and the cube check, so both judge the same pixels.
 
-import { estimateGridSize, type FaceSquare } from './gridAlignment'
 import {
   alignFaceInArea, alignmentArea, boundsFromAlignment, extractColorsFromImageData, faceVisibility,
   guideBounds, outlineVisible, withGridOffset,
@@ -18,8 +17,6 @@ export interface LiveAnalysisRequest {
   requireOutline: boolean
   sampling: SamplingGeometry
   palette?: Record<string, RGB>
-  // Also estimate the cube's size from the frame (first face only).
-  detectSize: boolean
 }
 
 export interface LiveAnalysis {
@@ -27,9 +24,6 @@ export interface LiveAnalysis {
   bounds: FaceBounds
   detection: ColorDetectionResult
   visible: boolean
-  // With detectSize: the estimated size, and whether a face of that size
-  // passed the cube check.
-  size?: { size: number | null; visible: boolean }
 }
 
 // The pixels of `area` from a width-wide RGBA frame.
@@ -71,35 +65,21 @@ export function readFaceSquare(frame: Uint8ClampedArray, width: number, height: 
 }
 
 export function analyzeLiveFrame(frame: Uint8ClampedArray, width: number, height: number, request: LiveAnalysisRequest): LiveAnalysis {
+  const { gridSize, sampling, palette } = request
   const guide = guideBounds(width, height)
-  const area = alignmentArea(guide, width, height)
-  const region = request.mode === 'aligned' || request.detectSize ? cropArea(frame, width, area) : null
-  const areaWidth = area.x1 - area.x0, areaHeight = area.y1 - area.y0
-  const align = (gridSize: number) => boundsFromAlignment(alignFaceInArea(region!, areaWidth, areaHeight, guide, area, gridSize), guide, area, width, height)
-
+  let bounds = guide
+  if (request.mode === 'aligned') {
+    const area = alignmentArea(guide, width, height)
+    const found = alignFaceInArea(cropArea(frame, width, area), area.x1 - area.x0, area.y1 - area.y0, guide, area, gridSize)
+    bounds = boundsFromAlignment(found, guide, area, width, height)
+  }
   // Colors and the cube check on one read of the square.
-  const judge = (gridSize: number, bounds: FaceBounds, sampling: SamplingGeometry, palette?: Record<string, RGB>) => {
-    const square = readFaceSquare(frame, width, height, bounds)
-    const detection = withGridOffset(
-      extractColorsFromImageData(square, bounds.faceWidth, bounds.faceHeight, gridSize, undefined, sampling, palette), bounds, guide)
-    const visible = (request.mode === 'fixed' || bounds.gridFound === true)
-      && faceVisibility(square, bounds.faceWidth, bounds.faceHeight, gridSize, () => outlineVisible(frame, width, height, bounds), request.requireOutline).visible
-    return { detection, visible }
-  }
-
-  let size: LiveAnalysis['size']
-  if (request.detectSize) {
-    const square: FaceSquare = { x: guide.startX - area.x0, y: guide.startY - area.y0, size: guide.faceWidth }
-    const estimated = estimateGridSize(region!, areaWidth, areaHeight, square)
-    const estimatedBounds = estimated ? align(estimated) : null
-    const passes = estimated !== null && estimatedBounds?.gridFound === true
-      && faceVisibility(readFaceSquare(frame, width, height, estimatedBounds), estimatedBounds.faceWidth, estimatedBounds.faceHeight, estimated,
-        () => outlineVisible(frame, width, height, estimatedBounds), true).visible
-    size = { size: estimated, visible: passes }
-  }
-
-  const bounds = request.mode === 'aligned' ? align(request.gridSize) : guide
-  return { bounds, ...judge(request.gridSize, bounds, request.sampling, request.palette), ...(size && { size }) }
+  const square = readFaceSquare(frame, width, height, bounds)
+  const detection = withGridOffset(
+    extractColorsFromImageData(square, bounds.faceWidth, bounds.faceHeight, gridSize, undefined, sampling, palette), bounds, guide)
+  const visible = (request.mode === 'fixed' || bounds.gridFound === true)
+    && faceVisibility(square, bounds.faceWidth, bounds.faceHeight, gridSize, () => outlineVisible(frame, width, height, bounds), request.requireOutline).visible
+  return { bounds, detection, visible }
 }
 
 // `bounds` of a frame analyzed at `scale` times the camera's size, in the

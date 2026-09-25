@@ -33,7 +33,7 @@ function frame(width: number, height: number, n: number, { dx = 0.02, dy = -0.01
 
 const expected = (n: number) => Array.from({ length: n }, (_, row) => Array.from({ length: n }, (_, col) => LETTERS[(row * n + col) % 6]))
 const request = (gridSize: number, extra: Partial<LiveAnalysisRequest> = {}): LiveAnalysisRequest =>
-  ({ gridSize, mode: 'aligned', requireOutline: true, sampling: DEFAULT_SAMPLING, detectSize: false, ...extra })
+  ({ gridSize, mode: 'aligned', requireOutline: true, sampling: DEFAULT_SAMPLING, ...extra })
 
 // Averages 3x3 blocks into 2x2 (1080p -> 720p), like a resized bitmap.
 function downscale(data: Uint8ClampedArray, width: number, height: number) {
@@ -76,12 +76,6 @@ describe('analyzeLiveFrame', () => {
     expect(at720.detection.colors).toEqual(atFull.detection.colors)
     const back = scaleBounds(at720.bounds, 2 / 3)
     for (const key of ['startX', 'startY', 'faceWidth'] as const) expect(Math.abs(back[key] - atFull.bounds[key])).toBeLessThanOrEqual(4)
-  })
-
-  it('estimates the cube size when asked', () => {
-    // Centered: estimateGridSize itself still misses faces held a little off-center.
-    const result = analyzeLiveFrame(frame(1280, 720, 4, { dx: 0, dy: 0 }), 1280, 720, request(3, { detectSize: true }))
-    expect(result.size).toEqual({ size: 4, visible: true })
   })
 
   it('finds nothing on an empty wall', () => {
