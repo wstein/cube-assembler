@@ -226,6 +226,13 @@ const CAPTURE_STEPS: Array<{ label: string; short: string; instruction: string }
 ]
 const stepOf = (slot: string) => CAPTURE_STEPS[FACE_ORDER.indexOf(slot)]
 
+function captureInstruction(step: number, mirrored: boolean): string {
+  if (!mirrored || step === 0 || step >= 4) return CAPTURE_STEPS[step].instruction
+  if (step === 1) return 'Keep the same row on top and turn the whole cube counterclockwise in the mirrored view. Either direction works.'
+  if (step === 2) return 'Keep turning counterclockwise in the mirrored view. Other directions still work.'
+  return 'Turn counterclockwise in the mirrored view one more quarter turn. Any remaining side still works.'
+}
+
 // Saved with fixtures captured this way, so they can be put together (and
 // regression-tested) with the guided search again later.
 const GUIDED_PROTOCOL = 'sides-then-top-bottom/v1'
@@ -245,10 +252,11 @@ function describeCenterIssue(issue: GuidedCenterIssue): string {
 const HELD_WORDS = ['', 'sideways', 'upside down', 'sideways']
 
 // What the search changed to make the photos fit, in words.
-function describeArrangement(a: GuidedArrangement): string[] {
+function describeArrangement(a: GuidedArrangement, mirrored = false): string[] {
   const [topFix, bottomFix] = a.capsSwapped ? [a.capRotations[1], a.capRotations[0]] : a.capRotations
+  const seenTurn = mirrored ? (a.turn === 'left' ? 'right' : 'left') : a.turn
   return [
-    `You turned the cube to the ${a.turn} between sides.`,
+    `You turned the cube to the ${seenTurn} between sides${mirrored ? ' in the mirrored view' : ''}.`,
     ...(a.capsSwapped ? ['Top and bottom were photographed the other way round.'] : []),
     ...(topFix ? [`The top was held ${HELD_WORDS[topFix]}.`] : []),
     ...(bottomFix ? [`The bottom was held ${HELD_WORDS[bottomFix]}.`] : []),
@@ -394,11 +402,12 @@ function FaceGrid({ colors, undecided, current, auto }: { colors: string[][]; un
 // of the two is really the top, is only worked out once all 6 are in).
 // Each slot shows the colors detected for it, or a placeholder; tapping a
 // slot retakes it or jumps to it.
-function CaptureNet({ faces, current, size, predictedCenters, onSelect }: {
+function CaptureNet({ faces, current, size, predictedCenters, mirrored, onSelect }: {
   faces: Record<string, string[][] | undefined>
   current: string
   size: number
   predictedCenters: Array<string | null>
+  mirrored: boolean
   onSelect: (slot: string) => void
 }) {
   const empty = Array.from({ length: size }, () => Array<string>(size).fill(''))
@@ -425,7 +434,7 @@ function CaptureNet({ faces, current, size, predictedCenters, onSelect }: {
   }
   const [s1, s2, s3, s4, top, bottom] = FACE_ORDER
   return (
-    <div class="capture-net" role="group" aria-label="Captured faces">
+    <div class={`capture-net ${mirrored ? 'mirrored' : ''}`} role="group" aria-label="Captured faces">
       {slot(s1, '2 / 1')}
       {slot(s2, '2 / 2')}
       {slot(s3, '2 / 3')}
@@ -438,12 +447,12 @@ function CaptureNet({ faces, current, size, predictedCenters, onSelect }: {
 
 // Small drawing next to a capture step's instruction. The arrow is painted
 // on the front face in the same direction as the larger capture cue.
-function TurnHint({ step }: { step: number }) {
+function TurnHint({ step, mirrored }: { step: number; mirrored: boolean }) {
   if (step === 0) return null
   const kind = step < 4 ? 'turn' : step === 4 ? 'tip-top' : 'tip-bottom'
   const arrowAngle = kind === 'turn' ? 270 : kind === 'tip-top' ? 180 : 0
   return (
-    <svg class="turn-hint" viewBox="0 0 64 64" aria-hidden="true">
+    <svg class={`turn-hint ${mirrored ? 'mirrored' : ''}`} viewBox="0 0 64 64" aria-hidden="true">
       <polygon points="16,24 42,24 52,14 26,14" class="turn-hint-face turn-hint-top" />
       <polygon points="42,24 52,14 52,40 42,50" class="turn-hint-face turn-hint-side" />
       <rect x="16" y="24" width="26" height="26" class="turn-hint-face" />
@@ -464,11 +473,11 @@ function TurnHint({ step }: { step: number }) {
 // It closes when the cube's turn animation ends, so its length lives only in
 // the CSS; the timer is a fallback in case that animation never runs.
 const TURN_CUE_FALLBACK_MS = 4500
-function CaptureTurnOverlay({ step, startColors, viaColors, onContinue }: { step: number; startColors: string[][]; viaColors?: string[][]; onContinue: () => void }) {
+function CaptureTurnOverlay({ step, startColors, viaColors, mirrored, onContinue }: { step: number; startColors: string[][]; viaColors?: string[][]; mirrored: boolean; onContinue: () => void }) {
   const kind = step < 4 ? 'side' : step === 4 ? 'top' : 'bottom'
   const title = kind === 'side' ? 'Turn to another side' : kind === 'top' ? 'Show a remaining face' : 'Show the last face'
   const detail = kind === 'side'
-    ? 'Clockwise is suggested; either direction works.'
+    ? mirrored ? 'Counterclockwise in the mirrored view is suggested; either direction works.' : 'Clockwise is suggested; either direction works.'
     : kind === 'top' ? 'Tip the cube up or down.' : 'Move through Side 4 to the opposite face.'
   const nextFace = kind === 'side' ? 'right' : kind === 'top' ? 'up' : 'back'
   const size = startColors.length
@@ -499,7 +508,7 @@ function CaptureTurnOverlay({ step, startColors, viaColors, onContinue }: { step
   )
   return (
     <div class={`capture-turn-overlay capture-turn-${kind}`} role="status" aria-label={`${title}. ${detail}`}>
-      <div class="capture-turn-scene" aria-hidden="true">
+      <div class={`capture-turn-scene ${mirrored ? 'mirrored' : ''}`} aria-hidden="true">
         <div class="capture-turn-cube" onAnimationEnd={(e) => { if (e.target === e.currentTarget) onContinue() }}>
           {face('front')}
           {face('back')}
@@ -2454,7 +2463,7 @@ function App() {
                   <span class="capture-scan-label">{captureMode === 'cv' ? 'Show one face in this area' : 'Fit face in this square'}</span>
                 </div>
                 {turnOverlay && (
-                  <CaptureTurnOverlay step={turnOverlay.step} startColors={turnOverlay.startColors} viaColors={turnOverlay.viaColors} onContinue={dismissTurnOverlay} />
+                  <CaptureTurnOverlay step={turnOverlay.step} startColors={turnOverlay.startColors} viaColors={turnOverlay.viaColors} mirrored={mirrorPreview} onContinue={dismissTurnOverlay} />
                 )}
               </div>
               <span class={`capture-live-badge ${liveCapturedFace ? 'already-captured' : ''}`} role="status">
@@ -2477,8 +2486,8 @@ function App() {
                 <button type="button" class={captureMode === 'guide' ? 'active' : ''} aria-pressed={captureMode === 'guide'} onClick={() => { setCaptureMode('guide'); setLiveDetection(null); setLiveFaceVisible(false) }}>Guide grid</button>
               </div>
               <p class="capture-hint-text" aria-live="polite">
-                <TurnHint step={FACE_ORDER.indexOf(webcamFace)} />
-                {stepOf(webcamFace).instruction}
+                <TurnHint step={FACE_ORDER.indexOf(webcamFace)} mirrored={mirrorPreview} />
+                {captureInstruction(FACE_ORDER.indexOf(webcamFace), mirrorPreview)}
                 {predictedCenter && (
                   <span class="capture-expected-center">
                     Suggested center: <span class="capture-expected-swatch" style={{ background: STICKER_HEX[predictedCenter] }} />
@@ -2493,6 +2502,7 @@ function App() {
                   current={webcamFace}
                   size={puzzleSize}
                   predictedCenters={predictedCenters}
+                  mirrored={mirrorPreview}
                   onSelect={(slot) => {
                     dismissTurnOverlay()
                     lastCapturedColors.current = null
@@ -3062,7 +3072,7 @@ function App() {
                     <div class="approval-changes">
                       <span class="approval-changes-title">How the photos were put together</span>
                       <ul class="approval-checklist">
-                        {describeArrangement(arrangements[0]).map((line) => (
+                        {describeArrangement(arrangements[0], mirrorPreview).map((line) => (
                           <li key={line}>
                             <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true">
                               <circle cx="9" cy="9" r="8" fill="var(--color-accent-soft)" />
@@ -3083,7 +3093,7 @@ function App() {
                     <OrientationNetPreview faces={candidate.faces} onFaceClick={!valid ? (face) => checkFace(candidate, face) : undefined} />
                     {arrangements?.[i] && (
                       <ul class="orientation-approval-changes">
-                        {describeArrangement(arrangements[i]).map((line) => <li key={line}>{line}</li>)}
+                        {describeArrangement(arrangements[i], mirrorPreview).map((line) => <li key={line}>{line}</li>)}
                       </ul>
                     )}
                     <button type="button" class="btn btn-primary btn-sm" onClick={() => handleChooseOrientation(candidate)}>
