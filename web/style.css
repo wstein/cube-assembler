@@ -1803,21 +1803,29 @@ textarea {
   border-radius: var(--radius-sm);
 }
 
+/* Sits on the guide, moved by --grid-x/--grid-y (center offset) and
+   scaled by --grid-scale (all in guide sizes) onto the square the colors
+   were actually sampled from - see findGridAlignment. */
 .capture-grid-overlay {
   position: absolute;
   top: 50%;
   left: 50%;
   width: 60%;
   aspect-ratio: 1;
-  transform: translate(-50%, -50%);
+  transform: translate(-50%, -50%)
+    translate(calc(var(--grid-x, 0) * 100%), calc(var(--grid-y, 0) * 100%))
+    scale(var(--grid-scale, 1));
   pointer-events: none;
 }
 
 /* Matches .webcam-feed.mirrored: the overlay's cells are ordered from the
    raw (unmirrored) camera frame, so flipping the whole grid whenever the
-   feed is mirrored keeps each swatch visually aligned with its sticker. */
+   feed is mirrored keeps each swatch visually aligned with its sticker.
+   The flip comes first, so the alignment offset is mirrored as well. */
 .capture-grid-overlay.mirrored {
-  transform: translate(-50%, -50%) scaleX(-1);
+  transform: translate(-50%, -50%) scaleX(-1)
+    translate(calc(var(--grid-x, 0) * 100%), calc(var(--grid-y, 0) * 100%))
+    scale(var(--grid-scale, 1));
 }
 
 /* Thin cell guides - the sampled zones (.capture-sample-zone) are what

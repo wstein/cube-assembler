@@ -11,6 +11,9 @@ export interface ColorDetectionResult {
   // nearestOtherColor), or null when it's clearly its own color. Only set
   // after the cross-face recalibration, since it needs the learned colors.
   cellLookalikes?: (string | null)[][]
+  // Where the sampled square sat relative to the capture guide, when it was
+  // aligned onto the sticker grid: center offset and size, in guide sizes.
+  gridOffset?: { x: number; y: number; scale: number }
 }
 
 export interface RGB {
@@ -1311,7 +1314,17 @@ export function extractCubeFaceColors(
   bounds: FaceBounds = alignedFaceBounds(canvas, gridSize)
 ): ColorDetectionResult {
   const { imageData, faceWidth, faceHeight } = readFaceRegion(canvas, bounds)
-  return extractColorsFromImageData(imageData.data, faceWidth, faceHeight, gridSize, gains, sampling, palette)
+  const result = extractColorsFromImageData(imageData.data, faceWidth, faceHeight, gridSize, gains, sampling, palette)
+  const guide = computeFaceBounds(canvas)
+  if (bounds.startX === guide.startX && bounds.startY === guide.startY && bounds.faceWidth === guide.faceWidth) return result
+  return {
+    ...result,
+    gridOffset: {
+      x: (bounds.startX + bounds.faceWidth / 2 - guide.startX - guide.faceWidth / 2) / guide.faceWidth,
+      y: (bounds.startY + bounds.faceHeight / 2 - guide.startY - guide.faceHeight / 2) / guide.faceHeight,
+      scale: bounds.faceWidth / guide.faceWidth,
+    },
+  }
 }
 
 export interface FaceCaptureResult extends ColorDetectionResult {
