@@ -3,7 +3,7 @@ import { existsSync, readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import jpeg from 'jpeg-js'
 import { extractColorsFromImageData } from '../src/client/imageProcessing'
-import { ALIGNMENT_MAX_OFFSET, findGridAlignment, type FaceSquare } from '../src/client/gridAlignment'
+import { ALIGNMENT_MAX_OFFSET, estimateTilt, findGridAlignment, type FaceSquare } from '../src/client/gridAlignment'
 
 // Real capture crops (gitignored, like test/fixtures.test.ts) held off the
 // guide: each crop is the face, pasted at an offset or scale into a grey
@@ -44,9 +44,10 @@ function loadFaces(): Face[] {
   return faces
 }
 
-// The frame: grey, with the face resampled to `scale` and offset by
-// (dx, dy) guide sizes from the centered guide.
-function frame(face: Face, dx: number, dy: number, scale: number) {
+// The frame: grey, with the face resampled to `scale`, offset by (dx, dy)
+// guide sizes from the centered guide and tilted by `tilt` degrees.
+function frame(face: Face, dx: number, dy: number, scale: number, tilt = 0) {
+  if (tilt) return tiltedFrame(face, dx, dy, scale, tilt)
   const width = Math.round(face.size * 1.4)
   const guide: FaceSquare = { x: Math.round((width - face.size) / 2), y: Math.round((width - face.size) / 2), size: face.size }
   const data = new Uint8ClampedArray(width * width * 4).fill(128)
@@ -69,6 +70,43 @@ function frame(face: Face, dx: number, dy: number, scale: number) {
   return { data, width, guide }
 }
 
+// Nearest-neighbour: each frame pixel looks up the untilted face.
+function tiltedFrame(face: Face, dx: number, dy: number, scale: number, tilt: number) {
+  const width = Math.round(face.size * 1.4)
+  const guide: FaceSquare = { x: Math.round((width - face.size) / 2), y: Math.round((width - face.size) / 2), size: face.size }
+  const data = new Uint8ClampedArray(width * width * 4).fill(128)
+  const size = face.size * scale
+  const cx = guide.x + face.size / 2 + dx * face.size, cy = guide.y + face.size / 2 + dy * face.size
+  const turn = (tilt * Math.PI) / 180, cos = Math.cos(turn), sin = Math.sin(turn)
+  for (let y = 0; y < width; y++) {
+    for (let x = 0; x < width; x++) {
+      const u = (cos * (x - cx) + sin * (y - cy)) / scale + face.size / 2
+      const v = (-sin * (x - cx) + cos * (y - cy)) / scale + face.size / 2
+      if (u < 0 || v < 0 || u >= face.size || v >= face.size || size <= 0) continue
+      const source = (Math.floor(v) * face.size + Math.floor(u)) * 4
+      data.set(face.data.subarray(source, source + 4), (y * width + x) * 4)
+    }
+  }
+  return { data, width, guide }
+}
+
+// The square turned upright by `angle` (radians) about its center.
+function readTilted(data: Uint8ClampedArray, width: number, square: FaceSquare, angle: number, gridSize: number): string[][] {
+  const size = Math.round(square.size)
+  const cx = square.x + square.size / 2, cy = square.y + square.size / 2
+  const cos = Math.cos(angle), sin = Math.sin(angle)
+  const crop = new Uint8ClampedArray(size * size * 4)
+  for (let y = 0; y < size; y++) {
+    for (let x = 0; x < size; x++) {
+      const u = x - size / 2, v = y - size / 2
+      const sx = Math.min(width - 1, Math.max(0, Math.round(cx + cos * u - sin * v)))
+      const sy = Math.min(width - 1, Math.max(0, Math.round(cy + sin * u + cos * v)))
+      crop.set(data.subarray((sy * width + sx) * 4, (sy * width + sx) * 4 + 4), (y * size + x) * 4)
+    }
+  }
+  return extractColorsFromImageData(crop, size, size, gridSize).colors
+}
+
 function read(data: Uint8ClampedArray, width: number, square: FaceSquare, gridSize: number): string[][] {
   const size = Math.round(square.size)
   const x0 = Math.round(square.x), y0 = Math.round(square.y)
@@ -82,12 +120,14 @@ function read(data: Uint8ClampedArray, width: number, square: FaceSquare, gridSi
   return extractColorsFromImageData(crop, size, size, gridSize).colors
 }
 
-const CASES: Array<[string, number, number, number]> = [
-  ['centered', 0, 0, 1],
-  ['4% off', 0.04, 0.04, 1],
-  ['8% off', 0.08, -0.06, 1],
-  ['85% size', 0, 0, 0.85],
-  ['90% size, 5% off', -0.05, 0.05, 0.9],
+const CASES: Array<[string, number, number, number, number]> = [
+  ['centered', 0, 0, 1, 0],
+  ['4% off', 0.04, 0.04, 1, 0],
+  ['8% off', 0.08, -0.06, 1, 0],
+  ['85% size', 0, 0, 0.85, 0],
+  ['90% size, 5% off', -0.05, 0.05, 0.9, 0],
+  ['tilted 10', 0, 0, 0.95, 10],
+  ['tilted -20, 4% off', 0.04, -0.03, 0.9, -20],
 ]
 
 describe('grid alignment on real capture crops', () => {
@@ -101,11 +141,12 @@ describe('grid alignment on real capture crops', () => {
     const misread: Record<string, Record<number, { guide: number; aligned: number; total: number }>> = {}
     for (const face of faces) {
       const truth = extractColorsFromImageData(face.data, face.size, face.size, face.gridSize).colors
-      for (const [label, dx, dy, scale] of CASES) {
-        const { data, width, guide } = frame(face, dx, dy, scale)
-        const found = findGridAlignment(data, width, width, guide, face.gridSize)
+      for (const [label, dx, dy, scale, tilt] of CASES) {
+        const { data, width, guide } = frame(face, dx, dy, scale, tilt)
+        const angle = estimateTilt(data, width, width, guide)
+        const found = findGridAlignment(data, width, width, guide, face.gridSize, angle)
         const byGuide = read(data, width, guide, face.gridSize)
-        const byAlignment = read(data, width, found, face.gridSize)
+        const byAlignment = found.angle ? readTilted(data, width, found, found.angle, face.gridSize) : read(data, width, found, face.gridSize)
         const entry = ((misread[label] ??= {})[face.gridSize] ??= { guide: 0, aligned: 0, total: 0 })
         for (let r = 0; r < face.gridSize; r++) {
           for (let c = 0; c < face.gridSize; c++) {
