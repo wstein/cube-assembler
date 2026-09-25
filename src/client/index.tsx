@@ -8,7 +8,7 @@ import { diagnoseFaceDetection } from './detectionDiagnostics'
 import { holdConfirmedFace, NO_HOLD, type LiveHold } from './liveHold'
 import { WIZARD_FACE_ORDER, faceContentKey, groupWizardOptions, pickWizardFace, preferredGuidedArrangementIndex } from './orientationWizard'
 import {
-  faceBoundsForMode, captureAndProcessFace, captureAndProcessCanvas, captureAndProcessImage, extractCubeFaceColors, hasVisibleCubeFace,
+  faceBoundsForMode, detectFaceGridSize, captureAndProcessFace, captureAndProcessCanvas, captureAndProcessImage, extractCubeFaceColors, hasVisibleCubeFace,
   runGlobalWhiteBalance, NEUTRAL_GAINS, CROP_JPEG_QUALITY,
   DEFAULT_SAMPLING, MAX_BACKGROUND_GAP, STICKER_MEASUREMENT, stickerSampleRect, colorConfidences, STICKER_COLORS, type SamplingGeometry,
   rgbToOKLCH, hueCircularRange, hueRangesOverlap, linearRange,
@@ -657,6 +657,7 @@ const ORIENTATION_CHOICES_PER_PAGE = 2
 
 function App() {
   const [puzzleSize, setPuzzleSize] = useState(3)
+  const sizeManuallyChosen = useRef(false)
   const [cube, setCube] = useState<any>(null)
   const [assemblyResults, setAssemblyResults] = useState<any[]>([])
   const [parity, setParity] = useState<any>(null)
@@ -921,6 +922,9 @@ function App() {
     const canvas = sampleCanvasRef.current
     let progress: AutoCaptureProgress | null = null
     let hold: LiveHold<ColorDetectionResult> = NO_HOLD
+    let lastSizeCheck = 0
+    let sizeCandidate = 0
+    let sizeCandidateFrames = 0
 
     const intervalId = setInterval(() => {
       const video = webcamRef.current
@@ -934,6 +938,23 @@ function App() {
       ctx.drawImage(video, 0, 0)
 
       try {
+        if (captureMode === 'cv' && webcamFace === FACE_ORDER[0]
+          && FACE_ORDER.every((f) => !capturedFaces[f]) && !sizeManuallyChosen.current
+          && performance.now() - lastSizeCheck >= 500) {
+          lastSizeCheck = performance.now()
+          const size = detectFaceGridSize(canvas)
+          const sizeBounds = size ? faceBoundsForMode(canvas, size, 'aligned') : null
+          const visibleSize = sizeBounds?.gridFound && size !== null && hasVisibleCubeFace(canvas, size, sizeBounds, true) ? size : null
+          sizeCandidateFrames = visibleSize && visibleSize === sizeCandidate ? sizeCandidateFrames + 1 : 1
+          sizeCandidate = visibleSize ?? 0
+          if (visibleSize && visibleSize !== puzzleSize && sizeCandidateFrames >= 2) {
+            progress = null
+            setAutoCaptureFrames(0)
+            changePuzzleSize(visibleSize, true)
+            setCaptureMessage(`Detected ${visibleSize}×${visibleSize} cube size`)
+            return
+          }
+        }
         // Detect face uses this branch's grid alignment. Guide uses the
         // centered square exactly, so both preview and capture agree.
         const bounds = faceBoundsForMode(canvas, puzzleSize, captureMode === 'cv' ? 'aligned' : 'fixed')
@@ -1044,7 +1065,8 @@ function App() {
   // Everything below belongs to one cube of one size, so switching sizes
   // starts over - keeping it drew e.g. a 5x5's 25 stickers per face into a
   // 6x6 net. Shared by the main size bar and the capture dialog.
-  const changePuzzleSize = (size: number) => {
+  const changePuzzleSize = (size: number, automatic = false) => {
+    if (!automatic) sizeManuallyChosen.current = true
     if (size === puzzleSize) return
     setPuzzleSize(size)
     setCube(null)
@@ -1215,6 +1237,7 @@ function App() {
     const allCaptured = FACE_ORDER.every((f) => f in capturedFaces)
     const startOver = restart || allCaptured
     if (startOver) {
+      sizeManuallyChosen.current = false
       setCapturedFaces({})
       setFaceConfidence({})
     }
@@ -1245,9 +1268,10 @@ function App() {
       sharpness?: number
     },
     source: 'camera' | 'image-file',
-    cameraSettings?: Partial<MediaTrackSettings>
+    cameraSettings?: Partial<MediaTrackSettings>,
+    captureSize = puzzleSize
   ) => {
-    if (!validateFaceColors(result.colors, puzzleSize)) {
+    if (!validateFaceColors(result.colors, captureSize)) {
       setCaptureMessage(`❌ Invalid colors detected. Confidence: ${(result.confidence * 100).toFixed(0)}%`)
       return
     }
@@ -1851,16 +1875,29 @@ function App() {
         const ctx = canvas.getContext('2d')
         if (!ctx || !canvas.width || !canvas.height) throw new Error('Camera frame unavailable')
         ctx.drawImage(video, 0, 0)
-        const bounds = faceBoundsForMode(canvas, puzzleSize, 'aligned')
-        if (!bounds.gridFound || !hasVisibleCubeFace(canvas, puzzleSize, bounds, true)) {
+        let captureSize = puzzleSize
+        if (FACE_ORDER.every((f) => !capturedFaces[f]) && !sizeManuallyChosen.current) {
+          const estimated = detectFaceGridSize(canvas)
+          if (estimated) {
+            const estimatedBounds = faceBoundsForMode(canvas, estimated, 'aligned')
+            if (estimatedBounds.gridFound && hasVisibleCubeFace(canvas, estimated, estimatedBounds, true)) {
+              captureSize = estimated
+              if (estimated !== puzzleSize) changePuzzleSize(estimated, true)
+            }
+          }
+        }
+        const bounds = faceBoundsForMode(canvas, captureSize, 'aligned')
+        if (!bounds.gridFound || !hasVisibleCubeFace(canvas, captureSize, bounds, true)) {
           throw new Error('No cube face detected. Show the face clearly or choose Guide grid.')
         }
-        result = captureAndProcessCanvas(canvas, puzzleSize, NEUTRAL_GAINS, sampling, palette, 'aligned', bounds)
+        const captureProfile = activeProfile(profileStore, captureSize)
+        result = captureAndProcessCanvas(canvas, captureSize, NEUTRAL_GAINS, captureProfile.sampling,
+          profilePalette(captureProfile), 'aligned', bounds)
       } else {
         result = captureAndProcessFace(webcamRef.current, puzzleSize, NEUTRAL_GAINS, sampling, palette, 'fixed')
       }
       const track = (webcamRef.current.srcObject as MediaStream | null)?.getVideoTracks()[0]
-      await applyFaceCapture(webcamFace, result, 'camera', track ? withoutDeviceIds(track.getSettings()) : undefined)
+      await applyFaceCapture(webcamFace, result, 'camera', track ? withoutDeviceIds(track.getSettings()) : undefined, result.colors.length)
     } catch (err) {
       console.error('Capture error:', err)
       setCaptureMessage(`❌ Error: ${err instanceof Error ? err.message : 'Unknown error'}`)

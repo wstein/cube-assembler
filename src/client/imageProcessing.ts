@@ -1,6 +1,6 @@
 // Image processing utilities for cube face detection and color extraction
 
-import { ALIGNMENT_MAX_OFFSET, alignFace, cellEdges, estimateOuterCellRatio, type GridAlignment } from './gridAlignment'
+import { ALIGNMENT_MAX_OFFSET, alignFace, cellEdges, estimateGridSize, estimateOuterCellRatio, type GridAlignment } from './gridAlignment'
 
 export interface ColorDetectionResult {
   colors: string[][]
@@ -833,6 +833,19 @@ export function alignedFaceBounds(canvas: HTMLCanvasElement, gridSize: number): 
   const area = alignmentArea(guide, canvas.width, canvas.height)
   const region = ctx.getImageData(area.x0, area.y0, area.x1 - area.x0, area.y1 - area.y0)
   return boundsFromAlignment(alignFaceInArea(region.data, region.width, region.height, guide, area, gridSize), guide, area, canvas.width, canvas.height)
+}
+
+// Read the repeating seams once, independently of the current selector.
+// Used only before the first face is stored; a weak or incomplete grid
+// returns null and leaves the manual size choice alone.
+export function detectFaceGridSize(canvas: HTMLCanvasElement): number | null {
+  const guide = computeFaceBounds(canvas)
+  const ctx = canvas.getContext('2d')
+  if (!ctx || guide.faceWidth !== guide.faceHeight) return null
+  const area = alignmentArea(guide, canvas.width, canvas.height)
+  const region = ctx.getImageData(area.x0, area.y0, area.x1 - area.x0, area.y1 - area.y0)
+  return estimateGridSize(region.data, region.width, region.height,
+    { x: guide.startX - area.x0, y: guide.startY - area.y0, size: guide.faceWidth })
 }
 
 // The part of a width x height frame searched around `guide`: room for

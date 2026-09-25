@@ -174,6 +174,81 @@ function profile(data: Uint8ClampedArray, width: number, height: number, vertica
   return out
 }
 
+// Count the repeated seam dips in both directions before the first photo.
+// This is independent of the selected N: trying alignFace with every N can
+// reward a smaller grid whose lines happen to hit a subset of a large cube's
+// seams. A candidate needs a regular run in both axes (one faint seam may be
+// missed on a 5x5-7x7), otherwise the selector stays under manual control.
+export function estimateGridSize(data: Uint8ClampedArray, width: number, height: number, guide: FaceSquare): number | null {
+  if (guide.size < 100) return null
+  const angle = estimateTilt(data, width, height, guide)
+  const turn = angle ? {
+    cx: guide.x + guide.size / 2, cy: guide.y + guide.size / 2,
+    cos: Math.cos(angle), sin: Math.sin(angle),
+  } : undefined
+  const step = Math.max(1, Math.round(guide.size / 300))
+  const columns = profile(data, width, height, true, guide.y + guide.size * 0.2, guide.y + guide.size * 0.8, turn, step)
+  const rows = profile(data, width, height, false, guide.x + guide.size * 0.2, guide.x + guide.size * 0.8, turn, step)
+  type Peak = { position: number; depth: number }
+  const peaks = (values: Float64Array, origin: number): Peak[] => {
+    const radius = Math.max(4, Math.round(guide.size / 30))
+    const halfWindow = Math.max(1, Math.round(guide.size / 240))
+    const candidates: Peak[] = []
+    const from = Math.max(radius + halfWindow, Math.round(origin + guide.size * 0.06))
+    const to = Math.min(values.length - radius - halfWindow, Math.round(origin + guide.size * 0.94))
+    for (let position = from; position < to; position++) {
+      let center = 0
+      for (let d = -halfWindow; d <= halfWindow; d++) center += values[position + d]
+      center /= 2 * halfWindow + 1
+      const depth = Math.min(values[position - radius], values[position + radius]) - center
+      candidates.push({ position, depth })
+    }
+    candidates.sort((a, b) => b.depth - a.depth)
+    const strongest = candidates[0]?.depth ?? 0
+    if (strongest < 7) return []
+    const threshold = Math.max(7, strongest * 0.2)
+    const selected: Peak[] = []
+    const separation = guide.size / 18
+    for (const candidate of candidates) {
+      if (candidate.depth < threshold) break
+      if (selected.every((peak) => Math.abs(peak.position - candidate.position) >= separation)) selected.push(candidate)
+    }
+    return selected.sort((a, b) => a.position - b.position)
+  }
+  const regular = (seams: Peak[], origin: number): boolean => {
+    const n = seams.length + 1
+    if (n < 2 || n > 7) return false
+    const pitch = guide.size / n
+    if (seams[0].position < origin - pitch * 0.5 || seams[0].position > origin + pitch * 1.6) return false
+    if (seams[seams.length - 1].position < origin + guide.size - pitch * 1.6
+      || seams[seams.length - 1].position > origin + guide.size + pitch * 0.5) return false
+    for (let i = 1; i < seams.length; i++) {
+      const gap = seams[i].position - seams[i - 1].position
+      if (gap < pitch * 0.65 || gap > pitch * 1.5) return false
+    }
+    return true
+  }
+  const prune = (seams: Peak[], origin: number): Peak[] => {
+    while (seams.length > 1 && !regular(seams, origin)) {
+      const weakest = seams.reduce((index, peak, i) => peak.depth < seams[index].depth ? i : index, 0)
+      seams.splice(weakest, 1)
+    }
+    return seams
+  }
+  const rawXs = peaks(columns, guide.x), rawYs = peaks(rows, guide.y)
+  const xs = prune([...rawXs], guide.x), ys = prune([...rawYs], guide.y)
+  const xValid = regular(xs, guide.x), yValid = regular(ys, guide.y)
+  if (!xValid && !yValid) return null
+  if (xs.length === ys.length && xValid && yValid) return xs.length + 1
+  const primary = xs.length > ys.length ? xs : ys
+  const primaryValid = xs.length > ys.length ? xValid : yValid
+  const secondary = xs.length > ys.length ? ys : xs
+  const rawSecondary = xs.length > ys.length ? rawYs : rawXs
+  if (primaryValid && primary.length === 6 && rawSecondary.length >= 4 && rawSecondary.length <= 6) return 7
+  if (primaryValid && primary.length >= 4 && secondary.length === primary.length - 1) return primary.length + 1
+  return null
+}
+
 // How much darker a seam at `position` is than the stickers either side:
 // the mean over a small window centered on it, against the darker of the
 // two sides 0.3 cells away. Positive only for a dark line between two
