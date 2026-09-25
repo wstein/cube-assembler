@@ -165,6 +165,23 @@ describe('findGridAlignment', () => {
     })
   }
 
+  it('finds a grid whose gaps are grey, not black, next to red and blue stickers', () => {
+    // Like a photographed cube with grey-brown plastic between its tiles:
+    // the gaps (luminance ~91) are brighter than red (~76) and blue (~80)
+    // stickers, so a brightness dip misses them; each sticker's strongest
+    // channel (200+) still stands well above the gap's (100).
+    const guideSize = 300
+    const width = Math.round(guideSize * 1.4)
+    const guide = { x: (width - guideSize) / 2, y: (width - guideSize) / 2, size: guideSize }
+    const face = placed(guide, -0.05, 0.02, 0.95)
+    const rows = [[[40, 80, 200], [200, 40, 50], [40, 170, 60]], [[230, 220, 40], [220, 215, 50], [235, 235, 230]], [[40, 80, 200], [200, 40, 50], [40, 170, 60]]]
+    const { data, height } = scene(3, face, guideSize, { seam: [100, 90, 80], gap: 0.06, sticker: (row, col) => rows[row][col] })
+    const found = findGridAlignment(data, width, height, guide, 3)
+    expect(found.seams).toBe(true)
+    expect(Math.abs(found.x - face.x)).toBeLessThan(guideSize * 0.02)
+    expect(Math.abs(found.y - face.y)).toBeLessThan(guideSize * 0.02)
+  })
+
   it('keeps a measured tilt only when a grid shows under it', () => {
     const guideSize = 300
     const width = Math.round(guideSize * 1.4)
