@@ -356,28 +356,6 @@ h1, h2, h3 {
    PUZZLE SIZE BAR
    ───────────────────────────────────────────────────────────────────────────── */
 
-.size-control-panel,
-.viewer-region {
-  background: var(--color-bg-primary);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-lg);
-  padding: var(--spacing-md) var(--spacing-lg);
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  gap: var(--spacing-md);
-  box-sizing: border-box;
-  margin: 0;
-  width: auto;
-}
-
-.size-control-label {
-  font-size: 0.95rem;
-  font-weight: 600;
-  color: var(--color-text-primary);
-}
-
 .size-selector {
   display: flex;
   gap: var(--spacing-xs);
@@ -589,28 +567,10 @@ button {
    PANELS & SECTIONS
    ───────────────────────────────────────────────────────────────────────────── */
 
-.panel {
-  background: var(--color-bg-primary);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-xl);
-  padding: var(--spacing-lg);
-  display: flex;
-  flex-direction: column;
-  gap: var(--spacing-xl);
-  box-sizing: border-box;
-}
-
 .control-section {
   display: flex;
   flex-direction: column;
   gap: var(--spacing-sm);
-}
-
-.panel h2, .panel h3 {
-  font-size: 1.05rem;
-  font-weight: 600;
-  color: var(--color-text-primary);
-  margin: 0;
 }
 
 /* ─────────────────────────────────────────────────────────────────────────────
@@ -2167,11 +2127,6 @@ label.capture-size-label {
   stroke-linejoin: round;
 }
 
-.capture-live-confidence {
-  color: var(--color-text-secondary);
-  white-space: nowrap;
-}
-
 .capture-progress {
   display: flex;
   flex-direction: column;
@@ -2183,19 +2138,6 @@ label.capture-size-label {
   font-size: 0.85rem;
   font-weight: 600;
   color: var(--color-text-secondary);
-}
-
-.capture-progress-dots {
-  display: flex;
-  gap: var(--spacing-xs);
-}
-
-.capture-progress-dots .progress-dot {
-  cursor: pointer;
-}
-
-.capture-progress-dots .progress-dot:hover {
-  border-color: var(--color-primary);
 }
 
 .progress-dot {
@@ -2328,31 +2270,6 @@ label.capture-size-label {
    STATUS INDICATORS
    ───────────────────────────────────────────────────────────────────────────── */
 
-.status-line {
-  display: flex;
-  align-items: center;
-  gap: var(--spacing-md);
-  padding: var(--spacing-md);
-  background: var(--color-bg-secondary);
-  border-radius: var(--radius-md);
-  font-size: 0.875rem;
-}
-
-.status-dot {
-  width: 12px;
-  height: 12px;
-  border-radius: 50%;
-  flex-shrink: 0;
-}
-
-.status-dot.success {
-  background: var(--color-success);
-}
-
-.status-dot.error {
-  background: var(--color-danger);
-}
-
 /* ─────────────────────────────────────────────────────────────────────────────
    HEADER
    ───────────────────────────────────────────────────────────────────────────── */
@@ -2457,50 +2374,6 @@ label.capture-size-label {
   }
 }
 
-/* ─────────────────────────────────────────────────────────────────────────────
-   FACE CAPTURE PANEL
-   ───────────────────────────────────────────────────────────────────────────── */
-
-.face-capture-panel {
-  padding: var(--spacing-lg);
-  background: var(--color-bg-primary);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-lg);
-  display: flex;
-  flex-direction: column;
-  gap: var(--spacing-md);
-  box-sizing: border-box;
-}
-
-.face-capture-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: var(--spacing-sm);
-}
-
-.face-capture-header h2 {
-  font-size: 1.05rem;
-  font-weight: 600;
-  color: var(--color-text-primary);
-  margin: 0;
-}
-
-.face-capture-actions {
-  display: flex;
-  gap: var(--spacing-xs);
-  flex-wrap: wrap;
-  align-items: center;
-}
-
-.face-capture-entry {
-  display: flex;
-  align-items: center;
-  gap: var(--spacing-md);
-  flex-wrap: wrap;
-}
-
 .face-status-dots {
   display: flex;
   gap: var(--spacing-xs);
@@ -2553,26 +2426,7 @@ label.capture-size-label {
   transform: none;
 }
 
-/* ─────────────────────────────────────────────────────────────────────────────
-   FACE CAPTURE HEADER & COLOR INPUT
-   ───────────────────────────────────────────────────────────────────────────── */
-
-.face-capture-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: var(--spacing-md);
-}
-
-.face-capture-header h2 {
-  margin: 0;
-}
-
-.face-capture-actions {
-  display: flex;
-  gap: var(--spacing-sm);
-}
-
+/* Manual color input. */
 .color-input-panel {
   margin-top: var(--spacing-lg);
   padding: var(--spacing-lg);
@@ -2622,24 +2476,8 @@ label.capture-size-label {
     gap: var(--spacing-md);
   }
 
-  .size-control-panel,
-  .face-capture-panel,
-  .net-region,
-  .panel {
+  .net-region {
     padding: var(--spacing-md);
-  }
-
-  .face-capture-header {
-    flex-direction: column;
-    align-items: flex-start;
-  }
-
-  .face-capture-actions {
-    width: 100%;
-  }
-
-  .face-capture-actions .btn {
-    flex: 1 1 auto;
   }
 
   .modal-content {
@@ -2648,12 +2486,6 @@ label.capture-size-label {
 }
 
 @media (max-width: 540px) {
-  .size-control-panel {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: var(--spacing-sm);
-  }
-
   .size-selector {
     width: 100%;
     justify-content: space-between;
@@ -2662,15 +2494,6 @@ label.capture-size-label {
   .size-btn {
     flex: 1 1 0;
     min-width: 0;
-  }
-
-  .face-capture-entry {
-    flex-direction: column;
-    align-items: stretch;
-  }
-
-  .face-capture-entry .btn {
-    width: 100%;
   }
 
   .face-status-dots {
