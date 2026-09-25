@@ -93,7 +93,7 @@ declare const __APP_COMMIT__: string
 // Cube profiles (see cubeProfiles.ts) are a property of the user's cubes
 // and camera, not of one capture, so they're remembered between sessions.
 // Kept in a cookie rather than localStorage: cookies aren't scoped by
-// port, so the dev server (5173) and the Bun server (3000) share them.
+// port, so dev servers on different ports (5173, 5180, ...) share them.
 const PROFILES_COOKIE = 'cube-assembler-profiles'
 // Per-size sampling settings from before cube profiles existed - read once
 // and migrated into generic profiles.
