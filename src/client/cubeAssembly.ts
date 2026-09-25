@@ -973,23 +973,77 @@ export function checkGuidedCenters(photos: Array<string[][] | undefined>): Guide
 // alike seen in simulation: 6/9 on 3x3, 9/16 on 4x4, 18/49 on 7x7). A 2x2
 // needs an exact match, and still alarms falsely about once in 1,500 face
 // pairs - fine for a warning that can be dismissed.
+function sameFaceAtSomeRotation(a: string[][], b: string[][]): boolean {
+  const n = a.length
+  if (b.length !== n) return false
+  const allowed = n === 2 ? 0 : Math.max(1, Math.floor(n * n * 0.1))
+  return [0, 1, 2, 3].some((turns) => {
+    const rotated = rotateGrid(b, turns)
+    let same = 0
+    for (let r = 0; r < n; r++) for (let c = 0; c < n; c++) if (a[r][c] === rotated[r][c]) same++
+    return same >= n * n - allowed
+  })
+}
+
+export interface FaceMatchSample {
+  colors: string[][]
+  centerConfidence?: number
+}
+
+// Identify a face already saved in a different slot. Fixed centers are
+// decisive on odd cubes when both readings are strong; a full rotated
+// sticker match also works on even cubes and when a center is uncertain.
+export function findCapturedFaceMatch(
+  captures: Array<FaceMatchSample | undefined>,
+  candidate: FaceMatchSample,
+  excludeIndex = -1
+): number | null {
+  const n = candidate.colors.length
+  const mid = Math.floor(n / 2)
+  for (let i = 0; i < captures.length; i++) {
+    const saved = captures[i]
+    if (i === excludeIndex || !saved || saved.colors.length !== n) continue
+    if (n % 2 === 1 && (saved.centerConfidence ?? 0) >= 0.8 && (candidate.centerConfidence ?? 0) >= 0.8
+      && saved.colors[mid]?.[mid] === candidate.colors[mid]?.[mid]) return i
+    if (sameFaceAtSomeRotation(saved.colors, candidate.colors)) return i
+  }
+  return null
+}
+
+// An approval net is in cube orientation, whereas Check colors is in photo
+// order. Find the photo behind a net face even when it was rotated in assembly.
+export function findCaptureSlotForOrientedFace(
+  captures: Array<string[][] | undefined>, face: string[][]
+): number | null {
+  const n = face.length
+  let bestIndex: number | null = null
+  let bestDistance = Infinity
+  for (let i = 0; i < captures.length; i++) {
+    const saved = captures[i]
+    if (!saved || saved.length !== n) continue
+    for (let turn = 0; turn < 4; turn++) {
+      const rotated = rotateGrid(saved, turn)
+      let distance = 0
+      for (let r = 0; r < n; r++) for (let c = 0; c < n; c++) {
+        if (rotated[r][c] !== face[r][c]) distance++
+      }
+      if (distance < bestDistance) {
+        bestDistance = distance
+        bestIndex = i
+      }
+    }
+  }
+  return bestIndex
+}
+
 export function findRepeatedFaces(photos: Array<string[][] | undefined>): Array<[number, number]> {
   const repeats: Array<[number, number]> = []
   for (let i = 0; i < photos.length; i++) {
     const a = photos[i]
     if (!a) continue
-    const n = a.length
-    const allowed = n === 2 ? 0 : Math.max(1, Math.floor(n * n * 0.1))
     for (let j = 0; j < i; j++) {
       const b = photos[j]
-      if (!b || b.length !== n) continue
-      const alike = Math.max(...[0, 1, 2, 3].map((turns) => {
-        const rb = rotateGrid(b, turns)
-        let same = 0
-        for (let r = 0; r < n; r++) for (let c = 0; c < n; c++) if (a[r][c] === rb[r][c]) same++
-        return same
-      }))
-      if (alike >= n * n - allowed) repeats.push([j, i])
+      if (b && sameFaceAtSomeRotation(a, b)) repeats.push([j, i])
     }
   }
   return repeats

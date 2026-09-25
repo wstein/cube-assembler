@@ -11,7 +11,7 @@
 import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { rotateCube, turnFace, allOrientations, solvedCubeFaces, type Faces } from '../src/client/cubeGeometry'
-import { solveGuidedCapture, checkGuidedCenters, findRepeatedFaces, predictGuidedCenters, type FaceKey, type GuidedCapture } from '../src/client/cubeAssembly'
+import { solveGuidedCapture, checkGuidedCenters, findRepeatedFaces, findCapturedFaceMatch, findCaptureSlotForOrientedFace, predictGuidedCenters, type FaceKey, type GuidedCapture } from '../src/client/cubeAssembly'
 import { preferredGuidedArrangementIndex } from '../src/client/orientationWizard'
 
 const WCA: Record<FaceKey, string> = { U: 'W', R: 'R', F: 'G', D: 'Y', L: 'O', B: 'B' }
@@ -198,5 +198,21 @@ describe('findRepeatedFaces', () => {
   it('ignores photos not taken yet', () => {
     const capture = photograph(scramble(3, 40, rng(60)), 'left', false, [0, 0])
     expect(findRepeatedFaces([capture.sides[0], undefined, capture.sides[0]])).toEqual([[0, 2]])
+  })
+})
+
+describe('captured face lookup', () => {
+  it('recognizes a previously captured side in a live frame, but permits a retake of the current slot', () => {
+    const capture = photograph(scramble(3, 40, rng(73)), 'right', false, [0, 0])
+    const saved = capture.sides.map((colors) => ({ colors, centerConfidence: 0.95 }))
+    const candidate = { colors: rotateGrid(capture.sides[1], 1), centerConfidence: 0.95 }
+    expect(findCapturedFaceMatch(saved, candidate, 2)).toBe(1)
+    expect(findCapturedFaceMatch(saved, candidate, 1)).toBeNull()
+  })
+
+  it('maps a rotated approval face back to its photo slot', () => {
+    const capture = photograph(scramble(4, 40, rng(74)), 'left', true, [0, 0])
+    const photos = [...capture.sides, ...capture.caps]
+    expect(findCaptureSlotForOrientedFace(photos, rotateGrid(photos[4], 3))).toBe(4)
   })
 })
