@@ -15,3 +15,5 @@ vendor/cubing.js/node_modules/
 !vendor/cubing.js/dist/**
 !vendor/cubing.js/bun.lock
 test/fixtures/capture-20*
+# Opt-in Detect face diagnostics: camera frames, may show people
+test/diagnostics/
