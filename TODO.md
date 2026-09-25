@@ -29,9 +29,9 @@ real cubes" design discussion. Numbering matches that discussion's ratings;
   color across the six sides.
 - **"Choose each side"** starts from every arrangement, so a face that fits
   either way is asked about instead of filled in.
-- **Opt-in diagnostics** for missed faces, replayed with
-  `npm run diagnostics:replay`; a confirmed face is held through two weak
-  live frames; a clear message when the API server isn't running.
+- **First-face size detection** counts regular seam lines from 2×2 to 7×7
+  before locking the capture size; a confirmed face is held through two
+  weak live frames; a clear message appears when the API server isn't running.
 
 ## Next
 
@@ -100,4 +100,3 @@ real cubes" design discussion. Numbering matches that discussion's ratings;
 14. **The long-standing fixture failures** (`17-33-06`, `17-37-13`, `19-14-39`,
     `20-10-05`, `20-55-24`, `21-08-47`): readings off by a few levels
     from the browser's, or single misreads - unchanged by this branch.
-
