@@ -19,6 +19,20 @@ real cubes" design discussion. Numbering matches that discussion's ratings;
    next to the pane label. Turns every future capture's corrections into
    better-targeted training signal.
 
+
+### Scanner (branch `feat/grid-alignment`)
+
+- **Detect face finds the face itself** instead of trusting the guide:
+  offset, size, tilt (up to 35 degrees) and the wider perimeter cubies of
+  big cubes, from seams scored by each pixel's strongest channel.
+- **Odd cubes' centers**: read past their logo, and assigned one of each
+  color across the six sides.
+- **"Choose each side"** starts from every arrangement, so a face that fits
+  either way is asked about instead of filled in.
+- **Opt-in diagnostics** for missed faces, replayed with
+  `npm run diagnostics:replay`; a confirmed face is held through two weak
+  live frames; a clear message when the API server isn't running.
+
 ## Next
 
 3. **Consent + review queue for fixtures from other people.** Right now
@@ -49,3 +63,41 @@ real cubes" design discussion. Numbering matches that discussion's ratings;
    diverse enough (rough rule of thumb: tens of real captures across
    multiple lighting/camera conditions) - with fewer, it will overfit to
    whatever happened to be captured. Revisit later, not now.
+
+## Next (scanner)
+
+7. **Find out why the first saved missed faces fail.** Four frames saved on
+   2026-09-25 (three `no-grid`, one `no-sticker-pattern`, all 3x3); the
+   replay reproduces the live decision, so a fix can be checked on exactly
+   these frames.
+
+8. **Correct two fixtures saved with the old wizard bug.** Their approved
+   cube has one face turned 90 degrees, so their reassembly tests fail:
+   `capture-2026-09-25T11-38-36` (3x3, back face - confirmed by the user)
+   and `capture-2026-09-25T11-42-40` (7x7, right face - found by the guided
+   search, not yet confirmed).
+
+9. **`capture-2026-09-25T11-00-11` (4x4) doesn't reassemble** into its
+   approved cube; it failed before the center changes too.
+
+10. **Ask to re-center when the grid snaps a row.** Beyond half a cell of
+    offset (about 6% on a 7x7) the grid can slip one row and read worse
+    than the guide (35% -> 45% misread at 8% off). The outer grid lines then
+    miss the face's edge, which could keep the face from being accepted and
+    show "Center the cube in the square". Never fall back to the guide.
+
+11. **A browser test of the capture path** (Playwright, e.g. `npm run
+    test:e2e`): canvas crop, saved photo and re-detection together, which
+    the unit tests only cover piece by piece.
+
+12. **Real captures in CI.** They are gitignored, so the benchmark and
+    fixture tests skip there; a small committed subset (the owner's call:
+    size, privacy) or the licensed vision fixtures could cover it.
+
+13. **Speed up or opt out of the real-capture benchmark** - about 35 s of
+    `npm test`.
+
+14. **The long-standing fixture failures** (`17-33-06`, `17-37-13`, `19-14-39`,
+    `20-10-05`, `20-55-24`, `21-08-47`): readings off by a few levels
+    from the browser's, or single misreads - unchanged by this branch.
+
