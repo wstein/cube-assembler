@@ -27,7 +27,7 @@ import jpeg from 'jpeg-js'
 import { wrgFaceletsToGrids } from '../src/client/notationOutput'
 import { readFixtureColors } from '../src/client/fixtureFormat'
 import { solveGuidedCapture, orientationFreeSignature, type FaceKey } from '../src/client/cubeAssembly'
-import { DEFAULT_SAMPLING, STICKER_MEASUREMENT, classifyAcrossFaces, extractColorsFromImageData, NEUTRAL_GAINS, type ColorDetectionResult, type RGB, type SamplingGeometry } from '../src/client/imageProcessing'
+import { BACKGROUND_WB_METHOD, DEFAULT_SAMPLING, STICKER_MEASUREMENT, classifyAcrossFaces, extractColorsFromImageData, NEUTRAL_GAINS, type ColorDetectionResult, type RGB, type SamplingGeometry } from '../src/client/imageProcessing'
 
 const FIXTURES_DIR = join(__dirname, 'fixtures')
 const FACE_ORDER = ['u', 'r', 'f', 'd', 'l', 'b']
@@ -71,9 +71,10 @@ interface FixtureMeta {
     measurement?: string
     assembledURFDLB?: string | null
     whiteBalance?: { mode?: string; lightSource?: string | null }
-    // Per-face background gains older versions applied before
-    // classification. No longer replayed: the app stopped applying them.
+    // Per-face background gains applied before classification, replayed
+    // only when made by the current BACKGROUND_WB_METHOD.
     backgroundWhiteBalance?: Record<string, RGB> | null
+    backgroundWhiteBalanceMethod?: string | null
     // Sampling setup (face border, sticker gap) the capture used - see
     // SamplingGeometry. Absent on older fixtures, which used the default.
     sampling?: SamplingGeometry
@@ -146,16 +147,17 @@ describe('real-capture regression fixtures', () => {
         const photoPath = join(FIXTURES_DIR, name, faceData.photo)
         const decoded = jpeg.decode(readFileSync(photoPath), { useTArray: true })
         const pixelData = Uint8ClampedArray.from(decoded.data)
-        // Neutral, like the app: it no longer applies the per-face background
-        // gains older fixtures recorded (they swapped red and orange on real
-        // captures - see finalizeAllFacesCaptured in index.tsx).
-        const gains = NEUTRAL_GAINS
+        // The recorded background gains, like the app, if made the current
+        // way; older ones (relative to face 1, no gap to the cube) swapped
+        // red and orange on real captures and aren't replayed.
+        const replayGains = meta.capture?.backgroundWhiteBalanceMethod === BACKGROUND_WB_METHOD
+        const gains = replayGains ? meta.capture!.backgroundWhiteBalance?.[faceKey.toUpperCase()] ?? NEUTRAL_GAINS : NEUTRAL_GAINS
         const sampling = meta.capture?.sampling ?? DEFAULT_SAMPLING
         const result = extractColorsFromImageData(pixelData, decoded.width, decoded.height, meta.gridSize, gains, sampling)
 
-        // Readings taken with a different measurement, or with the per-face
-        // background gains older versions applied, can't be compared.
-        if (faceData.readings && meta.capture?.measurement === STICKER_MEASUREMENT && !meta.capture?.backgroundWhiteBalance) {
+        // Readings taken with a different measurement, or with background
+        // gains that aren't replayed, can't be compared.
+        if (faceData.readings && meta.capture?.measurement === STICKER_MEASUREMENT && (replayGains || !meta.capture?.backgroundWhiteBalance)) {
           const drift = Math.max(...result.cellColors.flat().map((rgb, i) => {
             const [r, g, b] = faceData.readings![i]
             return Math.max(Math.abs(rgb.r - r), Math.abs(rgb.g - g), Math.abs(rgb.b - b))

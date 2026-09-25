@@ -80,6 +80,7 @@ describe('fixture zips', () => {
         profile: { name: 'QiYi 3×3' },
         protocol: 'sides-then-top-bottom/v1',
         colorCalibration: { applied: true, learnedColors: { W: [250, 250, 250] } },
+        backgroundWhiteBalance: { U: { r: 1, g: 1, b: 1 }, R: { r: 1.12, g: 1, b: 0.8 } },
       },
     })))
     expect(summary.photos.map((p) => [p.face, p.file, p.bytes.length])).toEqual(
@@ -92,6 +93,7 @@ describe('fixture zips', () => {
       Camera: 'FaceTime HD Camera, 1920×1080',
       'Cube profile': 'QiYi 3×3',
       'Colors learned': 'from this capture',
+      'Backdrop balance': 'sides matched, largest correction ×1.25',
       App: '0.1.0 (abc1234)',
     })
     expect(Object.fromEntries(summarizeFixture(buildFixture(request())).rows)).toMatchObject({ 'Fixed by hand': 'not recorded', Capture: 'free order' })
