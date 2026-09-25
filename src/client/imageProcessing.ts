@@ -184,18 +184,6 @@ export function rgbToOKLCH(rgb: RGB): OKLCH {
   return { l, c, h }
 }
 
-// The three OKLCH component values as CSS oklch()'s own percentage/degree
-// units (https://www.w3.org/TR/css-color-4/#specifying-oklch), without the
-// oklch(...) wrapper: lightness is already 0-1 so it maps directly to
-// 0%-100%, and chroma's percentage form is spec-defined as 100% == 0.4
-// (chroma is otherwise unitless, ~0-0.4 for in-gamut sRGB).
-export function formatOKLCHValues(oklch: OKLCH): string {
-  const lPct = Math.round(oklch.l * 100)
-  const cPct = Math.round((oklch.c / 0.4) * 100)
-  const h = Math.round(oklch.h)
-  return `${lPct}% ${cPct}% ${h}deg`
-}
-
 export interface HueRange {
   min: number
   max: number
@@ -768,31 +756,6 @@ export function learnStickerColors(samples: StickerSample[]): LearnedColors | nu
   return { colors, clusterSizes, labelsBySampleIndex, leaveOneOutDistances }
 }
 
-function getDominantColor(imageData: Uint8ClampedArray, start: number, width: number, height: number): RGB {
-  const pixels: RGB[] = []
-
-  for (let i = 0; i < imageData.length; i += 4) {
-    const idx = i / 4
-    if (idx >= start && idx < start + width * height) {
-      pixels.push({
-        r: imageData[i],
-        g: imageData[i + 1],
-        b: imageData[i + 2],
-      })
-    }
-  }
-
-  if (pixels.length === 0) {
-    return { r: 255, g: 255, b: 255 }
-  }
-
-  const avgR = Math.round(pixels.reduce((sum, p) => sum + p.r, 0) / pixels.length)
-  const avgG = Math.round(pixels.reduce((sum, p) => sum + p.g, 0) / pixels.length)
-  const avgB = Math.round(pixels.reduce((sum, p) => sum + p.b, 0) / pixels.length)
-
-  return { r: avgR, g: avgG, b: avgB }
-}
-
 export interface FaceBounds {
   startX: number
   startY: number
@@ -1045,20 +1008,6 @@ export function limitBackgroundGain(gains: RGB): RGB {
   const clampGain = (g: number) =>
     Number.isFinite(g) ? Math.max(1 / MAX_BACKGROUND_GAIN, Math.min(MAX_BACKGROUND_GAIN, g)) : 1
   return { r: clampGain(gains.r), g: clampGain(gains.g), b: clampGain(gains.b) }
-}
-
-// Per-channel gain that would rescale `current`'s background reading to
-// match `reference`'s - the actual cross-face correction, applied to a
-// face's raw sticker samples (via applyGains) before classification, same
-// as any other gain in this file. Limited (see limitBackgroundGain) so a
-// background patch that's unexpectedly extreme (e.g. partially shadowed
-// on one face) can't produce a runaway correction.
-export function computeBackgroundGain(reference: RGB, current: RGB): RGB {
-  return limitBackgroundGain({
-    r: reference.r / Math.max(1, current.r),
-    g: reference.g / Math.max(1, current.g),
-    b: reference.b / Math.max(1, current.b),
-  })
 }
 
 // Crops just the analyzed face region out of a captured frame, for showing
@@ -1607,7 +1556,7 @@ export interface LearnedColorClassificationResult {
  *
  * `faceGains`, when given, redetects each face with that face's own gain
  * instead of NEUTRAL_GAINS for all of them - the background-based
- * cross-face correction (see computeBackgroundGain): face 1 is the
+ * cross-face correction: face 1 is the
  * reference (gain 1,1,1), later faces get whatever gain would make their
  * OWN background patch read the same as face 1's did. A face missing from
  * `faceGains` (background unavailable that shot) falls back to neutral.

@@ -16,7 +16,7 @@
 import { cellEdges } from '../src/client/gridAlignment'
 import { describe, it, expect } from 'vitest'
 import {
-  learnStickerColors, rgbToOKLCH, formatOKLCHValues, hueCircularRange, hueRangesOverlap, linearRange,
+  learnStickerColors, rgbToOKLCH, hueCircularRange, hueRangesOverlap, linearRange,
   hungarianAssignment, trimmedMeanColor, STICKER_COLORS, extractBackgroundColor,
   stickerSampleRect, DEFAULT_SAMPLING, measureSharpness, classifySticker, stickerColor,
   extractColorsFromImageData, hasPlausibleStickerFace, hasVisibleCubeFace, faceBoundsForMode, type RGB,
@@ -394,22 +394,6 @@ describe('trimmedMeanColor', () => {
     const pixels = [{ r: 10, g: 10, b: 10 }, { r: 250, g: 250, b: 250 }]
     // trimCount = floor(2*0.15) = 0 -> no trim, both pixels average.
     expect(trimmedMeanColor(pixels)).toEqual({ r: 130, g: 130, b: 130 })
-  })
-})
-
-describe('formatOKLCHValues', () => {
-  it('renders canonical red as bare percentage/degree values', () => {
-    // l=0.6280, c=0.2577, h=29.23 -> 63%, 64% (0.2577/0.4), 29deg
-    expect(formatOKLCHValues(rgbToOKLCH({ r: 255, g: 0, b: 0 }))).toBe('63% 64% 29deg')
-  })
-
-  it('renders black as 0% lightness and chroma regardless of (undefined) hue', () => {
-    expect(formatOKLCHValues(rgbToOKLCH({ r: 0, g: 0, b: 0 }))).toBe('0% 0% 0deg')
-  })
-
-  it('rounds each component independently', () => {
-    expect(formatOKLCHValues({ l: 0.5, c: 0.2, h: 180.4 })).toBe('50% 50% 180deg')
-    expect(formatOKLCHValues({ l: 0.505, c: 0.204, h: 180.6 })).toBe('51% 51% 181deg')
   })
 })
 

@@ -956,10 +956,6 @@ export function findRepeatedFaces(photos: Array<string[][] | undefined>): Array<
   return repeats
 }
 
-export function faceColorsToString(colors: string[][]): string {
-  return colors.map(row => row.join(' ')).join('\n')
-}
-
 export function validateFaceColors(colors: string[][], size = 3): boolean {
   if (colors.length !== size) return false
 
