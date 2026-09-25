@@ -428,7 +428,6 @@ function TurnHint({ step, mirrored }: { step: number; mirrored: boolean }) {
       <polygon points="16,24 42,24 52,14 26,14" class="turn-hint-face turn-hint-top" />
       <polygon points="42,24 52,14 52,40 42,50" class="turn-hint-face turn-hint-side" />
       <rect x="16" y="24" width="26" height="26" class="turn-hint-face" />
-      {kind === 'turn' && <rect x="16" y="24" width="26" height="8" class="turn-hint-row" />}
       <g transform="translate(16 24) scale(.26)">
         <path
           class="turn-hint-painted-arrow"
