@@ -2,6 +2,7 @@ import { render, h, Fragment } from 'preact'
 import { useState, useEffect, useRef, useMemo } from 'preact/hooks'
 import '../../web/style.css'
 import { apiFetch } from './api'
+import { WIZARD_FACE_ORDER, faceContentKey, groupWizardOptions, pickWizardFace } from './orientationWizard'
 import {
   faceBoundsForMode, captureAndProcessFace, captureAndProcessImage, extractCubeFaceColors, hasVisibleCubeFace,
   runGlobalWhiteBalance, NEUTRAL_GAINS, CROP_JPEG_QUALITY,
@@ -651,66 +652,8 @@ function focusModalOnOpen(el: HTMLElement | null) {
   if (el && !el.contains(document.activeElement)) el.focus()
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Orientation wizard: narrows solveFaceOrientations' tied `alternatives`
-// down to one, one face at a time, instead of dumping every alternative
-// (which can real-world number in the dozens - see cubeAssembly.ts's
-// MAX_ALTERNATIVES comment) in a single overwhelming grid. At each step,
-// asks about whichever not-yet-agreed-upon face currently has the most
-// distinct values among the remaining candidates (the question that
-// eliminates the most options), filters to the customer's answer, and
-// repeats - faces that happen to already agree across all remaining
-// candidates (including ones never directly asked about, resolved purely
-// as a side effect of earlier answers) are shown as settled without ever
-// being asked about. Terminates when exactly one candidate remains.
-// ─────────────────────────────────────────────────────────────────────────────
-
-// U last: for even sizes solveEvenSizeOrientations fixes U as its search
-// anchor, so it's already unanimous across every alternative and never
-// actually reaches this tiebreak - Up is given, F/R/L/D/B get asked about
-// as needed. For odd sizes there's no free anchor (every face's rotation
-// is a genuine unknown from its photo alone), so U is only ever actually
-// asked about there if it turns out to be tied with another face on
-// "most distinct values" - this ordering just makes it lose that tiebreak.
-const WIZARD_FACE_ORDER: FaceKey[] = ['F', 'R', 'D', 'L', 'B', 'U']
 const FACE_LABELS: Record<FaceKey, string> = { U: 'Up', R: 'Right', F: 'Front', D: 'Down', L: 'Left', B: 'Back' }
 const ORIENTATION_CHOICES_PER_PAGE = 2
-
-function faceContentKey(colors: string[][]): string {
-  return colors.map((row) => row.join('')).join('')
-}
-
-// The face (if any) worth asking about next: the one with the most
-// distinct remaining values, so the customer's answer narrows things down
-// the most. Null once every face already agrees - i.e. `remaining` must
-// be down to exactly one candidate (alternatives are deduped by content,
-// so >1 distinct candidates can never agree on all 6 faces at once).
-function pickWizardFace(remaining: OrientedCandidate[]): FaceKey | null {
-  let best: FaceKey | null = null
-  let bestCount = 1
-  for (const face of WIZARD_FACE_ORDER) {
-    const distinct = new Set(remaining.map((c) => faceContentKey(c.faces[face])))
-    if (distinct.size > bestCount) {
-      best = face
-      bestCount = distinct.size
-    }
-  }
-  return best
-}
-
-// Groups the remaining candidates by their value for `face`, one option
-// per distinct grid - the choices shown to the customer for this step.
-function groupWizardOptions(
-  remaining: OrientedCandidate[], face: FaceKey
-): { grid: string[][]; candidates: OrientedCandidate[] }[] {
-  const groups = new Map<string, { grid: string[][]; candidates: OrientedCandidate[] }>()
-  for (const c of remaining) {
-    const key = faceContentKey(c.faces[face])
-    if (!groups.has(key)) groups.set(key, { grid: c.faces[face], candidates: [] })
-    groups.get(key)!.candidates.push(c)
-  }
-  return [...groups.values()]
-}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // App Component
@@ -1648,24 +1591,24 @@ function App() {
     return null
   })()
 
-  // "No, let me choose each side": the wizard, with every remaining
-  // arrangement of the photos except the rejected ones.
-  // The arrangements the wizard would offer after a "no" - empty means
-  // there's nothing else to choose from, so the option isn't shown at all.
+  // "No, let me choose each side" is only offered when the photos fit
+  // together some other way too; the wizard then starts from every
+  // arrangement (see wizardStart).
   const rejectAlternatives = (approval: NonNullable<typeof orientationApproval>): OrientedCandidate[] => {
     const rejected = new Set(approval.candidates.map((c) => orientationFreeSignature(c.faces)))
     return (approval.fallback?.alternatives ?? []).filter((c) => !rejected.has(orientationFreeSignature(c.faces)))
   }
   const handleRejectOrientation = () => {
     if (!orientationApproval) return
-    const remaining = rejectAlternatives(orientationApproval)
-    if (remaining.length === 0) return
+    if (rejectAlternatives(orientationApproval).length === 0) return
     setOrientationApproval(null)
-    if (remaining.length === 1 && pickWizardFace(remaining) === null) {
-      handleChooseOrientation(remaining[0])
-      return
-    }
-    setOrientationWizard({ remaining, truncated: orientationApproval.fallback!.truncated, picked: [] })
+    // Every arrangement, the turned-down one included: the wizard only asks
+    // about faces the remaining candidates disagree on and fills in the
+    // rest, so leaving the suggestion out can drop a face's one alternative
+    // - a pattern cube whose back face fits either way got it filled in
+    // turned 90 degrees, never asked about. If the answers lead back to the
+    // suggestion, it was right after all.
+    setOrientationWizard({ remaining: orientationApproval.fallback!.alternatives, truncated: orientationApproval.fallback!.truncated, picked: [] })
   }
 
   // Finishes assembly once the orientation wizard has narrowed down to a
