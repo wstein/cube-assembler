@@ -47,6 +47,19 @@ describe('diagnoseFaceDetection', () => {
     expect(report.distinctColors).toBe(1)
   })
 
+  it('rejects grid-like room lines without a cube outline', () => {
+    const data = new Uint8ClampedArray(W * H * 4)
+    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+      const line = x % 96 < 4 || y % 96 < 4
+      data.set(line ? [15, 15, 15, 255] : [220, 105, 30, 255], (y * W + x) * 4)
+    }
+    const report = diagnoseFaceDetection(data, W, H, 3)
+    expect(report.alignment.seams).toBe(true)
+    expect(report.visibility.plausible).toBe(true)
+    expect(report.visibility.outline).toBe(false)
+    expect(report.reason).toBe('no-face-outline')
+  })
+
   it('produces a report that survives JSON', () => {
     const report = diagnoseFaceDetection(frame(true), W, H, 3)
     expect(JSON.parse(JSON.stringify(report))).toEqual(report)

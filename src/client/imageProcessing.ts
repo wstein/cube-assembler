@@ -1284,7 +1284,8 @@ export function hasCoherentStickerInteriors(data: Uint8ClampedArray, width: numb
 
 // The classifier assigns a color even to a wall. Look for repeated sticker
 // seams, allowing for small perspective/framing offsets around each expected
-// boundary. A plain wall can have coherent pixels but cannot supply seams.
+// boundary. Room edges can occasionally imitate seams, so Detect face also
+// requires the outer face boundary in the full camera frame.
 // `outerCellRatio` widens the outer rows and columns (see cellEdges).
 export function hasPlausibleStickerFace(data: Uint8ClampedArray, width: number, height: number, gridSize: number, outerCellRatio = 1): boolean {
   if (!hasCoherentStickerInteriors(data, width, height, gridSize, outerCellRatio)) return false
@@ -1377,26 +1378,41 @@ export function hasPlausibleStickerFace(data: Uint8ClampedArray, width: number, 
   return visibleIntersections >= Math.ceil((gridSize - 1) ** 2 * 0.5)
 }
 
-export function hasVisibleCubeFace(canvas: HTMLCanvasElement, gridSize: number, bounds: FaceBounds = alignedFaceBounds(canvas, gridSize)): boolean {
+export function hasVisibleCubeFace(canvas: HTMLCanvasElement, gridSize: number, bounds: FaceBounds = alignedFaceBounds(canvas, gridSize), requireOutline = false): boolean {
   const { imageData, faceWidth, faceHeight } = readFaceRegion(canvas, bounds)
   return faceVisibility(imageData.data, faceWidth, faceHeight, gridSize, () => {
     const ctx = canvas.getContext('2d')
-    return !!ctx && outlineVisible(ctx.getImageData(0, 0, canvas.width, canvas.height).data, canvas.width, canvas.height, bounds)
-  }).visible
+    if (!ctx) return false
+    const angle = bounds.angle ?? 0
+    const cos = Math.abs(Math.cos(angle)), sin = Math.abs(Math.sin(angle))
+    const cx = bounds.startX + faceWidth / 2, cy = bounds.startY + faceHeight / 2
+    const margin = Math.ceil(Math.min(faceWidth, faceHeight) * 0.08) + 1
+    const halfX = (cos * faceWidth + sin * faceHeight) / 2 + margin
+    const halfY = (sin * faceWidth + cos * faceHeight) / 2 + margin
+    const x0 = Math.max(0, Math.floor(cx - halfX)), y0 = Math.max(0, Math.floor(cy - halfY))
+    const x1 = Math.min(canvas.width, Math.ceil(cx + halfX)), y1 = Math.min(canvas.height, Math.ceil(cy + halfY))
+    if (x1 <= x0 || y1 <= y0) return false
+    const region = ctx.getImageData(x0, y0, x1 - x0, y1 - y0)
+    return outlineVisible(region.data, x1 - x0, y1 - y0, {
+      ...bounds, startX: bounds.startX - x0, startY: bounds.startY - y0,
+    })
+  }, requireOutline).visible
 }
 
 // The live cube check on the read square `data`, step by step: coherent
-// sticker interiors, then a sticker pattern - or, failing that, a visible
-// outline (`outline`, asked only then).
+// sticker interiors, then a sticker pattern or a visible outline. Detect
+// face requires the outer outline even when room lines mimic sticker seams;
+// Guide grid keeps the more permissive manual check.
 export function faceVisibility(
-  data: Uint8ClampedArray, faceWidth: number, faceHeight: number, gridSize: number, outline: () => boolean
+  data: Uint8ClampedArray, faceWidth: number, faceHeight: number, gridSize: number, outline: () => boolean, requireOutline = false
 ): { visible: boolean; coherent: boolean; plausible?: boolean; outline?: boolean } {
   // Judge the face in the layout it is sampled in (see extractColorsFromImageData).
   const outer = estimateOuterCellRatio(data, faceWidth, faceHeight, gridSize)
   if (!hasCoherentStickerInteriors(data, faceWidth, faceHeight, gridSize, outer)) return { visible: false, coherent: false }
-  if (hasPlausibleStickerFace(data, faceWidth, faceHeight, gridSize, outer)) return { visible: true, coherent: true, plausible: true }
+  const plausible = hasPlausibleStickerFace(data, faceWidth, faceHeight, gridSize, outer)
+  if (plausible && !requireOutline) return { visible: true, coherent: true, plausible: true }
   const edge = outline()
-  return { visible: edge, coherent: true, plausible: false, outline: edge }
+  return { visible: edge, coherent: true, plausible, outline: edge }
 }
 
 // Whether the square of `bounds` stands out from its surroundings along at

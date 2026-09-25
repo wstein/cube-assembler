@@ -938,7 +938,8 @@ function App() {
         // centered square exactly, so both preview and capture agree.
         const bounds = faceBoundsForMode(canvas, puzzleSize, captureMode === 'cv' ? 'aligned' : 'fixed')
         const detection = extractCubeFaceColors(canvas, puzzleSize, NEUTRAL_GAINS, sampling, palette, bounds)
-        const visible = (captureMode === 'guide' || bounds.gridFound === true) && hasVisibleCubeFace(canvas, puzzleSize, bounds)
+        const visible = (captureMode === 'guide' || bounds.gridFound === true)
+          && hasVisibleCubeFace(canvas, puzzleSize, bounds, captureMode === 'cv')
         // Detect face holds a confirmed face through a weak frame or two
         // (display only - see holdConfirmedFace); everything below still
         // judges this frame on its own.
@@ -1824,8 +1825,23 @@ function App() {
     try {
       setLoading(true)
       setCaptureMessage('Processing image...')
-      const result = captureAndProcessFace(webcamRef.current, puzzleSize, NEUTRAL_GAINS, sampling, palette,
-        captureMode === 'cv' ? 'aligned' : 'fixed')
+      let result: FaceCaptureResult
+      if (captureMode === 'cv') {
+        const video = webcamRef.current
+        const canvas = document.createElement('canvas')
+        canvas.width = video.videoWidth
+        canvas.height = video.videoHeight
+        const ctx = canvas.getContext('2d')
+        if (!ctx || !canvas.width || !canvas.height) throw new Error('Camera frame unavailable')
+        ctx.drawImage(video, 0, 0)
+        const bounds = faceBoundsForMode(canvas, puzzleSize, 'aligned')
+        if (!bounds.gridFound || !hasVisibleCubeFace(canvas, puzzleSize, bounds, true)) {
+          throw new Error('No cube face detected. Show the face clearly or choose Guide grid.')
+        }
+        result = captureAndProcessCanvas(canvas, puzzleSize, NEUTRAL_GAINS, sampling, palette, 'aligned', bounds)
+      } else {
+        result = captureAndProcessFace(webcamRef.current, puzzleSize, NEUTRAL_GAINS, sampling, palette, 'fixed')
+      }
       const track = (webcamRef.current.srcObject as MediaStream | null)?.getVideoTracks()[0]
       await applyFaceCapture(webcamFace, result, 'camera', track ? withoutDeviceIds(track.getSettings()) : undefined)
     } catch (err) {
