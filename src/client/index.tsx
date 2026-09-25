@@ -2,6 +2,7 @@ import { render, h, Fragment } from 'preact'
 import { useState, useEffect, useRef, useMemo } from 'preact/hooks'
 import '../../web/style.css'
 import { apiFetch } from './api'
+import { diagnoseFaceDetection } from './detectionDiagnostics'
 import { WIZARD_FACE_ORDER, faceContentKey, groupWizardOptions, pickWizardFace } from './orientationWizard'
 import {
   faceBoundsForMode, captureAndProcessFace, captureAndProcessImage, extractCubeFaceColors, hasVisibleCubeFace,
@@ -128,6 +129,12 @@ interface CameraInfo {
 // Drops the per-browser device/group ids from settings/capabilities
 // before they end up in a saved fixture - they identify the user's
 // hardware and say nothing about how the photo was taken.
+// Opt-in Detect face diagnostics (see maybeSaveDiagnostic): remembered per
+// browser; at most one saved frame per interval and a few per session.
+const DIAGNOSTICS_KEY = 'cube-assembler.saveDiagnostics'
+const DIAGNOSTIC_INTERVAL_MS = 5000
+const MAX_DIAGNOSTICS_PER_SESSION = 10
+
 function withoutDeviceIds<T extends { deviceId?: unknown; groupId?: unknown }>(info: T): Omit<T, 'deviceId' | 'groupId'> {
   const { deviceId: _deviceId, groupId: _groupId, ...rest } = info
   return rest
@@ -727,6 +734,11 @@ function App() {
   // let it be turned off for cameras that don't need it (e.g. a rear
   // phone camera fed in via some capture setups).
   const [mirrorPreview, setMirrorPreview] = useState(true)
+  const [saveDiagnostics, setSaveDiagnostics] = useState(() => {
+    try { return localStorage.getItem(DIAGNOSTICS_KEY) === '1' } catch { return false }
+  })
+  const [diagnosticsStatus, setDiagnosticsStatus] = useState<{ saved: number; error?: string }>({ saved: 0 })
+  const diagnosticsLog = useRef({ lastAt: 0, saved: 0 })
   const [profileStore, setProfileStore] = useState<ProfileStore>(loadProfileStore)
   const profile = activeProfile(profileStore, puzzleSize)
   const sampling = profile.sampling
@@ -929,9 +941,11 @@ function App() {
         // Detect face uses this branch's grid alignment. Guide uses the
         // centered square exactly, so both preview and capture agree.
         const bounds = faceBoundsForMode(canvas, puzzleSize, captureMode === 'cv' ? 'aligned' : 'fixed')
-        setLiveDetection(extractCubeFaceColors(canvas, puzzleSize, NEUTRAL_GAINS, sampling, palette, bounds))
-        setLiveFaceVisible((captureMode === 'guide' || bounds.gridFound === true)
-          && hasVisibleCubeFace(canvas, puzzleSize, bounds))
+        const detection = extractCubeFaceColors(canvas, puzzleSize, NEUTRAL_GAINS, sampling, palette, bounds)
+        const visible = (captureMode === 'guide' || bounds.gridFound === true) && hasVisibleCubeFace(canvas, puzzleSize, bounds)
+        setLiveDetection(detection)
+        setLiveFaceVisible(visible)
+        if (saveDiagnostics && captureMode === 'cv' && !visible) maybeSaveDiagnostic(canvas, detection)
       } catch {
         // Transient frame read failure (e.g. camera still warming up).
         setLiveDetection(null)
@@ -940,7 +954,45 @@ function App() {
     }, 200)
 
     return () => { clearInterval(intervalId) }
-  }, [webcamOpen, turnCueShowing, puzzleSize, sampling, palette, captureMode])
+  }, [webcamOpen, turnCueShowing, puzzleSize, sampling, palette, captureMode, saveDiagnostics, mirrorPreview, profile.name])
+
+  // Opt-in: saves a live frame Detect face turned down, with its diagnosis
+  // (diagnoseFaceDetection), to test/diagnostics/ on this computer - so a
+  // missed face can be replayed exactly. Only frames that still look like a
+  // face (several colors, not an empty wall) and that the diagnosis also
+  // rejects; at most one per DIAGNOSTIC_INTERVAL_MS, MAX_DIAGNOSTICS_PER_SESSION
+  // in all. Full camera resolution, so the replay sees the same pixels.
+  const maybeSaveDiagnostic = (canvas: HTMLCanvasElement, detection: ColorDetectionResult) => {
+    const log = diagnosticsLog.current
+    const now = Date.now()
+    if (log.saved >= MAX_DIAGNOSTICS_PER_SESSION || now - log.lastAt < DIAGNOSTIC_INTERVAL_MS) return
+    if (new Set(detection.colors.flat()).size < 3) return
+    const ctx = canvas.getContext('2d')
+    if (!ctx) return
+    const report = diagnoseFaceDetection(ctx.getImageData(0, 0, canvas.width, canvas.height).data, canvas.width, canvas.height, puzzleSize)
+    if (report.detected) return
+    log.lastAt = now
+    log.saved++
+    const track = (webcamRef.current?.srcObject as MediaStream | null)?.getVideoTracks()[0]
+    const body = JSON.stringify({
+      frame: canvas.toDataURL('image/jpeg', 0.95),
+      report,
+      meta: {
+        capturedAt: new Date().toISOString(),
+        cube: profile.name,
+        mirrored: mirrorPreview,
+        sampling,
+        camera: track ? { label: track.label, settings: withoutDeviceIds(track.getSettings()) } : null,
+      },
+    })
+    apiFetch('/api/diagnostics', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body })
+      .then(async (res) => {
+        const result = await res.json()
+        if (!res.ok) throw new Error(result.error ?? `Failed (${res.status})`)
+        setDiagnosticsStatus({ saved: log.saved })
+      })
+      .catch((err) => setDiagnosticsStatus({ saved: log.saved, error: err instanceof Error ? err.message : String(err) }))
+  }
 
   // Everything below belongs to one cube of one size, so switching sizes
   // starts over - keeping it drew e.g. a 5x5's 25 stickers per face into a
@@ -2466,6 +2518,27 @@ function App() {
                       Add {newCubeForm.brand} {puzzleSize}×{puzzleSize}
                     </button>
                   </div>
+                )}
+                {captureMode === 'cv' && (
+                  <label class="diagnostics-toggle">
+                    <input
+                      type="checkbox"
+                      checked={saveDiagnostics}
+                      onChange={(e) => {
+                        const on = e.currentTarget.checked
+                        setSaveDiagnostics(on)
+                        try { localStorage.setItem(DIAGNOSTICS_KEY, on ? '1' : '0') } catch { /* private window */ }
+                      }}
+                    />
+                    <span>
+                      Save missed faces for diagnosis
+                      <small>
+                        {saveDiagnostics
+                          ? diagnosticsStatus.error ?? `${diagnosticsStatus.saved} saved to test/diagnostics on this computer`
+                          : 'Camera frames stay on this computer'}
+                      </small>
+                    </span>
+                  </label>
                 )}
                 <div class="capture-options-row">
                   <label class="mirror-toggle">

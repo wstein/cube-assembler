@@ -1767,6 +1767,19 @@ textarea {
   box-shadow: 0 0 0 2000px rgba(0, 0, 0, 0.2);
 }
 
+.diagnostics-toggle {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--spacing-sm);
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.diagnostics-toggle small {
+  display: block;
+  color: var(--color-text-secondary);
+}
+
 .capture-mode-switch {
   display: flex;
   gap: 4px;
