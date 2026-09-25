@@ -19,8 +19,4 @@ export default defineConfig({
       ],
     },
   },
-  resolve: {
-    // Allow importing cubing.js ESM directly
-    conditions: ["import", "module", "browser", "default"],
-  },
 });
