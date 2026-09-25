@@ -1790,6 +1790,33 @@ textarea {
   pointer-events: none;
 }
 
+.capture-scan-frame.cv-search-frame {
+  width: 86%;
+  border: 2px dashed rgba(255, 255, 255, 0.5);
+  box-shadow: 0 0 0 2000px rgba(0, 0, 0, 0.2);
+}
+
+.capture-mode-switch {
+  display: flex;
+  gap: 4px;
+  padding: 3px;
+  border-radius: 999px;
+  background: var(--color-bg-secondary);
+  align-self: flex-start;
+}
+
+.capture-mode-switch button {
+  border: 0;
+  border-radius: 999px;
+  padding: 6px 12px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.capture-mode-switch button.active { background: var(--color-bg-primary, #fff); box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2); }
+
 .capture-scan-label {
   position: absolute;
   top: -1.6rem;
