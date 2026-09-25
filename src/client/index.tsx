@@ -16,7 +16,7 @@ import {
 } from './imageProcessing'
 import {
   assembleCubeFromFaces, validateFaceColors, createSolvedCube, toCubeIR, solveFaceOrientations, solveGuidedCapture,
-  checkGuidedCenters, findRepeatedFaces, findCapturedFaceMatch, findCaptureSlotForOrientedFace, orientationFreeSignature, predictGuidedCenters,
+  checkGuidedCenters, findRepeatedFaces, findCapturedFaceMatch, findCaptureSlotForOrientedFace, orientationFreeSignature, captureCenterSlots, captureSlotForCenter,
   type OrientedCandidate, type OrientationSolution, type FaceKey, type GuidedArrangement, type GuidedCenterIssue,
 } from './cubeAssembly'
 import {
@@ -69,6 +69,7 @@ interface FaceCaptureData {
   // Where the photo came from: the live camera, an imported image file, or
   // an uploaded fixture. Absent for faces without a photo (manual input).
   source?: 'camera' | 'image-file' | 'fixture'
+  outOfOrder?: boolean
   timestamp: number
 }
 
@@ -386,7 +387,7 @@ function CaptureNet({ faces, current, size, predictedCenters, mirrored, onSelect
     const suggested = !colors ? predictedCenters[FACE_ORDER.indexOf(key)] : null
     const preview = suggested ? empty.map((row) => row.slice()) : empty
     if (suggested) preview[Math.floor(size / 2)][Math.floor(size / 2)] = suggested
-    const shown = mirrored ? oppositeFacePreview(colors ?? preview, Object.values(faces)) : colors ?? preview
+    const shown = colors ?? preview
     return (
       <button
         type="button"
@@ -394,7 +395,7 @@ function CaptureNet({ faces, current, size, predictedCenters, mirrored, onSelect
         class="capture-net-slot"
         style={{ gridArea }}
         data-slot={key}
-        aria-label={`${FACE_DISPLAY_LABEL[key]}: ${colors ? 'captured, tap to retake' : suggested ? `suggested ${COLOR_NAME[suggested]} center, not captured yet` : 'not captured yet'}${mirrored ? '; opposite face shown' : ''}`}
+        aria-label={`${FACE_DISPLAY_LABEL[key]}: ${colors ? 'captured, tap to retake' : suggested ? `suggested ${COLOR_NAME[suggested]} center, not captured yet` : 'not captured yet'}`}
         aria-current={key === current ? 'step' : undefined}
         onClick={() => onSelect(key)}
       >
@@ -1252,9 +1253,19 @@ function App() {
       return
     }
 
+    const requestedIndex = FACE_ORDER.indexOf(face)
+    const assignedIndex = captureSlotForCenter(FACE_ORDER.map((f) => capturedFaces[f]?.colors), requestedIndex, result.colors)
+    if (assignedIndex === null) {
+      pendingFlyIn.current = null
+      setCaptureMessage('This center has already been captured, or could not be identified. Show another face or retake a saved one.')
+      return
+    }
+    const assignedFace = FACE_ORDER[assignedIndex]
+    if (pendingFlyIn.current) pendingFlyIn.current.slot = assignedFace
+
     const newCapturedFaces = {
       ...capturedFaces,
-      [face]: {
+      [assignedFace]: {
         colors: result.colors,
         detectedColors: result.colors,
         cellConfidences: result.cellConfidences,
@@ -1267,14 +1278,15 @@ function App() {
         sharpness: result.sharpness,
         cameraSettings,
         source,
+        outOfOrder: assignedIndex !== requestedIndex || capturedFaces[assignedFace]?.outOfOrder,
         timestamp: Date.now(),
       },
     }
 
     setCapturedFaces(newCapturedFaces)
     lastCapturedColors.current = result.colors
-    setFaceConfidence({ ...faceConfidence, [face]: result.confidence })
-    setCaptureMessage(`✓ ${FACE_DISPLAY_LABEL[face]} captured (${(result.confidence * 100).toFixed(0)}% confidence)`)
+    setFaceConfidence({ ...faceConfidence, [assignedFace]: result.confidence })
+    setCaptureMessage(`✓ ${FACE_DISPLAY_LABEL[assignedFace]} captured (${(result.confidence * 100).toFixed(0)}% confidence)`)
 
     const allFacesCaptured = FACE_ORDER.every(f => f in newCapturedFaces)
     if (allFacesCaptured) {
@@ -1287,7 +1299,8 @@ function App() {
         dismissTurnOverlay()
         // The cue blocks capturing while the cube turns; without the turn it
         // would only be a wait, and the step hint already says what to do.
-        if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
+        if (window.matchMedia('(prefers-reduced-motion: reduce)').matches
+          || FACE_ORDER.some((f) => newCapturedFaces[f]?.outOfOrder)) return
         const step = FACE_ORDER.indexOf(nextFace)
         setTurnOverlay({ step, startColors: result.colors, viaColors: step === 5 ? newCapturedFaces[FACE_ORDER[3]]?.colors : undefined })
         turnOverlayTimer.current = setTimeout(dismissTurnOverlay, TURN_CUE_FALLBACK_MS)
@@ -1600,11 +1613,17 @@ function App() {
   // capture, or an uploaded fixture that recorded it. Faces mixed with
   // imported photos may not have, so they use the any-order search.
   const isGuidedCapture = () =>
-    FACE_ORDER.every((f) => capturedFaces[f]?.source === 'camera')
+    (FACE_ORDER.every((f) => capturedFaces[f]?.source === 'camera')
+      && !FACE_ORDER.some((f) => capturedFaces[f]?.outOfOrder)
+      && !checkGuidedCenters(FACE_ORDER.slice(0, 2).map((f) => capturedFaces[f]?.colors)).length)
     || (FACE_ORDER.every((f) => capturedFaces[f]?.source === 'fixture') && uploadedProtocol === GUIDED_PROTOCOL)
 
-  const predictedCenters = predictGuidedCenters(FACE_ORDER.map((f) => capturedFaces[f]?.colors))
+  const predictedCenters = captureCenterSlots(FACE_ORDER.map((f) => capturedFaces[f]?.colors))
   const predictedCenter = predictedCenters[FACE_ORDER.indexOf(webcamFace)]
+  const centerRoutingActive = puzzleSize % 2 === 1
+    && Boolean(capturedFaces[FACE_ORDER[0]] && capturedFaces[FACE_ORDER[1]])
+    && predictedCenters.every(Boolean)
+    && !capturedFaces[webcamFace]
 
   // A likely capture mistake visible from odd-size centers while capturing
   // (see checkGuidedCenters) - only a hint, never blocking. Live colors are
@@ -2344,8 +2363,8 @@ function App() {
                 <button type="button" class={captureMode === 'guide' ? 'active' : ''} aria-pressed={captureMode === 'guide'} onClick={() => { setCaptureMode('guide'); setLiveDetection(null); setLiveFaceVisible(false) }}>Guide grid</button>
               </div>
               <p class="capture-hint-text" aria-live="polite">
-                <TurnHint step={FACE_ORDER.indexOf(webcamFace)} mirrored={mirrorPreview} />
-                {captureInstruction(FACE_ORDER.indexOf(webcamFace), mirrorPreview)}
+                {!centerRoutingActive && <TurnHint step={FACE_ORDER.indexOf(webcamFace)} mirrored={mirrorPreview} />}
+                {centerRoutingActive ? 'Show any uncaptured face. Its center color will place it in the capture net.' : captureInstruction(FACE_ORDER.indexOf(webcamFace), mirrorPreview)}
                 {predictedCenter && (
                   <span class="capture-expected-center">
                     Suggested center: <span class="capture-expected-swatch" style={{ background: STICKER_HEX[predictedCenter] }} />
@@ -2354,7 +2373,7 @@ function App() {
                 )}
               </p>
               <div class="capture-progress">
-                <span class="capture-progress-label">Captured so far · {mirrorPreview ? 'opposite faces shown · ' : ''}tap one to retake</span>
+                <span class="capture-progress-label">Captured so far · tap one to retake</span>
                 <CaptureNet
                   faces={Object.fromEntries(FACE_ORDER.map((f) => [f, capturedFaces[f]?.colors]))}
                   current={webcamFace}
