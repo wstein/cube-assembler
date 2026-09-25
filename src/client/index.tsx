@@ -15,7 +15,7 @@ import {
 } from './imageProcessing'
 import {
   assembleCubeFromFaces, validateFaceColors, createSolvedCube, toCubeIR, solveFaceOrientations, solveGuidedCapture,
-  checkGuidedCenters, findRepeatedFaces, orientationFreeSignature, predictGuidedSideCenter,
+  checkGuidedCenters, findRepeatedFaces, orientationFreeSignature, predictGuidedCenters,
   type OrientedCandidate, type OrientationSolution, type FaceKey, type GuidedArrangement, type GuidedCenterIssue,
 } from './cubeAssembly'
 import {
@@ -394,17 +394,17 @@ function FaceGrid({ colors, undecided, current, auto }: { colors: string[][]; un
 // of the two is really the top, is only worked out once all 6 are in).
 // Each slot shows the colors detected for it, or a placeholder; tapping a
 // slot retakes it or jumps to it.
-function CaptureNet({ faces, current, size, predictedCenter, onSelect }: {
+function CaptureNet({ faces, current, size, predictedCenters, onSelect }: {
   faces: Record<string, string[][] | undefined>
   current: string
   size: number
-  predictedCenter: string | null
+  predictedCenters: Array<string | null>
   onSelect: (slot: string) => void
 }) {
   const empty = Array.from({ length: size }, () => Array<string>(size).fill(''))
   const slot = (key: string, gridArea: string) => {
     const colors = faces[key]
-    const suggested = !colors && key === current ? predictedCenter : null
+    const suggested = !colors ? predictedCenters[FACE_ORDER.indexOf(key)] : null
     const preview = suggested ? empty.map((row) => row.slice()) : empty
     if (suggested) preview[Math.floor(size / 2)][Math.floor(size / 2)] = suggested
     return (
@@ -1658,10 +1658,8 @@ function App() {
     FACE_ORDER.every((f) => capturedFaces[f]?.source === 'camera')
     || (FACE_ORDER.every((f) => capturedFaces[f]?.source === 'fixture') && uploadedProtocol === GUIDED_PROTOCOL)
 
-  const predictedCenter = predictGuidedSideCenter(
-    FACE_ORDER.map((f) => capturedFaces[f]?.colors),
-    FACE_ORDER.indexOf(webcamFace)
-  )
+  const predictedCenters = predictGuidedCenters(FACE_ORDER.map((f) => capturedFaces[f]?.colors))
+  const predictedCenter = predictedCenters[FACE_ORDER.indexOf(webcamFace)]
 
   // A likely capture mistake visible from odd-size centers while capturing
   // (see checkGuidedCenters) - only a hint, never blocking. Live colors are
@@ -2457,7 +2455,7 @@ function App() {
                   faces={Object.fromEntries(FACE_ORDER.map((f) => [f, capturedFaces[f]?.colors]))}
                   current={webcamFace}
                   size={puzzleSize}
-                  predictedCenter={predictedCenter}
+                  predictedCenters={predictedCenters}
                   onSelect={(slot) => {
                     dismissTurnOverlay()
                     lastCapturedColors.current = null

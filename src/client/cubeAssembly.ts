@@ -775,20 +775,59 @@ export interface GuidedSolution extends OrientationSolution {
 
 const OPPOSITE_COLOR: Record<string, string> = { W: 'Y', Y: 'W', R: 'O', O: 'R', G: 'B', B: 'G' }
 
-// For either direction around the four upright sides, side 3 is opposite
-// side 1 and side 4 is opposite side 2. This is only a preview; a user may
-// present the faces in another order, and the final search resolves that.
-export function predictGuidedSideCenter(photos: Array<string[][] | undefined>, nextSide: number): string | null {
-  const n = photos[0]?.length
-  if (n !== 3 && n !== 5 && n !== 7) return null
-  if (nextSide !== 2 && nextSide !== 3) return null
-  if (photos[1]?.length !== n || photos[nextSide]) return null
+type CenterVector = readonly [number, number, number]
+const COLOR_NORMAL: Record<string, CenterVector> = {
+  W: [0, 1, 0], Y: [0, -1, 0], R: [1, 0, 0], O: [-1, 0, 0], G: [0, 0, 1], B: [0, 0, -1],
+}
+const NORMAL_COLOR = Object.fromEntries(Object.entries(COLOR_NORMAL).map(([color, normal]) => [normal.join(','), color]))
+const cross = (a: CenterVector, b: CenterVector): CenterVector => [
+  a[1] * b[2] - a[2] * b[1],
+  a[2] * b[0] - a[0] * b[2],
+  a[0] * b[1] - a[1] * b[0],
+]
+
+// Capture slots 1/3, 2/4 and 5/6 are suggested opposite pairs. One
+// measured center predicts its opposite. Two centers on different axes
+// determine the remaining colors for the preferred clockwise path; the
+// actual captures and final orientation solver may follow another path.
+// Even cubes have no fixed center sticker, so their slots stay unfilled.
+export function predictGuidedCenters(photos: Array<string[][] | undefined>): Array<string | null> {
+  const predictions: Array<string | null> = Array(6).fill(null)
+  const n = photos.find((photo) => photo)?.length
+  if (n !== 3 && n !== 5 && n !== 7) return predictions
   const mid = Math.floor(n / 2)
-  const first = photos[0]?.[mid]?.[mid]
-  const second = photos[1]?.[mid]?.[mid]
-  if (!first || !second || !OPPOSITE_COLOR[first] || !OPPOSITE_COLOR[second]) return null
-  if (first === second || OPPOSITE_COLOR[first] === second) return null
-  return OPPOSITE_COLOR[nextSide === 2 ? first : second]
+  const centers = Array.from({ length: 6 }, (_, i) => photos[i]?.length === n ? photos[i]?.[mid]?.[mid] : undefined)
+  const pairs = [[0, 2], [1, 3], [4, 5]] as const
+  for (const [front, back] of pairs) {
+    const a = centers[front], b = centers[back]
+    if (a && OPPOSITE_COLOR[a] && !b) predictions[back] = OPPOSITE_COLOR[a]
+    if (b && OPPOSITE_COLOR[b] && !a) predictions[front] = OPPOSITE_COLOR[b]
+    if (a && b && OPPOSITE_COLOR[a] !== b) return predictions
+  }
+
+  // Positive normals correspond to Side 1 (front), Side 2 (right), Top.
+  const axes = pairs.map(([positive, negative]) => {
+    const color = centers[positive] ?? (centers[negative] ? OPPOSITE_COLOR[centers[negative]] : null)
+    return color ? COLOR_NORMAL[color] : undefined
+  })
+  if (axes.filter(Boolean).length < 2) return predictions
+  const [front, right, top] = axes
+  const completed = [
+    front ?? (right && top ? cross(right, top) : undefined),
+    right ?? (top && front ? cross(top, front) : undefined),
+    top ?? (front && right ? cross(front, right) : undefined),
+  ]
+  const colors = completed.map((normal) => normal ? NORMAL_COLOR[normal.join(',')] : undefined)
+  if (colors.some((color) => !color)) return predictions
+  for (let axis = 0; axis < pairs.length; axis++) {
+    const [positive, negative] = pairs[axis]
+    const color = colors[axis]!
+    if ((centers[positive] && centers[positive] !== color)
+      || (centers[negative] && centers[negative] !== OPPOSITE_COLOR[color])) return predictions
+    if (!centers[positive]) predictions[positive] = color
+    if (!centers[negative]) predictions[negative] = OPPOSITE_COLOR[color]
+  }
+  return predictions
 }
 
 // How many stickers already sit on the face of their own color - used to
