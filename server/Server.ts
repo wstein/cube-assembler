@@ -20,6 +20,8 @@
  *   GET  /api/formats/:ir          → convert IR to all notation formats
  *   POST /api/fixtures             → save a human-verified capture to
  *                                     test/fixtures/ as a regression fixture
+ *   POST /api/diagnostics          → save a camera frame Detect face
+ *                                     rejected, with why, to test/diagnostics/
  */
 
 import { Hono } from "hono";
@@ -30,7 +32,7 @@ import { streamSSE } from "hono/streaming";
 import { randomScrambleForEvent } from "cubing/scramble";
 import { Alg } from "cubing/alg";
 import { puzzles } from "cubing/puzzles";
-import { mkdir } from "node:fs/promises";
+import { mkdir, readdir } from "node:fs/promises";
 import { join } from "node:path";
 import { wrgFaceletsToGrids } from "../src/client/notationOutput";
 
@@ -791,6 +793,46 @@ function gitCommit(): string {
   const status = git("status", "--porcelain", "--untracked-files=no");
   return status ? `${hash}-dirty` : hash;
 }
+
+// ── POST /api/diagnostics ────────────────────────────────────────────────────
+// Opt-in, from the capture dialog: a camera frame that looked like a cube
+// face but that Detect face rejected, downscaled, with the detector's own
+// account of why (see diagnoseFaceDetection) - so a live failure can be
+// replayed exactly (npm run diagnostics:replay) instead of guessed at from
+// a crop. Stays on this machine, in a gitignored folder; frames can show
+// the person holding the cube.
+type SaveDiagnosticRequest = {
+  frame: string;
+  report: Record<string, unknown>;
+  meta?: unknown;
+};
+
+const DIAGNOSTICS_DIR = join(import.meta.dir, "..", "test", "diagnostics");
+const MAX_DIAGNOSTIC_FRAME_BYTES = 5 * 1024 * 1024;
+const MAX_DIAGNOSTICS = 200;
+
+app.post("/api/diagnostics", async (c) => {
+  const body = await c.req.json<SaveDiagnosticRequest>();
+  const match = /^data:image\/(jpeg|png);base64,(.+)$/.exec(body.frame ?? "");
+  if (!match) return c.json({ error: "frame must be a JPEG/PNG data URL" }, 400);
+  const buffer = Buffer.from(match[2], "base64");
+  if (buffer.length > MAX_DIAGNOSTIC_FRAME_BYTES) return c.json({ error: "frame is too large" }, 413);
+  if (!body.report || typeof body.report !== "object") return c.json({ error: "report must be an object" }, 400);
+
+  await mkdir(DIAGNOSTICS_DIR, { recursive: true });
+  const saved = (await readdir(DIAGNOSTICS_DIR)).filter((name) => name.startsWith("diagnostic-"));
+  if (saved.length >= MAX_DIAGNOSTICS) {
+    return c.json({ error: `${MAX_DIAGNOSTICS} diagnostics already saved - clear test/diagnostics/ first` }, 429);
+  }
+
+  const name = `diagnostic-${new Date().toISOString().replace(/[:.]/g, "-")}`;
+  const dir = join(DIAGNOSTICS_DIR, name);
+  await mkdir(dir, { recursive: true });
+  const frameFile = `frame.${match[1] === "png" ? "png" : "jpg"}`;
+  await Bun.write(join(dir, frameFile), buffer);
+  await Bun.write(join(dir, "meta.json"), JSON.stringify({ frame: frameFile, report: body.report, capture: stampCommit(body.meta) }, null, 2) + "\n");
+  return c.json({ ok: true, path: `test/diagnostics/${name}` });
+});
 
 app.post("/api/fixtures", async (c) => {
   const body = await c.req.json<SaveFixtureRequest>();
