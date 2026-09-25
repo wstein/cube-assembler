@@ -368,7 +368,7 @@ function FaceGrid({ colors, undecided, current, auto }: { colors: string[][]; un
 }
 
 // Live net in the capture dialog: the 4 sides in the order taken, with Top
-// (5) above and Bottom (6) below Side 4 (which way the cube was turned, and which
+// (5) above and Bottom (6) below Side 2 (which way the cube was turned, and which
 // of the two is really the top, is only worked out once all 6 are in).
 // Each slot shows the colors detected for it, or a placeholder; tapping a
 // slot retakes it or jumps to it.
@@ -410,8 +410,8 @@ function CaptureNet({ faces, current, size, predictedCenters, mirrored, onSelect
       {slot(s2, '2 / 2')}
       {slot(s3, '2 / 3')}
       {slot(s4, '2 / 4')}
-      {slot(top, '1 / 4')}
-      {slot(bottom, '3 / 4')}
+      {slot(top, '1 / 2')}
+      {slot(bottom, '3 / 2')}
     </div>
   )
 }
