@@ -90,7 +90,7 @@ real sticker to the wrong color (`classifyAcrossFaces`).
 |---|---|
 | **Runtime** | [Bun](https://bun.sh) ≥ 1.3 |
 | **App** | [Preact](https://preactjs.com), built and served by [Vite](https://vitejs.dev) |
-| **Server** | [Hono](https://hono.dev) — parity checks and optional fixture saving |
+| **Server** | [Hono](https://hono.dev) — parity check and fixture saving under `/api` |
 | **Tests** | [Vitest](https://vitest.dev) |
 
 ---
