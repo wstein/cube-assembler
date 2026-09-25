@@ -1,6 +1,6 @@
 // Image processing utilities for cube face detection and color extraction
 
-import { ALIGNMENT_MAX_OFFSET, findGridAlignment } from './gridAlignment'
+import { ALIGNMENT_MAX_OFFSET, cellEdges, estimateOuterCellRatio, findGridAlignment } from './gridAlignment'
 
 export interface ColorDetectionResult {
   colors: string[][]
@@ -14,6 +14,9 @@ export interface ColorDetectionResult {
   // Where the sampled square sat relative to the capture guide, when it was
   // aligned onto the sticker grid: center offset and size, in guide sizes.
   gridOffset?: { x: number; y: number; scale: number }
+  // Width of the outer rows/columns relative to the inner ones, when the
+  // face showed wider perimeter cubies (see cellEdges); sampled that way.
+  outerCellRatio?: number
 }
 
 export interface RGB {
@@ -51,20 +54,34 @@ export const MAX_BACKGROUND_GAP = 0.3
 
 // A sticker cell's sampled rectangle within a face of the given size -
 // shared by the detector and the UI overlay so both draw the same zones.
+// `outerCellRatio` widens the outer rows and columns (see cellEdges).
 export function stickerSampleRect(
   row: number,
   col: number,
   gridSize: number,
   faceWidth: number,
   faceHeight: number,
-  sampling: SamplingGeometry = DEFAULT_SAMPLING
+  sampling: SamplingGeometry = DEFAULT_SAMPLING,
+  outerCellRatio = 1
 ): { x: number; y: number; width: number; height: number } {
-  const cellWidth = faceWidth / gridSize
-  const cellHeight = faceHeight / gridSize
   const inset = (1 - sampling.stickerCore) / 2
+  if (outerCellRatio === 1) {
+    // Even cells, computed exactly as always so saved readings still match.
+    const cellWidth = faceWidth / gridSize
+    const cellHeight = faceHeight / gridSize
+    return {
+      x: (col + inset) * cellWidth,
+      y: (row + inset) * cellHeight,
+      width: cellWidth * sampling.stickerCore,
+      height: cellHeight * sampling.stickerCore,
+    }
+  }
+  const edges = cellEdges(gridSize, outerCellRatio)
+  const cellWidth = (edges[col + 1] - edges[col]) * faceWidth
+  const cellHeight = (edges[row + 1] - edges[row]) * faceHeight
   return {
-    x: (col + inset) * cellWidth,
-    y: (row + inset) * cellHeight,
+    x: edges[col] * faceWidth + inset * cellWidth,
+    y: edges[row] * faceHeight + inset * cellHeight,
     width: cellWidth * sampling.stickerCore,
     height: cellHeight * sampling.stickerCore,
   }
@@ -1094,6 +1111,8 @@ export function extractColorsFromImageData(
   sampling: SamplingGeometry = DEFAULT_SAMPLING,
   palette?: Record<string, RGB>
 ): ColorDetectionResult {
+  // Big cubes' perimeter cubies are wider; sample the layout this face shows.
+  const outerCellRatio = estimateOuterCellRatio(data, faceWidth, faceHeight, gridSize)
   const colors: string[][] = []
   const cellConfidences: number[][] = []
   const cellColors: RGB[][] = []
@@ -1109,7 +1128,7 @@ export function extractColorsFromImageData(
       // plastic bezel, and slight grid misalignment are most likely to
       // contaminate the average, so those pixels are excluded rather than
       // averaged in.
-      const rect = stickerSampleRect(row, col, gridSize, faceWidth, faceHeight, sampling)
+      const rect = stickerSampleRect(row, col, gridSize, faceWidth, faceHeight, sampling, outerCellRatio)
       const cellStartX = Math.round(rect.x)
       const cellStartY = Math.round(rect.y)
       const cellW = Math.round(rect.width)
@@ -1147,7 +1166,7 @@ export function extractColorsFromImageData(
 
   const confidence = Math.min(1, totalConfidence / (gridSize * gridSize))
 
-  return { colors, confidence, cellConfidences, cellColors }
+  return { colors, confidence, cellConfidences, cellColors, ...(outerCellRatio !== 1 && { outerCellRatio }) }
 }
 
 // A cropped face can be one solid color, so seams are optional when the
