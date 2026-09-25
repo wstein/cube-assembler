@@ -4,10 +4,10 @@
 
 [Open the static scanner demo](https://wstein.github.io/cube-assembler/) · [Source repository](https://github.com/wstein/cube-assembler)
 
-The GitHub Pages demo serves the browser UI only. Assembly, parity, scramble,
-and fixture-saving requests use the Bun `/api` server; run the project locally
-with `npm run dev` for those actions. The demo reports this limit when an API
-action is attempted.
+The GitHub Pages demo serves the scanner and review UI. Parity checks and
+saving captures as test fixtures use the Bun `/api` server; run the project
+locally with `npm run dev` for those actions. The demo reports this limit when
+an API action is attempted.
 
 ![License: MIT](https://img.shields.io/badge/License-MIT-cyan.svg)
 ![npm](https://img.shields.io/badge/runtime-npm-black)
@@ -89,7 +89,7 @@ real sticker to the wrong color (`classifyAcrossFaces`).
 | | |
 |---|---|
 | **Runtime** | [Bun](https://bun.sh) ≥ 1.3 |
-| **Server** | [Hono](https://hono.dev) — HTTP + SSE streaming, no middleware bloat |
+| **Server** | [Hono](https://hono.dev) — parity checks and optional fixture saving |
 | **Tests** | [Vitest](https://vitest.dev) |
 
 ---
@@ -114,8 +114,8 @@ npm test
 
 The `Publish Pages` workflow builds the Vite client with the repository's
 subpath as its asset base and deploys `dist/` on pushes to `main`. The `CI`
-workflow builds and tests pushes and pull requests. Enable **Settings → Pages →
-Build and deployment → GitHub Actions** after creating the repository. To
+workflow builds and tests pushes and pull requests. The publishing source is
+**Settings → Pages → Build and deployment → GitHub Actions**. To
 preview the static build locally, run
 `VITE_BASE_PATH=/cube-assembler/ npm run build` and `npx vite preview`.
 GitHub Pages cannot run the Bun server. To host the API separately, build with
