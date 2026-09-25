@@ -3,6 +3,7 @@ import { existsSync, readFileSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
 import jpeg from 'jpeg-js'
 import { hasPlausibleStickerFace } from '../src/client/imageProcessing'
+import { estimateOuterCellRatio } from '../src/client/gridAlignment'
 
 const fixtureRoot = join(__dirname, 'fixtures')
 const captures = readdirSync(fixtureRoot)
@@ -21,7 +22,11 @@ describe('live sticker appearance on real capture crops', () => {
       }
       for (const face of ['u', 'r', 'f', 'd', 'l', 'b']) {
         const image = jpeg.decode(readFileSync(join(directory, meta.faces[face].photo)))
-        expect(hasPlausibleStickerFace(image.data, image.width, image.height, meta.gridSize), `${name} face ${face}`).toBe(true)
+        const data = new Uint8ClampedArray(image.data)
+        // Judged in the layout the app samples it in (see hasVisibleCubeFace):
+        // big cubes' outer cubies can be 1.6x as wide as the inner ones.
+        const outer = estimateOuterCellRatio(data, image.width, image.height, meta.gridSize)
+        expect(hasPlausibleStickerFace(data, image.width, image.height, meta.gridSize, outer), `${name} face ${face}`).toBe(true)
       }
     })
   }
