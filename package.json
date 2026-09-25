@@ -15,8 +15,7 @@
   },
   "dependencies": {
     "hono": "^4.5.0",
-    "preact": "^10.20.0",
-    "preact-router": "^4.1.2"
+    "preact": "^10.20.0"
   },
   "devDependencies": {
     "@preact/preset-vite": "^2.8.1",
