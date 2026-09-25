@@ -33,8 +33,9 @@ real cubes" design discussion. Numbering matches that discussion's ratings;
   through two weak live frames; a clear message appears when the API server
   isn't running.
 - **Removed what the app no longer used**: automatic cube-size detection,
-  the server-side assembly worker, the scramble/algorithm/parse endpoints
-  and the ReScript library. The server keeps `/api/parity` and
+  the server-side assembly worker, the scramble/algorithm/parse endpoints,
+  the ReScript library, the vendored cubing.js, preact-router and the
+  server's broken static page. The server keeps `/api/parity` and
   `/api/fixtures`.
 
 ## Next

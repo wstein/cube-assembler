@@ -89,6 +89,7 @@ real sticker to the wrong color (`classifyAcrossFaces`).
 | | |
 |---|---|
 | **Runtime** | [Bun](https://bun.sh) ≥ 1.3 |
+| **App** | [Preact](https://preactjs.com), built and served by [Vite](https://vitejs.dev) |
 | **Server** | [Hono](https://hono.dev) — parity checks and optional fixture saving |
 | **Tests** | [Vitest](https://vitest.dev) |
 
@@ -129,10 +130,10 @@ API without this setting.
 
 ```
 cube-assembler/
-├── index.html                     Web app (served by Hono, no bundler)
+├── index.html                     App entry, built and served by Vite
 │
 ├── server/
-│   └── Server.ts                  Hono app: parity check, fixture saving, static files
+│   └── Server.ts                  Hono API: parity check, fixture saving
 │
 ├── src/
 │   └── client/                    Preact browser app: webcam capture, review, notation I/O
