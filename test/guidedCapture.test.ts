@@ -9,11 +9,25 @@
  * Run: npx vitest run test/guidedCapture.test.ts
  */
 import { describe, it, expect } from 'vitest'
+import { readFileSync } from 'node:fs'
 import { rotateCube, turnFace, allOrientations, solvedCubeFaces, type Faces } from '../src/client/cubeGeometry'
 import { solveGuidedCapture, checkGuidedCenters, findRepeatedFaces, predictGuidedCenters, type FaceKey, type GuidedCapture } from '../src/client/cubeAssembly'
+import { preferredGuidedArrangementIndex } from '../src/client/orientationWizard'
 
 const WCA: Record<FaceKey, string> = { U: 'W', R: 'R', F: 'G', D: 'Y', L: 'O', B: 'B' }
 const FACES: FaceKey[] = ['U', 'R', 'F', 'D', 'L', 'B']
+
+it('suggests the guided 7x7 fixture’s photographed arrangement first', () => {
+  const meta = JSON.parse(readFileSync(new URL('./fixtures/capture-2026-09-25T12-43-31-363Z/meta.json', import.meta.url), 'utf8'))
+  const n: number = meta.gridSize
+  const photographed = meta.colorsURFDLB.split(' ').map((face: string) =>
+    Array.from({ length: n }, (_, row) => face.slice(row * n, (row + 1) * n).split('')))
+  const solution = solveGuidedCapture({ sides: photographed.slice(0, 4), caps: photographed.slice(4, 6) })
+  expect(solution?.fullyValid).toBe(true)
+  expect(solution?.alternatives.length).toBeGreaterThan(1)
+  const chosen = solution!.alternatives[preferredGuidedArrangementIndex(solution!.arrangements)]
+  expect(FACES.map((face) => chosen.faces[face].flat().join('')).join(' ')).toBe(meta.capture.assembledURFDLB)
+})
 
 function rng(seed: number) {
   let s = seed

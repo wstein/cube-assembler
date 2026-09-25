@@ -1,4 +1,28 @@
-import type { FaceKey, OrientedCandidate } from './cubeAssembly'
+import type { FaceKey, GuidedArrangement, OrientedCandidate } from './cubeAssembly'
+
+// The visual guide suggests clockwise side turns, then top before bottom.
+// Those moves correspond to a right turn and cap rotations 3/1 in the
+// photographed frame. Equally valid cube states can still differ on a
+// patterned cube, so this only chooses which one to ask about first.
+export function preferredGuidedArrangementIndex(arrangements: GuidedArrangement[]): number {
+  const quarterDistance = (a: number, b: number) => Math.min((a - b + 4) % 4, (b - a + 4) % 4)
+  const rank = (a: GuidedArrangement) => [
+    Number(a.turn !== 'right'),
+    Number(a.capsSwapped),
+    quarterDistance(a.capRotations[0], 3) + quarterDistance(a.capRotations[1], 1),
+    quarterDistance(a.capRotations[0], 3),
+  ]
+  let best = 0
+  for (let i = 1; i < arrangements.length; i++) {
+    const next = rank(arrangements[i]), current = rank(arrangements[best])
+    for (let j = 0; j < next.length; j++) {
+      if (next[j] === current[j]) continue
+      if (next[j] < current[j]) best = i
+      break
+    }
+  }
+  return best
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Orientation wizard: narrows solveFaceOrientations' tied `alternatives`
