@@ -830,8 +830,9 @@ export function predictGuidedCenters(photos: Array<string[][] | undefined>): Arr
   return predictions
 }
 
-// The first two photos define capture slots, regardless of which physical
-// faces were shown. Once their fixed centers are known, reserve a stable slot
+// The first and adjacent second photos define capture slots. If the second
+// photo is opposite the first, it occupies slot 3 and slot 2 stays open.
+// Once the first two adjacent centers are known, reserve a stable slot
 // for each remaining center so later photos can arrive in any order.
 export function captureCenterSlots(photos: Array<string[][] | undefined>): Array<string | null> {
   if (!photos[0] || !photos[1]) return predictGuidedCenters(photos)
@@ -848,16 +849,25 @@ export function captureCenterSlots(photos: Array<string[][] | undefined>): Array
   return [first, second, ...suggested.slice(2)]
 }
 
-// An occupied slot is an explicit retake. Otherwise, slots 1 and 2 stay in
-// acquisition order; later odd-size faces follow their center color.
+// An occupied slot is an explicit retake. Otherwise, an opposite second
+// odd-size face goes to slot 3; the next adjacent face fills slot 2.
+// Later odd-size faces follow their center color.
 // A center already present in another slot is a duplicate, not a new face.
 export function captureSlotForCenter(
   photos: Array<string[][] | undefined>, requestedIndex: number, candidate: string[][]
 ): number | null {
   if (photos[requestedIndex]) return requestedIndex
-  const firstMissing = [0, 1].find((index) => !photos[index])
-  if (firstMissing !== undefined) return firstMissing
+  if (!photos[0]) return 0
   const n = candidate.length
+  if (!photos[1]) {
+    if ([3, 5, 7].includes(n) && photos[0].length === n) {
+      const mid = Math.floor(n / 2)
+      const first = photos[0][mid]?.[mid], center = candidate[mid]?.[mid]
+      if (first && center && first === center) return null
+      if (first && center && OPPOSITE_COLOR[first] === center) return photos[2] ? null : 2
+    }
+    return 1
+  }
   if (![3, 5, 7].includes(n)) return requestedIndex
   const center = candidate[Math.floor(n / 2)]?.[Math.floor(n / 2)]
   const index = captureCenterSlots(photos).indexOf(center)

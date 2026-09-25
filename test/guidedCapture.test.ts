@@ -206,6 +206,16 @@ describe('center-routed capture slots', () => {
     expect(captureSlotForCenter(photos, 0, face(3, 'O'))).toBe(0)
   })
 
+  it('puts an opposite second photo in slot 3, then waits for an adjacent face in slot 2', () => {
+    const photos: Array<string[][] | undefined> = [face(3, 'O'), undefined, undefined, undefined, undefined, undefined]
+    expect(captureSlotForCenter(photos, 1, face(3, 'R'))).toBe(2)
+    photos[2] = face(3, 'R')
+    expect(captureSlotForCenter(photos, 1, face(3, 'R'))).toBeNull()
+    expect(captureSlotForCenter(photos, 1, face(3, 'Y'))).toBe(1)
+    photos[1] = face(3, 'Y')
+    expect(captureCenterSlots(photos).slice(0, 4)).toEqual(['O', 'Y', 'R', 'W'])
+  })
+
   it('keeps opposite first captures and gives the other centers distinct slots', () => {
     const photos = [face(3, 'G'), face(3, 'B'), undefined, undefined, undefined, undefined]
     expect(captureCenterSlots(photos)).toEqual(['G', 'B', 'W', 'Y', 'R', 'O'])
