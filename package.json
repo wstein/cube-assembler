@@ -1,39 +1,29 @@
 {
   "name": "cube-assembler",
   "version": "0.1.0",
-  "description": "Rubik's Cube scanner: reads a physical 2x2-7x7 cube from six camera photos and checks the result (Preact + Hono + Bun).",
+  "description": "Rubik's Cube scanner: reads a physical 2x2-7x7 cube from six camera photos and checks the result (Preact + Vite, runs entirely in the browser).",
   "type": "module",
   "scripts": {
-    "dev:server": "bun run --watch server/Server.ts",
-    "dev:client": "vite",
-    "dev": "concurrently \"npm:dev:server\" \"npm:dev:client\"",
+    "dev": "vite",
     "build": "vite build",
-    "start": "bun run server/Server.ts",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:ui": "vitest --ui"
   },
   "dependencies": {
     "fflate": "^0.8.3",
-    "hono": "^4.5.0",
     "preact": "^10.20.0"
   },
   "devDependencies": {
     "@preact/preset-vite": "^2.8.1",
     "@vitest/ui": "^5.0.1",
-    "concurrently": "^10.0.5",
     "jpeg-js": "^0.4.4",
     "terser": "^5.30.3",
     "vite": "^8.3.0",
     "vitest": "^5.0.1"
   },
-  "engines": {
-    "bun": ">=1.3.0"
-  },
   "keywords": [
     "rubiks-cube",
-    "hono",
-    "bun",
     "wca"
   ],
   "license": "MIT"
