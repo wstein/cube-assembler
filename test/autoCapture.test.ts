@@ -28,4 +28,11 @@ describe('automatic face capture stability', () => {
     expect(nextAutoCaptureProgress(null, sample(), sample().colors)).toBeNull()
     expect(nextAutoCaptureProgress(null, sample('G'), sample().colors)?.frames).toBe(1)
   })
+
+  it('requires at least 80% confidence on every stable frame', () => {
+    const first = nextAutoCaptureProgress(null, sample('R', 100, 0.8), null)
+    expect(first?.frames).toBe(1)
+    expect(nextAutoCaptureProgress(first, sample('R', 100, 0.79), null)).toBeNull()
+    expect(nextAutoCaptureProgress(null, sample('R', 100, 0.8), null)?.frames).toBe(1)
+  })
 })

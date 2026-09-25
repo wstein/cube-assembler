@@ -1,6 +1,6 @@
 // Consecutive live detections must agree before the camera captures a face.
 export const AUTO_CAPTURE_STABLE_FRAMES = 5
-export const AUTO_CAPTURE_MIN_CONFIDENCE = 0.65
+export const AUTO_CAPTURE_MIN_CONFIDENCE = 0.8
 
 export interface AutoCaptureSample {
   colors: string[][]
