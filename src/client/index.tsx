@@ -5,7 +5,7 @@ import { apiFetch } from './api'
 import { AUTO_CAPTURE_STABLE_FRAMES, nextAutoCaptureProgress, type AutoCaptureProgress } from './autoCapture'
 import { diagnoseFaceDetection } from './detectionDiagnostics'
 import { holdConfirmedFace, NO_HOLD, type LiveHold } from './liveHold'
-import { WIZARD_FACE_ORDER, faceContentKey, groupWizardOptions, pickWizardFace } from './orientationWizard'
+import { WIZARD_FACE_ORDER, faceContentKey, groupWizardOptions, pickWizardFace, preferredGuidedArrangementIndex } from './orientationWizard'
 import {
   faceBoundsForMode, captureAndProcessFace, captureAndProcessCanvas, captureAndProcessImage, extractCubeFaceColors, hasVisibleCubeFace,
   runGlobalWhiteBalance, NEUTRAL_GAINS, CROP_JPEG_QUALITY,
@@ -725,6 +725,7 @@ function App() {
     arrangements?: GuidedArrangement[]
     valid: boolean
     note?: string
+    suggestedFrom?: number
     fallback: OrientationSolution | null
     page?: number
   } | null>(null)
@@ -1608,7 +1609,24 @@ function App() {
       const [s1, s2, s3, s4, cap1, cap2] = FACE_ORDER.map((f) => faceData[f])
       const solution = solveGuidedCapture({ sides: [s1, s2, s3, s4], caps: [cap1, cap2] })
       if (solution?.fullyValid) {
-        setOrientationApproval({ candidates: solution.alternatives, arrangements: solution.arrangements, valid: true, fallback: free })
+        const preferred = preferredGuidedArrangementIndex(solution.arrangements)
+        // Keep every guided fit available after "No" even if the broader
+        // orientation search was capped before it reached that fit.
+        const seen = new Set<string>()
+        const alternatives = [solution.alternatives[preferred], ...solution.alternatives, ...(free?.alternatives ?? [])]
+          .filter((candidate) => {
+            const key = FACE_ORDER.map((face) => faceContentKey(candidate.faces[face as FaceKey])).join('|')
+            if (seen.has(key)) return false
+            seen.add(key)
+            return true
+          })
+        setOrientationApproval({
+          candidates: [solution.alternatives[preferred]],
+          arrangements: [solution.arrangements[preferred]],
+          valid: true,
+          suggestedFrom: solution.alternatives.length,
+          fallback: { ...(free ?? solution), alternatives, truncated: Boolean(free?.truncated || solution.truncated) },
+        })
         return
       }
       const issue = checkGuidedCenters(FACE_ORDER.map((f) => faceData[f]))[0]
@@ -2967,7 +2985,7 @@ function App() {
           handleConfirmReview): one arrangement to confirm, a few to pick
           from, or a closest match that isn't a valid cube. */}
       {orientationApproval && !orientationWizard && (() => {
-        const { candidates, arrangements, valid, note } = orientationApproval
+        const { candidates, arrangements, valid, note, suggestedFrom } = orientationApproval
         const close = () => setOrientationApproval(null)
         const single = candidates.length === 1
         const page = Math.min(orientationApproval.page ?? 0, Math.floor((candidates.length - 1) / ORIENTATION_CHOICES_PER_PAGE))
@@ -2993,7 +3011,9 @@ function App() {
               {note && <p class={valid ? 'orientation-approval-note' : 'capture-warning'}>{note}</p>}
               {!note && single && valid && (
                 <p class="orientation-approval-note">
-                  The photos fit together one way.
+                  {suggestedFrom && suggestedFrom > 1
+                    ? 'This is the likely fit if you followed the turning guide. If it looks wrong, choose each side.'
+                    : 'The photos fit together one way.'}
                   {puzzleSize % 2 === 1 && ' Hold your cube with white on top and green in front to compare.'}
                 </p>
               )}
