@@ -2314,6 +2314,7 @@ function App() {
                       '--grid-x': liveDetection.gridOffset.x,
                       '--grid-y': liveDetection.gridOffset.y,
                       '--grid-scale': liveDetection.gridOffset.scale,
+                      '--grid-angle': liveDetection.gridOffset.angle,
                     }}
                   >
                     {liveDetection.colors.map((row, r) =>

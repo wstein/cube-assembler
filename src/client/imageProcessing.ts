@@ -1,6 +1,6 @@
 // Image processing utilities for cube face detection and color extraction
 
-import { ALIGNMENT_MAX_OFFSET, cellEdges, estimateOuterCellRatio, findGridAlignment } from './gridAlignment'
+import { ALIGNMENT_MAX_OFFSET, cellEdges, estimateOuterCellRatio, estimateTilt, findGridAlignment } from './gridAlignment'
 
 export interface ColorDetectionResult {
   colors: string[][]
@@ -12,8 +12,9 @@ export interface ColorDetectionResult {
   // after the cross-face recalibration, since it needs the learned colors.
   cellLookalikes?: (string | null)[][]
   // Where the sampled square sat relative to the capture guide, when it was
-  // aligned onto the sticker grid: center offset and size, in guide sizes.
-  gridOffset?: { x: number; y: number; scale: number }
+  // aligned onto the sticker grid: center offset and size, in guide sizes,
+  // and its tilt in degrees.
+  gridOffset?: { x: number; y: number; scale: number; angle: number }
   // Width of the outer rows/columns relative to the inner ones, when the
   // face showed wider perimeter cubies (see cellEdges); sampled that way.
   outerCellRatio?: number
@@ -797,6 +798,9 @@ interface FaceBounds {
   startY: number
   faceWidth: number
   faceHeight: number
+  // Tilt (radians, canvas rotate() direction) about the square's center;
+  // the square is read turned upright.
+  angle?: number
 }
 
 interface FaceRegion extends FaceBounds {
@@ -853,30 +857,67 @@ function alignedFaceBounds(canvas: HTMLCanvasElement, gridSize: number): FaceBou
   const guide = computeFaceBounds(canvas)
   const ctx = canvas.getContext('2d')
   if (!ctx || guide.faceWidth !== guide.faceHeight) return guide
-  // Room for the largest offset plus the largest face (1.12x the guide).
-  const margin = Math.ceil(guide.faceWidth * (ALIGNMENT_MAX_OFFSET + 0.06))
+  // Room for the largest offset plus the largest face (1.12x the guide),
+  // and for the corners of a tilted one.
+  const margin = Math.ceil(guide.faceWidth * (ALIGNMENT_MAX_OFFSET + 0.06 + 0.2))
   const x0 = Math.max(0, guide.startX - margin)
   const y0 = Math.max(0, guide.startY - margin)
   const x1 = Math.min(canvas.width, guide.startX + guide.faceWidth + margin)
   const y1 = Math.min(canvas.height, guide.startY + guide.faceHeight + margin)
   const region = ctx.getImageData(x0, y0, x1 - x0, y1 - y0)
-  const found = findGridAlignment(region.data, region.width, region.height,
-    { x: guide.startX - x0, y: guide.startY - y0, size: guide.faceWidth }, gridSize)
-  if (!found.aligned) return guide
+  const square = { x: guide.startX - x0, y: guide.startY - y0, size: guide.faceWidth }
+  const angle = estimateTilt(region.data, region.width, region.height, square)
+  const found = findGridAlignment(region.data, region.width, region.height, square, gridSize, angle)
+  if (!found.aligned && !angle) return guide
   const size = Math.round(found.size)
-  const startX = Math.min(canvas.width - size, Math.max(0, Math.round(x0 + found.x)))
-  const startY = Math.min(canvas.height - size, Math.max(0, Math.round(y0 + found.y)))
-  return { startX, startY, faceWidth: size, faceHeight: size }
+  // Keep the square's center on the canvas; a tilted square is read through
+  // a rotation, which clamps nothing else.
+  const centerX = Math.min(canvas.width - size / 2, Math.max(size / 2, x0 + found.center[0]))
+  const centerY = Math.min(canvas.height - size / 2, Math.max(size / 2, y0 + found.center[1]))
+  return {
+    startX: Math.round(centerX - size / 2),
+    startY: Math.round(centerY - size / 2),
+    faceWidth: size,
+    faceHeight: size,
+    ...(angle && { angle }),
+  }
+}
+
+// Draws the square of `bounds` from `canvas` onto a new canvas of its size,
+// turned upright when it is tilted.
+function drawFaceSquare(canvas: HTMLCanvasElement, bounds: FaceBounds): HTMLCanvasElement {
+  const out = document.createElement('canvas')
+  out.width = bounds.faceWidth
+  out.height = bounds.faceHeight
+  const ctx = out.getContext('2d')
+  if (!ctx) {
+    throw new Error('Could not get canvas context')
+  }
+  if (bounds.angle) {
+    ctx.translate(bounds.faceWidth / 2, bounds.faceHeight / 2)
+    ctx.rotate(-bounds.angle)
+    ctx.drawImage(canvas, -(bounds.startX + bounds.faceWidth / 2), -(bounds.startY + bounds.faceHeight / 2))
+  } else {
+    ctx.drawImage(
+      canvas,
+      bounds.startX, bounds.startY, bounds.faceWidth, bounds.faceHeight,
+      0, 0, bounds.faceWidth, bounds.faceHeight
+    )
+  }
+  return out
 }
 
 function readFaceRegion(canvas: HTMLCanvasElement, bounds: FaceBounds): FaceRegion {
-  const ctx = canvas.getContext('2d')
+  const source = bounds.angle ? drawFaceSquare(canvas, bounds) : canvas
+  const ctx = source.getContext('2d')
   if (!ctx) {
     throw new Error('Could not get canvas context')
   }
   return {
     ...bounds,
-    imageData: ctx.getImageData(bounds.startX, bounds.startY, bounds.faceWidth, bounds.faceHeight),
+    imageData: bounds.angle
+      ? ctx.getImageData(0, 0, bounds.faceWidth, bounds.faceHeight)
+      : ctx.getImageData(bounds.startX, bounds.startY, bounds.faceWidth, bounds.faceHeight),
   }
 }
 
@@ -1002,20 +1043,7 @@ export function computeBackgroundGain(reference: RGB, current: RGB): RGB {
 export const CROP_JPEG_QUALITY = 1
 
 export function cropFaceRegionToDataUrl(canvas: HTMLCanvasElement, bounds: FaceBounds = computeFaceBounds(canvas)): string {
-  const out = document.createElement('canvas')
-  out.width = bounds.faceWidth
-  out.height = bounds.faceHeight
-
-  const ctx = out.getContext('2d')
-  if (!ctx) {
-    throw new Error('Could not get canvas context')
-  }
-
-  ctx.drawImage(
-    canvas,
-    bounds.startX, bounds.startY, bounds.faceWidth, bounds.faceHeight,
-    0, 0, bounds.faceWidth, bounds.faceHeight
-  )
+  const out = drawFaceSquare(canvas, bounds)
   // Quality 1 is the only setting at which Chrome keeps full-resolution
   // color (4:4:4); anything below stores chroma at half resolution (4:2:0),
   // and decoders then disagree on how to upsample it - jpeg-js vs Chrome
@@ -1335,13 +1363,14 @@ export function extractCubeFaceColors(
   const { imageData, faceWidth, faceHeight } = readFaceRegion(canvas, bounds)
   const result = extractColorsFromImageData(imageData.data, faceWidth, faceHeight, gridSize, gains, sampling, palette)
   const guide = computeFaceBounds(canvas)
-  if (bounds.startX === guide.startX && bounds.startY === guide.startY && bounds.faceWidth === guide.faceWidth) return result
+  if (bounds.startX === guide.startX && bounds.startY === guide.startY && bounds.faceWidth === guide.faceWidth && !bounds.angle) return result
   return {
     ...result,
     gridOffset: {
       x: (bounds.startX + bounds.faceWidth / 2 - guide.startX - guide.faceWidth / 2) / guide.faceWidth,
       y: (bounds.startY + bounds.faceHeight / 2 - guide.startY - guide.faceHeight / 2) / guide.faceHeight,
       scale: bounds.faceWidth / guide.faceWidth,
+      angle: ((bounds.angle ?? 0) * 180) / Math.PI,
     },
   }
 }
@@ -1357,7 +1386,8 @@ export interface FaceCaptureResult extends ColorDetectionResult {
   // and the crop rectangle within it (the rest of the frame is dropped for
   // privacy, so this is the only record of how it was framed).
   frame: { width: number; height: number }
-  crop: { x: number; y: number; width: number; height: number }
+  // `angle`: degrees the crop was turned upright by, about its center.
+  crop: { x: number; y: number; width: number; height: number; angle?: number }
   // measureSharpness of the cropped face region.
   sharpness: number
 }
@@ -1394,7 +1424,7 @@ function describeCrop(canvas: HTMLCanvasElement, bounds: FaceBounds): Pick<FaceC
   const { imageData, startX, startY, faceWidth, faceHeight } = readFaceRegion(canvas, bounds)
   return {
     frame: { width: canvas.width, height: canvas.height },
-    crop: { x: startX, y: startY, width: faceWidth, height: faceHeight },
+    crop: { x: startX, y: startY, width: faceWidth, height: faceHeight, ...(bounds.angle && { angle: (bounds.angle * 180) / Math.PI }) },
     sharpness: measureSharpness(imageData.data, faceWidth, faceHeight),
   }
 }
