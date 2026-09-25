@@ -104,10 +104,6 @@ const wcaEventIds: Record<number, string> = {
 
 // ─── Color / IR utilities (server-side JS — mirrors ReScript IR) ──────────────
 
-const SOLVED_COLORS: Record<string, FaceColor> = {
-  U: "W", R: "R", F: "G", D: "Y", L: "O", B: "B",
-};
-
 function makeSolidFace(n: number, color: FaceColor): FaceGrid {
   return { n, data: Array(n * n).fill(color) };
 }
