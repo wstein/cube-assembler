@@ -1533,6 +1533,20 @@ export function captureAndProcessFace(
   }
 
   ctx.drawImage(video, 0, 0)
+  return captureAndProcessCanvas(canvas, gridSize, gains, sampling, palette, geometry)
+}
+
+// Use the already checked live frame for automatic capture. Reading the video
+// again after the stability check could capture a different, moving face.
+export function captureAndProcessCanvas(
+  canvas: HTMLCanvasElement,
+  gridSize = 3,
+  gains: RGB = NEUTRAL_GAINS,
+  sampling: SamplingGeometry = DEFAULT_SAMPLING,
+  palette?: Record<string, RGB>,
+  geometry: FaceGeometryMode = 'aligned',
+  checkedBounds?: FaceBounds
+): FaceCaptureResult {
   // croppedImage is always the raw, un-gained frame — it's the source of
   // truth photo, re-analyzed independently by the post-capture global
   // recalibration pass (redetectFaceColors / runGlobalWhiteBalance),
@@ -1542,7 +1556,7 @@ export function captureAndProcessFace(
   // runGlobalWhiteBalance's faceGains parameter).
   // One aligned square for the colors, the saved photo and its crop record,
   // so everything later re-analyzed from the photo sees the same face.
-  const bounds = faceBoundsForMode(canvas, gridSize, geometry)
+  const bounds = checkedBounds ?? faceBoundsForMode(canvas, gridSize, geometry)
   if (geometry === 'aligned' && !bounds.gridFound) throw new Error('No aligned face found. Show a face in the camera view or choose Guide grid.')
   return {
     ...extractCubeFaceColors(canvas, gridSize, gains, sampling, palette, bounds),
