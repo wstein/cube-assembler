@@ -773,7 +773,7 @@ export interface GuidedSolution extends OrientationSolution {
   arrangements: GuidedArrangement[]
 }
 
-const OPPOSITE_COLOR: Record<string, string> = { W: 'Y', Y: 'W', R: 'O', O: 'R', G: 'B', B: 'G' }
+export const OPPOSITE_COLOR: Record<string, string> = { W: 'Y', Y: 'W', R: 'O', O: 'R', G: 'B', B: 'G' }
 
 type CenterVector = readonly [number, number, number]
 const COLOR_NORMAL: Record<string, CenterVector> = {
