@@ -2450,14 +2450,14 @@ function App() {
                 )}
                 {/* Guide mode frames the exact sample square. Detect face shows
                     the wider seam search area; its moving grid marks the crop. */}
-                <div class={`capture-scan-frame ${captureMode === 'cv' ? 'cv-search-frame' : ''}`}>
+                <div class={`capture-scan-frame ${captureMode === 'cv' ? 'cv-search-frame' : ''} ${liveCapturedFace ? 'already-captured' : ''}`}>
                   <span class="capture-scan-label">{captureMode === 'cv' ? 'Show one face in this area' : 'Fit face in this square'}</span>
                 </div>
                 {turnOverlay && (
                   <CaptureTurnOverlay step={turnOverlay.step} startColors={turnOverlay.startColors} viaColors={turnOverlay.viaColors} onContinue={dismissTurnOverlay} />
                 )}
               </div>
-              <span class="capture-live-badge" role="status">
+              <span class={`capture-live-badge ${liveCapturedFace ? 'already-captured' : ''}`} role="status">
                 <span class="capture-live-dot" />
                 Live · {liveCapturedFace ? `Already captured ${FACE_DISPLAY_LABEL[liveCapturedFace]}` : liveDetection
                   ? (liveFaceVisible ? `${(liveDetection.confidence * 100).toFixed(0)}% color match` : captureMode === 'cv' ? 'Align face in view' : 'Align face in guide')

@@ -763,6 +763,14 @@ textarea {
   background: #3ddc84;
 }
 
+.capture-live-badge.already-captured {
+  background: rgba(150, 24, 35, 0.9);
+}
+
+.capture-live-badge.already-captured .capture-live-dot {
+  background: #ffb5b8;
+}
+
 
 /* Right: the current step, its instruction, the captured faces, the
    settings and the Capture button. */
@@ -1780,6 +1788,11 @@ textarea {
   width: 86%;
   border: 2px dashed rgba(255, 255, 255, 0.5);
   box-shadow: 0 0 0 2000px rgba(0, 0, 0, 0.2);
+}
+
+.capture-scan-frame.already-captured {
+  border: 3px solid #ec3447;
+  box-shadow: 0 0 0 2000px rgba(180, 24, 39, 0.55);
 }
 
 
