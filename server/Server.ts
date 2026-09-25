@@ -2,7 +2,7 @@
  * server/Server.ts — CubeAssembler Hono + Bun Server
  *
  * Architecture:
- *   - Hono handles routing (zero dependencies beyond hono + cubing)
+ *   - Hono handles routing (no dependencies beyond hono)
  *   - Bun serves ReScript compiled .js and static web/ assets directly
  *
  * Routes:
@@ -10,11 +10,6 @@
  *   GET  /lib/*                    → serves ReScript compiled ESM (.js)
  *   GET  /web/*                    → serves web assets (CSS, client TS)
  *   POST /api/parity               → synchronous parity check result
- *   POST /api/apply-alg            → apply WCA alg to cube state
- *   GET  /api/scramble?size=4      → generate WCA scramble for puzzle size
- *   POST /api/parse-wrg            → parse WRG string → cube IR JSON
- *   POST /api/parse-urf            → parse URF string → cube IR JSON
- *   GET  /api/formats/:ir          → convert IR to all notation formats
  *   POST /api/fixtures             → save a human-verified capture to
  *                                     test/fixtures/ as a regression fixture
  */
@@ -23,9 +18,6 @@ import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { logger } from "hono/logger";
 import { serveStatic } from "hono/bun";
-import { randomScrambleForEvent } from "cubing/scramble";
-import { Alg } from "cubing/alg";
-import { puzzles } from "cubing/puzzles";
 import { mkdir } from "node:fs/promises";
 import { join } from "node:path";
 import { wrgFaceletsToGrids } from "../src/client/notationOutput";
@@ -69,43 +61,6 @@ export type ParityResponse = {
   // which colors are off for an invalid color balance).
   detail?: string;
 };
-
-export type ApplyAlgRequest  = { cube: CubeIR; alg: string };
-
-// ─── Puzzle loaders via registry ─────────────────────────────────────────────
-
-/** Load a KPuzzle by NxN size using the cubing.js puzzles registry. */
-async function loadKPuzzle(n: number) {
-  const key = `${n}x${n}x${n}` as keyof typeof puzzles;
-  const loader = puzzles[key];
-  if (!loader) throw new Error(`No puzzle registered for ${n}x${n}x${n}`);
-  return loader.kpuzzle();
-}
-
-const wcaEventIds: Record<number, string> = {
-  2: "222", 3: "333", 4: "444", 5: "555", 6: "666", 7: "777",
-};
-
-// ─── Color / IR utilities (server-side JS — mirrors ReScript IR) ──────────────
-
-/** Rotate a face grid 90° clockwise, k times. */
-function rotateFace(grid: FaceGrid, rotations: number): FaceGrid {
-  const k = ((rotations % 4) + 4) % 4;
-  if (k === 0) return { n: grid.n, data: [...grid.data] };
-  let cur = [...grid.data];
-  const n = grid.n;
-  for (let step = 0; step < k; step++) {
-    const next = new Array(n * n);
-    for (let r = 0; r < n; r++) {
-      for (let c = 0; c < n; c++) {
-        // 90° CW: next[c][N-1-r] = cur[r][c]
-        next[c * n + (n - 1 - r)] = cur[r * n + c];
-      }
-    }
-    cur = next;
-  }
-  return { n, data: cur };
-}
 
 // ─── Color validation helpers ─────────────────────────────────────────────────
 
@@ -585,93 +540,11 @@ app.get("/favicon.ico", serveStatic({ path: "./public/favicon.svg" }));
 
 app.get("/", serveStatic({ path: "./index.html" }));
 
-// ── GET /api/scramble?size=4 ─────────────────────────────────────────────────
-app.get("/api/scramble", async (c) => {
-  const size = Number(c.req.query("size") ?? "3");
-  const eventId = wcaEventIds[size];
-  if (!eventId) return c.json({ error: `Unsupported size: ${size}` }, 400);
-  try {
-    const alg = await randomScrambleForEvent(eventId);
-    return c.json({ scramble: alg.toString(), size });
-  } catch (e) {
-    return c.json({ error: String(e) }, 500);
-  }
-});
-
 // ── POST /api/parity ─────────────────────────────────────────────────────────
 app.post("/api/parity", async (c) => {
   const body = await c.req.json<ParityRequest>();
   const result = runFullParity(body.cube);
   return c.json(result);
-});
-
-// ── POST /api/apply-alg ──────────────────────────────────────────────────────
-app.post("/api/apply-alg", async (c) => {
-  const { cube, alg: algStr } = await c.req.json<ApplyAlgRequest>();
-  try {
-    const kpuzzle = await loadKPuzzle(cube.size);
-    const alg = new Alg(algStr);
-    const transformation = kpuzzle.algToTransformation(alg);
-    const defaultPattern = kpuzzle.defaultPattern();
-    const newPattern = defaultPattern.applyTransformation(transformation);
-
-    // Reconstruct CubeIR from KPatternData (simplified: return the KPattern JSON
-    // as-is for now; client reconstructs color view)
-    return c.json({
-      kPatternData: newPattern.patternData,
-      algStr: alg.toString(),
-      size: cube.size,
-    });
-  } catch (e) {
-    return c.json({ error: String(e) }, 400);
-  }
-});
-
-// ── POST /api/parse-wrg ───────────────────────────────────────────────────────
-app.post("/api/parse-wrg", async (c) => {
-  const { notation, size } = await c.req.json<{ notation: string; size: number }>();
-  const tokens = notation.trim().split(/\s+/).filter(Boolean);
-  const n = size;
-  const expected = n * n * 6;
-  if (tokens.length !== expected) {
-    return c.json({ error: `Expected ${expected} tokens for ${n}x${n}, got ${tokens.length}` }, 400);
-  }
-  const COLORS = new Set(["W","O","G","R","B","Y"]);
-  const invalid = tokens.filter(t => !COLORS.has(t.toUpperCase()));
-  if (invalid.length > 0) {
-    return c.json({ error: `Unknown color tokens: ${invalid.slice(0,3).join(", ")}` }, 400);
-  }
-  const faceSize = n * n;
-  const faces = ["u","r","f","d","l","b"];
-  const cube: any = { size: n };
-  faces.forEach((face, i) => {
-    cube[face] = {
-      n,
-      data: tokens.slice(i * faceSize, (i + 1) * faceSize).map(t => t.toUpperCase()),
-    };
-  });
-  return c.json({ cube });
-});
-
-// ── POST /api/parse-urf ───────────────────────────────────────────────────────
-app.post("/api/parse-urf", async (c) => {
-  const { notation } = await c.req.json<{ notation: string }>();
-  // Tokenize and classify: 3-char = corner, 2-char = edge, 1-char = center
-  const tokens = notation.replace(/Corners:|Edges:|Centers:/g, "").trim().split(/\s+/).filter(Boolean);
-  const corners = tokens.filter(t => t.length === 3);
-  const edges   = tokens.filter(t => t.length === 2);
-  const centers = tokens.filter(t => t.length === 1);
-  return c.json({
-    parsed: { corners, edges, centers },
-    counts: { corners: corners.length, edges: edges.length, centers: centers.length },
-    note: "Full 3x3 URF reconstruction is available client-side via the ReScript IRBridge module",
-  });
-});
-
-// ── GET /api/formats/:encoding ───────────────────────────────────────────────
-app.get("/api/formats/:encoding", async (c) => {
-  const encoding = c.req.param("encoding");
-  return c.json({ encoding, note: "Pass cube IR via POST /api/parse-wrg first" });
 });
 
 // ── POST /api/fixtures ───────────────────────────────────────────────────────
