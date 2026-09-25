@@ -289,6 +289,17 @@ h1, h2, h3 {
   border-radius: 14px;
 }
 
+.capture-card-actions {
+  display: flex;
+  align-items: stretch;
+  gap: var(--spacing-sm);
+}
+
+.capture-card-actions > .btn {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
 .face-status-row {
   display: flex;
   align-items: center;

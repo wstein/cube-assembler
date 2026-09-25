@@ -2123,22 +2123,27 @@ function App() {
           {/* Getting a cube in: guided capture, fixture upload, typed colors */}
           <section class="card capture-card">
             <h2>Capture</h2>
-            <button type="button" class="btn btn-primary btn-lg" onClick={() => handleOpenCapture()}>
-              <svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true">
-                <path d="M2.5 6.5A1.5 1.5 0 0 1 4 5h2.2l1.3-2h5l1.3 2H16a1.5 1.5 0 0 1 1.5 1.5V15A1.5 1.5 0 0 1 16 16.5H4A1.5 1.5 0 0 1 2.5 15Z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" />
-                <circle cx="10" cy="10.5" r="3" fill="none" stroke="currentColor" stroke-width="1.6" />
-              </svg>
-              {FACE_ORDER.every((f) => f in capturedFaces)
-                ? 'Capture again'
-                : FACE_ORDER.some((f) => f in capturedFaces)
-                ? `Continue capturing (${FACE_ORDER.filter((f) => f in capturedFaces).length}/${FACE_ORDER.length})`
-                : 'Capture faces'}
-            </button>
-            {FACE_ORDER.some((f) => f in capturedFaces) && !FACE_ORDER.every((f) => f in capturedFaces) && (
-              <button type="button" class="btn btn-secondary btn-lg" onClick={() => handleOpenCapture(true)}>
-                Capture again
+            <div class="capture-card-actions">
+              {FACE_ORDER.some((f) => f in capturedFaces) && !FACE_ORDER.every((f) => f in capturedFaces) && (
+                <button type="button" class="btn btn-secondary btn-lg" onClick={() => handleOpenCapture(true)}>
+                  <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+                    <path d="M16.5 9a6.5 6.5 0 1 0-1.4 5.1M16.5 4.5V9H12" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" />
+                  </svg>
+                  Capture again
+                </button>
+              )}
+              <button type="button" class="btn btn-primary btn-lg" onClick={() => handleOpenCapture()}>
+                <svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true">
+                  <path d="M2.5 6.5A1.5 1.5 0 0 1 4 5h2.2l1.3-2h5l1.3 2H16a1.5 1.5 0 0 1 1.5 1.5V15A1.5 1.5 0 0 1 16 16.5H4A1.5 1.5 0 0 1 2.5 15Z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" />
+                  <circle cx="10" cy="10.5" r="3" fill="none" stroke="currentColor" stroke-width="1.6" />
+                </svg>
+                {FACE_ORDER.every((f) => f in capturedFaces)
+                  ? 'Capture again'
+                  : FACE_ORDER.some((f) => f in capturedFaces)
+                  ? `Continue (${FACE_ORDER.filter((f) => f in capturedFaces).length}/${FACE_ORDER.length})`
+                  : 'Capture faces'}
               </button>
-            )}
+            </div>
             <p class="card-hint">Four sides while turning the cube, then top and bottom — about a minute.</p>
             <div class="face-status-row">
               <div class="face-status-dots">
