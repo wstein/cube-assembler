@@ -6,7 +6,7 @@
 // 7x7's stickers but ~2% of a 3x3's. Instead of trusting the guide, look
 // for the dark seams between stickers and move the square onto them.
 //
-// Seams are scored on 1-D luminance profiles (column means for vertical
+// Seams are scored on 1-D brightness profiles (column means for vertical
 // seams, row means for horizontal ones), so shift and scale are searched
 // per axis in a few hundred cheap evaluations - fast enough for the live
 // preview. A face without dark seams (stickerless, washed out) finds no
@@ -20,7 +20,7 @@ export interface FaceSquare {
 }
 
 export interface GridAlignment extends FaceSquare {
-  // Mean seam darkness (luminance levels) at the chosen grid lines.
+  // Mean seam darkness (brightness levels, see brightestChannel) at the chosen grid lines.
   score: number
   // Whether the seams were convincing enough to move off the guide.
   aligned: boolean
@@ -125,7 +125,7 @@ export const ALIGNMENT_MAX_OFFSET = 0.15
 const MAX_OFFSET_CELLS = 0.45
 const SCALE_RANGE: [number, number] = [0.8, 1.12]
 const SCALE_STEP = 0.01
-// A seam must be this much darker (luminance levels) than the stickers on
+// A seam must be this much darker (brightness levels) than the stickers on
 // both sides, on average over the grid lines, to count as found...
 const MIN_SEAM_SCORE = 6
 // ...and must beat the guide's own grid lines by this much to move it.
@@ -136,15 +136,21 @@ const MIN_IMPROVEMENT = 4
 const MIN_LINE_DARKNESS = 4
 const MIN_LINES_ON_SEAMS = 0.75
 
-function luminanceAt(data: Uint8ClampedArray, index: number): number {
-  return 0.2126 * data[index] + 0.7152 * data[index + 1] + 0.0722 * data[index + 2]
+// A pixel's strongest channel - how bright it is in its own color. Plain
+// luminance put red (~76) and blue (~80) stickers below the grey-brown
+// plastic between a real cube's tiles (~91), so a seam next to them was
+// no dip at all and Detect face lost the whole row; in their strongest
+// channel stickers stand at 200+ against the gap's ~100. Faint grey lines
+// on a stickerless white face stay dips either way.
+function brightestChannel(data: Uint8ClampedArray, index: number): number {
+  return Math.max(data[index], data[index + 1], data[index + 2])
 }
 
 // A turn about (cx, cy): profiles are then taken across the face as if it
 // were upright, reading each point through the rotation.
 interface Turn { cx: number; cy: number; cos: number; sin: number }
 
-// Mean luminance of each column (vertical) or row over `from..to` of the
+// Mean brightestChannel of each column (vertical) or row over `from..to` of the
 // other axis, averaging every `step`-th line - a mean loses nothing by
 // skipping rows on a large guide.
 function profile(data: Uint8ClampedArray, width: number, height: number, vertical: boolean, from: number, to: number, turn?: Turn, step = 1): Float64Array {
@@ -161,7 +167,7 @@ function profile(data: Uint8ClampedArray, width: number, height: number, vertica
         x = Math.min(width - 1, Math.max(0, Math.round(turn.cx + turn.cos * dx - turn.sin * dy)))
         y = Math.min(height - 1, Math.max(0, Math.round(turn.cy + turn.sin * dx + turn.cos * dy)))
       }
-      out[p] += luminanceAt(data, (y * width + x) * 4)
+      out[p] += brightestChannel(data, (y * width + x) * 4)
     }
   }
   for (let p = 0; p < length; p++) out[p] /= Math.max(1, count)
