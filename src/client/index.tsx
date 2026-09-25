@@ -2,7 +2,7 @@ import { render, h, Fragment } from 'preact'
 import { useState, useEffect, useRef, useMemo } from 'preact/hooks'
 import '../../web/style.css'
 import {
-  captureAndProcessFace, captureAndProcessImage, extractCubeFaceColors, hasVisibleCubeFace,
+  alignedFaceBounds, captureAndProcessFace, captureAndProcessImage, extractCubeFaceColors, hasVisibleCubeFace,
   runGlobalWhiteBalance, NEUTRAL_GAINS, CROP_JPEG_QUALITY,
   DEFAULT_SAMPLING, MAX_BACKGROUND_GAP, STICKER_MEASUREMENT, stickerSampleRect, colorConfidences, STICKER_COLORS, type SamplingGeometry,
   rgbToOKLCH, hueCircularRange, hueRangesOverlap, linearRange,
@@ -977,8 +977,10 @@ function App() {
       ctx.drawImage(video, 0, 0)
 
       try {
-        setLiveDetection(extractCubeFaceColors(canvas, puzzleSize, NEUTRAL_GAINS, sampling, palette))
-        setLiveFaceVisible(hasVisibleCubeFace(canvas, puzzleSize))
+        // Align once; colors and the cube check read the same square.
+        const bounds = alignedFaceBounds(canvas, puzzleSize)
+        setLiveDetection(extractCubeFaceColors(canvas, puzzleSize, NEUTRAL_GAINS, sampling, palette, bounds))
+        setLiveFaceVisible(hasVisibleCubeFace(canvas, puzzleSize, bounds))
       } catch {
         // Transient frame read failure (e.g. camera still warming up) — skip this tick.
       }
