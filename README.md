@@ -14,6 +14,11 @@ A full-stack library and web app that solves two geometric ambiguities when reco
 
 The multi-stage pipeline filters 2,949,120 candidates down to physically reachable states using color balance, center uniformity, edge/corner adjacency, and full parity checks.
 
+The scanner defaults to **Detect face**: it finds sticker seams near the camera
+guide, aligns and straightens the face, then reads its colors. **Guide grid**
+is a manual switch that reads the fixed center square shown on screen. Both
+modes use the same color classifier, and neither requires a downloaded model.
+
 ---
 
 ## Stack
