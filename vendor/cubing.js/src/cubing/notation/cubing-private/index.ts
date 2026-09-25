@@ -1,1 +1,0 @@
-export { countLeavesInExpansionForSimultaneousMoveIndexer } from "../CountMoves";
