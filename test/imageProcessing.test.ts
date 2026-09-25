@@ -140,6 +140,34 @@ describe('live face appearance', () => {
     for (let i = 0; i < cameraData.length; i += 4) cameraData.set([200, 190, 175], i)
     expect(hasVisibleCubeFace(canvas, 3)).toBe(false)
   })
+
+  it('checks the outline where the face was read, not at the guide', () => {
+    // A plain orange face 18px right of and smaller than the guide
+    // (guide 30..120, face 54..126 x 36..108), read from those bounds.
+    const cameraSize = 150
+    const cameraData = new Uint8ClampedArray(cameraSize * cameraSize * 4)
+    for (let y = 0; y < cameraSize; y++) {
+      for (let x = 0; x < cameraSize; x++) {
+        const cube = x >= 54 && x < 126 && y >= 36 && y < 108
+        cameraData.set([...(cube ? [220, 105, 30] : [200, 190, 175]), 255], (y * cameraSize + x) * 4)
+      }
+    }
+    const canvas = {
+      width: cameraSize,
+      height: cameraSize,
+      getContext: () => ({
+        getImageData: (x: number, y: number, width: number, height: number) => {
+          const data = new Uint8ClampedArray(width * height * 4)
+          for (let row = 0; row < height; row++) {
+            const source = ((y + row) * cameraSize + x) * 4
+            data.set(cameraData.subarray(source, source + width * 4), row * width * 4)
+          }
+          return { data, width, height }
+        },
+      }),
+    } as unknown as HTMLCanvasElement
+    expect(hasVisibleCubeFace(canvas, 3, { startX: 54, startY: 36, faceWidth: 72, faceHeight: 72 })).toBe(true)
+  })
 })
 
 // A plain (unweighted) OKLab distance, built from the public API: rebuilds

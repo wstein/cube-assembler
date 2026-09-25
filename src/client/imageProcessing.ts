@@ -793,7 +793,7 @@ function getDominantColor(imageData: Uint8ClampedArray, start: number, width: nu
   return { r: avgR, g: avgG, b: avgB }
 }
 
-interface FaceBounds {
+export interface FaceBounds {
   startX: number
   startY: number
   faceWidth: number
@@ -1332,8 +1332,8 @@ export function hasPlausibleStickerFace(data: Uint8ClampedArray, width: number, 
   return visibleIntersections >= Math.ceil((gridSize - 1) ** 2 * 0.5)
 }
 
-export function hasVisibleCubeFace(canvas: HTMLCanvasElement, gridSize: number): boolean {
-  const { imageData, faceWidth, faceHeight } = readFaceRegion(canvas, alignedFaceBounds(canvas, gridSize))
+export function hasVisibleCubeFace(canvas: HTMLCanvasElement, gridSize: number, bounds: FaceBounds = alignedFaceBounds(canvas, gridSize)): boolean {
+  const { imageData, faceWidth, faceHeight } = readFaceRegion(canvas, bounds)
   // Judge the face in the layout it is sampled in (see extractColorsFromImageData).
   const outer = estimateOuterCellRatio(imageData.data, faceWidth, faceHeight, gridSize)
   if (!hasCoherentStickerInteriors(imageData.data, faceWidth, faceHeight, gridSize, outer)) return false
@@ -1342,7 +1342,6 @@ export function hasVisibleCubeFace(canvas: HTMLCanvasElement, gridSize: number):
   const ctx = canvas.getContext('2d')
   if (!ctx) return false
   const frame = ctx.getImageData(0, 0, canvas.width, canvas.height).data
-  const bounds = computeFaceBounds(canvas)
   const colorAt = (x: number, y: number) => {
     const px = Math.min(canvas.width - 1, Math.max(0, Math.round(x)))
     const py = Math.min(canvas.height - 1, Math.max(0, Math.round(y)))
@@ -1351,21 +1350,26 @@ export function hasVisibleCubeFace(canvas: HTMLCanvasElement, gridSize: number):
   }
   const contrast = (a: number[], b: number[]) => (Math.abs(a[0] - b[0]) + Math.abs(a[1] - b[1]) + Math.abs(a[2] - b[2])) / 3
   const inset = Math.min(faceWidth, faceHeight) * 0.06
+  // The outline of the square that was read - aligned, maybe tilted - in
+  // its own frame: (u, v) from its center, turned with it.
+  const cx = bounds.startX + faceWidth / 2, cy = bounds.startY + faceHeight / 2
+  const cos = Math.cos(bounds.angle ?? 0), sin = Math.sin(bounds.angle ?? 0)
+  const at = (u: number, v: number) => colorAt(cx + cos * u - sin * v, cy + sin * u + cos * v)
+  const halfW = faceWidth / 2, halfH = faceHeight / 2
   let visibleSides = 0
   for (let side = 0; side < 4; side++) {
     let contrasted = 0
     for (let i = 1; i <= 9; i++) {
-      const t = i / 10
-      const x = bounds.startX + t * faceWidth
-      const y = bounds.startY + t * faceHeight
-      const inside = side === 0 ? colorAt(bounds.startX + inset, y)
-        : side === 1 ? colorAt(bounds.startX + faceWidth - inset, y)
-        : side === 2 ? colorAt(x, bounds.startY + inset)
-        : colorAt(x, bounds.startY + faceHeight - inset)
-      const outside = side === 0 ? colorAt(bounds.startX - inset, y)
-        : side === 1 ? colorAt(bounds.startX + faceWidth + inset, y)
-        : side === 2 ? colorAt(x, bounds.startY - inset)
-        : colorAt(x, bounds.startY + faceHeight + inset)
+      const u = (i / 10 - 0.5) * faceWidth
+      const v = (i / 10 - 0.5) * faceHeight
+      const inside = side === 0 ? at(-halfW + inset, v)
+        : side === 1 ? at(halfW - inset, v)
+        : side === 2 ? at(u, -halfH + inset)
+        : at(u, halfH - inset)
+      const outside = side === 0 ? at(-halfW - inset, v)
+        : side === 1 ? at(halfW + inset, v)
+        : side === 2 ? at(u, -halfH - inset)
+        : at(u, halfH + inset)
       if (contrast(inside, outside) >= 25) contrasted++
     }
     if (contrasted >= 6) visibleSides++
