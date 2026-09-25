@@ -1681,6 +1681,22 @@ export async function runGlobalWhiteBalance(
     baselineFaces[face] = await redetectFaceColors(dataUrl, gridSize, gains, sampling)
   }
 
+  return classifyAcrossFaces(baselineFaces)
+}
+
+// The balanced cross-face assignment behind runGlobalWhiteBalance, on
+// already-measured faces. On 3x3, 5x5 and 7x7 the six centers are the six
+// colors, one each, whatever the scheme or orientation. The colors are
+// still learned from every sticker (centers are good anchors), but the
+// centers are then assigned as a permutation - each to the learned color
+// nearest its centerColor - and only the other stickers are balanced, N*N-1
+// per color. A center misread past its logo was otherwise one sticker too
+// many for its color, and the balance pushed the least typical real sticker
+// of that color out (a blue read 19% "white").
+export function classifyAcrossFaces(baselineFaces: Record<string, ColorDetectionResult>): LearnedColorClassificationResult {
+  const gridSize = Object.values(baselineFaces)[0]?.colors.length ?? 0
+  const middle = (gridSize - 1) / 2
+  const fixedCenters = gridSize >= 3 && gridSize % 2 === 1 && Object.keys(baselineFaces).length === 6
   const samples: StickerSample[] = []
   const sampleLocations: Array<{ face: string; row: number; col: number }> = []
   for (const [face, det] of Object.entries(baselineFaces)) {
@@ -1726,6 +1742,36 @@ export async function runGlobalWhiteBalance(
     faceTotals[face].sum += cellConfidence
     faceTotals[face].count++
   })
+
+  if (fixedCenters) {
+    const names = Object.keys(learned.colors)
+    const centroids = names.map((name) => learned.colors[name])
+    const label = (face: string, row: number, col: number, color: string, rgb: RGB, distance: number) => {
+      const before = reclassifiedFaces[face].cellConfidences[row][col]
+      const cellConfidence = Math.max(0, 1 - distance / CONFIDENCE_DISTANCE_SCALE)
+      reclassifiedFaces[face].colors[row][col] = color
+      reclassifiedFaces[face].cellConfidences[row][col] = cellConfidence
+      const nearest = nearestOtherColor(rgb, color, learned.colors)
+      reclassifiedFaces[face].cellLookalikes![row][col] = nearest && nearest.ratio >= LOOKALIKE_RATIO ? nearest.color : null
+      faceTotals[face].sum += cellConfidence - before
+    }
+    // Centers: each color exactly once.
+    const faces = Object.keys(baselineFaces)
+    const evidence = faces.map((face) => baselineFaces[face].centerColor ?? baselineFaces[face].cellColors[middle][middle])
+    const cost = evidence.map((rgb) => centroids.map((centroid) => clusterDistance(rgb, centroid)))
+    const assignment = hungarianAssignment(cost)
+    faces.forEach((face, i) => label(face, middle, middle, names[assignment[i]], evidence[i], cost[i][assignment[i]]))
+    // Everything else: balanced without the centers. Unchanged labels keep
+    // their leave-one-out confidence.
+    const others = samples.map((_, i) => i).filter((i) => !(sampleLocations[i].row === middle && sampleLocations[i].col === middle))
+    const rebalanced = balancedAssign(others.map((i) => samples[i].rgb), centroids)
+    others.forEach((i, j) => {
+      const color = names[rebalanced[j]]
+      if (color === learned.labelsBySampleIndex[i]) return
+      const { face, row, col } = sampleLocations[i]
+      label(face, row, col, color, samples[i].rgb, clusterDistance(samples[i].rgb, centroids[rebalanced[j]]))
+    })
+  }
 
   for (const [face, { sum, count }] of Object.entries(faceTotals)) {
     reclassifiedFaces[face].confidence = count > 0 ? sum / count : 0

@@ -7,10 +7,10 @@
  * permanent regression check - a misclassification a human caught once
  * stays caught, instead of only living in a bug report.
  *
- * Faithfully reproduces runGlobalWhiteBalance's actual flow (imageProcessing.ts),
- * not just a single face's raw classification: extract each of the 6
- * faces with neutral gains, pool every sticker's sample across the whole
- * capture, run learnStickerColors once, and compare the resulting labels
+ * Runs runGlobalWhiteBalance's actual flow (imageProcessing.ts), not just a
+ * single face's raw classification: extract each of the 6 faces with
+ * neutral gains, run the app's own cross-face step (classifyAcrossFaces)
+ * over them, and compare the resulting labels
  * against the fixture's ground truth - a raw per-cell nearest-canonical
  * check alone would flag cases the real app's cross-face recalibration
  * already fixes, which aren't real regressions.
@@ -27,7 +27,7 @@ import jpeg from 'jpeg-js'
 import { wrgFaceletsToGrids } from '../src/client/notationOutput'
 import { readFixtureColors } from '../src/client/fixtureFormat'
 import { solveGuidedCapture, orientationFreeSignature, type FaceKey } from '../src/client/cubeAssembly'
-import { DEFAULT_SAMPLING, STICKER_MEASUREMENT, extractColorsFromImageData, learnStickerColors, NEUTRAL_GAINS, type RGB, type SamplingGeometry, type StickerSample } from '../src/client/imageProcessing'
+import { DEFAULT_SAMPLING, STICKER_MEASUREMENT, classifyAcrossFaces, extractColorsFromImageData, NEUTRAL_GAINS, type ColorDetectionResult, type RGB, type SamplingGeometry } from '../src/client/imageProcessing'
 
 const FIXTURES_DIR = join(__dirname, 'fixtures')
 const FACE_ORDER = ['u', 'r', 'f', 'd', 'l', 'b']
@@ -139,8 +139,7 @@ describe('real-capture regression fixtures', () => {
       const expectedColors = readFixtureColors(meta)?.colors ?? null
       expect(expectedColors, `fixture "${name}": colors missing or malformed`).not.toBeNull()
 
-      const samples: StickerSample[] = []
-      const locations: { face: string; row: number; col: number }[] = []
+      const measured: Record<string, ColorDetectionResult> = {}
 
       for (const faceKey of FACE_ORDER) {
         const faceData = meta.faces[faceKey]
@@ -164,28 +163,15 @@ describe('real-capture regression fixtures', () => {
           expect(drift, `fixture "${name}", face ${faceKey.toUpperCase()}: sticker readings differ from the browser's by up to ${drift.toFixed(1)} levels`).toBeLessThanOrEqual(MAX_READING_DRIFT)
         }
 
-        for (let r = 0; r < meta.gridSize; r++) {
-          for (let c = 0; c < meta.gridSize; c++) {
-            samples.push({ rgb: result.cellColors[r][c], colorGuess: result.colors[r][c] })
-            locations.push({ face: faceKey, row: r, col: c })
-          }
-        }
+        measured[faceKey] = result
       }
 
-      const learned = learnStickerColors(samples)
-      expect(learned, `fixture "${name}": learnStickerColors returned null (too few samples?)`).not.toBeNull()
-
-      const finalColors: Record<string, string[][]> = {}
-      for (const faceKey of FACE_ORDER) {
-        finalColors[faceKey] = Array.from({ length: meta.gridSize }, () => new Array<string>(meta.gridSize).fill(''))
-      }
-      samples.forEach((_, i) => {
-        const { face, row, col } = locations[i]
-        finalColors[face][row][col] = learned!.labelsBySampleIndex[i]
-      })
+      // The same cross-face step the app runs (runGlobalWhiteBalance).
+      const classified = classifyAcrossFaces(measured)
+      expect(classified.applied, `fixture "${name}": the cross-face step found too few samples`).toBe(true)
 
       for (const faceKey of FACE_ORDER) {
-        expect(finalColors[faceKey], `fixture "${name}", face ${faceKey.toUpperCase()}`).toEqual(expectedColors![faceKey.toUpperCase()])
+        expect(classified.faces[faceKey].colors, `fixture "${name}", face ${faceKey.toUpperCase()}`).toEqual(expectedColors![faceKey.toUpperCase()])
       }
     })
   }
