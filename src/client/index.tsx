@@ -157,25 +157,6 @@ interface AssemblyResult {
 // API Calls
 // ─────────────────────────────────────────────────────────────────────────────
 
-async function generateScramble(size: number): Promise<string> {
-  const res = await apiFetch(`/api/scramble?size=${size}`)
-  const data = await res.json()
-  return data.scramble || 'Failed to generate scramble'
-}
-
-async function applyAlgorithm(cube: any, alg: string, size: number): Promise<any> {
-  const res = await apiFetch('/api/apply-alg', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ cube: toCubeIR(cube, size), alg }),
-  })
-  if (!res.ok) {
-    const text = await res.text()
-    throw new Error(`Apply algorithm failed (${res.status}): ${text.slice(0, 200)}`)
-  }
-  return res.json()
-}
-
 async function checkParity(cube: any, size: number): Promise<any> {
   const res = await apiFetch('/api/parity', {
     method: 'POST',
@@ -192,20 +173,6 @@ async function checkParity(cube: any, size: number): Promise<any> {
 function streamAssembly(faces: any, size: number): EventSource {
   return new EventSource(
     `/api/assemble?faces=${encodeURIComponent(JSON.stringify(faces))}&size=${size}`
-  )
-}
-
-// /api/apply-alg currently returns raw KPatternData (the ReScript
-// kPatternDataToIR bridge is an unimplemented stub), not a usable cube
-// state. Reject rather than silently corrupting `cube` with a non-cube
-// object.
-function extractCubeFromApplyAlgResult(result: any): any {
-  if (result && result.cube && result.cube.u && result.cube.r) {
-    return result.cube
-  }
-  throw new Error(
-    'Applying algorithms is not fully implemented yet: the server returns raw ' +
-    'kPatternData instead of face colors. The cube state was left unchanged.'
   )
 }
 
@@ -691,8 +658,6 @@ const ORIENTATION_CHOICES_PER_PAGE = 2
 function App() {
   const [puzzleSize, setPuzzleSize] = useState(3)
   const [cube, setCube] = useState<any>(null)
-  const [scramble, setScramble] = useState('')
-  const [algorithm, setAlgorithm] = useState('')
   const [assemblyResults, setAssemblyResults] = useState<any[]>([])
   const [parity, setParity] = useState<any>(null)
   // Which highlight group (see server/Server.ts's HighlightGroup) is
@@ -718,7 +683,6 @@ function App() {
   const [manualColorInput, setManualColorInput] = useState('')
   const [showColorInput, setShowColorInput] = useState(false)
   const [notationFormat, setNotationFormat] = useState<'wrg' | 'urf'>('wrg')
-  const [movesTab, setMovesTab] = useState<'algorithm' | 'scramble'>('algorithm')
   const [liveDetection, setLiveDetection] = useState<ColorDetectionResult | null>(null)
   const [liveFaceVisible, setLiveFaceVisible] = useState(false)
   const [liveCapturedFace, setLiveCapturedFace] = useState<string | null>(null)
@@ -1083,7 +1047,6 @@ function App() {
     if (size === puzzleSize) return
     setPuzzleSize(size)
     setCube(null)
-    setScramble('')
     setAssemblyResults([])
     setParity(null)
     setHoveredHighlightGroup(null)
@@ -1105,77 +1068,6 @@ function App() {
     setProfileSuggestion(null)
     setCaptureMessage('')
     setFixtureSaveMessage('')
-  }
-
-  // ─────────────────────────────────────────────────────────────────────────
-  // Features: Scramble Generation (#8)
-  // ─────────────────────────────────────────────────────────────────────────
-
-  const handleGenerateScramble = async () => {
-    setLoading(true)
-    try {
-      const newScramble = await generateScramble(puzzleSize)
-      setScramble(newScramble)
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const handleApplyScramble = async () => {
-    if (!scramble || !cube) return
-    setLoading(true)
-    try {
-      const result = await applyAlgorithm(cube, scramble, puzzleSize)
-      setCube(extractCubeFromApplyAlgResult(result))
-      setScramble('')
-    } catch (err) {
-      alert(`Error: ${err instanceof Error ? err.message : 'Unknown error'}`)
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  // ─────────────────────────────────────────────────────────────────────────
-  // Features: Algorithm Execution (#7)
-  // ─────────────────────────────────────────────────────────────────────────
-
-  const handleApplyAlgorithm = async () => {
-    if (!algorithm || !cube) return
-    setLoading(true)
-    try {
-      const result = await applyAlgorithm(cube, algorithm, puzzleSize)
-      const newCube = extractCubeFromApplyAlgResult(result)
-      setCube(newCube)
-      await updateParityStatus(newCube)
-    } catch (err) {
-      alert(`Error: ${err instanceof Error ? err.message : 'Unknown error'}`)
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const handleInvertAlgorithm = async () => {
-    if (!algorithm || !cube) return
-    setLoading(true)
-    try {
-      const inverted = algorithm
-        .split(/\s+/)
-        .map((m) => (m.endsWith("'") ? m.slice(0, -1) : m + "'"))
-        .reverse()
-        .join(' ')
-      const result = await applyAlgorithm(cube, inverted, puzzleSize)
-      const newCube = extractCubeFromApplyAlgResult(result)
-      setCube(newCube)
-      await updateParityStatus(newCube)
-    } catch (err) {
-      alert(`Error: ${err instanceof Error ? err.message : 'Unknown error'}`)
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const handlePresetAlgorithm = (algo: string) => {
-    setAlgorithm(algo)
   }
 
   const handleApplySolved = async () => {
@@ -1995,17 +1887,6 @@ function App() {
   }
 
   // ─────────────────────────────────────────────────────────────────────────
-  // UI: Preset Algorithms
-  // ─────────────────────────────────────────────────────────────────────────
-
-  const presets = {
-    Trigger: "R U R' U'",
-    Sune: "R U R' U R U2 R'",
-    Slices: "M' U M U2 M' U M",
-    Rotations: "x y z",
-  }
-
-  // ─────────────────────────────────────────────────────────────────────────
   // Render
   // ─────────────────────────────────────────────────────────────────────────
 
@@ -2336,56 +2217,6 @@ function App() {
             )}
           </section>
 
-          {/* Moves: an algorithm or a scramble applied to the current cube */}
-          <section class="card moves-card">
-            <div class="tabs" role="tablist" aria-label="Moves">
-              <button type="button" role="tab" aria-selected={movesTab === 'algorithm'} class={movesTab === 'algorithm' ? 'active' : ''} onClick={() => setMovesTab('algorithm')}>
-                Algorithm
-              </button>
-              <button type="button" role="tab" aria-selected={movesTab === 'scramble'} class={movesTab === 'scramble' ? 'active' : ''} onClick={() => setMovesTab('scramble')}>
-                Scramble
-              </button>
-            </div>
-            {movesTab === 'algorithm' ? (
-              <div class="control-section" role="tabpanel">
-                <label for="algorithm-input">Moves to apply</label>
-                <input
-                  id="algorithm-input"
-                  type="text"
-                  placeholder="R U R' U'  F' U F  ..."
-                  value={algorithm}
-                  onInput={(e) => setAlgorithm(e.currentTarget.value)}
-                />
-                <div class="algo-presets">
-                  {Object.entries(presets).map(([name, algo]) => (
-                    <button type="button" class="preset-btn" onClick={() => handlePresetAlgorithm(algo)} key={name}>
-                      {name}
-                    </button>
-                  ))}
-                </div>
-                <div class="btn-row">
-                  <button type="button" class="btn btn-dark" onClick={handleApplyAlgorithm} disabled={loading || !cube}>
-                    {loading ? '⏳ Applying...' : 'Apply'}
-                  </button>
-                  <button type="button" class="btn btn-secondary" onClick={handleInvertAlgorithm} disabled={loading || !cube}>
-                    {loading ? '⏳ Inverting...' : 'Apply inverse'}
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <div class="control-section" role="tabpanel">
-                <div class="scramble-display">{scramble || 'Generate a WCA scramble for this size'}</div>
-                <div class="btn-row">
-                  <button type="button" class="btn btn-dark" onClick={handleGenerateScramble} disabled={loading}>
-                    {loading ? '⏳ Generating...' : 'Generate'}
-                  </button>
-                  <button type="button" class="btn btn-secondary" onClick={handleApplyScramble} disabled={loading || !scramble || !cube}>
-                    {loading ? '⏳ Applying...' : 'Apply scramble'}
-                  </button>
-                </div>
-              </div>
-            )}
-          </section>
         </div>
       </main>
 
