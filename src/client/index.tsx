@@ -674,6 +674,7 @@ function focusModalOnOpen(el: HTMLElement | null) {
 // "most distinct values" - this ordering just makes it lose that tiebreak.
 const WIZARD_FACE_ORDER: FaceKey[] = ['F', 'R', 'D', 'L', 'B', 'U']
 const FACE_LABELS: Record<FaceKey, string> = { U: 'Up', R: 'Right', F: 'Front', D: 'Down', L: 'Left', B: 'Back' }
+const ORIENTATION_CHOICES_PER_PAGE = 2
 
 function faceContentKey(colors: string[][]): string {
   return colors.map((row) => row.join('')).join('')
@@ -755,7 +756,7 @@ function App() {
   // possibility - shown to the customer rather than silently hidden.
   // `picked` lists the faces the customer answered directly; every other
   // settled face was inferred (see the progress net's dimming).
-  const [orientationWizard, setOrientationWizard] = useState<{ remaining: OrientedCandidate[]; truncated: boolean; picked: FaceKey[] } | null>(null)
+  const [orientationWizard, setOrientationWizard] = useState<{ remaining: OrientedCandidate[]; truncated: boolean; picked: FaceKey[]; page?: number } | null>(null)
   // True while a picked option is animating into the net - blocks a second
   // pick from landing mid-flight.
   const [wizardMorphing, setWizardMorphing] = useState(false)
@@ -769,6 +770,7 @@ function App() {
     valid: boolean
     note?: string
     fallback: OrientationSolution | null
+    page?: number
   } | null>(null)
   // Capture-time warnings the customer chose to ignore (see captureWarning).
   const [dismissedCaptureWarnings, setDismissedCaptureWarnings] = useState<string[]>([])
@@ -1690,7 +1692,7 @@ function App() {
       handleChooseOrientation(matched[0])
       return
     }
-    setOrientationWizard((prev) => (prev ? { remaining: matched, truncated: prev.truncated, picked: [...prev.picked, face] } : null))
+    setOrientationWizard((prev) => (prev ? { remaining: matched, truncated: prev.truncated, picked: [...prev.picked, face], page: 0 } : null))
   }
 
   // Clicking an option face flies it into the framed slot in the progress
@@ -2897,6 +2899,9 @@ function App() {
         const { candidates, arrangements, valid, note } = orientationApproval
         const close = () => setOrientationApproval(null)
         const single = candidates.length === 1
+        const page = Math.min(orientationApproval.page ?? 0, Math.floor((candidates.length - 1) / ORIENTATION_CHOICES_PER_PAGE))
+        const first = page * ORIENTATION_CHOICES_PER_PAGE
+        const shown = candidates.map((candidate, i) => ({ candidate, i })).slice(first, first + ORIENTATION_CHOICES_PER_PAGE)
         return (
           <div class="modal open">
             <div
@@ -2923,7 +2928,7 @@ function App() {
               )}
               {!single && valid && (
                 <p class="orientation-approval-note">
-                  The photos fit your cube in {candidates.length} different ways - pick the one that matches it.
+                  The photos fit your cube in {candidates.length} different ways. Compare two at a time.
                 </p>
               )}
               {single ? (
@@ -2949,8 +2954,9 @@ function App() {
                   )}
                 </div>
               ) : (
+              <>
               <div class="orientation-approval-options">
-                {candidates.map((candidate, i) => (
+                {shown.map(({ candidate, i }) => (
                   <div key={i} class="orientation-approval-option">
                     <OrientationNetPreview faces={candidate.faces} />
                     {arrangements?.[i] && (
@@ -2964,6 +2970,16 @@ function App() {
                   </div>
                 ))}
               </div>
+              {candidates.length > ORIENTATION_CHOICES_PER_PAGE && (
+                <div class="orientation-choice-pages">
+                  <button type="button" class="btn btn-secondary btn-sm" disabled={page === 0}
+                    onClick={() => setOrientationApproval((prev) => prev && { ...prev, page: page - 1 })}>Previous two</button>
+                  <span>Options {first + 1}–{Math.min(first + ORIENTATION_CHOICES_PER_PAGE, candidates.length)} of {candidates.length}</span>
+                  <button type="button" class="btn btn-secondary btn-sm" disabled={first + ORIENTATION_CHOICES_PER_PAGE >= candidates.length}
+                    onClick={() => setOrientationApproval((prev) => prev && { ...prev, page: page + 1 })}>Next two</button>
+                </div>
+              )}
+              </>
               )}
               <div class="orientation-approval-actions">
                 <button type="button" class="btn btn-secondary" onClick={close}>
@@ -2989,10 +3005,8 @@ function App() {
       {orientationWizard && (() => {
         const { remaining, truncated, picked } = orientationWizard
         const askingFace = pickWizardFace(remaining)
-        // handleWizardAnswer never leaves the wizard open once no face is
-        // left to ask about, so this should always resolve - but fall
-        // back to the net-preview picker's old "show everything" behavior
-        // rather than rendering nothing if that invariant is ever wrong.
+        // This is normally reached only after a face choice has settled
+        // every candidate. Keep the recovery screen to one option too.
         if (!askingFace) {
           return (
             <div class="modal open">
@@ -3009,7 +3023,7 @@ function App() {
                   <button class="modal-close" aria-label="Close" onClick={() => setOrientationWizard(null)}>×</button>
                 </div>
                 <div class="orientation-picker-grid">
-                  {remaining.map((alt, i) => (
+                  {remaining.slice(0, 1).map((alt, i) => (
                     <div key={i} class="orientation-picker-option">
                       <OrientationNetPreview faces={alt.faces} />
                       <button class="btn btn-primary btn-sm" onClick={() => handleChooseOrientation(alt)}>
@@ -3034,6 +3048,8 @@ function App() {
         }
         const decidedCount = WIZARD_FACE_ORDER.length - undecidedFaces.size
         const options = groupWizardOptions(remaining, askingFace)
+        const page = Math.min(orientationWizard.page ?? 0, Math.floor((options.length - 1) / ORIENTATION_CHOICES_PER_PAGE))
+        const first = page * ORIENTATION_CHOICES_PER_PAGE
 
         return (
           <div class="modal open">
@@ -3064,12 +3080,12 @@ function App() {
                 autoFaces={autoFaces}
               />
               <div class="orientation-picker-grid orientation-wizard-options">
-                {options.map((opt, i) => (
+                {options.slice(first, first + ORIENTATION_CHOICES_PER_PAGE).map((opt, i) => (
                   <button
-                    key={i}
+                    key={first + i}
                     type="button"
                     class="orientation-picker-option orientation-wizard-option"
-                    aria-label={`Option ${i + 1} for the ${FACE_LABELS[askingFace]} face`}
+                    aria-label={`Option ${first + i + 1} for the ${FACE_LABELS[askingFace]} face`}
                     disabled={wizardMorphing}
                     onClick={(e) => handleWizardPick(e.currentTarget, opt.candidates, askingFace)}
                   >
@@ -3077,6 +3093,15 @@ function App() {
                   </button>
                 ))}
               </div>
+              {options.length > ORIENTATION_CHOICES_PER_PAGE && (
+                <div class="orientation-choice-pages">
+                  <button type="button" class="btn btn-secondary btn-sm" disabled={page === 0 || wizardMorphing}
+                    onClick={() => setOrientationWizard((prev) => prev && { ...prev, page: page - 1 })}>Previous two</button>
+                  <span>Options {first + 1}–{Math.min(first + ORIENTATION_CHOICES_PER_PAGE, options.length)} of {options.length}</span>
+                  <button type="button" class="btn btn-secondary btn-sm" disabled={first + ORIENTATION_CHOICES_PER_PAGE >= options.length || wizardMorphing}
+                    onClick={() => setOrientationWizard((prev) => prev && { ...prev, page: page + 1 })}>Next two</button>
+                </div>
+              )}
             </div>
           </div>
         )
