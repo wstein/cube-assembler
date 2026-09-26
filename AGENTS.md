@@ -28,6 +28,6 @@ Make multiple atomic, focused commits when a task has distinct changes; keep eac
 
 ## Scanner Modes
 
-Detect face is the default: it searches for sticker seams near the camera guide, aligns the grid, then reads colors. Guide grid samples the fixed on-screen square when selected manually. Both modes use the same color classifier and require no downloaded model. Keep behavior and tests for both modes explicit when changing capture code.
+Detect face is the default: it searches for sticker seams near the camera guide, aligns the grid, then reads colors. Guide grid samples the fixed on-screen square when selected manually. Before the first face, Detect face also estimates the cube size (`estimateFaceGridSize`) and switches only when 8 of 10 frames agree, with Undo; the estimate must stay silent rather than guess, so keep `test/gridSizeDetection.test.ts` free of wrong sizes. Both modes use the same color classifier and require no downloaded model. Keep behavior and tests for both modes explicit when changing capture code.
 
 The live analysis effect clears auto-capture progress when its settings change. Keep selected cube sampling and palette references stable across frame-driven renders; a new object each render prevents the five-frame capture threshold from being reached.
