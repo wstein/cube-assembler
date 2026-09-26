@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { analyzeLiveFrame, scaleBounds, type LiveAnalysisRequest } from '../src/client/liveAnalysis'
-import { DEFAULT_SAMPLING } from '../src/client/imageProcessing'
+import { DEFAULT_SAMPLING, linearChannelToSrgb, srgbChannelToLinear } from '../src/client/imageProcessing'
 import { genericColorProfile, type ColorProfile } from '../src/client/profileSettings'
 
 const COLORS: Record<string, number[]> = {
@@ -112,13 +112,15 @@ describe('analyzeLiveFrame', () => {
 
   it('uses captured backdrop median to correct live sticker readings', () => {
     const original = frame(1280, 720, 3)
+    // A redder light: 20% more red in linear light, as a light source adds it.
+    const tint = (v: number) => linearChannelToSrgb(srgbChannelToLinear(v) * 1.2)
     const tinted = original.slice()
-    for (let i = 0; i < tinted.length; i += 4) tinted[i] = Math.min(255, Math.round(tinted[i] * 1.1))
+    for (let i = 0; i < tinted.length; i += 4) tinted[i] = tint(tinted[i])
     const baseline = analyzeLiveFrame(original, 1280, 720, request(3))
     const backdrop = { r: 140, g: 135, b: 130 }
     const corrected = analyzeLiveFrame(tinted, 1280, 720, request(3, { capturedBackgrounds: { U: backdrop, R: backdrop } }))
-    expect(corrected.backgroundColor?.r).toBeCloseTo(154, 0)
-    expect(corrected.gains.r).toBeCloseTo(140 / 154, 2)
+    expect(corrected.backgroundColor?.r).toBeCloseTo(tint(140), 0)
+    expect(corrected.gains.r).toBeCloseTo(1 / 1.2, 2)
     expect(corrected.detection.cellColors[1][1].r).toBeCloseTo(baseline.detection.cellColors[1][1].r, 0)
     expect(analyzeLiveFrame(tinted, 1280, 720, request(3)).gains).toEqual({ r: 1, g: 1, b: 1 })
   })

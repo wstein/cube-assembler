@@ -375,11 +375,15 @@ export function classifySticker(rgb: RGB, palette?: Record<string, RGB>): { colo
 
 export const NEUTRAL_GAINS: RGB = { r: 1, g: 1, b: 1 }
 
+// Gains scale light, so they apply in linear light: sRGB values are
+// decoded, scaled and encoded again (see computeBackgroundGains).
 export function applyGains(rgb: RGB, gains: RGB): RGB {
+  const round = (v: number) => Math.max(0, Math.min(255, Math.round(v)))
+  if (gains.r === 1 && gains.g === 1 && gains.b === 1) return { r: round(rgb.r), g: round(rgb.g), b: round(rgb.b) }
   return {
-    r: Math.max(0, Math.min(255, Math.round(rgb.r * gains.r))),
-    g: Math.max(0, Math.min(255, Math.round(rgb.g * gains.g))),
-    b: Math.max(0, Math.min(255, Math.round(rgb.b * gains.b))),
+    r: linearChannelToSrgb(srgbChannelToLinear(rgb.r) * gains.r),
+    g: linearChannelToSrgb(srgbChannelToLinear(rgb.g) * gains.g),
+    b: linearChannelToSrgb(srgbChannelToLinear(rgb.b) * gains.b),
   }
 }
 
@@ -991,7 +995,9 @@ export function extractBackgroundColorFromPixels(data: Uint8ClampedArray, width:
 // 1.3 widened or kept the worst Red/Orange margin on all of them (the old
 // 0.6-1.8 was the loosest), while no gain at all broke
 // capture-2026-09-23T04-17-08 - so some correction is still needed.
-const MAX_BACKGROUND_GAIN = 1.3
+// That limit was set on sRGB values; gains now scale linear light (see
+// applyGains), where the same strength is 1.3^2.2.
+const MAX_BACKGROUND_GAIN = 1.3 ** 2.2
 
 // Clamps a background-derived gain into [1/MAX_BACKGROUND_GAIN,
 // MAX_BACKGROUND_GAIN]. Exported so gains recorded by older captures
@@ -1012,8 +1018,8 @@ export function limitBackgroundGain(gains: RGB): RGB {
 // How background white balance is computed, saved with fixtures so only
 // gains made this way are replayed (older captures recorded gains relative
 // to face 1 over a region without a gap to the cube, which swapped red and
-// orange on real captures).
-export const BACKGROUND_WB_METHOD = 'median-around-cube/v1'
+// orange on real captures; v1 gains were sRGB ratios, v2 are linear).
+export const BACKGROUND_WB_METHOD = 'median-around-cube/v2'
 
 const median = (values: number[]) => {
   const sorted = [...values].sort((a, b) => a - b)
@@ -1030,10 +1036,16 @@ const median = (values: number[]) => {
 export function computeBackgroundGains(backgrounds: Record<string, RGB | null | undefined>): Record<string, RGB> | null {
   const readings = Object.values(backgrounds).filter((bg): bg is RGB => !!bg)
   if (readings.length < 3) return null
-  const reference = { r: median(readings.map((bg) => bg.r)), g: median(readings.map((bg) => bg.g)), b: median(readings.map((bg) => bg.b)) }
-  return Object.fromEntries(Object.entries(backgrounds).map(([face, bg]) => [face, bg
-    ? limitBackgroundGain({ r: reference.r / Math.max(1, bg.r), g: reference.g / Math.max(1, bg.g), b: reference.b / Math.max(1, bg.b) })
-    : NEUTRAL_GAINS]))
+  // Ratios of linear light, like the gains are applied (see applyGains).
+  const linear = (bg: RGB) => ({ r: srgbChannelToLinear(bg.r), g: srgbChannelToLinear(bg.g), b: srgbChannelToLinear(bg.b) })
+  const lin = readings.map(linear)
+  const reference = { r: median(lin.map((bg) => bg.r)), g: median(lin.map((bg) => bg.g)), b: median(lin.map((bg) => bg.b)) }
+  const floor = srgbChannelToLinear(1)
+  return Object.fromEntries(Object.entries(backgrounds).map(([face, bg]) => {
+    if (!bg) return [face, NEUTRAL_GAINS]
+    const l = linear(bg)
+    return [face, limitBackgroundGain({ r: reference.r / Math.max(floor, l.r), g: reference.g / Math.max(floor, l.g), b: reference.b / Math.max(floor, l.b) })]
+  }))
 }
 
 // Crops just the analyzed face region out of a captured frame, for showing

@@ -17,7 +17,7 @@ import { cellEdges } from '../src/client/gridAlignment'
 import { describe, it, expect } from 'vitest'
 import {
   learnStickerColors, rgbToOKLCH, hueCircularRange, hueRangesOverlap, linearRange,
-  hungarianAssignment, trimmedMeanColor, STICKER_COLORS, extractBackgroundColor, BACKGROUND_CUBE_GAP, computeBackgroundGains,
+  hungarianAssignment, trimmedMeanColor, STICKER_COLORS, extractBackgroundColor, BACKGROUND_CUBE_GAP, applyGains, computeBackgroundGains,
   stickerSampleRect, DEFAULT_SAMPLING, measureSharpness, classifySticker, stickerColor,
   extractColorsFromImageData, hasPlausibleStickerFace, hasVisibleCubeFace, faceVisibility, faceBoundsForMode, NEUTRAL_GAINS, type RGB,
 } from '../src/client/imageProcessing'
@@ -833,14 +833,26 @@ describe('computeBackgroundGains', () => {
   const grey = (v: number, tint: Partial<RGB> = {}): RGB => ({ r: v, g: v, b: v, ...tint })
 
   it('brings each face to the median backdrop, so one odd face moves only itself', () => {
-    const gains = computeBackgroundGains({ U: grey(100), R: grey(100), F: grey(100), D: grey(100), L: grey(100), B: grey(100, { b: 125 }) })!
+    const backdrops = { U: grey(100), R: grey(100), F: grey(100), D: grey(100), L: grey(100), B: grey(100, { b: 125 }) }
+    const gains = computeBackgroundGains(backdrops)!
     for (const f of ['U', 'R', 'F', 'D', 'L']) expect(gains[f]).toEqual({ r: 1, g: 1, b: 1 })
-    expect(gains.B).toEqual({ r: 1, g: 1, b: 0.8 })
+    // Applied in linear light, the odd face's backdrop lands on the others'.
+    expect(applyGains(backdrops.B, gains.B)).toEqual(grey(100))
   })
 
-  it('caps each gain and leaves faces without a reading neutral', () => {
+  it('works in linear light, not on sRGB values', () => {
+    // sRGB 125 -> 100 is a linear factor of about 0.62, not 100/125 = 0.8.
+    const gains = computeBackgroundGains({ U: grey(100), R: grey(100), F: grey(100), B: grey(100, { b: 125 }) })!
+    expect(gains.B.b).toBeCloseTo(0.62, 2)
+    // Doubling linear light turns sRGB 128 into 176, not 256.
+    expect(applyGains(grey(128), { r: 2, g: 1, b: 1 })).toEqual({ r: 176, g: 128, b: 128 })
+    expect(applyGains(grey(0), { r: 2, g: 2, b: 2 })).toEqual(grey(0))
+  })
+
+  it('caps each gain at the old strength and leaves faces without a reading neutral', () => {
     const gains = computeBackgroundGains({ U: grey(100), R: grey(100), F: grey(100), D: grey(50), L: null, B: undefined })!
-    expect(gains.D).toEqual({ r: 1.3, g: 1.3, b: 1.3 })
+    // 1.3 in sRGB terms, i.e. 1.3^2.2 in linear light.
+    expect(gains.D.r).toBeCloseTo(1.3 ** 2.2, 5)
     expect(gains.L).toEqual(NEUTRAL_GAINS)
     expect(gains.B).toEqual(NEUTRAL_GAINS)
   })
