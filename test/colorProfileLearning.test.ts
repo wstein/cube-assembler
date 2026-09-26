@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { STICKER_COLORS } from '../src/client/imageProcessing'
-import { assessPalette, blendColorProfile, chooseColorProfile } from '../src/client/colorProfileLearning'
+import { assessPalette, blendColorProfile, matchColorProfile } from '../src/client/colorProfileLearning'
 import type { ColorProfile } from '../src/client/profileSettings'
 
 const base: ColorProfile = { id: 'base', name: 'Base', colors: STICKER_COLORS, captures: 4 }
@@ -29,13 +29,11 @@ describe('color profile learning', () => {
     expect(assessPalette(base, bad, { reviewedValid: true, cameraOnly: true, recalibrated: true, confidentFraction: 1 }).accepted).toBe(false)
   })
 
-  it('only auto-selects a clearly better existing color profile', () => {
+  it('matches one clear saved profile and leaves ambiguous colors on Generic', () => {
     const near: ColorProfile = { ...base, id: 'near', colors: shifted }
-    const choice = chooseColorProfile([base, near], base.id, shifted)
-    expect(choice.autoSelect?.id).toBe('near')
-    expect(chooseColorProfile([base, near], base.id, STICKER_COLORS).autoSelect).toBeNull()
-    expect(chooseColorProfile([near], base.id, shifted).autoSelect).toBeNull()
-    const generic: ColorProfile = { id: 'generic-colors', name: 'Generic', colors: STICKER_COLORS, captures: 0 }
-    expect(chooseColorProfile([generic, near], generic.id, shifted).autoSelect?.id).toBe('near')
+    expect(matchColorProfile([base, near], shifted)?.id).toBe('near')
+    expect(matchColorProfile([base, near], STICKER_COLORS)?.id).toBe('base')
+    expect(matchColorProfile([near], shifted)?.id).toBe('near')
+    expect(matchColorProfile([{ ...base, id: 'same' }, base], STICKER_COLORS)).toBeNull()
   })
 })
