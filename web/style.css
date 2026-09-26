@@ -2442,6 +2442,7 @@ label.capture-size-label {
 
 .fixture-download-content .input-actions {
   justify-content: flex-end;
+  flex-wrap: wrap;
 }
 
 .fixture-download-file {
