@@ -2239,7 +2239,7 @@ function App() {
             onChange={(e) => applyProfileStore(selectColorProfile(profileStore, e.currentTarget.value))}>
             {allColorProfiles(profileStore).map((colors) => <option key={colors.id} value={colors.id}>{colors.name}</option>)}
           </select>
-          <a class="color-review-link" href={profilesHash('colors')}>Review colors…</a>
+          <a class="color-review-link" href="#profiles">Profiles</a>
         </div>
       </header>
 
@@ -2777,7 +2777,7 @@ function App() {
                   >
                     ＋ New cube
                   </button>
-                  <a class="color-review-link" href={profilesHash('cubes')} onClick={() => setWebcamOpen(false)}>Review cubes…</a>
+                  <a class="color-review-link" href={profilesHash('cubes')} onClick={() => setWebcamOpen(false)}>Manage profiles…</a>
                 </div>
                 <div class="capture-size-row">
                   <label class="capture-size-label" for="color-profile">Colors:</label>
@@ -2790,7 +2790,7 @@ function App() {
                     onClick={() => setNewColorProfileName(newColorProfileName === null ? '' : null)}>
                     ＋ New colors
                   </button>
-                  <a class="color-review-link" href={profilesHash('colors')} onClick={() => setWebcamOpen(false)}>Review colors…</a>
+                  <a class="color-review-link" href={profilesHash('colors')} onClick={() => setWebcamOpen(false)}>Manage profiles…</a>
                 </div>
                 {newColorProfileName !== null && (
                   <div class="capture-size-row new-cube-form">
