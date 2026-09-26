@@ -29,11 +29,32 @@ The scanner defaults to **Detect face**: it finds sticker seams near the camera
 guide, aligns and straightens the face, then reads its colors. **Guide grid**
 is a manual switch that reads the fixed center square shown on screen. Both
 modes use the same color classifier, and neither requires a downloaded model.
-Sampling setup adjusts the gap around each sticker. Backdrop white balance
+Cube and Colors are separate settings. The Cube menu always lists one Generic
+cube for each size from 2×2 to 7×7, with a 60% sticker core and 40% total
+gap; choosing one sets the size. Colors can be reused across sizes. Sampling
+setup adjusts the gap around each sticker on a named cube. Built-in cubes and
+Generic colors are read-only. **Automatic colors** starts with Generic colors
+and uses a saved profile after a clear match; it stays selected for later
+captures. Selecting a profile by name keeps that manual choice.
+Backdrop white balance
 always excludes a 25% band around the detected face; older saved backdrop-gap
 settings are accepted but ignored.
 **New cube** copies the selected cube's size and sticker gap and asks for a
-name; brand presets are no longer used.
+name. After a good, reviewed camera capture, the app offers to save its
+calibrated colors as a new profile. Later approved captures update that profile
+gradually when the readings are close enough. Automatic colors matches only
+with a clear margin; ambiguous colors stay on Generic. Color similarity never
+identifies the cube itself.
+Settings can be downloaded and restored as JSON. The v3 storage key preserves
+the previous combined-profile key for older app versions.
+
+The update gate uses a mean palette distance of 0.08 and a per-color limit
+of 0.14 in the classifier's OKLab metric, after a valid reviewed camera
+capture with at least 80% confident cells and no more than 2% hand-corrected
+cells. In a sweep of 23 saved capture
+palettes, all 31 same-name/same-size pairs passed this gate, while 214 of
+222 other pairs also passed. That overlap is why palette distance is used
+for cautious learning and Auto matching, not for cube identification.
 
 ---
 
@@ -145,7 +166,9 @@ cube-assembler/
 │       ├── parity.ts              Parity check, with the stickers to look at when it fails
 │       ├── orientationWizard.ts   "Choose each side": which face to ask about next
 │       ├── cubeGeometry.ts        Whole-cube rotations and layer turns
-│       ├── cubeProfiles.ts        Saved cubes: size, sticker gap, and colors
+│       ├── profileSettings.ts     Separate cube geometry and color profiles
+│       ├── profileStorage.ts      v3 settings storage and legacy conversion
+│       ├── colorProfileLearning.ts Quality gate and weighted color learning
 │       ├── capturePresentation.ts Capture dialog wording and layout helpers
 │       ├── fixtureFormat.ts       Reading saved fixtures, old formats included
 │       ├── fixtureZip.ts          Test fixtures as zip files: save (download) and upload

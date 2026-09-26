@@ -4,6 +4,8 @@
 
 `src/client/` contains the Preact scanner, capture flow, color processing, and cube assembly UI. The Detect face pipeline is in `gridAlignment.ts`; `imageProcessing.ts` classifies sticker colors. The live preview's per-frame analysis runs in a worker (`liveAnalysis.ts`, `liveAnalysis.worker.ts`). The parity check is in `parity.ts`; fixtures are saved and loaded as zip files in `fixtureZip.ts`. Production runs in the browser. `scripts/fixtureUploadServer.mjs` is an optional localhost-only dev tool. Styles live in `web/style.css`, static assets in `public/`, and Vitest tests in `test/`. Saved capture photos and metadata live in `test/fixtures/`.
 
+Cube geometry and sticker colors are independent settings: `profileSettings.ts` defines them, `profileStorage.ts` migrates old combined settings, and `colorProfileLearning.ts` gates updates after a reviewed capture. Each size has one read-only Generic cube with a 60% sticker core. Automatic colors matches saved profiles only with a clear margin; Generic colors remain read-only. Preserve the old localStorage key during migration.
+
 ## Build, Test, and Development Commands
 
 - `npm install` installs dependencies.
