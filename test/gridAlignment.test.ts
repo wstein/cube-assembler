@@ -179,3 +179,22 @@ describe('findGridAlignment', () => {
     expect(findGridAlignment(data, width, width, guide, 3).aligned).toBe(false)
   })
 })
+
+describe('tilt on cubes with rounded stickers', () => {
+  const G = 300, W = Math.round(G * 1.4), guide = { x: (W - G) / 2, y: (W - G) / 2, size: G }
+
+  it('turns a tilted 5x5 upright despite rounded sticker corners and a logo', () => {
+    // Round corners and the logo spread the edge directions: the tilt was
+    // measured (about 3.3 degrees) but dropped as too uncertain.
+    const { data } = scene(5, placed(guide, 0, 0, 0.95), G, { tilt: 4, radius: 0.4, logo: true })
+    expect((estimateTilt(data, W, W, guide) * 180) / Math.PI).toBeGreaterThan(2.5)
+    const found = alignFace(data, W, W, guide, 5)
+    expect(found.seams).toBe(true)
+    expect((found.angle * 180) / Math.PI).toBeGreaterThan(2.5)
+  })
+
+  it('keeps an upright face upright when its round stickers suggest a false tilt', () => {
+    const { data } = scene(5, placed(guide, 0, 0, 0.95), G, { tilt: 0, radius: 0.5, gap: 0.15, logo: true })
+    expect(alignFace(data, W, W, guide, 5).angle).toBe(0)
+  })
+})
