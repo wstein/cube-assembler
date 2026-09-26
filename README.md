@@ -369,6 +369,10 @@ mode, RGB values, and any profile color fit score for the complete six-face capt
 records a saved or manually selected profile when it was used as the
 classification reference. The learned palette used to classify every face
 together remains in `capture.colorCalibration`. See [Regression fixtures](test/fixtures/README.md).
+The capture status shows the resolved color profile once, with its color fit
+when available. Preview details appear only when they differ from the final
+choice. A close saved profile has a clear lead when its color fit is at least
+ten points above the next profile, even if the old distance-ratio rule is not met.
 
 ---
 
