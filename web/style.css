@@ -330,47 +330,6 @@ h1, h2, h3 {
 }
 
 /* ─────────────────────────────────────────────────────────────────────────────
-   PUZZLE SIZE BAR
-   ───────────────────────────────────────────────────────────────────────────── */
-
-.size-selector {
-  display: flex;
-  gap: var(--spacing-xs);
-  flex-wrap: wrap;
-  align-items: center;
-}
-
-.size-btn {
-  min-width: 44px;
-  height: 36px;
-  padding: 0 var(--spacing-sm);
-  border: 1px solid var(--color-border);
-  background: var(--color-bg-primary);
-  color: var(--color-text-primary);
-  border-radius: var(--radius-md);
-  cursor: pointer;
-  font-weight: 600;
-  font-size: 0.85rem;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.15s ease;
-  user-select: none;
-  box-sizing: border-box;
-}
-
-.size-btn:hover {
-  border-color: var(--color-accent);
-  background: var(--color-bg-secondary);
-}
-
-.size-btn.active {
-  background: var(--color-accent);
-  color: var(--color-on-accent);
-  border-color: var(--color-accent);
-}
-
-/* ─────────────────────────────────────────────────────────────────────────────
    CUBE NET
    ───────────────────────────────────────────────────────────────────────────── */
 
@@ -1236,6 +1195,13 @@ textarea {
 
 .profile-suggestion span {
   flex: 1 1 16rem;
+}
+
+.profile-suggestion input {
+  min-width: 10rem;
+  padding: 0.5rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
 }
 
 .review-progress-dots {
@@ -2152,11 +2118,6 @@ label.capture-size-label {
   white-space: nowrap;
 }
 
-.capture-size-buttons {
-  display: flex;
-  gap: var(--spacing-xs);
-}
-
 .wb-btn {
   padding: 0.2rem 0.55rem;
   border: 1px solid var(--color-border);
@@ -2289,28 +2250,6 @@ label.capture-size-label {
   margin: 0;
 }
 
-.header-content .size-selector {
-  padding: 4px;
-  gap: 2px;
-  background: var(--color-bg-page);
-  border-radius: 12px;
-}
-
-.header-content .size-btn {
-  min-width: 52px;
-  height: 40px;
-  border: none;
-  background: transparent;
-  color: var(--color-text-secondary);
-  font-family: var(--font-mono);
-}
-
-.header-content .size-btn.active {
-  background: var(--color-bg-primary);
-  color: var(--color-text-primary);
-  box-shadow: var(--shadow-sm);
-}
-
 .header-profile {
   height: 44px;
   padding: 0 0.85rem;
@@ -2328,17 +2267,6 @@ label.capture-size-label {
 
   .header-content .header-spacer {
     display: none;
-  }
-
-  /* Sizes share one row; the profile picker takes the next. */
-  .header-content .size-selector {
-    flex: 1 1 100%;
-    flex-wrap: nowrap;
-  }
-
-  .header-content .size-btn {
-    flex: 1;
-    min-width: 0;
   }
 
   .header-profile {
@@ -2549,16 +2477,6 @@ label.capture-size-label {
 }
 
 @media (max-width: 540px) {
-  .size-selector {
-    width: 100%;
-    justify-content: space-between;
-  }
-
-  .size-btn {
-    flex: 1 1 0;
-    min-width: 0;
-  }
-
   .face-status-dots {
     justify-content: center;
     width: 100%;
