@@ -19,13 +19,13 @@ export interface Look {
   tilt?: number
 }
 
-// A region 1.4x the guide with the guide centered, and an N x N face drawn
+// A region `frame` times the guide (1.4 unless given) with the guide centered, and an N x N face drawn
 // at `face` on a mid-grey background.
-export function scene(gridSize: number, face: FaceSquare, guideSize = 300, look: Look = {}) {
+export function scene(gridSize: number, face: FaceSquare, guideSize = 300, look: Look = {}, frame = 1.4) {
   const { seam = [15, 15, 15], gap = 0.08, outer = 1, sticker = (row: number, col: number) => STICKERS[(row * gridSize + col) % 6], tilt = 0 } = look
   const turn = (tilt * Math.PI) / 180, cos = Math.cos(turn), sin = Math.sin(turn)
   const fcx = face.x + face.size / 2, fcy = face.y + face.size / 2
-  const width = Math.round(guideSize * 1.4)
+  const width = Math.round(guideSize * frame)
   const height = width
   const guide = { x: (width - guideSize) / 2, y: (height - guideSize) / 2, size: guideSize }
   const data = new Uint8ClampedArray(width * height * 4)
