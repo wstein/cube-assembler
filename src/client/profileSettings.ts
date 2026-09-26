@@ -81,6 +81,15 @@ export function selectCube(settings: ProfileSettings, id: string): ProfileSettin
   return { ...settings, activeCubeBySize: { ...settings.activeCubeBySize, [cube.size]: id } }
 }
 
+export function copyCubeSetting(settings: ProfileSettings, cube: CubeSetting, name: string): CubeSetting {
+  const trimmed = name.trim().slice(0, 60)
+  if (!trimmed) throw new Error('Cube name required')
+  let id: string
+  do { id = `cube-${Date.now()}-${Math.random().toString(36).slice(2, 8)}` }
+  while (allCubes(settings).some((saved) => saved.id === id))
+  return { id, name: trimmed, size: cube.size, sampling: { ...cube.sampling } }
+}
+
 export function deleteCube(settings: ProfileSettings, id: string): ProfileSettings {
   if (isBuiltinCube(id)) throw new Error('Cannot delete a built-in cube')
   const activeCubeBySize = { ...settings.activeCubeBySize }
@@ -127,6 +136,26 @@ export function deleteColorProfile(settings: ProfileSettings, id: string): Profi
     colors: settings.colors.filter((profile) => profile.id !== id),
     activeColorsId: settings.activeColorsId === id ? GENERIC_COLORS_ID : settings.activeColorsId,
   }
+}
+
+export function mergeSettings(current: ProfileSettings, imported: ProfileSettings): ProfileSettings {
+  const cubes = [...current.cubes]
+  const colors = [...current.colors]
+  for (const cube of imported.cubes) {
+    const index = cubes.findIndex((saved) => saved.id === cube.id)
+    if (index < 0) cubes.push(cube)
+    else cubes[index] = cube
+  }
+  for (const profile of imported.colors) {
+    const index = colors.findIndex((saved) => saved.id === profile.id)
+    if (index < 0) colors.push(profile)
+    else colors[index] = profile
+  }
+  return parseProfileSettings({
+    cubes, colors,
+    activeCubeBySize: { ...current.activeCubeBySize, ...imported.activeCubeBySize },
+    activeColorsId: imported.activeColorsId,
+  })
 }
 
 function validCube(value: unknown): value is CubeSetting {
