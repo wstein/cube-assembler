@@ -29,9 +29,9 @@ describe('local fixture upload server', () => {
     if (root) await rm(root, { recursive: true, force: true })
   })
 
-  async function start() {
+  async function start(log: (line: string) => void = () => {}) {
     root = await mkdtemp(join(tmpdir(), 'fixture-upload-'))
-    server = createFixtureUploadServer(root)
+    server = createFixtureUploadServer(root, log)
     server.listen(0, '127.0.0.1')
     await once(server, 'listening')
     const address = server.address()
@@ -70,5 +70,18 @@ describe('local fixture upload server', () => {
     expect((await upload(fixtureForm())).status).toBe(201)
     expect((await upload(fixtureForm())).status).toBe(409)
     expect(await readdir(root!)).toEqual(['capture-test'])
+  })
+
+  it('traces ping, upload success and rejection without logging file contents', async () => {
+    const lines: string[] = []
+    await start((line) => lines.push(line))
+    await fetch(`${url}/ping`)
+    await upload(fixtureForm('trace-test'))
+    await upload(fixtureForm('trace-test'))
+    expect(lines).toHaveLength(3)
+    expect(lines[0]).toMatch(/GET \/ping 204/)
+    expect(lines[1]).toMatch(/POST \/upload 201.*trace-test/)
+    expect(lines[2]).toMatch(/POST \/upload 409.*Fixture already exists/)
+    expect(lines.join('\n')).not.toContain('colorsURFDLB')
   })
 })
