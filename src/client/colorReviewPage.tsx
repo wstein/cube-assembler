@@ -1,10 +1,12 @@
-// The Colors tab of the profiles page: compare saved sticker color profiles, find the ones that
-// only differ by room light, merge them, and try two profiles on the last
-// capture. All grouping and merging logic lives in colorProfileReview.ts.
+// The Colors tab of the profiles page: compare saved sticker color profiles,
+// delete them, merge the ones that only differ by room light, and try two
+// profiles on the last capture. All grouping and merging logic lives in colorProfileReview.ts.
 import { useMemo, useState } from 'preact/hooks'
 import {
-  groupSimilarProfiles, groupSpread, mergeColorProfiles, mergedColors, whiteBalancedColors,
+  colorDeletionEffects, deleteColorProfiles, groupSimilarProfiles, groupSpread, mergeColorProfiles, mergedColors, unusedColorProfiles,
+  whiteBalancedColors,
 } from './colorProfileReview'
+import { DeleteButton, SelectionBar } from './profileDeletion'
 import { classifySticker, rgbToOklab, rgbToOKLCH, type RGB } from './imageProcessing'
 import { AUTO_COLORS_ID, GENERIC_COLORS_ID, allColorProfiles, type ColorProfile, type ProfileSettings } from './profileSettings'
 
@@ -56,6 +58,7 @@ export function ColorReviewTab({ settings, onChange, capture }: Props) {
   const [undo, setUndo] = useState<ProfileSettings[]>([])
   const [message, setMessage] = useState('')
   const [face, setFace] = useState(0)
+  const [selected, setSelected] = useState<string[]>([])
 
   const byId = (id: string) => profiles.find((profile) => profile.id === id) ?? profiles[0]
   const shown = (profile: ColorProfile) => balanced ? whiteBalancedColors(profile.colors) : profile.colors
@@ -67,6 +70,27 @@ export function ColorReviewTab({ settings, onChange, capture }: Props) {
   const distinct = groups.filter((group) => group.length === 1).map((group) => group[0])
   const groupKey = (group: ColorProfile[]) => group.map((p) => p.id).sort().join('+')
 
+  const undoLast = () => {
+    const previous = undo[undo.length - 1]
+    setUndo(undo.slice(0, -1))
+    onChange(previous)
+    setMessage('Undone.')
+  }
+  const status = (
+    <div class="color-review-toolbar">
+      <button type="button" class="btn btn-secondary btn-sm" disabled={undo.length === 0} onClick={undoLast}>Undo last change</button>
+      {message && <span role="status" class={`color-review-message ${message.startsWith('❌') ? 'error' : ''}`}>{message}</span>}
+    </div>
+  )
+  const remove = (ids: string[]) => {
+    try {
+      const names = ids.map((id) => saved.find((p) => p.id === id)?.name ?? id)
+      commit(deleteColorProfiles(settings, ids), ids.length === 1 ? `Deleted “${names[0]}”.` : `Deleted ${ids.length} color profiles.`)
+      setSelected(selected.filter((id) => !ids.includes(id)))
+    } catch (err) {
+      setMessage(`❌ ${err instanceof Error ? err.message : 'Delete failed'}`)
+    }
+  }
   const commit = (next: ProfileSettings, text: string) => {
     setUndo([...undo, settings])
     onChange(next)
@@ -199,15 +223,7 @@ export function ColorReviewTab({ settings, onChange, capture }: Props) {
           <span class="mono">ΔE {limit.toFixed(1)}</span>
           <span class="color-review-muted">{saved.length} profiles → {groups.length} if every group is merged</span>
         </div>
-        <div class="color-review-toolbar">
-          <button type="button" class="btn btn-secondary btn-sm" disabled={undo.length === 0} onClick={() => {
-            const previous = undo[undo.length - 1]
-            setUndo(undo.slice(0, -1))
-            onChange(previous)
-            setMessage('Undone.')
-          }}>Undo last change</button>
-          {message && <span role="status" class={`color-review-message ${message.startsWith('❌') ? 'error' : ''}`}>{message}</span>}
-        </div>
+        {status}
         {saved.length < 2 && <p class="color-review-muted">Save at least two color profiles to find similar ones.</p>}
         <div class="color-review-groups">
           {mergeable.map((group, n) => {
@@ -264,15 +280,25 @@ export function ColorReviewTab({ settings, onChange, capture }: Props) {
 
       <section class="card color-review-section" aria-labelledby="review-all">
         <h2 id="review-all">All profiles</h2>
-        <p class="color-review-muted">Each row is one profile's six reference colors on the same neutral grey.</p>
+        <p class="color-review-muted">Each row is one profile's six reference colors on the same neutral grey. Tick profiles to delete several at once; Generic colors can't be deleted.</p>
+        {saved.length > 0 && (
+          <SelectionBar noun={['color profile', 'color profiles']} selected={selected}
+            quick={[{ label: 'Select unused', ids: unusedColorProfiles(settings) }]}
+            effects={colorDeletionEffects(settings, selected)} onSelect={setSelected} onDelete={remove} />
+        )}
+        {status}
         <div class="color-review-scroll">
           <table class="color-review-plate color-review-table">
-            <thead><tr><th scope="col">Profile</th>{ORDER.map((k) => <th scope="col" key={k}>{NAMES[k]}</th>)}</tr></thead>
+            <thead><tr><th scope="col"><span class="visually-hidden">Select</span></th><th scope="col">Profile</th>{ORDER.map((k) => <th scope="col" key={k}>{NAMES[k]}</th>)}<th scope="col"><span class="visually-hidden">Delete</span></th></tr></thead>
             <tbody>
               {profiles.map((p) => {
                 const colors = shown(p)
                 return (
-                  <tr key={p.id}>
+                  <tr key={p.id} class={selected.includes(p.id) ? 'is-selected' : ''}>
+                    <td>{!isBuiltin(p.id) && (
+                      <input type="checkbox" aria-label={`Select ${p.name}`} checked={selected.includes(p.id)}
+                        onChange={(e) => setSelected(e.currentTarget.checked ? [...selected, p.id] : selected.filter((id) => id !== p.id))} />
+                    )}</td>
                     <th scope="row">
                       {p.id === A.id && <span class="color-review-badge a">A</span>}
                       {p.id === B.id && <span class="color-review-badge b">B</span>}
@@ -280,6 +306,7 @@ export function ColorReviewTab({ settings, onChange, capture }: Props) {
                       <span class="color-review-src">{isBuiltin(p.id) ? 'built in, read-only' : `${p.captures} capture${p.captures === 1 ? '' : 's'}`}{p.id === settings.activeColorsId ? ' · selected' : ''}{p.id === settings.autoMatchedColorsId ? ' · automatic match' : ''}</span>
                     </th>
                     {ORDER.map((k) => <td key={k}><Swatch color={colors[k]} letter={k} /></td>)}
+                    <td>{!isBuiltin(p.id) && <DeleteButton name={p.name} effects={colorDeletionEffects(settings, [p.id])} onDelete={() => remove([p.id])} />}</td>
                   </tr>
                 )
               })}
