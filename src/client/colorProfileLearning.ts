@@ -91,3 +91,55 @@ export function matchPartialColorProfile(profiles: ColorProfile[], samples: RGB[
 export function profileColorFitPercent(profile: Record<string, RGB>, measured: Record<string, RGB>): number {
   return Math.round(100 * Math.max(0, Math.min(1, 1 - paletteDistance(profile, measured) / 0.08)))
 }
+
+// Largest mean distance at which a saved profile still counts as close to
+// the six-face palette (see matchColorProfile).
+const CLOSE_PROFILE_DISTANCE = 0.04
+
+export interface AutomaticResolution {
+  profile: ColorProfile | null
+  // clear: matchColorProfile's clear match. preview: the profile the live
+  // preview used, still the nearest and close, though without a clear lead.
+  // tie: close profiles, none clearly ahead. far: no saved profile is close.
+  // none: no saved profiles.
+  reason: 'clear' | 'preview' | 'tie' | 'far' | 'none'
+  // The nearest saved profiles with their fit (profileColorFitPercent), best first.
+  nearest: Array<{ profile: ColorProfile; fit: number }>
+}
+
+// The saved profile Automatic settles on for a complete capture, and why.
+// The live preview always takes the nearest profile; the final choice
+// wants a clear lead, but keeps the preview's profile when that is still
+// the nearest and close, so the two don't disagree on a near tie.
+export function resolveAutomaticProfile(profiles: ColorProfile[], measured: Record<string, RGB>, previewId: string | null): AutomaticResolution {
+  const ranked = profiles.filter((profile) => profile.captures > 0)
+    .map((profile) => ({ profile, distance: paletteDistance(profile.colors, measured) }))
+    .sort((a, b) => a.distance - b.distance)
+  const nearest = ranked.slice(0, 3).map(({ profile }) => ({ profile, fit: profileColorFitPercent(profile.colors, measured) }))
+  const best = ranked[0]
+  if (!best) return { profile: null, reason: 'none', nearest }
+  const clear = matchColorProfile(profiles, measured)
+  if (clear) return { profile: clear, reason: 'clear', nearest }
+  if (best.distance > CLOSE_PROFILE_DISTANCE) return { profile: null, reason: 'far', nearest }
+  if (best.profile.id === previewId) return { profile: best.profile, reason: 'preview', nearest }
+  return { profile: null, reason: 'tie', nearest }
+}
+
+// "plastic2 (faces 2–6), Generic colors (face 1)": which profile previewed
+// each face, in capture order; null when no face recorded one.
+export function summarizePreviewProfiles(names: Array<string | undefined>): string | null {
+  const faces = new Map<string, number[]>()
+  names.forEach((name, i) => { if (name) faces.set(name, [...(faces.get(name) ?? []), i + 1]) })
+  if (faces.size === 0) return null
+  const spans = (numbers: number[]) => {
+    const parts: string[] = []
+    for (let i = 0; i < numbers.length;) {
+      let j = i
+      while (j + 1 < numbers.length && numbers[j + 1] === numbers[j] + 1) j++
+      parts.push(i === j ? `${numbers[i]}` : `${numbers[i]}–${numbers[j]}`)
+      i = j + 1
+    }
+    return parts.join(', ')
+  }
+  return [...faces].map(([name, numbers]) => `${name} (${numbers.length === 1 ? 'face' : 'faces'} ${spans(numbers)})`).join(', ')
+}
