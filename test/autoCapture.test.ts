@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { AUTO_CAPTURE_STABLE_FRAMES, TURN_CUE_CLEAR_FRAMES, nextAutoCaptureProgress, nextTurnCueClearFrames, type AutoCaptureSample } from '../src/client/autoCapture'
+import { AUTO_CAPTURE_STABLE_FRAMES, SIZE_VOTE_AGREE, SIZE_VOTE_FRAMES, TURN_CUE_CLEAR_FRAMES, agreedSize, nextAutoCaptureProgress, nextSizeVotes, nextTurnCueClearFrames, sizeDisputed, type AutoCaptureSample } from '../src/client/autoCapture'
 
 const sample = (color = 'R', x = 100, confidence = 0.9): AutoCaptureSample => ({
   colors: Array.from({ length: 3 }, () => Array(3).fill(color)),
@@ -81,5 +81,31 @@ describe('turn cue dismissal', () => {
       progress = nextAutoCaptureProgress(progress, sample())
       expect(progress?.frames).toBe(i)
     }
+  })
+})
+
+describe('first-face cube size vote', () => {
+  const vote = (estimates: Array<number | null>) => estimates.reduce<Array<number | null>>((votes, estimate) => nextSizeVotes(votes, estimate), [])
+
+  it(`agrees on a size named in ${SIZE_VOTE_AGREE} of the last ${SIZE_VOTE_FRAMES} frames`, () => {
+    expect(agreedSize(vote(Array(SIZE_VOTE_AGREE - 1).fill(4)))).toBeNull()
+    expect(agreedSize(vote(Array(SIZE_VOTE_AGREE).fill(4)))).toBe(4)
+    expect(agreedSize(vote([null, 4, 4, null, 4, 4, 4, 4, 4, 4]))).toBe(4)
+  })
+
+  it('agrees on nothing while frames name different sizes', () => {
+    expect(agreedSize(vote([4, 4, 4, 4, 4, 5, 5, 4, 4, 5]))).toBeNull()
+  })
+
+  it(`remembers only the last ${SIZE_VOTE_FRAMES} frames`, () => {
+    const votes = vote([...Array(SIZE_VOTE_FRAMES).fill(4), ...Array(3).fill(null)])
+    expect(votes).toHaveLength(SIZE_VOTE_FRAMES)
+    expect(agreedSize(votes)).toBeNull()
+  })
+
+  it('disputes the selected size once several recent frames name another', () => {
+    expect(sizeDisputed(vote([4, null, 3, 3]), 3)).toBe(false)
+    expect(sizeDisputed(vote([4, 4, null, 4]), 3)).toBe(true)
+    expect(sizeDisputed(vote([4, 4, 4]), 4)).toBe(false)
   })
 })

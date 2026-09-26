@@ -3,6 +3,7 @@
 // the page's thread. The face's square is read once and serves both the
 // colors and the cube check, so both judge the same pixels.
 
+import { estimateFaceGridSize } from './gridAlignment'
 import {
   alignFaceInArea, alignmentArea, boundsFromAlignment, extractColorsFromImageData, faceVisibility,
   guideBounds, outlineVisible, withGridOffset,
@@ -17,6 +18,9 @@ export interface LiveAnalysisRequest {
   requireOutline: boolean
   sampling: SamplingGeometry
   palette?: Record<string, RGB>
+  // Also estimate the cube's size (before the first face; see
+  // estimateFaceGridSize).
+  detectSize?: boolean
 }
 
 export interface LiveAnalysis {
@@ -24,6 +28,8 @@ export interface LiveAnalysis {
   bounds: FaceBounds
   detection: ColorDetectionResult
   visible: boolean
+  // With detectSize: the size the face clearly shows, or null.
+  size?: number | null
 }
 
 // The pixels of `area` from a width-wide RGBA frame.
@@ -68,10 +74,16 @@ export function analyzeLiveFrame(frame: Uint8ClampedArray, width: number, height
   const { gridSize, sampling, palette } = request
   const guide = guideBounds(width, height)
   let bounds = guide
-  if (request.mode === 'aligned') {
+  let size: number | null | undefined
+  if (request.mode === 'aligned' || request.detectSize) {
     const area = alignmentArea(guide, width, height)
-    const found = alignFaceInArea(cropArea(frame, width, area), area.x1 - area.x0, area.y1 - area.y0, guide, area, gridSize)
-    bounds = boundsFromAlignment(found, guide, area, width, height)
+    const region = cropArea(frame, width, area), areaWidth = area.x1 - area.x0, areaHeight = area.y1 - area.y0
+    if (request.detectSize) {
+      size = estimateFaceGridSize(region, areaWidth, areaHeight, { x: guide.startX - area.x0, y: guide.startY - area.y0, size: guide.faceWidth })
+    }
+    if (request.mode === 'aligned') {
+      bounds = boundsFromAlignment(alignFaceInArea(region, areaWidth, areaHeight, guide, area, gridSize), guide, area, width, height)
+    }
   }
   // Colors and the cube check on one read of the square.
   const square = readFaceSquare(frame, width, height, bounds)
@@ -79,7 +91,7 @@ export function analyzeLiveFrame(frame: Uint8ClampedArray, width: number, height
     extractColorsFromImageData(square, bounds.faceWidth, bounds.faceHeight, gridSize, undefined, sampling, palette), bounds, guide)
   const visible = (request.mode === 'fixed' || bounds.gridFound === true)
     && faceVisibility(square, bounds.faceWidth, bounds.faceHeight, gridSize, () => outlineVisible(frame, width, height, bounds), request.requireOutline).visible
-  return { bounds, detection, visible }
+  return { bounds, detection, visible, ...(size !== undefined && { size }) }
 }
 
 // `bounds` of a frame analyzed at `scale` times the camera's size, in the
