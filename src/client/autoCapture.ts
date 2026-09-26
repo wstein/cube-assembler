@@ -21,13 +21,33 @@ export function turnPoseChanged(anchor: TurnCuePose, current: TurnCuePose): bool
     || angle > Math.PI / 9
 }
 
-// The turn cue stays up while the captured pattern is still in view. A brief
-// detection miss must not dismiss it while the user is holding the same face.
-export function nextTurnCueClearFrames(previous: number, visibleColors: string[][] | null, lastCapturedColors: string[][], poseChanged = false): number {
-  const stillLastFace = visibleColors && findCapturedFaceMatch(
-    [{ colors: lastCapturedColors }], { colors: visibleColors }
-  ) !== null
-  return stillLastFace && !poseChanged ? 0 : Math.min(previous + 1, TURN_CUE_CLEAR_FRAMES)
+// The turn cue stays up while the captured pattern is still in view. It
+// clears on evidence that the face left: TURN_CUE_CLEAR_FRAMES frames showing
+// a confidently detected different face (or the same letters after a real
+// turn, see turnPoseChanged), or TURN_CUE_ABSENT_FRAMES frames in a row
+// without any usable face, as while the cube is being turned. Detector
+// flicker - a few weak frames between frames of the old face - never clears
+// it, or the same face could be captured again.
+export const TURN_CUE_ABSENT_FRAMES = 5
+
+export interface TurnCueState {
+  // Frames showing a different face since the old one was last seen.
+  departed: number
+  // Consecutive frames without a usable face.
+  missing: number
+}
+
+export const TURN_CUE_START: TurnCueState = { departed: 0, missing: 0 }
+
+export function nextTurnCue(state: TurnCueState, visibleColors: string[][] | null, lastCapturedColors: string[][], poseChanged = false): TurnCueState {
+  if (!visibleColors) return { ...state, missing: state.missing + 1 }
+  const stillLastFace = findCapturedFaceMatch([{ colors: lastCapturedColors }], { colors: visibleColors }) !== null
+  if (stillLastFace && !poseChanged) return TURN_CUE_START
+  return { departed: state.departed + 1, missing: 0 }
+}
+
+export function turnCueCleared(state: TurnCueState): boolean {
+  return state.departed >= TURN_CUE_CLEAR_FRAMES || state.missing >= TURN_CUE_ABSENT_FRAMES
 }
 
 export interface AutoCaptureSample {

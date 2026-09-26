@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { AUTO_CAPTURE_STABLE_FRAMES, SIZE_VOTE_AGREE, SIZE_VOTE_FRAMES, TURN_CUE_CLEAR_FRAMES, agreedSize, nextAutoCaptureProgress, nextSizeVotes, nextTurnCueClearFrames, sizeDetectionActive, turnPoseChanged, type AutoCaptureSample } from '../src/client/autoCapture'
+import { AUTO_CAPTURE_STABLE_FRAMES, SIZE_VOTE_AGREE, SIZE_VOTE_FRAMES, TURN_CUE_ABSENT_FRAMES, TURN_CUE_CLEAR_FRAMES, TURN_CUE_START, agreedSize, nextAutoCaptureProgress, nextSizeVotes, nextTurnCue, sizeDetectionActive, turnCueCleared, turnPoseChanged, type AutoCaptureSample } from '../src/client/autoCapture'
 
 const sample = (color = 'R', x = 100, confidence = 0.9): AutoCaptureSample => ({
   colors: Array.from({ length: 3 }, () => Array(3).fill(color)),
@@ -40,42 +40,49 @@ describe('automatic face capture stability', () => {
 })
 
 describe('turn cue dismissal', () => {
-  it('waits until the last face has left for several consecutive frames', () => {
-    const last = [['R', 'G'], ['B', 'Y']]
-    const rotated = [['B', 'R'], ['Y', 'G']]
-    expect(nextTurnCueClearFrames(2, rotated, last)).toBe(0)
-    let clearFrames = 0
-    for (let i = 1; i <= TURN_CUE_CLEAR_FRAMES; i++) {
-      clearFrames = nextTurnCueClearFrames(clearFrames, null, last)
-      expect(clearFrames).toBe(i)
-    }
-    expect(nextTurnCueClearFrames(clearFrames, null, last)).toBe(TURN_CUE_CLEAR_FRAMES)
-    expect(nextTurnCueClearFrames(2, last, last)).toBe(0)
+  const run = (frames: Array<string[][] | null>, last: string[][], poseChanged = false) =>
+    frames.reduce((state, colors) => nextTurnCue(state, colors, last, poseChanged), TURN_CUE_START)
+  const last = [['R', 'G'], ['B', 'Y']]
+  const rotated = [['B', 'R'], ['Y', 'G']]
+
+  it('keeps the cue through detector flicker while the old face is held', () => {
+    // Weak or missing detections between frames of the old face: this used
+    // to clear the cue after three and let the same face be captured again.
+    const flicker = [null, null, null, last, null, null, null, null, last, null, null, null]
+    expect(turnCueCleared(run(flicker, last))).toBe(false)
   })
 
-  it('accepts a confidently detected different face as departure', () => {
-    const last = [['R', 'R'], ['R', 'R']]
+  it('treats the old face, turned in place, as still there', () => {
+    expect(turnCueCleared(run([null, null, rotated, null, null, null], last))).toBe(false)
+  })
+
+  it(`clears after ${TURN_CUE_ABSENT_FRAMES} frames without any face, as while turning the cube`, () => {
+    expect(turnCueCleared(run(Array(TURN_CUE_ABSENT_FRAMES - 1).fill(null), last))).toBe(false)
+    expect(turnCueCleared(run(Array(TURN_CUE_ABSENT_FRAMES).fill(null), last))).toBe(true)
+  })
+
+  it(`clears after ${TURN_CUE_CLEAR_FRAMES} frames of a confidently detected different face`, () => {
     const next = [['G', 'G'], ['G', 'G']]
-    expect(nextTurnCueClearFrames(0, next, last)).toBe(1)
-    expect(nextTurnCueClearFrames(1, next, last)).toBe(2)
+    expect(turnCueCleared(run(Array(TURN_CUE_CLEAR_FRAMES - 1).fill(next), last))).toBe(false)
+    expect(turnCueCleared(run([next, null, next, null, next], last))).toBe(true)
+  })
+
+  it('starts over when the old face comes back', () => {
+    const next = [['G', 'G'], ['G', 'G']]
+    expect(turnCueCleared(run([next, next, last, next, next], last))).toBe(false)
   })
 
   it('keeps the cue for a near match on a larger face', () => {
-    const last = Array.from({ length: 4 }, () => Array(4).fill('R'))
-    const sameWithMisreads = last.map((row) => [...row])
+    const big = Array.from({ length: 4 }, () => Array(4).fill('R'))
+    const sameWithMisreads = big.map((row) => [...row])
     sameWithMisreads[0][0] = 'O'
     sameWithMisreads[1][1] = 'O'
-    expect(nextTurnCueClearFrames(2, sameWithMisreads, last)).toBe(0)
+    expect(turnCueCleared(run(Array(TURN_CUE_CLEAR_FRAMES + 2).fill(sameWithMisreads), big))).toBe(false)
   })
 
   it('allows five stable frames of an identical-looking side after the old one leaves', () => {
     const face = sample().colors
-    expect(nextTurnCueClearFrames(0, face, face)).toBe(0)
-    let clearFrames = 0
-    for (let i = 0; i < TURN_CUE_CLEAR_FRAMES; i++) {
-      clearFrames = nextTurnCueClearFrames(clearFrames, null, face)
-    }
-    expect(clearFrames).toBe(TURN_CUE_CLEAR_FRAMES)
+    expect(turnCueCleared(run([face, ...Array(TURN_CUE_ABSENT_FRAMES).fill(null)], face))).toBe(true)
     let progress = null
     for (let i = 1; i <= AUTO_CAPTURE_STABLE_FRAMES; i++) {
       progress = nextAutoCaptureProgress(progress, sample())
@@ -89,9 +96,7 @@ describe('turn cue dismissal', () => {
     expect(turnPoseChanged(anchor, { ...anchor, centerX: 110 })).toBe(false)
     expect(turnPoseChanged(anchor, { ...anchor, centerX: 150 })).toBe(true)
     expect(turnPoseChanged(anchor, { ...anchor, angle: Math.PI / 4 })).toBe(true)
-    let clearFrames = 0
-    for (let i = 0; i < TURN_CUE_CLEAR_FRAMES; i++) clearFrames = nextTurnCueClearFrames(clearFrames, face, face, true)
-    expect(clearFrames).toBe(TURN_CUE_CLEAR_FRAMES)
+    expect(turnCueCleared(run(Array(TURN_CUE_CLEAR_FRAMES).fill(face), face, true))).toBe(true)
   })
 })
 

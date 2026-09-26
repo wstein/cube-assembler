@@ -1,7 +1,7 @@
 import { render, h, Fragment } from 'preact'
 import { useState, useEffect, useRef, useMemo } from 'preact/hooks'
 import '../../web/style.css'
-import { AUTO_CAPTURE_MIN_CONFIDENCE, AUTO_CAPTURE_STABLE_FRAMES, TURN_CUE_CLEAR_FRAMES, agreedSize, nextAutoCaptureProgress, nextSizeVotes, nextTurnCueClearFrames, sizeDetectionActive, turnPoseChanged, type AutoCaptureProgress, type TurnCuePose } from './autoCapture'
+import { AUTO_CAPTURE_MIN_CONFIDENCE, AUTO_CAPTURE_STABLE_FRAMES, TURN_CUE_START, agreedSize, nextAutoCaptureProgress, nextSizeVotes, nextTurnCue, sizeDetectionActive, turnCueCleared, turnPoseChanged, type AutoCaptureProgress, type TurnCuePose, type TurnCueState } from './autoCapture'
 import { oppositeFacePreview } from './capturePresentation'
 import type { ReviewCapture } from './colorReviewPage'
 import { ProfilesPage } from './profilesPage'
@@ -1045,7 +1045,7 @@ function App() {
     const canvas = sampleCanvasRef.current
     let progress: AutoCaptureProgress | null = null
     let hold: LiveHold<ColorDetectionResult> = NO_HOLD
-    let turnCueClearFrames = 0
+    let turnCue: TurnCueState = TURN_CUE_START
     const capturedBackgrounds = Object.fromEntries(FACE_ORDER.map((face) => [face, capturedFaces[face]?.backgroundColor ?? null]))
     let sizeVotes: Array<number | null> = []
 
@@ -1077,14 +1077,14 @@ function App() {
             size: bounds.faceWidth,
             angle: bounds.angle ?? 0,
           }
-          turnCueClearFrames = nextTurnCueClearFrames(
-            turnCueClearFrames,
+          turnCue = nextTurnCue(
+            turnCue,
             visible && bounds.gridFound && detection.confidence >= 0.8 ? detection.colors : null,
             lastCapturedColors.current,
             visible && bounds.gridFound && lastCapturedPose.current !== null
               ? turnPoseChanged(lastCapturedPose.current, pose) : false
           )
-          if (turnCueClearFrames >= TURN_CUE_CLEAR_FRAMES) {
+          if (turnCueCleared(turnCue)) {
             lastCapturedColors.current = null
             lastCapturedPose.current = null
             if (turnCueShowing) dismissTurnOverlay()
