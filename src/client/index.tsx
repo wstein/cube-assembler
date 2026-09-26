@@ -26,7 +26,7 @@ import {
   resolvedColorProfileSnapshot, selectCube, selectColorProfile, setAutoColorMatch, type ProfileSettings, type UsedColorProfile,
 } from './profileSettings'
 import { loadProfileSettings, saveProfileSettings, settingsFile, parseSettingsFile } from './profileStorage'
-import { assessPalette, blendColorProfile, canCreateProfileFromCapture, matchColorProfile, shouldBlendColorProfile, updateProfileFromCapture, type PaletteEvidence } from './colorProfileLearning'
+import { assessPalette, blendColorProfile, canCreateProfileFromCapture, matchColorProfile, profileColorFitPercent, shouldBlendColorProfile, updateProfileFromCapture, type PaletteEvidence } from './colorProfileLearning'
 import { readFixtureColors } from './fixtureFormat'
 import { buildFixture, summarizeFixture, unzipFixture, zipFixture, type Fixture, type FixtureSummary } from './fixtureZip'
 import { fixtureUploadServerAvailable, uploadFixtureToDevServer } from './fixtureUpload'
@@ -832,9 +832,6 @@ function App() {
     })
     applyProfileStore(profileStore.activeColorsId === AUTO_COLORS_ID
       ? setAutoColorMatch(selectColorProfile(saved, AUTO_COLORS_ID), id) : saved)
-    const created = saved.colors.find((profile) => profile.id === id)
-    if (created) setResolvedColorProfile(resolvedColorProfileSnapshot(created,
-      profileStore.activeColorsId === AUTO_COLORS_ID ? 'automatic' : 'manual'))
     setProfileLearningOffer(null)
     setNewColorName(null)
   }
@@ -846,7 +843,6 @@ function App() {
     if (!updated) return
     const saved = saveColorProfile(profileStore, updated)
     applyProfileStore(profileStore.activeColorsId === AUTO_COLORS_ID ? setAutoColorMatch(saved, updated.id) : saved)
-    setResolvedColorProfile(resolvedColorProfileSnapshot(updated, 'automatic'))
     setProfileLearningOffer({ ...offer, matchedProfileId: null, updatedProfileName: updated.name })
   }
   // Settings file: cubes and colors, so a setup tuned in one browser or
@@ -1460,12 +1456,14 @@ function App() {
 
         let wb = await runGlobalWhiteBalance(images, puzzleSize, faceGains ?? undefined, sampling, automatic ? undefined : palette)
         const matched = automatic && wb.learned ? matchColorProfile(profileStore.colors, wb.learned.colors) : null
+        const compared = matched ?? (!automatic ? profileStore.colors.find((saved) => saved.id === colorProfile.id) : null)
+        const colorFit = compared && wb.learned ? profileColorFitPercent(compared.colors, wb.learned.colors) : undefined
         if (matched) wb = classifyAcrossFaces(wb.faces, matched.colors)
         setResolvedColorReference(matched?.colors ?? (automatic ? null : palette ?? null))
         setResolvedColorProfile(automatic
-          ? matched ? resolvedColorProfileSnapshot(matched, 'automatic')
+          ? matched ? resolvedColorProfileSnapshot(matched, 'automatic', colorFit)
             : wb.learned ? captureColorProfileSnapshot(wb.learned.colors) : null
-          : resolvedColorProfileSnapshot(colorProfile, 'manual'))
+          : resolvedColorProfileSnapshot(colorProfile, 'manual', colorFit))
         setLearnedPalette(wb.learned?.colors ?? null)
         const confidences = FACE_ORDER.flatMap((face) => wb.faces[face]?.cellConfidences?.flat() ?? [])
         setPendingPalette(wb.learned ? {
@@ -2391,11 +2389,16 @@ function App() {
               </span>
             </div>
             {captureProfile && FACE_ORDER.every((f) => capturedFaces[f]?.croppedImage) && (
-              <span class="capture-profile-used" title="Cube profile this capture was taken with">
+              <span class="capture-profile-used">
                 Cube: {captureProfile.name}
                 {cube && resolvedColorProfile && <>
                   {' · '}Resolved sticker colors: {resolvedColorProfile.name}
                   {resolvedColorProfile.selection === 'automatic' ? ' (Automatic)' : ''}
+                  {resolvedColorProfile.colorFitPercent !== undefined && ` · profile color fit ${resolvedColorProfile.colorFitPercent}%`}
+                  <span class="capture-profile-used-detail">
+                    First detection: {resolvedColorProfile.selection === 'automatic' ? 'camera hues (no saved palette)' : resolvedColorProfile.name}
+                    {' · '}Final: {learnedPalette ? 'calibrated from all six faces' : 'six-face calibration unavailable'}
+                  </span>
                 </>}
               </span>
             )}

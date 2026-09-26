@@ -22,6 +22,7 @@ export interface UsedColorProfile {
   name: string
   selection: 'automatic' | 'manual'
   colors: Record<string, RGB>
+  colorFitPercent?: number
 }
 
 export interface ProfileSettings {
@@ -157,12 +158,13 @@ export function captureColorProfileSnapshot(colors: Record<string, RGB>): UsedCo
   return { id: CAPTURE_COLORS_ID, name: 'Colors from this capture', selection: 'automatic', colors: colorPalette({ colors }) }
 }
 
-export function resolvedColorProfileSnapshot(active: ColorProfile, selection: UsedColorProfile['selection']): UsedColorProfile {
+export function resolvedColorProfileSnapshot(active: ColorProfile, selection: UsedColorProfile['selection'], colorFitPercent?: number): UsedColorProfile {
   return {
     id: active.id,
     name: active.name,
     selection,
     colors: colorPalette(active),
+    ...(colorFitPercent !== undefined ? { colorFitPercent } : {}),
   }
 }
 

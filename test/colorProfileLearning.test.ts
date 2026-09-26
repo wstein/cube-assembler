@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { STICKER_COLORS } from '../src/client/imageProcessing'
-import { assessPalette, blendColorProfile, canCreateProfileFromCapture, matchColorProfile, shouldBlendColorProfile, updateProfileFromCapture } from '../src/client/colorProfileLearning'
+import { assessPalette, blendColorProfile, canCreateProfileFromCapture, matchColorProfile, profileColorFitPercent, shouldBlendColorProfile, updateProfileFromCapture } from '../src/client/colorProfileLearning'
 import { genericColorProfile, type ColorProfile } from '../src/client/profileSettings'
 
 const base: ColorProfile = { id: 'base', name: 'Base', colors: STICKER_COLORS, captures: 4 }
@@ -68,5 +68,12 @@ describe('color profile learning', () => {
     expect(matchColorProfile([base, near], STICKER_COLORS)?.id).toBe('base')
     expect(matchColorProfile([near], shifted)?.id).toBe('near')
     expect(matchColorProfile([{ ...base, id: 'same' }, base], STICKER_COLORS)).toBeNull()
+  })
+
+  it('reports a bounded profile color fit separately from sticker confidence', () => {
+    expect(profileColorFitPercent(base.colors, base.colors)).toBe(100)
+    expect(profileColorFitPercent(base.colors, shifted)).toBeLessThan(100)
+    expect(profileColorFitPercent(base.colors, shifted)).toBeGreaterThan(0)
+    expect(profileColorFitPercent(base.colors, { ...base.colors, R: base.colors.B })).toBeGreaterThanOrEqual(0)
   })
 })

@@ -50,8 +50,10 @@ check only compares `colors`), but useful when a fixture's expected colors
 need to be debugged later.
 
 `capture.colorProfile` records the single profile resolved for the complete
-capture: its name, whether Colors was Automatic or manually selected, and its
-six RGB values. `capture.colorCalibration.learnedColors` records the separate
+capture: its name, whether Colors was Automatic or manually selected, its
+six RGB values, and any saved-profile color fit score. Automatic's first
+reading uses camera hue heuristics without a saved profile.
+`capture.colorCalibration.learnedColors` records the separate
 palette learned from all six photos and used to classify them together.
 `capture.colorReference` records the saved or manual palette used as a
 classification reference; it is absent or null when Automatic used only the

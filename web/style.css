@@ -1175,6 +1175,8 @@ textarea {
   color: var(--color-text-secondary);
 }
 
+.capture-profile-used-detail { display: block; }
+
 .review-profile-used {
   margin: calc(-1 * var(--spacing-md)) 0 var(--spacing-md);
 }
