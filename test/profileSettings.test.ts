@@ -23,6 +23,8 @@ describe('separate cube and color settings', () => {
     expect(allCubes(EMPTY_SETTINGS)).toHaveLength(6)
     expect(cubesForSize(EMPTY_SETTINGS, 5).map((cube) => cube.name)).toEqual(['Generic 5×5'])
     expect(activeCube(EMPTY_SETTINGS, 5)).toEqual(builtinCube(5))
+    expect(activeCube(EMPTY_SETTINGS, 5)).toBe(activeCube(EMPTY_SETTINGS, 5))
+    expect(activeCube(EMPTY_SETTINGS, 5).sampling).toBe(activeCube(EMPTY_SETTINGS, 5).sampling)
     expect(activeCube(EMPTY_SETTINGS, 5).sampling.stickerCore).toBe(0.6)
     const custom = { id: 'custom', name: 'My cube', size: 5, sampling: { stickerCore: 0.5 } }
     const saved = saveCube(EMPTY_SETTINGS, custom)
