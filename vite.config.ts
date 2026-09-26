@@ -1,4 +1,4 @@
-import { defineConfig } from 'vite'
+import { defineConfig, type Plugin } from 'vite'
 import preactPlugin from '@preact/preset-vite'
 import { execSync } from 'node:child_process'
 import pkg from './package.json' with { type: 'json' }
@@ -16,8 +16,24 @@ function gitCommit(): string {
   }
 }
 
+// The dev server answers with the current commit on every request, so a
+// fixture saved hours after startup records the code that actually ran
+// (__APP_COMMIT__ is fixed when the server starts; see currentAppCommit).
+function appCommitEndpoint(): Plugin {
+  return {
+    name: 'app-commit-endpoint',
+    configureServer(server) {
+      server.middlewares.use('/__app-commit', (_req, res) => {
+        res.setHeader('Content-Type', 'application/json')
+        res.setHeader('Cache-Control', 'no-store')
+        res.end(JSON.stringify({ commit: gitCommit() }))
+      })
+    },
+  }
+}
+
 export default defineConfig({
-  plugins: [preactPlugin()],
+  plugins: [preactPlugin(), appCommitEndpoint()],
   base: process.env.VITE_BASE_PATH || '/',
   define: {
     __APP_VERSION__: JSON.stringify(pkg.version),
