@@ -1,4 +1,4 @@
-// The #colors page: compare saved sticker color profiles, find the ones that
+// The Colors tab of the profiles page: compare saved sticker color profiles, find the ones that
 // only differ by room light, merge them, and try two profiles on the last
 // capture. All grouping and merging logic lives in colorProfileReview.ts.
 import { useMemo, useState } from 'preact/hooks'
@@ -26,7 +26,6 @@ interface Props {
   settings: ProfileSettings
   onChange: (settings: ProfileSettings) => void
   capture: ReviewCapture | null
-  onClose: () => void
 }
 
 const css = (c: RGB) => `rgb(${c.r} ${c.g} ${c.b})`
@@ -43,7 +42,7 @@ function Swatch({ color, letter, class: cls = 'color-review-chip' }: { color: RG
   return <span class={cls} style={{ background: css(color), color: ink(color) }} title={hex(color)}>{letter}</span>
 }
 
-export function ColorReviewPage({ settings, onChange, capture, onClose }: Props) {
+export function ColorReviewTab({ settings, onChange, capture }: Props) {
   // Automatic isn't a palette of its own; Generic stays as the reference.
   const profiles = allColorProfiles(settings).filter((profile) => profile.id !== AUTO_COLORS_ID)
   const saved = settings.colors
@@ -171,12 +170,7 @@ export function ColorReviewPage({ settings, onChange, capture, onClose }: Props)
   const changeList = tryOn ? Object.entries(tryOn.changes).sort((x, y) => y[1] - x[1]) : []
 
   return (
-    <div class="color-review">
-      <header class="color-review-header">
-        <button type="button" class="btn btn-secondary btn-sm" onClick={onClose}>← Back to the scanner</button>
-        <h1>Sticker colors</h1>
-        <p class="color-review-muted">Compare saved color profiles, merge the ones that only differ by room light, and try two profiles on your last capture.</p>
-      </header>
+    <>
 
       <div class="color-review-picker card" role="group" aria-label="Profiles to compare">
         <label for="review-a"><span><span class="color-review-badge a">A</span>Profile</span>
@@ -388,6 +382,6 @@ export function ColorReviewPage({ settings, onChange, capture, onClose }: Props)
           </div>
         </details>
       </section>
-    </div>
+    </>
   )
 }
