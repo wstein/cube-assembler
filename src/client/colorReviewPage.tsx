@@ -3,7 +3,8 @@
 // profiles on the last capture. All grouping and merging logic lives in colorProfileReview.ts.
 import { useMemo, useState } from 'preact/hooks'
 import {
-  colorDeletionEffects, deleteColorProfiles, groupSimilarProfiles, groupSpread, mergeColorProfiles, mergedColors, unusedColorProfiles,
+  AVERAGE_LIMIT_FRACTION, colorDeletionEffects, deleteColorProfiles, groupDifferences, groupSimilarProfiles, mergeColorProfiles, mergedColors,
+  unusedColorProfiles,
   whiteBalancedColors,
 } from './colorProfileReview'
 import { DeleteButton, SelectionBar } from './profileDeletion'
@@ -217,11 +218,11 @@ export function ColorReviewTab({ settings, onChange, capture }: Props) {
 
       <section class="card color-review-section" aria-labelledby="review-groups">
         <h2 id="review-groups">Similar profiles</h2>
-        <p class="color-review-muted">Captures are white balanced, so a profile should describe the stickers, not the room light. Each profile is scaled so its own White is neutral; profiles whose Yellow, Red, Orange, Green and Blue all stay within the limit of each other form a group. Tick the profiles to merge and name the new one: the ticked profiles are deleted, and the selected or automatically matched profile moves to the new one.</p>
+        <p class="color-review-muted">Captures are white balanced, so a profile should describe the stickers, not the room light. Each profile is scaled so its own White is neutral; profiles form a group when none of Yellow, Orange, Red, Green and Blue differs by more than the limit between any two of them, and their average difference stays within two thirds of it. Tick the profiles to merge and name the new one: the ticked profiles are deleted, and the selected or automatically matched profile moves to the new one.</p>
         <div class="color-review-limit">
-          <label for="review-limit">Merge limit</label>
+          <label for="review-limit">Max color difference (ΔE)</label>
           <input type="range" id="review-limit" min="2" max="8" step="0.5" value={limit} onInput={(e) => setLimit(Number(e.currentTarget.value))} />
-          <span class="mono">ΔE {limit.toFixed(1)}</span>
+          <span class="mono">worst color ≤ {limit.toFixed(1)} · average ≤ {(limit * AVERAGE_LIMIT_FRACTION).toFixed(1)}</span>
           <span class="color-review-muted">{saved.length} profiles → {groups.length} if every group is merged</span>
         </div>
         {status}
@@ -230,15 +231,29 @@ export function ColorReviewTab({ settings, onChange, capture }: Props) {
           {mergeable.map((group, n) => {
             const key = groupKey(group)
             const ticked = group.filter((p) => !unticked.has(p.id))
-            const spread = ticked.length >= 2 ? groupSpread(ticked) : 0
+            const differences = ticked.length >= 2 ? groupDifferences(ticked) : null
             const name = names[key] ?? `Merged colors ${n + 1}`
             const preview = ticked.length >= 2 ? mergedColors(ticked) : null
             return (
               <div class="color-review-group" key={key}>
                 <div class="color-review-group-head">
                   <strong>Group {n + 1} · {group.length} profiles</strong>
-                  <span class={`color-review-pill ${spread < 3 ? 'ok' : 'warn'}`}>spread ΔE {spread.toFixed(1)}</span>
+                  {differences && (
+                    <span class={`color-review-pill ${differences.worst.value <= limit * AVERAGE_LIMIT_FRACTION ? 'ok' : 'warn'}`}>
+                      largest: {NAMES[differences.worst.color]} {differences.worst.value.toFixed(1)}
+                    </span>
+                  )}
                 </div>
+                {differences && (
+                  <p class="color-review-differences" aria-label="Largest difference per color">
+                    {(['Y', 'O', 'R', 'G', 'B'] as const).map((k) => (
+                      <span key={k} class={k === differences.worst.color ? 'worst' : ''} title={`${NAMES[k]}: largest difference ${differences.byColor[k].toFixed(2)}`}>
+                        {k} {differences.byColor[k].toFixed(1)}
+                      </span>
+                    ))}
+                    <span class="average">avg {differences.average.toFixed(1)}</span>
+                  </p>
+                )}
                 <div class="color-review-plate color-review-strips">
                   {group.map((p) => {
                     const on = !unticked.has(p.id), colors = whiteBalancedColors(p.colors)
@@ -262,7 +277,7 @@ export function ColorReviewTab({ settings, onChange, capture }: Props) {
                   onInput={(e) => setNames({ ...names, [key]: e.currentTarget.value })} />
                 <div class="color-review-toolbar">
                   <button type="button" class="btn btn-primary btn-sm" disabled={ticked.length < 2 || !name.trim()} onClick={() => merge(group, name)}>
-                    Merge {ticked.length} and delete them
+                    Merge {ticked.length} into new profile (deletes originals)
                   </button>
                   <button type="button" class="btn btn-secondary btn-sm" disabled={ticked.length < 2} onClick={() => { setA(ticked[0].id); setB(ticked[1].id) }}>
                     Compare first two
