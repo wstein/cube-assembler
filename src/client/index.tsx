@@ -2203,8 +2203,12 @@ function App() {
           ? [{ face, label: FACE_DISPLAY_LABEL[face], colors: data.colors, cellColors: data.cellColors }] : []
       }),
     }
+    // The first captured face photo shows the Cubes tab's sticker areas.
+    const photoFace = FACE_ORDER.find((face) => capturedFaces[face]?.croppedImage)
+    const reviewPhoto = photoFace
+      ? { size: puzzleSize, src: capturedFaces[photoFace].croppedImage!, label: `${FACE_DISPLAY_LABEL[photoFace]} face` } : null
     return <ProfilesPage tab={profilesPageTab} settings={profileStore} onChange={applyProfileStore}
-      capture={reviewCapture.faces.length ? reviewCapture : null} onClose={() => { location.hash = '' }} />
+      capture={reviewCapture.faces.length ? reviewCapture : null} photo={reviewPhoto} onClose={() => { location.hash = '' }} />
   }
 
   return (
@@ -2773,6 +2777,7 @@ function App() {
                   >
                     ＋ New cube
                   </button>
+                  <a class="color-review-link" href={profilesHash('cubes')} onClick={() => setWebcamOpen(false)}>Review cubes…</a>
                 </div>
                 <div class="capture-size-row">
                   <label class="capture-size-label" for="color-profile">Colors:</label>
