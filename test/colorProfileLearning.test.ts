@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { STICKER_COLORS } from '../src/client/imageProcessing'
 import { assessPalette, blendColorProfile, canCreateProfileFromCapture, matchColorProfile, shouldBlendColorProfile, updateProfileFromCapture } from '../src/client/colorProfileLearning'
-import type { ColorProfile } from '../src/client/profileSettings'
+import { genericColorProfile, type ColorProfile } from '../src/client/profileSettings'
 
 const base: ColorProfile = { id: 'base', name: 'Base', colors: STICKER_COLORS, captures: 4 }
 const shifted = Object.fromEntries(Object.entries(STICKER_COLORS).map(([key, color]) =>
@@ -46,6 +46,15 @@ describe('color profile learning', () => {
     expect(updated?.colors.W.r).toBeLessThan(base.colors.W.r)
     expect(base.captures).toBe(4)
     expect(updateProfileFromCapture(base, shifted, { ...evidence, confidentFraction: 0.7 }, '2026-09-26T00:00:00.000Z')).toBeNull()
+  })
+
+  it('never updates Generic colors through automatic, manual, or direct blending', () => {
+    const generic = genericColorProfile()
+    const evidence = { reviewedValid: true, cameraOnly: true, recalibrated: true, confidentFraction: 1, correctedFraction: 0 }
+    expect(shouldBlendColorProfile(generic, shifted, evidence, false)).toBe(false)
+    expect(shouldBlendColorProfile(generic, shifted, evidence, true)).toBe(false)
+    expect(updateProfileFromCapture(generic, shifted, evidence, '2026-09-26T00:00:00.000Z')).toBeNull()
+    expect(() => blendColorProfile(generic, shifted, '2026-09-26T00:00:00.000Z')).toThrow('Cannot update Generic colors')
   })
 
   it('rejects one color drifting too far even when mean distance is small', () => {

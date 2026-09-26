@@ -1,5 +1,5 @@
 import { oklabToRgb, paletteDistance, rgbToOklab, type RGB } from './imageProcessing'
-import { GENERIC_COLORS_ID, type ColorProfile } from './profileSettings'
+import { AUTO_COLORS_ID, GENERIC_COLORS_ID, type ColorProfile } from './profileSettings'
 
 const COLOR_KEYS = ['W', 'Y', 'O', 'R', 'G', 'B']
 
@@ -32,10 +32,12 @@ export function assessPalette(profile: ColorProfile, measured: Record<string, RG
 }
 
 export function shouldBlendColorProfile(profile: ColorProfile, measured: Record<string, RGB>, evidence: PaletteEvidence, automatic: boolean): boolean {
-  return !automatic && profile.id !== GENERIC_COLORS_ID && assessPalette(profile, measured, evidence).accepted
+  return !automatic && profile.id !== GENERIC_COLORS_ID && profile.id !== AUTO_COLORS_ID
+    && assessPalette(profile, measured, evidence).accepted
 }
 
 export function blendColorProfile(profile: ColorProfile, measured: Record<string, RGB>, updatedAt: string): ColorProfile {
+  if (profile.id === GENERIC_COLORS_ID || profile.id === AUTO_COLORS_ID) throw new Error('Cannot update Generic colors')
   const weight = profile.captures === 0 ? 1 : Math.max(0.2, 1 / (profile.captures + 1))
   const colors = Object.fromEntries(COLOR_KEYS.map((key) => {
     const oldLab = rgbToOklab(profile.colors[key])
@@ -51,7 +53,7 @@ export function blendColorProfile(profile: ColorProfile, measured: Record<string
 
 // Called only by the explicit Update profile action for an Automatic match.
 export function updateProfileFromCapture(profile: ColorProfile, measured: Record<string, RGB>, evidence: PaletteEvidence, updatedAt: string): ColorProfile | null {
-  return profile.id !== GENERIC_COLORS_ID && assessPalette(profile, measured, evidence).accepted
+  return profile.id !== GENERIC_COLORS_ID && profile.id !== AUTO_COLORS_ID && assessPalette(profile, measured, evidence).accepted
     ? blendColorProfile(profile, measured, updatedAt) : null
 }
 
