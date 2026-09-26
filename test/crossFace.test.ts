@@ -52,4 +52,11 @@ describe('classifyAcrossFaces', () => {
       for (const row of classified.faces[face].colors) for (const color of row) expect(color, face).toBe(truth(face))
     }
   })
+
+  it('keeps the logo-safe center reading through a saved-profile second pass', () => {
+    const first = classifyAcrossFaces(faces())
+    const second = classifyAcrossFaces(first.faces, first.learned!.colors)
+    expect(second.faces.U.centerColor).toEqual(faces().U.centerColor)
+    expect(second.faces.U.colors[1][1]).toBe('W')
+  })
 })
