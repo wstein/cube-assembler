@@ -1,8 +1,9 @@
-// The Cubes tab of the profiles page: saved cube definitions by size, their
-// duplicates (merge or delete in favour of Generic), and each cube's sampled
+// The Cubes tab of the profiles page: saved cube definitions by size (tick
+// or delete them), their duplicates (merge or delete in favour of Generic), and each cube's sampled
 // sticker area drawn on the last captured face. Logic: cubeProfileReview.ts.
 import { useEffect, useMemo, useState } from 'preact/hooks'
-import { duplicateCubeGroups, mergeCubes, replaceCubes } from './cubeProfileReview'
+import { cubeDeletionEffects, cubesSameAsGeneric, deleteCubes, duplicateCubeGroups, mergeCubes, replaceCubes, unusedCubes } from './cubeProfileReview'
+import { DeleteButton, SelectionBar } from './profileDeletion'
 import { cellEdges, estimateOuterCellRatio } from './gridAlignment'
 import { CUBE_SIZES, activeCube, allCubes, builtinCube, isBuiltinCube, type CubeSetting, type ProfileSettings } from './profileSettings'
 
@@ -84,6 +85,7 @@ export function CubeReviewTab({ settings, onChange, photo }: Props) {
   const [unticked, setUnticked] = useState<Set<string>>(new Set())
   const [names, setNames] = useState<Record<string, string>>({})
   const [undo, setUndo] = useState<ProfileSettings[]>([])
+  const [selected, setSelected] = useState<string[]>([])
   const [message, setMessage] = useState('')
   const [a, setA] = useState<string | null>(null)
   const [b, setB] = useState<string | null>(null)
@@ -94,6 +96,25 @@ export function CubeReviewTab({ settings, onChange, photo }: Props) {
   const groupKey = (group: CubeSetting[]) => group.map((cube) => cube.id).sort().join('+')
   const isActive = (cube: CubeSetting) => activeCube(settings, cube.size).id === cube.id
 
+  const status = (
+    <div class="color-review-toolbar">
+      <button type="button" class="btn btn-secondary btn-sm" disabled={undo.length === 0} onClick={() => {
+        onChange(undo[undo.length - 1])
+        setUndo(undo.slice(0, -1))
+        setMessage('Undone.')
+      }}>Undo last change</button>
+      {message && <span role="status" class={`color-review-message ${message.startsWith('❌') ? 'error' : ''}`}>{message}</span>}
+    </div>
+  )
+  const remove = (ids: string[]) => {
+    try {
+      const names = ids.map((id) => settings.cubes.find((cube) => cube.id === id)?.name ?? id)
+      commit(deleteCubes(settings, ids), ids.length === 1 ? `Deleted “${names[0]}”.` : `Deleted ${ids.length} cubes.`)
+      setSelected(selected.filter((id) => !ids.includes(id)))
+    } catch (err) {
+      setMessage(`❌ ${err instanceof Error ? err.message : 'Delete failed'}`)
+    }
+  }
   const commit = (next: ProfileSettings, text: string) => {
     setUndo([...undo, settings])
     onChange(next)
@@ -150,7 +171,13 @@ export function CubeReviewTab({ settings, onChange, photo }: Props) {
     <>
       <section class="card color-review-section" aria-labelledby="cubes-list">
         <h2 id="cubes-list">Cubes by size</h2>
-        <p class="color-review-muted">A cube sets how much of each sticker is sampled (the sticker area): the filled squares in its grid are what the scanner reads. Dashed cards are the built-in Generic cubes, which can't be changed.</p>
+        <p class="color-review-muted">A cube sets how much of each sticker is sampled (the sticker area): the filled squares in its grid are what the scanner reads. Dashed cards are the built-in Generic cubes, which can't be changed or deleted. Tick cubes to delete several at once.</p>
+        {settings.cubes.length > 0 && (
+          <SelectionBar noun={['cube', 'cubes']} selected={selected}
+            quick={[{ label: 'Select same as Generic', ids: cubesSameAsGeneric(settings) }, { label: 'Select unused', ids: unusedCubes(settings) }]}
+            effects={cubeDeletionEffects(settings, selected)} onSelect={setSelected} onDelete={remove} />
+        )}
+        {status}
         <div class="color-review-tabs" role="group" aria-label="Show sizes">
           <button type="button" class="color-review-tab" aria-pressed={sizes.length === 0} onClick={() => setSizes([])}>All sizes</button>
           {CUBE_SIZES.map((size) => (
@@ -165,7 +192,7 @@ export function CubeReviewTab({ settings, onChange, photo }: Props) {
               <h3>{size}×{size} <span class="color-review-muted">{ofSize.filter((cube) => !isBuiltinCube(cube.id)).length} saved</span></h3>
               <div class="cube-review-cards">
                 {ofSize.map((cube) => (
-                  <div class={`cube-review-card ${isBuiltinCube(cube.id) ? 'builtin' : ''}`} key={cube.id}>
+                  <div class={`cube-review-card ${isBuiltinCube(cube.id) ? 'builtin' : ''} ${selected.includes(cube.id) ? 'is-selected' : ''}`} key={cube.id}>
                     <MiniGrid size={size} core={cube.sampling.stickerCore} />
                     <div>
                       <div class="cube-review-name">{cube.name}{isBuiltinCube(cube.id) ? ' (built in)' : ''}</div>
@@ -174,6 +201,16 @@ export function CubeReviewTab({ settings, onChange, photo }: Props) {
                         {isActive(cube) && <span class="color-review-pill info">active</span>}
                         {!isBuiltinCube(cube.id) && cube.sampling.stickerCore === GENERIC_CORE && <span class="color-review-pill warn">same as Generic</span>}
                       </div>
+                      {!isBuiltinCube(cube.id) && (
+                        <div class="cube-review-actions">
+                          <label class="cube-review-select">
+                            <input type="checkbox" checked={selected.includes(cube.id)}
+                              onChange={(e) => setSelected(e.currentTarget.checked ? [...selected, cube.id] : selected.filter((id) => id !== cube.id))} />
+                            Select
+                          </label>
+                          <DeleteButton name={cube.name} effects={cubeDeletionEffects(settings, [cube.id])} onDelete={() => remove([cube.id])} />
+                        </div>
+                      )}
                     </div>
                   </div>
                 ))}
@@ -191,14 +228,7 @@ export function CubeReviewTab({ settings, onChange, photo }: Props) {
           <input type="range" id="cubes-tolerance" min="0" max="0.06" step="0.005" value={tolerance} onInput={(e) => setTolerance(Number(e.currentTarget.value))} />
           <span class="mono">± {pct(tolerance)}</span>
         </div>
-        <div class="color-review-toolbar">
-          <button type="button" class="btn btn-secondary btn-sm" disabled={undo.length === 0} onClick={() => {
-            onChange(undo[undo.length - 1])
-            setUndo(undo.slice(0, -1))
-            setMessage('Undone.')
-          }}>Undo last change</button>
-          {message && <span role="status" class={`color-review-message ${message.startsWith('❌') ? 'error' : ''}`}>{message}</span>}
-        </div>
+        {status}
         {groups.length === 0 && <p class="color-review-muted">No duplicates at this tolerance.</p>}
         <div class="color-review-groups">
           {groups.map((group, n) => {
