@@ -947,6 +947,13 @@ export function extractBackgroundColor(canvas: HTMLCanvasElement, face: FaceBoun
   if (!ctx) return null
   const { width, height } = canvas
   if (width < 40 || height < 40) return null
+  return extractBackgroundColorFromPixels(ctx.getImageData(0, 0, width, height).data, width, height, face)
+}
+
+// The live worker already owns the raw frame pixels, so it can take the
+// same backdrop reading without creating another canvas or copying a frame.
+export function extractBackgroundColorFromPixels(data: Uint8ClampedArray, width: number, height: number, face: FaceBounds): RGB | null {
+  if (width < 40 || height < 40) return null
 
   const gap = BACKGROUND_CUBE_GAP
   const turn = face.angle ?? 0
@@ -954,7 +961,6 @@ export function extractBackgroundColor(canvas: HTMLCanvasElement, face: FaceBoun
   const cx = face.startX + face.faceWidth / 2, cy = face.startY + face.faceHeight / 2
   const left = cx - half, right = cx + half, top = cy - half, bottom = cy + half
 
-  const data = ctx.getImageData(0, 0, width, height).data
   const pixels: RGB[] = []
   for (let y = 0; y < height; y += BACKGROUND_STRIDE) {
     const inCubeRow = y >= top && y < bottom

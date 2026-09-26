@@ -5,8 +5,8 @@
 
 import { estimateFaceGridSize } from './gridAlignment'
 import {
-  alignFaceInArea, alignmentArea, boundsFromAlignment, extractColorsFromImageData, faceVisibility,
-  guideBounds, outlineVisible, withGridOffset,
+  alignFaceInArea, alignmentArea, boundsFromAlignment, computeBackgroundGains, extractBackgroundColorFromPixels,
+  extractColorsFromImageData, faceVisibility, guideBounds, NEUTRAL_GAINS, outlineVisible, withGridOffset,
   type ColorDetectionResult, type FaceBounds, type RGB, type SamplingGeometry,
 } from './imageProcessing'
 
@@ -18,6 +18,7 @@ export interface LiveAnalysisRequest {
   requireOutline: boolean
   sampling: SamplingGeometry
   palette?: Record<string, RGB>
+  capturedBackgrounds?: Record<string, RGB | null>
   // Also estimate the cube's size (before the first face; see
   // estimateFaceGridSize).
   detectSize?: boolean
@@ -28,6 +29,8 @@ export interface LiveAnalysis {
   bounds: FaceBounds
   detection: ColorDetectionResult
   visible: boolean
+  backgroundColor: RGB | null
+  gains: RGB
   // With detectSize: the size the face clearly shows, or null.
   size?: number | null
 }
@@ -87,11 +90,17 @@ export function analyzeLiveFrame(frame: Uint8ClampedArray, width: number, height
   }
   // Colors and the cube check on one read of the square.
   const square = readFaceSquare(frame, width, height, bounds)
-  const detection = withGridOffset(
-    extractColorsFromImageData(square, bounds.faceWidth, bounds.faceHeight, gridSize, undefined, sampling, palette), bounds, guide)
   const visible = (request.mode === 'fixed' || bounds.gridFound === true)
     && faceVisibility(square, bounds.faceWidth, bounds.faceHeight, gridSize, () => outlineVisible(frame, width, height, bounds), request.requireOutline).visible
-  return { bounds, detection, visible, ...(size !== undefined && { size }) }
+  const captured = request.capturedBackgrounds ?? {}
+  const backgroundColor = visible && Object.values(captured).filter(Boolean).length >= 2
+    ? extractBackgroundColorFromPixels(frame, width, height, bounds) : null
+  const gains = backgroundColor
+    ? computeBackgroundGains({ ...captured, current: backgroundColor })?.current ?? NEUTRAL_GAINS
+    : NEUTRAL_GAINS
+  const detection = withGridOffset(
+    extractColorsFromImageData(square, bounds.faceWidth, bounds.faceHeight, gridSize, gains, sampling, palette), bounds, guide)
+  return { bounds, detection, visible, backgroundColor, gains, ...(size !== undefined && { size }) }
 }
 
 // `bounds` of a frame analyzed at `scale` times the camera's size, in the
