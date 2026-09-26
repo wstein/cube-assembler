@@ -767,11 +767,11 @@ describe('extractBackgroundColor', () => {
 describe('stickerSampleRect', () => {
   it('defaults to sampling the centered 60% of each cell of the whole square', () => {
     expect(stickerSampleRect(0, 0, 3, 300, 300)).toEqual({ x: 20, y: 20, width: 60, height: 60 })
-    expect(DEFAULT_SAMPLING).toEqual({ backgroundGap: 0, stickerCore: 0.6 })
+    expect(DEFAULT_SAMPLING).toEqual({ stickerCore: 0.6 })
   })
 
   it('shrinks the sampled zone with a smaller sticker core, keeping it centered', () => {
-    expect(stickerSampleRect(1, 2, 3, 300, 300, { backgroundGap: 0.2, stickerCore: 0.5 }))
+    expect(stickerSampleRect(1, 2, 3, 300, 300, { stickerCore: 0.5 }))
       .toEqual({ x: 225, y: 125, width: 50, height: 50 })
   })
 })
@@ -802,11 +802,9 @@ describe('extractBackgroundColor gap to the cube', () => {
     expect(extractBackgroundColor(handBand(70))).toEqual({ r: 120, g: 120, b: 120 })
   })
 
-  it('widens the band by the sampling gap for more hand around the face', () => {
+  it('keeps the fixed band when more hand surrounds the face', () => {
     const wide = handBand(100)
     expect(extractBackgroundColor(wide)!.r).toBeGreaterThan(extractBackgroundColor(wide)!.g + 5)
-    // 100px of a 300px face = 0.333 - BACKGROUND_CUBE_GAP covers 0.25.
-    expect(extractBackgroundColor(wide, 0.09)).toEqual({ r: 120, g: 120, b: 120 })
   })
 
   it('goes by the detected face, not the guide square', () => {
@@ -815,11 +813,11 @@ describe('extractBackgroundColor gap to the cube', () => {
     const face = { startX: 670, startY: 140, faceWidth: 220, faceHeight: 220 }
     const offGuide = frame(900, 500, (x, y) => x >= 670 && x < 890 && y >= 140 && y < 360)
     expect(extractBackgroundColor(offGuide)).not.toEqual({ r: 120, g: 120, b: 120 })
-    expect(extractBackgroundColor(offGuide, 0, face)).toEqual({ r: 120, g: 120, b: 120 })
+    expect(extractBackgroundColor(offGuide, face)).toEqual({ r: 120, g: 120, b: 120 })
   })
 
   it('gives up when the cube leaves too little backdrop', () => {
-    expect(extractBackgroundColor(frame(300, 300, () => false), 0, { startX: 0, startY: 0, faceWidth: 300, faceHeight: 300 })).toBeNull()
+    expect(extractBackgroundColor(frame(300, 300, () => false), { startX: 0, startY: 0, faceWidth: 300, faceHeight: 300 })).toBeNull()
   })
 })
 

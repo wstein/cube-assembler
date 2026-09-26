@@ -35,26 +35,15 @@ export interface RGB {
 // whole cell is being read.
 export const SAMPLE_CORE_FRACTION = 0.6
 
-// Which parts of the frame get sampled - adjustable per cube size in the
-// capture dialog's sampling setup, since cubes differ in how wide the gaps
-// between stickers are, and in how much cube body and hand shows around
-// the face.
+// The centered part of each sticker cell to sample. Cube profiles adjust
+// this for different sticker gaps; backdrop exclusion stays fixed.
 export interface SamplingGeometry {
-  // Extra band around the detected face left out of the background sample,
-  // on top of BACKGROUND_CUBE_GAP (see extractBackgroundColor), as a
-  // fraction of the face's side on each side - for cubes held with more
-  // hand or body showing around the face.
-  backgroundGap: number
   // Fraction of each sticker cell that's sampled, centered (the rest is
   // the gap/dead zone around it).
   stickerCore: number
 }
 
-export const DEFAULT_SAMPLING: SamplingGeometry = { backgroundGap: 0, stickerCore: SAMPLE_CORE_FRACTION }
-
-// Largest backgroundGap: with BACKGROUND_CUBE_GAP it leaves out a square
-// 2.1 times the face's side, still leaving backdrop beside it.
-export const MAX_BACKGROUND_GAP = 0.3
+export const DEFAULT_SAMPLING: SamplingGeometry = { stickerCore: SAMPLE_CORE_FRACTION }
 
 // A sticker cell's sampled rectangle within a face of the given size -
 // shared by the detector and the UI overlay so both draw the same zones.
@@ -935,7 +924,7 @@ function readFaceRegion(canvas: HTMLCanvasElement, bounds: FaceBounds): FaceRegi
 // sample, as a fraction of the face's side on each side: the cube's own
 // body (its other sides show at any angle) and the fingers holding it sit
 // right around the face, and neither is the constant backdrop the white
-// balance relies on. SamplingGeometry.backgroundGap widens it further.
+// balance relies on.
 export const BACKGROUND_CUBE_GAP = 0.25
 
 // Every BACKGROUND_STRIDE-th pixel in each direction is sampled - the
@@ -945,7 +934,7 @@ const BACKGROUND_STRIDE = 2
 
 // The backdrop's color on a LIVE captured frame: the trimmed mean of the
 // whole frame outside the detected face (the guide square without one),
-// its rotated bounding box grown by BACKGROUND_CUBE_GAP + backgroundGap of
+// its rotated bounding box grown by BACKGROUND_CUBE_GAP of
 // its side on each side. The whole remaining frame rather than a band near
 // the cube, so one local contamination (a shadow, a reflection) is averaged
 // out instead of skewing the reading. Null if the frame is too small, too
@@ -953,13 +942,13 @@ const BACKGROUND_STRIDE = 2
 // Only meaningful on a live, uncropped canvas - a stored croppedImage (see
 // cropFaceRegionToDataUrl) has no background left - so it's captured once
 // at capture time (captureAndProcessCanvas / captureAndProcessImage).
-export function extractBackgroundColor(canvas: HTMLCanvasElement, backgroundGap = 0, face: FaceBounds = computeFaceBounds(canvas)): RGB | null {
+export function extractBackgroundColor(canvas: HTMLCanvasElement, face: FaceBounds = computeFaceBounds(canvas)): RGB | null {
   const ctx = canvas.getContext('2d')
   if (!ctx) return null
   const { width, height } = canvas
   if (width < 40 || height < 40) return null
 
-  const gap = BACKGROUND_CUBE_GAP + Math.min(MAX_BACKGROUND_GAP, Math.max(0, backgroundGap))
+  const gap = BACKGROUND_CUBE_GAP
   const turn = face.angle ?? 0
   const half = (face.faceWidth / 2) * (Math.abs(Math.cos(turn)) + Math.abs(Math.sin(turn))) + gap * face.faceWidth
   const cx = face.startX + face.faceWidth / 2, cy = face.startY + face.faceHeight / 2
@@ -1592,7 +1581,7 @@ export function captureAndProcessCanvas(
   return {
     ...extractCubeFaceColors(canvas, gridSize, gains, sampling, palette, bounds),
     croppedImage: cropFaceRegionToDataUrl(canvas, bounds),
-    backgroundColor: extractBackgroundColor(canvas, sampling.backgroundGap, bounds),
+    backgroundColor: extractBackgroundColor(canvas, bounds),
     ...describeCrop(canvas, bounds),
   }
 }
@@ -1622,7 +1611,7 @@ export function captureAndProcessImage(
   return {
     ...extractCubeFaceColors(canvas, gridSize, gains, sampling, palette, bounds),
     croppedImage: cropFaceRegionToDataUrl(canvas, bounds),
-    backgroundColor: extractBackgroundColor(canvas, sampling.backgroundGap, bounds),
+    backgroundColor: extractBackgroundColor(canvas, bounds),
     ...describeCrop(canvas, bounds),
   }
 }

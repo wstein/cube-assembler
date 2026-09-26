@@ -11,7 +11,7 @@ import { WIZARD_FACE_ORDER, faceContentKey, groupWizardOptions, pickWizardFace, 
 import {
   faceBoundsForMode, captureAndProcessFace, captureAndProcessCanvas, captureAndProcessImage, hasVisibleCubeFace,
   runGlobalWhiteBalance, computeBackgroundGains, BACKGROUND_WB_METHOD, BACKGROUND_CUBE_GAP, NEUTRAL_GAINS, CROP_JPEG_QUALITY,
-  DEFAULT_SAMPLING, MAX_BACKGROUND_GAP, STICKER_MEASUREMENT, stickerSampleRect, colorConfidences, STICKER_COLORS, type SamplingGeometry,
+  DEFAULT_SAMPLING, STICKER_MEASUREMENT, stickerSampleRect, colorConfidences, STICKER_COLORS, type SamplingGeometry,
   rgbToOKLCH, hueCircularRange, hueRangesOverlap, linearRange,
   type ColorDetectionResult, type FaceCaptureResult, type RGB,
 } from './imageProcessing'
@@ -2344,17 +2344,14 @@ function App() {
                     )}
                   </div>
                 )}
-                {captureMode === 'guide' && (samplingSetupOpen || sampling.backgroundGap > 0) && (
+                {captureMode === 'guide' && samplingSetupOpen && (
                   // The band around the face that the background (white
-                  // balance) sample skips - BACKGROUND_CUBE_GAP plus the extra
-                  // gap, sized in percent of the wrapper like the 60% guide
-                  // square itself. Always shown when widened, so fingers can
-                  // be kept inside it while capturing.
+                  // balance) sample skips, sized from the fixed 25% gap.
                   <div
                     class="capture-background-gap"
                     style={{
-                      width: `${60 * (1 + 2 * (BACKGROUND_CUBE_GAP + sampling.backgroundGap))}%`,
-                      padding: `${60 * (BACKGROUND_CUBE_GAP + sampling.backgroundGap)}%`,
+                      width: `${60 * (1 + 2 * BACKGROUND_CUBE_GAP)}%`,
+                      padding: `${60 * BACKGROUND_CUBE_GAP}%`,
                     }}
                   />
                 )}
@@ -2554,19 +2551,6 @@ function App() {
                         const name = e.currentTarget.value.trim()
                         if (name) applyProfileStore(saveProfile(profileStore, { ...profile, name }))
                       }}
-                    />
-                  </label>
-                  <label class="sampling-slider">
-                    <span>
-                      Skip around the face <output>{Math.round((BACKGROUND_CUBE_GAP + sampling.backgroundGap) * 100)}%</output>
-                    </span>
-                    <input
-                      type="range"
-                      min={0}
-                      max={MAX_BACKGROUND_GAP * 100}
-                      step={1}
-                      value={Math.round(sampling.backgroundGap * 100)}
-                      onInput={(e) => updateSampling({ ...sampling, backgroundGap: Number(e.currentTarget.value) / 100 })}
                     />
                   </label>
                   <label class="sampling-slider">

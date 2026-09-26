@@ -11,8 +11,8 @@ import {
   genericProfile, profilePalette, withLearnedColors, withoutLearnedColors, suggestProfile, brandProfile, CUBE_STYLES, EMPTY_PROFILE_STORE, type CubeProfile,
 } from '../src/client/cubeProfiles'
 
-const rubiks: CubeProfile = { id: 'a', name: "Rubik's 3×3", size: 3, sampling: { backgroundGap: 0.05, stickerCore: 0.6 } }
-const gocube: CubeProfile = { id: 'b', name: 'GoCube 3×3', size: 3, sampling: { backgroundGap: 0.08, stickerCore: 0.5 } }
+const rubiks: CubeProfile = { id: 'a', name: "Rubik's 3×3", size: 3, sampling: { stickerCore: 0.6 } }
+const gocube: CubeProfile = { id: 'b', name: 'GoCube 3×3', size: 3, sampling: { stickerCore: 0.5 } }
 
 describe('activeProfile', () => {
   it('falls back to the generic profile for a size without profiles', () => {
@@ -53,8 +53,13 @@ describe('parseProfileStore', () => {
 
   it('migrates the earlier per-size settings into generic profiles', () => {
     const parsed = parseProfileStore({ 3: { backgroundGap: 0.05, stickerCore: 0.6 }, 9: { backgroundGap: 0, stickerCore: 0.6 } })
-    expect(parsed.profiles).toEqual([{ ...genericProfile(3), sampling: { backgroundGap: 0.05, stickerCore: 0.6 } }])
-    expect(activeProfile(parsed, 3).sampling.backgroundGap).toBe(0.05)
+    expect(parsed.profiles).toEqual([{ ...genericProfile(3), sampling: { stickerCore: 0.6 } }])
+    expect(activeProfile(parsed, 3).sampling.stickerCore).toBe(0.6)
+  })
+
+  it('ignores the old adjustable backdrop gap on saved profiles', () => {
+    const parsed = parseProfileStore({ profiles: [{ ...rubiks, sampling: { backgroundGap: 0.3, stickerCore: 0.5 } }], active: { 3: 'a' } })
+    expect(parsed.profiles[0].sampling).toEqual({ stickerCore: 0.5 })
   })
 
   it('returns an empty store for anything else', () => {
