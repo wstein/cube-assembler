@@ -1,6 +1,6 @@
 // Cube geometry and sticker colors are independent: one color profile can
 // serve cubes of several sizes, while each cube keeps its own sticker gap.
-import { STICKER_COLORS, type RGB, type SamplingGeometry } from './imageProcessing'
+import type { RGB, SamplingGeometry } from './imageProcessing'
 
 export interface CubeSetting {
   id: string
@@ -121,8 +121,22 @@ export function deleteCube(settings: ProfileSettings, id: string): ProfileSettin
   return { ...settings, cubes: settings.cubes.filter((cube) => cube.id !== id), activeCubeBySize }
 }
 
+// Generic colors as a camera reads them: each sticker color averaged, in
+// linear light, over the per-capture means of 27 reviewed real captures
+// (2x2-7x7, several cubes and rooms). Pure references such as 255/0/0 red
+// read 73% of those stickers; these read 97% even when averaged without the
+// capture being read. STICKER_COLORS stays the classifier's canonical set.
+export const GENERIC_STICKER_COLORS: Record<string, RGB> = {
+  W: { r: 174, g: 186, b: 206 },
+  Y: { r: 179, g: 202, b: 73 },
+  O: { r: 217, g: 87, b: 66 },
+  R: { r: 176, g: 41, b: 71 },
+  G: { r: 46, g: 166, b: 86 },
+  B: { r: 28, g: 98, b: 172 },
+}
+
 export function genericColorProfile(): ColorProfile {
-  return { id: GENERIC_COLORS_ID, name: 'Generic colors', colors: colorPalette({ colors: STICKER_COLORS }), captures: 0 }
+  return { id: GENERIC_COLORS_ID, name: 'Generic colors', colors: colorPalette({ colors: GENERIC_STICKER_COLORS }), captures: 0 }
 }
 
 export function colorPalette(profile: Pick<ColorProfile, 'colors'>): Record<string, RGB> {

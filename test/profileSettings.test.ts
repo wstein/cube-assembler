@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import { STICKER_COLORS } from '../src/client/imageProcessing'
 import {
-  AUTO_COLORS_ID, EMPTY_SETTINGS, GENERIC_COLORS_ID, activeColorProfile, activeCube, allCubes, builtinCube,
-  captureColorProfileSnapshot, capturePalette, colorPalette, convertLegacySettings, copyColorProfile, copyCubeSetting, cubesForSize, deleteColorProfile, groupCubesByName, mergeSettings, parseProfileSettings,
+  AUTO_COLORS_ID, EMPTY_SETTINGS, GENERIC_COLORS_ID, GENERIC_STICKER_COLORS, activeColorProfile, activeCube, allCubes, builtinCube,
+  captureColorProfileSnapshot, capturePalette, colorPalette, convertLegacySettings, genericColorProfile, copyColorProfile, copyCubeSetting, cubesForSize, deleteColorProfile, groupCubesByName, mergeSettings, parseProfileSettings,
   saveColorProfile, saveCube, selectColorProfile, selectCube, setAutoColorMatch, resolvedColorProfileSnapshot,
 } from '../src/client/profileSettings'
 
@@ -43,7 +43,7 @@ describe('separate cube and color settings', () => {
     expect(activeCube(saved, 7).size).toBe(7)
     expect(EMPTY_SETTINGS.activeColorsId).toBe(AUTO_COLORS_ID)
     expect(activeColorProfile(EMPTY_SETTINGS).id).toBe(GENERIC_COLORS_ID)
-    expect(colorPalette(activeColorProfile(EMPTY_SETTINGS))).toEqual(STICKER_COLORS)
+    expect(colorPalette(activeColorProfile(EMPTY_SETTINGS))).toEqual(GENERIC_STICKER_COLORS)
     const auto = setAutoColorMatch(selectColorProfile(saved, AUTO_COLORS_ID), custom.id)
     expect(auto.activeColorsId).toBe(AUTO_COLORS_ID)
     expect(activeColorProfile(auto).id).toBe(custom.id)
@@ -64,6 +64,14 @@ describe('separate cube and color settings', () => {
     expect(captureColorProfileSnapshot(colors)).toMatchObject({
       id: 'capture-colors', name: 'Colors from this capture', selection: 'automatic', colors,
     })
+  })
+
+  it('gives Generic colors camera-realistic references, not pure RGB', () => {
+    // Pure 255/0/0 red or 0/0/255 blue is never what a camera reads; the
+    // realistic values come from real captures (see GENERIC_STICKER_COLORS).
+    const generic = genericColorProfile()
+    expect(generic.colors).toEqual(colorPalette({ colors: GENERIC_STICKER_COLORS }))
+    for (const key of ['W', 'Y', 'O', 'R', 'G', 'B']) expect(generic.colors[key]).not.toEqual(STICKER_COLORS[key])
   })
 
   it('keeps Generic and Automatic color choices read-only', () => {
