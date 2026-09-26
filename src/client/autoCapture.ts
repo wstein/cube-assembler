@@ -42,13 +42,10 @@ function colorDifference(a: string[][], b: string[][]): number {
 
 export function nextAutoCaptureProgress(
   previous: AutoCaptureProgress | null,
-  sample: AutoCaptureSample | null,
-  lastCapturedColors: string[][] | null
+  sample: AutoCaptureSample | null
 ): AutoCaptureProgress | null {
   if (!sample || sample.confidence < AUTO_CAPTURE_MIN_CONFIDENCE) return null
   const cells = sample.colors.length ** 2
-  // A different crop of the previous face must not fill the next slot.
-  if (lastCapturedColors && colorDifference(sample.colors, lastCapturedColors) <= Math.max(1, Math.floor(cells * 0.08))) return null
   if (!previous) return { first: sample, frames: 1 }
   const first = previous.first
   const stable = colorDifference(sample.colors, first.colors) <= Math.max(1, Math.floor(cells * 0.04))
