@@ -35,7 +35,8 @@ total gap. Choosing a cube sets the size. Colors can be reused across sizes.
 Sampling setup adjusts the gap around each sticker on a named cube. **New colors**
 copies the current palette into a named profile such as GoCube, ready to learn
 from its first valid capture; its name can be edited in Sampling setup. Built-in
-cubes and Generic colors are read-only. **Automatic colors** starts with Generic colors
+cubes and Generic colors are read-only; capture learning never changes Generic colors.
+**Automatic colors** starts with Generic colors
 and uses a saved profile after a clear match; it stays selected for later
 captures. The capture settings summary shows the current profile, including
 the profile currently selected by Automatic mode. Selecting a profile by name
