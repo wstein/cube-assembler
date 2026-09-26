@@ -1249,7 +1249,7 @@ function App() {
       } catch {
         if (inFlight === id) inFlight = null
       }
-    }, 100)
+    }, 200)
 
     return () => {
       active = false
