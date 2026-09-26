@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { STICKER_COLORS } from '../src/client/imageProcessing'
-import { assessPalette, blendColorProfile, matchColorProfile } from '../src/client/colorProfileLearning'
+import { assessPalette, blendColorProfile, canCreateProfileFromCapture, matchColorProfile, shouldBlendColorProfile } from '../src/client/colorProfileLearning'
 import type { ColorProfile } from '../src/client/profileSettings'
 
 const base: ColorProfile = { id: 'base', name: 'Base', colors: STICKER_COLORS, captures: 4 }
@@ -8,6 +8,14 @@ const shifted = Object.fromEntries(Object.entries(STICKER_COLORS).map(([key, col
   [key, { ...color, r: Math.max(0, color.r - 5) }])) as typeof STICKER_COLORS
 
 describe('color profile learning', () => {
+  it('allows a new profile from any strong reviewed camera capture, even one that matched a saved profile', () => {
+    const good = { reviewedValid: true, cameraOnly: true, recalibrated: true, confidentFraction: 0.9, correctedFraction: 0.01 }
+    expect(canCreateProfileFromCapture(good)).toBe(true)
+    expect(canCreateProfileFromCapture({ ...good, confidentFraction: 0.79 })).toBe(false)
+    expect(canCreateProfileFromCapture({ ...good, correctedFraction: 0.03 })).toBe(false)
+    expect(canCreateProfileFromCapture({ ...good, cameraOnly: false })).toBe(false)
+  })
+
   it('rejects an unreviewed or weak capture before updating colors', () => {
     expect(assessPalette(base, shifted, { reviewedValid: false, cameraOnly: true, recalibrated: true, confidentFraction: 1 }).accepted).toBe(false)
     expect(assessPalette(base, shifted, { reviewedValid: true, cameraOnly: true, recalibrated: true, confidentFraction: 0.7 }).accepted).toBe(false)
@@ -23,6 +31,12 @@ describe('color profile learning', () => {
     expect(later.captures).toBe(5)
     expect(later.colors.W.r).toBeLessThan(base.colors.W.r)
     expect(later.colors.W.r).toBeGreaterThan(shifted.W.r)
+  })
+
+  it('never blends into an existing profile while Automatic colors is selected', () => {
+    const evidence = { reviewedValid: true, cameraOnly: true, recalibrated: true, confidentFraction: 1, correctedFraction: 0 }
+    expect(shouldBlendColorProfile(base, shifted, evidence, true)).toBe(false)
+    expect(shouldBlendColorProfile(base, shifted, evidence, false)).toBe(true)
   })
 
   it('rejects one color drifting too far even when mean distance is small', () => {
