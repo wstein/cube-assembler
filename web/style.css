@@ -1906,6 +1906,17 @@ label.capture-size-label {
 .capture-feedback-settings { display: flex; align-items: center; justify-content: space-between; gap: var(--spacing-sm); }
 .capture-sound-toggle { border: 0; background: none; color: var(--color-text-secondary); font: inherit; cursor: pointer; white-space: nowrap; }
 
+.size-switch-notice {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-sm);
+  border-radius: 8px;
+  background: var(--color-accent-soft);
+  color: var(--color-text-primary);
+}
+
 /* Inside the bar an empty message takes no room - the bar already sits
    at a fixed place, so there's no layout jump to prevent. */
 .capture-actions .capture-message {

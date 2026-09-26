@@ -1,7 +1,7 @@
 import { render, h, Fragment } from 'preact'
 import { useState, useEffect, useRef, useMemo } from 'preact/hooks'
 import '../../web/style.css'
-import { AUTO_CAPTURE_MIN_CONFIDENCE, AUTO_CAPTURE_STABLE_FRAMES, TURN_CUE_CLEAR_FRAMES, nextAutoCaptureProgress, nextTurnCueClearFrames, type AutoCaptureProgress } from './autoCapture'
+import { AUTO_CAPTURE_MIN_CONFIDENCE, AUTO_CAPTURE_STABLE_FRAMES, TURN_CUE_CLEAR_FRAMES, agreedSize, nextAutoCaptureProgress, nextSizeVotes, nextTurnCueClearFrames, sizeDisputed, type AutoCaptureProgress } from './autoCapture'
 import { oppositeFacePreview } from './capturePresentation'
 import { holdConfirmedFace, NO_HOLD, type LiveHold } from './liveHold'
 import { scaleBounds, type LiveAnalysisRequest } from './liveAnalysis'
@@ -662,6 +662,12 @@ function App() {
   const [autoCapture, setAutoCapture] = useState(true)
   const [autoCaptureFrames, setAutoCaptureFrames] = useState(0)
   const [autoCapturePaused, setAutoCapturePaused] = useState(false)
+  // Before the first face, Detect face may switch the cube size on a clear
+  // signal (see nextSizeVotes). Undo or picking a size in the camera stops
+  // it until capture starts over.
+  const [sizeSwitch, setSizeSwitch] = useState<{ from: number; to: number } | null>(null)
+  const [sizeCheckHold, setSizeCheckHold] = useState(false)
+  const sizeDetectionLocked = useRef(false)
   const [captureFlash, setCaptureFlash] = useState(false)
   const [captureSound, setCaptureSound] = useState(storedCaptureSound)
   const captureAudio = useRef<AudioContext | null>(null)
@@ -993,6 +999,7 @@ function App() {
   useEffect(() => {
     setAutoCaptureFrames(0)
     setAutoCapturePaused(false)
+    setSizeCheckHold(false)
     if (!webcamOpen) {
       setLiveDetection(null)
       setLiveFaceVisible(false)
@@ -1008,6 +1015,7 @@ function App() {
     let progress: AutoCaptureProgress | null = null
     let hold: LiveHold<ColorDetectionResult> = NO_HOLD
     let turnCueClearFrames = 0
+    let sizeVotes: Array<number | null> = []
 
     // Frames are analyzed in a worker, scaled down to LIVE_ANALYSIS_HEIGHT
     // there (see liveAnalysis.worker.ts), one at a time. The worker hands
@@ -1041,6 +1049,18 @@ function App() {
           return
         }
         if (turnCueShowing) return
+        let sizeOnHold = false
+        if (result.size !== undefined && !sizeDetectionLocked.current) {
+          sizeVotes = nextSizeVotes(sizeVotes, result.size)
+          const agreed = agreedSize(sizeVotes)
+          if (agreed !== null && agreed !== puzzleSize) {
+            setSizeSwitch({ from: puzzleSize, to: agreed })
+            changePuzzleSize(agreed)
+            return
+          }
+          sizeOnHold = sizeDisputed(sizeVotes, puzzleSize)
+          setSizeCheckHold(sizeOnHold)
+        }
         // Detect face holds a confirmed face through a weak frame or two
         // (display only - see holdConfirmedFace); everything below still
         // judges this frame on its own.
@@ -1057,7 +1077,7 @@ function App() {
           : null
         setLiveCapturedFace(matchedSlot === null ? null : FACE_ORDER[matchedSlot])
         if (captureMode === 'cv' && autoCapture && !autoCaptureInFlight.current) {
-          const counted = visible && bounds.gridFound && detection.confidence >= AUTO_CAPTURE_MIN_CONFIDENCE
+          const counted = visible && bounds.gridFound && detection.confidence >= AUTO_CAPTURE_MIN_CONFIDENCE && !sizeOnHold
           progress = nextAutoCaptureProgress(progress, counted ? {
             colors: detection.colors,
             confidence: detection.confidence,
@@ -1122,6 +1142,7 @@ function App() {
           requireOutline: captureMode === 'cv',
           sampling,
           palette,
+          detectSize: captureMode === 'cv' && Object.keys(capturedFaces).length === 0 && !sizeDetectionLocked.current,
         }
         worker.postMessage({ id, frame, maxHeight: LIVE_ANALYSIS_HEIGHT, request } satisfies LiveFrameMessage, [frame])
       } catch {
@@ -1174,6 +1195,10 @@ function App() {
     const selected = allCubes(profileStore).find((cube) => cube.id === id)
     if (!selected) return false
     if (selected.size !== puzzleSize && !changePuzzleSize(selected.size)) return false
+    if (webcamOpen && selected.size !== puzzleSize) {
+      sizeDetectionLocked.current = true
+      setSizeSwitch(null)
+    }
     applyProfileStore(selectCube(profileStore, id))
     return true
   }
@@ -1279,6 +1304,8 @@ function App() {
     const allCaptured = FACE_ORDER.every((f) => f in capturedFaces)
     const startOver = restart || allCaptured
     if (startOver) {
+      sizeDetectionLocked.current = false
+      setSizeSwitch(null)
       setCapturedFaces({})
       setFaceConfidence({})
       setResolvedColorProfile(null)
@@ -2829,7 +2856,7 @@ function App() {
                   <div class="capture-feedback-settings">
                     <label class="auto-capture-toggle">
                       <input type="checkbox" checked={autoCapture} onChange={(e) => setAutoCapture(e.currentTarget.checked)} />
-                      <span>{autoCapture ? `Auto capture · matching frames ${autoCaptureFrames}/${AUTO_CAPTURE_STABLE_FRAMES}${autoCapturePaused ? ' · paused' : ''}` : 'Auto capture'}</span>
+                      <span>{autoCapture ? `Auto capture · matching frames ${autoCaptureFrames}/${AUTO_CAPTURE_STABLE_FRAMES}${sizeCheckHold ? ' · checking cube size' : autoCapturePaused ? ' · paused' : ''}` : 'Auto capture'}</span>
                     </label>
                     <button type="button" class="capture-sound-toggle" aria-pressed={captureSound} onClick={() => {
                       const enabled = !captureSound
@@ -2837,6 +2864,16 @@ function App() {
                       try { localStorage.setItem('cube-assembler.capture-sound', enabled ? 'on' : 'off') } catch { /* Storage is optional. */ }
                       armCaptureAudio(enabled)
                     }}>{captureSound ? '🔊 Sound on' : '🔇 Sound off'}</button>
+                  </div>
+                )}
+                {sizeSwitch && Object.keys(capturedFaces).length === 0 && (
+                  <div role="status" class="size-switch-notice">
+                    <span>Detected a {sizeSwitch.to}×{sizeSwitch.to} cube - switched from {sizeSwitch.from}×{sizeSwitch.from} ({profile.name}).</span>
+                    <button type="button" class="btn btn-secondary btn-sm" onClick={() => {
+                      sizeDetectionLocked.current = true
+                      changePuzzleSize(sizeSwitch.from)
+                      setSizeSwitch(null)
+                    }}>Undo</button>
                   </div>
                 )}
                 <div
