@@ -261,7 +261,14 @@ export function alignFace(
   // seams from the fixed guide alone can land one whole cell off on 7x7.
   const coarse = locateFaceOutline(data, width, height, guide)
   const searchGuide = coarse ?? guide
-  const scaleRange: [number, number] = coarse ? [0.92, 1.08] : SCALE_RANGE
+  // The outline can take in a clear shell's rim and the fingers holding it
+  // (20% too big on a solved GoCube), so on 2x2-4x4 the seams may shrink it
+  // by up to most of a cell - no more, or the grid could slip by a whole
+  // cell - but barely grow it: a face never reaches past its outline. From
+  // 5x5 up the outer cells' width varies too (see outerRatios), and a smaller
+  // square with wider outer cells fits the same inner seams.
+  const minScale = gridSize <= 4 ? 1 - 0.8 / gridSize : 0.92
+  const scaleRange: [number, number] = coarse ? [minScale, 1.08] : SCALE_RANGE
   const angle = estimateTilt(data, width, height, searchGuide)
   const aligned = findGridAlignment(data, width, height, searchGuide, gridSize, 0, scaleRange)
   if (angle) {
