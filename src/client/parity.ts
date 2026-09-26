@@ -326,10 +326,6 @@ export function runFullParity(cube: CubeIR): ParityResult {
       unknownCorners.push({ group: colors.join('-'), facelets })
     }
   }
-  if (unknownCorners.length > 0) {
-    checks.cornerColors = false
-    return { valid: false, result: 'Unknown corner color triplet', checks, highlight: unknownCorners }
-  }
   // Each triple above only checked "is this SOME real corner" independently
   // per slot - two slots matching the SAME physical piece (impossible on a
   // real cube) isn't automatically excluded by that alone, and would make
@@ -339,25 +335,29 @@ export function runFullParity(cube: CubeIR): ParityResult {
   // piece list was [0,1,1,0,7,6,6,7] - not a permutation at all (2026-09-23
   // design discussion; same fix mirrored in src/client/cubeAssembly.ts's
   // isFullyValid).
-  {
-    const slotsByPiece = new Map<number, number[]>()
-    for (let slot = 0; slot < cornerPieces.length; slot++) {
-      const piece = cornerPieces[slot]
-      slotsByPiece.set(piece, [...(slotsByPiece.get(piece) ?? []), slot])
-    }
-    const duplicates = [...slotsByPiece].flatMap(([piece, slots]) =>
-      slots.length > 1
-        ? slots.map((slot) => ({ group: CORNER_NAMES[piece], facelets: cornerFacelets[slot] }))
-        : []
-    )
-    if (duplicates.length > 0) {
-      checks.cornerColors = false
-      return {
-        valid: false,
-        result: 'Duplicate corner piece (two positions read the same physical corner)',
-        checks,
-        highlight: duplicates,
-      }
+  const slotsByPiece = new Map<number, number[]>()
+  for (let slot = 0; slot < cornerPieces.length; slot++) {
+    const piece = cornerPieces[slot]
+    slotsByPiece.set(piece, [...(slotsByPiece.get(piece) ?? []), slot])
+  }
+  const duplicates = [...slotsByPiece].flatMap(([piece, slots]) =>
+    slots.length > 1
+      ? slots.map((slot) => ({ group: CORNER_NAMES[piece], facelets: cornerFacelets[slot] }))
+      : []
+  )
+  if (unknownCorners.length > 0 || duplicates.length > 0) {
+    checks.cornerColors = false
+    const duplicateNames = [...new Set(duplicates.map((entry) => entry.group))]
+    return {
+      valid: false,
+      result: unknownCorners.length > 0
+        ? 'Unknown corner color triplet'
+        : 'Duplicate corner piece (two positions read the same physical corner)',
+      checks,
+      highlight: [...unknownCorners, ...duplicates],
+      detail: unknownCorners.length > 0 && duplicateNames.length > 0
+        ? `also duplicate corner pieces: ${duplicateNames.join(', ')}`
+        : undefined,
     }
   }
   checks.cornerColors = true

@@ -83,6 +83,23 @@ describe('parity: 3x3 corner/edge facelet-index tables', () => {
     expect(result.highlight?.flatMap((entry) => entry.facelets)).toHaveLength(12)
   })
 
+  it('reports duplicated corners alongside impossible corners on a 5x5', () => {
+    const cube = solvedCube(5)
+    cube.r.data[0] = 'B'
+    cube.f.data[4] = 'R'
+    cube.l.data[0] = 'G'
+    cube.b.data[4] = 'O'
+    ;[cube.d.data[4], cube.r.data[20]] = [cube.r.data[20], cube.d.data[4]]
+
+    const result = checkParity(cube)
+    expect(result.result).toBe('Unknown corner color triplet')
+    expect(result.detail).toContain('duplicate corner')
+    expect(result.highlight?.map((entry) => entry.group)).toEqual([
+      'R-G-Y', 'UBR', 'UBR', 'UFL', 'UFL',
+    ])
+    expect(result.highlight?.flatMap((entry) => entry.facelets)).toHaveLength(15)
+  })
+
   it('rejects a cube with a genuinely broken edge (negative control)', () => {
     const cube = solvedCube()
     // Swap F's UF-edge sticker with D's center sticker (a plain swap, so
