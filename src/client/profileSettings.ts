@@ -121,6 +121,28 @@ export function deleteCube(settings: ProfileSettings, id: string): ProfileSettin
   return { ...settings, cubes: settings.cubes.filter((cube) => cube.id !== id), activeCubeBySize }
 }
 
+function profileName(name: string, what: string): string {
+  const trimmed = name.trim().slice(0, 60)
+  if (!trimmed) throw new Error(`${what} name required`)
+  return trimmed
+}
+
+// Renames a saved cube; built-in Generic cubes keep their names.
+export function renameCube(settings: ProfileSettings, id: string, name: string): ProfileSettings {
+  if (isBuiltinCube(id)) throw new Error('Cannot rename a built-in cube')
+  if (!settings.cubes.some((cube) => cube.id === id)) throw new Error('Unknown cube')
+  const trimmed = profileName(name, 'Cube')
+  return { ...settings, cubes: settings.cubes.map((cube) => cube.id === id ? { ...cube, name: trimmed } : cube) }
+}
+
+// Renames a saved color profile; Generic and Automatic keep their names.
+export function renameColorProfile(settings: ProfileSettings, id: string, name: string): ProfileSettings {
+  if (id === GENERIC_COLORS_ID || id === AUTO_COLORS_ID) throw new Error('Cannot rename built-in colors')
+  if (!settings.colors.some((profile) => profile.id === id)) throw new Error('Unknown color profile')
+  const trimmed = profileName(name, 'Color profile')
+  return { ...settings, colors: settings.colors.map((profile) => profile.id === id ? { ...profile, name: trimmed } : profile) }
+}
+
 // Generic colors as a camera reads them: each sticker color averaged, in
 // linear light, over the per-capture means of 27 reviewed real captures
 // (2x2-7x7, several cubes and rooms). Pure references such as 255/0/0 red
