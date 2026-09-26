@@ -694,6 +694,10 @@ textarea {
   box-sizing: border-box;
 }
 
+.capture-side > * {
+  flex-shrink: 0;
+}
+
 .capture-side-header {
   display: flex;
   align-items: flex-start;
