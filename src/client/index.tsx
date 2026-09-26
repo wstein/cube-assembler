@@ -1,7 +1,7 @@
 import { render, h, Fragment } from 'preact'
 import { useState, useEffect, useRef, useMemo } from 'preact/hooks'
 import '../../web/style.css'
-import { AUTO_CAPTURE_STABLE_FRAMES, TURN_CUE_CLEAR_FRAMES, nextAutoCaptureProgress, nextTurnCueClearFrames, type AutoCaptureProgress } from './autoCapture'
+import { AUTO_CAPTURE_MIN_CONFIDENCE, AUTO_CAPTURE_STABLE_FRAMES, TURN_CUE_CLEAR_FRAMES, nextAutoCaptureProgress, nextTurnCueClearFrames, type AutoCaptureProgress } from './autoCapture'
 import { oppositeFacePreview } from './capturePresentation'
 import { holdConfirmedFace, NO_HOLD, type LiveHold } from './liveHold'
 import { scaleBounds, type LiveAnalysisRequest } from './liveAnalysis'
@@ -1010,7 +1010,8 @@ function App() {
           : null
         setLiveCapturedFace(matchedSlot === null ? null : FACE_ORDER[matchedSlot])
         if (captureMode === 'cv' && autoCapture && !autoCaptureInFlight.current) {
-          progress = nextAutoCaptureProgress(progress, visible && bounds.gridFound ? {
+          const counted = visible && bounds.gridFound && detection.confidence >= AUTO_CAPTURE_MIN_CONFIDENCE
+          progress = nextAutoCaptureProgress(progress, counted ? {
             colors: detection.colors,
             confidence: detection.confidence,
             centerX: bounds.startX + bounds.faceWidth / 2,
@@ -1019,7 +1020,7 @@ function App() {
             angle: bounds.angle ?? 0,
           } : null)
           setAutoCaptureFrames(progress?.frames ?? 0)
-          if (progress && progress.frames >= AUTO_CAPTURE_STABLE_FRAMES) {
+          if (counted && progress && progress.frames >= AUTO_CAPTURE_STABLE_FRAMES) {
             autoCaptureInFlight.current = true
             progress = null
             const frame = document.querySelector('.capture-scan-frame')?.getBoundingClientRect()
@@ -1048,8 +1049,8 @@ function App() {
         setLiveDetection(null)
         setLiveFaceVisible(false)
         setLiveCapturedFace(null)
-        progress = null
-        setAutoCaptureFrames(0)
+        // A transient worker failure pauses the hold. The next good frame
+        // still has to match the same sticker colors.
       } finally {
         full.close()
         inFlight = null

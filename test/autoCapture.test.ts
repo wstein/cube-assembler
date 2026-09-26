@@ -11,19 +11,19 @@ const sample = (color = 'R', x = 100, confidence = 0.9): AutoCaptureSample => ({
 })
 
 describe('automatic face capture stability', () => {
-  it('waits for five matching frames and resets after a missed detection', () => {
+  it('waits for five matching good frames and pauses after a missed detection', () => {
     let progress = null
     for (let i = 1; i <= AUTO_CAPTURE_STABLE_FRAMES; i++) {
       progress = nextAutoCaptureProgress(progress, sample())
       expect(progress?.frames).toBe(i)
     }
-    expect(nextAutoCaptureProgress(progress, null)).toBeNull()
+    expect(nextAutoCaptureProgress(progress, null)?.frames).toBe(AUTO_CAPTURE_STABLE_FRAMES)
     expect(nextAutoCaptureProgress(null, sample('R', 100, 0.4))).toBeNull()
   })
 
-  it('resets on motion or changed stickers but permits a repeated pattern after a turn', () => {
+  it('ignores motion but resets on changed stickers', () => {
     const first = nextAutoCaptureProgress(null, sample())
-    expect(nextAutoCaptureProgress(first, sample('R', 120))?.frames).toBe(1)
+    expect(nextAutoCaptureProgress(first, sample('R', 120))?.frames).toBe(2)
     expect(nextAutoCaptureProgress(first, sample('G'))?.frames).toBe(1)
     // Once the turn cue has seen the previous face leave, a different side
     // may have exactly the same color grid.
@@ -31,11 +31,11 @@ describe('automatic face capture stability', () => {
     expect(nextAutoCaptureProgress(null, sample('G'))?.frames).toBe(1)
   })
 
-  it('requires at least 80% confidence on every stable frame', () => {
-    const first = nextAutoCaptureProgress(null, sample('R', 100, 0.8))
+  it('counts 60% confidence and pauses on weaker reads', () => {
+    const first = nextAutoCaptureProgress(null, sample('R', 100, 0.6))
     expect(first?.frames).toBe(1)
-    expect(nextAutoCaptureProgress(first, sample('R', 100, 0.79))).toBeNull()
-    expect(nextAutoCaptureProgress(null, sample('R', 100, 0.8))?.frames).toBe(1)
+    expect(nextAutoCaptureProgress(first, sample('R', 100, 0.59))?.frames).toBe(1)
+    expect(nextAutoCaptureProgress(first, sample('R', 100, 0.6))?.frames).toBe(2)
   })
 })
 
