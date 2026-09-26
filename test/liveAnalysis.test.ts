@@ -78,6 +78,16 @@ describe('analyzeLiveFrame', () => {
     for (const key of ['startX', 'startY', 'faceWidth'] as const) expect(Math.abs(back[key] - atFull.bounds[key])).toBeLessThanOrEqual(4)
   })
 
+  it('estimates the cube size only when asked', () => {
+    const data = frame(1280, 720, 4)
+    expect(analyzeLiveFrame(data, 1280, 720, request(3, { detectSize: true })).size).toBe(4)
+    expect(analyzeLiveFrame(data, 1280, 720, request(3)).size).toBeUndefined()
+  })
+
+  it('estimates no size on an empty wall', () => {
+    expect(analyzeLiveFrame(frame(1280, 720, 3, { face: false }), 1280, 720, request(3, { detectSize: true })).size).toBeNull()
+  })
+
   it('finds nothing on an empty wall', () => {
     const result = analyzeLiveFrame(frame(1280, 720, 3, { face: false }), 1280, 720, request(3))
     expect(result.visible).toBe(false)

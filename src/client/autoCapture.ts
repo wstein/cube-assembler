@@ -51,3 +51,26 @@ export function nextAutoCaptureProgress(
   const stable = colorDifference(sample.colors, first.colors) <= Math.max(1, Math.floor(cells * 0.04))
   return stable ? { first, frames: previous.frames + 1 } : { first: sample, frames: 1 }
 }
+
+// Before the first face, frames vote on the cube size (estimateFaceGridSize;
+// null when a frame names none). Only a size most recent frames agree on
+// changes the selected one; a few frames naming another size already hold
+// auto capture back, so it never photographs a 4x4 as a 3x3.
+export const SIZE_VOTE_FRAMES = 10
+export const SIZE_VOTE_AGREE = 8
+const SIZE_DISPUTE_FRAMES = 3
+
+export function nextSizeVotes(votes: readonly (number | null)[], estimate: number | null): Array<number | null> {
+  return [...votes, estimate].slice(-SIZE_VOTE_FRAMES)
+}
+
+export function agreedSize(votes: readonly (number | null)[]): number | null {
+  const counts = new Map<number, number>()
+  for (const vote of votes) if (vote !== null) counts.set(vote, (counts.get(vote) ?? 0) + 1)
+  for (const [size, count] of counts) if (count >= SIZE_VOTE_AGREE) return size
+  return null
+}
+
+export function sizeDisputed(votes: readonly (number | null)[], selected: number): boolean {
+  return votes.filter((vote) => vote !== null && vote !== selected).length >= SIZE_DISPUTE_FRAMES
+}
