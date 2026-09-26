@@ -99,4 +99,17 @@ describe('analyzeLiveFrame', () => {
     expect(result.detection.gridOffset).toBeUndefined()
     expect(result.detection.colors).toEqual(expected(3))
   })
+
+  it('uses captured backdrop median to correct live sticker readings', () => {
+    const original = frame(1280, 720, 3)
+    const tinted = original.slice()
+    for (let i = 0; i < tinted.length; i += 4) tinted[i] = Math.min(255, Math.round(tinted[i] * 1.1))
+    const baseline = analyzeLiveFrame(original, 1280, 720, request(3))
+    const backdrop = { r: 140, g: 135, b: 130 }
+    const corrected = analyzeLiveFrame(tinted, 1280, 720, request(3, { capturedBackgrounds: { U: backdrop, R: backdrop } }))
+    expect(corrected.backgroundColor?.r).toBeCloseTo(154, 0)
+    expect(corrected.gains.r).toBeCloseTo(140 / 154, 2)
+    expect(corrected.detection.cellColors[1][1].r).toBeCloseTo(baseline.detection.cellColors[1][1].r, 0)
+    expect(analyzeLiveFrame(tinted, 1280, 720, request(3)).gains).toEqual({ r: 1, g: 1, b: 1 })
+  })
 })

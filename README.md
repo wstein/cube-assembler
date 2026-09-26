@@ -44,9 +44,11 @@ Selecting a profile by name keeps that manual choice. After review, the
 Capture card shows the profile used beside the cube profile, its six-color
 fit score when a saved profile matched, and the first-pass camera hue method.
 The fit score describes palette similarity, not the probability of a brand.
-Backdrop white balance
-always excludes a 25% band around the detected face; older saved backdrop-gap
-settings are accepted but ignored.
+Backdrop white balance excludes a 25% band around the detected face. Once two
+faces have backdrop readings, the live preview and next camera capture use a
+rolling median of those readings and the current frame; the preview badge shows
+"median WB" when active. The final six-face pass still recalibrates all faces.
+Older saved backdrop-gap settings are accepted but ignored.
 **New cube** copies the selected cube's size and sticker gap and asks for a
 name. After a valid, confident reviewed camera capture, **Create sticker color
 profile** in the Capture card saves the six-face learned palette under a new

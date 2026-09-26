@@ -9,7 +9,7 @@ import type { LiveFrameMessage, LiveResultMessage } from './liveAnalysis.worker'
 import { runFullParity, type ParityResult } from './parity'
 import { WIZARD_FACE_ORDER, faceContentKey, groupWizardOptions, pickWizardFace, preferredGuidedArrangementIndex } from './orientationWizard'
 import {
-  faceBoundsForMode, captureAndProcessFace, captureAndProcessCanvas, captureAndProcessImage, hasVisibleCubeFace,
+  faceBoundsForMode, captureAndProcessCanvas, captureAndProcessImage, extractBackgroundColor, hasVisibleCubeFace,
   runGlobalWhiteBalance, classifyAcrossFaces, computeBackgroundGains, BACKGROUND_WB_METHOD, BACKGROUND_CUBE_GAP, NEUTRAL_GAINS, CROP_JPEG_QUALITY,
   DEFAULT_SAMPLING, STICKER_MEASUREMENT, stickerSampleRect, colorConfidences, STICKER_COLORS, type SamplingGeometry,
   rgbToOKLCH, hueCircularRange, hueRangesOverlap, linearRange,
@@ -728,6 +728,7 @@ function App() {
   const [notationFormat, setNotationFormat] = useState<'wrg' | 'urf'>('wrg')
   const [liveDetection, setLiveDetection] = useState<ColorDetectionResult | null>(null)
   const [liveFaceVisible, setLiveFaceVisible] = useState(false)
+  const [liveMedianWB, setLiveMedianWB] = useState(false)
   const [liveCapturedFace, setLiveCapturedFace] = useState<string | null>(null)
   const [showReviewDialog, setShowReviewDialog] = useState(false)
   // Non-null only when solveFaceOrientations found genuine ambiguity (see
@@ -1013,6 +1014,7 @@ function App() {
     if (!webcamOpen) {
       setLiveDetection(null)
       setLiveFaceVisible(false)
+      setLiveMedianWB(false)
       setLiveCapturedFace(null)
       return
     }
@@ -1025,6 +1027,7 @@ function App() {
     let progress: AutoCaptureProgress | null = null
     let hold: LiveHold<ColorDetectionResult> = NO_HOLD
     let turnCueClearFrames = 0
+    const capturedBackgrounds = Object.fromEntries(FACE_ORDER.map((face) => [face, capturedFaces[face]?.backgroundColor ?? null]))
     let sizeVotes: Array<number | null> = []
 
     // Frames are analyzed in a worker, scaled down to LIVE_ANALYSIS_HEIGHT
@@ -1046,6 +1049,7 @@ function App() {
         // from the worker's single read of the face.
         const bounds = scaleBounds(result.bounds, event.data.scale)
         const { detection, visible } = result
+        setLiveMedianWB(result.backgroundColor !== null)
         if (lastCapturedColors.current) {
           const pose: TurnCuePose = {
             centerX: bounds.startX + bounds.faceWidth / 2,
@@ -1118,7 +1122,7 @@ function App() {
               canvas.width = full.width
               canvas.height = full.height
               canvas.getContext('2d')?.drawImage(full, 0, 0)
-              const result = captureAndProcessCanvas(canvas, puzzleSize, NEUTRAL_GAINS, sampling, palette, 'aligned', bounds)
+              const result = captureAndProcessCanvas(canvas, puzzleSize, event.data.result.gains, sampling, palette, 'aligned', bounds)
               signalCapture()
               const track = (webcamRef.current?.srcObject as MediaStream | null)?.getVideoTracks()[0]
               setLoading(true)
@@ -1136,6 +1140,7 @@ function App() {
         // Transient frame read failure (e.g. camera still warming up).
         setLiveDetection(null)
         setLiveFaceVisible(false)
+        setLiveMedianWB(false)
         setLiveCapturedFace(null)
         // A transient worker failure pauses the hold. The next good frame
         // still has to match the same sticker colors.
@@ -1161,6 +1166,7 @@ function App() {
           requireOutline: captureMode === 'cv',
           sampling,
           palette,
+          capturedBackgrounds,
           detectSize: detectingSize,
         }
         worker.postMessage({ id, frame, maxHeight: LIVE_ANALYSIS_HEIGHT, request } satisfies LiveFrameMessage, [frame])
@@ -2076,23 +2082,24 @@ function App() {
     try {
       setLoading(true)
       setCaptureMessage('Processing image...')
-      let result: FaceCaptureResult
+      const video = webcamRef.current
+      const canvas = document.createElement('canvas')
+      canvas.width = video.videoWidth
+      canvas.height = video.videoHeight
+      const ctx = canvas.getContext('2d')
+      if (!ctx || !canvas.width || !canvas.height) throw new Error('Camera frame unavailable')
+      ctx.drawImage(video, 0, 0)
+      const geometry = captureMode === 'cv' ? 'aligned' : 'fixed'
+      const bounds = faceBoundsForMode(canvas, puzzleSize, geometry)
       if (captureMode === 'cv') {
-        const video = webcamRef.current
-        const canvas = document.createElement('canvas')
-        canvas.width = video.videoWidth
-        canvas.height = video.videoHeight
-        const ctx = canvas.getContext('2d')
-        if (!ctx || !canvas.width || !canvas.height) throw new Error('Camera frame unavailable')
-        ctx.drawImage(video, 0, 0)
-        const bounds = faceBoundsForMode(canvas, puzzleSize, 'aligned')
         if (!bounds.gridFound || !hasVisibleCubeFace(canvas, puzzleSize, bounds, true)) {
           throw new Error('No cube face detected. Show the face clearly or choose Guide grid.')
         }
-        result = captureAndProcessCanvas(canvas, puzzleSize, NEUTRAL_GAINS, sampling, palette, 'aligned', bounds)
-      } else {
-        result = captureAndProcessFace(webcamRef.current, puzzleSize, NEUTRAL_GAINS, sampling, palette, 'fixed')
       }
+      const background = extractBackgroundColor(canvas, bounds)
+      const capturedBackgrounds = Object.fromEntries(FACE_ORDER.map((face) => [face, capturedFaces[face]?.backgroundColor ?? null]))
+      const gains = background ? computeBackgroundGains({ ...capturedBackgrounds, current: background })?.current ?? NEUTRAL_GAINS : NEUTRAL_GAINS
+      const result: FaceCaptureResult = captureAndProcessCanvas(canvas, puzzleSize, gains, sampling, palette, geometry, bounds)
       const track = (webcamRef.current.srcObject as MediaStream | null)?.getVideoTracks()[0]
       signalCapture()
       await applyFaceCapture(webcamFace, result, 'camera', track ? withoutDeviceIds(track.getSettings()) : undefined, result.colors.length)
@@ -2616,6 +2623,7 @@ function App() {
                 Live · {liveCapturedFace ? `Looks like ${FACE_DISPLAY_LABEL[liveCapturedFace]} · capture allowed` : liveDetection
                   ? (liveFaceVisible ? `${(liveDetection.confidence * 100).toFixed(0)}% color match` : captureMode === 'cv' ? 'Align face in view' : 'Align face in guide')
                   : '—'}
+                {liveMedianWB && ' · median WB'}
               </span>
             </div>
             <div class="capture-side">
