@@ -4,6 +4,8 @@
 // colors and the cube check, so both judge the same pixels.
 
 import { estimateFaceGridSize } from './gridAlignment'
+import { matchPartialColorProfile } from './colorProfileLearning'
+import type { ColorProfile } from './profileSettings'
 import {
   alignFaceInArea, alignmentArea, boundsFromAlignment, computeBackgroundGains, extractBackgroundColorFromPixels,
   extractColorsFromImageData, faceVisibility, guideBounds, NEUTRAL_GAINS, outlineVisible, withGridOffset,
@@ -18,6 +20,7 @@ export interface LiveAnalysisRequest {
   requireOutline: boolean
   sampling: SamplingGeometry
   palette?: Record<string, RGB>
+  autoProfiles?: ColorProfile[]
   capturedBackgrounds?: Record<string, RGB | null>
   // Also estimate the cube's size (before the first face; see
   // estimateFaceGridSize).
@@ -31,6 +34,7 @@ export interface LiveAnalysis {
   visible: boolean
   backgroundColor: RGB | null
   gains: RGB
+  colorProfileId?: string
   // With detectSize: the size the face clearly shows, or null.
   size?: number | null
 }
@@ -98,9 +102,14 @@ export function analyzeLiveFrame(frame: Uint8ClampedArray, width: number, height
   const gains = backgroundColor
     ? computeBackgroundGains({ ...captured, current: backgroundColor })?.current ?? NEUTRAL_GAINS
     : NEUTRAL_GAINS
-  const detection = withGridOffset(
-    extractColorsFromImageData(square, bounds.faceWidth, bounds.faceHeight, gridSize, gains, sampling, palette), bounds, guide)
-  return { bounds, detection, visible, backgroundColor, gains, ...(size !== undefined && { size }) }
+  const firstPass = extractColorsFromImageData(square, bounds.faceWidth, bounds.faceHeight, gridSize, gains, sampling, palette)
+  const selected = visible && !palette && request.autoProfiles
+    ? matchPartialColorProfile(request.autoProfiles, firstPass.cellColors.flat()) : null
+  const detection = withGridOffset(selected
+    ? extractColorsFromImageData(square, bounds.faceWidth, bounds.faceHeight, gridSize, gains, sampling, selected.colors)
+    : firstPass, bounds, guide)
+  return { bounds, detection, visible, backgroundColor, gains,
+    ...(selected ? { colorProfileId: selected.id } : {}), ...(size !== undefined && { size }) }
 }
 
 // `bounds` of a frame analyzed at `scale` times the camera's size, in the

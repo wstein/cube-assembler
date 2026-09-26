@@ -81,6 +81,19 @@ describe('color profile learning', () => {
     expect(matchPartialColorProfile([vivid], Array(9).fill(vivid.colors.W))).toBeNull()
   })
 
+  it('chooses the closest available preview palette from a single visible face', () => {
+    const generic = genericColorProfile()
+    const muted: ColorProfile = { ...base, id: 'muted-preview', colors: { ...STICKER_COLORS, Y: { r: 174, g: 199, b: 47 }, W: { r: 183, g: 191, b: 215 } } }
+    const samples = [muted.colors.Y, muted.colors.W, muted.colors.Y, muted.colors.W]
+    expect(matchPartialColorProfile([generic, muted], samples)?.id).toBe(muted.id)
+    expect(matchPartialColorProfile([generic], samples)?.id).toBe(generic.id)
+    const warmer: ColorProfile = { ...muted, id: 'warmer-preview', colors: { ...muted.colors,
+      Y: { r: 220, g: 165, b: 35 }, W: { r: 221, g: 202, b: 177 } } }
+    const laterFace = Array(12).fill(warmer.colors.Y).concat(Array(12).fill(warmer.colors.W))
+    expect(matchPartialColorProfile([generic, muted, warmer], samples)?.id).toBe(muted.id)
+    expect(matchPartialColorProfile([generic, muted, warmer], [...samples, ...laterFace])?.id).toBe(warmer.id)
+  })
+
   it('reports a bounded profile color fit separately from sticker confidence', () => {
     expect(profileColorFitPercent(base.colors, base.colors)).toBe(100)
     expect(profileColorFitPercent(base.colors, shifted)).toBeLessThan(100)

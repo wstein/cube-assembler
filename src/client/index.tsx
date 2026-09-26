@@ -23,7 +23,7 @@ import {
 } from './cubeAssembly'
 import {
   AUTO_COLORS_ID, GENERIC_COLORS_ID, activeCube, allCubes, activeColorProfile, allColorProfiles, captureColorProfileSnapshot, capturePalette, copyColorProfile, copyCubeSetting,
-  convertLegacySettings, cubeGroupName, deleteCube, deleteColorProfile, groupCubesByName, isBuiltinCube, mergeSettings, saveCube, saveColorProfile,
+  convertLegacySettings, cubeGroupName, deleteCube, deleteColorProfile, genericColorProfile, groupCubesByName, isBuiltinCube, mergeSettings, saveCube, saveColorProfile,
   resolvedColorProfileSnapshot, selectCube, selectColorProfile, setAutoColorMatch, type ProfileSettings, type UsedColorProfile,
 } from './profileSettings'
 import { loadProfileSettings, saveProfileSettings, settingsFile, parseSettingsFile } from './profileStorage'
@@ -730,6 +730,7 @@ function App() {
   const [liveDetection, setLiveDetection] = useState<ColorDetectionResult | null>(null)
   const [liveFaceVisible, setLiveFaceVisible] = useState(false)
   const [liveMedianWB, setLiveMedianWB] = useState(false)
+  const [liveAutoColorProfileId, setLiveAutoColorProfileId] = useState<string | null>(null)
   const [liveCapturedFace, setLiveCapturedFace] = useState<string | null>(null)
   const [showReviewDialog, setShowReviewDialog] = useState(false)
   // Non-null only when solveFaceOrientations found genuine ambiguity (see
@@ -778,12 +779,14 @@ function App() {
   })
   const colorProfile = activeColorProfile(profileStore)
   const sampling = profile.sampling
+  const autoColorProfiles = useMemo(() => [genericColorProfile(), ...profileStore.colors], [profileStore.colors])
   const provisionalColorProfile = useMemo(() => matchPartialColorProfile(
-    profileStore.colors,
+    autoColorProfiles,
     FACE_ORDER.flatMap((face) => capturedFaces[face]?.cellColors?.flat() ?? []),
-  ), [profileStore.colors, capturedFaces])
+  ), [autoColorProfiles, capturedFaces])
   const palette = useMemo(() => profileStore.activeColorsId === AUTO_COLORS_ID
     ? provisionalColorProfile?.colors : capturePalette(profileStore), [profileStore, provisionalColorProfile])
+  const liveAutoColorProfile = autoColorProfiles.find((candidate) => candidate.id === liveAutoColorProfileId)
   const [samplingSetupOpen, setSamplingSetupOpen] = useState(false)
   // Upload Fixture option: start the review from what detection reads
   // today instead of the colors the fixture was saved with, so a capture
@@ -1028,6 +1031,7 @@ function App() {
       setLiveDetection(null)
       setLiveFaceVisible(false)
       setLiveMedianWB(false)
+      setLiveAutoColorProfileId(null)
       setLiveCapturedFace(null)
       return
     }
@@ -1063,6 +1067,7 @@ function App() {
         const bounds = scaleBounds(result.bounds, event.data.scale)
         const { detection, visible } = result
         setLiveMedianWB(result.backgroundColor !== null)
+        setLiveAutoColorProfileId(result.colorProfileId ?? provisionalColorProfile?.id ?? null)
         if (lastCapturedColors.current) {
           const pose: TurnCuePose = {
             centerX: bounds.startX + bounds.faceWidth / 2,
@@ -1135,7 +1140,8 @@ function App() {
               canvas.width = full.width
               canvas.height = full.height
               canvas.getContext('2d')?.drawImage(full, 0, 0)
-              const result = captureAndProcessCanvas(canvas, puzzleSize, event.data.result.gains, sampling, palette, 'aligned', bounds)
+              const autoPalette = autoColorProfiles.find((candidate) => candidate.id === event.data.result.colorProfileId)?.colors
+              const result = captureAndProcessCanvas(canvas, puzzleSize, event.data.result.gains, sampling, palette ?? autoPalette, 'aligned', bounds)
               signalCapture()
               const track = (webcamRef.current?.srcObject as MediaStream | null)?.getVideoTracks()[0]
               setLoading(true)
@@ -1179,6 +1185,7 @@ function App() {
           requireOutline: captureMode === 'cv',
           sampling,
           palette,
+          autoProfiles: profileStore.activeColorsId === AUTO_COLORS_ID && !palette ? autoColorProfiles : undefined,
           capturedBackgrounds,
           detectSize: detectingSize,
         }
@@ -1194,7 +1201,7 @@ function App() {
       worker.removeEventListener('message', onResult)
       inFlight = null
     }
-  }, [webcamOpen, turnCueShowing, loading, webcamFace, puzzleSize, sampling, palette, captureMode, autoCapture, captureSound, capturedFaces, detectingSize])
+  }, [webcamOpen, turnCueShowing, loading, webcamFace, puzzleSize, sampling, palette, autoColorProfiles, profileStore.activeColorsId, provisionalColorProfile, captureMode, autoCapture, captureSound, capturedFaces, detectingSize])
 
   // Everything below belongs to one cube of one size, so switching sizes
   // starts over - keeping it drew e.g. a 5x5's 25 stickers per face into a
@@ -2112,7 +2119,8 @@ function App() {
       const background = extractBackgroundColor(canvas, bounds)
       const capturedBackgrounds = Object.fromEntries(FACE_ORDER.map((face) => [face, capturedFaces[face]?.backgroundColor ?? null]))
       const gains = background ? computeBackgroundGains({ ...capturedBackgrounds, current: background })?.current ?? NEUTRAL_GAINS : NEUTRAL_GAINS
-      const result: FaceCaptureResult = captureAndProcessCanvas(canvas, puzzleSize, gains, sampling, palette, geometry, bounds)
+      const result: FaceCaptureResult = captureAndProcessCanvas(canvas, puzzleSize, gains, sampling,
+        palette ?? liveAutoColorProfile?.colors, geometry, bounds)
       const track = (webcamRef.current.srcObject as MediaStream | null)?.getVideoTracks()[0]
       signalCapture()
       await applyFaceCapture(webcamFace, result, 'camera', track ? withoutDeviceIds(track.getSettings()) : undefined, result.colors.length)
@@ -2430,8 +2438,8 @@ function App() {
                   {resolvedColorProfile.selection === 'automatic' ? ' (Automatic)' : ''}
                   {resolvedColorProfile.colorFitPercent !== undefined && ` · profile color fit ${resolvedColorProfile.colorFitPercent}%`}
                   <span class="capture-profile-used-detail">
-                    First face: {resolvedColorProfile.selection === 'automatic' ? 'camera hues' : resolvedColorProfile.name}
-                    {resolvedColorProfile.selection === 'automatic' && ' · Later previews: closest clear saved-profile match from captured faces'}
+                    First face: {resolvedColorProfile.selection === 'automatic' ? 'best live palette' : resolvedColorProfile.name}
+                    {resolvedColorProfile.selection === 'automatic' && ' · Later previews: rechecked after each capture'}
                     {' · '}Final: {learnedPalette ? 'calibrated from all six faces' : 'six-face calibration unavailable'}
                   </span>
                 </>}
@@ -2651,6 +2659,7 @@ function App() {
                 Live · {liveCapturedFace ? `Looks like ${FACE_DISPLAY_LABEL[liveCapturedFace]} · capture allowed` : liveDetection
                   ? (liveFaceVisible ? `${(liveDetection.confidence * 100).toFixed(0)}% color match` : captureMode === 'cv' ? 'Align face in view' : 'Align face in guide')
                   : '—'}
+                {profileStore.activeColorsId === AUTO_COLORS_ID && liveAutoColorProfile && ` · ${liveAutoColorProfile.name}`}
                 {liveMedianWB && ' · median WB'}
               </span>
             </div>
@@ -2738,7 +2747,7 @@ function App() {
                 <summary>
                   Cube & camera settings
                   <span class="capture-settings-summary">
-                    {' '}{autoSize && !detectedSize ? 'Auto size' : `${puzzleSize}×${puzzleSize}`} · {profile.name} · Sticker colors: {profileStore.activeColorsId === AUTO_COLORS_ID ? `Automatic · preview: ${provisionalColorProfile?.name ?? 'camera hues'}` : colorProfile.name}
+                    {' '}{autoSize && !detectedSize ? 'Auto size' : `${puzzleSize}×${puzzleSize}`} · {profile.name} · Sticker colors: {profileStore.activeColorsId === AUTO_COLORS_ID ? `Automatic · preview: ${provisionalColorProfile?.name ?? liveAutoColorProfile?.name ?? 'camera hues'}` : colorProfile.name}
                     {mirrorPreview ? ' · mirrored' : ''}
                   </span>
                 </summary>
@@ -2872,7 +2881,7 @@ function App() {
                   </label>
                   <p class="sampling-setup-hint">
                     {profileStore.activeColorsId === AUTO_COLORS_ID ? (
-                      'Automatic starts with camera hues, then uses a clear saved-profile match from captured faces for the next preview. Final colors are calibrated from all six faces.'
+                      'Automatic compares the live face with saved colors, then rechecks using all captured faces after each capture. Final colors are calibrated from all six faces.'
                     ) : colorProfile.updatedAt ? (
                       <>
                         Colors learned from {colorProfile.captures} {colorProfile.captures === 1 ? 'capture' : 'captures'}, last updated {new Date(colorProfile.updatedAt).toLocaleString()}.
