@@ -4,9 +4,7 @@ import type { Fixture } from './fixtureZip'
 // production build never shows the upload action or configures the proxy.
 export async function fixtureUploadServerAvailable(fetcher: typeof fetch = fetch, signal?: AbortSignal): Promise<boolean> {
   try {
-    const response = await fetcher('/fixture-upload/upload', {
-      method: 'POST', headers: { 'X-Fixture-Probe': '1' }, signal,
-    })
+    const response = await fetcher('/fixture-upload/ping', { method: 'GET', cache: 'no-store', signal })
     return response.status === 204
   } catch {
     return false

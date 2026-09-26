@@ -87,12 +87,13 @@ async function validateFixture(byName) {
 
 export function createFixtureUploadServer(rootDir) {
   return createServer(async (req, res) => {
-    if (req.url !== '/upload') return reply(res, 404, 'Not found')
-    if (req.method !== 'POST') return reply(res, 405, 'Method not allowed')
-    if (req.headers['x-fixture-probe'] === '1') {
+    if (req.url === '/ping') {
+      if (req.method !== 'GET') return reply(res, 405, 'Method not allowed')
       res.writeHead(204, { 'Cache-Control': 'no-store' })
       return res.end()
     }
+    if (req.url !== '/upload') return reply(res, 404, 'Not found')
+    if (req.method !== 'POST') return reply(res, 405, 'Method not allowed')
     if (req.headers['x-fixture-upload'] !== '1') return reply(res, 403, 'Upload header required')
     if (!req.headers['content-type']?.startsWith('multipart/form-data;')) {
       return reply(res, 415, 'Multipart form required')
