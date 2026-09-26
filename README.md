@@ -32,8 +32,10 @@ modes use the same color classifier, and neither requires a downloaded model.
 Cube and Colors are separate settings. The Cube menu groups sizes by cube name:
 Generic always offers 2×2 through 7×7, each with a 60% sticker core and 40%
 total gap. Choosing a cube sets the size. Colors can be reused across sizes.
-Sampling setup adjusts the gap around each sticker on a named cube. Built-in cubes and
-Generic colors are read-only. **Automatic colors** starts with Generic colors
+Sampling setup adjusts the gap around each sticker on a named cube. **New colors**
+copies the current palette into a named profile such as GoCube, ready to learn
+from its first valid capture; its name can be edited in Sampling setup. Built-in
+cubes and Generic colors are read-only. **Automatic colors** starts with Generic colors
 and uses a saved profile after a clear match; it stays selected for later
 captures. Selecting a profile by name keeps that manual choice.
 Backdrop white balance
