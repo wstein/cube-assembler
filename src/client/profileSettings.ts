@@ -27,33 +27,27 @@ export interface ProfileSettings {
 export const CUBE_SIZES = [2, 3, 4, 5, 6, 7]
 export const GENERIC_COLORS_ID = 'generic-colors'
 const COLOR_KEYS = ['W', 'Y', 'O', 'R', 'G', 'B']
-const CONSTRUCTIONS = {
-  stickerless: { label: 'Stickerless', stickerCore: 0.65 },
-  stickered: { label: 'Stickers on black', stickerCore: 0.55 },
-} as const
-export type Construction = keyof typeof CONSTRUCTIONS
 
 export const EMPTY_SETTINGS: ProfileSettings = {
   cubes: [], colors: [], activeCubeBySize: {}, activeColorsId: GENERIC_COLORS_ID,
 }
 
-export function builtinCube(size: number, construction: Construction): CubeSetting {
+export function builtinCube(size: number): CubeSetting {
   if (!CUBE_SIZES.includes(size)) throw new Error('Unsupported cube size')
-  const preset = CONSTRUCTIONS[construction]
   return {
-    id: `builtin-${construction}-${size}`,
-    name: `${preset.label} ${size}×${size}`,
+    id: `builtin-generic-${size}`,
+    name: `Generic ${size}×${size}`,
     size,
-    sampling: { stickerCore: preset.stickerCore },
+    sampling: { stickerCore: 0.6 },
   }
 }
 
 export function isBuiltinCube(id: string): boolean {
-  return CUBE_SIZES.some((size) => id === builtinCube(size, 'stickerless').id || id === builtinCube(size, 'stickered').id)
+  return CUBE_SIZES.some((size) => id === builtinCube(size).id)
 }
 
 export function allCubes(settings: ProfileSettings): CubeSetting[] {
-  return [...CUBE_SIZES.flatMap((size) => [builtinCube(size, 'stickerless'), builtinCube(size, 'stickered')]), ...settings.cubes]
+  return [...CUBE_SIZES.map(builtinCube), ...settings.cubes]
 }
 
 export function cubesForSize(settings: ProfileSettings, size: number): CubeSetting[] {
@@ -61,7 +55,7 @@ export function cubesForSize(settings: ProfileSettings, size: number): CubeSetti
 }
 
 export function activeCube(settings: ProfileSettings, size: number): CubeSetting {
-  return cubesForSize(settings, size).find((cube) => cube.id === settings.activeCubeBySize[size]) ?? builtinCube(size, 'stickerless')
+  return cubesForSize(settings, size).find((cube) => cube.id === settings.activeCubeBySize[size]) ?? builtinCube(size)
 }
 
 export function saveCube(settings: ProfileSettings, cube: CubeSetting): ProfileSettings {
@@ -98,7 +92,7 @@ export function deleteCube(settings: ProfileSettings, id: string): ProfileSettin
 }
 
 export function genericColorProfile(): ColorProfile {
-  return { id: GENERIC_COLORS_ID, name: 'Generic colors', colors: colorPalette({ colors: STICKER_COLORS } as ColorProfile), captures: 0 }
+  return { id: GENERIC_COLORS_ID, name: 'Generic colors', colors: colorPalette({ colors: STICKER_COLORS }), captures: 0 }
 }
 
 export function colorPalette(profile: Pick<ColorProfile, 'colors'>): Record<string, RGB> {
@@ -192,7 +186,7 @@ export function parseProfileSettings(value: unknown): ProfileSettings {
   const activeCubeBySize: Record<number, string> = {}
   for (const [size, id] of Object.entries(raw.activeCubeBySize ?? {})) {
     if (CUBE_SIZES.includes(Number(size)) && typeof id === 'string'
-      && [...cubes, builtinCube(Number(size), 'stickerless'), builtinCube(Number(size), 'stickered')]
+      && [...cubes, builtinCube(Number(size))]
         .some((cube) => cube.id === id && cube.size === Number(size))) activeCubeBySize[Number(size)] = id
   }
   const activeColorsId = typeof raw.activeColorsId === 'string' && colors.some((profile) => profile.id === raw.activeColorsId)
