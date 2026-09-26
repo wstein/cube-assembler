@@ -26,7 +26,8 @@ import {
   profilePalette, withLearnedColors, withoutLearnedColors, suggestProfile, type CubeProfile, type ProfileStore,
 } from './cubeProfiles'
 import { readFixtureColors } from './fixtureFormat'
-import { buildFixture, summarizeFixture, unzipFixture, zipFixture, type FixtureSummary } from './fixtureZip'
+import { buildFixture, summarizeFixture, unzipFixture, zipFixture, type Fixture, type FixtureSummary } from './fixtureZip'
+import { uploadFixtureToDevServer } from './fixtureUpload'
 import {
   toWRGFacelets, fromWRGFacelets, toURFFacelets, fromURFFacelets, detectNotationFormat, gridsToWRGFacelets,
 } from './notationOutput'
@@ -674,9 +675,12 @@ function App() {
   const [turnOverlay, setTurnOverlay] = useState<{ step: number; startColors: string[][]; viaColors?: string[][] } | null>(null)
   const turnOverlayTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const [fixtureSaveMessage, setFixtureSaveMessage] = useState('')
+  const [fixtureUploadMessage, setFixtureUploadMessage] = useState('')
+  const [fixtureUploading, setFixtureUploading] = useState(false)
   // A fixture zip ready to download, shown first with its photos (as blob
   // URLs, revoked on close) and a summary of its meta.json.
   const [fixtureDownload, setFixtureDownload] = useState<{
+    fixture: Fixture
     name: string
     zip: Uint8Array
     summary: FixtureSummary
@@ -1777,6 +1781,7 @@ function App() {
       const summary = summarizeFixture(fixture)
       setFixtureSaveMessage('')
       setFixtureDownload({
+        fixture,
         name: fixture.name,
         zip: zipFixture(fixture),
         summary,
@@ -1790,6 +1795,22 @@ function App() {
   const closeFixtureDownload = () => {
     fixtureDownload?.photoUrls.forEach((url) => URL.revokeObjectURL(url))
     setFixtureDownload(null)
+    setFixtureUploadMessage('')
+  }
+
+  const uploadFixture = async () => {
+    if (!fixtureDownload || fixtureUploading) return
+    setFixtureUploading(true)
+    setFixtureUploadMessage('')
+    try {
+      await uploadFixtureToDevServer(fixtureDownload.fixture)
+      setFixtureSaveMessage(`✓ Saved ${fixtureDownload.name} to test/fixtures/`)
+      closeFixtureDownload()
+    } catch (error) {
+      setFixtureUploadMessage(`❌ ${error instanceof Error ? error.message : String(error)}. Run npm run fixture:server locally.`)
+    } finally {
+      setFixtureUploading(false)
+    }
   }
 
   const downloadFixture = () => {
@@ -3150,9 +3171,18 @@ function App() {
                 </div>
               ))}
             </dl>
-            <p class="fixture-download-hint">Unzip it into <code>test/fixtures/</code> to add it to the tests; <strong>Upload fixture</strong> loads it back.</p>
+            <p class="fixture-download-hint">
+              {import.meta.env.DEV ? <>Save locally to <code>test/fixtures/</code> with the upload server, or download the ZIP.</> : <>Unzip it into <code>test/fixtures/</code> to add it to the tests.</>}
+              {' '}<strong>Upload fixture</strong> loads it back into the app.
+            </p>
+            {fixtureUploadMessage && <p role="status" class="capture-message error">{fixtureUploadMessage}</p>}
             <div class="input-actions">
               <button type="button" class="btn btn-secondary btn-sm" onClick={closeFixtureDownload}>Cancel</button>
+              {import.meta.env.DEV && (
+                <button type="button" class="btn btn-secondary btn-sm" disabled={fixtureUploading} onClick={uploadFixture}>
+                  {fixtureUploading ? 'Saving...' : 'Save locally'}
+                </button>
+              )}
               <button type="button" class="btn btn-primary btn-sm" onClick={downloadFixture}>Download zip</button>
             </div>
           </div>

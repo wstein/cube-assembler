@@ -25,6 +25,12 @@ export default defineConfig({
   },
   server: {
     port: 5173,
+    proxy: {
+      '/fixture-upload': {
+        target: 'http://127.0.0.1:7100',
+        rewrite: (path) => path.replace(/^\/fixture-upload/, ''),
+      },
+    },
   },
   build: {
     outDir: 'dist',
