@@ -53,6 +53,9 @@ need to be debugged later.
 capture: its name, whether Colors was Automatic or manually selected, and its
 six RGB values. `capture.colorCalibration.learnedColors` records the separate
 palette learned from all six photos and used to classify them together.
+`capture.colorReference` records the saved or manual palette used as a
+classification reference; it is absent or null when Automatic used only the
+capture's own colors. Older fixtures without this field replay as before.
 
 Commit the new directory - these are small (cropped-region) JPEGs, meant to
 be checked in like any other test fixture.

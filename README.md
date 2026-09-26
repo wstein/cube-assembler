@@ -36,12 +36,12 @@ Sampling setup adjusts the gap around each sticker on a named cube. **New colors
 copies the current palette into a named profile such as GoCube, ready to learn
 from its first valid capture; its name can be edited in Sampling setup. Built-in
 cubes and Generic colors are read-only; capture learning never changes Generic colors.
-**Automatic colors** starts with Generic colors
-and uses a saved profile after a clear match; it stays selected for later
-captures. The capture settings summary shows the current profile, including
-the profile currently selected by Automatic mode. Selecting a profile by name
-keeps that manual choice. After review, the Capture card shows the resolved
-sticker color profile beside the cube profile.
+**Automatic colors** starts each capture without a saved palette, learns from
+all six faces, and uses a saved profile as a classification reference only
+after a clear match. If none matches, the result is named **Colors from this
+capture**. A previous Automatic match does not preselect the next capture.
+Selecting a profile by name keeps that manual choice. After review, the
+Capture card shows the profile used beside the cube profile.
 Backdrop white balance
 always excludes a 25% band around the detected face; older saved backdrop-gap
 settings are accepted but ignored.
@@ -54,7 +54,7 @@ close enough. Automatic colors only selects a profile. After a valid, confident
 reviewed capture, **Update NAME profile** explicitly blends the new colors into
 the detected profile; without that click, Automatic never changes its stored
 RGB values or capture count. Automatic matches only with a clear margin;
-ambiguous colors stay on Generic. Color similarity never
+ambiguous colors use the capture's own learned palette. Color similarity never
 identifies the cube itself.
 Settings can be downloaded and restored as JSON. The v3 storage key preserves
 the previous combined-profile key for older app versions.
@@ -351,9 +351,10 @@ human-verified colors (`colorsURFDLB`), detection's own result before any
 hand correction (`detectedURFDLB`), per-face capture details, and `capture`,
 informational context (app version and commit, camera, sampling, learned
 colors). `capture.colorProfile` records one resolved profile name, selection
-mode, and RGB values for the complete six-face capture. The actual palette
-learned from all six photos, which classifies every face together, remains
-separate in `capture.colorCalibration`. See [Regression fixtures](test/fixtures/README.md).
+mode, and RGB values for the complete six-face capture. `capture.colorReference`
+records a saved or manually selected profile when it was used as the
+classification reference. The learned palette used to classify every face
+together remains in `capture.colorCalibration`. See [Regression fixtures](test/fixtures/README.md).
 
 ---
 

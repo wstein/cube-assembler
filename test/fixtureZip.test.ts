@@ -104,9 +104,10 @@ describe('fixture zips', () => {
       id: 'gocube', name: 'GoCube', selection: 'automatic',
       colors: { W: { r: 245, g: 244, b: 238 }, R: { r: 190, g: 38, b: 44 } },
     }
-    const fixture = buildFixture(request({ meta: { colorProfile: used } }))
+    const fixture = buildFixture(request({ meta: { colorProfile: used, colorReference: used.colors } }))
     const meta = JSON.parse(new TextDecoder().decode(fixture.files['meta.json']))
     expect(meta.capture.colorProfile).toEqual(used)
+    expect(meta.capture.colorReference).toEqual(used.colors)
     expect(Object.fromEntries(summarizeFixture(fixture).rows)).toMatchObject({
       'Sticker colors': 'Automatic → GoCube',
       'Sticker RGB': 'W 245,244,238 · R 190,38,44',

@@ -10,7 +10,7 @@ import { runFullParity, type ParityResult } from './parity'
 import { WIZARD_FACE_ORDER, faceContentKey, groupWizardOptions, pickWizardFace, preferredGuidedArrangementIndex } from './orientationWizard'
 import {
   faceBoundsForMode, captureAndProcessFace, captureAndProcessCanvas, captureAndProcessImage, hasVisibleCubeFace,
-  runGlobalWhiteBalance, computeBackgroundGains, BACKGROUND_WB_METHOD, BACKGROUND_CUBE_GAP, NEUTRAL_GAINS, CROP_JPEG_QUALITY,
+  runGlobalWhiteBalance, classifyAcrossFaces, computeBackgroundGains, BACKGROUND_WB_METHOD, BACKGROUND_CUBE_GAP, NEUTRAL_GAINS, CROP_JPEG_QUALITY,
   DEFAULT_SAMPLING, STICKER_MEASUREMENT, stickerSampleRect, colorConfidences, STICKER_COLORS, type SamplingGeometry,
   rgbToOKLCH, hueCircularRange, hueRangesOverlap, linearRange,
   type ColorDetectionResult, type FaceCaptureResult, type RGB,
@@ -21,8 +21,8 @@ import {
   type OrientedCandidate, type OrientationSolution, type FaceKey, type GuidedArrangement, type GuidedCenterIssue,
 } from './cubeAssembly'
 import {
-  AUTO_COLORS_ID, GENERIC_COLORS_ID, activeCube, allCubes, activeColorProfile, allColorProfiles, colorPalette, copyColorProfile, copyCubeSetting,
-  convertLegacySettings, cubeGroupName, deleteCube, deleteColorProfile, genericColorProfile, groupCubesByName, isBuiltinCube, mergeSettings, saveCube, saveColorProfile,
+  AUTO_COLORS_ID, GENERIC_COLORS_ID, activeCube, allCubes, activeColorProfile, allColorProfiles, captureColorProfileSnapshot, capturePalette, copyColorProfile, copyCubeSetting,
+  convertLegacySettings, cubeGroupName, deleteCube, deleteColorProfile, groupCubesByName, isBuiltinCube, mergeSettings, saveCube, saveColorProfile,
   resolvedColorProfileSnapshot, selectCube, selectColorProfile, setAutoColorMatch, type ProfileSettings, type UsedColorProfile,
 } from './profileSettings'
 import { loadProfileSettings, saveProfileSettings, settingsFile, parseSettingsFile } from './profileStorage'
@@ -763,7 +763,7 @@ function App() {
   const profile = activeCube(profileStore, puzzleSize)
   const colorProfile = activeColorProfile(profileStore)
   const sampling = profile.sampling
-  const palette = useMemo(() => colorPalette(colorProfile), [colorProfile.id, colorProfile.updatedAt, colorProfile.captures])
+  const palette = useMemo(() => capturePalette(profileStore), [profileStore])
   const [samplingSetupOpen, setSamplingSetupOpen] = useState(false)
   // Upload Fixture option: start the review from what detection reads
   // today instead of the colors the fixture was saved with, so a capture
@@ -785,6 +785,7 @@ function App() {
   // The cube geometry and colors selected when this capture was taken.
   const [captureProfile, setCaptureProfile] = useState<{ id?: string; name: string } | null>(null)
   const [resolvedColorProfile, setResolvedColorProfile] = useState<UsedColorProfile | null>(null)
+  const [resolvedColorReference, setResolvedColorReference] = useState<Record<string, RGB> | null>(null)
   // Applied for this session even when the browser won't keep it.
   const applyProfileStore = (updated: ProfileSettings) => {
     if (!saveProfileStore(updated)) {
@@ -1290,6 +1291,7 @@ function App() {
     if (startOver) setDismissedCaptureWarnings([])
     setGlobalWhiteBalanceNote(null)
     setAppliedBackgroundGains(null)
+    setResolvedColorReference(null)
     setWebcamOpen(true)
   }
 
@@ -1381,8 +1383,8 @@ function App() {
     setPendingPalette(null)
     setProfileLearningOffer(null)
     const automatic = profileStore.activeColorsId === AUTO_COLORS_ID
-    setResolvedColorProfile(resolvedColorProfileSnapshot(automatic ? genericColorProfile() : colorProfile,
-      automatic ? 'automatic' : 'manual'))
+    setResolvedColorProfile(automatic ? null : resolvedColorProfileSnapshot(colorProfile, 'manual'))
+    setResolvedColorReference(null)
 
     const canRecalibrate = FACE_ORDER.every((f) => newCapturedFaces[f].croppedImage)
     if (canRecalibrate) {
@@ -1396,10 +1398,14 @@ function App() {
         const faceGains = computeBackgroundGains(Object.fromEntries(FACE_ORDER.map((f) => [f, newCapturedFaces[f].backgroundColor])))
         setAppliedBackgroundGains(faceGains)
 
-        const wb = await runGlobalWhiteBalance(images, puzzleSize, faceGains ?? undefined, sampling)
+        let wb = await runGlobalWhiteBalance(images, puzzleSize, faceGains ?? undefined, sampling, automatic ? undefined : palette)
         const matched = automatic && wb.learned ? matchColorProfile(profileStore.colors, wb.learned.colors) : null
-        setResolvedColorProfile(resolvedColorProfileSnapshot(automatic ? matched ?? genericColorProfile() : colorProfile,
-          automatic ? 'automatic' : 'manual'))
+        if (matched) wb = classifyAcrossFaces(wb.faces, matched.colors)
+        setResolvedColorReference(matched?.colors ?? (automatic ? null : palette ?? null))
+        setResolvedColorProfile(automatic
+          ? matched ? resolvedColorProfileSnapshot(matched, 'automatic')
+            : wb.learned ? captureColorProfileSnapshot(wb.learned.colors) : null
+          : resolvedColorProfileSnapshot(colorProfile, 'manual'))
         setLearnedPalette(wb.learned?.colors ?? null)
         const confidences = FACE_ORDER.flatMap((face) => wb.faces[face]?.cellConfidences?.flat() ?? [])
         setPendingPalette(wb.learned ? {
@@ -1489,6 +1495,7 @@ function App() {
           sampling?: SamplingGeometry
           profile?: { id?: string; name?: string } | null
           colorProfile?: UsedColorProfile | null
+          colorReference?: Record<string, RGB> | null
           protocol?: string | null
         }
       }
@@ -1545,13 +1552,14 @@ function App() {
       setCaptureProfile(recordedProfile?.name ? { id: recordedProfile.id, name: recordedProfile.name } : null)
       const recordedColors = meta.capture?.colorProfile
       setResolvedColorProfile(recordedColors?.name && recordedColors.colors ? recordedColors : null)
+      setResolvedColorReference(meta.capture?.colorReference ?? null)
       const images = Object.fromEntries(Object.entries(newEntries).map(([f, d]) => [f, d.croppedImage!]))
       // Background gains are replayed only if made the current way (see
       // BACKGROUND_WB_METHOD); older ones swapped red and orange.
       const recordedGains = meta.capture?.backgroundWhiteBalanceMethod === BACKGROUND_WB_METHOD
         ? meta.capture.backgroundWhiteBalance ?? null
         : null
-      const wb = await runGlobalWhiteBalance(images, meta.gridSize, recordedGains ?? undefined, meta.capture?.sampling ?? DEFAULT_SAMPLING)
+      const wb = await runGlobalWhiteBalance(images, meta.gridSize, recordedGains ?? undefined, meta.capture?.sampling ?? DEFAULT_SAMPLING, meta.capture?.colorReference ?? undefined)
       let mismatches = 0
       for (const [f, entry] of Object.entries(newEntries)) {
         const det = wb.faces[f]
@@ -1797,9 +1805,8 @@ function App() {
       }
       const automatic = profileStore.activeColorsId === AUTO_COLORS_ID
       const matched = automatic && reviewedValid && evidence.cameraOnly && evidence.recalibrated
-        ? matchColorProfile(profileStore.colors, pendingPalette.colors) : null
-      const target = automatic ? matched ?? activeColorProfile(setAutoColorMatch(profileStore, null)) : colorProfile
-      setResolvedColorProfile(resolvedColorProfileSnapshot(target, automatic ? 'automatic' : 'manual'))
+        ? profileStore.colors.find((saved) => saved.id === resolvedColorProfile?.id) ?? null : null
+      const target = matched ?? colorProfile
       const canCreate = canCreateProfileFromCapture(evidence)
       setProfileLearningOffer(canCreate ? {
         colors: pendingPalette.colors,
@@ -1905,6 +1912,9 @@ function App() {
         // One resolved profile for the complete capture. The actual common
         // palette learned from all six photos is recorded below.
         colorProfile: resolvedColorProfile,
+        // A saved/manual profile acts as the six-face classification prior.
+        // Automatic without a clear match uses only this capture's colors.
+        colorReference: resolvedColorReference,
         // How the photos were taken (see CAPTURE_STEPS) and the cube they
         // were approved as - the fixture test puts the photos together
         // again and checks it gets that cube.
@@ -2627,8 +2637,7 @@ function App() {
                 <summary>
                   Cube & camera settings
                   <span class="capture-settings-summary">
-                    {' '}{puzzleSize}×{puzzleSize} · {profile.name} · Sticker colors: {colorProfile.name}
-                    {profileStore.activeColorsId === AUTO_COLORS_ID ? ' (Automatic)' : ''}
+                    {' '}{puzzleSize}×{puzzleSize} · {profile.name} · Sticker colors: {profileStore.activeColorsId === AUTO_COLORS_ID ? 'Automatic' : colorProfile.name}
                     {mirrorPreview ? ' · mirrored' : ''}
                   </span>
                 </summary>
@@ -2761,7 +2770,7 @@ function App() {
                   </label>
                   <p class="sampling-setup-hint">
                     {profileStore.activeColorsId === AUTO_COLORS_ID ? (
-                      `Automatic colors currently use ${colorProfile.name}. A clear profile match is selected after a reviewed capture.`
+                      'Automatic starts without a saved palette and resolves one profile from all six faces.'
                     ) : colorProfile.updatedAt ? (
                       <>
                         Colors learned from {colorProfile.captures} {colorProfile.captures === 1 ? 'capture' : 'captures'}, last updated {new Date(colorProfile.updatedAt).toLocaleString()}.
@@ -2801,9 +2810,11 @@ function App() {
                         Delete cube
                       </button>
                     )}
-                    <button type="button" class="btn btn-secondary btn-sm" onClick={() => updateSampling(DEFAULT_SAMPLING)}>
-                      Reset
-                    </button>
+                    {!isBuiltinCube(profile.id) && (
+                      <button type="button" class="btn btn-secondary btn-sm" onClick={() => updateSampling(DEFAULT_SAMPLING)}>
+                        Reset cube gap
+                      </button>
+                    )}
                     <button type="button" class="btn btn-primary btn-sm" onClick={() => setSamplingSetupOpen(false)}>
                       Done
                     </button>
