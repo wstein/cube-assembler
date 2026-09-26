@@ -68,6 +68,25 @@ export function matchColorProfile(profiles: ColorProfile[], measured: Record<str
   return clear ? best.profile : null
 }
 
+// A partial scan may show only two or three of the six colors. Compare each
+// captured sticker with its closest saved centroid without trusting its first
+// pass color label. A close tie stays on camera hues until more faces arrive.
+export function matchPartialColorProfile(profiles: ColorProfile[], samples: RGB[]): ColorProfile | null {
+  if (samples.length < 4 || !samples.some((sample) =>
+    paletteDistance({ sample }, { sample: samples[0] }) > 0.08)) return null
+  const ranked = profiles.filter((profile) => profile.captures > 0)
+    .map((profile) => ({
+      profile,
+      distance: samples.reduce((sum, sample) => sum + Math.min(...COLOR_KEYS.map((key) =>
+        paletteDistance({ sample }, { sample: profile.colors[key] }))), 0) / samples.length,
+    }))
+    .sort((a, b) => a.distance - b.distance)
+  const best = ranked[0]
+  if (!best || best.distance > 0.06) return null
+  if (ranked.length > 1 && best.distance >= ranked[1].distance * 0.8) return null
+  return best.profile
+}
+
 // A descriptive 0–100 color-similarity score, not a probability that the
 // physical cube has a particular brand. The 0.08 scale is the existing
 // maximum mean distance allowed when updating a saved profile.

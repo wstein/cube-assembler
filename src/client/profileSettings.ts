@@ -148,8 +148,8 @@ export function activeColorProfile(settings: ProfileSettings): ColorProfile {
   return allColorProfiles(settings).find((profile) => profile.id === settings.activeColorsId) ?? genericColorProfile()
 }
 
-// Automatic starts each capture from the camera's own colors. A match left
-// over from an earlier cube must not bias its first six face readings.
+// Automatic does not reuse a match from an earlier complete cube. The capture
+// UI may supply a provisional palette matched from this cube's captured faces.
 export function capturePalette(settings: ProfileSettings): Record<string, RGB> | undefined {
   return settings.activeColorsId === AUTO_COLORS_ID ? undefined : colorPalette(activeColorProfile(settings))
 }

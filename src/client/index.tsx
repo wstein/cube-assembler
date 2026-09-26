@@ -26,7 +26,7 @@ import {
   resolvedColorProfileSnapshot, selectCube, selectColorProfile, setAutoColorMatch, type ProfileSettings, type UsedColorProfile,
 } from './profileSettings'
 import { loadProfileSettings, saveProfileSettings, settingsFile, parseSettingsFile } from './profileStorage'
-import { assessPalette, blendColorProfile, canCreateProfileFromCapture, matchColorProfile, profileColorFitPercent, shouldBlendColorProfile, updateProfileFromCapture, type PaletteEvidence } from './colorProfileLearning'
+import { assessPalette, blendColorProfile, canCreateProfileFromCapture, matchColorProfile, matchPartialColorProfile, profileColorFitPercent, shouldBlendColorProfile, updateProfileFromCapture, type PaletteEvidence } from './colorProfileLearning'
 import { readFixtureColors } from './fixtureFormat'
 import { buildFixture, summarizeFixture, unzipFixture, zipFixture, type Fixture, type FixtureSummary } from './fixtureZip'
 import { fixtureUploadServerAvailable, uploadFixtureToDevServer } from './fixtureUpload'
@@ -777,7 +777,12 @@ function App() {
   })
   const colorProfile = activeColorProfile(profileStore)
   const sampling = profile.sampling
-  const palette = useMemo(() => capturePalette(profileStore), [profileStore])
+  const provisionalColorProfile = useMemo(() => matchPartialColorProfile(
+    profileStore.colors,
+    FACE_ORDER.flatMap((face) => capturedFaces[face]?.cellColors?.flat() ?? []),
+  ), [profileStore.colors, capturedFaces])
+  const palette = useMemo(() => profileStore.activeColorsId === AUTO_COLORS_ID
+    ? provisionalColorProfile?.colors : capturePalette(profileStore), [profileStore, provisionalColorProfile])
   const [samplingSetupOpen, setSamplingSetupOpen] = useState(false)
   // Upload Fixture option: start the review from what detection reads
   // today instead of the colors the fixture was saved with, so a capture
@@ -2403,7 +2408,8 @@ function App() {
                   {resolvedColorProfile.selection === 'automatic' ? ' (Automatic)' : ''}
                   {resolvedColorProfile.colorFitPercent !== undefined && ` · profile color fit ${resolvedColorProfile.colorFitPercent}%`}
                   <span class="capture-profile-used-detail">
-                    First detection: {resolvedColorProfile.selection === 'automatic' ? 'camera hues (no saved palette)' : resolvedColorProfile.name}
+                    First face: {resolvedColorProfile.selection === 'automatic' ? 'camera hues' : resolvedColorProfile.name}
+                    {resolvedColorProfile.selection === 'automatic' && ' · Later previews: closest clear saved-profile match from captured faces'}
                     {' · '}Final: {learnedPalette ? 'calibrated from all six faces' : 'six-face calibration unavailable'}
                   </span>
                 </>}
@@ -2710,7 +2716,7 @@ function App() {
                 <summary>
                   Cube & camera settings
                   <span class="capture-settings-summary">
-                    {' '}{autoSize && !detectedSize ? 'Auto size' : `${puzzleSize}×${puzzleSize}`} · {profile.name} · Sticker colors: {profileStore.activeColorsId === AUTO_COLORS_ID ? 'Automatic' : colorProfile.name}
+                    {' '}{autoSize && !detectedSize ? 'Auto size' : `${puzzleSize}×${puzzleSize}`} · {profile.name} · Sticker colors: {profileStore.activeColorsId === AUTO_COLORS_ID ? `Automatic · preview: ${provisionalColorProfile?.name ?? 'camera hues'}` : colorProfile.name}
                     {mirrorPreview ? ' · mirrored' : ''}
                   </span>
                 </summary>
@@ -2843,7 +2849,7 @@ function App() {
                   </label>
                   <p class="sampling-setup-hint">
                     {profileStore.activeColorsId === AUTO_COLORS_ID ? (
-                      'Automatic starts without a saved palette and resolves one profile from all six faces.'
+                      'Automatic starts with camera hues, then uses a clear saved-profile match from captured faces for the next preview. Final colors are calibrated from all six faces.'
                     ) : colorProfile.updatedAt ? (
                       <>
                         Colors learned from {colorProfile.captures} {colorProfile.captures === 1 ? 'capture' : 'captures'}, last updated {new Date(colorProfile.updatedAt).toLocaleString()}.
