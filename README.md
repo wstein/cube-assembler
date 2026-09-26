@@ -32,6 +32,8 @@ modes use the same color classifier, and neither requires a downloaded model.
 Sampling setup adjusts the gap around each sticker. Backdrop white balance
 always excludes a 25% band around the detected face; older saved backdrop-gap
 settings are accepted but ignored.
+**New cube** copies the selected cube's size and sticker gap and asks for a
+name; brand presets are no longer used.
 
 ---
 
@@ -143,7 +145,7 @@ cube-assembler/
 │       ├── parity.ts              Parity check, with the stickers to look at when it fails
 │       ├── orientationWizard.ts   "Choose each side": which face to ask about next
 │       ├── cubeGeometry.ts        Whole-cube rotations and layer turns
-│       ├── cubeProfiles.ts        Saved cubes: brand, sticker style, sampling
+│       ├── cubeProfiles.ts        Saved cubes: size, sticker gap, and colors
 │       ├── capturePresentation.ts Capture dialog wording and layout helpers
 │       ├── fixtureFormat.ts       Reading saved fixtures, old formats included
 │       ├── fixtureZip.ts          Test fixtures as zip files: save (download) and upload
