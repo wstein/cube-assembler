@@ -35,6 +35,7 @@ export interface ProfileSettings {
 export const CUBE_SIZES = [2, 3, 4, 5, 6, 7]
 export const GENERIC_COLORS_ID = 'generic-colors'
 export const AUTO_COLORS_ID = 'auto-colors'
+export const CAPTURE_COLORS_ID = 'capture-colors'
 const COLOR_KEYS = ['W', 'Y', 'O', 'R', 'G', 'B']
 
 export const EMPTY_SETTINGS: ProfileSettings = {
@@ -144,6 +145,16 @@ export function activeColorProfile(settings: ProfileSettings): ColorProfile {
   if (settings.activeColorsId === AUTO_COLORS_ID)
     return settings.colors.find((profile) => profile.id === settings.autoMatchedColorsId) ?? genericColorProfile()
   return allColorProfiles(settings).find((profile) => profile.id === settings.activeColorsId) ?? genericColorProfile()
+}
+
+// Automatic starts each capture from the camera's own colors. A match left
+// over from an earlier cube must not bias its first six face readings.
+export function capturePalette(settings: ProfileSettings): Record<string, RGB> | undefined {
+  return settings.activeColorsId === AUTO_COLORS_ID ? undefined : colorPalette(activeColorProfile(settings))
+}
+
+export function captureColorProfileSnapshot(colors: Record<string, RGB>): UsedColorProfile {
+  return { id: CAPTURE_COLORS_ID, name: 'Colors from this capture', selection: 'automatic', colors: colorPalette({ colors }) }
 }
 
 export function resolvedColorProfileSnapshot(active: ColorProfile, selection: UsedColorProfile['selection']): UsedColorProfile {

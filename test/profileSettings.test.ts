@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { STICKER_COLORS } from '../src/client/imageProcessing'
 import {
   AUTO_COLORS_ID, EMPTY_SETTINGS, GENERIC_COLORS_ID, activeColorProfile, activeCube, allCubes, builtinCube,
-  colorPalette, convertLegacySettings, copyColorProfile, copyCubeSetting, cubesForSize, deleteColorProfile, groupCubesByName, mergeSettings, parseProfileSettings,
+  captureColorProfileSnapshot, capturePalette, colorPalette, convertLegacySettings, copyColorProfile, copyCubeSetting, cubesForSize, deleteColorProfile, groupCubesByName, mergeSettings, parseProfileSettings,
   saveColorProfile, saveCube, selectColorProfile, selectCube, setAutoColorMatch, resolvedColorProfileSnapshot,
 } from '../src/client/profileSettings'
 
@@ -50,6 +50,28 @@ describe('separate cube and color settings', () => {
     expect(activeColorProfile(setAutoColorMatch(auto, null)).id).toBe(GENERIC_COLORS_ID)
     expect(activeColorProfile(parseProfileSettings(JSON.parse(JSON.stringify(auto)))).id).toBe(custom.id)
     expect(activeColorProfile(deleteColorProfile(auto, custom.id)).id).toBe(GENERIC_COLORS_ID)
+  })
+
+  it('does not preselect the last automatic match for a new capture', () => {
+    const custom = { id: 'old-match', name: 'Old match', colors: colorPalette(activeColorProfile(EMPTY_SETTINGS)), captures: 2 }
+    const auto = setAutoColorMatch(selectColorProfile(saveColorProfile(EMPTY_SETTINGS, custom), AUTO_COLORS_ID), custom.id)
+    expect(capturePalette(auto)).toBeUndefined()
+    expect(capturePalette(selectColorProfile(auto, custom.id))).toEqual(custom.colors)
+  })
+
+  it('names the learned palette when Automatic found no saved match', () => {
+    const colors = colorPalette(activeColorProfile(EMPTY_SETTINGS))
+    expect(captureColorProfileSnapshot(colors)).toMatchObject({
+      id: 'capture-colors', name: 'Colors from this capture', selection: 'automatic', colors,
+    })
+  })
+
+  it('keeps Generic and Automatic color choices read-only', () => {
+    const generic = activeColorProfile(EMPTY_SETTINGS)
+    expect(() => saveColorProfile(EMPTY_SETTINGS, { ...generic, name: 'Changed' })).toThrow('built-in')
+    expect(() => saveColorProfile(EMPTY_SETTINGS, { ...generic, id: AUTO_COLORS_ID })).toThrow('built-in')
+    expect(() => deleteColorProfile(EMPTY_SETTINGS, GENERIC_COLORS_ID)).toThrow('built-in')
+    expect(() => deleteColorProfile(EMPTY_SETTINGS, AUTO_COLORS_ID)).toThrow('built-in')
   })
 
   it('snapshots one resolved profile and its RGB values for the whole capture', () => {
