@@ -1502,7 +1502,7 @@ textarea {
 }
 
 /* A camera-view cue after each capture. It illustrates one possible move;
-   the capture search still accepts the other direction and cap order. */
+   live detection keeps it visible until the captured face leaves. */
 .capture-turn-overlay {
   position: absolute;
   inset: 0;
@@ -1637,7 +1637,7 @@ textarea {
   .capture-turn-top.mirrored .capture-turn-cube { animation-name: capture-turn-top-mirrored; }
   /* Face 5 -> Side 4 takes one full turn (1.2 s), pauses 300 ms, then
      Side 4 -> Face 6 (1.2 s): 2.7 s, with the pause at 1.2/2.7 and 1.5/2.7
-     in the keyframes below. The dialog closes on animationend. */
+     in the keyframes below. The final pose remains while detection waits. */
   .capture-turn-bottom .capture-turn-cube { animation: capture-turn-bottom 2.7s ease-in-out forwards; }
   .capture-turn-bottom.mirrored .capture-turn-cube { animation-name: capture-turn-bottom-mirrored; }
 }

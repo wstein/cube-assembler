@@ -1,7 +1,7 @@
 import { render, h, Fragment } from 'preact'
 import { useState, useEffect, useRef, useMemo } from 'preact/hooks'
 import '../../web/style.css'
-import { AUTO_CAPTURE_STABLE_FRAMES, nextAutoCaptureProgress, type AutoCaptureProgress } from './autoCapture'
+import { AUTO_CAPTURE_STABLE_FRAMES, TURN_CUE_CLEAR_FRAMES, nextAutoCaptureProgress, nextTurnCueClearFrames, type AutoCaptureProgress } from './autoCapture'
 import { oppositeFacePreview } from './capturePresentation'
 import { holdConfirmedFace, NO_HOLD, type LiveHold } from './liveHold'
 import { scaleBounds, type LiveAnalysisRequest } from './liveAnalysis'
@@ -423,11 +423,8 @@ function TurnHint({ step, mirrored }: { step: number; mirrored: boolean }) {
   )
 }
 
-// A brief visual cue between successful captures. The turn shown is only an
+// A visual cue between successful captures. The turn shown is only an
 // example: the guided solver determines the real face orientation afterward.
-// It closes when the cube's turn animation ends, so its length lives only in
-// the CSS; the timer is a fallback in case that animation never runs.
-const TURN_CUE_FALLBACK_MS = 4500
 function CaptureTurnOverlay({ step, startColors, viaColors, capturedColors, mirrored, onContinue }: { step: number; startColors: string[][]; viaColors?: string[][]; capturedColors: Array<string[][] | undefined>; mirrored: boolean; onContinue: () => void }) {
   const kind = step < 4 ? 'side' : step === 4 ? 'top' : 'bottom'
   const title = kind === 'side' ? 'Turn to another side' : kind === 'top' ? 'Show a remaining face' : 'Show the last face'
@@ -467,7 +464,7 @@ function CaptureTurnOverlay({ step, startColors, viaColors, capturedColors, mirr
   return (
     <div class={`capture-turn-overlay capture-turn-${kind} ${mirrored ? 'mirrored' : ''}`} role="status" aria-label={`${title}. ${detail}`}>
       <div class={`capture-turn-scene ${mirrored ? 'mirrored' : ''}`} aria-hidden="true">
-        <div class="capture-turn-cube" onAnimationEnd={(e) => { if (e.target === e.currentTarget) onContinue() }}>
+        <div class="capture-turn-cube">
           {face('front')}
           {face('back')}
           {face('right')}
@@ -666,7 +663,6 @@ function App() {
   const [loading, setLoading] = useState(false)
   const [captureMessage, setCaptureMessage] = useState('')
   const [turnOverlay, setTurnOverlay] = useState<{ step: number; startColors: string[][]; viaColors?: string[][] } | null>(null)
-  const turnOverlayTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const [fixtureSaveMessage, setFixtureSaveMessage] = useState('')
   const [fixtureUploadMessage, setFixtureUploadMessage] = useState('')
   const [fixtureUploading, setFixtureUploading] = useState(false)
@@ -864,16 +860,11 @@ function App() {
   useEffect(() => () => { liveWorker.current?.terminate() }, [])
 
   const dismissTurnOverlay = () => {
-    if (turnOverlayTimer.current !== null) clearTimeout(turnOverlayTimer.current)
-    turnOverlayTimer.current = null
     setTurnOverlay(null)
   }
 
   useEffect(() => {
     if (!webcamOpen) dismissTurnOverlay()
-    return () => {
-      if (turnOverlayTimer.current !== null) clearTimeout(turnOverlayTimer.current)
-    }
   }, [webcamOpen])
 
   // ─────────────────────────────────────────────────────────────────────────
@@ -930,8 +921,7 @@ function App() {
 
   // Live sticker-color preview: sample the video feed a few times a second
   // so the grid overlay shows detected colors before the user commits to a
-  // capture, instead of only finding out the result afterward. Paused while
-  // the turn cue covers the video - nobody can see the result then.
+  // capture. Keep analyzing behind the turn cue to see the old face leave.
   const turnCueShowing = turnOverlay !== null
   useEffect(() => {
     setAutoCaptureFrames(0)
@@ -941,7 +931,7 @@ function App() {
       setLiveCapturedFace(null)
       return
     }
-    if (turnCueShowing || loading) return
+    if (loading) return
 
     if (!sampleCanvasRef.current) {
       sampleCanvasRef.current = document.createElement('canvas')
@@ -949,6 +939,7 @@ function App() {
     const canvas = sampleCanvasRef.current
     let progress: AutoCaptureProgress | null = null
     let hold: LiveHold<ColorDetectionResult> = NO_HOLD
+    let turnCueClearFrames = 0
 
     // Frames are analyzed in a worker, scaled down to LIVE_ANALYSIS_HEIGHT
     // there (see liveAnalysis.worker.ts), one at a time. The worker hands
@@ -969,6 +960,15 @@ function App() {
         // from the worker's single read of the face.
         const bounds = scaleBounds(result.bounds, event.data.scale)
         const { detection, visible } = result
+        if (turnCueShowing && lastCapturedColors.current) {
+          turnCueClearFrames = nextTurnCueClearFrames(
+            turnCueClearFrames,
+            visible && bounds.gridFound && detection.confidence >= 0.8 ? detection.colors : null,
+            lastCapturedColors.current
+          )
+          if (turnCueClearFrames >= TURN_CUE_CLEAR_FRAMES) dismissTurnOverlay()
+          return
+        }
         // Detect face holds a confirmed face through a weak frame or two
         // (display only - see holdConfirmedFace); everything below still
         // judges this frame on its own.
@@ -1284,7 +1284,6 @@ function App() {
           || FACE_ORDER.some((f) => newCapturedFaces[f]?.outOfOrder)) return
         const step = FACE_ORDER.indexOf(nextFace)
         setTurnOverlay({ step, startColors: result.colors, viaColors: step === 5 ? newCapturedFaces[FACE_ORDER[3]]?.colors : undefined })
-        turnOverlayTimer.current = setTimeout(dismissTurnOverlay, TURN_CUE_FALLBACK_MS)
       }
     }
   }
