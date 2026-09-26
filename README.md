@@ -45,10 +45,13 @@ Backdrop white balance
 always excludes a 25% band around the detected face; older saved backdrop-gap
 settings are accepted but ignored.
 **New cube** copies the selected cube's size and sticker gap and asks for a
-name. After a good, reviewed camera capture, the app offers to save its
-calibrated colors as a new profile. Later approved captures update that profile
-gradually when the readings are close enough. Automatic colors matches only
-with a clear margin; ambiguous colors stay on Generic. Color similarity never
+name. After a valid, confident reviewed camera capture, **Create sticker color
+profile** in the Capture card saves the six-face learned palette under a new
+name, even if Automatic colors matched an existing profile. Later approved
+captures update a manually selected profile gradually when the readings are
+close enough. Automatic colors only selects a profile; it never updates its
+stored RGB values or capture count. Automatic matches only with a clear margin;
+ambiguous colors stay on Generic. Color similarity never
 identifies the cube itself.
 Settings can be downloaded and restored as JSON. The v3 storage key preserves
 the previous combined-profile key for older app versions.

@@ -26,7 +26,7 @@ import {
   resolvedColorProfileSnapshot, selectCube, selectColorProfile, setAutoColorMatch, type ProfileSettings, type UsedColorProfile,
 } from './profileSettings'
 import { loadProfileSettings, saveProfileSettings, settingsFile, parseSettingsFile } from './profileStorage'
-import { assessPalette, blendColorProfile, matchColorProfile } from './colorProfileLearning'
+import { blendColorProfile, canCreateProfileFromCapture, matchColorProfile, shouldBlendColorProfile } from './colorProfileLearning'
 import { readFixtureColors } from './fixtureFormat'
 import { buildFixture, summarizeFixture, unzipFixture, zipFixture, type Fixture, type FixtureSummary } from './fixtureZip'
 import { fixtureUploadServerAvailable, uploadFixtureToDevServer } from './fixtureUpload'
@@ -766,7 +766,7 @@ function App() {
   const [learnedPalette, setLearnedPalette] = useState<Record<string, RGB> | null>(null)
   const [pendingPalette, setPendingPalette] = useState<{ colors: Record<string, RGB>; confidentFraction: number; recalibrated: boolean } | null>(null)
   const [profileLearningOffer, setProfileLearningOffer] = useState<Record<string, RGB> | null>(null)
-  const [newColorName, setNewColorName] = useState('')
+  const [newColorName, setNewColorName] = useState<string | null>(null)
   const [samplingFileMessage, setSamplingFileMessage] = useState('')
   // The cube geometry and colors selected when this capture was taken.
   const [captureProfile, setCaptureProfile] = useState<{ id?: string; name: string } | null>(null)
@@ -796,7 +796,7 @@ function App() {
     setNewColorProfileName(null)
   }
   const handleCreateColors = () => {
-    if (!profileLearningOffer || !newColorName.trim()) return
+    if (!profileLearningOffer || !newColorName?.trim()) return
     const id = `colors-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
     const saved = saveColorProfile(profileStore, {
       id, name: newColorName.trim().slice(0, 60), colors: profileLearningOffer,
@@ -808,7 +808,7 @@ function App() {
     if (created) setResolvedColorProfile(resolvedColorProfileSnapshot(created,
       profileStore.activeColorsId === AUTO_COLORS_ID ? 'automatic' : 'manual'))
     setProfileLearningOffer(null)
-    setNewColorName('')
+    setNewColorName(null)
   }
   // Settings file: cubes and colors, so a setup tuned in one browser or
   // on one machine can be carried to another.
@@ -1214,6 +1214,8 @@ function App() {
       setCapturedFaces({})
       setFaceConfidence({})
       setResolvedColorProfile(null)
+      setProfileLearningOffer(null)
+      setNewColorName(null)
     }
     const nextFace = startOver ? FACE_ORDER[0] : FACE_ORDER.find((f) => !(f in capturedFaces))!
     setWebcamFace(nextFace)
@@ -1730,15 +1732,14 @@ function App() {
         ? matchColorProfile(profileStore.colors, pendingPalette.colors) : null
       const target = automatic ? matched ?? activeColorProfile(setAutoColorMatch(profileStore, null)) : colorProfile
       setResolvedColorProfile(resolvedColorProfileSnapshot(target, automatic ? 'automatic' : 'manual'))
-      const quality = assessPalette(target, pendingPalette.colors, evidence)
-      if (quality.accepted && target.id !== GENERIC_COLORS_ID) {
+      const canCreate = canCreateProfileFromCapture(evidence)
+      setProfileLearningOffer(canCreate ? pendingPalette.colors : null)
+      setNewColorName(null)
+      if (automatic) {
+        applyProfileStore(setAutoColorMatch(profileStore, matched?.id ?? null))
+      } else if (shouldBlendColorProfile(target, pendingPalette.colors, evidence, false)) {
         const next = saveColorProfile(profileStore, blendColorProfile(target, pendingPalette.colors, new Date().toISOString()))
-        applyProfileStore(automatic ? setAutoColorMatch(selectColorProfile(next, AUTO_COLORS_ID), target.id) : next)
-      } else if (reviewedValid && evidence.cameraOnly && evidence.recalibrated
-        && evidence.confidentFraction >= 0.8 && evidence.correctedFraction <= 0.02) {
-        if (automatic) applyProfileStore(setAutoColorMatch(profileStore, null))
-        setProfileLearningOffer(pendingPalette.colors)
-        setNewColorName('')
+        applyProfileStore(next)
       }
       setPendingPalette(null)
     }
@@ -2254,12 +2255,21 @@ function App() {
                 </>}
               </span>
             )}
-            {profileLearningOffer && !showReviewDialog && (
-              <div class="profile-suggestion" role="status">
-                <span>Save these reviewed colors as a new profile for future captures.</span>
-                <input aria-label="New color profile name" maxLength={60} placeholder="e.g. GoCube" value={newColorName}
-                  onInput={(e) => setNewColorName(e.currentTarget.value)} />
-                <button type="button" class="btn btn-secondary btn-sm" disabled={!newColorName.trim()} onClick={handleCreateColors}>Save new colors</button>
+            {cube && FACE_ORDER.every((face) => capturedFaces[face]?.croppedImage) && !showReviewDialog && (
+              <div class="profile-suggestion">
+                {newColorName === null ? (
+                  <button type="button" class="btn btn-secondary btn-sm" disabled={!profileLearningOffer}
+                    title={profileLearningOffer ? 'Save this capture’s learned sticker colors under a new name' : 'Requires a valid, confident reviewed camera capture'}
+                    onClick={() => setNewColorName('')}>
+                    ＋ Create sticker color profile
+                  </button>
+                ) : <>
+                  <input aria-label="New sticker color profile name" maxLength={60} placeholder="e.g. GoCube" value={newColorName}
+                    onInput={(e) => setNewColorName(e.currentTarget.value)}
+                    onKeyDown={(e) => { if (e.key === 'Enter') handleCreateColors() }} />
+                  <button type="button" class="btn btn-primary btn-sm" disabled={!newColorName.trim()} onClick={handleCreateColors}>Save profile</button>
+                  <button type="button" class="btn btn-secondary btn-sm" onClick={() => setNewColorName(null)}>Cancel</button>
+                </>}
               </div>
             )}
             <div class="card-divider" />

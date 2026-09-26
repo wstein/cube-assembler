@@ -1192,10 +1192,6 @@ textarea {
   font-size: 0.85rem;
 }
 
-.profile-suggestion span {
-  flex: 1 1 16rem;
-}
-
 .profile-suggestion input {
   min-width: 10rem;
   padding: 0.5rem;
