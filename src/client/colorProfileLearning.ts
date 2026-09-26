@@ -70,10 +70,9 @@ export function matchColorProfile(profiles: ColorProfile[], measured: Record<str
 
 // A partial scan may show only two or three of the six colors. Compare each
 // captured sticker with its closest available centroid without trusting its
-// first-pass color label. A close tie stays on camera hues.
+// first-pass color label. Equal fits retain the first profile in the list.
 export function matchPartialColorProfile(profiles: ColorProfile[], samples: RGB[]): ColorProfile | null {
-  if (samples.length < 4 || !samples.some((sample) =>
-    paletteDistance({ sample }, { sample: samples[0] }) > 0.08)) return null
+  if (samples.length === 0) return null
   const ranked = profiles.filter((profile) => profile.captures > 0 || profile.id === GENERIC_COLORS_ID)
     .map((profile) => ({
       profile,
@@ -83,7 +82,6 @@ export function matchPartialColorProfile(profiles: ColorProfile[], samples: RGB[
     .sort((a, b) => a.distance - b.distance)
   const best = ranked[0]
   if (!best) return null
-  if (ranked.length > 1 && best.distance >= ranked[1].distance * 0.95) return null
   return best.profile
 }
 
