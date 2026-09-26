@@ -85,13 +85,14 @@ precedence, and the size stays fixed after the first face is captured.
 
 ### How Detect face finds a face
 
-`src/client/gridAlignment.ts` searches around the centered guide for the
-square whose grid lines sit on the seams between stickers:
+`src/client/gridAlignment.ts` first estimates the face outline across the
+larger dashed area, then searches near that outline for sticker seams. If
+the outline is unclear, it searches around the centered guide:
 
-- **Position and size** - offsets up to half a cell (15% of the guide for
-  a 3x3, ~6% for a 7x7; further, a grid can slip one row) and sizes from
-  0.8 to 1.12 of the guide, scored on 1-D profiles so a frame takes a few
-  milliseconds.
+- **Position and size** - the outline scan covers faces 0.7–1.3 times the
+  guide size and centers up to 22% of a guide width away. The seam search
+  then stays within half a cell of that estimate to avoid slipping a row
+  on 5×5–7×7 faces.
 - **Seams by each pixel's strongest channel**, not brightness: red and blue
   stickers are as dark as grey-brown plastic in brightness, but stand far
   above it in their own color.
