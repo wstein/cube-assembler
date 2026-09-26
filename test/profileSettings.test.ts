@@ -2,7 +2,8 @@ import { describe, expect, it } from 'vitest'
 import { STICKER_COLORS } from '../src/client/imageProcessing'
 import {
   EMPTY_SETTINGS, GENERIC_COLORS_ID, activeColorProfile, activeCube, allCubes, builtinCube,
-  colorPalette, convertLegacySettings, cubesForSize, saveColorProfile, saveCube, selectColorProfile,
+  colorPalette, convertLegacySettings, copyCubeSetting, cubesForSize, mergeSettings, saveColorProfile, saveCube,
+  selectColorProfile, selectCube,
 } from '../src/client/profileSettings'
 
 describe('separate cube and color settings', () => {
@@ -29,6 +30,26 @@ describe('separate cube and color settings', () => {
     expect(activeCube(saved, 7).size).toBe(7)
     expect(activeColorProfile(EMPTY_SETTINGS).id).toBe(GENERIC_COLORS_ID)
     expect(colorPalette(activeColorProfile(EMPTY_SETTINGS))).toEqual(STICKER_COLORS)
+  })
+
+  it('selects a cube by id and copies a built-in under a custom name', () => {
+    const builtIn = builtinCube(7, 'stickered')
+    const selected = selectCube(EMPTY_SETTINGS, builtIn.id)
+    expect(activeCube(selected, 7).sampling.stickerCore).toBe(0.55)
+    const copy = copyCubeSetting(selected, builtIn, 'My 7×7')
+    expect(copy).toMatchObject({ name: 'My 7×7', size: 7, sampling: { stickerCore: 0.55 } })
+    expect(copy.id).not.toBe(builtIn.id)
+  })
+
+  it('merges imported cubes and colors while keeping the chosen ids', () => {
+    const cube = { id: 'custom', name: 'My cube', size: 5, sampling: { stickerCore: 0.5 } }
+    const color = { id: 'colors-a', name: 'My colors', colors: colorPalette(activeColorProfile(EMPTY_SETTINGS)), captures: 1 }
+    const imported = selectColorProfile(saveColorProfile(saveCube(EMPTY_SETTINGS, cube), color), color.id)
+    const merged = mergeSettings(EMPTY_SETTINGS, imported)
+    expect(activeCube(merged, 5).id).toBe(cube.id)
+    expect(activeColorProfile(merged).id).toBe(color.id)
+    expect(merged.cubes).toHaveLength(1)
+    expect(merged.colors).toHaveLength(1)
   })
 
   it('converts old combined profiles without changing the old value', () => {
