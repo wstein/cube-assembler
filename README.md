@@ -41,7 +41,9 @@ all six faces, and uses a saved profile as a classification reference only
 after a clear match. If none matches, the result is named **Colors from this
 capture**. A previous Automatic match does not preselect the next capture.
 Selecting a profile by name keeps that manual choice. After review, the
-Capture card shows the profile used beside the cube profile.
+Capture card shows the profile used beside the cube profile, its six-color
+fit score when a saved profile matched, and the first-pass camera hue method.
+The fit score describes palette similarity, not the probability of a brand.
 Backdrop white balance
 always excludes a 25% band around the detected face; older saved backdrop-gap
 settings are accepted but ignored.
@@ -351,7 +353,7 @@ human-verified colors (`colorsURFDLB`), detection's own result before any
 hand correction (`detectedURFDLB`), per-face capture details, and `capture`,
 informational context (app version and commit, camera, sampling, learned
 colors). `capture.colorProfile` records one resolved profile name, selection
-mode, and RGB values for the complete six-face capture. `capture.colorReference`
+mode, RGB values, and any profile color fit score for the complete six-face capture. `capture.colorReference`
 records a saved or manually selected profile when it was used as the
 classification reference. The learned palette used to classify every face
 together remains in `capture.colorCalibration`. See [Regression fixtures](test/fixtures/README.md).

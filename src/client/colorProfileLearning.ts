@@ -67,3 +67,10 @@ export function matchColorProfile(profiles: ColorProfile[], measured: Record<str
     && best.distance < second * 0.65
   return clear ? best.profile : null
 }
+
+// A descriptive 0–100 color-similarity score, not a probability that the
+// physical cube has a particular brand. The 0.08 scale is the existing
+// maximum mean distance allowed when updating a saved profile.
+export function profileColorFitPercent(profile: Record<string, RGB>, measured: Record<string, RGB>): number {
+  return Math.round(100 * Math.max(0, Math.min(1, 1 - paletteDistance(profile, measured) / 0.08)))
+}

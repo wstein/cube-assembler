@@ -148,6 +148,7 @@ export function summarizeFixture(fixture: Fixture): FixtureSummary {
   if (capture.colorProfile?.name) {
     const used = capture.colorProfile
     rows.push(['Sticker colors', `${used.selection === 'automatic' ? 'Automatic → ' : ''}${used.name}`])
+    if (Number.isFinite(used.colorFitPercent)) rows.push(['Profile color fit', `${used.colorFitPercent}%`])
     const rgb = ['W', 'Y', 'O', 'R', 'G', 'B'].flatMap((color) => {
       const value = used.colors?.[color]
       return value && [value.r, value.g, value.b].every(Number.isFinite)

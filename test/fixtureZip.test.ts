@@ -101,7 +101,7 @@ describe('fixture zips', () => {
 
   it('preserves and shows the RGB values of the sticker profile used in automatic mode', () => {
     const used = {
-      id: 'gocube', name: 'GoCube', selection: 'automatic',
+      id: 'gocube', name: 'GoCube', selection: 'automatic', colorFitPercent: 92,
       colors: { W: { r: 245, g: 244, b: 238 }, R: { r: 190, g: 38, b: 44 } },
     }
     const fixture = buildFixture(request({ meta: { colorProfile: used, colorReference: used.colors } }))
@@ -110,6 +110,7 @@ describe('fixture zips', () => {
     expect(meta.capture.colorReference).toEqual(used.colors)
     expect(Object.fromEntries(summarizeFixture(fixture).rows)).toMatchObject({
       'Sticker colors': 'Automatic → GoCube',
+      'Profile color fit': '92%',
       'Sticker RGB': 'W 245,244,238 · R 190,38,44',
     })
   })
