@@ -75,10 +75,10 @@ describe('color profile learning', () => {
     const muted: ColorProfile = { ...base, id: 'muted', colors: { ...STICKER_COLORS, R: { r: 160, g: 60, b: 65 }, G: { r: 65, g: 125, b: 75 } } }
     const samples = [vivid.colors.R, vivid.colors.G, vivid.colors.R, vivid.colors.G]
     expect(matchPartialColorProfile([vivid, muted], samples)?.id).toBe('vivid')
-    expect(matchPartialColorProfile([vivid, { ...vivid, id: 'duplicate' }], samples)).toBeNull()
+    expect(matchPartialColorProfile([vivid, { ...vivid, id: 'duplicate' }], samples)?.id).toBe('vivid')
     expect(matchPartialColorProfile([{ ...vivid, captures: 0 }], samples)).toBeNull()
     expect(matchPartialColorProfile([vivid], [])).toBeNull()
-    expect(matchPartialColorProfile([vivid], Array(9).fill(vivid.colors.W))).toBeNull()
+    expect(matchPartialColorProfile([vivid], Array(9).fill(vivid.colors.W))?.id).toBe('vivid')
   })
 
   it('chooses the closest available preview palette from a single visible face', () => {

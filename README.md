@@ -38,8 +38,7 @@ from its first valid capture; its name can be edited in Sampling setup. Built-in
 cubes and Generic colors are read-only; capture learning never changes Generic colors.
 **Automatic colors** compares the first live face with Generic and saved color
 profiles, using the closest fit for its preview and capture. After each face,
-it rechecks the profile against the captured sticker readings; a close tie
-falls back to camera hues. The live badge and settings summary show the current
+it rechecks the profile against the captured sticker readings. The live badge and settings summary show the current
 preview palette. Once all
 six faces are captured, the app recalibrates them together and resolves one
 final saved profile if it matches clearly. Otherwise the result is named
