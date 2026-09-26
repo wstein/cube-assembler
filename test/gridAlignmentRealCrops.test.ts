@@ -177,3 +177,41 @@ describe('grid alignment on real capture crops', () => {
     }
   })
 })
+
+// A solved GoCube with a clear shell: its outline search locked onto the
+// shell's outer edge and the fingers around it, and the seam search could
+// only shrink that square by 8%, so Down and Left were cropped 20% too big
+// (capture-2026-09-26T22-49-08-238Z). Faces cropped right must stay so.
+describe('faces inside a clear shell held by fingers', () => {
+  const read = (name: string, slot: string) => {
+    const dir = join(root, name)
+    const meta = JSON.parse(readFileSync(join(dir, 'meta.json'), 'utf8'))
+    const image = jpeg.decode(readFileSync(join(dir, meta.faces[slot].photo)))
+    const size = Math.min(image.width, image.height)
+    const W = Math.round(size * 1.3), off = Math.round((W - size) / 2)
+    const frame = new Uint8ClampedArray(W * W * 4).fill(128)
+    for (let y = 0; y < size; y++) {
+      for (let x = 0; x < size; x++) {
+        const from = (y * image.width + x) * 4
+        frame.set([image.data[from], image.data[from + 1], image.data[from + 2], 255], ((y + off) * W + x + off) * 4)
+      }
+    }
+    const guide = Math.round(size * 0.75)
+    return alignFace(frame, W, W, { x: (W - guide) / 2, y: (W - guide) / 2, size: guide }, 3).size / size
+  }
+  const solved = 'capture-2026-09-26T22-49-08-238Z', scrambled = 'capture-2026-09-26T22-13-21-276Z'
+  if (!existsSync(join(root, solved, 'meta.json')) || !existsSync(join(root, scrambled, 'meta.json'))) {
+    it.skip('requires the saved captures', () => {})
+    return
+  }
+
+  it('finds the face, not the shell and fingers around it', () => {
+    // The Down face spans about 77% of its oversized crop.
+    expect(read(solved, 'd')).toBeLessThan(0.85)
+  })
+
+  it('keeps faces that were cropped right', () => {
+    expect(read(solved, 'u')).toBeGreaterThan(0.92)
+    for (const slot of ['u', 'r', 'f', 'd', 'b', 'l']) expect(read(scrambled, slot), slot).toBeGreaterThan(0.92)
+  })
+})
