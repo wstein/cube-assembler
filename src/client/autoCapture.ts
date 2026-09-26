@@ -2,7 +2,7 @@
 import { findCapturedFaceMatch } from './cubeAssembly'
 
 export const AUTO_CAPTURE_STABLE_FRAMES = 5
-export const AUTO_CAPTURE_MIN_CONFIDENCE = 0.8
+export const AUTO_CAPTURE_MIN_CONFIDENCE = 0.6
 export const TURN_CUE_CLEAR_FRAMES = 3
 
 // The turn cue stays up while the captured pattern is still in view. A brief
