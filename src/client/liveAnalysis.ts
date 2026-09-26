@@ -4,10 +4,11 @@
 // colors and the cube check, so both judge the same pixels.
 
 import { estimateFaceGridSize } from './gridAlignment'
+import { warpQuadToSquare } from './perspective'
 import { matchPartialColorProfile } from './colorProfileLearning'
 import type { ColorProfile } from './profileSettings'
 import {
-  alignFaceInArea, alignmentArea, boundsFromAlignment, computeBackgroundGains, extractBackgroundColorFromPixels,
+  alignedBoundsInArea, alignmentArea, computeBackgroundGains, extractBackgroundColorFromPixels,
   extractColorsFromImageData, faceVisibility, guideBounds, NEUTRAL_GAINS, outlineVisible, withGridOffset,
   type ColorDetectionResult, type FaceBounds, type RGB, type SamplingGeometry,
 } from './imageProcessing'
@@ -52,6 +53,7 @@ function cropArea(frame: Uint8ClampedArray, width: number, area: { x0: number; y
 // the rotation, as a canvas draws it.
 export function readFaceSquare(frame: Uint8ClampedArray, width: number, height: number, bounds: FaceBounds): Uint8ClampedArray {
   const size = bounds.faceWidth
+  if (bounds.corners) return warpQuadToSquare(frame, width, height, bounds.corners, size)
   if (!bounds.angle) {
     return cropArea(frame, width, {
       x0: bounds.startX, y0: bounds.startY, x1: bounds.startX + size, y1: bounds.startY + bounds.faceHeight,
@@ -89,7 +91,7 @@ export function analyzeLiveFrame(frame: Uint8ClampedArray, width: number, height
       size = estimateFaceGridSize(region, areaWidth, areaHeight, { x: guide.startX - area.x0, y: guide.startY - area.y0, size: guide.faceWidth })
     }
     if (request.mode === 'aligned') {
-      bounds = boundsFromAlignment(alignFaceInArea(region, areaWidth, areaHeight, guide, area, gridSize), guide, area, width, height)
+      bounds = alignedBoundsInArea(region, areaWidth, areaHeight, guide, area, gridSize, width, height)
     }
   }
   // Colors and the cube check on one read of the square.
