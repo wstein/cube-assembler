@@ -61,6 +61,21 @@ function placed(guide: FaceSquare, dx: number, dy: number, scale = 1): FaceSquar
 }
 
 describe('findGridAlignment', () => {
+  for (const [scale, dx, dy] of [[1, 0.1, -0.07], [0.75, -0.12, 0.08], [1.22, 0.05, 0.04]]) {
+    it(`locates a 7x7 face at scale ${scale} beyond the guide search`, () => {
+      const guideSize = 300
+      const width = Math.round(guideSize * 1.4)
+      const guide = { x: (width - guideSize) / 2, y: (width - guideSize) / 2, size: guideSize }
+      const face = placed(guide, dx, dy, scale)
+      const { data, height } = scene(7, face, guideSize, { outer: 1.5 })
+      const found = alignFace(data, width, height, guide, 7)
+      expect(found.seams).toBe(true)
+      expect(Math.abs(found.x - face.x)).toBeLessThan(guideSize * 0.02)
+      expect(Math.abs(found.y - face.y)).toBeLessThan(guideSize * 0.02)
+      expect(Math.abs(found.size - face.size)).toBeLessThan(guideSize * 0.03)
+    })
+  }
+
   for (const gridSize of [2, 3, 4, 5, 7]) {
     it(`finds a ${gridSize}x${gridSize} face held off-center and smaller than the guide`, () => {
       const guideSize = 300
