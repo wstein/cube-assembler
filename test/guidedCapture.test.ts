@@ -264,10 +264,30 @@ describe('findRepeatedFaces', () => {
 describe('captured face lookup', () => {
   it('recognizes a previously captured side in a live frame, but permits a retake of the current slot', () => {
     const capture = photograph(scramble(3, 40, rng(73)), 'right', false, [0, 0])
-    const saved = capture.sides.map((colors) => ({ colors, centerConfidence: 0.95 }))
-    const candidate = { colors: rotateGrid(capture.sides[1], 1), centerConfidence: 0.95 }
+    const saved = capture.sides.map((colors) => ({ colors }))
+    const candidate = { colors: rotateGrid(capture.sides[1], 1) }
     expect(findCapturedFaceMatch(saved, candidate, 2)).toBe(1)
     expect(findCapturedFaceMatch(saved, candidate, 1)).toBeNull()
+  })
+
+  it('does not call a face captured just because its center matches', () => {
+    const saved = [{ colors: [['B', 'B', 'B'], ['B', 'G', 'B'], ['B', 'B', 'B']] }]
+    const candidate = { colors: [['G', 'G', 'G'], ['B', 'G', 'B'], ['G', 'G', 'G']] }
+    expect(findCapturedFaceMatch(saved, candidate)).toBeNull()
+  })
+
+  it('calls a face captured when at least 75% of its stickers match at some turn', () => {
+    const capture = photograph(scramble(4, 40, rng(75)), 'left', false, [0, 0])
+    const saved = [{ colors: capture.sides[0] }]
+    const misread = (count: number) => {
+      const colors = rotateGrid(capture.sides[0], 1).map((row) => [...row])
+      for (let i = 0; i < count; i++) colors[i][i % 4] = colors[i][i % 4] === 'W' ? 'Y' : 'W'
+      return { colors }
+    }
+    expect(findCapturedFaceMatch(saved, misread(4))).toBe(0)
+    const five = misread(4)
+    five.colors[0][3] = five.colors[0][3] === 'W' ? 'Y' : 'W'
+    expect(findCapturedFaceMatch(saved, five)).toBeNull()
   })
 
   it('maps a rotated approval face back to its photo slot', () => {
