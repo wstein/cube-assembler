@@ -322,7 +322,10 @@ the fixture dialog is open. Availability uses an empty `GET /ping` response;
 there is no fixture download route.
 The local server accepts only `POST /upload`, never serves files, refuses
 overwrites, and binds only to `127.0.0.1`. **Upload fixture** loads a ZIP
-or fixture folder back into the app. `meta.json` holds the
+or fixture folder back into the app. The `fixture:server` terminal logs each
+ping or upload request with its status and elapsed time; successful uploads
+include the saved fixture name, without logging the photos or metadata.
+`meta.json` holds the
 human-verified colors (`colorsURFDLB`), detection's own result before any
 hand correction (`detectedURFDLB`), per-face capture details, and `capture`,
 informational context (app version and commit, camera, sampling, learned
