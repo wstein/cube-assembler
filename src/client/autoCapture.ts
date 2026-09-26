@@ -1,4 +1,4 @@
-// Consecutive live detections must agree before the camera captures a face.
+// Matching good live detections must agree before the camera captures a face.
 import { findCapturedFaceMatch } from './cubeAssembly'
 
 export const AUTO_CAPTURE_STABLE_FRAMES = 5
@@ -44,13 +44,10 @@ export function nextAutoCaptureProgress(
   previous: AutoCaptureProgress | null,
   sample: AutoCaptureSample | null
 ): AutoCaptureProgress | null {
-  if (!sample || sample.confidence < AUTO_CAPTURE_MIN_CONFIDENCE) return null
+  if (!sample || sample.confidence < AUTO_CAPTURE_MIN_CONFIDENCE) return previous
   const cells = sample.colors.length ** 2
   if (!previous) return { first: sample, frames: 1 }
   const first = previous.first
   const stable = colorDifference(sample.colors, first.colors) <= Math.max(1, Math.floor(cells * 0.04))
-    && Math.hypot(sample.centerX - first.centerX, sample.centerY - first.centerY) <= first.size * 0.03
-    && Math.abs(sample.size - first.size) <= first.size * 0.04
-    && Math.abs(sample.angle - first.angle) <= Math.PI / 45
   return stable ? { first, frames: previous.frames + 1 } : { first: sample, frames: 1 }
 }
