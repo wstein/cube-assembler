@@ -17,7 +17,7 @@ import { cellEdges } from '../src/client/gridAlignment'
 import { describe, it, expect } from 'vitest'
 import {
   learnStickerColors, rgbToOKLCH, hueCircularRange, hueRangesOverlap, linearRange,
-  hungarianAssignment, trimmedMeanColor, STICKER_COLORS, extractBackgroundColor, BACKGROUND_CUBE_GAP, applyGains, computeBackgroundGains,
+  hungarianAssignment, trimmedMeanColor, STICKER_COLORS, extractBackgroundColor, BACKGROUND_CUBE_GAP, applyGains, applyGainsToPixels, backdropReference, computeBackgroundGains,
   stickerSampleRect, DEFAULT_SAMPLING, measureSharpness, classifySticker, stickerColor,
   extractColorsFromImageData, hasPlausibleStickerFace, hasVisibleCubeFace, faceVisibility, faceBoundsForMode, NEUTRAL_GAINS, type RGB,
 } from '../src/client/imageProcessing'
@@ -966,5 +966,27 @@ describe('stickerColor', () => {
 
   it('is null without pixels', () => {
     expect(stickerColor([])).toBeNull()
+  })
+})
+
+describe('showing the backdrop adjustment', () => {
+  const grey = (v: number, tint: Partial<RGB> = {}): RGB => ({ r: v, g: v, b: v, ...tint })
+
+  it('adjusts every pixel of a photo as the stickers are adjusted', () => {
+    const pixels = new Uint8ClampedArray([128, 128, 128, 255, 10, 200, 90, 255])
+    const gains = { r: 2, g: 1, b: 0.5 }
+    const out = applyGainsToPixels(pixels, gains)
+    expect([...out.subarray(0, 4)]).toEqual([...Object.values(applyGains(grey(128), gains)), 255])
+    expect([...out.subarray(4, 8)]).toEqual([...Object.values(applyGains({ r: 10, g: 200, b: 90 }, gains)), 255])
+    expect([...applyGainsToPixels(pixels, NEUTRAL_GAINS)]).toEqual([...pixels])
+  })
+
+  it('names the backdrop every face is brought to: the median in linear light', () => {
+    const backdrops = { U: grey(100), R: grey(100), F: grey(120), D: null }
+    const reference = backdropReference(backdrops)!
+    expect(reference).toEqual(grey(100))
+    // Applying a face's gain to its backdrop lands on the reference.
+    expect(applyGains(backdrops.F, computeBackgroundGains(backdrops)!.F)).toEqual(reference)
+    expect(backdropReference({ U: grey(100), R: null })).toBeNull()
   })
 })
