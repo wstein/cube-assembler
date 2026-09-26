@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { analyzeLiveFrame, scaleBounds, type LiveAnalysisRequest } from '../src/client/liveAnalysis'
 import { DEFAULT_SAMPLING } from '../src/client/imageProcessing'
+import { genericColorProfile, type ColorProfile } from '../src/client/profileSettings'
 
 const COLORS: Record<string, number[]> = {
   W: [240, 240, 235], Y: [240, 210, 30], R: [200, 40, 50], O: [230, 110, 30], G: [40, 160, 70], B: [40, 80, 200],
@@ -53,6 +54,15 @@ function downscale(data: Uint8ClampedArray, width: number, height: number) {
 }
 
 describe('analyzeLiveFrame', () => {
+  it('selects a saved palette for the first live face in Automatic mode', () => {
+    const generic = genericColorProfile()
+    const exact: ColorProfile = { ...generic, id: 'camera-colors', name: 'Camera colors', captures: 1,
+      colors: Object.fromEntries(Object.entries(COLORS).map(([key, rgb]) => [key, { r: rgb[0], g: rgb[1], b: rgb[2] }])) }
+    const result = analyzeLiveFrame(frame(1280, 720, 3), 1280, 720, request(3, { autoProfiles: [generic, exact] }))
+    expect(result.colorProfileId).toBe('camera-colors')
+    expect(result.detection.colors).toEqual(expected(3))
+    expect(result.detection.confidence).toBeGreaterThan(0.8)
+  })
   it('finds an off-center face and reads its colors from the same square', () => {
     const result = analyzeLiveFrame(frame(1280, 720, 3), 1280, 720, request(3))
     expect(result.visible).toBe(true)
