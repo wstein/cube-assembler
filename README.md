@@ -29,10 +29,10 @@ The scanner defaults to **Detect face**: it finds sticker seams near the camera
 guide, aligns and straightens the face, then reads its colors. **Guide grid**
 is a manual switch that reads the fixed center square shown on screen. Both
 modes use the same color classifier, and neither requires a downloaded model.
-Cube and Colors are separate settings. The Cube menu always lists one Generic
-cube for each size from 2×2 to 7×7, with a 60% sticker core and 40% total
-gap; choosing one sets the size. Colors can be reused across sizes. Sampling
-setup adjusts the gap around each sticker on a named cube. Built-in cubes and
+Cube and Colors are separate settings. The Cube menu groups sizes by cube name:
+Generic always offers 2×2 through 7×7, each with a 60% sticker core and 40%
+total gap. Choosing a cube sets the size. Colors can be reused across sizes.
+Sampling setup adjusts the gap around each sticker on a named cube. Built-in cubes and
 Generic colors are read-only. **Automatic colors** starts with Generic colors
 and uses a saved profile after a clear match; it stays selected for later
 captures. Selecting a profile by name keeps that manual choice.
