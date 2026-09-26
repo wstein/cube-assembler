@@ -145,6 +145,16 @@ export function summarizeFixture(fixture: Fixture): FixtureSummary {
     rows.push(['Camera', `${capture.camera.label}${width && height ? `, ${width}×${height}` : ''}`])
   }
   if (capture.profile?.name) rows.push(['Cube profile', capture.profile.name])
+  if (capture.colorProfile?.name) {
+    const used = capture.colorProfile
+    rows.push(['Sticker colors', `${used.selection === 'automatic' ? 'Automatic → ' : ''}${used.name}`])
+    const rgb = ['W', 'Y', 'O', 'R', 'G', 'B'].flatMap((color) => {
+      const value = used.colors?.[color]
+      return value && [value.r, value.g, value.b].every(Number.isFinite)
+        ? [`${color} ${value.r},${value.g},${value.b}`] : []
+    })
+    if (rgb.length) rows.push(['Sticker RGB', rgb.join(' · ')])
+  }
   if ('backgroundWhiteBalance' in capture) {
     const gains = Object.values(capture.backgroundWhiteBalance ?? {}) as Array<{ r: number; g: number; b: number }>
     const largest = Math.max(1, ...gains.flatMap(({ r, g, b }) => [r, g, b].map((v) => Math.max(v, 1 / v))))
