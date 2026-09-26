@@ -36,6 +36,9 @@ Sampling setup adjusts the gap around each sticker on a named cube. **New colors
 copies the current palette into a named profile such as GoCube, ready to learn
 from its first valid capture; its name can be edited in Sampling setup. Built-in
 cubes and Generic colors are read-only; capture learning never changes Generic colors.
+The Profiles page has **Export cubes & colors** and **Import cubes & colors**
+on both tabs. One JSON file carries cube names, sizes, sticker gaps, color
+profiles, and the selected settings; importing merges them by ID.
 **Automatic colors** compares the first live face with Generic and saved color
 profiles, using the closest fit for its preview and capture. After each face,
 it rechecks the profile against the captured sticker readings. The live badge and settings summary show the current

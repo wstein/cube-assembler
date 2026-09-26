@@ -11,11 +11,14 @@ interface Props {
   capture: ReviewCapture | null
   photo: ReviewPhoto | null
   onClose: () => void
+  onExport: () => void
+  onImport: (event: Event) => void
+  fileMessage: string
 }
 
 const TABS: Array<{ tab: ProfilesTab; label: string }> = [{ tab: 'colors', label: 'Colors' }, { tab: 'cubes', label: 'Cubes' }]
 
-export function ProfilesPage({ tab, settings, onChange, capture, photo, onClose }: Props) {
+export function ProfilesPage({ tab, settings, onChange, capture, photo, onClose, onExport, onImport, fileMessage }: Props) {
   return (
     <div class="color-review">
       <header class="color-review-header">
@@ -28,6 +31,15 @@ export function ProfilesPage({ tab, settings, onChange, capture, photo, onClose 
           <a key={id} href={profilesHash(id)} aria-current={id === tab ? 'page' : undefined}>{label}</a>
         ))}
       </nav>
+      <div class="profiles-file-actions">
+        <span class="color-review-muted">One settings file contains cubes and sticker colors.</span>
+        <button type="button" class="btn btn-secondary btn-sm" onClick={onExport}>↓ Export cubes &amp; colors</button>
+        <label class="btn btn-secondary btn-sm">
+          ↑ Import cubes &amp; colors
+          <input type="file" accept=".json,application/json" hidden onChange={onImport} />
+        </label>
+        {fileMessage && <span role="status">{fileMessage}</span>}
+      </div>
       {tab === 'colors' && <ColorReviewTab settings={settings} onChange={onChange} capture={capture} />}
       {tab === 'cubes' && <CubeReviewTab settings={settings} onChange={onChange} photo={photo} />}
     </div>
