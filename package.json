@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "fixture:server": "node scripts/fixtureUploadServer.mjs",
     "build": "vite build",
     "test": "vitest run",
     "test:watch": "vitest",
