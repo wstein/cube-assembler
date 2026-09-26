@@ -7,8 +7,9 @@ import {
   whiteBalancedColors,
 } from './colorProfileReview'
 import { DeleteButton, SelectionBar } from './profileDeletion'
+import { EditableName } from './profileRename'
 import { classifySticker, rgbToOklab, rgbToOKLCH, type RGB } from './imageProcessing'
-import { AUTO_COLORS_ID, GENERIC_COLORS_ID, allColorProfiles, type ColorProfile, type ProfileSettings } from './profileSettings'
+import { AUTO_COLORS_ID, GENERIC_COLORS_ID, allColorProfiles, renameColorProfile, type ColorProfile, type ProfileSettings } from './profileSettings'
 
 const ORDER = ['W', 'Y', 'R', 'O', 'G', 'B']
 const NAMES: Record<string, string> = { W: 'White', Y: 'Yellow', R: 'Red', O: 'Orange', G: 'Green', B: 'Blue' }
@@ -302,7 +303,10 @@ export function ColorReviewTab({ settings, onChange, capture }: Props) {
                     <th scope="row">
                       {p.id === A.id && <span class="color-review-badge a">A</span>}
                       {p.id === B.id && <span class="color-review-badge b">B</span>}
-                      {p.name}
+                      {isBuiltin(p.id) ? p.name : <EditableName name={p.name} onRename={(name) => {
+                        try { commit(renameColorProfile(settings, p.id, name), `Renamed “${p.name}” to “${name.trim().slice(0, 60)}”.`) }
+                        catch (err) { setMessage(`❌ ${err instanceof Error ? err.message : 'Rename failed'}`) }
+                      }} />}
                       <span class="color-review-src">{isBuiltin(p.id) ? 'built in, read-only' : `${p.captures} capture${p.captures === 1 ? '' : 's'}`}{p.id === settings.activeColorsId ? ' · selected' : ''}{p.id === settings.autoMatchedColorsId ? ' · automatic match' : ''}</span>
                     </th>
                     {ORDER.map((k) => <td key={k}><Swatch color={colors[k]} letter={k} /></td>)}

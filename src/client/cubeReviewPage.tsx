@@ -4,8 +4,9 @@
 import { useEffect, useMemo, useState } from 'preact/hooks'
 import { cubeDeletionEffects, cubesSameAsGeneric, deleteCubes, duplicateCubeGroups, mergeCubes, replaceCubes, unusedCubes } from './cubeProfileReview'
 import { DeleteButton, SelectionBar } from './profileDeletion'
+import { EditableName } from './profileRename'
 import { cellEdges, estimateOuterCellRatio } from './gridAlignment'
-import { CUBE_SIZES, activeCube, allCubes, builtinCube, isBuiltinCube, type CubeSetting, type ProfileSettings } from './profileSettings'
+import { CUBE_SIZES, activeCube, allCubes, builtinCube, isBuiltinCube, renameCube, type CubeSetting, type ProfileSettings } from './profileSettings'
 
 export interface ReviewPhoto {
   size: number
@@ -195,7 +196,10 @@ export function CubeReviewTab({ settings, onChange, photo }: Props) {
                   <div class={`cube-review-card ${isBuiltinCube(cube.id) ? 'builtin' : ''} ${selected.includes(cube.id) ? 'is-selected' : ''}`} key={cube.id}>
                     <MiniGrid size={size} core={cube.sampling.stickerCore} />
                     <div>
-                      <div class="cube-review-name">{cube.name}{isBuiltinCube(cube.id) ? ' (built in)' : ''}</div>
+                      <div class="cube-review-name">{isBuiltinCube(cube.id) ? `${cube.name} (built in)` : <EditableName name={cube.name} onRename={(name) => {
+                        try { commit(renameCube(settings, cube.id, name), `Renamed “${cube.name}” to “${name.trim().slice(0, 60)}”.`) }
+                        catch (err) { setMessage(`❌ ${err instanceof Error ? err.message : 'Rename failed'}`) }
+                      }} />}</div>
                       <div class="cube-review-meta">
                         <span class="mono">sticker area {pct(cube.sampling.stickerCore)}</span>
                         {isActive(cube) && <span class="color-review-pill info">active</span>}
