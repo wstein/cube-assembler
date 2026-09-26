@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { analyzeLiveFrame, scaleBounds, type LiveAnalysisRequest } from '../src/client/liveAnalysis'
 import { DEFAULT_SAMPLING, linearChannelToSrgb, srgbChannelToLinear } from '../src/client/imageProcessing'
+import { scene } from './syntheticFace'
 import { genericColorProfile, type ColorProfile } from '../src/client/profileSettings'
 
 const COLORS: Record<string, number[]> = {
@@ -123,5 +124,26 @@ describe('analyzeLiveFrame', () => {
     expect(corrected.gains.r).toBeCloseTo(1 / 1.2, 2)
     expect(corrected.detection.cellColors[1][1].r).toBeCloseTo(baseline.detection.cellColors[1][1].r, 0)
     expect(analyzeLiveFrame(tinted, 1280, 720, request(3)).gains).toEqual({ r: 1, g: 1, b: 1 })
+  })
+})
+
+describe('a face seen at an angle', () => {
+  // A square 720x720 frame: the live guide is its middle 60% (432 px).
+  const G = 432, W = 720, s = G * 0.95, x0 = (W - s) / 2, y0 = (W - s) / 2
+  const LETTER = ['O', 'G', 'W', 'R', 'B', 'Y']
+  const expected5 = Array.from({ length: 5 }, (_, r) => Array.from({ length: 5 }, (_, c) => LETTER[(r * 5 + c) % 6]))
+  // Turned toward the camera on the right: that side is much taller.
+  const corners: [number, number][] = [[x0 + 30, y0 + 34], [x0 + s - 6, y0 - 10], [x0 + s + 4, y0 + s + 12], [x0 + 24, y0 + s - 28]]
+
+  it('reads every sticker through the face corners', () => {
+    const { data } = scene(5, { x: x0, y: y0, size: s }, G, { corners }, W / G)
+    const result = analyzeLiveFrame(data, W, W, request(5))
+    expect(result.bounds.corners).toBeDefined()
+    expect(result.detection.colors).toEqual(expected5)
+  })
+
+  it('leaves a face seen straight on without corners', () => {
+    const { data } = scene(5, { x: x0, y: y0, size: s }, G, {}, W / G)
+    expect(analyzeLiveFrame(data, W, W, request(5)).bounds.corners).toBeUndefined()
   })
 })

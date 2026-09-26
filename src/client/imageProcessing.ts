@@ -1,6 +1,7 @@
 // Image processing utilities for cube face detection and color extraction
 
-import { ALIGNMENT_MAX_OFFSET, alignFace, cellEdges, estimateOuterCellRatio, type GridAlignment } from './gridAlignment'
+import { ALIGNMENT_MAX_OFFSET, alignFace, cellEdges, estimateOuterCellRatio, faceCornersIfBetter, type GridAlignment } from './gridAlignment'
+import { warpQuadToSquare } from './perspective'
 
 export interface ColorDetectionResult {
   colors: string[][]
@@ -761,6 +762,10 @@ export interface FaceBounds {
   // Tilt (radians, canvas rotate() direction) about the square's center;
   // the square is read turned upright.
   angle?: number
+  // A face seen at an angle: its corners (top-left, top-right, bottom-right,
+  // bottom-left) in the frame's pixels. When set, the face is read
+  // straightened through them (see warpQuadToSquare) instead of the square.
+  corners?: [number, number][]
   // Set by seam alignment. False means the returned guide is only a
   // placeholder; Detect face must not capture it as an automatic result.
   gridFound?: boolean
@@ -823,7 +828,7 @@ export function alignedFaceBounds(canvas: HTMLCanvasElement, gridSize: number): 
   if (!ctx || guide.faceWidth !== guide.faceHeight) return { ...guide, gridFound: false }
   const area = alignmentArea(guide, canvas.width, canvas.height)
   const region = ctx.getImageData(area.x0, area.y0, area.x1 - area.x0, area.y1 - area.y0)
-  return boundsFromAlignment(alignFaceInArea(region.data, region.width, region.height, guide, area, gridSize), guide, area, canvas.width, canvas.height)
+  return alignedBoundsInArea(region.data, region.width, region.height, guide, area, gridSize, canvas.width, canvas.height)
 }
 
 // The part of a width x height frame searched around `guide`: room for
@@ -845,7 +850,7 @@ export function alignFaceInArea(data: Uint8ClampedArray, width: number, height: 
 }
 
 // The frame bounds an alignment (found in `area`) leads to.
-export function boundsFromAlignment(found: GridAlignment, guide: FaceBounds, area: { x0: number; y0: number }, width: number, height: number): FaceBounds {
+export function boundsFromAlignment(found: GridAlignment, guide: FaceBounds, area: { x0: number; y0: number }, width: number, height: number, corners?: [number, number][] | null): FaceBounds {
   const angle = found.angle
   if (!found.aligned && !angle) return { ...guide, gridFound: found.seams }
   const size = Math.round(found.size)
@@ -859,8 +864,18 @@ export function boundsFromAlignment(found: GridAlignment, guide: FaceBounds, are
     faceWidth: size,
     faceHeight: size,
     ...(angle && { angle }),
+    ...(corners && { corners: corners.map(([x, y]) => [area.x0 + x, area.y0 + y] as [number, number]) }),
     gridFound: found.seams,
   }
+}
+
+// The face in the alignment area: its aligned square, and its corners when
+// it is seen at an angle and straightening helps (see faceCornersIfBetter).
+export function alignedBoundsInArea(region: Uint8ClampedArray, regionWidth: number, regionHeight: number, guide: FaceBounds,
+  area: { x0: number; y0: number }, gridSize: number, width: number, height: number): FaceBounds {
+  const found = alignFaceInArea(region, regionWidth, regionHeight, guide, area, gridSize)
+  const corners = found.seams && found.aligned ? faceCornersIfBetter(region, regionWidth, regionHeight, found, gridSize) : null
+  return boundsFromAlignment(found, guide, area, width, height, corners)
 }
 
 export type FaceGeometryMode = 'aligned' | 'fixed'
@@ -881,7 +896,16 @@ function drawFaceSquare(canvas: HTMLCanvasElement, bounds: FaceBounds): HTMLCanv
   if (!ctx) {
     throw new Error('Could not get canvas context')
   }
-  if (bounds.angle) {
+  if (bounds.corners) {
+    // Straightened through the corners, from the pixels around them.
+    const xs = bounds.corners.map(([x]) => x), ys = bounds.corners.map(([, y]) => y)
+    const x0 = Math.max(0, Math.floor(Math.min(...xs)) - 1), y0 = Math.max(0, Math.floor(Math.min(...ys)) - 1)
+    const x1 = Math.min(canvas.width, Math.ceil(Math.max(...xs)) + 1), y1 = Math.min(canvas.height, Math.ceil(Math.max(...ys)) + 1)
+    const source = canvas.getContext('2d')?.getImageData(x0, y0, x1 - x0, y1 - y0)
+    if (!source) throw new Error('Could not get canvas context')
+    const pixels = warpQuadToSquare(source.data, source.width, source.height, bounds.corners.map(([x, y]) => [x - x0, y - y0]), bounds.faceWidth)
+    ctx.putImageData(new ImageData(pixels as Uint8ClampedArray<ArrayBuffer>, bounds.faceWidth, bounds.faceWidth), 0, 0)
+  } else if (bounds.angle) {
     ctx.translate(bounds.faceWidth / 2, bounds.faceHeight / 2)
     ctx.rotate(-bounds.angle)
     ctx.drawImage(canvas, -(bounds.startX + bounds.faceWidth / 2), -(bounds.startY + bounds.faceHeight / 2))
@@ -896,14 +920,15 @@ function drawFaceSquare(canvas: HTMLCanvasElement, bounds: FaceBounds): HTMLCanv
 }
 
 function readFaceRegion(canvas: HTMLCanvasElement, bounds: FaceBounds): FaceRegion {
-  const source = bounds.angle ? drawFaceSquare(canvas, bounds) : canvas
+  const drawn = Boolean(bounds.angle || bounds.corners)
+  const source = drawn ? drawFaceSquare(canvas, bounds) : canvas
   const ctx = source.getContext('2d')
   if (!ctx) {
     throw new Error('Could not get canvas context')
   }
   return {
     ...bounds,
-    imageData: bounds.angle
+    imageData: drawn
       ? ctx.getImageData(0, 0, bounds.faceWidth, bounds.faceHeight)
       : ctx.getImageData(bounds.startX, bounds.startY, bounds.faceWidth, bounds.faceHeight),
   }
@@ -1511,7 +1536,8 @@ export interface FaceCaptureResult extends ColorDetectionResult {
   // privacy, so this is the only record of how it was framed).
   frame: { width: number; height: number }
   // `angle`: degrees the crop was turned upright by, about its center.
-  crop: { x: number; y: number; width: number; height: number; angle?: number }
+  // `corners`: where it was straightened from, for a face seen at an angle.
+  crop: { x: number; y: number; width: number; height: number; angle?: number; corners?: number[][] }
   // measureSharpness of the cropped face region.
   sharpness: number
 }
@@ -1548,7 +1574,8 @@ function describeCrop(canvas: HTMLCanvasElement, bounds: FaceBounds): Pick<FaceC
   const { imageData, startX, startY, faceWidth, faceHeight } = readFaceRegion(canvas, bounds)
   return {
     frame: { width: canvas.width, height: canvas.height },
-    crop: { x: startX, y: startY, width: faceWidth, height: faceHeight, ...(bounds.angle && { angle: (bounds.angle * 180) / Math.PI }) },
+    crop: { x: startX, y: startY, width: faceWidth, height: faceHeight, ...(bounds.angle && { angle: (bounds.angle * 180) / Math.PI }),
+      ...(bounds.corners && { corners: bounds.corners.map(([x, y]) => [Math.round(x * 10) / 10, Math.round(y * 10) / 10]) }) },
     sharpness: measureSharpness(imageData.data, faceWidth, faceHeight),
   }
 }
