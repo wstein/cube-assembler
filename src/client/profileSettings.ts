@@ -52,6 +52,20 @@ export function allCubes(settings: ProfileSettings): CubeSetting[] {
   return [...CUBE_SIZES.map(builtinCube), ...settings.cubes]
 }
 
+export function cubeGroupName(cube: CubeSetting): string {
+  const sizeSuffix = new RegExp(`\\s*${cube.size}\\s*[×xX]\\s*${cube.size}\\s*$`)
+  return cube.name.replace(sizeSuffix, '').trim() || cube.name
+}
+
+export function groupCubesByName(settings: ProfileSettings): Array<{ name: string; cubes: CubeSetting[] }> {
+  const groups = new Map<string, CubeSetting[]>()
+  for (const cube of allCubes(settings)) {
+    const name = cubeGroupName(cube)
+    groups.set(name, [...(groups.get(name) ?? []), cube])
+  }
+  return [...groups].map(([name, cubes]) => ({ name, cubes: cubes.sort((a, b) => a.size - b.size) }))
+}
+
 export function cubesForSize(settings: ProfileSettings, size: number): CubeSetting[] {
   return allCubes(settings).filter((cube) => cube.size === size)
 }

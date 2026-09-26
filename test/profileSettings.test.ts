@@ -2,11 +2,23 @@ import { describe, expect, it } from 'vitest'
 import { STICKER_COLORS } from '../src/client/imageProcessing'
 import {
   AUTO_COLORS_ID, EMPTY_SETTINGS, GENERIC_COLORS_ID, activeColorProfile, activeCube, allCubes, builtinCube,
-  colorPalette, convertLegacySettings, copyCubeSetting, cubesForSize, deleteColorProfile, mergeSettings, parseProfileSettings,
+  colorPalette, convertLegacySettings, copyCubeSetting, cubesForSize, deleteColorProfile, groupCubesByName, mergeSettings, parseProfileSettings,
   saveColorProfile, saveCube, selectColorProfile, selectCube, setAutoColorMatch,
 } from '../src/client/profileSettings'
 
 describe('separate cube and color settings', () => {
+  it('groups cube choices by name and shows sizes within each group', () => {
+    const withNamedCubes = saveCube(saveCube(EMPTY_SETTINGS,
+      { id: 'small', name: 'My Cube 3×3', size: 3, sampling: { stickerCore: 0.6 } }),
+      { id: 'large', name: 'My Cube 7x7', size: 7, sampling: { stickerCore: 0.6 } })
+    expect(groupCubesByName(withNamedCubes).map(({ name, cubes }) => ({
+      name, sizes: cubes.map((cube) => cube.size),
+    }))).toEqual([
+      { name: 'Generic', sizes: [2, 3, 4, 5, 6, 7] },
+      { name: 'My Cube', sizes: [3, 7] },
+    ])
+  })
+
   it('always lists one read-only Generic cube with a 60 percent core for every size', () => {
     expect(allCubes(EMPTY_SETTINGS)).toHaveLength(6)
     expect(cubesForSize(EMPTY_SETTINGS, 5).map((cube) => cube.name)).toEqual(['Generic 5×5'])

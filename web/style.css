@@ -2250,6 +2250,12 @@ label.capture-size-label {
   margin: 0;
 }
 
+.cube-current-name {
+  color: var(--color-text-secondary);
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
 .header-profile {
   height: 44px;
   padding: 0 0.85rem;
