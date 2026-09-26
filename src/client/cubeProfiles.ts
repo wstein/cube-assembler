@@ -72,8 +72,8 @@ export const CUBE_BRANDS = ['GoCube', "Rubik's", 'GAN', 'MoYu', 'QiYi', 'YJ', 'D
 // seams between colored tiles, stickered ones a wide black border around
 // each sticker. Only a starting point - the sampling setup fine-tunes it.
 export const CUBE_STYLES = {
-  stickerless: { label: 'Stickerless', sampling: { backgroundGap: 0, stickerCore: 0.65 } },
-  stickered: { label: 'Stickers on black', sampling: { backgroundGap: 0, stickerCore: 0.55 } },
+  stickerless: { label: 'Stickerless', sampling: { stickerCore: 0.65 } },
+  stickered: { label: 'Stickers on black', sampling: { stickerCore: 0.55 } },
 } satisfies Record<string, { label: string; sampling: SamplingGeometry }>
 
 export type CubeStyle = keyof typeof CUBE_STYLES
@@ -94,14 +94,14 @@ export function newProfileId(): string {
 
 function isSamplingGeometry(value: unknown): value is SamplingGeometry {
   const v = value as SamplingGeometry | null
-  return typeof v?.backgroundGap === 'number' && typeof v?.stickerCore === 'number'
+  return typeof v?.stickerCore === 'number' && v.stickerCore > 0 && v.stickerCore <= 1
 }
 
 function parseProfile(value: unknown): CubeProfile | null {
   const v = value as Partial<CubeProfile> | null
   if (typeof v?.id !== 'string' || typeof v.name !== 'string') return null
   if (!CUBE_SIZES.includes(v.size as number) || !isSamplingGeometry(v.sampling)) return null
-  const profile: CubeProfile = { id: v.id, name: v.name.slice(0, 60), size: v.size as number, sampling: v.sampling }
+  const profile: CubeProfile = { id: v.id, name: v.name.slice(0, 60), size: v.size as number, sampling: { stickerCore: v.sampling.stickerCore } }
   if (isLearnedColors(v.learnedColors)) {
     profile.learnedColors = v.learnedColors
     if (typeof v.learnedAt === 'string') profile.learnedAt = v.learnedAt
@@ -125,7 +125,7 @@ export function parseProfileStore(value: unknown): ProfileStore {
   }
   const profiles = Object.entries(v)
     .filter(([size, sampling]) => /^[2-7]$/.test(size) && isSamplingGeometry(sampling))
-    .map(([size, sampling]) => ({ ...genericProfile(Number(size)), sampling: sampling as SamplingGeometry }))
+    .map(([size, sampling]) => ({ ...genericProfile(Number(size)), sampling: { stickerCore: (sampling as SamplingGeometry).stickerCore } }))
   return { profiles, active: Object.fromEntries(profiles.map((p) => [p.size, p.id])) }
 }
 
