@@ -3,7 +3,9 @@ import { useState, useEffect, useRef, useMemo } from 'preact/hooks'
 import '../../web/style.css'
 import { AUTO_CAPTURE_MIN_CONFIDENCE, AUTO_CAPTURE_STABLE_FRAMES, TURN_CUE_CLEAR_FRAMES, agreedSize, nextAutoCaptureProgress, nextSizeVotes, nextTurnCueClearFrames, sizeDetectionActive, turnPoseChanged, type AutoCaptureProgress, type TurnCuePose } from './autoCapture'
 import { oppositeFacePreview } from './capturePresentation'
-import { ColorReviewPage, type ReviewCapture } from './colorReviewPage'
+import type { ReviewCapture } from './colorReviewPage'
+import { ProfilesPage } from './profilesPage'
+import { profilesHash, profilesTab } from './profilesRoute'
 import { holdConfirmedFace, NO_HOLD, type LiveHold } from './liveHold'
 import { scaleBounds, type LiveAnalysisRequest } from './liveAnalysis'
 import type { LiveFrameMessage, LiveResultMessage } from './liveAnalysis.worker'
@@ -810,7 +812,7 @@ function App() {
   const [resolvedColorProfile, setResolvedColorProfile] = useState<UsedColorProfile | null>(null)
   const [resolvedColorReference, setResolvedColorReference] = useState<Record<string, RGB> | null>(null)
   // Applied for this session even when the browser won't keep it.
-  // '#colors' shows the sticker color review page instead of the scanner.
+  // '#profiles' shows the profiles page instead of the scanner.
   const [page, setPage] = useState(() => location.hash)
   useEffect(() => {
     const onHash = () => setPage(location.hash)
@@ -2191,7 +2193,8 @@ function App() {
     return notationFormat === 'wrg' ? toWRGFacelets(cube) : toURFFacelets(cube)
   }
 
-  if (page === '#colors') {
+  const profilesPageTab = profilesTab(page)
+  if (profilesPageTab) {
     // The last capture's faces that kept their measured sticker colors.
     const reviewCapture: ReviewCapture = {
       faces: FACE_ORDER.flatMap((face) => {
@@ -2200,7 +2203,7 @@ function App() {
           ? [{ face, label: FACE_DISPLAY_LABEL[face], colors: data.colors, cellColors: data.cellColors }] : []
       }),
     }
-    return <ColorReviewPage settings={profileStore} onChange={applyProfileStore}
+    return <ProfilesPage tab={profilesPageTab} settings={profileStore} onChange={applyProfileStore}
       capture={reviewCapture.faces.length ? reviewCapture : null} onClose={() => { location.hash = '' }} />
   }
 
@@ -2232,7 +2235,7 @@ function App() {
             onChange={(e) => applyProfileStore(selectColorProfile(profileStore, e.currentTarget.value))}>
             {allColorProfiles(profileStore).map((colors) => <option key={colors.id} value={colors.id}>{colors.name}</option>)}
           </select>
-          <a class="color-review-link" href="#colors">Review colors…</a>
+          <a class="color-review-link" href={profilesHash('colors')}>Review colors…</a>
         </div>
       </header>
 
@@ -2782,7 +2785,7 @@ function App() {
                     onClick={() => setNewColorProfileName(newColorProfileName === null ? '' : null)}>
                     ＋ New colors
                   </button>
-                  <a class="color-review-link" href="#colors" onClick={() => setWebcamOpen(false)}>Review colors…</a>
+                  <a class="color-review-link" href={profilesHash('colors')} onClick={() => setWebcamOpen(false)}>Review colors…</a>
                 </div>
                 {newColorProfileName !== null && (
                   <div class="capture-size-row new-cube-form">
