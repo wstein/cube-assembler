@@ -1,12 +1,12 @@
-// Where the sticker grid really sits, in and around the capture guide.
+// Where the sticker grid really sits inside the capture search area.
 //
 // Colors are sampled at fixed fractions of the face square, so a cube held
 // a little off-center reads its neighbors' colors - and the tolerance is a
 // fraction of one cell, i.e. 1/N of the face: a 4% offset misread 11% of a
-// 7x7's stickers but ~2% of a 3x3's. Instead of trusting the guide, look
-// for the dark seams between stickers and move the square onto them.
+// 7x7's stickers but ~2% of a 3x3's. First locate the outer face, then
+// refine its grid using the dark seams between stickers.
 //
-// Seams are scored on 1-D brightness profiles (column means for vertical
+// Seams are scored on 1-D strongest-channel profiles (column means for vertical
 // seams, row means for horizontal ones), so shift and scale are searched
 // per axis in a few hundred cheap evaluations - fast enough for the live
 // preview. A face without dark seams (stickerless, washed out) finds no
@@ -230,11 +230,12 @@ export function findGridAlignment(
   height: number,
   guide: FaceSquare,
   gridSize: number,
-  angle = 0
+  angle = 0,
+  scaleRange: [number, number] = SCALE_RANGE
 ): GridAlignment {
   const cx = guide.x + guide.size / 2, cy = guide.y + guide.size / 2
   const turn = angle ? { cx, cy, cos: Math.cos(angle), sin: Math.sin(angle) } : undefined
-  const found = searchUpright(data, width, height, guide, gridSize, turn)
+  const found = searchUpright(data, width, height, guide, gridSize, turn, scaleRange)
   // Back from the upright copy: turn the square's center about the guide's.
   const ux = found.x + found.size / 2 - cx, uy = found.y + found.size / 2 - cy
   const center: [number, number] = [cx + Math.cos(angle) * ux - Math.sin(angle) * uy, cy + Math.sin(angle) * ux + Math.cos(angle) * uy]
@@ -251,12 +252,67 @@ export function alignFace(
   guide: FaceSquare,
   gridSize: number
 ): GridAlignment {
-  const angle = estimateTilt(data, width, height, guide)
+  // The perimeter fixes the grid origin before the seam search. Searching
+  // seams from the fixed guide alone can land one whole cell off on 7x7.
+  const coarse = locateFaceOutline(data, width, height, guide)
+  const searchGuide = coarse ?? guide
+  const scaleRange: [number, number] = coarse ? [0.92, 1.08] : SCALE_RANGE
+  const angle = estimateTilt(data, width, height, searchGuide)
   if (angle) {
-    const tilted = findGridAlignment(data, width, height, guide, gridSize, angle)
-    if (tilted.seams) return tilted
+    const tilted = findGridAlignment(data, width, height, searchGuide, gridSize, angle, scaleRange)
+    if (tilted.seams) return coarse ? { ...tilted, aligned: true } : tilted
   }
+  const aligned = findGridAlignment(data, width, height, searchGuide, gridSize, 0, scaleRange)
+  if (aligned.seams) return coarse ? { ...aligned, aligned: true } : aligned
+  if (!coarse) return aligned
   return findGridAlignment(data, width, height, guide, gridSize)
+}
+
+// A sparse perimeter scan supplies an approximate square, independent of
+// sticker count. It compares points just inside and outside all four edges;
+// a complete outline wins over an inner seam or a single background edge.
+function locateFaceOutline(data: Uint8ClampedArray, width: number, height: number, guide: FaceSquare): FaceSquare | null {
+  const pixel = (x: number, y: number) => {
+    const i = (Math.round(y) * width + Math.round(x)) * 4
+    return [data[i], data[i + 1], data[i + 2]]
+  }
+  const difference = (ax: number, ay: number, bx: number, by: number) => {
+    const a = pixel(ax, ay), b = pixel(bx, by)
+    return Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2])
+  }
+  const cx = guide.x + guide.size / 2, cy = guide.y + guide.size / 2
+  let best: { square: FaceSquare; score: number } | null = null
+  for (let scale = 0.7; scale <= 1.3 + 1e-9; scale += 0.03) {
+    const size = guide.size * scale
+    const inset = size * 0.025
+    for (let ox = -0.22; ox <= 0.22 + 1e-9; ox += 0.025) {
+      const x = cx + ox * guide.size - size / 2
+      if (x - inset < 0 || x + size + inset >= width) continue
+      for (let oy = -0.22; oy <= 0.22 + 1e-9; oy += 0.025) {
+        const y = cy + oy * guide.size - size / 2
+        if (y - inset < 0 || y + size + inset >= height) continue
+        const sides = [0, 0, 0, 0]
+        const outside: number[][] = []
+        for (let sample = 0; sample < 10; sample++) {
+          const t = (sample + 0.5) / 10
+          const sx = x + t * size, sy = y + t * size
+          outside.push(pixel(x - inset, sy), pixel(x + size + inset, sy), pixel(sx, y - inset), pixel(sx, y + size + inset))
+          sides[0] += difference(x - inset, sy, x + inset, sy)
+          sides[1] += difference(x + size - inset, sy, x + size + inset, sy)
+          sides[2] += difference(sx, y - inset, sx, y + inset)
+          sides[3] += difference(sx, y + size - inset, sx, y + size + inset)
+        }
+        // A face has four edges. Penalize candidates explaining only one or
+        // two strong lines, common with furniture and internal grid seams.
+        const weakest = Math.min(...sides) / 10
+        const mean = [0, 1, 2].map((channel) => outside.reduce((sum, rgb) => sum + rgb[channel], 0) / outside.length)
+        const spread = Math.sqrt(outside.reduce((sum, rgb) => sum + rgb.reduce((part, value, channel) => part + (value - mean[channel]) ** 2, 0), 0) / outside.length)
+        const score = sides.reduce((sum, side) => sum + side, 0) / 40 + weakest - spread + 150 * scale
+        if (!best || score > best.score) best = { square: { x, y, size }, score }
+      }
+    }
+  }
+  return best && best.score >= 45 + 150 * (best.square.size / guide.size) ? best.square : null
 }
 
 function searchUpright(
@@ -265,7 +321,8 @@ function searchUpright(
   height: number,
   guide: FaceSquare,
   gridSize: number,
-  turn?: Turn
+  turn?: Turn,
+  scaleRange: [number, number] = SCALE_RANGE
 ): Omit<GridAlignment, 'angle' | 'center'> {
   // Profiles span the middle of the guide on the other axis, which stays
   // on the face even when it is offset.
@@ -284,7 +341,7 @@ function searchUpright(
   const maxOffset = guide.size * Math.min(ALIGNMENT_MAX_OFFSET, MAX_OFFSET_CELLS / gridSize)
   const step = Math.max(1, guide.size / 200)
   let best: Omit<GridAlignment, 'angle' | 'center' | 'seams'> = { ...guide, score: stay.score, aligned: false, outer: stay.outer }
-  for (let scale = SCALE_RANGE[0]; scale <= SCALE_RANGE[1] + 1e-9; scale += SCALE_STEP) {
+  for (let scale = scaleRange[0]; scale <= scaleRange[1] + 1e-9; scale += SCALE_STEP) {
     const size = guide.size * scale
     const centered = (guide.size - size) / 2
     for (const { outer, edges } of layouts) {

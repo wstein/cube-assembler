@@ -3,7 +3,7 @@ import { existsSync, readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import jpeg from 'jpeg-js'
 import { extractColorsFromImageData } from '../src/client/imageProcessing'
-import { ALIGNMENT_MAX_OFFSET, estimateTilt, findGridAlignment, type FaceSquare } from '../src/client/gridAlignment'
+import { ALIGNMENT_MAX_OFFSET, alignFace, type FaceSquare } from '../src/client/gridAlignment'
 
 // Real capture crops (gitignored, like test/fixtures.test.ts) held off the
 // guide: each crop is the face, pasted at an offset or scale into a grey
@@ -143,8 +143,7 @@ describe('grid alignment on real capture crops', () => {
       const truth = extractColorsFromImageData(face.data, face.size, face.size, face.gridSize).colors
       for (const [label, dx, dy, scale, tilt] of CASES) {
         const { data, width, guide } = frame(face, dx, dy, scale, tilt)
-        const angle = estimateTilt(data, width, width, guide)
-        const found = findGridAlignment(data, width, width, guide, face.gridSize, angle)
+        const found = alignFace(data, width, width, guide, face.gridSize)
         const byGuide = read(data, width, guide, face.gridSize)
         const byAlignment = found.angle ? readTilted(data, width, found, found.angle, face.gridSize) : read(data, width, found, face.gridSize)
         const entry = ((misread[label] ??= {})[face.gridSize] ??= { guide: 0, aligned: 0, total: 0 })
