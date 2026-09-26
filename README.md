@@ -92,8 +92,10 @@ The capture dialog has two modes; neither needs a downloaded model.
 
 On the first face in Detect face mode, the app counts repeating seams in
 both directions to identify a 2×2–7×7 grid. It changes the size only after
-five matching estimates in the latest seven frames. A manually selected size takes
-precedence, and the size stays fixed after the first face is captured.
+five detections of the same size. Frames without a size estimate pause the
+count; a different detected size starts it over. Live analysis runs every
+200 ms. A manually selected size takes precedence, and the size stays fixed
+after the first face is captured.
 
 ### How Detect face finds a face
 

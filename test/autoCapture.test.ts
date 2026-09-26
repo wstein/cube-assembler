@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { AUTO_CAPTURE_STABLE_FRAMES, SIZE_VOTE_AGREE, SIZE_VOTE_FRAMES, TURN_CUE_ABSENT_FRAMES, TURN_CUE_CLEAR_FRAMES, TURN_CUE_START, agreedSize, nextAutoCaptureProgress, nextSizeVotes, nextTurnCue, sizeDetectionActive, turnCueCleared, turnPoseChanged, type AutoCaptureSample } from '../src/client/autoCapture'
+import { AUTO_CAPTURE_STABLE_FRAMES, SIZE_VOTE_AGREE, TURN_CUE_ABSENT_FRAMES, TURN_CUE_CLEAR_FRAMES, TURN_CUE_START, agreedSize, nextAutoCaptureProgress, nextSizeVotes, nextTurnCue, sizeDetectionActive, turnCueCleared, turnPoseChanged, type AutoCaptureSample } from '../src/client/autoCapture'
 
 const sample = (color = 'R', x = 100, confidence = 0.9): AutoCaptureSample => ({
   colors: Array.from({ length: 3 }, () => Array(3).fill(color)),
@@ -103,26 +103,28 @@ describe('turn cue dismissal', () => {
 describe('first-face cube size vote', () => {
   const vote = (estimates: Array<number | null>) => estimates.reduce<Array<number | null>>((votes, estimate) => nextSizeVotes(votes, estimate), [])
 
-  it('takes five matching estimates within the latest seven frames', () => {
+  it('takes five matching detections even across missing frames', () => {
     expect(SIZE_VOTE_AGREE).toBe(5)
-    expect(SIZE_VOTE_FRAMES).toBe(7)
     expect(agreedSize(vote([4, null, 4, 4, null, 4, 4]))).toBe(4)
     expect(agreedSize(vote([4, null, 4, 4, null, 4, 5]))).toBeNull()
+    expect(agreedSize(vote([4, ...Array(20).fill(null), 4, 4, 4, 4]))).toBe(4)
   })
 
-  it(`agrees on a size named in ${SIZE_VOTE_AGREE} of the last ${SIZE_VOTE_FRAMES} frames`, () => {
+  it(`agrees after ${SIZE_VOTE_AGREE} detections of the same size`, () => {
     expect(agreedSize(vote(Array(SIZE_VOTE_AGREE - 1).fill(4)))).toBeNull()
     expect(agreedSize(vote(Array(SIZE_VOTE_AGREE).fill(4)))).toBe(4)
-    expect(agreedSize(vote([null, 4, 4, null, 4, 4, 4, 4, 4, 4]))).toBe(4)
+    expect(agreedSize(vote([null, 4, 4, null, 4, 4, 4]))).toBe(4)
   })
 
-  it('agrees on nothing while frames name different sizes', () => {
-    expect(agreedSize(vote([4, 4, 4, 4, 4, 5, 5, 4, 4, 5]))).toBeNull()
+  it('restarts the count when a different size is detected', () => {
+    expect(agreedSize(vote([4, 4, 4, 4, 5, 5, 5, 5]))).toBeNull()
+    expect(agreedSize(vote([4, 4, 4, 4, 5, 5, 5, 5, 5]))).toBe(5)
+    expect(agreedSize(vote([4, 4, 4, 5, 4, 4, 4, 4]))).toBeNull()
   })
 
-  it(`remembers only the last ${SIZE_VOTE_FRAMES} frames`, () => {
-    const votes = vote([...Array(SIZE_VOTE_FRAMES).fill(4), ...Array(3).fill(null)])
-    expect(votes).toHaveLength(SIZE_VOTE_FRAMES)
+  it('holds the count unchanged during detection gaps', () => {
+    const votes = vote([4, 4, 4, ...Array(20).fill(null)])
+    expect(votes).toEqual([4, 4, 4])
     expect(agreedSize(votes)).toBeNull()
   })
 })
