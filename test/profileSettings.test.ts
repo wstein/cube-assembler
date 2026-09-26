@@ -3,7 +3,7 @@ import { STICKER_COLORS } from '../src/client/imageProcessing'
 import {
   AUTO_COLORS_ID, EMPTY_SETTINGS, GENERIC_COLORS_ID, activeColorProfile, activeCube, allCubes, builtinCube,
   colorPalette, convertLegacySettings, copyColorProfile, copyCubeSetting, cubesForSize, deleteColorProfile, groupCubesByName, mergeSettings, parseProfileSettings,
-  saveColorProfile, saveCube, selectColorProfile, selectCube, setAutoColorMatch, sharedUsedColorProfile, usedColorProfileSnapshot,
+  saveColorProfile, saveCube, selectColorProfile, selectCube, setAutoColorMatch, resolvedColorProfileSnapshot,
 } from '../src/client/profileSettings'
 
 describe('separate cube and color settings', () => {
@@ -52,18 +52,15 @@ describe('separate cube and color settings', () => {
     expect(activeColorProfile(deleteColorProfile(auto, custom.id)).id).toBe(GENERIC_COLORS_ID)
   })
 
-  it('snapshots the actual RGB values and selected profile in automatic mode', () => {
+  it('snapshots one resolved profile and its RGB values for the whole capture', () => {
     const custom = { id: 'gocube', name: 'GoCube', colors: colorPalette(activeColorProfile(EMPTY_SETTINGS)), captures: 2 }
     custom.colors.W = { r: 245, g: 244, b: 238 }
     const auto = setAutoColorMatch(selectColorProfile(saveColorProfile(EMPTY_SETTINGS, custom), AUTO_COLORS_ID), custom.id)
-    const used = usedColorProfileSnapshot(auto)
+    const used = resolvedColorProfileSnapshot(activeColorProfile(auto), 'automatic')
     expect(used).toMatchObject({ id: 'gocube', name: 'GoCube', selection: 'automatic', colors: { W: { r: 245, g: 244, b: 238 } } })
     custom.colors.W.r = 100
     expect(used.colors.W.r).toBe(245)
-    expect(usedColorProfileSnapshot(selectColorProfile(auto, custom.id)).selection).toBe('manual')
-    expect(sharedUsedColorProfile(Array(6).fill(used))).toEqual(used)
-    expect(sharedUsedColorProfile([used, { ...used, colors: { ...used.colors, W: { r: 200, g: 244, b: 238 } } }])).toBeNull()
-    expect(sharedUsedColorProfile([used, undefined])).toBeNull()
+    expect(resolvedColorProfileSnapshot(activeColorProfile(selectColorProfile(auto, custom.id)), 'manual').selection).toBe('manual')
   })
 
   it('creates a named color profile from the selected palette without inheriting capture history', () => {

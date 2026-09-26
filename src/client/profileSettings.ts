@@ -146,24 +146,13 @@ export function activeColorProfile(settings: ProfileSettings): ColorProfile {
   return allColorProfiles(settings).find((profile) => profile.id === settings.activeColorsId) ?? genericColorProfile()
 }
 
-export function usedColorProfileSnapshot(settings: ProfileSettings, appliedColors?: Record<string, RGB>): UsedColorProfile {
-  const active = activeColorProfile(settings)
+export function resolvedColorProfileSnapshot(active: ColorProfile, selection: UsedColorProfile['selection']): UsedColorProfile {
   return {
     id: active.id,
     name: active.name,
-    selection: settings.activeColorsId === AUTO_COLORS_ID ? 'automatic' : 'manual',
-    colors: colorPalette({ colors: appliedColors ?? active.colors }),
+    selection,
+    colors: colorPalette(active),
   }
-}
-
-export function sharedUsedColorProfile(profiles: Array<UsedColorProfile | undefined>): UsedColorProfile | null {
-  const first = profiles[0]
-  if (!first || profiles.length === 0) return null
-  return profiles.every((profile) => profile && profile.id === first.id && profile.name === first.name
-    && profile.selection === first.selection && COLOR_KEYS.every((color) =>
-      profile.colors[color]?.r === first.colors[color]?.r
-      && profile.colors[color]?.g === first.colors[color]?.g
-      && profile.colors[color]?.b === first.colors[color]?.b)) ? first : null
 }
 
 export function setAutoColorMatch(settings: ProfileSettings, id: string | null): ProfileSettings {
