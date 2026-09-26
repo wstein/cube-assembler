@@ -85,18 +85,26 @@ async function validateFixture(byName) {
   }
 }
 
-export function createFixtureUploadServer(rootDir) {
+export function createFixtureUploadServer(rootDir, log = console.log) {
   return createServer(async (req, res) => {
-    if (req.url === '/ping') {
-      if (req.method !== 'GET') return reply(res, 405, 'Method not allowed')
-      res.writeHead(204, { 'Cache-Control': 'no-store' })
-      return res.end()
+    const started = performance.now()
+    const path = (req.url ?? '').split('?')[0].replace(/[\x00-\x1f\x7f]/g, '?').slice(0, 120)
+    const trace = (status, detail) => log(`[fixture] ${req.method ?? '?'} ${path} ${status} ${detail} ${Math.round(performance.now() - started)}ms`)
+    const send = (status, message) => {
+      reply(res, status, message)
+      trace(status, message)
     }
-    if (req.url !== '/upload') return reply(res, 404, 'Not found')
-    if (req.method !== 'POST') return reply(res, 405, 'Method not allowed')
-    if (req.headers['x-fixture-upload'] !== '1') return reply(res, 403, 'Upload header required')
+    if (req.url === '/ping') {
+      if (req.method !== 'GET') return send(405, 'Method not allowed')
+      res.writeHead(204, { 'Cache-Control': 'no-store' })
+      res.end()
+      return trace(204, 'ready')
+    }
+    if (req.url !== '/upload') return send(404, 'Not found')
+    if (req.method !== 'POST') return send(405, 'Method not allowed')
+    if (req.headers['x-fixture-upload'] !== '1') return send(403, 'Upload header required')
     if (!req.headers['content-type']?.startsWith('multipart/form-data;')) {
-      return reply(res, 415, 'Multipart form required')
+      return send(415, 'Multipart form required')
     }
     try {
       const body = await readBody(req)
@@ -122,8 +130,9 @@ export function createFixtureUploadServer(rootDir) {
         throw error
       }
       reply(res, 201, name)
+      trace(201, `saved ${name} (7 files)`)
     } catch (error) {
-      reply(res, error instanceof UploadError ? error.status : 400,
+      send(error instanceof UploadError ? error.status : 400,
         error instanceof UploadError ? error.message : 'Invalid upload')
     }
   })
