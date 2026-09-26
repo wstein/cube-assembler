@@ -92,8 +92,8 @@ export function nextAutoCaptureProgress(
 // (estimateFaceGridSize; null when a frame names none). Only a size most
 // recent frames agree on is taken, and auto capture waits for it, so it
 // never photographs a 4x4 as a 3x3. A size picked from the list is final.
-export const SIZE_VOTE_FRAMES = 10
-export const SIZE_VOTE_AGREE = 8
+export const SIZE_VOTE_FRAMES = 7
+export const SIZE_VOTE_AGREE = 5
 
 export function nextSizeVotes(votes: readonly (number | null)[], estimate: number | null): Array<number | null> {
   return [...votes, estimate].slice(-SIZE_VOTE_FRAMES)

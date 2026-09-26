@@ -103,6 +103,13 @@ describe('turn cue dismissal', () => {
 describe('first-face cube size vote', () => {
   const vote = (estimates: Array<number | null>) => estimates.reduce<Array<number | null>>((votes, estimate) => nextSizeVotes(votes, estimate), [])
 
+  it('takes five matching estimates within the latest seven frames', () => {
+    expect(SIZE_VOTE_AGREE).toBe(5)
+    expect(SIZE_VOTE_FRAMES).toBe(7)
+    expect(agreedSize(vote([4, null, 4, 4, null, 4, 4]))).toBe(4)
+    expect(agreedSize(vote([4, null, 4, 4, null, 4, 5]))).toBeNull()
+  })
+
   it(`agrees on a size named in ${SIZE_VOTE_AGREE} of the last ${SIZE_VOTE_FRAMES} frames`, () => {
     expect(agreedSize(vote(Array(SIZE_VOTE_AGREE - 1).fill(4)))).toBeNull()
     expect(agreedSize(vote(Array(SIZE_VOTE_AGREE).fill(4)))).toBe(4)
