@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { faceSources, pieceKey, sourceIndex } from '../src/client/netPresentation'
+import { faceSources, pieceKey, sourceIndex, stickerFills } from '../src/client/netPresentation'
 
 const members = (n: number, face: string, index: number) => {
   const key = pieceKey(n, face, index)
@@ -63,5 +63,21 @@ describe('faceSources', () => {
     expect(sourceIndex(3, 1, 2)).toBe(0)
     expect(sourceIndex(3, 0, 5)).toBe(5)
     expect(sourceIndex(3, 2, 0)).toBe(8)
+  })
+})
+
+describe('stickerFills', () => {
+  const fixed = { W: '#f7f6f1', Y: '#f2d21b', O: '#ff7a1a', R: '#cf2a3a', G: '#1e9e57', B: '#2459d6' }
+
+  it('draws stickers in the first detected palette available', () => {
+    const learned = { W: { r: 174, g: 186, b: 206 }, Y: { r: 179, g: 202, b: 73 }, O: { r: 217, g: 87, b: 66 }, R: { r: 176, g: 41, b: 71 }, G: { r: 46, g: 166, b: 86 }, B: { r: 28, g: 98, b: 172 } }
+    const fills = stickerFills([null, learned, { ...learned, R: { r: 1, g: 2, b: 3 } }], fixed)
+    expect(fills.R).toBe('rgb(176 41 71)')
+    expect(fills.W).toBe('rgb(174 186 206)')
+  })
+
+  it('keeps the fixed colors without a palette, and for colors a palette lacks', () => {
+    expect(stickerFills([null, undefined], fixed)).toEqual(fixed)
+    expect(stickerFills([{ R: { r: 10, g: 20, b: 30 } }], fixed)).toEqual({ ...fixed, R: 'rgb(10 20 30)' })
   })
 })

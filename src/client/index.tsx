@@ -1,10 +1,10 @@
-import { render, h, Fragment } from 'preact'
-import { useState, useEffect, useRef, useMemo } from 'preact/hooks'
+import { render, h, Fragment, createContext } from 'preact'
+import { useState, useEffect, useRef, useMemo, useContext } from 'preact/hooks'
 import '../../web/style.css'
 import { AUTO_CAPTURE_MIN_CONFIDENCE, AUTO_CAPTURE_STABLE_FRAMES, TURN_CUE_START, agreedSize, nextAutoCaptureProgress, nextSizeVotes, nextTurnCue, sizeDetectionActive, turnCueCleared, turnPoseChanged, type AutoCaptureProgress, type TurnCuePose, type TurnCueState } from './autoCapture'
 import { oppositeFacePreview } from './capturePresentation'
 import type { ReviewCapture } from './colorReviewPage'
-import { faceSources, pieceKey, sourceIndex } from './netPresentation'
+import { faceSources, pieceKey, sourceIndex, stickerFills } from './netPresentation'
 import { ProfilesPage } from './profilesPage'
 import { profilesHash, profilesTab } from './profilesRoute'
 import { holdConfirmedFace, NO_HOLD, type LiveHold } from './liveHold'
@@ -245,6 +245,9 @@ const PARITY_CHECK_NAMES: Record<string, string> = {
 const STICKER_HEX: Record<string, string> = {
   W: '#f7f6f1', O: '#ff7a1a', G: '#1e9e57', R: '#cf2a3a', B: '#2459d6', Y: '#f2d21b',
 }
+// The colors stickers are drawn in: the cube's detected palette when there
+// is one (see stickerFills), STICKER_HEX otherwise.
+const StickerFills = createContext<Record<string, string>>(STICKER_HEX)
 
 const COLOR_NAME: Record<string, string> = {
   W: 'White', O: 'Orange', G: 'Green', R: 'Red', B: 'Blue', Y: 'Yellow',
@@ -353,6 +356,7 @@ function computeColorStats(
 // its own (never asked about), so the net shows at a glance which faces the
 // customer actually chose versus which were inferred from those choices.
 function FaceGrid({ colors, undecided, current, auto }: { colors: string[][]; undecided?: boolean; current?: boolean; auto?: boolean }) {
+  const fills = useContext(StickerFills)
   // On odd sizes the center sticker never moves when a face is turned, so
   // it's known even while the face's orientation is still undecided.
   const n = colors.length
@@ -366,7 +370,7 @@ function FaceGrid({ colors, undecided, current, auto }: { colors: string[][]; un
         <div
           key={i}
           class="orientation-net-sticker"
-          style={(undecided && i !== centerIndex) || !color ? undefined : { background: STICKER_HEX[color] ?? '#888' }}
+          style={(undecided && i !== centerIndex) || !color ? undefined : { background: fills[color] ?? '#888' }}
         />
       ))}
     </div>
@@ -449,6 +453,7 @@ function TurnHint({ step, mirrored }: { step: number; mirrored: boolean }) {
 // A visual cue between successful captures. The turn shown is only an
 // example: the guided solver determines the real face orientation afterward.
 function CaptureTurnOverlay({ step, startColors, viaColors, capturedColors, mirrored, onContinue }: { step: number; startColors: string[][]; viaColors?: string[][]; capturedColors: Array<string[][] | undefined>; mirrored: boolean; onContinue: () => void }) {
+  const fills = useContext(StickerFills)
   const kind = step < 4 ? 'side' : step === 4 ? 'top' : 'bottom'
   const title = kind === 'side' ? 'Turn to another side' : kind === 'top' ? 'Show a remaining face' : 'Show the last face'
   const detail = kind === 'side'
@@ -474,9 +479,9 @@ function CaptureTurnOverlay({ step, startColors, viaColors, capturedColors, mirr
             key={i}
             class={`capture-turn-sticker${name === nextFace || name === 'front' && !startStickers[i] ? ' capture-turn-sticker-next' : ''}`}
             style={name === 'front'
-              ? startStickers[i] ? { backgroundColor: STICKER_HEX[startStickers[i]] ?? '#888' } : undefined
+              ? startStickers[i] ? { backgroundColor: fills[startStickers[i]] ?? '#888' } : undefined
               : kind === 'bottom' && name === viaFace && viaStickers && viaStickers[i]
-                ? { backgroundColor: STICKER_HEX[viaStickers[i]] ?? '#888' }
+                ? { backgroundColor: fills[viaStickers[i]] ?? '#888' }
                 : undefined}
           />
         ))}
@@ -827,6 +832,10 @@ function App() {
   const [captureProfile, setCaptureProfile] = useState<{ id?: string; name: string } | null>(null)
   const [resolvedColorProfile, setResolvedColorProfile] = useState<UsedColorProfile | null>(null)
   const [resolvedColorReference, setResolvedColorReference] = useState<Record<string, RGB> | null>(null)
+  // Draw the cube in its own detected colors: learned from this capture's
+  // photos, else its resolved profile, else the preview palette in use.
+  const fills = useMemo(() => stickerFills([learnedPalette, resolvedColorProfile?.colors, palette], STICKER_HEX),
+    [learnedPalette, resolvedColorProfile, palette])
   // Applied for this session even when the browser won't keep it.
   // '#profiles' shows the profiles page instead of the scanner.
   const [page, setPage] = useState(() => location.hash)
@@ -2229,6 +2238,7 @@ function App() {
   }
 
   return (
+    <StickerFills.Provider value={fills}>
     <div class="app-layout">
       {/* Header: name, cube geometry and color settings */}
       <header class="app-header">
@@ -2371,7 +2381,7 @@ function App() {
                                 <div
                                   class={`net-cell ${group !== undefined ? 'net-cell-highlighted' : ''} ${isHoverRelated ? 'net-cell-hover-related' : ''} ${samePiece ? 'net-cell-piece' : ''}`}
                                   key={i}
-                                  style={{ background: STICKER_HEX[color] || '#888' }}
+                                  style={{ background: fills[color] || '#888' }}
                                   onMouseEnter={() => {
                                     setHoveredNetCell({ face: faceKey, index: i })
                                     setHoveredHighlightGroup(group ?? null)
@@ -2694,7 +2704,7 @@ function App() {
                               class="capture-sample-zone"
                               style={{
                                 left: `${zone.x}%`, top: `${zone.y}%`, width: `${zone.width}%`, height: `${zone.height}%`,
-                                borderColor: STICKER_HEX[color] ?? '#888',
+                                borderColor: fills[color] ?? '#888',
                               }}
                             />
                           </Fragment>
@@ -2756,7 +2766,7 @@ function App() {
                 {centerRoutingActive ? 'Show any uncaptured face. Its center color will place it in the capture net.' : captureInstruction(FACE_ORDER.indexOf(webcamFace), mirrorPreview)}
                 {predictedCenter && (
                   <span class="capture-expected-center">
-                    Suggested center: <span class="capture-expected-swatch" style={{ background: STICKER_HEX[predictedCenter] }} />
+                    Suggested center: <span class="capture-expected-swatch" style={{ background: fills[predictedCenter] }} />
                     <strong>{COLOR_NAME[predictedCenter]}</strong>
                   </span>
                 )}
@@ -3202,7 +3212,7 @@ function App() {
                               <button
                                 key={`${r}-${c}`}
                                 class={`review-detected-cell ${flagged ? 'review-detected-cell-flagged' : ''} ${corrected ? 'review-detected-cell-corrected' : ''}`}
-                                style={{ background: STICKER_HEX[color] || '#888' }}
+                                style={{ background: fills[color] || '#888' }}
                                 onClick={() => setReviewEditingCell({ face, row: r, col: c })}
                                 title={[`Row ${r + 1}, column ${c + 1}: ${name}${sure}.`, ...notes, 'Tap to change.'].join(' ')}
                               >
@@ -3217,7 +3227,7 @@ function App() {
                                 {corrected && (
                                   <span
                                     class="review-detected-cell-was"
-                                    style={{ background: STICKER_HEX[detected] || '#888' }}
+                                    style={{ background: fills[detected] || '#888' }}
                                     aria-hidden="true"
                                   >
                                     {detected}
@@ -3508,7 +3518,7 @@ function App() {
                     <button
                       key={color}
                       class={`color-btn ${color === current ? 'is-current' : ''}`}
-                      style={{ background: STICKER_HEX[color] }}
+                      style={{ background: fills[color] }}
                       aria-pressed={color === current}
                       onClick={() => handleFixCellColor(face, row, col, color)}
                     >
@@ -3583,6 +3593,7 @@ function App() {
         </div>
       )}
     </div>
+    </StickerFills.Provider>
   )
 }
 
