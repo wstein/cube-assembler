@@ -17,7 +17,7 @@ import {
 } from './imageProcessing'
 import {
   assembleCubeFromFaces, validateFaceColors, createSolvedCube, toCubeIR, solveFaceOrientations, solveGuidedCapture,
-  checkGuidedCenters, findRepeatedFaces, findCapturedFaceMatch, findCaptureSlotForOrientedFace, orientationFreeSignature, captureCenterSlots, captureSlotForCenter,
+  checkGuidedCenters, findRepeatedFaces, findCapturedFaceMatch, findCaptureSlotForOrientedFace, orientationFreeSignature, captureCenterSlots, placeCapturedFace,
   type OrientedCandidate, type OrientationSolution, type FaceKey, type GuidedArrangement, type GuidedCenterIssue,
 } from './cubeAssembly'
 import {
@@ -1202,12 +1202,7 @@ function App() {
     }
 
     const requestedIndex = FACE_ORDER.indexOf(face)
-    const assignedIndex = captureSlotForCenter(FACE_ORDER.map((f) => capturedFaces[f]?.colors), requestedIndex, result.colors)
-    if (assignedIndex === null) {
-      pendingFlyIn.current = null
-      setCaptureMessage('This center has already been captured, or could not be identified. Show another face or retake a saved one.')
-      return
-    }
+    const { index: assignedIndex, unexpectedCenter } = placeCapturedFace(FACE_ORDER.map((f) => capturedFaces[f]?.colors), requestedIndex, result.colors)
     const assignedFace = FACE_ORDER[assignedIndex]
     if (pendingFlyIn.current) pendingFlyIn.current.slot = assignedFace
 
@@ -1226,7 +1221,7 @@ function App() {
         sharpness: result.sharpness,
         cameraSettings,
         source,
-        outOfOrder: assignedIndex !== requestedIndex || capturedFaces[assignedFace]?.outOfOrder,
+        outOfOrder: unexpectedCenter || assignedIndex !== requestedIndex || capturedFaces[assignedFace]?.outOfOrder,
         timestamp: Date.now(),
       },
     }
@@ -1234,7 +1229,8 @@ function App() {
     setCapturedFaces(newCapturedFaces)
     lastCapturedColors.current = result.colors
     setFaceConfidence({ ...faceConfidence, [assignedFace]: result.confidence })
-    setCaptureMessage(`✓ ${FACE_DISPLAY_LABEL[assignedFace]} captured (${(result.confidence * 100).toFixed(0)}% confidence)`)
+    setCaptureMessage(`✓ ${FACE_DISPLAY_LABEL[assignedFace]} captured (${(result.confidence * 100).toFixed(0)}% confidence)`
+      + (unexpectedCenter ? " - its center isn't the suggested one; check it in the review" : ''))
 
     const allFacesCaptured = FACE_ORDER.every(f => f in newCapturedFaces)
     if (allFacesCaptured) {
