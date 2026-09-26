@@ -30,7 +30,7 @@ import {
   resolvedColorProfileSnapshot, selectCube, selectColorProfile, setAutoColorMatch, type ProfileSettings, type UsedColorProfile,
 } from './profileSettings'
 import { loadProfileSettings, saveProfileSettings, settingsFile, parseSettingsFile } from './profileStorage'
-import { assessPalette, blendColorProfile, canCreateProfileFromCapture, matchPartialColorProfile, profileColorFitPercent, resolveAutomaticProfile, shouldBlendColorProfile, summarizePreviewProfiles, updateProfileFromCapture, type AutomaticResolution, type PaletteEvidence } from './colorProfileLearning'
+import { canCreateProfileFromCapture, matchPartialColorProfile, profileColorFitPercent, profileToUpdate, resolveAutomaticProfile, summarizePreviewProfiles, updateProfileFromCapture, type AutomaticResolution, type PaletteEvidence } from './colorProfileLearning'
 import { readFixtureColors } from './fixtureFormat'
 import { buildFixture, summarizeFixture, unzipFixture, zipFixture, type Fixture, type FixtureSummary } from './fixtureZip'
 import { fixtureUploadServerAvailable, uploadFixtureToDevServer } from './fixtureUpload'
@@ -911,13 +911,16 @@ function App() {
     setProfileLearningOffer(null)
     setNewColorName(null)
   }
+  // The saved profile the Update action would change (see profileToUpdate).
+  const updatableName = profileStore.colors.find((profile) => profile.id === profileLearningOffer?.matchedProfileId)?.name ?? 'detected'
   const handleUpdateColors = () => {
     const offer = profileLearningOffer
     const target = profileStore.colors.find((profile) => profile.id === offer?.matchedProfileId)
     if (!offer || !target) return
     const updated = updateProfileFromCapture(target, offer.colors, offer.evidence, new Date().toISOString())
     if (!updated) return
-    const saved = saveColorProfile(profileStore, updated)
+    // Saving would also select the profile; keep Automatic or the current choice.
+    const saved = { ...saveColorProfile(profileStore, updated), activeColorsId: profileStore.activeColorsId }
     applyProfileStore(profileStore.activeColorsId === AUTO_COLORS_ID ? setAutoColorMatch(saved, updated.id) : saved)
     setProfileLearningOffer({ ...offer, matchedProfileId: null, updatedProfileName: updated.name })
   }
@@ -1972,21 +1975,15 @@ function App() {
       const automatic = profileStore.activeColorsId === AUTO_COLORS_ID
       const matched = automatic && reviewedValid && evidence.cameraOnly && evidence.recalibrated
         ? profileStore.colors.find((saved) => saved.id === resolvedColorProfile?.id) ?? null : null
-      const target = matched ?? colorProfile
+      // The Automatic match or the hand-selected profile is only ever
+      // updated through the explicit Update action, never silently.
+      const updatable = profileToUpdate(profileStore.colors,
+        { automatic, resolvedId: resolvedColorProfile?.id ?? null, selectedId: profileStore.activeColorsId },
+        pendingPalette.colors, evidence)
       const canCreate = canCreateProfileFromCapture(evidence)
-      setProfileLearningOffer(canCreate ? {
-        colors: pendingPalette.colors,
-        evidence,
-        matchedProfileId: automatic && matched && assessPalette(matched, pendingPalette.colors, evidence).accepted
-          ? matched.id : null,
-      } : null)
+      setProfileLearningOffer(canCreate ? { colors: pendingPalette.colors, evidence, matchedProfileId: updatable?.id ?? null } : null)
       setNewColorName(null)
-      if (automatic) {
-        applyProfileStore(setAutoColorMatch(profileStore, matched?.id ?? null))
-      } else if (shouldBlendColorProfile(target, pendingPalette.colors, evidence, false)) {
-        const next = saveColorProfile(profileStore, blendColorProfile(target, pendingPalette.colors, new Date().toISOString()))
-        applyProfileStore(next)
-      }
+      if (automatic) applyProfileStore(setAutoColorMatch(profileStore, matched?.id ?? null))
       setPendingPalette(null)
     }
     setShowReviewDialog(false)
@@ -2605,8 +2602,8 @@ function App() {
                     </button>
                     {profileLearningOffer?.matchedProfileId && (
                       <button type="button" class="btn btn-secondary btn-sm" onClick={handleUpdateColors}
-                        title={`Update the detected ${resolvedColorProfile?.name ?? 'sticker color'} profile from this reviewed capture`}>
-                        Update {resolvedColorProfile?.name ?? 'detected'} profile
+                        title={`Update the ${updatableName} profile from this reviewed capture`}>
+                        Update {updatableName} profile
                       </button>
                     )}
                     {profileLearningOffer?.updatedProfileName && <span role="status">✓ {profileLearningOffer.updatedProfileName} updated</span>}

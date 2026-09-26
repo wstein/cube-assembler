@@ -143,3 +143,18 @@ export function summarizePreviewProfiles(names: Array<string | undefined>): stri
   }
   return [...faces].map(([name, numbers]) => `${name} (${numbers.length === 1 ? 'face' : 'faces'} ${spans(numbers)})`).join(', ')
 }
+
+// The saved profile a reviewed capture may update, offered as an explicit
+// Update action: the one Automatic resolved to, or the hand-selected one.
+// Needs a valid, camera-only, recalibrated capture whose colors are close
+// enough (see assessPalette); never Generic or Automatic.
+export function profileToUpdate(
+  profiles: ColorProfile[],
+  { automatic, resolvedId, selectedId }: { automatic: boolean; resolvedId: string | null; selectedId: string },
+  measured: Record<string, RGB>,
+  evidence: PaletteEvidence,
+): ColorProfile | null {
+  if (!evidence.reviewedValid || !evidence.cameraOnly || !evidence.recalibrated) return null
+  const target = profiles.find((profile) => profile.id === (automatic ? resolvedId : selectedId))
+  return target && shouldBlendColorProfile(target, measured, evidence, false) ? target : null
+}
