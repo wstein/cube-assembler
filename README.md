@@ -112,9 +112,9 @@ the count; a changed sticker pattern starts a new count. The preview ring
 shows progress, and capture flashes the preview and plays a short click when
 sound is enabled. The sound setting is saved in this browser. After a capture, the turn cue
 stays visible while the last captured face remains in view. It closes after
-three consecutive live checks show that face has left or changed. Continue
-lets you dismiss the cue if detection cannot recognize the turn; automatic
-capture still waits to see the previous face leave. A color pattern matching
+three consecutive live checks show a changed pattern, a missing face, or a
+substantial change in face position, size, or angle. Continue confirms the
+turn and releases the capture gate when two sides look identical. A color pattern matching
 an earlier capture is shown as a warning in the camera and capture net, since
 different faces can look identical, especially on even cubes. It does not
 prevent the next capture.
