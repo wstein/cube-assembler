@@ -11,7 +11,7 @@
 import { describe, it, expect } from 'vitest'
 import { existsSync, readFileSync } from 'node:fs'
 import { rotateCube, turnFace, allOrientations, solvedCubeFaces, type Faces } from '../src/client/cubeGeometry'
-import { solveGuidedCapture, checkGuidedCenters, findRepeatedFaces, findCapturedFaceMatch, findCaptureSlotForOrientedFace, predictGuidedCenters, captureCenterSlots, captureSlotForCenter, type FaceKey, type GuidedCapture } from '../src/client/cubeAssembly'
+import { solveGuidedCapture, checkGuidedCenters, findRepeatedFaces, findCapturedFaceMatch, findCaptureSlotForOrientedFace, predictGuidedCenters, captureCenterSlots, captureSlotForCenter, placeCapturedFace, type FaceKey, type GuidedCapture } from '../src/client/cubeAssembly'
 import { preferredGuidedArrangementIndex } from '../src/client/orientationWizard'
 
 const WCA: Record<FaceKey, string> = { U: 'W', R: 'R', F: 'G', D: 'Y', L: 'O', B: 'B' }
@@ -207,6 +207,15 @@ describe('center-routed capture slots', () => {
     const photos = [face(3, 'O'), face(3, 'Y'), undefined, undefined, undefined, undefined]
     expect(captureSlotForCenter(photos, 2, face(3, 'O'))).toBeNull()
     expect(captureSlotForCenter(photos, 0, face(3, 'O'))).toBe(0)
+  })
+
+  it('keeps a face whose center fits no free slot in the slot being captured, flagged', () => {
+    const photos = [face(3, 'O'), face(3, 'Y'), undefined, undefined, undefined, undefined]
+    expect(placeCapturedFace(photos, 2, face(3, 'O'))).toEqual({ index: 2, unexpectedCenter: true })
+    expect(placeCapturedFace([face(3, 'O'), undefined, undefined, undefined, undefined, undefined], 1, face(3, 'O')))
+      .toEqual({ index: 1, unexpectedCenter: true })
+    expect(placeCapturedFace(photos, 2, face(3, 'R'))).toEqual({ index: 2, unexpectedCenter: false })
+    expect(placeCapturedFace(photos, 3, face(3, 'R'))).toEqual({ index: 2, unexpectedCenter: false })
   })
 
   it('puts an opposite second photo in slot 3, then waits for an adjacent face in slot 2', () => {

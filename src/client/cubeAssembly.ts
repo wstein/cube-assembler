@@ -874,6 +874,16 @@ export function captureSlotForCenter(
   return index < 0 || photos[index] ? null : index
 }
 
+// The center color only suggests a slot, it never rejects a face: one that
+// fits no free slot (a misread center, or a face shown twice) stays in the
+// slot being captured, flagged so assembly searches any order.
+export function placeCapturedFace(
+  photos: Array<string[][] | undefined>, requestedIndex: number, candidate: string[][]
+): { index: number; unexpectedCenter: boolean } {
+  const index = captureSlotForCenter(photos, requestedIndex, candidate)
+  return index === null ? { index: requestedIndex, unexpectedCenter: true } : { index, unexpectedCenter: false }
+}
+
 // How many stickers already sit on the face of their own color - used to
 // pick which of the 24 whole-cube orientations to present an arrangement
 // in. Centers count far more on odd sizes, since they pin each face's
