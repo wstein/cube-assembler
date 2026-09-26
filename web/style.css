@@ -1131,8 +1131,13 @@ textarea {
 }
 
 .orientation-wizard-options {
-  grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+  grid-template-columns: repeat(var(--wizard-columns, 4), minmax(0, 1fr));
+  gap: var(--spacing-md);
   margin-top: var(--spacing-lg);
+}
+
+@media (max-width: 520px) {
+  .orientation-wizard-options { grid-template-columns: repeat(var(--wizard-columns-narrow, 2), minmax(0, 1fr)); }
 }
 
 .orientation-wizard-option .orientation-net-face {
