@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { STICKER_COLORS } from '../src/client/imageProcessing'
-import { assessPalette, blendColorProfile, canCreateProfileFromCapture, matchColorProfile, matchPartialColorProfile, profileColorFitPercent, profileToUpdate, resolveAutomaticProfile, shouldBlendColorProfile, summarizePreviewProfiles, updateProfileFromCapture } from '../src/client/colorProfileLearning'
+import { paletteDistance, STICKER_COLORS } from '../src/client/imageProcessing'
+import { assessPalette, blendColorProfile, canCreateProfileFromCapture, captureProfileFinding, matchColorProfile, matchPartialColorProfile, profileColorFitPercent, profileToUpdate, resolveAutomaticProfile, shouldBlendColorProfile, summarizePreviewProfiles, updateProfileFromCapture } from '../src/client/colorProfileLearning'
 import { genericColorProfile, type ColorProfile } from '../src/client/profileSettings'
 
 const base: ColorProfile = { id: 'base', name: 'Base', colors: STICKER_COLORS, captures: 4 }
@@ -117,6 +117,32 @@ describe('resolving the automatic profile after all six faces', () => {
     expect(result.reason).toBe('clear')
   })
 
+  it('finds a clear match when only the nearest profile is close enough', () => {
+    const altered = (amount: number) => Object.fromEntries(Object.entries(STICKER_COLORS).map(([key, color]) =>
+      [key, { ...color, r: Math.max(0, color.r - amount), g: Math.max(0, color.g - amount), b: Math.max(0, color.b - amount) }])) as typeof STICKER_COLORS
+    const nearestColors = Array.from({ length: 200 }, (_, amount) => altered(amount))
+      .find((colors) => paletteDistance(colors, STICKER_COLORS) > 0.03 && paletteDistance(colors, STICKER_COLORS) < 0.04)!
+    const otherColors = Array.from({ length: 200 }, (_, amount) => altered(amount))
+      .find((colors) => paletteDistance(colors, STICKER_COLORS) > 0.045 && paletteDistance(colors, STICKER_COLORS) < 0.06)!
+    const nearest = { ...plastic1, colors: nearestColors }
+    const other = { ...plastic2, colors: otherColors }
+    expect(nearestColors).toBeDefined()
+    expect(otherColors).toBeDefined()
+    expect(matchColorProfile([nearest, other], STICKER_COLORS)?.id).toBe('plastic1')
+    expect(resolveAutomaticProfile([nearest, other], STICKER_COLORS, 'plastic1').reason).toBe('clear')
+  })
+
+  it('does not call a narrow threshold crossing a clear lead', () => {
+    const altered = (amount: number) => Object.fromEntries(Object.entries(STICKER_COLORS).map(([key, color]) =>
+      [key, { ...color, r: Math.max(0, color.r - amount), g: Math.max(0, color.g - amount), b: Math.max(0, color.b - amount) }])) as typeof STICKER_COLORS
+    const palettes = Array.from({ length: 200 }, (_, amount) => altered(amount))
+    const near = palettes.find((colors) => paletteDistance(colors, STICKER_COLORS) > 0.038 && paletteDistance(colors, STICKER_COLORS) < 0.04)!
+    const other = palettes.find((colors) => paletteDistance(colors, STICKER_COLORS) > 0.04 && paletteDistance(colors, STICKER_COLORS) < 0.043)!
+    expect(near).toBeDefined()
+    expect(other).toBeDefined()
+    expect(matchColorProfile([{ ...plastic1, colors: near }, { ...plastic2, colors: other }], STICKER_COLORS)).toBeNull()
+  })
+
   it("takes the preview's profile when it is still the nearest, though not clearly", () => {
     const result = resolveAutomaticProfile([plastic1, plastic2, far], between, 'plastic2')
     expect(result.profile?.id).toBe('plastic2')
@@ -145,6 +171,17 @@ describe('summarizing the preview profiles per face', () => {
     expect(summarizePreviewProfiles(['plastic2', 'plastic2', 'plastic1', 'plastic2', undefined, undefined]))
       .toBe('plastic2 (faces 1–2, 4), plastic1 (face 3)')
     expect(summarizePreviewProfiles([undefined, undefined])).toBeNull()
+  })
+
+  it('reports only a meaningful difference from the final color choice', () => {
+    expect(captureProfileFinding(Array(6).fill('GoCube'), 'GoCube', 'clear')).toBeNull()
+    expect(captureProfileFinding(Array(6).fill('GoCube'), 'GoCube', 'preview')).toBeNull()
+    expect(captureProfileFinding(['Generic colors', ...Array(5).fill('GoCube')], 'GoCube', 'clear'))
+      .toBe('Preview used Generic colors (face 1), GoCube (faces 2–6)')
+    expect(captureProfileFinding(Array(6).fill('GoCube'), 'Colors from this capture', 'tie'))
+      .toBe('Saved color profiles were too similar to choose')
+    expect(captureProfileFinding(Array(6).fill('GoCube'), 'Colors from this capture', 'far'))
+      .toBe('No saved color profile was close enough')
   })
 })
 

@@ -31,7 +31,7 @@ import {
   resolvedColorProfileSnapshot, selectCube, selectColorProfile, setAutoColorMatch, type ProfileSettings, type UsedColorProfile,
 } from './profileSettings'
 import { loadProfileSettings, saveProfileSettings, settingsFile, parseSettingsFile } from './profileStorage'
-import { canCreateProfileFromCapture, matchPartialColorProfile, profileColorFitPercent, profileToUpdate, resolveAutomaticProfile, summarizePreviewProfiles, updateProfileFromCapture, type AutomaticResolution, type PaletteEvidence } from './colorProfileLearning'
+import { canCreateProfileFromCapture, captureProfileFinding, matchPartialColorProfile, profileColorFitPercent, profileToUpdate, resolveAutomaticProfile, updateProfileFromCapture, type AutomaticResolution, type PaletteEvidence } from './colorProfileLearning'
 import { readFixtureColors } from './fixtureFormat'
 import { buildFixture, summarizeFixture, unzipFixture, zipFixture, type Fixture, type FixtureSummary } from './fixtureZip'
 import { currentAppCommit, fixtureUploadServerAvailable, uploadFixtureToDevServer } from './fixtureUpload'
@@ -273,18 +273,6 @@ function stickerMark(face: { colors: string[][]; detectedColors?: string[][]; ce
   if (detected !== undefined && detected !== face.colors[r]?.[c]) return 'corrected'
   if (confidenceTier(face.cellConfidences?.[r]?.[c] ?? 1) === 'low' || face.cellLookalikes?.[r]?.[c]) return 'flagged'
   return null
-}
-
-// Why Automatic's six-face profile is what it is, for the capture status.
-function describeResolution({ reason, nearest }: AutomaticResolution): string {
-  const fits = nearest.slice(0, 2).map(({ profile, fit }) => `${profile.name} ${fit}%`).join(', ')
-  switch (reason) {
-    case 'clear': return `clear match (${fits})`
-    case 'preview': return `kept the preview's profile, the nearest but without a clear lead (${fits})`
-    case 'tie': return `no clear saved match, too close to choose (${fits})`
-    case 'far': return `no saved profile is close (nearest: ${fits})`
-    case 'none': return 'no saved profiles to match'
-  }
 }
 
 function confidenceTier(c: number): 'high' | 'medium' | 'low' {
@@ -2291,6 +2279,12 @@ function App() {
       onExport={handleDownloadSampling} onImport={handleUploadSampling} fileMessage={samplingFileMessage} />
   }
 
+  const profileFinding = resolvedColorProfile?.selection === 'automatic'
+    ? captureProfileFinding(FACE_ORDER.map((face) => capturedFaces[face])
+      .sort((a, b) => (a?.timestamp ?? 0) - (b?.timestamp ?? 0)).map((face) => face?.previewColorProfile?.name),
+      resolvedColorProfile.name, automaticResolution?.reason ?? null)
+    : null
+
   return (
     <div class="app-layout">
       {/* Header: name, cube geometry and color settings */}
@@ -2573,16 +2567,14 @@ function App() {
               <span class="capture-profile-used">
                 Cube: {captureProfile.name}
                 {cube && resolvedColorProfile && <>
-                  {' · '}Resolved sticker colors: {resolvedColorProfile.name}
-                  {resolvedColorProfile.selection === 'automatic' ? ' (Automatic)' : ''}
-                  {resolvedColorProfile.colorFitPercent !== undefined && ` · profile color fit ${resolvedColorProfile.colorFitPercent}%`}
-                  <span class="capture-profile-used-detail">
-                    Preview: {summarizePreviewProfiles(FACE_ORDER.map((f) => capturedFaces[f])
-                      .sort((a, b) => a.timestamp - b.timestamp).map((data) => data.previewColorProfile?.name)) ?? 'not recorded'}
-                    {resolvedColorProfile.selection === 'automatic' && automaticResolution && ` · Final: ${describeResolution(automaticResolution)}`}
-                    {' · '}Colors {learnedPalette ? 'calibrated from all six faces' : 'not calibrated (six-face calibration unavailable)'}
-                    {appliedBackgroundGains && <>{' · '}<button type="button" class="color-review-link" onClick={() => setShowBackdropDialog(true)}>Compare backdrop adjustment</button></>}
-                  </span>
+                  {' · '}Colors: {resolvedColorProfile.name}
+                  {resolvedColorProfile.selection === 'automatic' && ' (Automatic)'}
+                  {resolvedColorProfile.colorFitPercent !== undefined && ` · ${resolvedColorProfile.colorFitPercent}% color fit`}
+                  {(profileFinding || !learnedPalette || appliedBackgroundGains) && <span class="capture-profile-used-detail">
+                    {profileFinding}
+                    {!learnedPalette && `${profileFinding ? ' · ' : ''}Six-face calibration unavailable`}
+                    {appliedBackgroundGains && <>{profileFinding || !learnedPalette ? ' · ' : ''}<button type="button" class="color-review-link" onClick={() => setShowBackdropDialog(true)}>Compare backdrop adjustment</button></>}
+                  </span>}
                 </>}
               </span>
             )}

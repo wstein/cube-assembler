@@ -63,8 +63,11 @@ export function matchColorProfile(profiles: ColorProfile[], measured: Record<str
     .sort((a, b) => a.distance - b.distance)
   const best = ranked[0]
   const second = ranked[1]?.distance ?? Infinity
+  // A ten-point advantage on the displayed 0.08 fit scale is also a clear
+  // lead. Merely crossing the 0.04 close-match boundary by a tiny amount
+  // must not turn an almost-tie into a clear match.
   const clear = best && best.distance <= (ranked.length === 1 ? 0.025 : 0.04)
-    && best.distance < second * 0.65
+    && (best.distance < second * 0.65 || second - best.distance >= 0.008)
   return clear ? best.profile : null
 }
 
@@ -142,6 +145,17 @@ export function summarizePreviewProfiles(names: Array<string | undefined>): stri
     return parts.join(', ')
   }
   return [...faces].map(([name, numbers]) => `${name} (${numbers.length === 1 ? 'face' : 'faces'} ${spans(numbers)})`).join(', ')
+}
+
+// The status already names the final profile. Mention previews only when
+// they differed; otherwise report a failed automatic selection, if any.
+export function captureProfileFinding(previewNames: Array<string | undefined>, resolvedName: string,
+  reason: AutomaticResolution['reason'] | null): string | null {
+  if (reason === 'tie') return 'Saved color profiles were too similar to choose'
+  if (reason === 'far') return 'No saved color profile was close enough'
+  if (previewNames.length === 0 || previewNames.every((name) => name === resolvedName)) return null
+  const preview = summarizePreviewProfiles(previewNames)
+  return preview ? `Preview used ${preview}` : null
 }
 
 // The saved profile a reviewed capture may update, offered as an explicit
