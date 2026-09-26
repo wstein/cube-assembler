@@ -26,7 +26,7 @@ import {
   resolvedColorProfileSnapshot, selectCube, selectColorProfile, setAutoColorMatch, type ProfileSettings, type UsedColorProfile,
 } from './profileSettings'
 import { loadProfileSettings, saveProfileSettings, settingsFile, parseSettingsFile } from './profileStorage'
-import { blendColorProfile, canCreateProfileFromCapture, matchColorProfile, shouldBlendColorProfile } from './colorProfileLearning'
+import { assessPalette, blendColorProfile, canCreateProfileFromCapture, matchColorProfile, shouldBlendColorProfile, updateProfileFromCapture, type PaletteEvidence } from './colorProfileLearning'
 import { readFixtureColors } from './fixtureFormat'
 import { buildFixture, summarizeFixture, unzipFixture, zipFixture, type Fixture, type FixtureSummary } from './fixtureZip'
 import { fixtureUploadServerAvailable, uploadFixtureToDevServer } from './fixtureUpload'
@@ -765,7 +765,12 @@ function App() {
   // each alternative against.
   const [learnedPalette, setLearnedPalette] = useState<Record<string, RGB> | null>(null)
   const [pendingPalette, setPendingPalette] = useState<{ colors: Record<string, RGB>; confidentFraction: number; recalibrated: boolean } | null>(null)
-  const [profileLearningOffer, setProfileLearningOffer] = useState<Record<string, RGB> | null>(null)
+  const [profileLearningOffer, setProfileLearningOffer] = useState<{
+    colors: Record<string, RGB>
+    evidence: PaletteEvidence
+    matchedProfileId: string | null
+    updatedProfileName?: string
+  } | null>(null)
   const [newColorName, setNewColorName] = useState<string | null>(null)
   const [samplingFileMessage, setSamplingFileMessage] = useState('')
   // The cube geometry and colors selected when this capture was taken.
@@ -799,7 +804,7 @@ function App() {
     if (!profileLearningOffer || !newColorName?.trim()) return
     const id = `colors-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
     const saved = saveColorProfile(profileStore, {
-      id, name: newColorName.trim().slice(0, 60), colors: profileLearningOffer,
+      id, name: newColorName.trim().slice(0, 60), colors: profileLearningOffer.colors,
       captures: 1, updatedAt: new Date().toISOString(),
     })
     applyProfileStore(profileStore.activeColorsId === AUTO_COLORS_ID
@@ -809,6 +814,17 @@ function App() {
       profileStore.activeColorsId === AUTO_COLORS_ID ? 'automatic' : 'manual'))
     setProfileLearningOffer(null)
     setNewColorName(null)
+  }
+  const handleUpdateColors = () => {
+    const offer = profileLearningOffer
+    const target = profileStore.colors.find((profile) => profile.id === offer?.matchedProfileId)
+    if (!offer || !target) return
+    const updated = updateProfileFromCapture(target, offer.colors, offer.evidence, new Date().toISOString())
+    if (!updated) return
+    const saved = saveColorProfile(profileStore, updated)
+    applyProfileStore(profileStore.activeColorsId === AUTO_COLORS_ID ? setAutoColorMatch(saved, updated.id) : saved)
+    setResolvedColorProfile(resolvedColorProfileSnapshot(updated, 'automatic'))
+    setProfileLearningOffer({ ...offer, matchedProfileId: null, updatedProfileName: updated.name })
   }
   // Settings file: cubes and colors, so a setup tuned in one browser or
   // on one machine can be carried to another.
@@ -1733,7 +1749,12 @@ function App() {
       const target = automatic ? matched ?? activeColorProfile(setAutoColorMatch(profileStore, null)) : colorProfile
       setResolvedColorProfile(resolvedColorProfileSnapshot(target, automatic ? 'automatic' : 'manual'))
       const canCreate = canCreateProfileFromCapture(evidence)
-      setProfileLearningOffer(canCreate ? pendingPalette.colors : null)
+      setProfileLearningOffer(canCreate ? {
+        colors: pendingPalette.colors,
+        evidence,
+        matchedProfileId: automatic && matched && assessPalette(matched, pendingPalette.colors, evidence).accepted
+          ? matched.id : null,
+      } : null)
       setNewColorName(null)
       if (automatic) {
         applyProfileStore(setAutoColorMatch(profileStore, matched?.id ?? null))
@@ -2258,11 +2279,20 @@ function App() {
             {cube && FACE_ORDER.every((face) => capturedFaces[face]?.croppedImage) && !showReviewDialog && (
               <div class="profile-suggestion">
                 {newColorName === null ? (
-                  <button type="button" class="btn btn-secondary btn-sm" disabled={!profileLearningOffer}
-                    title={profileLearningOffer ? 'Save this capture’s learned sticker colors under a new name' : 'Requires a valid, confident reviewed camera capture'}
-                    onClick={() => setNewColorName('')}>
-                    ＋ Create sticker color profile
-                  </button>
+                  <>
+                    <button type="button" class="btn btn-secondary btn-sm" disabled={!profileLearningOffer}
+                      title={profileLearningOffer ? 'Save this capture’s learned sticker colors under a new name' : 'Requires a valid, confident reviewed camera capture'}
+                      onClick={() => setNewColorName('')}>
+                      ＋ Create sticker color profile
+                    </button>
+                    {profileLearningOffer?.matchedProfileId && (
+                      <button type="button" class="btn btn-secondary btn-sm" onClick={handleUpdateColors}
+                        title={`Update the detected ${resolvedColorProfile?.name ?? 'sticker color'} profile from this reviewed capture`}>
+                        Update {resolvedColorProfile?.name ?? 'detected'} profile
+                      </button>
+                    )}
+                    {profileLearningOffer?.updatedProfileName && <span role="status">✓ {profileLearningOffer.updatedProfileName} updated</span>}
+                  </>
                 ) : <>
                   <input aria-label="New sticker color profile name" maxLength={60} placeholder="e.g. GoCube" value={newColorName}
                     onInput={(e) => setNewColorName(e.currentTarget.value)}

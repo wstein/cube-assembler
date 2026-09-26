@@ -49,6 +49,12 @@ export function blendColorProfile(profile: ColorProfile, measured: Record<string
   return { ...profile, colors, captures: profile.captures + 1, updatedAt }
 }
 
+// Called only by the explicit Update profile action for an Automatic match.
+export function updateProfileFromCapture(profile: ColorProfile, measured: Record<string, RGB>, evidence: PaletteEvidence, updatedAt: string): ColorProfile | null {
+  return profile.id !== GENERIC_COLORS_ID && assessPalette(profile, measured, evidence).accepted
+    ? blendColorProfile(profile, measured, updatedAt) : null
+}
+
 export function matchColorProfile(profiles: ColorProfile[], measured: Record<string, RGB>): ColorProfile | null {
   const ranked = profiles.filter((profile) => profile.captures > 0)
     .map((profile) => ({ profile, distance: paletteDistance(profile.colors, measured) }))
