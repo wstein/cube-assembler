@@ -9,16 +9,23 @@ caught, instead of only living in a bug report.
 
 In the app, capture and review a cube as normal, correcting any wrong
 stickers via the review wizard's "tap a sticker to fix" flow. Once you've
-confirmed the cube, use **Save as test fixture**: the browser downloads
-`<name>.zip` with each face's cropped photo plus its (corrected) color grid.
-Unzip it into `test/fixtures/` to get a new `test/fixtures/<name>/` directory
-(**Upload fixture** takes the zip back into the app):
+confirmed the cube, use **Save as test fixture**. Download `<name>.zip` and
+unzip it into `test/fixtures/`, or run `npm run fixture:server` alongside
+`npm run dev` and choose **Save locally** in the preview. Both paths create
+`test/fixtures/<name>/` with the six cropped photos and corrected color grid.
+**Upload fixture** loads that ZIP or folder back into the app:
 
 ```
 test/fixtures/<name>/
   meta.json       { gridSize, colorsURFDLB, detectedURFDLB, faces: { u: { photo, ... }, ... }, capture }
   face-u.jpg       (etc. for r, f, d, l, b)
 ```
+
+The optional server listens on `127.0.0.1:7100` and accepts one multipart
+`POST /upload` with a `name` field and seven `file` parts (one `meta.json`
+and six face photos). It requires `X-Fixture-Upload: 1`, rejects duplicates,
+and has no download route. The Vite dev server proxies the browser's upload
+to it; the production site has no local-save button or upload server.
 
 `colorsURFDLB` holds the human-verified colors of all 6 faces as one line,
 in U R F D L B order with each face row-major as photographed (the app's

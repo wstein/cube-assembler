@@ -4,9 +4,9 @@
 
 [Open the static scanner demo](https://wstein.github.io/cube-assembler/) · [Source repository](https://github.com/wstein/cube-assembler)
 
-Everything runs in the browser: scanning, review, the parity check, and
-saving or loading test fixtures (as zip files). The GitHub Pages demo can do
-everything a local copy can.
+Scanning, review, parity checks, and fixture ZIP import/export run in the
+browser. Local development also offers an optional upload-only fixture server
+that saves reviewed captures directly into `test/fixtures/`.
 
 ![License: MIT](https://img.shields.io/badge/License-MIT-cyan.svg)
 ![npm](https://img.shields.io/badge/runtime-npm-black)
@@ -102,6 +102,10 @@ npm install
 npm run dev
 # → app on http://localhost:5173
 
+# Optional, in another terminal: enable "Save locally" for test fixtures
+npm run fixture:server
+# → upload-only endpoint on 127.0.0.1:7100
+
 # Run tests
 npm test
 ```
@@ -140,7 +144,11 @@ cube-assembler/
 │       ├── capturePresentation.ts Capture dialog wording and layout helpers
 │       ├── fixtureFormat.ts       Reading saved fixtures, old formats included
 │       ├── fixtureZip.ts          Test fixtures as zip files: save (download) and upload
+│       ├── fixtureUpload.ts       Dev-only multipart upload client
 │       └── notationOutput.ts      WRG/URF facelet notation + format auto-detection
+│
+├── scripts/
+│   └── fixtureUploadServer.mjs     Localhost-only fixture upload endpoint
 │
 └── test/
     ├── cubeAssembly.test.ts       Face identity/orientation solver (odd + even sizes)
@@ -276,10 +284,12 @@ alone rather than guessed).
 
 ## Test fixtures
 
-**Save as test fixture** (once a cube is confirmed) downloads `<name>.zip`
-with `<name>/meta.json` and the six face photos. Unzipped into
-`test/fixtures/`, it becomes a regression test; **Upload fixture** loads the
-zip (or a fixture folder's files) back into the app. `meta.json` holds the
+**Save as test fixture** (once a cube is confirmed) previews `<name>.zip`
+with `<name>/meta.json` and the six face photos. Download and unzip it into
+`test/fixtures/`, or select **Save locally** while both dev servers are running.
+The local server accepts only `POST /upload`, never serves files, refuses
+overwrites, and binds only to `127.0.0.1`. **Upload fixture** loads a ZIP
+or fixture folder back into the app. `meta.json` holds the
 human-verified colors (`colorsURFDLB`), detection's own result before any
 hand correction (`detectedURFDLB`), per-face capture details, and `capture`,
 informational context (app version and commit, camera, sampling, learned
