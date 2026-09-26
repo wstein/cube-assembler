@@ -610,16 +610,45 @@ function squareSeamScore(square: Uint8ClampedArray, size: number, gridSize: numb
   }))
 }
 
-// The face's corners (see estimateFaceCorners) only where straightening
-// through them puts the grid on the seams better than reading the turned
-// square as it is - both read the same way, as quadrilaterals.
-export function faceCornersIfBetter(data: Uint8ClampedArray, width: number, height: number, found: GridAlignment, gridSize: number): [number, number][] | null {
-  const corners = estimateFaceCorners(data, width, height, found, gridSize)
-  if (!corners) return null
+// Opposite edges of a face seen at an angle converge in step: turned about
+// one axis, one edge leans one way and its opposite about as far the other,
+// so each pair averages out to the face's own tilt (`angle`). A pair whose
+// average leans more than MAX_EDGE_PAIR_LEAN has one wrong edge - on a real
+// capture the top edge caught a dark band above the face (-12 degrees
+// against the face while the bottom leaned -2, a pair average of -7). Real
+// perspective is not perfectly symmetric: a strongly turned face that is
+// also tilted averaged about -4.4.
+const MAX_EDGE_PAIR_LEAN = (6 * Math.PI) / 180
+
+export function cornersConsistent(corners: [number, number][], angle: number): boolean {
+  const [tl, tr, br, bl] = corners
+  const lean = (a: [number, number], b: [number, number], vertical: boolean) => {
+    const raw = vertical ? Math.atan2(-(b[0] - a[0]), b[1] - a[1]) : Math.atan2(b[1] - a[1], b[0] - a[0])
+    return Math.atan2(Math.sin(raw - angle), Math.cos(raw - angle))
+  }
+  const horizontal = (lean(tl, tr, false) + lean(bl, br, false)) / 2
+  const vertical = (lean(tl, bl, true) + lean(tr, br, true)) / 2
+  return Math.abs(horizontal) <= MAX_EDGE_PAIR_LEAN && Math.abs(vertical) <= MAX_EDGE_PAIR_LEAN
+}
+
+// Whether to read the face through `corners`: they must be consistent (see
+// cornersConsistent), straightening through them must put the grid on the
+// seams better than reading the turned square as it is - both read the same
+// way, as quadrilaterals - and the straightened face must come out upright
+// (no measurable tilt left, see estimateTilt), as it does for right corners.
+export function acceptFaceCorners(data: Uint8ClampedArray, width: number, height: number, found: GridAlignment,
+  corners: [number, number][], gridSize: number): boolean {
+  if (!cornersConsistent(corners, found.angle)) return false
   const size = Math.max(16, Math.round(found.size))
   const [cx, cy] = found.center, cos = Math.cos(found.angle), sin = Math.sin(found.angle), h = found.size / 2
   const turned: [number, number][] = [[-h, -h], [h, -h], [h, h], [-h, h]].map(([dx, dy]) => [cx + cos * dx - sin * dy, cy + sin * dx + cos * dy])
-  const plain = squareSeamScore(warpQuadToSquare(data, width, height, turned, size), size, gridSize)
-  const straightened = squareSeamScore(warpQuadToSquare(data, width, height, corners, size), size, gridSize)
-  return straightened > plain ? corners : null
+  const straightened = warpQuadToSquare(data, width, height, corners, size)
+  if (squareSeamScore(straightened, size, gridSize) <= squareSeamScore(warpQuadToSquare(data, width, height, turned, size), size, gridSize)) return false
+  return estimateTilt(straightened, size, size, { x: 0, y: 0, size }) === 0
+}
+
+// The face's corners (see estimateFaceCorners) where they pass acceptFaceCorners.
+export function faceCornersIfBetter(data: Uint8ClampedArray, width: number, height: number, found: GridAlignment, gridSize: number): [number, number][] | null {
+  const corners = estimateFaceCorners(data, width, height, found, gridSize)
+  return corners && acceptFaceCorners(data, width, height, found, corners, gridSize) ? corners : null
 }

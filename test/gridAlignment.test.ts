@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { alignFace, estimateFaceCorners, estimateOuterCellRatio, estimateTilt, findGridAlignment } from '../src/client/gridAlignment'
+import { acceptFaceCorners, alignFace, cornersConsistent, estimateFaceCorners, estimateOuterCellRatio, estimateTilt, findGridAlignment } from '../src/client/gridAlignment'
 import { placed, scene } from './syntheticFace'
 
 describe('findGridAlignment', () => {
@@ -226,5 +226,35 @@ describe('estimateFaceCorners', () => {
   it('needs no correction for a face seen straight on', () => {
     const { data } = scene(5, { x: x0, y: y0, size: s }, G, {}, 1.67)
     expect(estimateFaceCorners(data, W, W, alignFace(data, W, W, guide, 5), 5)).toBeNull()
+  })
+})
+
+describe('checking face corners before using them', () => {
+  const G = 300, W = Math.round(G * 1.67), guide = { x: (W - G) / 2, y: (W - G) / 2, size: G }
+  const s = G * 0.95, x0 = guide.x + (G - s) / 2, y0 = guide.y + (G - s) / 2
+  // Strongly turned toward the camera on the right: top and bottom converge.
+  const k = 7
+  const truth: [number, number][] = [[x0 + 8 * k, y0 + 9 * k], [x0 + s - 2 * k, y0 - 4 * k], [x0 + s + 2 * k, y0 + s + 5 * k], [x0 + 6 * k, y0 + s - 7 * k]]
+
+  it('accepts opposite edges that converge, as a face seen at an angle does', () => {
+    expect(cornersConsistent(truth, 0)).toBe(true)
+    expect(cornersConsistent([[0, 0], [100, 0], [100, 100], [0, 100]], 0)).toBe(true)
+  })
+
+  it('rejects one edge leaning far more than its opposite (a real capture caught a dark band above the face)', () => {
+    // capture-2026-09-26T22-13-21-276Z, face 3: top edge -13.7 degrees, bottom -3.5, face tilt -1.6.
+    const face3: [number, number][] = [[692.3, 374.7], [1142.5, 264.9], [1168.9, 798.9], [701, 827.2]]
+    expect(cornersConsistent(face3, (-1.6 * Math.PI) / 180)).toBe(false)
+  })
+
+  it('uses corners only when the straightened face ends up upright', () => {
+    const { data } = scene(3, { x: x0, y: y0, size: s }, G, { corners: truth }, 1.67)
+    const found = alignFace(data, W, W, guide, 3)
+    expect(acceptFaceCorners(data, W, W, found, truth, 3)).toBe(true)
+    // The top-right corner placed 45 px too high, as on the real capture:
+    // straightened this way the grid still fits the seams better than the
+    // plain square, which is all the old check asked, but the face leans.
+    const raised = truth.map((c, i) => (i === 1 ? [c[0], c[1] - 45] : c)) as [number, number][]
+    expect(acceptFaceCorners(data, W, W, found, raised, 3)).toBe(false)
   })
 })
