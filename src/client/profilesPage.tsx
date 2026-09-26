@@ -1,5 +1,6 @@
 // The profiles page (#profiles): one tab per kind of saved profile.
 import { ColorReviewTab, type ReviewCapture } from './colorReviewPage'
+import { CubeReviewTab, type ReviewPhoto } from './cubeReviewPage'
 import type { ProfileSettings } from './profileSettings'
 import { profilesHash, type ProfilesTab } from './profilesRoute'
 
@@ -8,12 +9,13 @@ interface Props {
   settings: ProfileSettings
   onChange: (settings: ProfileSettings) => void
   capture: ReviewCapture | null
+  photo: ReviewPhoto | null
   onClose: () => void
 }
 
-const TABS: Array<{ tab: ProfilesTab; label: string }> = [{ tab: 'colors', label: 'Colors' }]
+const TABS: Array<{ tab: ProfilesTab; label: string }> = [{ tab: 'colors', label: 'Colors' }, { tab: 'cubes', label: 'Cubes' }]
 
-export function ProfilesPage({ tab, settings, onChange, capture, onClose }: Props) {
+export function ProfilesPage({ tab, settings, onChange, capture, photo, onClose }: Props) {
   return (
     <div class="color-review">
       <header class="color-review-header">
@@ -27,6 +29,7 @@ export function ProfilesPage({ tab, settings, onChange, capture, onClose }: Prop
         ))}
       </nav>
       {tab === 'colors' && <ColorReviewTab settings={settings} onChange={onChange} capture={capture} />}
+      {tab === 'cubes' && <CubeReviewTab settings={settings} onChange={onChange} photo={photo} />}
     </div>
   )
 }

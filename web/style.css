@@ -2620,7 +2620,7 @@ label.capture-size-label {
 .color-review-pair-val { display: flex; gap: 6px; align-items: center; justify-content: end; font-size: 0.82rem; }
 .color-review-tabs { display: flex; flex-wrap: wrap; gap: 6px; }
 .color-review-tab { font: inherit; font-size: 0.88rem; padding: 4px 12px; border-radius: 999px; border: 1px solid var(--color-border); background: var(--color-bg-secondary); color: var(--color-text-primary); cursor: pointer; }
-.color-review-tab[aria-selected="true"] { background: var(--color-accent); border-color: var(--color-accent); color: var(--color-on-accent); }
+.color-review-tab[aria-selected="true"], .color-review-tab[aria-pressed="true"] { background: var(--color-accent); border-color: var(--color-accent); color: var(--color-on-accent); }
 .color-review-tryon { display: grid; grid-template-columns: minmax(0, 340px) 1fr; gap: var(--spacing-lg); align-items: start; }
 .color-review-face { display: grid; gap: 6px; }
 .color-review-sticker { aspect-ratio: 1; border-radius: 6px; display: flex; align-items: end; justify-content: space-between; gap: 2px; padding: 3px; font: 600 0.66rem var(--font-mono); }
@@ -2653,3 +2653,28 @@ label.capture-size-label {
 .profiles-tabs a { padding: var(--spacing-sm) var(--spacing-md); font-weight: 600; text-decoration: none; color: var(--color-text-secondary); border-bottom: 2px solid transparent; margin-bottom: -1px; }
 .profiles-tabs a:hover { color: var(--color-text-primary); }
 .profiles-tabs a[aria-current="page"] { color: var(--color-text-primary); border-bottom-color: var(--color-accent); }
+.color-review-pill.info { background: var(--color-accent-soft); color: var(--color-accent); }
+.cube-review-size { display: grid; gap: var(--spacing-sm); }
+.cube-review-size h3 { margin: 0; font-size: 0.98rem; display: flex; gap: var(--spacing-sm); align-items: baseline; }
+.cube-review-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 220px), 1fr)); gap: var(--spacing-sm); }
+.cube-review-card { display: grid; grid-template-columns: 60px 1fr; gap: var(--spacing-sm); align-items: center; padding: var(--spacing-sm); border: 1px solid var(--color-border); border-radius: var(--radius-sm); background: var(--color-bg-secondary); }
+.cube-review-card.builtin { border-style: dashed; }
+.cube-review-name { font-weight: 500; overflow-wrap: anywhere; }
+.cube-review-meta { display: flex; flex-wrap: wrap; gap: 4px 6px; align-items: center; margin-top: 3px; font-size: 0.8rem; color: var(--color-text-secondary); }
+.cube-review-mini { width: 60px; height: 60px; display: block; }
+.cube-review-mini.small { width: 32px; height: 32px; }
+.cube-review-members { display: grid; gap: 6px; }
+.cube-review-member { display: grid; grid-template-columns: auto 32px 1fr auto; gap: var(--spacing-sm); align-items: center; font-size: 0.88rem; cursor: pointer; }
+.cube-review-member input { margin: 0; }
+.cube-review-member.off { opacity: 0.5; }
+.cube-review-member.off .cube-review-member-name { text-decoration: line-through; }
+.cube-review-member-name { overflow-wrap: anywhere; display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
+.cube-review-result { display: grid; grid-template-columns: 32px 1fr; gap: var(--spacing-sm); align-items: center; padding-top: var(--spacing-sm); border-top: 1px solid var(--color-border); font-size: 0.88rem; }
+.color-review .cube-review-picker { position: static; border: 0; padding: 0; background: none; }
+.cube-review-photos { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr)); gap: var(--spacing-md); }
+.cube-review-photo { display: grid; gap: var(--spacing-sm); align-content: start; }
+.cube-review-frame { position: relative; aspect-ratio: 1; max-width: 100%; border-radius: var(--radius-sm); overflow: hidden; background: #222; }
+.cube-review-frame img, .cube-review-frame svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+.cube-review-caption { display: flex; justify-content: space-between; gap: var(--spacing-sm); font-size: 0.9rem; }
+.cube-review-trial { display: grid; gap: 6px; padding: var(--spacing-sm) var(--spacing-md); border: 1px solid var(--color-border); border-radius: var(--radius-sm); background: var(--color-bg-secondary); font-size: 0.88rem; }
+.cube-review-trial input[type=range] { width: 200px; max-width: 100%; }
