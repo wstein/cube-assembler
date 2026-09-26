@@ -699,6 +699,44 @@ export function clearStickerColors(points: RGB[], referencePalette: Record<strin
   })
 }
 
+// A sticker reads as washed out by glare when it is at least this much
+// lighter (OKLab L) than the clear stickers of its color...
+const GLARE_MIN_LIGHTER = 0.04
+// ...and has at most this fraction of their chroma, or a hue this many
+// degrees off theirs (glare turned greens turquoise, hue 180 vs. 145).
+const GLARE_MAX_CHROMA_FRACTION = 0.6
+const GLARE_MIN_HUE_SHIFT = 25
+// Glare on this many stickers is worth a warning. On the saved captures,
+// evenly lit ones show at most 3 such stickers; the glare capture 7.
+export const GLARE_WARNING_STICKERS = 4
+
+// The stickers glare washed out: lighter than, and paler or hue-shifted
+// from, the stickers that clearly show their color (see
+// clearStickerColors). Compared within the capture, not against the
+// palette, so a palette a little off doesn't count as glare; shadows are
+// darker and don't count either. White can't be washed out.
+export function glareStickers(points: RGB[], labels: string[], palette: Record<string, RGB>): number[] {
+  const clear = clearStickerColors(points, palette)
+  const labs = points.map(rgbToOklab)
+  const glare: number[] = []
+  for (const color of Object.keys(palette)) {
+    if (color === 'W') continue
+    const members = labels.flatMap((label, i) => (label === color ? [i] : []))
+    const anchors = members.filter((i) => clear[i] === color)
+    if (anchors.length < 2) continue
+    const l = anchors.reduce((sum, i) => sum + labs[i].l, 0) / anchors.length
+    const a = anchors.reduce((sum, i) => sum + labs[i].a, 0) / anchors.length
+    const b = anchors.reduce((sum, i) => sum + labs[i].b, 0) / anchors.length
+    for (const i of members) {
+      if (clear[i] === color || labs[i].l < l + GLARE_MIN_LIGHTER) continue
+      const chroma = Math.hypot(labs[i].a, labs[i].b)
+      const shift = Math.abs(Math.atan2(labs[i].b, labs[i].a) - Math.atan2(b, a)) * 180 / Math.PI
+      if (chroma <= GLARE_MAX_CHROMA_FRACTION * Math.hypot(a, b) || Math.min(shift, 360 - shift) >= GLARE_MIN_HUE_SHIFT) glare.push(i)
+    }
+  }
+  return glare
+}
+
 // Learns each of the 6 sticker colors' actual RGB directly from the
 // capture itself, using ALL captured stickers (typically all 54 across 6
 // faces) as calibration data, instead of assuming the hardcoded WCA
@@ -1791,6 +1829,8 @@ export interface LearnedColorClassificationResult {
   learned: LearnedColors | null
   applied: boolean
   faces: Record<string, ColorDetectionResult>
+  // Stickers glare washed out (see glareStickers).
+  glare: Array<{ face: string; row: number; col: number }>
 }
 
 /**
@@ -1902,7 +1942,7 @@ export function classifyAcrossFaces(baselineFaces: Record<string, ColorDetection
   const clear = referencePalette ? clearStickerColors(samples.map((s) => s.rgb), referencePalette) : []
   const clearLabels = samples.map((_, i) => (logoBand(sampleLocations[i].row) && logoBand(sampleLocations[i].col) ? null : clear[i] ?? null))
   const learned = learnStickerColors(samples, referencePalette, clearLabels)
-  if (!learned) return { learned: null, applied: false, faces: baselineFaces }
+  if (!learned) return { learned: null, applied: false, faces: baselineFaces, glare: [] }
 
   // Every sticker's final color/confidence comes directly from
   // learnStickerColors()'s own balanced assignment (labelsBySampleIndex),
@@ -1975,5 +2015,8 @@ export function classifyAcrossFaces(baselineFaces: Record<string, ColorDetection
     reclassifiedFaces[face].confidence = count > 0 ? sum / count : 0
   }
 
-  return { learned, applied: true, faces: reclassifiedFaces }
+  const labels = sampleLocations.map(({ face, row, col }) => reclassifiedFaces[face].colors[row][col])
+  const glare = glareStickers(samples.map((s) => s.rgb), labels, referencePalette ?? learned.colors).map((i) => sampleLocations[i])
+
+  return { learned, applied: true, faces: reclassifiedFaces, glare }
 }
