@@ -96,7 +96,10 @@ evenly colored sticker cells and a visible face outline (Guide grid accepts
 a sticker pattern instead of the outline). A
 confirmed face stays shown through up to two weak frames (display only,
 `liveHold.ts`). **Auto capture** takes the face once 5 frames in a row agree
-at 80% confidence or more (`autoCapture.ts`).
+at 80% confidence or more (`autoCapture.ts`). After a capture, the turn cue
+stays visible while the last captured face remains in view. It closes after
+three consecutive live checks show that face has left or changed. Continue
+lets you dismiss the cue if detection cannot recognize the turn.
 
 On the real-capture benchmark (`test/gridAlignmentRealCrops.test.ts`) a
 7x7 held 4% off-center goes from 16% misread stickers to 0%, and tilted
