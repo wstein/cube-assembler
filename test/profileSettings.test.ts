@@ -7,19 +7,18 @@ import {
 } from '../src/client/profileSettings'
 
 describe('separate cube and color settings', () => {
-  it('always lists both construction presets for every size', () => {
-    expect(allCubes(EMPTY_SETTINGS)).toHaveLength(12)
-    expect(cubesForSize(EMPTY_SETTINGS, 5).map((cube) => cube.name)).toEqual([
-      'Stickerless 5×5', 'Stickers on black 5×5',
-    ])
-    expect(activeCube(EMPTY_SETTINGS, 5)).toEqual(builtinCube(5, 'stickerless'))
+  it('always lists one read-only Generic cube with a 60 percent core for every size', () => {
+    expect(allCubes(EMPTY_SETTINGS)).toHaveLength(6)
+    expect(cubesForSize(EMPTY_SETTINGS, 5).map((cube) => cube.name)).toEqual(['Generic 5×5'])
+    expect(activeCube(EMPTY_SETTINGS, 5)).toEqual(builtinCube(5))
+    expect(activeCube(EMPTY_SETTINGS, 5).sampling.stickerCore).toBe(0.6)
     const custom = { id: 'custom', name: 'My cube', size: 5, sampling: { stickerCore: 0.5 } }
     const saved = saveCube(EMPTY_SETTINGS, custom)
     expect(cubesForSize(saved, 5).map((cube) => cube.name)).toEqual([
-      'Stickerless 5×5', 'Stickers on black 5×5', 'My cube',
+      'Generic 5×5', 'My cube',
     ])
     expect(saved.cubes).toEqual([custom])
-    expect(() => saveCube(saved, builtinCube(5, 'stickerless'))).toThrow('built-in')
+    expect(() => saveCube(saved, builtinCube(5))).toThrow('built-in')
   })
 
   it('shares one selected color profile across cube sizes', () => {
@@ -33,11 +32,11 @@ describe('separate cube and color settings', () => {
   })
 
   it('selects a cube by id and copies a built-in under a custom name', () => {
-    const builtIn = builtinCube(7, 'stickered')
+    const builtIn = builtinCube(7)
     const selected = selectCube(EMPTY_SETTINGS, builtIn.id)
-    expect(activeCube(selected, 7).sampling.stickerCore).toBe(0.55)
+    expect(activeCube(selected, 7).sampling.stickerCore).toBe(0.6)
     const copy = copyCubeSetting(selected, builtIn, 'My 7×7')
-    expect(copy).toMatchObject({ name: 'My 7×7', size: 7, sampling: { stickerCore: 0.55 } })
+    expect(copy).toMatchObject({ name: 'My 7×7', size: 7, sampling: { stickerCore: 0.6 } })
     expect(copy.id).not.toBe(builtIn.id)
   })
 
