@@ -947,14 +947,10 @@ function App() {
         hold = shown.hold
         setLiveDetection(shown.show)
         setLiveFaceVisible(shown.visible)
-        const mid = Math.floor(puzzleSize / 2)
         const matchedSlot = captureMode === 'cv' && visible && detection.confidence >= 0.8
           ? findCapturedFaceMatch(
-              FACE_ORDER.map((face) => capturedFaces[face] && {
-                colors: capturedFaces[face].colors,
-                centerConfidence: capturedFaces[face].cellConfidences?.[mid]?.[mid],
-              }),
-              { colors: detection.colors, centerConfidence: detection.cellConfidences?.[mid]?.[mid] },
+              FACE_ORDER.map((face) => capturedFaces[face] && { colors: capturedFaces[face].colors }),
+              { colors: detection.colors },
               FACE_ORDER.indexOf(webcamFace)
             )
           : null

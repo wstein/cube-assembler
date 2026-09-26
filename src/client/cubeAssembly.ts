@@ -1027,38 +1027,39 @@ export function checkGuidedCenters(photos: Array<string[][] | undefined>): Guide
 // alike seen in simulation: 6/9 on 3x3, 9/16 on 4x4, 18/49 on 7x7). A 2x2
 // needs an exact match, and still alarms falsely about once in 1,500 face
 // pairs - fine for a warning that can be dismissed.
+// The same face, allowing misreads: at least 75% of stickers identical at
+// some turn. A 2x2 must match exactly - with 4 stickers, 3 alike happens
+// between different scrambled faces too often.
+const SAME_FACE_FRACTION = 0.75
+
 function sameFaceAtSomeRotation(a: string[][], b: string[][]): boolean {
   const n = a.length
   if (b.length !== n) return false
-  const allowed = n === 2 ? 0 : Math.max(1, Math.floor(n * n * 0.1))
+  const needed = n === 2 ? 4 : Math.ceil(n * n * SAME_FACE_FRACTION)
   return [0, 1, 2, 3].some((turns) => {
     const rotated = rotateGrid(b, turns)
     let same = 0
     for (let r = 0; r < n; r++) for (let c = 0; c < n; c++) if (a[r][c] === rotated[r][c]) same++
-    return same >= n * n - allowed
+    return same >= needed
   })
 }
 
 export interface FaceMatchSample {
   colors: string[][]
-  centerConfidence?: number
 }
 
-// Identify a face already saved in a different slot. Fixed centers are
-// decisive on odd cubes when both readings are strong; a full rotated
-// sticker match also works on even cubes and when a center is uncertain.
+// Identify a face already saved in a different slot by its stickers (see
+// sameFaceAtSomeRotation). A matching center alone is not enough: centers
+// get misread, and a false match would keep a new face from being taken.
 export function findCapturedFaceMatch(
   captures: Array<FaceMatchSample | undefined>,
   candidate: FaceMatchSample,
   excludeIndex = -1
 ): number | null {
   const n = candidate.colors.length
-  const mid = Math.floor(n / 2)
   for (let i = 0; i < captures.length; i++) {
     const saved = captures[i]
     if (i === excludeIndex || !saved || saved.colors.length !== n) continue
-    if (n % 2 === 1 && (saved.centerConfidence ?? 0) >= 0.8 && (candidate.centerConfidence ?? 0) >= 0.8
-      && saved.colors[mid]?.[mid] === candidate.colors[mid]?.[mid]) return i
     if (sameFaceAtSomeRotation(saved.colors, candidate.colors)) return i
   }
   return null
