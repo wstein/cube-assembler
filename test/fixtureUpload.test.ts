@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 import type { Fixture } from '../src/client/fixtureZip'
-import { uploadFixtureToDevServer } from '../src/client/fixtureUpload'
+import { fixtureUploadServerAvailable, uploadFixtureToDevServer } from '../src/client/fixtureUpload'
 
 const fixture: Fixture = {
   name: 'capture-example',
@@ -11,6 +11,16 @@ const fixture: Fixture = {
 }
 
 describe('fixture upload client', () => {
+  it('enables upload only when the server answers its POST probe', async () => {
+    const fetcher = vi.fn(async () => new Response(null, { status: 204 }))
+    expect(await fixtureUploadServerAvailable(fetcher)).toBe(true)
+    expect(fetcher).toHaveBeenCalledWith('/fixture-upload/upload', expect.objectContaining({
+      method: 'POST', headers: { 'X-Fixture-Probe': '1' },
+    }))
+    expect(await fixtureUploadServerAvailable(async () => new Response(null, { status: 500 }))).toBe(false)
+    expect(await fixtureUploadServerAvailable(async () => { throw new Error('Offline') })).toBe(false)
+  })
+
   it('sends the existing seven files in one multipart POST', async () => {
     const fetcher = vi.fn(async () => new Response(JSON.stringify({ ok: true, name: fixture.name }), { status: 201 }))
     await uploadFixtureToDevServer(fixture, fetcher)
