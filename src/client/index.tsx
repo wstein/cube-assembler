@@ -357,9 +357,11 @@ function FaceGrid({ colors, undecided, current, auto }: { colors: string[][]; un
 // of the two is really the top, is only worked out once all 6 are in).
 // Each slot shows the colors detected for it, or a placeholder; tapping a
 // slot retakes it or jumps to it.
-function CaptureNet({ faces, current, size, predictedCenters, mirrored, onSelect }: {
+function CaptureNet({ faces, current, matchingFaces, liveMatchingFace, size, predictedCenters, mirrored, onSelect }: {
   faces: Record<string, string[][] | undefined>
   current: string
+  matchingFaces: Set<string>
+  liveMatchingFace: string | null
   size: number
   predictedCenters: Array<string | null>
   mirrored: boolean
@@ -376,10 +378,10 @@ function CaptureNet({ faces, current, size, predictedCenters, mirrored, onSelect
       <button
         type="button"
         key={key}
-        class="capture-net-slot"
+        class={`capture-net-slot${matchingFaces.has(key) ? ' pattern-match' : ''}`}
         style={{ gridArea }}
         data-slot={key}
-        aria-label={`${FACE_DISPLAY_LABEL[key]}: ${colors ? 'captured, tap to retake' : suggested ? `suggested ${COLOR_NAME[suggested]} center, not captured yet` : 'not captured yet'}`}
+        aria-label={`${FACE_DISPLAY_LABEL[key]}: ${colors ? matchingFaces.has(key) ? `captured, pattern looks like ${key === liveMatchingFace ? 'the live face' : 'another captured face'}; tap to retake` : 'captured, tap to retake' : suggested ? `suggested ${COLOR_NAME[suggested]} center, not captured yet` : 'not captured yet'}`}
         aria-current={key === current ? 'step' : undefined}
         onClick={() => onSelect(key)}
       >
@@ -960,15 +962,19 @@ function App() {
         // from the worker's single read of the face.
         const bounds = scaleBounds(result.bounds, event.data.scale)
         const { detection, visible } = result
-        if (turnCueShowing && lastCapturedColors.current) {
+        if (lastCapturedColors.current) {
           turnCueClearFrames = nextTurnCueClearFrames(
             turnCueClearFrames,
             visible && bounds.gridFound && detection.confidence >= 0.8 ? detection.colors : null,
             lastCapturedColors.current
           )
-          if (turnCueClearFrames >= TURN_CUE_CLEAR_FRAMES) dismissTurnOverlay()
+          if (turnCueClearFrames >= TURN_CUE_CLEAR_FRAMES) {
+            lastCapturedColors.current = null
+            if (turnCueShowing) dismissTurnOverlay()
+          }
           return
         }
+        if (turnCueShowing) return
         // Detect face holds a confirmed face through a weak frame or two
         // (display only - see holdConfirmedFace); everything below still
         // judges this frame on its own.
@@ -985,14 +991,14 @@ function App() {
           : null
         setLiveCapturedFace(matchedSlot === null ? null : FACE_ORDER[matchedSlot])
         if (captureMode === 'cv' && autoCapture && !autoCaptureInFlight.current) {
-          progress = nextAutoCaptureProgress(progress, visible && bounds.gridFound && matchedSlot === null ? {
+          progress = nextAutoCaptureProgress(progress, visible && bounds.gridFound ? {
             colors: detection.colors,
             confidence: detection.confidence,
             centerX: bounds.startX + bounds.faceWidth / 2,
             centerY: bounds.startY + bounds.faceHeight / 2,
             size: bounds.faceWidth,
             angle: bounds.angle ?? 0,
-          } : null, lastCapturedColors.current)
+          } : null)
           setAutoCaptureFrames(progress?.frames ?? 0)
           if (progress && progress.frames >= AUTO_CAPTURE_STABLE_FRAMES) {
             autoCaptureInFlight.current = true
@@ -1264,7 +1270,7 @@ function App() {
     }
 
     setCapturedFaces(newCapturedFaces)
-    lastCapturedColors.current = result.colors
+    lastCapturedColors.current = source === 'camera' ? result.colors : null
     setFaceConfidence({ ...faceConfidence, [assignedFace]: result.confidence })
     setCaptureMessage(`✓ ${FACE_DISPLAY_LABEL[assignedFace]} captured (${(result.confidence * 100).toFixed(0)}% confidence)`
       + (unexpectedCenter ? " - its center isn't the suggested one; check it in the review" : ''))
@@ -1280,7 +1286,7 @@ function App() {
         dismissTurnOverlay()
         // The cue blocks capturing while the cube turns; without the turn it
         // would only be a wait, and the step hint already says what to do.
-        if (window.matchMedia('(prefers-reduced-motion: reduce)').matches
+        if (source !== 'camera' || window.matchMedia('(prefers-reduced-motion: reduce)').matches
           || FACE_ORDER.some((f) => newCapturedFaces[f]?.outOfOrder)) return
         const step = FACE_ORDER.indexOf(nextFace)
         setTurnOverlay({ step, startColors: result.colors, viaColors: step === 5 ? newCapturedFaces[FACE_ORDER[3]]?.colors : undefined })
@@ -1628,6 +1634,10 @@ function App() {
     && Boolean(capturedFaces[FACE_ORDER[0]] && capturedFaces[FACE_ORDER[1]])
     && predictedCenters.every(Boolean)
     && !capturedFaces[webcamFace]
+  const capturedPhotos = FACE_ORDER.map((f) => capturedFaces[f]?.colors)
+  const repeatedFaces = findRepeatedFaces(capturedPhotos)
+  const matchingNetFaces = new Set(repeatedFaces.flatMap(([a, b]) => [FACE_ORDER[a], FACE_ORDER[b]]))
+  if (liveCapturedFace) matchingNetFaces.add(liveCapturedFace)
 
   // A likely capture mistake visible from odd-size centers while capturing
   // (see checkGuidedCenters) - only a hint, never blocking. Live colors are
@@ -1635,12 +1645,11 @@ function App() {
   // speaks up when the centers involved were read with some confidence.
   // A whole face matching an earlier one (any size) comes first.
   const captureWarning = (() => {
-    const photos = FACE_ORDER.map((f) => capturedFaces[f]?.colors)
-    for (const [j, i] of findRepeatedFaces(photos)) {
+    for (const [j, i] of repeatedFaces) {
       const key = `repeat:${j}:${i}`
       if (!dismissedCaptureWarnings.includes(key)) {
         return {
-          text: `${CAPTURE_STEPS[i].label} looks the same as ${CAPTURE_STEPS[j].label} - the same face photographed twice?`,
+          text: `${CAPTURE_STEPS[i].label} and ${CAPTURE_STEPS[j].label} have matching patterns. They may be different faces; check both photos if unsure.`,
           key,
           retake: i,
         }
@@ -1648,7 +1657,7 @@ function App() {
     }
     const mid = Math.floor(puzzleSize / 2)
     const sure = (i: number) => (capturedFaces[FACE_ORDER[i]]?.cellConfidences?.[mid]?.[mid] ?? 0) >= 0.6
-    for (const issue of checkGuidedCenters(photos)) {
+    for (const issue of checkGuidedCenters(capturedPhotos)) {
       const involved = issue.kind === 'turned-twice' ? [issue.photo - 1, issue.photo] : issue.photos
       const key = JSON.stringify(issue)
       if (involved.every(sure) && !dismissedCaptureWarnings.includes(key)) {
@@ -2404,16 +2413,16 @@ function App() {
                 )}
                 {/* Guide mode frames the exact sample square. Detect face shows
                     the wider seam search area; its moving grid marks the crop. */}
-                <div class={`capture-scan-frame ${captureMode === 'cv' ? 'cv-search-frame' : ''} ${liveCapturedFace ? 'already-captured' : ''}`}>
+                <div class={`capture-scan-frame ${captureMode === 'cv' ? 'cv-search-frame' : ''} ${liveCapturedFace ? 'pattern-match' : ''}`}>
                   <span class="capture-scan-label">{captureMode === 'cv' ? 'Show one face in this area' : 'Fit face in this square'}</span>
                 </div>
                 {turnOverlay && (
                   <CaptureTurnOverlay step={turnOverlay.step} startColors={turnOverlay.startColors} viaColors={turnOverlay.viaColors} capturedColors={Object.values(capturedFaces).map((face) => face.colors)} mirrored={mirrorPreview} onContinue={dismissTurnOverlay} />
                 )}
               </div>
-              <span class={`capture-live-badge ${liveCapturedFace ? 'already-captured' : ''}`} role="status">
+              <span class={`capture-live-badge ${liveCapturedFace ? 'pattern-match' : ''}`} role="status">
                 <span class="capture-live-dot" />
-                Live · {liveCapturedFace ? `Already captured ${FACE_DISPLAY_LABEL[liveCapturedFace]}` : liveDetection
+                Live · {liveCapturedFace ? `Looks like ${FACE_DISPLAY_LABEL[liveCapturedFace]} · capture allowed` : liveDetection
                   ? (liveFaceVisible ? `${(liveDetection.confidence * 100).toFixed(0)}% color match` : captureMode === 'cv' ? 'Align face in view' : 'Align face in guide')
                   : '—'}
               </span>
@@ -2445,6 +2454,8 @@ function App() {
                 <CaptureNet
                   faces={Object.fromEntries(FACE_ORDER.map((f) => [f, capturedFaces[f]?.colors]))}
                   current={webcamFace}
+                  matchingFaces={matchingNetFaces}
+                  liveMatchingFace={liveCapturedFace}
                   size={puzzleSize}
                   predictedCenters={predictedCenters}
                   mirrored={mirrorPreview}

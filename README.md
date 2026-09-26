@@ -99,7 +99,11 @@ confirmed face stays shown through up to two weak frames (display only,
 at 80% confidence or more (`autoCapture.ts`). After a capture, the turn cue
 stays visible while the last captured face remains in view. It closes after
 three consecutive live checks show that face has left or changed. Continue
-lets you dismiss the cue if detection cannot recognize the turn.
+lets you dismiss the cue if detection cannot recognize the turn; automatic
+capture still waits to see the previous face leave. A color pattern matching
+an earlier capture is shown as a warning in the camera and capture net, since
+different faces can look identical, especially on even cubes. It does not
+prevent the next capture.
 
 On the real-capture benchmark (`test/gridAlignmentRealCrops.test.ts`) a
 7x7 held 4% off-center goes from 16% misread stickers to 0%, and tilted
