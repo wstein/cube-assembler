@@ -12,6 +12,7 @@ describe('color profile learning', () => {
     expect(assessPalette(base, shifted, { reviewedValid: false, cameraOnly: true, recalibrated: true, confidentFraction: 1 }).accepted).toBe(false)
     expect(assessPalette(base, shifted, { reviewedValid: true, cameraOnly: true, recalibrated: true, confidentFraction: 0.7 }).accepted).toBe(false)
     expect(assessPalette(base, shifted, { reviewedValid: true, cameraOnly: false, recalibrated: true, confidentFraction: 1 }).accepted).toBe(false)
+    expect(assessPalette(base, shifted, { reviewedValid: true, cameraOnly: true, recalibrated: true, confidentFraction: 1, correctedFraction: 0.1 }).accepted).toBe(false)
   })
 
   it('counts approved captures, blends later colors with at least 20 percent weight', () => {

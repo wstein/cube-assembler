@@ -8,6 +8,7 @@ export interface PaletteEvidence {
   cameraOnly: boolean
   recalibrated: boolean
   confidentFraction: number
+  correctedFraction?: number
 }
 
 // The saved fixture palettes overlap heavily across named cubes. The update
@@ -16,7 +17,8 @@ export function assessPalette(profile: ColorProfile, measured: Record<string, RG
   accepted: boolean; distance: number; reason?: string
 } {
   const distance = paletteDistance(profile.colors, measured)
-  if (!evidence.reviewedValid || !evidence.cameraOnly || !evidence.recalibrated || evidence.confidentFraction < 0.8)
+  if (!evidence.reviewedValid || !evidence.cameraOnly || !evidence.recalibrated
+    || evidence.confidentFraction < 0.8 || (evidence.correctedFraction ?? 0) > 0.02)
     return { accepted: false, distance, reason: 'Capture quality is too low to update colors' }
   if (profile.captures === 0) return { accepted: true, distance }
   const largest = Math.max(...COLOR_KEYS.map((key) => paletteDistance({ [key]: profile.colors[key] }, { [key]: measured[key] })))
