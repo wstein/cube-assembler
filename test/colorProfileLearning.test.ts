@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { STICKER_COLORS } from '../src/client/imageProcessing'
-import { assessPalette, blendColorProfile, canCreateProfileFromCapture, matchColorProfile, shouldBlendColorProfile } from '../src/client/colorProfileLearning'
+import { assessPalette, blendColorProfile, canCreateProfileFromCapture, matchColorProfile, shouldBlendColorProfile, updateProfileFromCapture } from '../src/client/colorProfileLearning'
 import type { ColorProfile } from '../src/client/profileSettings'
 
 const base: ColorProfile = { id: 'base', name: 'Base', colors: STICKER_COLORS, captures: 4 }
@@ -37,6 +37,15 @@ describe('color profile learning', () => {
     const evidence = { reviewedValid: true, cameraOnly: true, recalibrated: true, confidentFraction: 1, correctedFraction: 0 }
     expect(shouldBlendColorProfile(base, shifted, evidence, true)).toBe(false)
     expect(shouldBlendColorProfile(base, shifted, evidence, false)).toBe(true)
+  })
+
+  it('updates a matched profile only through the explicit captured-profile action', () => {
+    const evidence = { reviewedValid: true, cameraOnly: true, recalibrated: true, confidentFraction: 1, correctedFraction: 0 }
+    const updated = updateProfileFromCapture(base, shifted, evidence, '2026-09-26T00:00:00.000Z')
+    expect(updated?.captures).toBe(base.captures + 1)
+    expect(updated?.colors.W.r).toBeLessThan(base.colors.W.r)
+    expect(base.captures).toBe(4)
+    expect(updateProfileFromCapture(base, shifted, { ...evidence, confidentFraction: 0.7 }, '2026-09-26T00:00:00.000Z')).toBeNull()
   })
 
   it('rejects one color drifting too far even when mean distance is small', () => {

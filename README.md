@@ -49,8 +49,10 @@ name. After a valid, confident reviewed camera capture, **Create sticker color
 profile** in the Capture card saves the six-face learned palette under a new
 name, even if Automatic colors matched an existing profile. Later approved
 captures update a manually selected profile gradually when the readings are
-close enough. Automatic colors only selects a profile; it never updates its
-stored RGB values or capture count. Automatic matches only with a clear margin;
+close enough. Automatic colors only selects a profile. After a valid, confident
+reviewed capture, **Update NAME profile** explicitly blends the new colors into
+the detected profile; without that click, Automatic never changes its stored
+RGB values or capture count. Automatic matches only with a clear margin;
 ambiguous colors stay on Generic. Color similarity never
 identifies the cube itself.
 Settings can be downloaded and restored as JSON. The v3 storage key preserves
