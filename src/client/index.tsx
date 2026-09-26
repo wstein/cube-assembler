@@ -636,6 +636,10 @@ function focusModalOnOpen(el: HTMLElement | null) {
   if (el && !el.contains(document.activeElement)) el.focus()
 }
 
+function storedCaptureSound(): boolean {
+  try { return localStorage.getItem('cube-assembler.capture-sound') !== 'off' } catch { return true }
+}
+
 const FACE_LABELS: Record<FaceKey, string> = { U: 'Up', R: 'Right', F: 'Front', D: 'Down', L: 'Left', B: 'Back' }
 const ORIENTATION_CHOICES_PER_PAGE = 2
 
@@ -657,6 +661,11 @@ function App() {
   const [captureMode, setCaptureMode] = useState<CaptureMode>('cv')
   const [autoCapture, setAutoCapture] = useState(true)
   const [autoCaptureFrames, setAutoCaptureFrames] = useState(0)
+  const [autoCapturePaused, setAutoCapturePaused] = useState(false)
+  const [captureFlash, setCaptureFlash] = useState(false)
+  const [captureSound, setCaptureSound] = useState(storedCaptureSound)
+  const captureAudio = useRef<AudioContext | null>(null)
+  const flashTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const autoCaptureInFlight = useRef(false)
   const lastCapturedColors = useRef<string[][] | null>(null)
   const [webcamFace, setWebcamFace] = useState('U')
@@ -880,6 +889,42 @@ function App() {
   const liveWorker = useRef<Worker | null>(null)
   useEffect(() => () => { liveWorker.current?.terminate() }, [])
 
+  const armCaptureAudio = (enabled = captureSound) => {
+    if (!enabled) return
+    try {
+      captureAudio.current ??= new AudioContext()
+      void captureAudio.current.resume()
+    } catch { /* Audio is optional if the browser has no Web Audio. */ }
+  }
+
+  const signalCapture = () => {
+    setCaptureFlash(true)
+    if (flashTimer.current) clearTimeout(flashTimer.current)
+    flashTimer.current = setTimeout(() => setCaptureFlash(false), 220)
+    const audio = captureSound ? captureAudio.current : null
+    if (!audio || audio.state !== 'running') return
+    const buffer = audio.createBuffer(1, Math.ceil(audio.sampleRate * 0.07), audio.sampleRate)
+    const samples = buffer.getChannelData(0)
+    for (let i = 0; i < samples.length; i++) samples[i] = Math.random() * 2 - 1
+    const click = audio.createBufferSource()
+    click.buffer = buffer
+    const filter = audio.createBiquadFilter()
+    filter.type = 'highpass'
+    filter.frequency.value = 700
+    const volume = audio.createGain()
+    const now = audio.currentTime
+    volume.gain.setValueAtTime(0.13, now)
+    volume.gain.exponentialRampToValueAtTime(0.001, now + 0.07)
+    click.connect(filter).connect(volume).connect(audio.destination)
+    click.start(now)
+    click.stop(now + 0.07)
+  }
+
+  useEffect(() => () => {
+    if (flashTimer.current) clearTimeout(flashTimer.current)
+    void captureAudio.current?.close()
+  }, [])
+
   const dismissTurnOverlay = () => {
     setTurnOverlay(null)
   }
@@ -946,6 +991,7 @@ function App() {
   const turnCueShowing = turnOverlay !== null
   useEffect(() => {
     setAutoCaptureFrames(0)
+    setAutoCapturePaused(false)
     if (!webcamOpen) {
       setLiveDetection(null)
       setLiveFaceVisible(false)
@@ -1020,6 +1066,7 @@ function App() {
             angle: bounds.angle ?? 0,
           } : null)
           setAutoCaptureFrames(progress?.frames ?? 0)
+          setAutoCapturePaused(!counted && progress !== null)
           if (counted && progress && progress.frames >= AUTO_CAPTURE_STABLE_FRAMES) {
             autoCaptureInFlight.current = true
             progress = null
@@ -1032,6 +1079,7 @@ function App() {
               canvas.height = full.height
               canvas.getContext('2d')?.drawImage(full, 0, 0)
               const result = captureAndProcessCanvas(canvas, puzzleSize, NEUTRAL_GAINS, sampling, palette, 'aligned', bounds)
+              signalCapture()
               const track = (webcamRef.current?.srcObject as MediaStream | null)?.getVideoTracks()[0]
               setLoading(true)
               setCaptureMessage('Processing image...')
@@ -1051,6 +1099,7 @@ function App() {
         setLiveCapturedFace(null)
         // A transient worker failure pauses the hold. The next good frame
         // still has to match the same sticker colors.
+        setAutoCapturePaused(progress !== null)
       } finally {
         full.close()
         inFlight = null
@@ -1085,7 +1134,7 @@ function App() {
       worker.removeEventListener('message', onResult)
       inFlight = null
     }
-  }, [webcamOpen, turnCueShowing, loading, webcamFace, puzzleSize, sampling, palette, captureMode, autoCapture, capturedFaces])
+  }, [webcamOpen, turnCueShowing, loading, webcamFace, puzzleSize, sampling, palette, captureMode, autoCapture, captureSound, capturedFaces])
 
   // Everything below belongs to one cube of one size, so switching sizes
   // starts over - keeping it drew e.g. a 5x5's 25 stickers per face into a
@@ -1223,6 +1272,7 @@ function App() {
   // Continue from the first empty slot, or start over when requested (and
   // after all six are already complete).
   const handleOpenCapture = (restart = false) => {
+    armCaptureAudio()
     dismissTurnOverlay()
     lastCapturedColors.current = null
     const allCaptured = FACE_ORDER.every((f) => f in capturedFaces)
@@ -1560,6 +1610,7 @@ function App() {
   }
 
   const handleRetakeFace = (face: string) => {
+    armCaptureAudio()
     setShowReviewDialog(false)
     setWebcamFace(face)
     setCaptureMessage('')
@@ -1975,6 +2026,7 @@ function App() {
         result = captureAndProcessFace(webcamRef.current, puzzleSize, NEUTRAL_GAINS, sampling, palette, 'fixed')
       }
       const track = (webcamRef.current.srcObject as MediaStream | null)?.getVideoTracks()[0]
+      signalCapture()
       await applyFaceCapture(webcamFace, result, 'camera', track ? withoutDeviceIds(track.getSettings()) : undefined, result.colors.length)
     } catch (err) {
       console.error('Capture error:', err)
@@ -2472,9 +2524,16 @@ function App() {
                 )}
                 {/* Guide mode frames the exact sample square. Detect face shows
                     the wider seam search area; its moving grid marks the crop. */}
-                <div class={`capture-scan-frame ${captureMode === 'cv' ? 'cv-search-frame' : ''} ${liveCapturedFace ? 'pattern-match' : ''}`}>
+                <div class={`capture-scan-frame ${captureMode === 'cv' ? 'cv-search-frame' : ''} ${liveCapturedFace ? 'pattern-match' : ''} ${autoCapture && autoCaptureFrames > 0 ? 'capture-holding' : ''} ${captureFlash ? 'capture-flashed' : ''}`}>
                   <span class="capture-scan-label">{captureMode === 'cv' ? 'Show one face in this area' : 'Fit face in this square'}</span>
+                  {captureMode === 'cv' && autoCapture && autoCaptureFrames > 0 && (
+                    <svg class={`capture-progress-ring ${autoCapturePaused ? 'paused' : ''}`} viewBox="0 0 40 40" aria-hidden="true">
+                      <circle class="capture-progress-track" cx="20" cy="20" r="16" />
+                      <circle class="capture-progress-fill" cx="20" cy="20" r="16" style={{ strokeDashoffset: `${100.53 * (1 - autoCaptureFrames / AUTO_CAPTURE_STABLE_FRAMES)}` }} />
+                    </svg>
+                  )}
                 </div>
+                {captureFlash && <div class="capture-flash" aria-hidden="true" />}
                 {turnOverlay && (
                   <CaptureTurnOverlay step={turnOverlay.step} startColors={turnOverlay.startColors} viaColors={turnOverlay.viaColors} capturedColors={Object.values(capturedFaces).map((face) => face.colors)} mirrored={mirrorPreview} onContinue={dismissTurnOverlay} />
                 )}
@@ -2756,10 +2815,18 @@ function App() {
               )}
               <div class="capture-actions">
                 {captureMode === 'cv' && (
-                  <label class="auto-capture-toggle">
-                    <input type="checkbox" checked={autoCapture} onChange={(e) => setAutoCapture(e.currentTarget.checked)} />
-                    <span>{autoCapture ? `Auto capture · hold steady ${autoCaptureFrames}/${AUTO_CAPTURE_STABLE_FRAMES}` : 'Auto capture'}</span>
-                  </label>
+                  <div class="capture-feedback-settings">
+                    <label class="auto-capture-toggle">
+                      <input type="checkbox" checked={autoCapture} onChange={(e) => setAutoCapture(e.currentTarget.checked)} />
+                      <span>{autoCapture ? `Auto capture · matching frames ${autoCaptureFrames}/${AUTO_CAPTURE_STABLE_FRAMES}${autoCapturePaused ? ' · paused' : ''}` : 'Auto capture'}</span>
+                    </label>
+                    <button type="button" class="capture-sound-toggle" aria-pressed={captureSound} onClick={() => {
+                      const enabled = !captureSound
+                      setCaptureSound(enabled)
+                      try { localStorage.setItem('cube-assembler.capture-sound', enabled ? 'on' : 'off') } catch { /* Storage is optional. */ }
+                      armCaptureAudio(enabled)
+                    }}>{captureSound ? '🔊 Sound on' : '🔇 Sound off'}</button>
+                  </div>
                 )}
                 <div
                   role="status"
