@@ -106,8 +106,11 @@ The live check (`faceVisibility` in `imageProcessing.ts`) then requires
 evenly colored sticker cells and a visible face outline (Guide grid accepts
 a sticker pattern instead of the outline). A
 confirmed face stays shown through up to two weak frames (display only,
-`liveHold.ts`). **Auto capture** takes the face once 5 frames in a row agree
-at 80% confidence or more (`autoCapture.ts`). After a capture, the turn cue
+`liveHold.ts`). **Auto capture** takes the face after five matching readings
+at 60% confidence or more (`autoCapture.ts`). Missed or weaker frames pause
+the count; a changed sticker pattern starts a new count. The preview ring
+shows progress, and capture flashes the preview and plays a short click when
+sound is enabled. The sound setting is saved in this browser. After a capture, the turn cue
 stays visible while the last captured face remains in view. It closes after
 three consecutive live checks show that face has left or changed. Continue
 lets you dismiss the cue if detection cannot recognize the turn; automatic

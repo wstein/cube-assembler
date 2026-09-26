@@ -1691,6 +1691,35 @@ textarea {
   box-shadow: 0 0 0 2000px rgba(151, 91, 15, 0.3);
 }
 
+.capture-scan-frame.capture-holding { border-color: #e6a23c; }
+.capture-scan-frame.capture-flashed { border-color: #4dca74; }
+
+.capture-progress-ring {
+  position: absolute;
+  right: 8px;
+  bottom: 8px;
+  width: 40px;
+  height: 40px;
+  transform: rotate(-90deg);
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.65);
+  opacity: 1;
+  transition: opacity 120ms ease;
+}
+
+.capture-progress-ring.paused { opacity: 0.45; }
+.capture-progress-ring circle { fill: none; stroke-width: 4; }
+.capture-progress-track { stroke: rgba(255, 255, 255, 0.4); }
+.capture-progress-fill { stroke: #e6a23c; stroke-dasharray: 100.53; transition: stroke-dashoffset 150ms ease; }
+
+.capture-flash {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  background: rgba(255, 255, 255, 0.75);
+  pointer-events: none;
+}
+
 
 .capture-mode-switch {
   display: flex;
@@ -1873,6 +1902,9 @@ label.capture-size-label {
   color: var(--color-text-secondary);
   cursor: pointer;
 }
+
+.capture-feedback-settings { display: flex; align-items: center; justify-content: space-between; gap: var(--spacing-sm); }
+.capture-sound-toggle { border: 0; background: none; color: var(--color-text-secondary); font: inherit; cursor: pointer; white-space: nowrap; }
 
 /* Inside the bar an empty message takes no room - the bar already sits
    at a fixed place, so there's no layout jump to prevent. */
