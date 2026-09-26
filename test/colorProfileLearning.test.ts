@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { STICKER_COLORS } from '../src/client/imageProcessing'
-import { assessPalette, blendColorProfile, canCreateProfileFromCapture, matchColorProfile, matchPartialColorProfile, profileColorFitPercent, resolveAutomaticProfile, shouldBlendColorProfile, summarizePreviewProfiles, updateProfileFromCapture } from '../src/client/colorProfileLearning'
+import { assessPalette, blendColorProfile, canCreateProfileFromCapture, matchColorProfile, matchPartialColorProfile, profileColorFitPercent, profileToUpdate, resolveAutomaticProfile, shouldBlendColorProfile, summarizePreviewProfiles, updateProfileFromCapture } from '../src/client/colorProfileLearning'
 import { genericColorProfile, type ColorProfile } from '../src/client/profileSettings'
 
 const base: ColorProfile = { id: 'base', name: 'Base', colors: STICKER_COLORS, captures: 4 }
@@ -145,5 +145,26 @@ describe('summarizing the preview profiles per face', () => {
     expect(summarizePreviewProfiles(['plastic2', 'plastic2', 'plastic1', 'plastic2', undefined, undefined]))
       .toBe('plastic2 (faces 1–2, 4), plastic1 (face 3)')
     expect(summarizePreviewProfiles([undefined, undefined])).toBeNull()
+  })
+})
+
+describe('offering to update a profile after a reviewed capture', () => {
+  const good = { reviewedValid: true, cameraOnly: true, recalibrated: true, confidentFraction: 1, correctedFraction: 0 }
+  const plastic2: ColorProfile = { id: 'plastic2', name: 'plastic2', colors: STICKER_COLORS, captures: 2 }
+
+  it('offers the profile Automatic resolved to', () => {
+    expect(profileToUpdate([plastic2], { automatic: true, resolvedId: 'plastic2', selectedId: 'auto-colors' }, shifted, good)?.id).toBe('plastic2')
+  })
+
+  it('offers the hand-selected profile too', () => {
+    expect(profileToUpdate([plastic2], { automatic: false, resolvedId: 'plastic2', selectedId: 'plastic2' }, shifted, good)?.id).toBe('plastic2')
+  })
+
+  it('offers nothing for Generic colors, weak captures or colors too far off', () => {
+    expect(profileToUpdate([plastic2], { automatic: false, resolvedId: 'generic-colors', selectedId: 'generic-colors' }, shifted, good)).toBeNull()
+    expect(profileToUpdate([plastic2], { automatic: false, resolvedId: 'plastic2', selectedId: 'plastic2' }, shifted, { ...good, cameraOnly: false })).toBeNull()
+    expect(profileToUpdate([plastic2], { automatic: false, resolvedId: 'plastic2', selectedId: 'plastic2' }, shifted, { ...good, reviewedValid: false })).toBeNull()
+    const far = { ...STICKER_COLORS, G: STICKER_COLORS.B }
+    expect(profileToUpdate([plastic2], { automatic: false, resolvedId: 'plastic2', selectedId: 'plastic2' }, far, good)).toBeNull()
   })
 })
