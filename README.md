@@ -39,7 +39,8 @@ cubes and Generic colors are read-only. **Automatic colors** starts with Generic
 and uses a saved profile after a clear match; it stays selected for later
 captures. The capture settings summary shows the current profile, including
 the profile currently selected by Automatic mode. Selecting a profile by name
-keeps that manual choice.
+keeps that manual choice. After review, the Capture card shows the resolved
+sticker color profile beside the cube profile.
 Backdrop white balance
 always excludes a 25% band around the detected face; older saved backdrop-gap
 settings are accepted but ignored.

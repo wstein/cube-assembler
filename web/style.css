@@ -1169,8 +1169,7 @@ textarea {
   color: var(--color-text-primary);
 }
 
-/* Which cube profile a capture used (and, if different, which one its
-   colors look like). */
+/* Cube and resolved sticker color profiles shown with capture status. */
 .capture-profile-used {
   font-size: 0.8rem;
   color: var(--color-text-secondary);
