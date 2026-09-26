@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
-  groupSimilarProfiles, mergeColorProfiles, mergedColors, profileDistance, whiteBalancedColors,
+  colorDeletionEffects, deleteColorProfiles, groupSimilarProfiles, mergeColorProfiles, mergedColors, unusedColorProfiles, profileDistance, whiteBalancedColors,
 } from '../src/client/colorProfileReview'
 import { AUTO_COLORS_ID, EMPTY_SETTINGS, GENERIC_COLORS_ID, type ColorProfile, type ProfileSettings } from '../src/client/profileSettings'
 import type { RGB } from '../src/client/imageProcessing'
@@ -98,5 +98,33 @@ describe('mergeColorProfiles', () => {
     expect(() => mergeColorProfiles(base, ['warm', GENERIC_COLORS_ID], 'X', at)).toThrow()
     expect(() => mergeColorProfiles(base, ['warm', 'nope'], 'X', at)).toThrow()
     expect(() => mergeColorProfiles(base, ['warm', 'uv'], '  ', at)).toThrow()
+  })
+})
+
+describe('deleting color profiles', () => {
+  const base = settings([profile('warm', WARM), profile('uv', UV), profile('pastel', PASTEL)], {
+    activeColorsId: 'uv', autoMatchedColorsId: 'warm',
+  })
+
+  it('deletes several profiles; the selection and the automatic match are cleared', () => {
+    const next = deleteColorProfiles(base, ['warm', 'uv'])
+    expect(next.colors.map((p) => p.id)).toEqual(['pastel'])
+    expect(next.activeColorsId).toBe(AUTO_COLORS_ID)
+    expect(next.autoMatchedColorsId).toBeUndefined()
+  })
+
+  it('refuses built-in and unknown profiles', () => {
+    expect(() => deleteColorProfiles(base, [GENERIC_COLORS_ID])).toThrow()
+    expect(() => deleteColorProfiles(base, ['nope'])).toThrow()
+  })
+
+  it('says what a deletion changes', () => {
+    expect(colorDeletionEffects(base, ['uv'])).toEqual(['Colors switch to Automatic'])
+    expect(colorDeletionEffects(base, ['warm'])).toEqual(['Automatic looks for a new match'])
+    expect(colorDeletionEffects(base, ['pastel'])).toEqual([])
+  })
+
+  it('selects profiles that are neither selected nor the automatic match', () => {
+    expect(unusedColorProfiles(base)).toEqual(['pastel'])
   })
 })

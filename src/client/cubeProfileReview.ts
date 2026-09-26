@@ -2,7 +2,7 @@
 // sticker is sampled (stickerCore), so cubes of one size whose sticker areas
 // match are duplicates: they can be merged into one, or deleted in favour of
 // the built-in Generic cube they copy.
-import { CUBE_SIZES, allCubes, isBuiltinCube, type CubeSetting, type ProfileSettings } from './profileSettings'
+import { CUBE_SIZES, allCubes, builtinCube, deleteCube, isBuiltinCube, type CubeSetting, type ProfileSettings } from './profileSettings'
 
 // Groups per size in which every cube's sticker area is within `tolerance`
 // of every other one (complete linkage). Built-in cubes take part, but a
@@ -74,4 +74,30 @@ export function replaceCubes(settings: ProfileSettings, ids: string[], keepId: s
   if (members.some((cube) => cube.id === keepId)) throw new Error('Cannot delete the cube to keep')
   if (members.some((cube) => cube.size !== keep.size)) throw new Error('Cubes of different sizes')
   return withoutCubes(settings, new Set(members.map((cube) => cube.id)), keep.size, keepId)
+}
+
+// Deletes the saved cubes `ids`; a size whose active cube goes falls back to
+// its built-in Generic cube (see deleteCube).
+export function deleteCubes(settings: ProfileSettings, ids: string[]): ProfileSettings {
+  const unique = [...new Set(ids)]
+  if (unique.some(isBuiltinCube)) throw new Error('Cannot delete a built-in cube')
+  if (unique.some((id) => !settings.cubes.some((cube) => cube.id === id))) throw new Error('Unknown cube')
+  return unique.reduce(deleteCube, settings)
+}
+
+// What deleting `ids` changes, one line per size that loses its active cube.
+export function cubeDeletionEffects(settings: ProfileSettings, ids: string[]): string[] {
+  const gone = new Set(ids)
+  return CUBE_SIZES.filter((size) => gone.has(settings.activeCubeBySize[size] ?? ''))
+    .map((size) => `${size}×${size} then uses ${builtinCube(size).name}`)
+}
+
+// Saved cubes whose sticker area equals their size's built-in Generic cube.
+export function cubesSameAsGeneric(settings: ProfileSettings): string[] {
+  return settings.cubes.filter((cube) => cube.sampling.stickerCore === builtinCube(cube.size).sampling.stickerCore).map((cube) => cube.id)
+}
+
+// Saved cubes that are not the active cube of their size.
+export function unusedCubes(settings: ProfileSettings): string[] {
+  return settings.cubes.filter((cube) => settings.activeCubeBySize[cube.size] !== cube.id).map((cube) => cube.id)
 }

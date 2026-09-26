@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { duplicateCubeGroups, mergeCubes, replaceCubes } from '../src/client/cubeProfileReview'
+import { cubeDeletionEffects, cubesSameAsGeneric, deleteCubes, duplicateCubeGroups, mergeCubes, replaceCubes, unusedCubes } from '../src/client/cubeProfileReview'
 import { EMPTY_SETTINGS, builtinCube, type CubeSetting, type ProfileSettings } from '../src/client/profileSettings'
 
 const cube = (id: string, size: number, stickerCore: number): CubeSetting => ({ id, name: id, size, sampling: { stickerCore } })
@@ -65,5 +65,29 @@ describe('replaceCubes', () => {
   it('refuses to delete the kept cube or a cube of another size', () => {
     expect(() => replaceCubes(BASE, ['daylight', 'gan'], 'gan')).toThrow()
     expect(() => replaceCubes(BASE, ['qiyi'], builtinCube(3).id)).toThrow()
+  })
+})
+
+describe('deleting cubes', () => {
+  it('deletes several saved cubes; a size whose active cube goes falls back to Generic', () => {
+    const next = deleteCubes(BASE, ['daylight', 'qiyi'])
+    expect(next.cubes.map((c) => c.id)).toEqual(['warm', 'gan', 'gocube', 'big'])
+    expect(next.activeCubeBySize[3]).toBeUndefined()
+    expect(next.activeCubeBySize[2]).toBeUndefined()
+  })
+
+  it('refuses built-in and unknown cubes', () => {
+    expect(() => deleteCubes(BASE, [builtinCube(3).id])).toThrow()
+    expect(() => deleteCubes(BASE, ['nope'])).toThrow()
+  })
+
+  it('says which sizes lose their active cube and what they use instead', () => {
+    expect(cubeDeletionEffects(BASE, ['daylight', 'warm'])).toEqual(['3×3 then uses Generic 3×3'])
+    expect(cubeDeletionEffects(BASE, ['warm'])).toEqual([])
+  })
+
+  it('selects saved cubes that copy Generic, and cubes that are not active', () => {
+    expect(cubesSameAsGeneric(BASE)).toEqual(['daylight', 'warm', 'big'])
+    expect(unusedCubes(BASE)).toEqual(['warm', 'gan', 'gocube', 'big'])
   })
 })

@@ -4,7 +4,7 @@
 // (von Kries, in linear light) takes that light out before comparing, and
 // profiles that stay close can be merged into one.
 import { linearChannelToSrgb, rgbToOklab, srgbChannelToLinear, type RGB } from './imageProcessing'
-import { AUTO_COLORS_ID, GENERIC_COLORS_ID, type ColorProfile, type ProfileSettings } from './profileSettings'
+import { AUTO_COLORS_ID, GENERIC_COLORS_ID, deleteColorProfile, type ColorProfile, type ProfileSettings } from './profileSettings'
 
 const COLOR_KEYS = ['W', 'Y', 'O', 'R', 'G', 'B']
 // White is equal after balancing, so only these tell profiles apart.
@@ -110,4 +110,30 @@ export function mergeColorProfiles(settings: ProfileSettings, ids: string[], nam
     settings: { ...rest, colors, activeColorsId: moved(settings.activeColorsId)!, ...(autoMatchedColorsId ? { autoMatchedColorsId } : {}) },
     profile,
   }
+}
+
+// Deletes the saved color profiles `ids` (see deleteColorProfile): a deleted
+// selection goes back to Automatic, a deleted automatic match is cleared.
+export function deleteColorProfiles(settings: ProfileSettings, ids: string[]): ProfileSettings {
+  const unique = [...new Set(ids)]
+  if (unique.some((id) => id === GENERIC_COLORS_ID || id === AUTO_COLORS_ID)) throw new Error('Cannot delete built-in colors')
+  if (unique.some((id) => !settings.colors.some((profile) => profile.id === id))) throw new Error('Unknown color profile')
+  const next = unique.reduce(deleteColorProfile, settings)
+  if (next.autoMatchedColorsId !== undefined) return next
+  const { autoMatchedColorsId: _cleared, ...rest } = next
+  return rest
+}
+
+// What deleting `ids` changes for the selected and the automatic colors.
+export function colorDeletionEffects(settings: ProfileSettings, ids: string[]): string[] {
+  const gone = new Set(ids)
+  return [
+    ...(gone.has(settings.activeColorsId) ? ['Colors switch to Automatic'] : []),
+    ...(settings.autoMatchedColorsId && gone.has(settings.autoMatchedColorsId) ? ['Automatic looks for a new match'] : []),
+  ]
+}
+
+// Saved color profiles that are neither selected nor the automatic match.
+export function unusedColorProfiles(settings: ProfileSettings): string[] {
+  return settings.colors.filter((profile) => profile.id !== settings.activeColorsId && profile.id !== settings.autoMatchedColorsId).map((profile) => profile.id)
 }
