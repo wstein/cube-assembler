@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
-  colorDeletionEffects, deleteColorProfiles, groupSimilarProfiles, mergeColorProfiles, mergedColors, unusedColorProfiles, profileDistance, whiteBalancedColors,
+  AVERAGE_LIMIT_FRACTION, colorDeletionEffects, colorDifferences, deleteColorProfiles, groupDifferences, groupSimilarProfiles, withinMergeLimit, mergeColorProfiles, mergedColors, unusedColorProfiles, profileDistance, whiteBalancedColors,
 } from '../src/client/colorProfileReview'
 import { AUTO_COLORS_ID, EMPTY_SETTINGS, GENERIC_COLORS_ID, type ColorProfile, type ProfileSettings } from '../src/client/profileSettings'
 import type { RGB } from '../src/client/imageProcessing'
@@ -41,14 +41,51 @@ describe('profileDistance', () => {
   })
 })
 
+describe('the merge limit', () => {
+  it('rejects one color beyond the limit, however close the others are', () => {
+    expect(withinMergeLimit({ Y: 0.5, O: 0.5, R: 0.5, G: 10, B: 0.5 }, 3)).toBe(false)
+    expect(withinMergeLimit({ Y: 0.5, O: 0.5, R: 0.5, G: 3.2, B: 0.5 }, 3)).toBe(false)
+  })
+
+  it(`rejects colors all moderately apart: the average may be at most ${AVERAGE_LIMIT_FRACTION.toFixed(2)} of the limit`, () => {
+    expect(withinMergeLimit({ Y: 2.9, O: 2.9, R: 2.9, G: 2.9, B: 2.9 }, 3)).toBe(false)
+    expect(withinMergeLimit({ Y: 1, O: 1, R: 1.2, G: 2.8, B: 1 }, 3)).toBe(true)
+  })
+})
+
+describe('colorDifferences', () => {
+  it('measures each colored sticker separately after balancing', () => {
+    const greenOff = { ...UV, G: rgb(110, 185, 30) }
+    const diffs = colorDifferences(UV, greenOff)
+    expect(diffs.G).toBeGreaterThan(5)
+    for (const key of ['Y', 'O', 'R', 'B'] as const) expect(diffs[key]).toBeLessThan(0.5)
+    // The old average would have hidden it.
+    expect(profileDistance(UV, greenOff)).toBeLessThan(3)
+  })
+})
+
 describe('groupSimilarProfiles', () => {
   const profiles = [profile('daylight', DAYLIGHT), profile('warm', WARM), profile('uv', UV), profile('pastel', PASTEL)]
 
   it('groups profiles that are all within the limit of each other', () => {
-    const groups = groupSimilarProfiles(profiles, 3)
-    const ids = groups.map((group) => group.map((p) => p.id).sort())
-    expect(ids).toContainEqual(['uv', 'warm'])
-    expect(ids).toContainEqual(['pastel'])
+    // Warm Indoor and UV Coated differ by just over 3 in Green only.
+    const ids = (limit: number) => groupSimilarProfiles(profiles, limit).map((group) => group.map((p) => p.id).sort())
+    expect(ids(4)).toContainEqual(['uv', 'warm'])
+    expect(ids(4)).toContainEqual(['pastel'])
+    expect(ids(3)).not.toContainEqual(['uv', 'warm'])
+  })
+
+  it('does not group profiles when one color is far apart', () => {
+    const greenOff = profile('green-off', { ...UV, G: rgb(110, 185, 30) })
+    expect(groupSimilarProfiles([profile('uv', UV), greenOff], 3).every((group) => group.length === 1)).toBe(true)
+  })
+
+  it('summarizes a group by its worst color and largest average', () => {
+    const near = profile('near', { ...UV, G: rgb(8, 180, 95) })
+    const summary = groupDifferences([profile('uv', UV), near])
+    expect(summary.worst.color).toBe('G')
+    expect(summary.worst.value).toBeCloseTo(summary.byColor.G, 5)
+    expect(summary.average).toBeLessThan(summary.worst.value)
   })
 
   it('keeps every profile alone at a tiny limit', () => {
