@@ -115,6 +115,15 @@ export function colorPalette(profile: Pick<ColorProfile, 'colors'>): Record<stri
   return Object.fromEntries(COLOR_KEYS.map((key) => [key, { ...profile.colors[key] }]))
 }
 
+export function copyColorProfile(settings: ProfileSettings, source: ColorProfile, name: string): ColorProfile {
+  const trimmed = name.trim().slice(0, 60)
+  if (!trimmed) throw new Error('Color profile name required')
+  let id: string
+  do { id = `colors-${Date.now()}-${Math.random().toString(36).slice(2, 8)}` }
+  while (allColorProfiles(settings).some((profile) => profile.id === id))
+  return { id, name: trimmed, colors: colorPalette(source), captures: 0 }
+}
+
 export function allColorProfiles(settings: ProfileSettings): ColorProfile[] {
   return [{ ...genericColorProfile(), id: AUTO_COLORS_ID, name: 'Automatic colors' }, genericColorProfile(), ...settings.colors]
 }
