@@ -95,7 +95,7 @@ still busy, it skips that interval instead of queuing another frame.
 
 On the first face in Detect face mode, the app counts repeating seams in
 both directions to identify a 2×2–7×7 grid. It changes the size only after
-two agreeing live readings of a visible face. A manually selected size takes
+five matching estimates in the latest seven frames. A manually selected size takes
 precedence, and the size stays fixed after the first face is captured.
 
 ### How Detect face finds a face
