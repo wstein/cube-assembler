@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import { STICKER_COLORS } from '../src/client/imageProcessing'
 import {
-  EMPTY_SETTINGS, GENERIC_COLORS_ID, activeColorProfile, activeCube, allCubes, builtinCube,
-  colorPalette, convertLegacySettings, copyCubeSetting, cubesForSize, mergeSettings, saveColorProfile, saveCube,
-  selectColorProfile, selectCube,
+  AUTO_COLORS_ID, EMPTY_SETTINGS, GENERIC_COLORS_ID, activeColorProfile, activeCube, allCubes, builtinCube,
+  colorPalette, convertLegacySettings, copyCubeSetting, cubesForSize, deleteColorProfile, mergeSettings, parseProfileSettings,
+  saveColorProfile, saveCube, selectColorProfile, selectCube, setAutoColorMatch,
 } from '../src/client/profileSettings'
 
 describe('separate cube and color settings', () => {
@@ -27,8 +27,15 @@ describe('separate cube and color settings', () => {
     expect(activeColorProfile(saved).id).toBe('colors-a')
     expect(activeCube(saved, 3).size).toBe(3)
     expect(activeCube(saved, 7).size).toBe(7)
+    expect(EMPTY_SETTINGS.activeColorsId).toBe(AUTO_COLORS_ID)
     expect(activeColorProfile(EMPTY_SETTINGS).id).toBe(GENERIC_COLORS_ID)
     expect(colorPalette(activeColorProfile(EMPTY_SETTINGS))).toEqual(STICKER_COLORS)
+    const auto = setAutoColorMatch(selectColorProfile(saved, AUTO_COLORS_ID), custom.id)
+    expect(auto.activeColorsId).toBe(AUTO_COLORS_ID)
+    expect(activeColorProfile(auto).id).toBe(custom.id)
+    expect(activeColorProfile(setAutoColorMatch(auto, null)).id).toBe(GENERIC_COLORS_ID)
+    expect(activeColorProfile(parseProfileSettings(JSON.parse(JSON.stringify(auto)))).id).toBe(custom.id)
+    expect(activeColorProfile(deleteColorProfile(auto, custom.id)).id).toBe(GENERIC_COLORS_ID)
   })
 
   it('selects a cube by id and copies a built-in under a custom name', () => {
