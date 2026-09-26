@@ -1,7 +1,7 @@
 import { render, h, Fragment } from 'preact'
 import { useState, useEffect, useRef, useMemo } from 'preact/hooks'
 import '../../web/style.css'
-import { AUTO_CAPTURE_MIN_CONFIDENCE, AUTO_CAPTURE_STABLE_FRAMES, TURN_CUE_CLEAR_FRAMES, agreedSize, nextAutoCaptureProgress, nextSizeVotes, nextTurnCueClearFrames, sizeDisputed, turnPoseChanged, type AutoCaptureProgress, type TurnCuePose } from './autoCapture'
+import { AUTO_CAPTURE_MIN_CONFIDENCE, AUTO_CAPTURE_STABLE_FRAMES, TURN_CUE_CLEAR_FRAMES, agreedSize, nextAutoCaptureProgress, nextSizeVotes, nextTurnCueClearFrames, sizeDetectionActive, turnPoseChanged, type AutoCaptureProgress, type TurnCuePose } from './autoCapture'
 import { oppositeFacePreview } from './capturePresentation'
 import { holdConfirmedFace, NO_HOLD, type LiveHold } from './liveHold'
 import { scaleBounds, type LiveAnalysisRequest } from './liveAnalysis'
@@ -121,8 +121,12 @@ function saveProfileStore(store: ProfileSettings): boolean {
   catch { return false }
 }
 
-function CubeSelectOptions({ settings }: { settings: ProfileSettings }) {
+// The cube list's first entry: the size is detected from the first face.
+const AUTO_SIZE_OPTION = 'auto-size'
+
+function CubeSelectOptions({ settings, detectedSize }: { settings: ProfileSettings; detectedSize: number | null }) {
   return <>
+    <option value={AUTO_SIZE_OPTION}>{detectedSize ? `Auto · ${detectedSize}×${detectedSize}` : 'Auto'}</option>
     {groupCubesByName(settings).map((group) => (
       <optgroup label={group.name} key={group.name}>
         {group.cubes.map((cube) => (
@@ -662,12 +666,11 @@ function App() {
   const [autoCapture, setAutoCapture] = useState(true)
   const [autoCaptureFrames, setAutoCaptureFrames] = useState(0)
   const [autoCapturePaused, setAutoCapturePaused] = useState(false)
-  // Before the first face, Detect face may switch the cube size on a clear
-  // signal (see nextSizeVotes). Undo or picking a size in the camera stops
-  // it until capture starts over.
+  // Auto (the default) detects the cube size from the first face (see
+  // sizeDetectionActive); a size picked from the list is kept as is.
+  const [autoSize, setAutoSize] = useState(true)
+  const [detectedSize, setDetectedSize] = useState<number | null>(null)
   const [sizeSwitch, setSizeSwitch] = useState<{ from: number; to: number } | null>(null)
-  const [sizeCheckHold, setSizeCheckHold] = useState(false)
-  const sizeDetectionLocked = useRef(false)
   const [captureFlash, setCaptureFlash] = useState(false)
   const [captureSound, setCaptureSound] = useState(storedCaptureSound)
   const captureAudio = useRef<AudioContext | null>(null)
@@ -768,6 +771,9 @@ function App() {
   const [mirrorPreview, setMirrorPreview] = useState(true)
   const [profileStore, setProfileStore] = useState<ProfileSettings>(loadProfileStore)
   const profile = activeCube(profileStore, puzzleSize)
+  const detectingSize = sizeDetectionActive({
+    autoSize, detectedSize, facesCaptured: Object.keys(capturedFaces).length, detectFace: captureMode === 'cv',
+  })
   const colorProfile = activeColorProfile(profileStore)
   const sampling = profile.sampling
   const palette = useMemo(() => capturePalette(profileStore), [profileStore])
@@ -1008,7 +1014,6 @@ function App() {
   useEffect(() => {
     setAutoCaptureFrames(0)
     setAutoCapturePaused(false)
-    setSizeCheckHold(false)
     if (!webcamOpen) {
       setLiveDetection(null)
       setLiveFaceVisible(false)
@@ -1067,17 +1072,17 @@ function App() {
           return
         }
         if (turnCueShowing) return
-        let sizeOnHold = false
-        if (result.size !== undefined && !sizeDetectionLocked.current) {
+        if (detectingSize && result.size !== undefined) {
           sizeVotes = nextSizeVotes(sizeVotes, result.size)
           const agreed = agreedSize(sizeVotes)
-          if (agreed !== null && agreed !== puzzleSize) {
-            setSizeSwitch({ from: puzzleSize, to: agreed })
-            changePuzzleSize(agreed)
+          if (agreed !== null) {
+            setDetectedSize(agreed)
+            if (agreed !== puzzleSize) {
+              setSizeSwitch({ from: puzzleSize, to: agreed })
+              changePuzzleSize(agreed)
+            }
             return
           }
-          sizeOnHold = sizeDisputed(sizeVotes, puzzleSize)
-          setSizeCheckHold(sizeOnHold)
         }
         // Detect face holds a confirmed face through a weak frame or two
         // (display only - see holdConfirmedFace); everything below still
@@ -1095,7 +1100,7 @@ function App() {
           : null
         setLiveCapturedFace(matchedSlot === null ? null : FACE_ORDER[matchedSlot])
         if (captureMode === 'cv' && autoCapture && !autoCaptureInFlight.current) {
-          const counted = visible && bounds.gridFound && detection.confidence >= AUTO_CAPTURE_MIN_CONFIDENCE && !sizeOnHold
+          const counted = visible && bounds.gridFound && detection.confidence >= AUTO_CAPTURE_MIN_CONFIDENCE && !detectingSize
           progress = nextAutoCaptureProgress(progress, counted ? {
             colors: detection.colors,
             confidence: detection.confidence,
@@ -1160,7 +1165,7 @@ function App() {
           requireOutline: captureMode === 'cv',
           sampling,
           palette,
-          detectSize: captureMode === 'cv' && Object.keys(capturedFaces).length === 0 && !sizeDetectionLocked.current,
+          detectSize: detectingSize,
         }
         worker.postMessage({ id, frame, maxHeight: LIVE_ANALYSIS_HEIGHT, request } satisfies LiveFrameMessage, [frame])
       } catch {
@@ -1174,7 +1179,7 @@ function App() {
       worker.removeEventListener('message', onResult)
       inFlight = null
     }
-  }, [webcamOpen, turnCueShowing, loading, webcamFace, puzzleSize, sampling, palette, captureMode, autoCapture, captureSound, capturedFaces])
+  }, [webcamOpen, turnCueShowing, loading, webcamFace, puzzleSize, sampling, palette, captureMode, autoCapture, captureSound, capturedFaces, detectingSize])
 
   // Everything below belongs to one cube of one size, so switching sizes
   // starts over - keeping it drew e.g. a 5x5's 25 stickers per face into a
@@ -1211,13 +1216,17 @@ function App() {
   }
 
   const changeCube = (id: string) => {
+    if (id === AUTO_SIZE_OPTION) {
+      setAutoSize(true)
+      setDetectedSize(null)
+      setSizeSwitch(null)
+      return true
+    }
     const selected = allCubes(profileStore).find((cube) => cube.id === id)
     if (!selected) return false
     if (selected.size !== puzzleSize && !changePuzzleSize(selected.size)) return false
-    if (webcamOpen && selected.size !== puzzleSize) {
-      sizeDetectionLocked.current = true
-      setSizeSwitch(null)
-    }
+    setAutoSize(false)
+    setSizeSwitch(null)
     applyProfileStore(selectCube(profileStore, id))
     return true
   }
@@ -1324,7 +1333,7 @@ function App() {
     const allCaptured = FACE_ORDER.every((f) => f in capturedFaces)
     const startOver = restart || allCaptured
     if (startOver) {
-      sizeDetectionLocked.current = false
+      setDetectedSize(null)
       setSizeSwitch(null)
       setCapturedFaces({})
       setFaceConfidence({})
@@ -2175,10 +2184,10 @@ function App() {
           <select
             class="header-profile"
             aria-label="Cube"
-            value={profile.id}
-            onChange={(e) => { if (!changeCube(e.currentTarget.value)) e.currentTarget.value = profile.id }}
+            value={autoSize ? AUTO_SIZE_OPTION : profile.id}
+            onChange={(e) => { if (!changeCube(e.currentTarget.value)) e.currentTarget.value = autoSize ? AUTO_SIZE_OPTION : profile.id }}
           >
-            <CubeSelectOptions settings={profileStore} />
+            <CubeSelectOptions settings={profileStore} detectedSize={autoSize ? detectedSize : null} />
           </select>
           <select class="header-profile" aria-label="Colors" value={profileStore.activeColorsId}
             onChange={(e) => applyProfileStore(selectColorProfile(profileStore, e.currentTarget.value))}>
@@ -2690,7 +2699,7 @@ function App() {
                 <summary>
                   Cube & camera settings
                   <span class="capture-settings-summary">
-                    {' '}{puzzleSize}×{puzzleSize} · {profile.name} · Sticker colors: {profileStore.activeColorsId === AUTO_COLORS_ID ? 'Automatic' : colorProfile.name}
+                    {' '}{autoSize && !detectedSize ? 'Auto size' : `${puzzleSize}×${puzzleSize}`} · {profile.name} · Sticker colors: {profileStore.activeColorsId === AUTO_COLORS_ID ? 'Automatic' : colorProfile.name}
                     {mirrorPreview ? ' · mirrored' : ''}
                   </span>
                 </summary>
@@ -2700,10 +2709,10 @@ function App() {
                   <select
                     id="cube-profile"
                     class="cube-profile-select"
-                    value={profile.id}
-                    onChange={(e) => { if (!changeCube(e.currentTarget.value)) e.currentTarget.value = profile.id }}
+                    value={autoSize ? AUTO_SIZE_OPTION : profile.id}
+                    onChange={(e) => { if (!changeCube(e.currentTarget.value)) e.currentTarget.value = autoSize ? AUTO_SIZE_OPTION : profile.id }}
                   >
-                    <CubeSelectOptions settings={profileStore} />
+                    <CubeSelectOptions settings={profileStore} detectedSize={autoSize ? detectedSize : null} />
                   </select>
                   <button
                     type="button"
@@ -2882,7 +2891,7 @@ function App() {
                   <div class="capture-feedback-settings">
                     <label class="auto-capture-toggle">
                       <input type="checkbox" checked={autoCapture} onChange={(e) => setAutoCapture(e.currentTarget.checked)} />
-                      <span>{autoCapture ? `Auto capture · matching frames ${autoCaptureFrames}/${AUTO_CAPTURE_STABLE_FRAMES}${sizeCheckHold ? ' · checking cube size' : autoCapturePaused ? ' · paused' : ''}` : 'Auto capture'}</span>
+                      <span>{autoCapture ? `Auto capture · matching frames ${autoCaptureFrames}/${AUTO_CAPTURE_STABLE_FRAMES}${detectingSize ? ' · checking cube size' : autoCapturePaused ? ' · paused' : ''}` : 'Auto capture'}</span>
                     </label>
                     <button type="button" class="capture-sound-toggle" aria-pressed={captureSound} onClick={() => {
                       const enabled = !captureSound
@@ -2896,7 +2905,7 @@ function App() {
                   <div role="status" class="size-switch-notice">
                     <span>Detected a {sizeSwitch.to}×{sizeSwitch.to} cube - switched from {sizeSwitch.from}×{sizeSwitch.from} ({profile.name}).</span>
                     <button type="button" class="btn btn-secondary btn-sm" onClick={() => {
-                      sizeDetectionLocked.current = true
+                      setAutoSize(false)
                       changePuzzleSize(sizeSwitch.from)
                       setSizeSwitch(null)
                     }}>Undo</button>

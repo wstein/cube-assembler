@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { AUTO_CAPTURE_STABLE_FRAMES, SIZE_VOTE_AGREE, SIZE_VOTE_FRAMES, TURN_CUE_CLEAR_FRAMES, agreedSize, nextAutoCaptureProgress, nextSizeVotes, nextTurnCueClearFrames, sizeDisputed, turnPoseChanged, type AutoCaptureSample } from '../src/client/autoCapture'
+import { AUTO_CAPTURE_STABLE_FRAMES, SIZE_VOTE_AGREE, SIZE_VOTE_FRAMES, TURN_CUE_CLEAR_FRAMES, agreedSize, nextAutoCaptureProgress, nextSizeVotes, nextTurnCueClearFrames, sizeDetectionActive, turnPoseChanged, type AutoCaptureSample } from '../src/client/autoCapture'
 
 const sample = (color = 'R', x = 100, confidence = 0.9): AutoCaptureSample => ({
   colors: Array.from({ length: 3 }, () => Array(3).fill(color)),
@@ -113,10 +113,22 @@ describe('first-face cube size vote', () => {
     expect(votes).toHaveLength(SIZE_VOTE_FRAMES)
     expect(agreedSize(votes)).toBeNull()
   })
+})
 
-  it('disputes the selected size once several recent frames name another', () => {
-    expect(sizeDisputed(vote([4, null, 3, 3]), 3)).toBe(false)
-    expect(sizeDisputed(vote([4, 4, null, 4]), 3)).toBe(true)
-    expect(sizeDisputed(vote([4, 4, 4]), 4)).toBe(false)
+describe('Auto cube size', () => {
+  const state = { autoSize: true, detectedSize: null, facesCaptured: 0, detectFace: true }
+
+  it('detects the size in Auto until one is agreed, before the first face', () => {
+    expect(sizeDetectionActive(state)).toBe(true)
+    expect(sizeDetectionActive({ ...state, detectedSize: 4 })).toBe(false)
+    expect(sizeDetectionActive({ ...state, facesCaptured: 1 })).toBe(false)
+  })
+
+  it('never overrides a size picked from the list', () => {
+    expect(sizeDetectionActive({ ...state, autoSize: false })).toBe(false)
+  })
+
+  it('needs Detect face - Guide grid has no face outline to measure', () => {
+    expect(sizeDetectionActive({ ...state, detectFace: false })).toBe(false)
   })
 })

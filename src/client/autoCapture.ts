@@ -68,13 +68,12 @@ export function nextAutoCaptureProgress(
   return stable ? { first, frames: previous.frames + 1 } : { first: sample, frames: 1 }
 }
 
-// Before the first face, frames vote on the cube size (estimateFaceGridSize;
-// null when a frame names none). Only a size most recent frames agree on
-// changes the selected one; a few frames naming another size already hold
-// auto capture back, so it never photographs a 4x4 as a 3x3.
+// With the cube size on Auto, frames vote on it before the first face
+// (estimateFaceGridSize; null when a frame names none). Only a size most
+// recent frames agree on is taken, and auto capture waits for it, so it
+// never photographs a 4x4 as a 3x3. A size picked from the list is final.
 export const SIZE_VOTE_FRAMES = 10
 export const SIZE_VOTE_AGREE = 8
-const SIZE_DISPUTE_FRAMES = 3
 
 export function nextSizeVotes(votes: readonly (number | null)[], estimate: number | null): Array<number | null> {
   return [...votes, estimate].slice(-SIZE_VOTE_FRAMES)
@@ -87,6 +86,15 @@ export function agreedSize(votes: readonly (number | null)[]): number | null {
   return null
 }
 
-export function sizeDisputed(votes: readonly (number | null)[], selected: number): boolean {
-  return votes.filter((vote) => vote !== null && vote !== selected).length >= SIZE_DISPUTE_FRAMES
+export interface SizeDetectionState {
+  autoSize: boolean
+  // The size agreed on since capture started, if any.
+  detectedSize: number | null
+  facesCaptured: number
+  // Detect face mode; Guide grid finds no face outline to measure.
+  detectFace: boolean
+}
+
+export function sizeDetectionActive({ autoSize, detectedSize, facesCaptured, detectFace }: SizeDetectionState): boolean {
+  return autoSize && detectFace && detectedSize === null && facesCaptured === 0
 }
