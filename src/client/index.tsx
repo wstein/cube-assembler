@@ -21,7 +21,7 @@ import {
   type OrientedCandidate, type OrientationSolution, type FaceKey, type GuidedArrangement, type GuidedCenterIssue,
 } from './cubeAssembly'
 import {
-  AUTO_COLORS_ID, GENERIC_COLORS_ID, activeCube, allCubes, activeColorProfile, allColorProfiles, colorPalette, copyCubeSetting,
+  AUTO_COLORS_ID, GENERIC_COLORS_ID, activeCube, allCubes, activeColorProfile, allColorProfiles, colorPalette, copyColorProfile, copyCubeSetting,
   convertLegacySettings, cubeGroupName, deleteCube, deleteColorProfile, groupCubesByName, isBuiltinCube, mergeSettings, saveCube, saveColorProfile,
   selectCube, selectColorProfile, setAutoColorMatch, type ProfileSettings,
 } from './profileSettings'
@@ -785,11 +785,17 @@ function App() {
     applyProfileStore(saveCube(profileStore, { ...profile, sampling: next }))
   }
   const [newCubeName, setNewCubeName] = useState<string | null>(null)
+  const [newColorProfileName, setNewColorProfileName] = useState<string | null>(null)
   const handleCreateCube = () => {
     if (!newCubeName?.trim()) return
     applyProfileStore(saveCube(profileStore, copyCubeSetting(profileStore, profile, newCubeName)))
     setNewCubeName(null)
     setSamplingSetupOpen(true)
+  }
+  const handleCreateNamedColors = () => {
+    if (!newColorProfileName?.trim()) return
+    applyProfileStore(saveColorProfile(profileStore, copyColorProfile(profileStore, colorProfile, newColorProfileName)))
+    setNewColorProfileName(null)
   }
   const handleCreateColors = () => {
     if (!profileLearningOffer || !newColorName.trim()) return
@@ -1712,7 +1718,7 @@ function App() {
         && evidence.confidentFraction >= 0.8 && evidence.correctedFraction <= 0.02) {
         if (automatic) applyProfileStore(setAutoColorMatch(profileStore, null))
         setProfileLearningOffer(pendingPalette.colors)
-        setNewColorName(`${profile.name} colors`)
+        setNewColorName('')
       }
       setPendingPalette(null)
     }
@@ -2225,7 +2231,7 @@ function App() {
             {profileLearningOffer && !showReviewDialog && (
               <div class="profile-suggestion" role="status">
                 <span>Save these reviewed colors as a new profile for future captures.</span>
-                <input aria-label="New color profile name" maxLength={60} value={newColorName}
+                <input aria-label="New color profile name" maxLength={60} placeholder="e.g. GoCube" value={newColorName}
                   onInput={(e) => setNewColorName(e.currentTarget.value)} />
                 <button type="button" class="btn btn-secondary btn-sm" disabled={!newColorName.trim()} onClick={handleCreateColors}>Save new colors</button>
               </div>
@@ -2524,7 +2530,23 @@ function App() {
                     onChange={(e) => applyProfileStore(selectColorProfile(profileStore, e.currentTarget.value))}>
                     {allColorProfiles(profileStore).map((colors) => <option key={colors.id} value={colors.id}>{colors.name}</option>)}
                   </select>
+                  <button type="button" class="btn btn-secondary btn-sm"
+                    aria-expanded={newColorProfileName !== null}
+                    onClick={() => setNewColorProfileName(newColorProfileName === null ? '' : null)}>
+                    ＋ New colors
+                  </button>
                 </div>
+                {newColorProfileName !== null && (
+                  <div class="capture-size-row new-cube-form">
+                    <label class="capture-size-label" for="new-color-profile-name">Name:</label>
+                    <input id="new-color-profile-name" class="cube-profile-name" maxLength={60}
+                      placeholder="e.g. GoCube" value={newColorProfileName}
+                      onInput={(e) => setNewColorProfileName(e.currentTarget.value)}
+                      onKeyDown={(e) => { if (e.key === 'Enter') handleCreateNamedColors() }} />
+                    <button type="button" class="btn btn-primary btn-sm" disabled={!newColorProfileName.trim()}
+                      onClick={handleCreateNamedColors}>Add colors</button>
+                  </div>
+                )}
                 {newCubeName !== null && (
                   <div class="capture-size-row new-cube-form">
                     <label class="capture-size-label" for="new-cube-name">Name:</label>
@@ -2596,24 +2618,38 @@ function App() {
                     />
                   </label>
                   {isBuiltinCube(profile.id) && <p class="sampling-setup-hint">To change this gap, choose New cube and save a named copy.</p>}
+                  <label class="sampling-slider">
+                    <span>Color profile name</span>
+                    <input type="text" class="cube-profile-name" maxLength={60}
+                      key={profileStore.activeColorsId}
+                      defaultValue={profileStore.activeColorsId === AUTO_COLORS_ID ? 'Automatic colors' : colorProfile.name}
+                      disabled={profileStore.activeColorsId === AUTO_COLORS_ID || profileStore.activeColorsId === GENERIC_COLORS_ID}
+                      onBlur={(e) => {
+                        const name = e.currentTarget.value.trim()
+                        if (!name) e.currentTarget.value = colorProfile.name
+                        else if (name !== colorProfile.name) applyProfileStore(saveColorProfile(profileStore, { ...colorProfile, name }))
+                      }}
+                      onKeyDown={(e) => { if (e.key === 'Enter') e.currentTarget.blur() }} />
+                  </label>
                   <p class="sampling-setup-hint">
                     {profileStore.activeColorsId === AUTO_COLORS_ID ? (
                       `Automatic colors currently use ${colorProfile.name}. A clear profile match is selected after a reviewed capture.`
                     ) : colorProfile.updatedAt ? (
                       <>
-                        Colors learned from {colorProfile.captures} capture(s), last updated {new Date(colorProfile.updatedAt).toLocaleString()}.{' '}
-                        <button
-                          type="button"
-                          class="link-button"
-                          onClick={() => applyProfileStore(deleteColorProfile(profileStore, colorProfile.id))}
-                        >
-                          Delete colors
-                        </button>
+                        Colors learned from {colorProfile.captures} {colorProfile.captures === 1 ? 'capture' : 'captures'}, last updated {new Date(colorProfile.updatedAt).toLocaleString()}.
                       </>
+                    ) : profileStore.activeColorsId !== GENERIC_COLORS_ID ? (
+                      'This named profile will learn from its first valid, reviewed capture.'
                     ) : (
                       'Generic colors are a read-only starting palette. A reviewed capture can be saved as new colors.'
                     )}
                   </p>
+                  {profileStore.colors.some((saved) => saved.id === profileStore.activeColorsId) && (
+                    <button type="button" class="link-button"
+                      onClick={() => applyProfileStore(deleteColorProfile(profileStore, colorProfile.id))}>
+                      Delete this color profile
+                    </button>
+                  )}
                   <p class="sampling-setup-hint">
                     Hold a face in the square. Each small box should sit fully inside its sticker, and its outline
                     should show that sticker's color. The outer 25% band is left out when balancing colors.

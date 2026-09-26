@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { STICKER_COLORS } from '../src/client/imageProcessing'
 import {
   AUTO_COLORS_ID, EMPTY_SETTINGS, GENERIC_COLORS_ID, activeColorProfile, activeCube, allCubes, builtinCube,
-  colorPalette, convertLegacySettings, copyCubeSetting, cubesForSize, deleteColorProfile, groupCubesByName, mergeSettings, parseProfileSettings,
+  colorPalette, convertLegacySettings, copyColorProfile, copyCubeSetting, cubesForSize, deleteColorProfile, groupCubesByName, mergeSettings, parseProfileSettings,
   saveColorProfile, saveCube, selectColorProfile, selectCube, setAutoColorMatch,
 } from '../src/client/profileSettings'
 
@@ -48,6 +48,18 @@ describe('separate cube and color settings', () => {
     expect(activeColorProfile(setAutoColorMatch(auto, null)).id).toBe(GENERIC_COLORS_ID)
     expect(activeColorProfile(parseProfileSettings(JSON.parse(JSON.stringify(auto)))).id).toBe(custom.id)
     expect(activeColorProfile(deleteColorProfile(auto, custom.id)).id).toBe(GENERIC_COLORS_ID)
+  })
+
+  it('creates a named color profile from the selected palette without inheriting capture history', () => {
+    const source = { id: 'old', name: 'Generic 3×3 colors', colors: colorPalette(activeColorProfile(EMPTY_SETTINGS)), captures: 7, updatedAt: '2026-09-25T00:00:00.000Z' }
+    const created = copyColorProfile(EMPTY_SETTINGS, source, '  GoCube  ')
+    expect(created).toMatchObject({ name: 'GoCube', colors: source.colors, captures: 0 })
+    expect(created.id).not.toBe(source.id)
+    expect(created.updatedAt).toBeUndefined()
+    expect(created.colors).not.toBe(source.colors)
+    const saved = saveColorProfile(EMPTY_SETTINGS, created)
+    expect(activeColorProfile(saved).name).toBe('GoCube')
+    expect(saveColorProfile(saved, { ...created, name: 'GoCube UV' }).colors).toHaveLength(1)
   })
 
   it('selects a cube by id and copies a built-in under a custom name', () => {
