@@ -39,6 +39,8 @@ cubes and Generic colors are read-only; capture learning never changes Generic c
 The Profiles page has **Export cubes & colors** and **Import cubes & colors**
 on both tabs. One JSON file carries cube names, sizes, sticker gaps, color
 profiles, and the selected settings; importing merges them by ID.
+The Colors tab starts with a conservative merge limit of ΔE 3.0; adjust the
+slider before merging profiles whose sticker shades are farther apart.
 **Automatic colors** compares the first live face with Generic and saved color
 profiles, using the closest fit for its preview and capture. After each face,
 it rechecks the profile against the captured sticker readings. The live badge and settings summary show the current

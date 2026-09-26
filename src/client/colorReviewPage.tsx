@@ -15,7 +15,7 @@ const PAIRS: Array<[string, string]> = [['R', 'O'], ['W', 'Y'], ['O', 'Y'], ['G'
 // OKLab distance x 100 below which two colors are "close" / "may be mixed up".
 const CLOSE = 15
 const MIXED = 8
-const DEFAULT_LIMIT = 4
+const DEFAULT_LIMIT = 3
 
 export interface ReviewCapture {
   // Per face in capture order: reviewed colors and measured sticker colors.
