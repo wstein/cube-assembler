@@ -25,12 +25,12 @@ import {
   type OrientedCandidate, type OrientationSolution, type FaceKey, type GuidedArrangement, type GuidedCenterIssue,
 } from './cubeAssembly'
 import {
-  AUTO_COLORS_ID, GENERIC_COLORS_ID, activeCube, allCubes, activeColorProfile, allColorProfiles, captureColorProfileSnapshot, capturePalette, copyColorProfile, copyCubeSetting,
+  AUTO_COLORS_ID, GENERIC_COLORS_ID, activeCube, allCubes, activeColorProfile, allColorProfiles, captureColorProfileSnapshot, capturePalette, colorPalette, copyColorProfile, copyCubeSetting,
   convertLegacySettings, cubeGroupName, deleteCube, deleteColorProfile, genericColorProfile, groupCubesByName, isBuiltinCube, mergeSettings, saveCube, saveColorProfile,
   resolvedColorProfileSnapshot, selectCube, selectColorProfile, setAutoColorMatch, type ProfileSettings, type UsedColorProfile,
 } from './profileSettings'
 import { loadProfileSettings, saveProfileSettings, settingsFile, parseSettingsFile } from './profileStorage'
-import { assessPalette, blendColorProfile, canCreateProfileFromCapture, matchColorProfile, matchPartialColorProfile, profileColorFitPercent, shouldBlendColorProfile, updateProfileFromCapture, type PaletteEvidence } from './colorProfileLearning'
+import { assessPalette, blendColorProfile, canCreateProfileFromCapture, matchPartialColorProfile, profileColorFitPercent, resolveAutomaticProfile, shouldBlendColorProfile, summarizePreviewProfiles, updateProfileFromCapture, type AutomaticResolution, type PaletteEvidence } from './colorProfileLearning'
 import { readFixtureColors } from './fixtureFormat'
 import { buildFixture, summarizeFixture, unzipFixture, zipFixture, type Fixture, type FixtureSummary } from './fixtureZip'
 import { fixtureUploadServerAvailable, uploadFixtureToDevServer } from './fixtureUpload'
@@ -46,6 +46,12 @@ interface CubeState {
   size: number
   captured: Record<string, boolean>
   colors?: Record<string, string[]>
+}
+
+interface PreviewColorProfile {
+  id: string
+  name: string
+  colors: Record<string, RGB>
 }
 
 interface FaceCaptureData {
@@ -75,6 +81,9 @@ interface FaceCaptureData {
   crop?: FaceCaptureResult['crop']
   sharpness?: number
   cameraSettings?: Partial<MediaTrackSettings>
+  // The color profile that read this face at capture time: Automatic's
+  // preview choice (or the selected profile); absent when none was used.
+  previewColorProfile?: PreviewColorProfile
   // Where the photo came from: the live camera, an imported image file, or
   // an uploaded fixture. Absent for faces without a photo (manual input).
   source?: 'camera' | 'image-file' | 'fixture'
@@ -266,6 +275,18 @@ function stickerMark(face: { colors: string[][]; detectedColors?: string[][]; ce
   if (detected !== undefined && detected !== face.colors[r]?.[c]) return 'corrected'
   if (confidenceTier(face.cellConfidences?.[r]?.[c] ?? 1) === 'low' || face.cellLookalikes?.[r]?.[c]) return 'flagged'
   return null
+}
+
+// Why Automatic's six-face profile is what it is, for the capture status.
+function describeResolution({ reason, nearest }: AutomaticResolution): string {
+  const fits = nearest.slice(0, 2).map(({ profile, fit }) => `${profile.name} ${fit}%`).join(', ')
+  switch (reason) {
+    case 'clear': return `clear match (${fits})`
+    case 'preview': return `kept the preview's profile, the nearest but without a clear lead (${fits})`
+    case 'tie': return `no clear saved match, too close to choose (${fits})`
+    case 'far': return `no saved profile is close (nearest: ${fits})`
+    case 'none': return 'no saved profiles to match'
+  }
 }
 
 function confidenceTier(c: number): 'high' | 'medium' | 'low' {
@@ -810,6 +831,15 @@ function App() {
   const palette = useMemo(() => profileStore.activeColorsId === AUTO_COLORS_ID
     ? provisionalColorProfile?.colors : capturePalette(profileStore), [profileStore, provisionalColorProfile])
   const liveAutoColorProfile = autoColorProfiles.find((candidate) => candidate.id === liveAutoColorProfileId)
+  // The profile a capture is read with right now (see the palette passed to
+  // captureAndProcessCanvas): Automatic's provisional choice, else the live
+  // worker's pick for the first face; the selected profile otherwise.
+  const previewProfileFor = (liveId: string | null): PreviewColorProfile | undefined => {
+    const used = profileStore.activeColorsId === AUTO_COLORS_ID
+      ? provisionalColorProfile ?? autoColorProfiles.find((candidate) => candidate.id === liveId)
+      : colorProfile
+    return used ? { id: used.id, name: used.name, colors: colorPalette(used) } : undefined
+  }
   const [samplingSetupOpen, setSamplingSetupOpen] = useState(false)
   // Upload Fixture option: start the review from what detection reads
   // today instead of the colors the fixture was saved with, so a capture
@@ -832,6 +862,8 @@ function App() {
   const [captureProfile, setCaptureProfile] = useState<{ id?: string; name: string } | null>(null)
   const [resolvedColorProfile, setResolvedColorProfile] = useState<UsedColorProfile | null>(null)
   const [resolvedColorReference, setResolvedColorReference] = useState<Record<string, RGB> | null>(null)
+  // Why Automatic settled on its six-face profile (or on none).
+  const [automaticResolution, setAutomaticResolution] = useState<AutomaticResolution | null>(null)
   // Draw the cube in its own detected colors: learned from this capture's
   // photos, else its resolved profile, else the preview palette in use.
   const fills = useMemo(() => stickerFills([learnedPalette, resolvedColorProfile?.colors, palette], STICKER_HEX),
@@ -1173,7 +1205,8 @@ function App() {
               const track = (webcamRef.current?.srcObject as MediaStream | null)?.getVideoTracks()[0]
               setLoading(true)
               setCaptureMessage('Processing image...')
-              void applyFaceCapture(webcamFace, result, 'camera', track ? withoutDeviceIds(track.getSettings()) : undefined)
+              void applyFaceCapture(webcamFace, result, 'camera', track ? withoutDeviceIds(track.getSettings()) : undefined, puzzleSize,
+                previewProfileFor(event.data.result.colorProfileId ?? null))
                 .catch((err) => setCaptureMessage(`❌ Error: ${err instanceof Error ? err.message : 'Unknown error'}`))
                 .finally(() => { autoCaptureInFlight.current = false; setLoading(false) })
             } catch (err) {
@@ -1259,6 +1292,7 @@ function App() {
     setProfileLearningOffer(null)
     setCaptureProfile(null)
     setResolvedColorProfile(null)
+    setAutomaticResolution(null)
     setCaptureMessage('')
     setFixtureSaveMessage('')
     return true
@@ -1284,6 +1318,7 @@ function App() {
     const solved = createSolvedCube(puzzleSize)
     setCube(solved)
     setResolvedColorProfile(null)
+    setAutomaticResolution(null)
 
     const solvedFaceGrid = (color: string): string[][] =>
       Array.from({ length: puzzleSize }, () => Array(puzzleSize).fill(color))
@@ -1331,6 +1366,7 @@ function App() {
       setPuzzleSize(size)
       setCube(newCube)
       setResolvedColorProfile(null)
+      setAutomaticResolution(null)
 
       const toGrid = (data: string[]): string[][] =>
         Array.from({ length: size }, (_, r) => data.slice(r * size, r * size + size))
@@ -1387,6 +1423,7 @@ function App() {
       setCapturedFaces({})
       setFaceConfidence({})
       setResolvedColorProfile(null)
+      setAutomaticResolution(null)
       setProfileLearningOffer(null)
       setNewColorName(null)
     }
@@ -1419,7 +1456,8 @@ function App() {
     },
     source: 'camera' | 'image-file',
     cameraSettings?: Partial<MediaTrackSettings>,
-    captureSize = puzzleSize
+    captureSize = puzzleSize,
+    previewColorProfile?: PreviewColorProfile
   ) => {
     if (!validateFaceColors(result.colors, captureSize)) {
       setCaptureMessage(`❌ Invalid colors detected. Confidence: ${(result.confidence * 100).toFixed(0)}%`)
@@ -1446,6 +1484,7 @@ function App() {
         sharpness: result.sharpness,
         cameraSettings,
         source,
+        ...(previewColorProfile && { previewColorProfile }),
         outOfOrder: unexpectedCenter || assignedIndex !== requestedIndex || capturedFaces[assignedFace]?.outOfOrder,
         timestamp: Date.now(),
       },
@@ -1493,6 +1532,7 @@ function App() {
     setProfileLearningOffer(null)
     const automatic = profileStore.activeColorsId === AUTO_COLORS_ID
     setResolvedColorProfile(automatic ? null : resolvedColorProfileSnapshot(colorProfile, 'manual'))
+    setAutomaticResolution(null)
     setResolvedColorReference(null)
 
     const canRecalibrate = FACE_ORDER.every((f) => newCapturedFaces[f].croppedImage)
@@ -1508,7 +1548,12 @@ function App() {
         setAppliedBackgroundGains(faceGains)
 
         let wb = await runGlobalWhiteBalance(images, puzzleSize, faceGains ?? undefined, sampling, automatic ? undefined : palette)
-        const matched = automatic && wb.learned ? matchColorProfile(profileStore.colors, wb.learned.colors) : null
+        // The preview's latest choice counts on a near tie (see resolveAutomaticProfile).
+        const latestPreview = FACE_ORDER.map((f) => newCapturedFaces[f]).filter((data) => data?.previewColorProfile)
+          .sort((a, b) => b.timestamp - a.timestamp)[0]?.previewColorProfile
+        const resolution = automatic && wb.learned ? resolveAutomaticProfile(profileStore.colors, wb.learned.colors, latestPreview?.id ?? null) : null
+        setAutomaticResolution(resolution)
+        const matched = resolution?.profile ?? null
         const compared = matched ?? (!automatic ? profileStore.colors.find((saved) => saved.id === colorProfile.id) : null)
         const colorFit = compared && wb.learned ? profileColorFitPercent(compared.colors, wb.learned.colors) : undefined
         if (matched) wb = classifyAcrossFaces(wb.faces, matched.colors)
@@ -1599,13 +1644,14 @@ function App() {
       let meta: {
         gridSize: number
         colorsURFDLB?: string
-        faces: Record<string, { photo: string } & Record<string, unknown>>
+        faces: Record<string, { photo: string; capturedAt?: string; previewColorProfile?: PreviewColorProfile } & Record<string, unknown>>
         capture?: {
           backgroundWhiteBalance?: Record<string, RGB> | null
           backgroundWhiteBalanceMethod?: string
           sampling?: SamplingGeometry
           profile?: { id?: string; name?: string } | null
           colorProfile?: UsedColorProfile | null
+          colorResolution?: { reason: AutomaticResolution['reason']; nearest?: Array<{ id: string; name: string; fit: number }> } | null
           colorReference?: Record<string, RGB> | null
           protocol?: string | null
         }
@@ -1644,7 +1690,9 @@ function App() {
           confidence: 1,
           croppedImage: dataUrl,
           source: 'fixture',
-          timestamp: Date.now(),
+          timestamp: faceData.capturedAt ? Date.parse(faceData.capturedAt) || Date.now() : Date.now(),
+          ...(faceData.previewColorProfile?.id && faceData.previewColorProfile.name && faceData.previewColorProfile.colors
+            && { previewColorProfile: faceData.previewColorProfile }),
         }
       }
 
@@ -1663,6 +1711,13 @@ function App() {
       setCaptureProfile(recordedProfile?.name ? { id: recordedProfile.id, name: recordedProfile.name } : null)
       const recordedColors = meta.capture?.colorProfile
       setResolvedColorProfile(recordedColors?.name && recordedColors.colors ? recordedColors : null)
+      // The recorded reason for it, where the fixture has one.
+      const recordedResolution = meta.capture?.colorResolution
+      setAutomaticResolution(recordedResolution?.reason ? {
+        profile: null,
+        reason: recordedResolution.reason,
+        nearest: (recordedResolution.nearest ?? []).map(({ id, name, fit }) => ({ profile: { id, name, colors: {}, captures: 0 }, fit })),
+      } : null)
       setResolvedColorReference(meta.capture?.colorReference ?? null)
       const images = Object.fromEntries(Object.entries(newEntries).map(([f, d]) => [f, d.croppedImage!]))
       // Background gains are replayed only if made the current way (see
@@ -2005,6 +2060,7 @@ function App() {
           crop: face.crop,
           sharpness: face.sharpness !== undefined ? Math.round(face.sharpness * 10) / 10 : undefined,
           camera: face.cameraSettings,
+          previewColorProfile: face.previewColorProfile,
         }
       }
       const meta = {
@@ -2023,6 +2079,11 @@ function App() {
         // One resolved profile for the complete capture. The actual common
         // palette learned from all six photos is recorded below.
         colorProfile: resolvedColorProfile,
+        // Why Automatic chose it: the reason and the nearest saved profiles.
+        colorResolution: automaticResolution && {
+          reason: automaticResolution.reason,
+          nearest: automaticResolution.nearest.map(({ profile, fit }) => ({ id: profile.id, name: profile.name, fit })),
+        },
         // A saved/manual profile acts as the six-face classification prior.
         // Automatic without a clear match uses only this capture's colors.
         colorReference: resolvedColorReference,
@@ -2150,7 +2211,8 @@ function App() {
         palette ?? liveAutoColorProfile?.colors, geometry, bounds)
       const track = (webcamRef.current.srcObject as MediaStream | null)?.getVideoTracks()[0]
       signalCapture()
-      await applyFaceCapture(webcamFace, result, 'camera', track ? withoutDeviceIds(track.getSettings()) : undefined, result.colors.length)
+      await applyFaceCapture(webcamFace, result, 'camera', track ? withoutDeviceIds(track.getSettings()) : undefined, result.colors.length,
+        previewProfileFor(liveAutoColorProfileId))
     } catch (err) {
       console.error('Capture error:', err)
       setCaptureMessage(`❌ Error: ${err instanceof Error ? err.message : 'Unknown error'}`)
@@ -2178,7 +2240,7 @@ function App() {
         })
         const result = captureAndProcessImage(img, puzzleSize, NEUTRAL_GAINS, sampling, palette,
           captureMode === 'cv' ? 'aligned' : 'fixed')
-        await applyFaceCapture(webcamFace, result, 'image-file')
+        await applyFaceCapture(webcamFace, result, 'image-file', undefined, puzzleSize, previewProfileFor(null))
       } finally {
         URL.revokeObjectURL(url)
       }
@@ -2524,9 +2586,10 @@ function App() {
                   {resolvedColorProfile.selection === 'automatic' ? ' (Automatic)' : ''}
                   {resolvedColorProfile.colorFitPercent !== undefined && ` · profile color fit ${resolvedColorProfile.colorFitPercent}%`}
                   <span class="capture-profile-used-detail">
-                    First face: {resolvedColorProfile.selection === 'automatic' ? 'best live palette' : resolvedColorProfile.name}
-                    {resolvedColorProfile.selection === 'automatic' && ' · Later previews: rechecked after each capture'}
-                    {' · '}Final: {learnedPalette ? 'calibrated from all six faces' : 'six-face calibration unavailable'}
+                    Preview: {summarizePreviewProfiles(FACE_ORDER.map((f) => capturedFaces[f])
+                      .sort((a, b) => a.timestamp - b.timestamp).map((data) => data.previewColorProfile?.name)) ?? 'not recorded'}
+                    {resolvedColorProfile.selection === 'automatic' && automaticResolution && ` · Final: ${describeResolution(automaticResolution)}`}
+                    {' · '}Colors {learnedPalette ? 'calibrated from all six faces' : 'not calibrated (six-face calibration unavailable)'}
                   </span>
                 </>}
               </span>
