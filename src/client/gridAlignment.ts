@@ -386,3 +386,121 @@ export function estimateOuterCellRatio(data: Uint8ClampedArray, width: number, h
   }
   return best.score >= MIN_SEAM_SCORE && best.score - even >= MIN_IMPROVEMENT ? best.outer : 1
 }
+
+// The cube size shown in `data` around `guide`, or null unless the face
+// says so clearly. A wrong size spoils every later face, so this only
+// answers when one size fits: the face's outline (locateFaceOutline, found
+// without knowing N) fixes where the grid starts, then each size must put
+// every inner grid line on a seam in both axes, and no cell may have a seam
+// through its middle. The second test rejects the halves of the real grid:
+// a 3x3's lines are all seams of a 6x6, but its cells are split by them.
+const DETECTABLE_SIZES = [2, 3, 4, 5, 6, 7]
+// Every grid line must be at least this dark (brightness levels, see
+// seamDarkness), and a cell's middle counts as split at this darkness.
+const SIZE_LINE_DARKNESS = 6
+// From this size up, one faint inner seam is forgiven: on real 7x7 photos
+// a single seam between two light stickers all but vanished.
+const FAINT_SEAM_SIZE = 5
+// With more than one size passing, the best must be this many times as dark.
+const SIZE_MARGIN = 1.5
+// Outline corrections tried per size: the outline search steps 2.5% of the
+// guide. A tilted face's outline is its upright bounding square, up to
+// cos + sin times the face.
+const SIZE_SCALES = [0.94, 1.06]
+const SIZE_SHIFT = 0.04
+
+export function estimateFaceGridSize(data: Uint8ClampedArray, width: number, height: number, guide: FaceSquare): number | null {
+  const outline = locateFaceOutline(data, width, height, guide)
+  if (!outline) return null
+  const angle = estimateTilt(data, width, height, outline)
+  const turn = angle ? {
+    cx: outline.x + outline.size / 2, cy: outline.y + outline.size / 2,
+    cos: Math.cos(angle), sin: Math.sin(angle),
+  } : undefined
+  const smallest = Math.min(SIZE_SCALES[0], 1 / (Math.cos(angle) + Math.abs(Math.sin(angle))) - 0.03)
+  const lines = Math.max(1, Math.round(outline.size / 300))
+  const columns = profile(data, width, height, true, outline.y + outline.size * 0.2, outline.y + outline.size * 0.8, turn, lines)
+  const rows = profile(data, width, height, false, outline.x + outline.size * 0.2, outline.x + outline.size * 0.8, turn, lines)
+  // Split cells are probed at the scale of a 7x7's cell, the finest grid.
+  const probe = outline.size / 7
+
+  // The weakest grid line of an N-cell axis at `offset` (see
+  // FAINT_SEAM_SIZE). The outer two may be a plain edge (see edgeStep),
+  // which pins the outer-cell ratio.
+  const weakestLine = (values: Float64Array, offset: number, size: number, gridSize: number, edges: number[]) => {
+    const cell = (gridSize >= 3 ? edges[2] - edges[1] : 1 / gridSize) * size
+    const inner: number[] = []
+    let weakest = Infinity
+    for (let i = 0; i <= gridSize; i++) {
+      const position = offset + edges[i] * size
+      const darkness = seamDarkness(values, position, cell)
+      if (i === 0 || i === gridSize) weakest = Math.min(weakest, Math.max(darkness, edgeStep(values, position, cell)))
+      else inner.push(darkness)
+    }
+    inner.sort((a, b) => a - b)
+    return Math.min(weakest, inner[gridSize >= FAINT_SEAM_SIZE ? 1 : 0])
+  }
+  // Whether a seam runs through the middle of any cell. The center cell of
+  // an odd grid is skipped: a printed logo sits on the center sticker.
+  const splitsCell = (values: Float64Array, offset: number, size: number, gridSize: number, edges: number[]) => {
+    const step = Math.max(1, size / 200)
+    for (let i = 0; i < gridSize; i++) {
+      if (gridSize % 2 === 1 && i === (gridSize - 1) / 2) continue
+      const from = offset + edges[i] * size, span = (edges[i + 1] - edges[i]) * size
+      for (let p = from + span * 0.25; p <= from + span * 0.75; p += step) {
+        if (seamDarkness(values, p, probe) >= SIZE_LINE_DARKNESS) return true
+      }
+    }
+    return false
+  }
+
+  // A grid that goes on past the outline is part of a bigger face - one cut
+  // off by the frame, or an inner block of seams the outline landed on: in
+  // a thin band just outside an edge, the same seams still cross it. A face
+  // touching the frame leaves no band to look at and is ruled out too.
+  const continues = (fit: { x: number; y: number; size: number; edges: number[] }, gridSize: number) => {
+    const outerCell = fit.edges[1] * fit.size
+    const cell = (gridSize >= 3 ? fit.edges[2] - fit.edges[1] : 1 / gridSize) * fit.size
+    const near = outerCell * 0.1, far = outerCell * 0.35
+    const crossed = (vertical: boolean, from: number, to: number) => {
+      if (from < 0 || to > (vertical ? height : width)) return true
+      const values = profile(data, width, height, vertical, from, to, turn, lines)
+      const origin = vertical ? fit.x : fit.y
+      let dark = 0
+      for (let i = 1; i < gridSize; i++) if (seamDarkness(values, origin + fit.edges[i] * fit.size, cell) >= SIZE_LINE_DARKNESS) dark++
+      return dark >= Math.max(1, (gridSize - 1) / 2)
+    }
+    return crossed(true, fit.y - far, fit.y - near) || crossed(true, fit.y + fit.size + near, fit.y + fit.size + far)
+      || crossed(false, fit.x - far, fit.x - near) || crossed(false, fit.x + fit.size + near, fit.x + fit.size + far)
+  }
+
+  const fits: { gridSize: number; score: number }[] = []
+  for (const gridSize of DETECTABLE_SIZES) {
+    let best = { score: -Infinity, x: 0, y: 0, size: 0, edges: [] as number[] }
+    for (const outer of outerRatios(gridSize)) {
+      const edges = cellEdges(gridSize, outer)
+      for (let scale = smallest; scale <= SIZE_SCALES[1] + 1e-9; scale += SCALE_STEP) {
+        const size = outline.size * scale
+        const centered = (outline.size - size) / 2
+        const bestAxis = (values: Float64Array, origin: number) => {
+          let top = { score: -Infinity, offset: 0 }
+          for (let shift = -SIZE_SHIFT * size; shift <= SIZE_SHIFT * size; shift += Math.max(1, size / 200)) {
+            const offset = origin + centered + shift
+            const weakest = weakestLine(values, offset, size, gridSize, edges)
+            if (weakest > top.score && !splitsCell(values, offset, size, gridSize, edges)) top = { score: weakest, offset }
+          }
+          return top
+        }
+        const x = bestAxis(columns, outline.x), y = bestAxis(rows, outline.y)
+        const score = Math.min(x.score, y.score)
+        if (score > best.score) best = { score, x: x.offset, y: y.offset, size, edges }
+      }
+    }
+    if (best.score >= SIZE_LINE_DARKNESS && !continues(best, gridSize)) {
+      fits.push({ gridSize, score: best.score })
+    }
+  }
+  fits.sort((a, b) => b.score - a.score)
+  if (fits.length === 0 || (fits.length > 1 && fits[0].score < fits[1].score * SIZE_MARGIN)) return null
+  return fits[0].gridSize
+}
