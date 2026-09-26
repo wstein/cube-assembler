@@ -103,6 +103,16 @@ describe('classifyAcrossFaces under glare', () => {
       det.colors.flat().flatMap((color, i) => (color === GLARE_TRUTH[face] ? [] : [`${face}${i}:${color}`])))
     expect(wrong).toEqual([])
   })
+
+  it('reports the stickers glare washed out', () => {
+    const glare = classifyAcrossFaces(glareFaces(), GOCUBE).glare.map(({ face, row, col }) => `${face}${row}${col}`)
+    expect(glare.sort()).toEqual(['B10', 'B11', 'B12', 'B20', 'U10', 'U11', 'U12'])
+  })
+
+  it('reports no glare on evenly lit stickers', () => {
+    expect(classifyAcrossFaces(faces(), COLORS).glare).toEqual([])
+    expect(classifyAcrossFaces(faces()).glare).toEqual([])
+  })
 })
 
 describe('classifyAcrossFaces with a reference palette', () => {
