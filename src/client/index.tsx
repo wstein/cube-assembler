@@ -23,7 +23,7 @@ import {
 import {
   AUTO_COLORS_ID, GENERIC_COLORS_ID, activeCube, allCubes, activeColorProfile, allColorProfiles, colorPalette, copyColorProfile, copyCubeSetting,
   convertLegacySettings, cubeGroupName, deleteCube, deleteColorProfile, groupCubesByName, isBuiltinCube, mergeSettings, saveCube, saveColorProfile,
-  selectCube, selectColorProfile, setAutoColorMatch, type ProfileSettings,
+  selectCube, selectColorProfile, setAutoColorMatch, sharedUsedColorProfile, usedColorProfileSnapshot, type ProfileSettings, type UsedColorProfile,
 } from './profileSettings'
 import { loadProfileSettings, saveProfileSettings, settingsFile, parseSettingsFile } from './profileStorage'
 import { assessPalette, blendColorProfile, matchColorProfile } from './colorProfileLearning'
@@ -71,6 +71,9 @@ interface FaceCaptureData {
   crop?: FaceCaptureResult['crop']
   sharpness?: number
   cameraSettings?: Partial<MediaTrackSettings>
+  // Snapshot of the RGB palette used for this photo's first pass. A user can
+  // change profiles between sides, so keep this with the face.
+  usedColorProfile?: UsedColorProfile
   // Where the photo came from: the live camera, an imported image file, or
   // an uploaded fixture. Absent for faces without a photo (manual input).
   source?: 'camera' | 'image-file' | 'fixture'
@@ -770,7 +773,6 @@ function App() {
   const [samplingFileMessage, setSamplingFileMessage] = useState('')
   // The cube geometry and colors selected when this capture was taken.
   const [captureProfile, setCaptureProfile] = useState<{ id?: string; name: string } | null>(null)
-  const [captureColorProfile, setCaptureColorProfile] = useState<{ id?: string; name: string } | null>(null)
   // Applied for this session even when the browser won't keep it.
   const applyProfileStore = (updated: ProfileSettings) => {
     if (!saveProfileStore(updated)) {
@@ -1094,7 +1096,6 @@ function App() {
     setPendingPalette(null)
     setProfileLearningOffer(null)
     setCaptureProfile(null)
-    setCaptureColorProfile(null)
     setCaptureMessage('')
     setFixtureSaveMessage('')
     return true
@@ -1248,6 +1249,7 @@ function App() {
     const { index: assignedIndex, unexpectedCenter } = placeCapturedFace(FACE_ORDER.map((f) => capturedFaces[f]?.colors), requestedIndex, result.colors)
     const assignedFace = FACE_ORDER[assignedIndex]
     if (pendingFlyIn.current) pendingFlyIn.current.slot = assignedFace
+    const usedColorProfile = usedColorProfileSnapshot(profileStore, palette)
 
     const newCapturedFaces = {
       ...capturedFaces,
@@ -1263,6 +1265,7 @@ function App() {
         crop: result.crop,
         sharpness: result.sharpness,
         cameraSettings,
+        usedColorProfile,
         source,
         outOfOrder: unexpectedCenter || assignedIndex !== requestedIndex || capturedFaces[assignedFace]?.outOfOrder,
         timestamp: Date.now(),
@@ -1327,7 +1330,6 @@ function App() {
           recalibrated: wb.applied,
         } : null)
         setCaptureProfile({ id: profile.id, name: profile.name })
-        setCaptureColorProfile({ id: colorProfile.id, name: colorProfile.name })
         // Keep calibration provisional until the customer approves the
         // complete cube in the orientation review.
         if (wb.applied) {
@@ -1408,7 +1410,6 @@ function App() {
           backgroundWhiteBalanceMethod?: string
           sampling?: SamplingGeometry
           profile?: { id?: string; name?: string } | null
-          colorProfile?: { id?: string; name?: string } | null
           protocol?: string | null
         }
       }
@@ -1445,6 +1446,7 @@ function App() {
           colors,
           confidence: 1,
           croppedImage: dataUrl,
+          usedColorProfile: faceData.usedColorProfile as UsedColorProfile | undefined,
           source: 'fixture',
           timestamp: Date.now(),
         }
@@ -1463,8 +1465,6 @@ function App() {
       setUploadedProtocol(meta.capture?.protocol ?? null)
       const recordedProfile = meta.capture?.profile
       setCaptureProfile(recordedProfile?.name ? { id: recordedProfile.id, name: recordedProfile.name } : null)
-      const recordedColors = meta.capture?.colorProfile
-      setCaptureColorProfile(recordedColors?.name ? { id: recordedColors.id, name: recordedColors.name } : null)
       const images = Object.fromEntries(Object.entries(newEntries).map(([f, d]) => [f, d.croppedImage!]))
       // Background gains are replayed only if made the current way (see
       // BACKGROUND_WB_METHOD); older ones swapped red and orange.
@@ -1801,8 +1801,10 @@ function App() {
           crop: face.crop,
           sharpness: face.sharpness !== undefined ? Math.round(face.sharpness * 10) / 10 : undefined,
           camera: face.cameraSettings,
+          usedColorProfile: face.usedColorProfile,
         }
       }
+      const sharedColors = sharedUsedColorProfile(FACE_ORDER.map((face) => capturedFaces[face].usedColorProfile))
       const meta = {
         capturedAt: new Date().toISOString(),
         app: { version: __APP_VERSION__, commit: __APP_COMMIT__ },
@@ -1816,7 +1818,9 @@ function App() {
         // The cube profile the capture was taken with - same condition as
         // camera, since a re-saved upload wasn't shot with the current one.
         profile: FACE_ORDER.some((f) => capturedFaces[f].source === 'camera') ? captureProfile : null,
-        colorProfile: FACE_ORDER.some((f) => capturedFaces[f].source === 'camera') ? captureColorProfile : null,
+        // Exact starting RGB values, distinct from colorCalibration below,
+        // which records colors learned from this set of six photos.
+        colorProfile: sharedColors,
         // How the photos were taken (see CAPTURE_STEPS) and the cube they
         // were approved as - the fixture test puts the photos together
         // again and checks it gets that cube.
@@ -2509,8 +2513,8 @@ function App() {
                 <summary>
                   Cube & camera settings
                   <span class="capture-settings-summary">
-                    {' '}{puzzleSize}×{puzzleSize} · {profile.name} · {profileStore.activeColorsId === AUTO_COLORS_ID
-                      ? `Auto colors${profileStore.autoMatchedColorsId ? ` (${colorProfile.name})` : ''}` : colorProfile.name}
+                    {' '}{puzzleSize}×{puzzleSize} · {profile.name} · Sticker colors: {colorProfile.name}
+                    {profileStore.activeColorsId === AUTO_COLORS_ID ? ' (Automatic)' : ''}
                     {mirrorPreview ? ' · mirrored' : ''}
                   </span>
                 </summary>
