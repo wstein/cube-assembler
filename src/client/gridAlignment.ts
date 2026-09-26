@@ -39,8 +39,11 @@ export interface GridAlignment extends FaceSquare {
 // Tilts corrected, and the least worth turning the face upright for.
 export const MAX_TILT = (35 * Math.PI) / 180
 const MIN_TILT = (1.5 * Math.PI) / 180
-// How much the edge directions must agree (0-1) to trust a tilt.
-const MIN_TILT_COHERENCE = 0.25
+// How much the edge directions must agree (0-1) to consider a tilt. Rounded
+// sticker corners and a printed logo spread them: a real 5x5 turned about
+// 4 degrees agreed only 0.13. A weak tilt is kept only where its grid sits
+// on the seams better than the upright one (see alignFace).
+const MIN_TILT_COHERENCE = 0.1
 
 // In-plane tilt of the face inside `square`, from the directions of its
 // edges: a grid's seams and sticker borders run two ways 90 degrees apart,
@@ -258,11 +261,13 @@ export function alignFace(
   const searchGuide = coarse ?? guide
   const scaleRange: [number, number] = coarse ? [0.92, 1.08] : SCALE_RANGE
   const angle = estimateTilt(data, width, height, searchGuide)
-  if (angle) {
-    const tilted = findGridAlignment(data, width, height, searchGuide, gridSize, angle, scaleRange)
-    if (tilted.seams) return coarse ? { ...tilted, aligned: true } : tilted
-  }
   const aligned = findGridAlignment(data, width, height, searchGuide, gridSize, 0, scaleRange)
+  if (angle) {
+    // The tilt must beat reading the face upright, not merely find seams:
+    // round stickers can suggest a tilt that isn't there.
+    const tilted = findGridAlignment(data, width, height, searchGuide, gridSize, angle, scaleRange)
+    if (tilted.seams && (!aligned.seams || tilted.score > aligned.score)) return coarse ? { ...tilted, aligned: true } : tilted
+  }
   if (aligned.seams) return coarse ? { ...aligned, aligned: true } : aligned
   if (!coarse) return aligned
   return findGridAlignment(data, width, height, guide, gridSize)
