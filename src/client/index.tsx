@@ -1059,7 +1059,7 @@ function App() {
       worker.removeEventListener('message', onResult)
       inFlight = null
     }
-  }, [webcamOpen, turnCueShowing, loading, webcamFace, puzzleSize, sampling, palette, captureMode, autoCapture, capturedFaces, faceConfidence, mirrorPreview, profile.name])
+  }, [webcamOpen, turnCueShowing, loading, webcamFace, puzzleSize, sampling, palette, captureMode, autoCapture, capturedFaces])
 
   // Everything below belongs to one cube of one size, so switching sizes
   // starts over - keeping it drew e.g. a 5x5's 25 stickers per face into a

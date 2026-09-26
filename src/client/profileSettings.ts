@@ -34,14 +34,19 @@ export const EMPTY_SETTINGS: ProfileSettings = {
   cubes: [], colors: [], activeCubeBySize: {}, activeColorsId: AUTO_COLORS_ID,
 }
 
+// Keep these objects stable: the live camera effect depends on the selected
+// cube's sampling object. Recreating Generic on each render restarts that
+// effect and resets auto-capture before five frames can accumulate.
+const BUILTIN_CUBES: Record<number, CubeSetting> = Object.fromEntries(CUBE_SIZES.map((size) => [size, Object.freeze({
+  id: `builtin-generic-${size}`,
+  name: `Generic ${size}×${size}`,
+  size,
+  sampling: Object.freeze({ stickerCore: 0.6 }),
+})]))
+
 export function builtinCube(size: number): CubeSetting {
   if (!CUBE_SIZES.includes(size)) throw new Error('Unsupported cube size')
-  return {
-    id: `builtin-generic-${size}`,
-    name: `Generic ${size}×${size}`,
-    size,
-    sampling: { stickerCore: 0.6 },
-  }
+  return BUILTIN_CUBES[size]
 }
 
 export function isBuiltinCube(id: string): boolean {
