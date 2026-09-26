@@ -98,4 +98,19 @@ describe('fixture zips', () => {
     })
     expect(Object.fromEntries(summarizeFixture(buildFixture(request())).rows)).toMatchObject({ 'Fixed by hand': 'not recorded', Capture: 'free order' })
   })
+
+  it('preserves and shows the RGB values of the sticker profile used in automatic mode', () => {
+    const used = {
+      id: 'gocube', name: 'GoCube', selection: 'automatic',
+      colors: { W: { r: 245, g: 244, b: 238 }, R: { r: 190, g: 38, b: 44 } },
+    }
+    const fixture = buildFixture(request({ meta: { colorProfile: used } }))
+    const meta = JSON.parse(new TextDecoder().decode(fixture.files['meta.json']))
+    expect(meta.capture.colorProfile).toEqual(used)
+    expect(Object.fromEntries(summarizeFixture(fixture).rows)).toMatchObject({
+      'Sticker colors': 'Automatic → GoCube',
+      'Sticker RGB': 'W 245,244,238 · R 190,38,44',
+    })
+  })
+
 })

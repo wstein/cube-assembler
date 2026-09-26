@@ -49,6 +49,11 @@ recalibration kicked in. Not used by `fixtures.test.ts` (the regression
 check only compares `colors`), but useful when a fixture's expected colors
 need to be debugged later.
 
+`capture.colorProfile` records the single profile resolved for the complete
+capture: its name, whether Colors was Automatic or manually selected, and its
+six RGB values. `capture.colorCalibration.learnedColors` records the separate
+palette learned from all six photos and used to classify them together.
+
 Commit the new directory - these are small (cropped-region) JPEGs, meant to
 be checked in like any other test fixture.
 
