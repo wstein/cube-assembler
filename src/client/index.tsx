@@ -745,7 +745,7 @@ function App() {
   // possibility - shown to the customer rather than silently hidden.
   // `picked` lists the faces the customer answered directly; every other
   // settled face was inferred (see the progress net's dimming).
-  const [orientationWizard, setOrientationWizard] = useState<{ remaining: OrientedCandidate[]; truncated: boolean; picked: FaceKey[]; page?: number } | null>(null)
+  const [orientationWizard, setOrientationWizard] = useState<{ remaining: OrientedCandidate[]; truncated: boolean; picked: FaceKey[] } | null>(null)
   // True while a picked option is animating into the net - blocks a second
   // pick from landing mid-flight.
   const [wizardMorphing, setWizardMorphing] = useState(false)
@@ -1922,7 +1922,7 @@ function App() {
       handleChooseOrientation(matched[0])
       return
     }
-    setOrientationWizard((prev) => (prev ? { remaining: matched, truncated: prev.truncated, picked: [...prev.picked, face], page: 0 } : null))
+    setOrientationWizard((prev) => (prev ? { remaining: matched, truncated: prev.truncated, picked: [...prev.picked, face] } : null))
   }
 
   // Clicking an option face flies it into the framed slot in the progress
@@ -3362,9 +3362,10 @@ function App() {
           else if (!picked.includes(f)) autoFaces.add(f)
         }
         const decidedCount = WIZARD_FACE_ORDER.length - undecidedFaces.size
+        // Every option for this face at once, at most four in a row (two on
+        // a phone), so they can be compared side by side.
         const options = groupWizardOptions(remaining, askingFace)
-        const page = Math.min(orientationWizard.page ?? 0, Math.floor((options.length - 1) / ORIENTATION_CHOICES_PER_PAGE))
-        const first = page * ORIENTATION_CHOICES_PER_PAGE
+        const columns = { '--wizard-columns': Math.min(4, options.length), '--wizard-columns-narrow': Math.min(2, options.length) }
 
         return (
           <div class="modal open">
@@ -3394,13 +3395,13 @@ function App() {
                 currentFace={askingFace}
                 autoFaces={autoFaces}
               />
-              <div class="orientation-picker-grid orientation-wizard-options">
-                {options.slice(first, first + ORIENTATION_CHOICES_PER_PAGE).map((opt, i) => (
+              <div class="orientation-picker-grid orientation-wizard-options" style={columns}>
+                {options.map((opt, i) => (
                   <button
-                    key={first + i}
+                    key={i}
                     type="button"
                     class="orientation-picker-option orientation-wizard-option"
-                    aria-label={`Option ${first + i + 1} for the ${FACE_LABELS[askingFace]} face`}
+                    aria-label={`Option ${i + 1} of ${options.length} for the ${FACE_LABELS[askingFace]} face`}
                     disabled={wizardMorphing}
                     onClick={(e) => handleWizardPick(e.currentTarget, opt.candidates, askingFace)}
                   >
@@ -3408,15 +3409,6 @@ function App() {
                   </button>
                 ))}
               </div>
-              {options.length > ORIENTATION_CHOICES_PER_PAGE && (
-                <div class="orientation-choice-pages">
-                  <button type="button" class="btn btn-secondary btn-sm" disabled={page === 0 || wizardMorphing}
-                    onClick={() => setOrientationWizard((prev) => prev && { ...prev, page: page - 1 })}>Previous two</button>
-                  <span>Options {first + 1}–{Math.min(first + ORIENTATION_CHOICES_PER_PAGE, options.length)} of {options.length}</span>
-                  <button type="button" class="btn btn-secondary btn-sm" disabled={first + ORIENTATION_CHOICES_PER_PAGE >= options.length || wizardMorphing}
-                    onClick={() => setOrientationWizard((prev) => prev && { ...prev, page: page + 1 })}>Next two</button>
-                </div>
-              )}
             </div>
           </div>
         )
