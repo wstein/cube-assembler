@@ -8,7 +8,7 @@
 import { describe, it, expect } from 'vitest'
 import {
   parseProfileStore, activeProfile, profilesForSize, saveProfile, selectProfile, deleteProfile,
-  genericProfile, profilePalette, withLearnedColors, withoutLearnedColors, suggestProfile, brandProfile, CUBE_STYLES, EMPTY_PROFILE_STORE, type CubeProfile,
+  genericProfile, profilePalette, withLearnedColors, withoutLearnedColors, suggestProfile, copyCubeProfile, EMPTY_PROFILE_STORE, type CubeProfile,
 } from '../src/client/cubeProfiles'
 
 const rubiks: CubeProfile = { id: 'a', name: "Rubik's 3×3", size: 3, sampling: { stickerCore: 0.6 } }
@@ -123,21 +123,22 @@ describe('suggestProfile', () => {
   })
 })
 
-describe('brandProfile', () => {
-  it('names the cube after brand and size, with the style\'s starting sampling', () => {
-    const p = brandProfile(EMPTY_PROFILE_STORE, 'GoCube', 'stickerless', 3)
-    expect(p.name).toBe('GoCube 3×3')
-    expect(p.size).toBe(3)
-    expect(p.sampling).toEqual(CUBE_STYLES.stickerless.sampling)
-    expect(p.learnedColors).toBeUndefined()
+describe('copyCubeProfile', () => {
+  it('copies size and sticker gap under a chosen name, without copying learned colors', () => {
+    const source = withLearnedColors(rubiks, {
+      W: { r: 240, g: 240, b: 240 }, Y: { r: 240, g: 220, b: 10 },
+      O: { r: 240, g: 100, b: 10 }, R: { r: 200, g: 30, b: 30 },
+      G: { r: 20, g: 180, b: 50 }, B: { r: 20, g: 60, b: 190 },
+    }, new Date())
+    const copy = copyCubeProfile(EMPTY_PROFILE_STORE, source, 'My cube')
+    expect(copy).toMatchObject({ name: 'My cube', size: 3, sampling: { stickerCore: 0.6 } })
+    expect(copy.id).not.toBe(source.id)
+    expect(copy.learnedColors).toBeUndefined()
   })
 
-  it('numbers a second cube of the same brand and size', () => {
-    let store = saveProfile(EMPTY_PROFILE_STORE, brandProfile(EMPTY_PROFILE_STORE, 'GoCube', 'stickerless', 3))
-    const second = brandProfile(store, 'GoCube', 'stickered', 3)
-    expect(second.name).toBe('GoCube 3×3 (2)')
-    store = saveProfile(store, second)
-    expect(brandProfile(store, 'GoCube', 'stickered', 3).name).toBe('GoCube 3×3 (3)')
-    expect(brandProfile(store, 'GoCube', 'stickered', 4).name).toBe('GoCube 4×4')
+  it('numbers repeated names for the same size', () => {
+    const store = saveProfile(EMPTY_PROFILE_STORE, { ...rubiks, name: 'My cube' })
+    expect(copyCubeProfile(store, rubiks, 'My cube').name).toBe('My cube (2)')
+    expect(() => copyCubeProfile(store, rubiks, '   ')).toThrow('Cube name is required')
   })
 })
