@@ -147,3 +147,18 @@ describe('a face seen at an angle', () => {
     expect(analyzeLiveFrame(data, W, W, request(5)).bounds.corners).toBeUndefined()
   })
 })
+
+describe('scaleBounds', () => {
+  it('brings the corners of a face seen at an angle back to camera pixels too', () => {
+    // Analyzed at 720p, captured from the 1080p frame (scale 2/3).
+    const bounds = { startX: 200, startY: 100, faceWidth: 400, faceHeight: 400,
+      corners: [[210, 110], [590, 90], [600, 510], [205, 480]] as [number, number][] }
+    const back = scaleBounds(bounds, 2 / 3)
+    expect(back.startX).toBe(300)
+    expect(back.corners).toEqual([[315, 165], [885, 135], [900, 765], [307.5, 720]])
+  })
+
+  it('leaves bounds without corners without them', () => {
+    expect(scaleBounds({ startX: 10, startY: 10, faceWidth: 60, faceHeight: 60 }, 0.5).corners).toBeUndefined()
+  })
+})

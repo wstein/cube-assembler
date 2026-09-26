@@ -124,5 +124,7 @@ export function scaleBounds(bounds: FaceBounds, scale: number): FaceBounds {
     startY: Math.round(bounds.startY / scale),
     faceWidth: Math.round(bounds.faceWidth / scale),
     faceHeight: Math.round(bounds.faceHeight / scale),
+    // A capture warps the full-resolution frame through these.
+    ...(bounds.corners && { corners: bounds.corners.map(([x, y]) => [x / scale, y / scale] as [number, number]) }),
   }
 }
