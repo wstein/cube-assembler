@@ -298,6 +298,7 @@ export function runFullParity(cube: CubeIR): ParityResult {
   // around purely so a failure below can point at exactly the stickers
   // involved instead of just naming the problem.
   const cornerFacelets: FaceletRef[][] = []
+  const unknownCorners: HighlightGroup[] = []
   for (const [fa, ca, fb, cb, fc, cc] of CORNER_SLOTS) {
     const idxA = cornerFaceletIdx(n, ca as CornerSlot)
     const idxB = cornerFaceletIdx(n, cb as CornerSlot)
@@ -322,9 +323,12 @@ export function runFullParity(cube: CubeIR): ParityResult {
       if (found) break
     }
     if (!found) {
-      checks.cornerColors = false
-      return { valid: false, result: 'Unknown corner color triplet', checks, highlight: [{ group: colors.join('-'), facelets }] }
+      unknownCorners.push({ group: colors.join('-'), facelets })
     }
+  }
+  if (unknownCorners.length > 0) {
+    checks.cornerColors = false
+    return { valid: false, result: 'Unknown corner color triplet', checks, highlight: unknownCorners }
   }
   // Each triple above only checked "is this SOME real corner" independently
   // per slot - two slots matching the SAME physical piece (impossible on a
