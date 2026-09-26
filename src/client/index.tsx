@@ -15,7 +15,7 @@ import { runFullParity, type ParityResult } from './parity'
 import { WIZARD_FACE_ORDER, faceContentKey, groupWizardOptions, pickWizardFace, preferredGuidedArrangementIndex } from './orientationWizard'
 import {
   faceBoundsForMode, captureAndProcessCanvas, captureAndProcessImage, extractBackgroundColor, hasVisibleCubeFace,
-  runGlobalWhiteBalance, classifyAcrossFaces, computeBackgroundGains, backdropReference, BACKGROUND_WB_METHOD, BACKGROUND_CUBE_GAP, NEUTRAL_GAINS, CROP_JPEG_QUALITY,
+  runGlobalWhiteBalance, classifyAcrossFaces, GLARE_WARNING_STICKERS, computeBackgroundGains, backdropReference, BACKGROUND_WB_METHOD, BACKGROUND_CUBE_GAP, NEUTRAL_GAINS, CROP_JPEG_QUALITY,
   DEFAULT_SAMPLING, STICKER_MEASUREMENT, stickerSampleRect, colorConfidences, STICKER_COLORS, type SamplingGeometry,
   rgbToOKLCH, hueCircularRange, hueRangesOverlap, linearRange,
   type ColorDetectionResult, type FaceCaptureResult, type RGB,
@@ -236,6 +236,13 @@ function describeArrangement(a: GuidedArrangement, mirrored = false): string[] {
   ]
 }
 const FACE_DISPLAY_LABEL: Record<string, string> = Object.fromEntries(FACE_ORDER.map((face) => [face, stepOf(face).label]))
+
+// The faces to name in the glare warning, or none if too few stickers are
+// washed out to warn about.
+function glareFacesToWarn(glare: Array<{ face: string }>): string[] {
+  if (glare.length < GLARE_WARNING_STICKERS) return []
+  return FACE_ORDER.filter((face) => glare.some((sticker) => sticker.face === face))
+}
 const FACE_SHORT_LABEL: Record<string, string> = Object.fromEntries(FACE_ORDER.map((face) => [face, stepOf(face).short]))
 
 // How each color is drawn on screen (nets, review, picker) - slightly
@@ -939,6 +946,8 @@ function App() {
     }
   }
   const [globalWhiteBalanceNote, setGlobalWhiteBalanceNote] = useState<string | null>(null)
+  // Faces with glare-washed stickers, when enough to warn (see glareStickers).
+  const [glareFaces, setGlareFaces] = useState<string[]>([])
   // The per-face background-derived gains actually applied this capture
   // (see computeBackgroundGains) - recorded in saved fixtures, which
   // replay them.
@@ -1270,6 +1279,7 @@ function App() {
     setOrientationApproval(null)
     setReviewNotice(null)
     setGlobalWhiteBalanceNote(null)
+    setGlareFaces([])
     setAppliedBackgroundGains(null)
     setLearnedPalette(null)
     setPendingPalette(null)
@@ -1416,6 +1426,7 @@ function App() {
     setCaptureMessage('')
     if (startOver) setDismissedCaptureWarnings([])
     setGlobalWhiteBalanceNote(null)
+    setGlareFaces([])
     setAppliedBackgroundGains(null)
     setResolvedColorReference(null)
     setWebcamOpen(true)
@@ -1567,9 +1578,11 @@ function App() {
         } else {
           setGlobalWhiteBalanceNote(null)
         }
+        setGlareFaces(glareFacesToWarn(wb.glare))
       } catch (err) {
         console.error('Global white balance error:', err)
         setGlobalWhiteBalanceNote(null)
+        setGlareFaces([])
         setLearnedPalette(null)
         setPendingPalette(null)
       }
@@ -1723,6 +1736,7 @@ function App() {
         if (ignoreFixtureCorrections) entry.colors = det.colors.map((row) => [...row])
       }
       setAppliedBackgroundGains(recordedGains)
+      setGlareFaces(glareFacesToWarn(wb.glare))
       setGlobalWhiteBalanceNote(wb.applied
         ? CALIBRATION_NOTE
         : null)
@@ -3164,6 +3178,12 @@ function App() {
                 <div class="global-wb-note">✓ {globalWhiteBalanceNote}</div>
               )}
               {reviewNotice && <div class="capture-warning" role="alert">{reviewNotice}</div>}
+              {glareFaces.length > 0 && (
+                <div class="capture-warning" role="status">
+                  ⚠ Glare washed out some stickers on {glareFaces.map((f) => FACE_DISPLAY_LABEL[f]).join(', ')}. Check their
+                  colors, or tilt the cube away from the light and retake.
+                </div>
+              )}
               {(() => {
                 // Detection always assigns every color exactly N² stickers, so
                 // an imbalance here means a sticker was set to the wrong color
