@@ -340,24 +340,24 @@ export function runFullParity(cube: CubeIR): ParityResult {
   // design discussion; same fix mirrored in src/client/cubeAssembly.ts's
   // isFullyValid).
   {
-    const firstSlotForPiece = new Map<number, number>()
+    const slotsByPiece = new Map<number, number[]>()
     for (let slot = 0; slot < cornerPieces.length; slot++) {
       const piece = cornerPieces[slot]
-      const firstSlot = firstSlotForPiece.get(piece)
-      if (firstSlot !== undefined) {
-        checks.cornerColors = false
-        const pieceName = CORNER_NAMES[piece]
-        return {
-          valid: false,
-          result: 'Duplicate corner piece (two positions read the same physical corner)',
-          checks,
-          highlight: [
-            { group: pieceName, facelets: cornerFacelets[firstSlot] },
-            { group: pieceName, facelets: cornerFacelets[slot] },
-          ],
-        }
+      slotsByPiece.set(piece, [...(slotsByPiece.get(piece) ?? []), slot])
+    }
+    const duplicates = [...slotsByPiece].flatMap(([piece, slots]) =>
+      slots.length > 1
+        ? slots.map((slot) => ({ group: CORNER_NAMES[piece], facelets: cornerFacelets[slot] }))
+        : []
+    )
+    if (duplicates.length > 0) {
+      checks.cornerColors = false
+      return {
+        valid: false,
+        result: 'Duplicate corner piece (two positions read the same physical corner)',
+        checks,
+        highlight: duplicates,
       }
-      firstSlotForPiece.set(piece, slot)
     }
   }
   checks.cornerColors = true

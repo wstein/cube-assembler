@@ -69,6 +69,20 @@ describe('parity: 3x3 corner/edge facelet-index tables', () => {
     ])
   })
 
+  it('outlines every copy of each duplicated corner piece', () => {
+    const cube = solvedCube()
+    cube.r.data[0] = 'B'
+    cube.f.data[2] = 'R'
+    cube.l.data[0] = 'G'
+    cube.b.data[2] = 'O'
+
+    const result = checkParity(cube)
+    expect(result.result).toBe('Duplicate corner piece (two positions read the same physical corner)')
+    expect(result.highlight).toHaveLength(4)
+    expect(result.highlight?.map((entry) => entry.group)).toEqual(['UBR', 'UBR', 'UFL', 'UFL'])
+    expect(result.highlight?.flatMap((entry) => entry.facelets)).toHaveLength(12)
+  })
+
   it('rejects a cube with a genuinely broken edge (negative control)', () => {
     const cube = solvedCube()
     // Swap F's UF-edge sticker with D's center sticker (a plain swap, so
