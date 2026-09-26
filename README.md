@@ -90,6 +90,9 @@ The capture dialog has two modes; neither needs a downloaded model.
   is found it says *Align face in view* and waits.
 - **Guide grid** reads exactly the square drawn on screen.
 
+Live analysis checks a camera frame at most every 100 ms; if the worker is
+still busy, it skips that interval instead of queuing another frame.
+
 On the first face in Detect face mode, the app counts repeating seams in
 both directions to identify a 2×2–7×7 grid. It changes the size only after
 two agreeing live readings of a visible face. A manually selected size takes
