@@ -17,7 +17,7 @@ import { cellEdges } from '../src/client/gridAlignment'
 import { describe, it, expect } from 'vitest'
 import {
   learnStickerColors, rgbToOKLCH, hueCircularRange, hueRangesOverlap, linearRange,
-  hungarianAssignment, trimmedMeanColor, STICKER_COLORS, extractBackgroundColor, BACKGROUND_CUBE_GAP, applyGains, applyGainsToPixels, backdropReference, computeBackgroundGains,
+  hungarianAssignment, trimmedMeanColor, STICKER_COLORS, extractBackgroundColor, BACKGROUND_CUBE_GAP, applyGains, applyGainsToPixels, backdropReference, removeGains, computeBackgroundGains,
   stickerSampleRect, DEFAULT_SAMPLING, measureSharpness, classifySticker, stickerColor,
   extractColorsFromImageData, hasPlausibleStickerFace, hasVisibleCubeFace, faceVisibility, faceBoundsForMode, NEUTRAL_GAINS, type RGB,
 } from '../src/client/imageProcessing'
@@ -988,5 +988,18 @@ describe('showing the backdrop adjustment', () => {
     // Applying a face's gain to its backdrop lands on the reference.
     expect(applyGains(backdrops.F, computeBackgroundGains(backdrops)!.F)).toEqual(reference)
     expect(backdropReference({ U: grey(100), R: null })).toBeNull()
+  })
+})
+
+describe('undoing the backdrop adjustment on a sticker reading', () => {
+  it('recovers the sticker color before its face was adjusted', () => {
+    const gains = { r: 0.6, g: 1.26, b: 0.95 }
+    for (const color of [{ r: 85, g: 168, b: 52 }, { r: 200, g: 40, b: 50 }, { r: 30, g: 70, b: 190 }]) {
+      const back = removeGains(applyGains(color, gains), gains)
+      expect(Math.abs(back.r - color.r)).toBeLessThanOrEqual(1)
+      expect(Math.abs(back.g - color.g)).toBeLessThanOrEqual(1)
+      expect(Math.abs(back.b - color.b)).toBeLessThanOrEqual(1)
+    }
+    expect(removeGains({ r: 12, g: 34, b: 56 }, NEUTRAL_GAINS)).toEqual({ r: 12, g: 34, b: 56 })
   })
 })
