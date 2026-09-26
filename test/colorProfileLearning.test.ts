@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { STICKER_COLORS } from '../src/client/imageProcessing'
-import { assessPalette, blendColorProfile, canCreateProfileFromCapture, matchColorProfile, matchPartialColorProfile, profileColorFitPercent, shouldBlendColorProfile, updateProfileFromCapture } from '../src/client/colorProfileLearning'
+import { assessPalette, blendColorProfile, canCreateProfileFromCapture, matchColorProfile, matchPartialColorProfile, profileColorFitPercent, resolveAutomaticProfile, shouldBlendColorProfile, summarizePreviewProfiles, updateProfileFromCapture } from '../src/client/colorProfileLearning'
 import { genericColorProfile, type ColorProfile } from '../src/client/profileSettings'
 
 const base: ColorProfile = { id: 'base', name: 'Base', colors: STICKER_COLORS, captures: 4 }
@@ -99,5 +99,51 @@ describe('color profile learning', () => {
     expect(profileColorFitPercent(base.colors, shifted)).toBeLessThan(100)
     expect(profileColorFitPercent(base.colors, shifted)).toBeGreaterThan(0)
     expect(profileColorFitPercent(base.colors, { ...base.colors, R: base.colors.B })).toBeGreaterThanOrEqual(0)
+  })
+})
+
+describe('resolving the automatic profile after all six faces', () => {
+  const plastic1: ColorProfile = { id: 'plastic1', name: 'plastic1', colors: STICKER_COLORS, captures: 2 }
+  const plastic2: ColorProfile = { id: 'plastic2', name: 'plastic2', colors: shifted, captures: 3 }
+  const far: ColorProfile = { id: 'far', name: 'far', captures: 1, colors: Object.fromEntries(Object.entries(STICKER_COLORS).map(([key, color]) =>
+    [key, { r: 255 - color.r, g: 255 - color.g, b: 255 - color.b }])) as typeof STICKER_COLORS }
+  // Between the two plastic profiles, a little nearer plastic2: no clear lead.
+  const between = Object.fromEntries(Object.entries(STICKER_COLORS).map(([key, color]) =>
+    [key, { ...color, r: Math.max(0, color.r - 3) }])) as typeof STICKER_COLORS
+
+  it('takes a clear match as before', () => {
+    const result = resolveAutomaticProfile([plastic1, far], shifted, null)
+    expect(result.profile?.id).toBe('plastic1')
+    expect(result.reason).toBe('clear')
+  })
+
+  it("takes the preview's profile when it is still the nearest, though not clearly", () => {
+    const result = resolveAutomaticProfile([plastic1, plastic2, far], between, 'plastic2')
+    expect(result.profile?.id).toBe('plastic2')
+    expect(result.reason).toBe('preview')
+  })
+
+  it('names the nearest candidates with their fit when nothing is chosen', () => {
+    const result = resolveAutomaticProfile([plastic1, plastic2, far], between, 'plastic1')
+    expect(result.profile).toBeNull()
+    expect(result.reason).toBe('tie')
+    expect(result.nearest.map((entry) => entry.profile.id).slice(0, 2)).toEqual(['plastic2', 'plastic1'])
+    expect(result.nearest[0].fit).toBeGreaterThanOrEqual(result.nearest[1].fit)
+  })
+
+  it('says when no saved profile is close', () => {
+    const result = resolveAutomaticProfile([far], STICKER_COLORS, 'far')
+    expect(result.profile).toBeNull()
+    expect(result.reason).toBe('far')
+  })
+})
+
+describe('summarizing the preview profiles per face', () => {
+  it('groups faces by the profile that previewed them, in capture order', () => {
+    expect(summarizePreviewProfiles(['Generic colors', 'plastic2', 'plastic2', 'plastic2', 'plastic2', 'plastic2']))
+      .toBe('Generic colors (face 1), plastic2 (faces 2–6)')
+    expect(summarizePreviewProfiles(['plastic2', 'plastic2', 'plastic1', 'plastic2', undefined, undefined]))
+      .toBe('plastic2 (faces 1–2, 4), plastic1 (face 3)')
+    expect(summarizePreviewProfiles([undefined, undefined])).toBeNull()
   })
 })
