@@ -85,9 +85,10 @@ precedence, and the size stays fixed after the first face is captured.
 
 ### How Detect face finds a face
 
-`src/client/gridAlignment.ts` first estimates the face outline across the
-larger dashed area, then searches near that outline for sticker seams. If
-the outline is unclear, it searches around the centered guide:
+The dashed frame is a 70% wide placement guide; detection can reach beyond it.
+`src/client/gridAlignment.ts` first estimates the face outline, then searches
+near that outline for sticker seams. If the outline is unclear, it searches
+around the centered guide:
 
 - **Position and size** - the outline scan covers faces 0.7–1.3 times the
   guide size and centers up to 22% of a guide width away. The seam search
