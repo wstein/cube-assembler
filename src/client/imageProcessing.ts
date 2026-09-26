@@ -388,6 +388,17 @@ export function applyGains(rgb: RGB, gains: RGB): RGB {
   }
 }
 
+// A photo's pixels (RGBA) adjusted like its stickers are, for showing what
+// the backdrop white balance did to a face.
+export function applyGainsToPixels(data: Uint8ClampedArray, gains: RGB): Uint8ClampedArray {
+  const out = new Uint8ClampedArray(data.length)
+  for (let i = 0; i < data.length; i += 4) {
+    const { r, g, b } = applyGains({ r: data[i], g: data[i + 1], b: data[i + 2] }, gains)
+    out[i] = r; out[i + 1] = g; out[i + 2] = b; out[i + 3] = data[i + 3]
+  }
+  return out
+}
+
 export interface StickerSample {
   rgb: RGB
   colorGuess: string
@@ -1058,17 +1069,29 @@ const median = (values: number[]) => {
 // small. On the saved fixtures' backdrop readings it misread 15 stickers
 // against 17 without gains and 19 relative to face 1. A face without a
 // backdrop reading stays neutral; null with fewer than 3 readings.
+const linearRgb = (bg: RGB) => ({ r: srgbChannelToLinear(bg.r), g: srgbChannelToLinear(bg.g), b: srgbChannelToLinear(bg.b) })
+
+// The median backdrop in linear light, or null with fewer than 3 readings.
+function linearBackdropReference(backgrounds: Record<string, RGB | null | undefined>): RGB | null {
+  const lin = Object.values(backgrounds).filter((bg): bg is RGB => !!bg).map(linearRgb)
+  if (lin.length < 3) return null
+  return { r: median(lin.map((bg) => bg.r)), g: median(lin.map((bg) => bg.g)), b: median(lin.map((bg) => bg.b)) }
+}
+
+// The backdrop every face is brought to (see computeBackgroundGains), in sRGB.
+export function backdropReference(backgrounds: Record<string, RGB | null | undefined>): RGB | null {
+  const reference = linearBackdropReference(backgrounds)
+  return reference && { r: linearChannelToSrgb(reference.r), g: linearChannelToSrgb(reference.g), b: linearChannelToSrgb(reference.b) }
+}
+
 export function computeBackgroundGains(backgrounds: Record<string, RGB | null | undefined>): Record<string, RGB> | null {
-  const readings = Object.values(backgrounds).filter((bg): bg is RGB => !!bg)
-  if (readings.length < 3) return null
   // Ratios of linear light, like the gains are applied (see applyGains).
-  const linear = (bg: RGB) => ({ r: srgbChannelToLinear(bg.r), g: srgbChannelToLinear(bg.g), b: srgbChannelToLinear(bg.b) })
-  const lin = readings.map(linear)
-  const reference = { r: median(lin.map((bg) => bg.r)), g: median(lin.map((bg) => bg.g)), b: median(lin.map((bg) => bg.b)) }
+  const reference = linearBackdropReference(backgrounds)
+  if (!reference) return null
   const floor = srgbChannelToLinear(1)
   return Object.fromEntries(Object.entries(backgrounds).map(([face, bg]) => {
     if (!bg) return [face, NEUTRAL_GAINS]
-    const l = linear(bg)
+    const l = linearRgb(bg)
     return [face, limitBackgroundGain({ r: reference.r / Math.max(floor, l.r), g: reference.g / Math.max(floor, l.g), b: reference.b / Math.max(floor, l.b) })]
   }))
 }
