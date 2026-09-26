@@ -27,7 +27,7 @@ import {
 } from './cubeProfiles'
 import { readFixtureColors } from './fixtureFormat'
 import { buildFixture, summarizeFixture, unzipFixture, zipFixture, type Fixture, type FixtureSummary } from './fixtureZip'
-import { uploadFixtureToDevServer } from './fixtureUpload'
+import { fixtureUploadServerAvailable, uploadFixtureToDevServer } from './fixtureUpload'
 import {
   toWRGFacelets, fromWRGFacelets, toURFFacelets, fromURFFacelets, detectNotationFormat, gridsToWRGFacelets,
 } from './notationOutput'
@@ -677,6 +677,8 @@ function App() {
   const [fixtureSaveMessage, setFixtureSaveMessage] = useState('')
   const [fixtureUploadMessage, setFixtureUploadMessage] = useState('')
   const [fixtureUploading, setFixtureUploading] = useState(false)
+  const [fixtureServerReachable, setFixtureServerReachable] = useState(false)
+  const [fixtureServerChecked, setFixtureServerChecked] = useState(false)
   // A fixture zip ready to download, shown first with its photos (as blob
   // URLs, revoked on close) and a summary of its meta.json.
   const [fixtureDownload, setFixtureDownload] = useState<{
@@ -686,6 +688,31 @@ function App() {
     summary: FixtureSummary
     photoUrls: string[]
   } | null>(null)
+  useEffect(() => {
+    if (!fixtureDownload || !import.meta.env.DEV) return
+    let active = true
+    let checking = false
+    const controller = new AbortController()
+    const check = async () => {
+      if (checking) return
+      checking = true
+      const reachable = await fixtureUploadServerAvailable(fetch, controller.signal)
+      checking = false
+      if (active) {
+        setFixtureServerReachable(reachable)
+        setFixtureServerChecked(true)
+      }
+    }
+    setFixtureServerReachable(false)
+    setFixtureServerChecked(false)
+    void check()
+    const timer = setInterval(() => void check(), 3000)
+    return () => {
+      active = false
+      controller.abort()
+      clearInterval(timer)
+    }
+  }, [fixtureDownload])
   const [manualColorInput, setManualColorInput] = useState('')
   const [showColorInput, setShowColorInput] = useState(false)
   const [notationFormat, setNotationFormat] = useState<'wrg' | 'urf'>('wrg')
@@ -1799,7 +1826,7 @@ function App() {
   }
 
   const uploadFixture = async () => {
-    if (!fixtureDownload || fixtureUploading) return
+    if (!fixtureDownload || fixtureUploading || !fixtureServerReachable) return
     setFixtureUploading(true)
     setFixtureUploadMessage('')
     try {
@@ -1807,7 +1834,8 @@ function App() {
       setFixtureSaveMessage(`✓ Saved ${fixtureDownload.name} to test/fixtures/`)
       closeFixtureDownload()
     } catch (error) {
-      setFixtureUploadMessage(`❌ ${error instanceof Error ? error.message : String(error)}. Run npm run fixture:server locally.`)
+      setFixtureUploadMessage(`❌ ${error instanceof Error ? error.message : String(error)}`)
+      void fixtureUploadServerAvailable().then(setFixtureServerReachable)
     } finally {
       setFixtureUploading(false)
     }
@@ -3172,18 +3200,21 @@ function App() {
               ))}
             </dl>
             <p class="fixture-download-hint">
-              {import.meta.env.DEV ? <>Save locally to <code>test/fixtures/</code> with the upload server, or download the ZIP.</> : <>Unzip it into <code>test/fixtures/</code> to add it to the tests.</>}
-              {' '}<strong>Upload fixture</strong> loads it back into the app.
+              {import.meta.env.DEV ? <>Upload to <code>test/fixtures/</code> using the localhost server, or download the ZIP.</> : <>Unzip it into <code>test/fixtures/</code> to add it to the tests.</>}
+              {' '}The main-page <strong>Upload fixture</strong> action loads it back into the app.
             </p>
+            {import.meta.env.DEV && fixtureServerChecked && !fixtureServerReachable && (
+              <p role="status" class="fixture-download-hint">Upload server offline · run <code>npm run fixture:server</code>.</p>
+            )}
             {fixtureUploadMessage && <p role="status" class="capture-message error">{fixtureUploadMessage}</p>}
             <div class="input-actions">
               <button type="button" class="btn btn-secondary btn-sm" onClick={closeFixtureDownload}>Cancel</button>
               {import.meta.env.DEV && (
-                <button type="button" class="btn btn-secondary btn-sm" disabled={fixtureUploading} onClick={uploadFixture}>
-                  {fixtureUploading ? 'Saving...' : 'Save locally'}
+                <button type="button" class="btn btn-primary btn-sm" disabled={!fixtureServerReachable || fixtureUploading} onClick={uploadFixture}>
+                  {fixtureUploading ? 'Uploading...' : fixtureServerChecked ? 'Upload to localhost' : 'Checking upload server...'}
                 </button>
               )}
-              <button type="button" class="btn btn-primary btn-sm" onClick={downloadFixture}>Download zip</button>
+              <button type="button" class="btn btn-secondary btn-sm" onClick={downloadFixture}>Download zip</button>
             </div>
           </div>
         </div>

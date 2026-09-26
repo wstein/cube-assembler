@@ -45,6 +45,9 @@ describe('local fixture upload server', () => {
 
   it('writes exactly the seven fixture files and refuses GET', async () => {
     await start()
+    const probe = await fetch(`${url}/upload`, { method: 'POST', headers: { 'X-Fixture-Probe': '1' } })
+    expect(probe.status).toBe(204)
+    expect(await readdir(root!)).toEqual([])
     const response = await upload(fixtureForm())
     expect(response.status).toBe(201)
     expect(await readdir(join(root!, 'capture-test'))).toEqual([
