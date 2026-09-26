@@ -388,6 +388,12 @@ export function applyGains(rgb: RGB, gains: RGB): RGB {
   }
 }
 
+// A sticker reading as it was before applyGains - exact up to rounding and
+// channels clipped at 255, since the gains scale a sticker's averaged color.
+export function removeGains(rgb: RGB, gains: RGB): RGB {
+  return applyGains(rgb, { r: 1 / gains.r, g: 1 / gains.g, b: 1 / gains.b })
+}
+
 // A photo's pixels (RGBA) adjusted like its stickers are, for showing what
 // the backdrop white balance did to a face.
 export function applyGainsToPixels(data: Uint8ClampedArray, gains: RGB): Uint8ClampedArray {
