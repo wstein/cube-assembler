@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { AUTO_CAPTURE_STABLE_FRAMES, SIZE_VOTE_AGREE, SIZE_VOTE_FRAMES, TURN_CUE_CLEAR_FRAMES, agreedSize, nextAutoCaptureProgress, nextSizeVotes, nextTurnCueClearFrames, sizeDisputed, type AutoCaptureSample } from '../src/client/autoCapture'
+import { AUTO_CAPTURE_STABLE_FRAMES, SIZE_VOTE_AGREE, SIZE_VOTE_FRAMES, TURN_CUE_CLEAR_FRAMES, agreedSize, nextAutoCaptureProgress, nextSizeVotes, nextTurnCueClearFrames, sizeDisputed, turnPoseChanged, type AutoCaptureSample } from '../src/client/autoCapture'
 
 const sample = (color = 'R', x = 100, confidence = 0.9): AutoCaptureSample => ({
   colors: Array.from({ length: 3 }, () => Array(3).fill(color)),
@@ -81,6 +81,17 @@ describe('turn cue dismissal', () => {
       progress = nextAutoCaptureProgress(progress, sample())
       expect(progress?.frames).toBe(i)
     }
+  })
+
+  it('accepts a substantial turn even when sticker letters look identical', () => {
+    const face = sample().colors
+    const anchor = { centerX: 100, centerY: 100, size: 300, angle: 0 }
+    expect(turnPoseChanged(anchor, { ...anchor, centerX: 110 })).toBe(false)
+    expect(turnPoseChanged(anchor, { ...anchor, centerX: 150 })).toBe(true)
+    expect(turnPoseChanged(anchor, { ...anchor, angle: Math.PI / 4 })).toBe(true)
+    let clearFrames = 0
+    for (let i = 0; i < TURN_CUE_CLEAR_FRAMES; i++) clearFrames = nextTurnCueClearFrames(clearFrames, face, face, true)
+    expect(clearFrames).toBe(TURN_CUE_CLEAR_FRAMES)
   })
 })
 

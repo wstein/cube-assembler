@@ -5,13 +5,29 @@ export const AUTO_CAPTURE_STABLE_FRAMES = 5
 export const AUTO_CAPTURE_MIN_CONFIDENCE = 0.6
 export const TURN_CUE_CLEAR_FRAMES = 3
 
+export interface TurnCuePose {
+  centerX: number
+  centerY: number
+  size: number
+  angle: number
+}
+
+// A same-colored side can still be a new side. Only a substantial change
+// counts; small framing jitter while holding the old face does not.
+export function turnPoseChanged(anchor: TurnCuePose, current: TurnCuePose): boolean {
+  const angle = Math.abs(Math.atan2(Math.sin(current.angle - anchor.angle), Math.cos(current.angle - anchor.angle)))
+  return Math.hypot(current.centerX - anchor.centerX, current.centerY - anchor.centerY) > anchor.size * 0.12
+    || Math.abs(current.size - anchor.size) > anchor.size * 0.15
+    || angle > Math.PI / 9
+}
+
 // The turn cue stays up while the captured pattern is still in view. A brief
 // detection miss must not dismiss it while the user is holding the same face.
-export function nextTurnCueClearFrames(previous: number, visibleColors: string[][] | null, lastCapturedColors: string[][]): number {
+export function nextTurnCueClearFrames(previous: number, visibleColors: string[][] | null, lastCapturedColors: string[][], poseChanged = false): number {
   const stillLastFace = visibleColors && findCapturedFaceMatch(
     [{ colors: lastCapturedColors }], { colors: visibleColors }
   ) !== null
-  return stillLastFace ? 0 : Math.min(previous + 1, TURN_CUE_CLEAR_FRAMES)
+  return stillLastFace && !poseChanged ? 0 : Math.min(previous + 1, TURN_CUE_CLEAR_FRAMES)
 }
 
 export interface AutoCaptureSample {

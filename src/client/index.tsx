@@ -1,7 +1,7 @@
 import { render, h, Fragment } from 'preact'
 import { useState, useEffect, useRef, useMemo } from 'preact/hooks'
 import '../../web/style.css'
-import { AUTO_CAPTURE_MIN_CONFIDENCE, AUTO_CAPTURE_STABLE_FRAMES, TURN_CUE_CLEAR_FRAMES, agreedSize, nextAutoCaptureProgress, nextSizeVotes, nextTurnCueClearFrames, sizeDisputed, type AutoCaptureProgress } from './autoCapture'
+import { AUTO_CAPTURE_MIN_CONFIDENCE, AUTO_CAPTURE_STABLE_FRAMES, TURN_CUE_CLEAR_FRAMES, agreedSize, nextAutoCaptureProgress, nextSizeVotes, nextTurnCueClearFrames, sizeDisputed, turnPoseChanged, type AutoCaptureProgress, type TurnCuePose } from './autoCapture'
 import { oppositeFacePreview } from './capturePresentation'
 import { holdConfirmedFace, NO_HOLD, type LiveHold } from './liveHold'
 import { scaleBounds, type LiveAnalysisRequest } from './liveAnalysis'
@@ -674,6 +674,7 @@ function App() {
   const flashTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const autoCaptureInFlight = useRef(false)
   const lastCapturedColors = useRef<string[][] | null>(null)
+  const lastCapturedPose = useRef<TurnCuePose | null>(null)
   const [webcamFace, setWebcamFace] = useState('U')
   const [capturedFaces, setCapturedFaces] = useState<Record<string, FaceCaptureData>>({})
   const [faceConfidence, setFaceConfidence] = useState<Record<string, number>>({})
@@ -936,6 +937,14 @@ function App() {
     setTurnOverlay(null)
   }
 
+  const continueTurnOverlay = () => {
+    // An identical-looking side cannot be told apart by sticker letters.
+    // Continue explicitly confirms that the cube has been turned.
+    lastCapturedColors.current = null
+    lastCapturedPose.current = null
+    dismissTurnOverlay()
+  }
+
   useEffect(() => {
     if (!webcamOpen) dismissTurnOverlay()
   }, [webcamOpen])
@@ -1037,13 +1046,22 @@ function App() {
         const bounds = scaleBounds(result.bounds, event.data.scale)
         const { detection, visible } = result
         if (lastCapturedColors.current) {
+          const pose: TurnCuePose = {
+            centerX: bounds.startX + bounds.faceWidth / 2,
+            centerY: bounds.startY + bounds.faceHeight / 2,
+            size: bounds.faceWidth,
+            angle: bounds.angle ?? 0,
+          }
           turnCueClearFrames = nextTurnCueClearFrames(
             turnCueClearFrames,
             visible && bounds.gridFound && detection.confidence >= 0.8 ? detection.colors : null,
-            lastCapturedColors.current
+            lastCapturedColors.current,
+            visible && bounds.gridFound && lastCapturedPose.current !== null
+              ? turnPoseChanged(lastCapturedPose.current, pose) : false
           )
           if (turnCueClearFrames >= TURN_CUE_CLEAR_FRAMES) {
             lastCapturedColors.current = null
+            lastCapturedPose.current = null
             if (turnCueShowing) dismissTurnOverlay()
           }
           return
@@ -1171,6 +1189,7 @@ function App() {
     setCapturedFaces({})
     setFaceConfidence({})
     lastCapturedColors.current = null
+    lastCapturedPose.current = null
     setWebcamFace(FACE_ORDER[0])
     setLiveDetection(null)
     setShowReviewDialog(false)
@@ -1301,6 +1320,7 @@ function App() {
     armCaptureAudio()
     dismissTurnOverlay()
     lastCapturedColors.current = null
+    lastCapturedPose.current = null
     const allCaptured = FACE_ORDER.every((f) => f in capturedFaces)
     const startOver = restart || allCaptured
     if (startOver) {
@@ -1375,6 +1395,10 @@ function App() {
 
     setCapturedFaces(newCapturedFaces)
     lastCapturedColors.current = source === 'camera' ? result.colors : null
+    lastCapturedPose.current = source === 'camera' && result.crop
+      ? { centerX: result.crop.x + result.crop.width / 2, centerY: result.crop.y + result.crop.height / 2,
+          size: result.crop.width, angle: (result.crop.angle ?? 0) * Math.PI / 180 }
+      : null
     setFaceConfidence({ ...faceConfidence, [assignedFace]: result.confidence })
     setCaptureMessage(`✓ ${FACE_DISPLAY_LABEL[assignedFace]} captured (${(result.confidence * 100).toFixed(0)}% confidence)`
       + (unexpectedCenter ? " - its center isn't the suggested one; check it in the review" : ''))
@@ -2572,7 +2596,7 @@ function App() {
                 </div>
                 {captureFlash && <div class="capture-flash" aria-hidden="true" />}
                 {turnOverlay && (
-                  <CaptureTurnOverlay step={turnOverlay.step} startColors={turnOverlay.startColors} viaColors={turnOverlay.viaColors} capturedColors={Object.values(capturedFaces).map((face) => face.colors)} mirrored={mirrorPreview} onContinue={dismissTurnOverlay} />
+                  <CaptureTurnOverlay step={turnOverlay.step} startColors={turnOverlay.startColors} viaColors={turnOverlay.viaColors} capturedColors={Object.values(capturedFaces).map((face) => face.colors)} mirrored={mirrorPreview} onContinue={continueTurnOverlay} />
                 )}
               </div>
               <span class={`capture-live-badge ${liveCapturedFace ? 'pattern-match' : ''}`} role="status">
@@ -2617,6 +2641,7 @@ function App() {
                   onSelect={(slot) => {
                     dismissTurnOverlay()
                     lastCapturedColors.current = null
+                    lastCapturedPose.current = null
                     setWebcamFace(slot)
                     setCaptureMessage('')
                   }}
@@ -2639,6 +2664,7 @@ function App() {
                     class="btn btn-secondary btn-sm"
                     onClick={() => {
                       lastCapturedColors.current = null
+                      lastCapturedPose.current = null
                       setWebcamFace(FACE_ORDER[captureWarning.retake])
                       setCaptureMessage('')
                     }}
