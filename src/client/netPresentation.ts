@@ -69,14 +69,3 @@ export function faceSources(netFaces: Record<string, string[][]>, captured: Reco
   }
   return result
 }
-
-// How to draw each sticker color: from the first palette given (e.g. the one
-// learned from this capture's photos, then the resolved profile), so the
-// cube looks like the one photographed; `fixed` for any color it lacks.
-export function stickerFills(palettes: Array<Record<string, { r: number; g: number; b: number }> | null | undefined>, fixed: Record<string, string>): Record<string, string> {
-  const palette = palettes.find((candidate) => candidate)
-  return Object.fromEntries(Object.entries(fixed).map(([color, hex]) => {
-    const rgb = palette?.[color]
-    return [color, rgb ? `rgb(${Math.round(rgb.r)} ${Math.round(rgb.g)} ${Math.round(rgb.b)})` : hex]
-  }))
-}
