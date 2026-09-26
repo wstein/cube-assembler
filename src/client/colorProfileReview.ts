@@ -35,24 +35,55 @@ export function profileDistance(a: Record<string, RGB>, b: Record<string, RGB>):
   }, 0) / HUED_KEYS.length
 }
 
-// Groups in which every profile is within `limit` (see profileDistance) of
-// every other one - complete linkage, so a chain of near neighbours never
-// pulls two different cubes together.
+type HuedKey = 'Y' | 'O' | 'R' | 'G' | 'B'
+
+// OKLab distance x 100 per colored sticker once both profiles are balanced
+// on their own White (see profileDistance for the average of these).
+export function colorDifferences(a: Record<string, RGB>, b: Record<string, RGB>): Record<HuedKey, number> {
+  const p = whiteBalancedColors(a), q = whiteBalancedColors(b)
+  return Object.fromEntries(HUED_KEYS.map((key) => {
+    const x = rgbToOklab(p[key]), y = rgbToOklab(q[key])
+    return [key, 100 * Math.hypot(x.l - y.l, x.a - y.a, x.b - y.b)]
+  })) as Record<HuedKey, number>
+}
+
+// Two profiles may be merged when no colored sticker differs by more than
+// `limit`, and their average difference stays within this share of it: one
+// far color must not hide behind four close ones, and five colors all just
+// under the limit still make a different set of stickers.
+export const AVERAGE_LIMIT_FRACTION = 2 / 3
+
+export function withinMergeLimit(differences: Record<HuedKey, number>, limit: number): boolean {
+  const values = Object.values(differences)
+  const average = values.reduce((sum, value) => sum + value, 0) / values.length
+  return Math.max(...values) <= limit + 1e-9 && average <= limit * AVERAGE_LIMIT_FRACTION + 1e-9
+}
+
+// Groups in which every pair of profiles is within the merge limit (complete
+// linkage, see withinMergeLimit), closest pairs by worst color first - so a
+// chain of near neighbours never pulls two different cubes together.
 export function groupSimilarProfiles<T extends Pick<ColorProfile, 'id' | 'colors'>>(profiles: T[], limit: number): T[][] {
-  const distance = new Map<string, number>()
+  const cache = new Map<string, { fits: boolean; worst: number }>()
   const between = (a: T, b: T) => {
     const key = a.id < b.id ? `${a.id}\n${b.id}` : `${b.id}\n${a.id}`
-    if (!distance.has(key)) distance.set(key, profileDistance(a.colors, b.colors))
-    return distance.get(key)!
+    if (!cache.has(key)) {
+      const differences = colorDifferences(a.colors, b.colors)
+      cache.set(key, { fits: withinMergeLimit(differences, limit), worst: Math.max(...Object.values(differences)) })
+    }
+    return cache.get(key)!
   }
   const groups = profiles.map((profile) => [profile])
   for (;;) {
     let best: { worst: number; i: number; j: number } | null = null
     for (let i = 0; i < groups.length; i++) {
       for (let j = i + 1; j < groups.length; j++) {
-        let worst = 0
-        for (const a of groups[i]) for (const b of groups[j]) worst = Math.max(worst, between(a, b))
-        if (worst <= limit && (!best || worst < best.worst)) best = { worst, i, j }
+        let worst = 0, fits = true
+        for (const a of groups[i]) for (const b of groups[j]) {
+          const pair = between(a, b)
+          fits &&= pair.fits
+          worst = Math.max(worst, pair.worst)
+        }
+        if (fits && (!best || worst < best.worst)) best = { worst, i, j }
       }
     }
     if (!best) return groups
@@ -61,11 +92,22 @@ export function groupSimilarProfiles<T extends Pick<ColorProfile, 'id' | 'colors
   }
 }
 
-// The largest profileDistance inside a group.
-export function groupSpread(profiles: Pick<ColorProfile, 'colors'>[]): number {
-  let spread = 0
-  for (const a of profiles) for (const b of profiles) if (a !== b) spread = Math.max(spread, profileDistance(a.colors, b.colors))
-  return spread
+// A group's largest difference per colored sticker over all pairs, its worst
+// color, and its largest average difference.
+export function groupDifferences(profiles: Pick<ColorProfile, 'colors'>[]): {
+  byColor: Record<HuedKey, number>; worst: { color: HuedKey; value: number }; average: number
+} {
+  const byColor = Object.fromEntries(HUED_KEYS.map((key) => [key, 0])) as Record<HuedKey, number>
+  let average = 0
+  for (let i = 0; i < profiles.length; i++) {
+    for (let j = i + 1; j < profiles.length; j++) {
+      const differences = colorDifferences(profiles[i].colors, profiles[j].colors)
+      for (const key of HUED_KEYS as HuedKey[]) byColor[key] = Math.max(byColor[key], differences[key])
+      average = Math.max(average, Object.values(differences).reduce((sum, value) => sum + value, 0) / HUED_KEYS.length)
+    }
+  }
+  const color = (HUED_KEYS as HuedKey[]).reduce((worst, key) => byColor[key] > byColor[worst] ? key : worst, 'Y' as HuedKey)
+  return { byColor, worst: { color, value: byColor[color] }, average }
 }
 
 // The members balanced to their mean White brightness and averaged in linear
