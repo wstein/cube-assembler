@@ -2542,3 +2542,110 @@ label.capture-size-label {
     transition-duration: 0.01ms !important;
   }
 }
+
+/* ── #colors: sticker color review ─────────────────────────────────────── */
+/* Swatches sit on one fixed mid grey in both themes: the surround changes
+   how a color looks, so it must not follow the theme. */
+.color-review {
+  --review-plate: #7c7b78;
+  --review-a: #2450c8;
+  --review-b: #8a4fd1;
+  max-width: 1000px;
+  margin: 0 auto;
+  padding: var(--spacing-lg) var(--spacing-md) var(--spacing-2xl);
+  display: grid;
+  gap: var(--spacing-md);
+}
+.color-review-header { display: grid; gap: var(--spacing-xs); justify-items: start; }
+.color-review-header h1 { font-family: var(--font-display); margin: var(--spacing-sm) 0 0; }
+.color-review-muted { color: var(--color-text-secondary); font-size: 0.88rem; margin: 0; }
+.color-review .mono { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+.color-review .color-review-section { display: grid; gap: var(--spacing-sm); padding: var(--spacing-lg); }
+.color-review-section h2 { margin: 0; font-size: 1.1rem; }
+.color-review .color-review-picker { flex-direction: row; justify-content: flex-start; padding: var(--spacing-md) var(--spacing-lg);
+  display: flex; flex-wrap: wrap; gap: var(--spacing-sm) var(--spacing-lg); align-items: end; position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; }
+.color-review-picker label { display: grid; gap: 4px; font-size: 0.8rem; color: var(--color-text-secondary); }
+.color-review-picker select { font: inherit; padding: 6px 8px; border-radius: var(--radius-sm); border: 1px solid var(--color-border); background: var(--color-bg-secondary); color: var(--color-text-primary); max-width: 100%; }
+.color-review-picker .color-review-check { display: flex; gap: var(--spacing-sm); align-items: center; font-size: 0.9rem; color: var(--color-text-primary); }
+.color-review-badge { display: inline-grid; place-items: center; width: 20px; height: 20px; border-radius: 50%; color: #fff; font-size: 0.72rem; font-weight: 600; margin-right: 4px; vertical-align: middle; }
+.color-review-badge.a { background: var(--review-a); }
+.color-review-badge.b { background: var(--review-b); }
+.color-review-plate { background: var(--review-plate); border-radius: var(--radius-sm); padding: var(--spacing-sm); }
+.color-review-chip { display: grid; place-items: end start; width: 52px; height: 38px; margin: 0 auto; border-radius: 6px; padding: 2px 5px; font: 600 0.7rem var(--font-mono); }
+.color-review-dot { display: block; width: 22px; height: 18px; border-radius: 3px; }
+.color-review-pill { font-size: 0.78rem; padding: 2px 8px; border-radius: 999px; white-space: nowrap; }
+.color-review-pill.ok { background: var(--color-success-soft); color: var(--color-success); }
+.color-review-pill.warn { background: color-mix(in srgb, var(--color-warning) 14%, transparent); color: var(--color-warning); }
+.color-review-pill.bad { background: color-mix(in srgb, var(--color-danger) 14%, transparent); color: var(--color-danger); }
+.color-review-scroll { overflow-x: auto; }
+.color-review-table { border-collapse: separate; border-spacing: 0; width: 100%; min-width: 560px; }
+.color-review-table th, .color-review-table td { padding: 6px; text-align: center; color: #f4f3ef; font-size: 0.8rem; }
+.color-review-table tbody th { text-align: left; font-weight: 500; white-space: nowrap; }
+.color-review-src { display: block; font-weight: 400; font-size: 0.72rem; opacity: 0.8; }
+.color-review-limit, .color-review-toolbar { display: flex; flex-wrap: wrap; gap: var(--spacing-sm) var(--spacing-md); align-items: center; }
+.color-review-limit input[type=range] { width: 180px; max-width: 100%; }
+.color-review-message { font-size: 0.88rem; color: var(--color-success); }
+.color-review-message.error { color: var(--color-danger); }
+.color-review-groups { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 330px), 1fr)); gap: var(--spacing-sm); }
+.color-review-group { display: grid; gap: var(--spacing-sm); align-content: start; padding: var(--spacing-sm) var(--spacing-md) var(--spacing-md); border: 1px solid var(--color-border); border-radius: var(--radius-sm); background: var(--color-bg-secondary); }
+.color-review-group-head { display: flex; justify-content: space-between; gap: var(--spacing-sm); align-items: baseline; }
+.color-review-strips { display: grid; gap: 6px; }
+.color-review-strip { display: grid; grid-template-columns: minmax(0, 1fr) repeat(6, 22px); gap: 4px; align-items: center; color: #f4f3ef; font-size: 0.78rem; }
+.color-review-strip label { display: flex; gap: 6px; align-items: center; min-width: 0; cursor: pointer; }
+.color-review-strip input { accent-color: #ffd43b; margin: 0; flex: none; }
+.color-review-strip-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.color-review-strip.off .color-review-dot { opacity: 0.35; }
+.color-review-strip.off .color-review-strip-name { text-decoration: line-through; opacity: 0.7; }
+.color-review-strip.merged { border-top: 1px solid rgba(255, 255, 255, 0.35); padding-top: 6px; font-weight: 600; }
+.color-review-field { font-size: 0.8rem; color: var(--color-text-secondary); }
+.color-review .color-review-name { font-family: var(--font-sans); font-size: 0.92rem; padding: 6px 8px; border-radius: var(--radius-sm); border: 1px solid var(--color-border); background: var(--color-bg-primary); color: var(--color-text-primary); width: 100%; }
+.color-review-note { font-size: 0.8rem; color: var(--color-text-secondary); margin: 0; }
+.color-review-splits { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: var(--spacing-sm); }
+.color-review-split { display: grid; gap: 6px; }
+.color-review-split-chip { display: grid; grid-template-columns: 1fr 1fr; height: 60px; border-radius: 6px; overflow: hidden; }
+.color-review-half { display: grid; place-items: end start; padding: 3px 6px; font: 600 0.7rem var(--font-mono); }
+.color-review-split-meta { display: flex; justify-content: space-between; gap: var(--spacing-sm); font-size: 0.85rem; }
+.color-review-pairs { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: var(--spacing-md); }
+.color-review-pair-col { display: grid; gap: var(--spacing-sm); align-content: start; }
+.color-review-pair-col p { margin: 0; }
+.color-review-pair-row { display: grid; grid-template-columns: 58px 1fr 100px; gap: var(--spacing-sm); align-items: center; }
+.color-review-pair-dots { display: flex; gap: 4px; justify-content: center; padding: 4px; }
+.color-review-pair-dots .color-review-dot { width: 18px; }
+.color-review-bar { position: relative; height: 10px; border-radius: 999px; background: var(--color-bg-secondary); border: 1px solid var(--color-border); overflow: hidden; }
+.color-review-bar b { position: absolute; inset: 0 auto 0 0; border-radius: 999px; }
+.color-review-bar b.ok { background: var(--color-success); }
+.color-review-bar b.warn { background: var(--color-warning); }
+.color-review-bar b.bad { background: var(--color-danger); }
+.color-review-bar i { position: absolute; top: -1px; bottom: -1px; width: 1px; background: var(--color-text-secondary); opacity: 0.5; }
+.color-review-pair-val { display: flex; gap: 6px; align-items: center; justify-content: end; font-size: 0.82rem; }
+.color-review-tabs { display: flex; flex-wrap: wrap; gap: 6px; }
+.color-review-tab { font: inherit; font-size: 0.88rem; padding: 4px 12px; border-radius: 999px; border: 1px solid var(--color-border); background: var(--color-bg-secondary); color: var(--color-text-primary); cursor: pointer; }
+.color-review-tab[aria-selected="true"] { background: var(--color-accent); border-color: var(--color-accent); color: var(--color-on-accent); }
+.color-review-tryon { display: grid; grid-template-columns: minmax(0, 340px) 1fr; gap: var(--spacing-lg); align-items: start; }
+.color-review-face { display: grid; gap: 6px; }
+.color-review-sticker { aspect-ratio: 1; border-radius: 6px; display: flex; align-items: end; justify-content: space-between; gap: 2px; padding: 3px; font: 600 0.66rem var(--font-mono); }
+.color-review-sticker span { background: rgba(255, 255, 255, 0.88); color: #17171b; border-radius: 3px; padding: 0 3px; }
+.color-review-sticker span.wrong { background: #b3261e; color: #fff; }
+.color-review-sticker.changed { outline: 3px solid #ffd43b; outline-offset: -3px; }
+.color-review-legend { display: flex; flex-wrap: wrap; gap: 6px 14px; margin: var(--spacing-sm) 0 0; font-size: 0.78rem; color: #f4f3ef; }
+.color-review-legend i { display: inline-block; width: 12px; height: 12px; margin-right: 4px; vertical-align: -2px; border-radius: 2px; }
+.color-review-legend i.changed { outline: 2px solid #ffd43b; outline-offset: -2px; }
+.color-review-legend i.wrong { background: #b3261e; }
+.color-review-scores { display: grid; gap: var(--spacing-sm); font-size: 0.9rem; }
+.color-review-scores p { margin: 0; }
+.color-review-score { display: grid; grid-template-columns: auto 1fr auto; gap: var(--spacing-sm); align-items: center; padding: var(--spacing-sm) var(--spacing-md); border: 1px solid var(--color-border); border-radius: var(--radius-sm); background: var(--color-bg-secondary); }
+.color-review-num { font: 600 1.25rem var(--font-display); font-variant-numeric: tabular-nums; }
+.color-review-num.ok { color: var(--color-success); }
+.color-review-num.warn { color: var(--color-warning); }
+.color-review-num.bad { color: var(--color-danger); }
+.color-review details { border-top: 1px solid var(--color-border); padding-top: var(--spacing-sm); }
+.color-review summary { cursor: pointer; font-weight: 600; }
+.color-review-wheel-wrap { display: grid; grid-template-columns: minmax(0, 340px) 1fr; gap: var(--spacing-lg); align-items: center; margin-top: var(--spacing-sm); }
+.color-review-wheel { width: 100%; height: auto; max-width: 340px; }
+.color-review-numbers { border-collapse: collapse; width: 100%; min-width: 600px; font-size: 0.82rem; margin-top: var(--spacing-sm); }
+.color-review-numbers th, .color-review-numbers td { border-bottom: 1px solid var(--color-border); padding: 5px 8px; text-align: left; }
+.color-review-numbers th { color: var(--color-text-secondary); font-weight: 500; }
+.color-review-link { font: inherit; font-size: 0.85rem; color: var(--color-accent); background: none; border: 0; padding: 0; cursor: pointer; text-decoration: underline; white-space: nowrap; }
+@media (max-width: 720px) {
+  .color-review-tryon, .color-review-wheel-wrap { grid-template-columns: 1fr; }
+}
