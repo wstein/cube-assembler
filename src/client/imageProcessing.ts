@@ -497,29 +497,38 @@ export function hungarianAssignment(cost: number[][]): number[] {
 // once. An optimal solver doesn't have that blind spot: it considers the
 // assignment as a whole, so it will never leave a huge-cost pairing on
 // the table when a cheaper global arrangement exists.
-function balancedAssign(points: RGB[], centroids: RGB[]): number[] {
+// `pinned[i]`, when set, is the cluster point i must take regardless of
+// cost (see clearStickerColors); the rest share the slots left over.
+function balancedAssign(points: RGB[], centroids: RGB[], pinned: Array<number | null> = []): number[] {
   const k = centroids.length
   const n = points.length
   const capacity = Math.ceil(n / k)
-  const totalSlots = k * capacity
-
-  const cost: number[][] = []
+  const result: number[] = new Array(n)
+  const free: number[] = []
+  const slots = new Array(k).fill(capacity)
   for (let pi = 0; pi < n; pi++) {
-    const row: number[] = []
-    for (let ci = 0; ci < k; ci++) {
-      const d = clusterDistance(points[pi], centroids[ci])
-      for (let s = 0; s < capacity; s++) row.push(d)
-    }
-    cost.push(row)
+    const pin = pinned[pi]
+    if (pin != null && slots[pin] > 0) {
+      result[pi] = pin
+      slots[pin]--
+    } else free.push(pi)
   }
+  const slotCluster = slots.flatMap((count, ci) => new Array(count).fill(ci))
+  const totalSlots = slotCluster.length
+
+  const cost: number[][] = free.map((pi) => {
+    const distances = centroids.map((centroid) => clusterDistance(points[pi], centroid))
+    return slotCluster.map((ci) => distances[ci])
+  })
   // Dummy rows (real points don't reach this far into `cost`) cost
   // nothing to place anywhere, so the solver always "spends" them on
   // whichever leftover slots are cheapest to leave empty rather than
   // distorting a real point's assignment.
-  for (let pi = n; pi < totalSlots; pi++) cost.push(new Array(totalSlots).fill(0))
+  for (let pi = free.length; pi < totalSlots; pi++) cost.push(new Array(totalSlots).fill(0))
 
   const slotAssignment = hungarianAssignment(cost)
-  return slotAssignment.slice(0, n).map((slot) => Math.floor(slot / capacity))
+  free.forEach((pi, j) => { result[pi] = slotCluster[slotAssignment[j]] })
+  return result
 }
 
 function kMeansCluster(points: RGB[], k: number, iterations = 20): RGB[] {
@@ -610,6 +619,8 @@ export interface LearnedColors {
   // WITHOUT that sample (leave-one-out), not the ordinary centroid — see
   // the comment on this function's confidence handling for why.
   leaveOneOutDistances: number[]
+  // Each sample's pinned color (see clearStickerColors), or null.
+  clearLabels: Array<string | null>
 }
 
 // "Virtual sample count" a learned centroid is shrunk toward its matched
@@ -659,6 +670,35 @@ function shrinkTowardCanonical(learned: RGB, canonical: RGB, sampleCount: number
   })
 }
 
+// A sticker needs at least this much color (OKLab chroma) before it can
+// be pinned to its color (see clearStickerColors). Glare washes stickers
+// toward white; the paled ones stay below this and are left to the
+// balance.
+const CLEAR_STICKER_MIN_CHROMA = 0.08
+// ...and its distance to the nearest reference color may be at most this
+// fraction of its distance to the second nearest.
+const CLEAR_STICKER_RATIO = 0.5
+
+// The reference color each sticker unmistakably shows, or null. The
+// nine-per-color balance otherwise moves any sticker, however plain: on a
+// capture where glare paled four yellows, the learned yellow drifted pale
+// and the balance kept those four in Y while pushing three plainly yellow
+// stickers (hue 101-104, next to the reference yellow's 111) out to green.
+// Hue alone can't decide it - whites carry blue's hue at chroma 0.1 and a
+// pinkish orange sits on red's hue - so the whole OKLab color must be
+// clearly nearest one reference color.
+export function clearStickerColors(points: RGB[], referencePalette: Record<string, RGB>): Array<string | null> {
+  const references = Object.entries(referencePalette)
+  return points.map((point) => {
+    const lab = rgbToOklab(point)
+    if (Math.hypot(lab.a, lab.b) < CLEAR_STICKER_MIN_CHROMA) return null
+    const ranked = references
+      .map(([color, rgb]) => ({ color, distance: clusterDistance(point, rgb) }))
+      .sort((x, y) => x.distance - y.distance)
+    return ranked[0].distance <= CLEAR_STICKER_RATIO * ranked[1].distance ? ranked[0].color : null
+  })
+}
+
 // Learns each of the 6 sticker colors' actual RGB directly from the
 // capture itself, using ALL captured stickers (typically all 54 across 6
 // faces) as calibration data, instead of assuming the hardcoded WCA
@@ -684,7 +724,7 @@ function shrinkTowardCanonical(learned: RGB, canonical: RGB, sampleCount: number
 // mismatch to poison, and no gain to overshoot — each cluster centroid IS
 // the learned color, so a sparse cluster just means a less-precise learned
 // color, not a runaway correction applied to everything.
-export function learnStickerColors(samples: StickerSample[], referencePalette: Record<string, RGB> = STICKER_COLORS): LearnedColors | null {
+export function learnStickerColors(samples: StickerSample[], referencePalette: Record<string, RGB> = STICKER_COLORS, clearLabels: Array<string | null> = []): LearnedColors | null {
   const points = samples.map((s) => s.rgb)
   const K = 6
   if (points.length < K) return null
@@ -716,7 +756,10 @@ export function learnStickerColors(samples: StickerSample[], referencePalette: R
   // balanced-assignment approach exists to close) and not the
   // provisional pre-shrink assignment above (which is only there to size
   // the shrinkage weight).
-  const pointAssignment = balancedAssign(points, shrunkCentroids)
+  // Stickers that clearly show one color keep it; only the rest are
+  // balanced (see clearStickerColors).
+  const clusterOf = (name: string | null) => (name == null ? null : permutation.findIndex((canonicalIdx) => canonicalKeys[canonicalIdx] === name))
+  const pointAssignment = balancedAssign(points, shrunkCentroids, points.map((_, i) => clusterOf(clearLabels[i] ?? null)))
 
   const colors: Record<string, RGB> = {}
   const clusterSizes: Record<string, number> = {}
@@ -768,7 +811,7 @@ export function learnStickerColors(samples: StickerSample[], referencePalette: R
     return clusterDistance(point, shrunkCentroids[clusterIdx])
   })
 
-  return { colors, clusterSizes, labelsBySampleIndex, leaveOneOutDistances }
+  return { colors, clusterSizes, labelsBySampleIndex, leaveOneOutDistances, clearLabels: points.map((_, i) => clearLabels[i] ?? null) }
 }
 
 export interface FaceBounds {
@@ -1852,7 +1895,13 @@ export function classifyAcrossFaces(baselineFaces: Record<string, ColorDetection
     }
   }
 
-  const learned = learnStickerColors(samples, referencePalette)
+  // Pinned only against a real cube's colors: the idealized default swatches
+  // put real yellows nearer orange. Never where a logo can sit - a blue
+  // logo on a 4x4's white center read as a clear blue.
+  const logoBand = (index: number) => Math.abs(index - middle) < 1
+  const clear = referencePalette ? clearStickerColors(samples.map((s) => s.rgb), referencePalette) : []
+  const clearLabels = samples.map((_, i) => (logoBand(sampleLocations[i].row) && logoBand(sampleLocations[i].col) ? null : clear[i] ?? null))
+  const learned = learnStickerColors(samples, referencePalette, clearLabels)
   if (!learned) return { learned: null, applied: false, faces: baselineFaces }
 
   // Every sticker's final color/confidence comes directly from
@@ -1910,7 +1959,10 @@ export function classifyAcrossFaces(baselineFaces: Record<string, ColorDetection
     // Everything else: balanced without the centers. Unchanged labels keep
     // their leave-one-out confidence.
     const others = samples.map((_, i) => i).filter((i) => !(sampleLocations[i].row === middle && sampleLocations[i].col === middle))
-    const rebalanced = balancedAssign(others.map((i) => samples[i].rgb), centroids)
+    const rebalanced = balancedAssign(others.map((i) => samples[i].rgb), centroids, others.map((i) => {
+      const clear = learned.clearLabels[i]
+      return clear == null ? null : names.indexOf(clear)
+    }))
     others.forEach((i, j) => {
       const color = names[rebalanced[j]]
       if (color === learned.labelsBySampleIndex[i]) return
