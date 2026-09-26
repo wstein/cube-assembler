@@ -88,22 +88,19 @@ export function nextAutoCaptureProgress(
   return stable ? { first, frames: previous.frames + 1 } : { first: sample, frames: 1 }
 }
 
-// With the cube size on Auto, frames vote on it before the first face
-// (estimateFaceGridSize; null when a frame names none). Only a size most
-// recent frames agree on is taken, and auto capture waits for it, so it
-// never photographs a 4x4 as a 3x3. A size picked from the list is final.
-export const SIZE_VOTE_FRAMES = 7
+// With the cube size on Auto, count matching detected sizes before the first
+// face. A missed detection pauses the count; a different size restarts it.
+// A size picked from the list is final.
 export const SIZE_VOTE_AGREE = 5
 
 export function nextSizeVotes(votes: readonly (number | null)[], estimate: number | null): Array<number | null> {
-  return [...votes, estimate].slice(-SIZE_VOTE_FRAMES)
+  if (estimate === null) return [...votes]
+  if (votes.length === 0 || votes[0] !== estimate) return [estimate]
+  return [...votes, estimate].slice(-SIZE_VOTE_AGREE)
 }
 
 export function agreedSize(votes: readonly (number | null)[]): number | null {
-  const counts = new Map<number, number>()
-  for (const vote of votes) if (vote !== null) counts.set(vote, (counts.get(vote) ?? 0) + 1)
-  for (const [size, count] of counts) if (count >= SIZE_VOTE_AGREE) return size
-  return null
+  return votes.length >= SIZE_VOTE_AGREE ? votes[0] : null
 }
 
 export interface SizeDetectionState {
