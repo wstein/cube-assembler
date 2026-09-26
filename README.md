@@ -29,6 +29,9 @@ The scanner defaults to **Detect face**: it finds sticker seams near the camera
 guide, aligns and straightens the face, then reads its colors. **Guide grid**
 is a manual switch that reads the fixed center square shown on screen. Both
 modes use the same color classifier, and neither requires a downloaded model.
+Sampling setup adjusts the gap around each sticker. Backdrop white balance
+always excludes a 25% band around the detected face; older saved backdrop-gap
+settings are accepted but ignored.
 
 ---
 
