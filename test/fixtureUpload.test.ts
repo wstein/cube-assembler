@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 import type { Fixture } from '../src/client/fixtureZip'
-import { fixtureUploadServerAvailable, uploadFixtureToDevServer } from '../src/client/fixtureUpload'
+import { currentAppCommit, fixtureUploadServerAvailable, uploadFixtureToDevServer } from '../src/client/fixtureUpload'
 
 const fixture: Fixture = {
   name: 'capture-example',
@@ -36,5 +36,19 @@ describe('fixture upload client', () => {
   it('shows a server rejection instead of claiming the fixture was saved', async () => {
     const fetcher = vi.fn(async () => new Response(JSON.stringify({ error: 'Fixture already exists' }), { status: 409 }))
     await expect(uploadFixtureToDevServer(fixture, fetcher)).rejects.toThrow('Fixture already exists')
+  })
+})
+
+describe('the commit saved with a fixture', () => {
+  it("asks the dev server for the code's current commit", async () => {
+    const fetcher = vi.fn(async () => new Response(JSON.stringify({ commit: 'efca9e9-dirty' }), { status: 200 }))
+    expect(await currentAppCommit('600f6c1-dirty', fetcher)).toBe('efca9e9-dirty')
+    expect(fetcher).toHaveBeenCalledWith('/__app-commit', expect.objectContaining({ cache: 'no-store' }))
+  })
+
+  it('keeps the commit the page was built with when the server does not answer', async () => {
+    expect(await currentAppCommit('600f6c1', async () => new Response('Not found', { status: 404 }))).toBe('600f6c1')
+    expect(await currentAppCommit('600f6c1', async () => { throw new Error('Offline') })).toBe('600f6c1')
+    expect(await currentAppCommit('600f6c1', async () => new Response('{"commit":42}', { status: 200 }))).toBe('600f6c1')
   })
 })

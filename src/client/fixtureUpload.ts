@@ -28,3 +28,18 @@ export async function uploadFixtureToDevServer(fixture: Fixture, fetcher: typeof
     throw new Error(typeof body?.error === 'string' ? body.error : `Upload failed (${response.status})`)
   }
 }
+
+// The commit to save with a fixture. The dev server answers with the code's
+// current commit on each request (see vite.config.ts); the commit built into
+// the page is read once when the dev server starts, so it goes stale while
+// it runs. Without an answer, the built-in commit is kept.
+export async function currentAppCommit(builtIn: string, fetcher: typeof fetch = fetch): Promise<string> {
+  try {
+    const response = await fetcher('/__app-commit', { method: 'GET', cache: 'no-store' })
+    if (!response.ok) return builtIn
+    const body = await response.json()
+    return typeof body?.commit === 'string' && body.commit ? body.commit : builtIn
+  } catch {
+    return builtIn
+  }
+}

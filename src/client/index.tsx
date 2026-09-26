@@ -34,7 +34,7 @@ import { loadProfileSettings, saveProfileSettings, settingsFile, parseSettingsFi
 import { canCreateProfileFromCapture, matchPartialColorProfile, profileColorFitPercent, profileToUpdate, resolveAutomaticProfile, summarizePreviewProfiles, updateProfileFromCapture, type AutomaticResolution, type PaletteEvidence } from './colorProfileLearning'
 import { readFixtureColors } from './fixtureFormat'
 import { buildFixture, summarizeFixture, unzipFixture, zipFixture, type Fixture, type FixtureSummary } from './fixtureZip'
-import { fixtureUploadServerAvailable, uploadFixtureToDevServer } from './fixtureUpload'
+import { currentAppCommit, fixtureUploadServerAvailable, uploadFixtureToDevServer } from './fixtureUpload'
 import {
   toWRGFacelets, fromWRGFacelets, toURFFacelets, fromURFFacelets, detectNotationFormat, gridsToWRGFacelets,
 } from './notationOutput'
@@ -2027,12 +2027,13 @@ function App() {
   // cube has actually been confirmed: that's the point at which
   // capturedFaces' colors reflect whatever corrections were made in the
   // review wizard, not just the raw first-pass detection.
-  const handleSaveFixture = () => {
+  const handleSaveFixture = async () => {
     const allCaptured = FACE_ORDER.every((f) => capturedFaces[f]?.croppedImage)
     if (!allCaptured) {
       setFixtureSaveMessage('❌ Capture and confirm all 6 faces first.')
       return
     }
+    const commit = import.meta.env.DEV ? await currentAppCommit(__APP_COMMIT__) : __APP_COMMIT__
     try {
       const faces: Record<string, { photo: string } & Record<string, unknown>> = {}
       for (const f of FACE_ORDER) {
@@ -2056,7 +2057,7 @@ function App() {
       }
       const meta = {
         capturedAt: new Date().toISOString(),
-        app: { version: __APP_VERSION__, commit: __APP_COMMIT__ },
+        app: { version: __APP_VERSION__, commit },
         userAgent: navigator.userAgent,
         devicePixelRatio: window.devicePixelRatio,
         photo: { format: 'image/jpeg', quality: CROP_JPEG_QUALITY },
