@@ -3,6 +3,7 @@ import { useState, useEffect, useRef, useMemo } from 'preact/hooks'
 import '../../web/style.css'
 import { AUTO_CAPTURE_MIN_CONFIDENCE, AUTO_CAPTURE_STABLE_FRAMES, TURN_CUE_CLEAR_FRAMES, agreedSize, nextAutoCaptureProgress, nextSizeVotes, nextTurnCueClearFrames, sizeDetectionActive, turnPoseChanged, type AutoCaptureProgress, type TurnCuePose } from './autoCapture'
 import { oppositeFacePreview } from './capturePresentation'
+import { ColorReviewPage, type ReviewCapture } from './colorReviewPage'
 import { holdConfirmedFace, NO_HOLD, type LiveHold } from './liveHold'
 import { scaleBounds, type LiveAnalysisRequest } from './liveAnalysis'
 import type { LiveFrameMessage, LiveResultMessage } from './liveAnalysis.worker'
@@ -806,6 +807,13 @@ function App() {
   const [resolvedColorProfile, setResolvedColorProfile] = useState<UsedColorProfile | null>(null)
   const [resolvedColorReference, setResolvedColorReference] = useState<Record<string, RGB> | null>(null)
   // Applied for this session even when the browser won't keep it.
+  // '#colors' shows the sticker color review page instead of the scanner.
+  const [page, setPage] = useState(() => location.hash)
+  useEffect(() => {
+    const onHash = () => setPage(location.hash)
+    window.addEventListener('hashchange', onHash)
+    return () => window.removeEventListener('hashchange', onHash)
+  }, [])
   const applyProfileStore = (updated: ProfileSettings) => {
     if (!saveProfileStore(updated)) {
       setSamplingFileMessage("❌ This browser won't keep settings (storage blocked or full) - download the settings file to save them")
@@ -2175,6 +2183,19 @@ function App() {
     return notationFormat === 'wrg' ? toWRGFacelets(cube) : toURFFacelets(cube)
   }
 
+  if (page === '#colors') {
+    // The last capture's faces that kept their measured sticker colors.
+    const reviewCapture: ReviewCapture = {
+      faces: FACE_ORDER.flatMap((face) => {
+        const data = capturedFaces[face]
+        return data?.cellColors && data.cellColors.length === data.colors.length
+          ? [{ face, label: FACE_DISPLAY_LABEL[face], colors: data.colors, cellColors: data.cellColors }] : []
+      }),
+    }
+    return <ColorReviewPage settings={profileStore} onChange={applyProfileStore}
+      capture={reviewCapture.faces.length ? reviewCapture : null} onClose={() => { location.hash = '' }} />
+  }
+
   return (
     <div class="app-layout">
       {/* Header: name, cube geometry and color settings */}
@@ -2203,6 +2224,7 @@ function App() {
             onChange={(e) => applyProfileStore(selectColorProfile(profileStore, e.currentTarget.value))}>
             {allColorProfiles(profileStore).map((colors) => <option key={colors.id} value={colors.id}>{colors.name}</option>)}
           </select>
+          <a class="color-review-link" href="#colors">Review colors…</a>
         </div>
       </header>
 
@@ -2751,6 +2773,7 @@ function App() {
                     onClick={() => setNewColorProfileName(newColorProfileName === null ? '' : null)}>
                     ＋ New colors
                   </button>
+                  <a class="color-review-link" href="#colors" onClick={() => setWebcamOpen(false)}>Review colors…</a>
                 </div>
                 {newColorProfileName !== null && (
                   <div class="capture-size-row new-cube-form">
