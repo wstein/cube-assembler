@@ -116,7 +116,7 @@ export interface OKLCH {
   h: number // hue, degrees, 0-360
 }
 
-type Oklab = { l: number; a: number; b: number }
+export type Oklab = { l: number; a: number; b: number }
 
 function srgbChannelToLinear(c: number): number {
   const v = c / 255
@@ -125,7 +125,7 @@ function srgbChannelToLinear(c: number): number {
 
 // Internal Cartesian form - what colorDistance actually computes in.
 // Matrices per Ottosson's OKLab reference (https://bottosson.github.io/posts/oklab/).
-function rgbToOklab(rgb: RGB): Oklab {
+export function rgbToOklab(rgb: RGB): Oklab {
   const r = srgbChannelToLinear(rgb.r)
   const g = srgbChannelToLinear(rgb.g)
   const b = srgbChannelToLinear(rgb.b)
@@ -152,7 +152,7 @@ function linearChannelToSrgb(v: number): number {
 // updated centroid has to be converted back to RGB for display/storage.
 // Matrices per Ottosson's OKLab reference (the exact inverse of the ones
 // rgbToOklab uses).
-function oklabToRgb(lab: Oklab): RGB {
+export function oklabToRgb(lab: Oklab): RGB {
   const l_ = lab.l + 0.3963377774 * lab.a + 0.2158037573 * lab.b
   const m_ = lab.l - 0.1055613458 * lab.a - 0.0638541728 * lab.b
   const s_ = lab.l - 0.0894841775 * lab.a - 1.2914855480 * lab.b
