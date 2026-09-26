@@ -22,7 +22,7 @@ import {
 } from './cubeAssembly'
 import {
   parseProfileStore, activeProfile, profilesForSize, saveProfile, selectProfile, deleteProfile,
-  brandProfile, CUBE_BRANDS, CUBE_STYLES, type CubeStyle,
+  copyCubeProfile,
   profilePalette, withLearnedColors, withoutLearnedColors, suggestProfile, type CubeProfile, type ProfileStore,
 } from './cubeProfiles'
 import { readFixtureColors } from './fixtureFormat'
@@ -797,13 +797,11 @@ function App() {
     setProfileStore(updated)
   }
   const updateSampling = (next: SamplingGeometry) => applyProfileStore(saveProfile(profileStore, { ...profile, sampling: next }))
-  // "New cube" form: brand and construction style, remembered while open.
-  const [newCubeForm, setNewCubeForm] = useState<{ brand: string; style: CubeStyle } | null>(null)
+  const [newCubeName, setNewCubeName] = useState<string | null>(null)
   const handleCreateCube = () => {
-    if (!newCubeForm) return
-    // Its colors are its own - learned from its first capture.
-    applyProfileStore(saveProfile(profileStore, brandProfile(profileStore, newCubeForm.brand, newCubeForm.style, puzzleSize)))
-    setNewCubeForm(null)
+    if (!newCubeName?.trim()) return
+    applyProfileStore(saveProfile(profileStore, copyCubeProfile(profileStore, profile, newCubeName)))
+    setNewCubeName(null)
     setSamplingSetupOpen(true)
   }
   // Settings file: all cube profiles, so a setup tuned in one browser or
@@ -2483,33 +2481,24 @@ function App() {
                   <button
                     type="button"
                     class="btn btn-secondary btn-sm"
-                    aria-expanded={newCubeForm !== null}
-                    onClick={() => setNewCubeForm(newCubeForm ? null : { brand: CUBE_BRANDS[0], style: 'stickerless' })}
+                    aria-expanded={newCubeName !== null}
+                    onClick={() => setNewCubeName(newCubeName === null ? `${profile.name} copy` : null)}
                   >
                     ＋ New cube
                   </button>
                 </div>
-                {newCubeForm && (
+                {newCubeName !== null && (
                   <div class="capture-size-row new-cube-form">
-                    <label class="capture-size-label" for="new-cube-brand">Brand:</label>
-                    <select
-                      id="new-cube-brand"
-                      class="cube-profile-select"
-                      value={newCubeForm.brand}
-                      onChange={(e) => setNewCubeForm({ ...newCubeForm, brand: e.currentTarget.value })}
-                    >
-                      {CUBE_BRANDS.map((brand) => <option key={brand} value={brand}>{brand}</option>)}
-                    </select>
-                    <select
-                      aria-label="Style"
-                      class="cube-profile-select"
-                      value={newCubeForm.style}
-                      onChange={(e) => setNewCubeForm({ ...newCubeForm, style: e.currentTarget.value as CubeStyle })}
-                    >
-                      {Object.entries(CUBE_STYLES).map(([style, { label }]) => <option key={style} value={style}>{label}</option>)}
-                    </select>
-                    <button type="button" class="btn btn-primary btn-sm" onClick={handleCreateCube}>
-                      Add {newCubeForm.brand} {puzzleSize}×{puzzleSize}
+                    <label class="capture-size-label" for="new-cube-name">Name:</label>
+                    <input
+                      id="new-cube-name"
+                      class="cube-profile-name"
+                      maxLength={60}
+                      value={newCubeName}
+                      onInput={(e) => setNewCubeName(e.currentTarget.value)}
+                    />
+                    <button type="button" class="btn btn-primary btn-sm" disabled={!newCubeName.trim()} onClick={handleCreateCube}>
+                      Add cube
                     </button>
                   </div>
                 )}

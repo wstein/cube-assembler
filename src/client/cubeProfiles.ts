@@ -63,11 +63,6 @@ export function genericProfile(size: number): CubeProfile {
   return { id: `generic-${size}`, name: `Generic ${size}×${size}`, size, sampling: DEFAULT_SAMPLING }
 }
 
-// Brands offered when adding a cube - just a name to start from; the
-// cube's colors are always learned from its own first capture, since
-// official brand colors look nothing like what a webcam sees.
-export const CUBE_BRANDS = ['GoCube', "Rubik's", 'GAN', 'MoYu', 'QiYi', 'YJ', 'DaYan', 'X-Man', 'Generic']
-
 // Starting sticker gap by construction: stickerless cubes have narrow
 // seams between colored tiles, stickered ones a wide black border around
 // each sticker. Only a starting point - the sampling setup fine-tunes it.
@@ -78,14 +73,18 @@ export const CUBE_STYLES = {
 
 export type CubeStyle = keyof typeof CUBE_STYLES
 
-// A new profile for a brand and style, named e.g. "GoCube 3×3" - or
-// "GoCube 3×3 (2)" if that name is taken for this size.
-export function brandProfile(store: ProfileStore, brand: string, style: CubeStyle, size: number): CubeProfile {
-  const base = `${brand} ${size}×${size}`
-  const taken = new Set(store.profiles.filter((p) => p.size === size).map((p) => p.name))
+// A custom cube starts with the current cube's geometry. Colors are not
+// copied: they will become an independently selected color profile.
+export function copyCubeProfile(store: ProfileStore, source: CubeProfile, requestedName: string): CubeProfile {
+  const base = requestedName.trim().slice(0, 60)
+  if (!base) throw new Error('Cube name is required')
+  const taken = new Set(store.profiles.filter((p) => p.size === source.size).map((p) => p.name))
   let name = base
-  for (let n = 2; taken.has(name); n++) name = `${base} (${n})`
-  return { id: newProfileId(), name, size, sampling: CUBE_STYLES[style].sampling }
+  for (let n = 2; taken.has(name); n++) {
+    const suffix = ` (${n})`
+    name = `${base.slice(0, 60 - suffix.length)}${suffix}`
+  }
+  return { id: newProfileId(), name, size: source.size, sampling: { ...source.sampling } }
 }
 
 export function newProfileId(): string {
