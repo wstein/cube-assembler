@@ -102,7 +102,7 @@ npm install
 npm run dev
 # → app on http://localhost:5173
 
-# Optional, in another terminal: enable "Save locally" for test fixtures
+# Optional, in another terminal: enable fixture upload
 npm run fixture:server
 # → upload-only endpoint on 127.0.0.1:7100
 
@@ -286,7 +286,9 @@ alone rather than guessed).
 
 **Save as test fixture** (once a cube is confirmed) previews `<name>.zip`
 with `<name>/meta.json` and the six face photos. Download and unzip it into
-`test/fixtures/`, or select **Save locally** while both dev servers are running.
+`test/fixtures/`, or select **Upload to localhost** while both dev servers are running.
+The button stays disabled until the upload server responds and rechecks while
+the fixture dialog is open.
 The local server accepts only `POST /upload`, never serves files, refuses
 overwrites, and binds only to `127.0.0.1`. **Upload fixture** loads a ZIP
 or fixture folder back into the app. `meta.json` holds the

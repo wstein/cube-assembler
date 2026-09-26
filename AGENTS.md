@@ -8,7 +8,7 @@
 
 - `npm install` installs dependencies.
 - `npm run dev` starts the Vite dev server.
-- `npm run fixture:server` starts the optional localhost-only fixture upload server for the dev UI's **Save locally** action.
+- `npm run fixture:server` starts the optional localhost-only fixture upload server for the dev UI's **Upload to localhost** action.
 - `npm run build` builds the client with Vite.
 - `npm test` runs Vitest once; `npm run test:watch` reruns tests during edits.
 
