@@ -2079,11 +2079,6 @@ function App() {
                 </button>
               )}
             </div>
-            {cube && resolvedColorProfile && FACE_ORDER.every((face) => capturedFaces[face]?.croppedImage) && (
-              <p class="card-hint">Resolved sticker colors: {resolvedColorProfile.name}
-                {resolvedColorProfile.selection === 'automatic' ? ' (Automatic)' : ''}
-              </p>
-            )}
             {cube ? (() => {
               // parity.highlight (see parity.ts's HighlightGroup) is a
               // list of readings, each with its own `group` tag (the color
@@ -2253,6 +2248,10 @@ function App() {
             {captureProfile && FACE_ORDER.every((f) => capturedFaces[f]?.croppedImage) && (
               <span class="capture-profile-used" title="Cube profile this capture was taken with">
                 Cube: {captureProfile.name}
+                {cube && resolvedColorProfile && <>
+                  {' · '}Resolved sticker colors: {resolvedColorProfile.name}
+                  {resolvedColorProfile.selection === 'automatic' ? ' (Automatic)' : ''}
+                </>}
               </span>
             )}
             {profileLearningOffer && !showReviewDialog && (
