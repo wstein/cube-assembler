@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { alignFace, estimateOuterCellRatio, estimateTilt, findGridAlignment } from '../src/client/gridAlignment'
+import { alignFace, estimateFaceCorners, estimateOuterCellRatio, estimateTilt, findGridAlignment } from '../src/client/gridAlignment'
 import { placed, scene } from './syntheticFace'
 
 describe('findGridAlignment', () => {
@@ -196,5 +196,35 @@ describe('tilt on cubes with rounded stickers', () => {
   it('keeps an upright face upright when its round stickers suggest a false tilt', () => {
     const { data } = scene(5, placed(guide, 0, 0, 0.95), G, { tilt: 0, radius: 0.5, gap: 0.15, logo: true })
     expect(alignFace(data, W, W, guide, 5).angle).toBe(0)
+  })
+})
+
+describe('estimateFaceCorners', () => {
+  const G = 300, W = Math.round(G * 1.67), guide = { x: (W - G) / 2, y: (W - G) / 2, size: G }
+  const s = G * 0.95, x0 = guide.x + (G - s) / 2, y0 = guide.y + (G - s) / 2
+
+  it('finds the four corners of a face seen at an angle', () => {
+    // Turned toward the camera on the right: the right side is taller.
+    const truth: [number, number][] = [[x0 + 14, y0 + 16], [x0 + s - 4, y0 - 4], [x0 + s + 2, y0 + s + 6], [x0 + 10, y0 + s - 12]]
+    const { data } = scene(5, { x: x0, y: y0, size: s }, G, { corners: truth }, 1.67)
+    const found = alignFace(data, W, W, guide, 5)
+    const corners = estimateFaceCorners(data, W, W, found, 5)
+    expect(corners).not.toBeNull()
+    corners!.forEach((corner, i) => expect(Math.hypot(corner[0] - truth[i][0], corner[1] - truth[i][1])).toBeLessThan(s * 0.02))
+  })
+
+  it('finds them on a tilted face seen at an angle', () => {
+    const c = [x0 + s / 2, y0 + s / 2], t = (5 * Math.PI) / 180
+    const turn = ([x, y]: [number, number]): [number, number] => [c[0] + Math.cos(t) * (x - c[0]) - Math.sin(t) * (y - c[1]), c[1] + Math.sin(t) * (x - c[0]) + Math.cos(t) * (y - c[1])]
+    const truth = ([[x0 + 12, y0 + 14], [x0 + s - 4, y0 - 2], [x0 + s + 2, y0 + s + 4], [x0 + 8, y0 + s - 10]] as [number, number][]).map(turn)
+    const { data } = scene(5, { x: x0, y: y0, size: s }, G, { corners: truth }, 1.67)
+    const corners = estimateFaceCorners(data, W, W, alignFace(data, W, W, guide, 5), 5)
+    expect(corners).not.toBeNull()
+    corners!.forEach((corner, i) => expect(Math.hypot(corner[0] - truth[i][0], corner[1] - truth[i][1])).toBeLessThan(s * 0.025))
+  })
+
+  it('needs no correction for a face seen straight on', () => {
+    const { data } = scene(5, { x: x0, y: y0, size: s }, G, {}, 1.67)
+    expect(estimateFaceCorners(data, W, W, alignFace(data, W, W, guide, 5), 5)).toBeNull()
   })
 })

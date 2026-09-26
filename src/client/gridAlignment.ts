@@ -509,3 +509,66 @@ export function estimateFaceGridSize(data: Uint8ClampedArray, width: number, hei
   if (fits.length === 0 || (fits.length > 1 && fits[0].score < fits[1].score * SIZE_MARGIN)) return null
   return fits[0].gridSize
 }
+
+// The face's four corners (top-left, top-right, bottom-right, bottom-left,
+// in `data`'s pixels) when it is seen at an angle, else null. Starting from
+// the aligned square `found` (turned by its angle), each grid line is found
+// twice: vertical ones in a band near the top and near the bottom, horizontal
+// ones near the left and right. Joined up they give each line's slope, and
+// the outer lines cross at the corners. Null when the face is square enough
+// already (every corner within MIN_CORNER_SHIFT of the square's) or the
+// corners are implausible (beyond MAX_CORNER_SHIFT).
+const MIN_CORNER_SHIFT = 0.01
+const MAX_CORNER_SHIFT = 0.2
+
+export function estimateFaceCorners(
+  data: Uint8ClampedArray,
+  width: number,
+  height: number,
+  found: GridAlignment,
+  gridSize: number
+): [number, number][] | null {
+  const { size } = found
+  const [cx, cy] = found.center
+  const x = cx - size / 2, y = cy - size / 2
+  const turn: Turn = { cx, cy, cos: Math.cos(found.angle), sin: Math.sin(found.angle) }
+  const edges = cellEdges(gridSize, found.outer)
+  const cell = size / gridSize
+  const lines = Math.max(1, Math.round(size / 300))
+  const bands = [0.1, 0.3, 0.7, 0.9]
+  // Position of each grid line in one band's profile, searched around where
+  // the square puts it; outer lines may be a plain edge (see edgeStep).
+  const positions = (values: Float64Array, origin: number) => edges.map((edge, i) => {
+    const outer = i === 0 || i === gridSize
+    const predicted = origin + edge * size
+    let best = { at: predicted, score: -Infinity }
+    for (let p = predicted - cell * 0.3; p <= predicted + cell * 0.3; p += 0.5) {
+      const darkness = seamDarkness(values, p, cell)
+      const score = outer ? Math.max(darkness, edgeStep(values, p, cell)) : darkness
+      if (score > best.score) best = { at: p, score }
+    }
+    return best.at
+  })
+  const across = (vertical: boolean) => {
+    const origin = vertical ? x : y
+    const start = vertical ? y : x
+    const near = profile(data, width, height, vertical, start + size * bands[0], start + size * bands[1], turn, lines)
+    const far = profile(data, width, height, vertical, start + size * bands[2], start + size * bands[3], turn, lines)
+    const a = start + size * (bands[0] + bands[1]) / 2, b = start + size * (bands[2] + bands[3]) / 2
+    const p = positions(near, origin), q = positions(far, origin)
+    // Each line as position = offset + slope * (coordinate along it).
+    return edges.map((_, i) => ({ slope: (q[i] - p[i]) / (b - a), offset: p[i] - (q[i] - p[i]) / (b - a) * a }))
+  }
+  const columns = across(true), rows = across(false)
+  // Outer lines crossing: x = c.offset + c.slope * y and y = r.offset + r.slope * x.
+  const meet = (c: { slope: number; offset: number }, r: { slope: number; offset: number }): [number, number] => {
+    const ux = (c.offset + c.slope * r.offset) / (1 - c.slope * r.slope)
+    return [ux, r.offset + r.slope * ux]
+  }
+  const upright = [meet(columns[0], rows[0]), meet(columns[gridSize], rows[0]), meet(columns[gridSize], rows[gridSize]), meet(columns[0], rows[gridSize])]
+  const square = [[x, y], [x + size, y], [x + size, y + size], [x, y + size]]
+  const shift = Math.max(...upright.map(([ux, uy], i) => Math.hypot(ux - square[i][0], uy - square[i][1])))
+  if (shift < size * MIN_CORNER_SHIFT || shift > size * MAX_CORNER_SHIFT) return null
+  // Back from the upright view into `data`'s pixels.
+  return upright.map(([ux, uy]) => [cx + turn.cos * (ux - cx) - turn.sin * (uy - cy), cy + turn.sin * (ux - cx) + turn.cos * (uy - cy)])
+}
