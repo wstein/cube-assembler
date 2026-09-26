@@ -22,7 +22,7 @@ import {
 } from './cubeAssembly'
 import {
   AUTO_COLORS_ID, GENERIC_COLORS_ID, activeCube, allCubes, activeColorProfile, allColorProfiles, colorPalette, copyCubeSetting,
-  convertLegacySettings, deleteCube, deleteColorProfile, isBuiltinCube, mergeSettings, saveCube, saveColorProfile,
+  convertLegacySettings, cubeGroupName, deleteCube, deleteColorProfile, groupCubesByName, isBuiltinCube, mergeSettings, saveCube, saveColorProfile,
   selectCube, selectColorProfile, setAutoColorMatch, type ProfileSettings,
 } from './profileSettings'
 import { loadProfileSettings, saveProfileSettings, settingsFile, parseSettingsFile } from './profileStorage'
@@ -119,6 +119,18 @@ function loadProfileStore(): ProfileSettings {
 function saveProfileStore(store: ProfileSettings): boolean {
   try { return saveProfileSettings(localStorage, store) }
   catch { return false }
+}
+
+function CubeSelectOptions({ settings }: { settings: ProfileSettings }) {
+  return <>
+    {groupCubesByName(settings).map((group) => (
+      <optgroup label={group.name} key={group.name}>
+        {group.cubes.map((cube) => (
+          <option key={cube.id} value={cube.id}>{cube.size}×{cube.size}</option>
+        ))}
+      </optgroup>
+    ))}
+  </>
 }
 
 interface CameraInfo {
@@ -1995,19 +2007,14 @@ function App() {
             <p>Photograph a cube, get its exact state</p>
           </div>
           <div class="header-spacer" />
+          <span class="cube-current-name">{cubeGroupName(profile)}</span>
           <select
             class="header-profile"
             aria-label="Cube"
             value={profile.id}
             onChange={(e) => { if (!changeCube(e.currentTarget.value)) e.currentTarget.value = profile.id }}
           >
-            {[2, 3, 4, 5, 6, 7].map((size) => (
-              <optgroup label={`${size}×${size}`} key={size}>
-                {allCubes(profileStore).filter((cube) => cube.size === size).map((cube) => (
-                  <option key={cube.id} value={cube.id}>{cube.name}</option>
-                ))}
-              </optgroup>
-            ))}
+            <CubeSelectOptions settings={profileStore} />
           </select>
           <select class="header-profile" aria-label="Colors" value={profileStore.activeColorsId}
             onChange={(e) => applyProfileStore(selectColorProfile(profileStore, e.currentTarget.value))}>
@@ -2493,19 +2500,14 @@ function App() {
                 </summary>
                 <div class="capture-size-row">
                   <label class="capture-size-label" for="cube-profile">Cube:</label>
+                  <span class="capture-size-label">{cubeGroupName(profile)}</span>
                   <select
                     id="cube-profile"
                     class="cube-profile-select"
                     value={profile.id}
                     onChange={(e) => { if (!changeCube(e.currentTarget.value)) e.currentTarget.value = profile.id }}
                   >
-                    {[2, 3, 4, 5, 6, 7].map((size) => (
-                      <optgroup label={`${size}×${size}`} key={size}>
-                        {allCubes(profileStore).filter((cube) => cube.size === size).map((cube) => (
-                          <option key={cube.id} value={cube.id}>{cube.name}</option>
-                        ))}
-                      </optgroup>
-                    ))}
+                    <CubeSelectOptions settings={profileStore} />
                   </select>
                   <button
                     type="button"
