@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { STICKER_COLORS } from '../src/client/imageProcessing'
-import { assessPalette, blendColorProfile, canCreateProfileFromCapture, matchColorProfile, profileColorFitPercent, shouldBlendColorProfile, updateProfileFromCapture } from '../src/client/colorProfileLearning'
+import { assessPalette, blendColorProfile, canCreateProfileFromCapture, matchColorProfile, matchPartialColorProfile, profileColorFitPercent, shouldBlendColorProfile, updateProfileFromCapture } from '../src/client/colorProfileLearning'
 import { genericColorProfile, type ColorProfile } from '../src/client/profileSettings'
 
 const base: ColorProfile = { id: 'base', name: 'Base', colors: STICKER_COLORS, captures: 4 }
@@ -68,6 +68,17 @@ describe('color profile learning', () => {
     expect(matchColorProfile([base, near], STICKER_COLORS)?.id).toBe('base')
     expect(matchColorProfile([near], shifted)?.id).toBe('near')
     expect(matchColorProfile([{ ...base, id: 'same' }, base], STICKER_COLORS)).toBeNull()
+  })
+
+  it('uses partial captured faces only for a clear provisional saved-profile match', () => {
+    const vivid: ColorProfile = { ...base, id: 'vivid', colors: { ...STICKER_COLORS, R: { r: 235, g: 20, b: 35 }, G: { r: 20, g: 175, b: 55 } } }
+    const muted: ColorProfile = { ...base, id: 'muted', colors: { ...STICKER_COLORS, R: { r: 160, g: 60, b: 65 }, G: { r: 65, g: 125, b: 75 } } }
+    const samples = [vivid.colors.R, vivid.colors.G, vivid.colors.R, vivid.colors.G]
+    expect(matchPartialColorProfile([vivid, muted], samples)?.id).toBe('vivid')
+    expect(matchPartialColorProfile([vivid, { ...vivid, id: 'duplicate' }], samples)).toBeNull()
+    expect(matchPartialColorProfile([{ ...vivid, captures: 0 }], samples)).toBeNull()
+    expect(matchPartialColorProfile([vivid], [])).toBeNull()
+    expect(matchPartialColorProfile([vivid], Array(9).fill(vivid.colors.W))).toBeNull()
   })
 
   it('reports a bounded profile color fit separately from sticker confidence', () => {

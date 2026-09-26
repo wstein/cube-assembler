@@ -36,13 +36,17 @@ Sampling setup adjusts the gap around each sticker on a named cube. **New colors
 copies the current palette into a named profile such as GoCube, ready to learn
 from its first valid capture; its name can be edited in Sampling setup. Built-in
 cubes and Generic colors are read-only; capture learning never changes Generic colors.
-**Automatic colors** starts each capture without a saved palette, learns from
-all six faces, and uses a saved profile as a classification reference only
-after a clear match. If none matches, the result is named **Colors from this
-capture**. A previous Automatic match does not preselect the next capture.
+**Automatic colors** reads the first face from camera hues, then compares raw
+sticker readings from captured faces with saved palettes. A clear provisional
+match supplies the next live preview and capture reading; a close tie stays on
+camera hues. The settings summary shows the current preview palette. Once all
+six faces are captured, the app recalibrates them together and resolves one
+final saved profile if it matches clearly. Otherwise the result is named
+**Colors from this capture**. A previous capture's match is never preselected.
 Selecting a profile by name keeps that manual choice. After review, the
-Capture card shows the profile used beside the cube profile, its six-color
-fit score when a saved profile matched, and the first-pass camera hue method.
+Capture card shows the final profile beside the cube profile, its six-color
+fit score when a saved profile matched, and how the first and later previews
+were classified.
 The fit score describes palette similarity, not the probability of a brand.
 Backdrop white balance excludes a 25% band around the detected face. Once two
 faces have backdrop readings, the live preview and next camera capture use a
