@@ -17,11 +17,11 @@ Use two-space indentation and follow the surrounding file's quote and semicolon 
 
 ## Testing Guidelines
 
-Add focused Vitest coverage for scanner, color, and capture-flow changes. Use synthetic cases for edge conditions and saved photos for regressions. Relevant suites include `test/gridAlignment.test.ts`, `test/gridAlignmentRealCrops.test.ts`, `test/gridSizeDetection.test.ts`, and `test/autoCapture.test.ts`. Run a targeted suite, for example `npx vitest run test/gridAlignment.test.ts`, then `npm test`. Include no-cube scenes when changing live face detection. Follow `test/fixtures/README.md` before adding capture images.
+Use test-driven development for behavior changes: write a focused failing test, implement the smallest fix, then refactor with the test passing. Use synthetic cases for edge conditions and saved photos for regressions. Relevant suites include `test/gridAlignment.test.ts`, `test/gridAlignmentRealCrops.test.ts`, `test/gridSizeDetection.test.ts`, and `test/autoCapture.test.ts`. Run a targeted suite, for example `npx vitest run test/gridAlignment.test.ts`, then `npm test`. Include no-cube scenes when changing live face detection. Follow `test/fixtures/README.md` before adding capture images.
 
 ## Commit & Pull Request Guidelines
 
-Follow recent Conventional Commit messages such as `feat(capture): ...`, `fix(capture): ...`, and `docs(capture): ...`. Keep commits focused. In pull requests, explain the user-visible change, link an issue when applicable, list test results, and attach before-and-after screenshots for scanner or UI changes.
+Make multiple atomic, focused commits when a task has distinct changes; keep each commit independently reviewable and avoid mixing unrelated work. Follow Conventional Commit messages such as `feat(capture): ...`, `fix(capture): ...`, and `docs(capture): ...`. In pull requests, explain the user-visible change, link an issue when applicable, list test results, and attach before-and-after screenshots for scanner or UI changes.
 
 ## Scanner Modes
 
