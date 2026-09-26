@@ -509,6 +509,14 @@ function cleanSamples(): { rgb: RGB; colorGuess: string }[] {
 }
 
 describe('learnStickerColors', () => {
+  it('uses the selected profile as the common six-face color reference', () => {
+    const reference = { ...STICKER_COLORS, R: { ...STICKER_COLORS.R, g: STICKER_COLORS.R.g + 20 } }
+    const generic = learnStickerColors(cleanSamples())!
+    const selected = learnStickerColors(cleanSamples(), reference)!
+    expect(selected.colors.R.g).toBeGreaterThan(generic.colors.R.g)
+    expect(selected.labelsBySampleIndex).toEqual(generic.labelsBySampleIndex)
+  })
+
   it('recovers exact canonical centroids and perfect labels from a noise-free capture', () => {
     const learned = learnStickerColors(cleanSamples())
     expect(learned).not.toBeNull()

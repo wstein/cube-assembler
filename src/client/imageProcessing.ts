@@ -662,14 +662,14 @@ function shrinkTowardCanonical(learned: RGB, canonical: RGB, sampleCount: number
 // mismatch to poison, and no gain to overshoot — each cluster centroid IS
 // the learned color, so a sparse cluster just means a less-precise learned
 // color, not a runaway correction applied to everything.
-export function learnStickerColors(samples: StickerSample[]): LearnedColors | null {
+export function learnStickerColors(samples: StickerSample[], referencePalette: Record<string, RGB> = STICKER_COLORS): LearnedColors | null {
   const points = samples.map((s) => s.rgb)
   const K = 6
   if (points.length < K) return null
 
   const centroids = kMeansCluster(points, K)
   const canonicalKeys = Object.keys(STICKER_COLORS)
-  const canonicalList = canonicalKeys.map((k) => STICKER_COLORS[k])
+  const canonicalList = canonicalKeys.map((k) => referencePalette[k])
   const permutation = bestPermutationMatch(centroids, canonicalList)
 
   // Provisional assignment against the raw k-means centroids, used only to
@@ -1636,7 +1636,8 @@ export async function redetectFaceColors(
   croppedImageDataUrl: string,
   gridSize: number,
   gains: RGB,
-  sampling: SamplingGeometry = DEFAULT_SAMPLING
+  sampling: SamplingGeometry = DEFAULT_SAMPLING,
+  palette?: Record<string, RGB>
 ): Promise<ColorDetectionResult> {
   const img = await loadImageFromDataUrl(croppedImageDataUrl)
   const canvas = document.createElement('canvas')
@@ -1666,7 +1667,7 @@ export async function redetectFaceColors(
 
   // The stored photo was cropped to the aligned square at capture time -
   // sample exactly the guide here instead of aligning it a second time.
-  return extractCubeFaceColors(padded, gridSize, gains, sampling, undefined, computeFaceBounds(padded))
+  return extractCubeFaceColors(padded, gridSize, gains, sampling, palette, computeFaceBounds(padded))
 }
 
 export interface LearnedColorClassificationResult {
@@ -1741,15 +1742,16 @@ export async function runGlobalWhiteBalance(
   faceCroppedImages: Record<string, string>,
   gridSize: number,
   faceGains?: Record<string, RGB>,
-  sampling: SamplingGeometry = DEFAULT_SAMPLING
+  sampling: SamplingGeometry = DEFAULT_SAMPLING,
+  referencePalette?: Record<string, RGB>
 ): Promise<LearnedColorClassificationResult> {
   const baselineFaces: Record<string, ColorDetectionResult> = {}
   for (const [face, dataUrl] of Object.entries(faceCroppedImages)) {
     const gains = faceGains?.[face] ? limitBackgroundGain(faceGains[face]) : NEUTRAL_GAINS
-    baselineFaces[face] = await redetectFaceColors(dataUrl, gridSize, gains, sampling)
+    baselineFaces[face] = await redetectFaceColors(dataUrl, gridSize, gains, sampling, referencePalette)
   }
 
-  return classifyAcrossFaces(baselineFaces)
+  return classifyAcrossFaces(baselineFaces, referencePalette)
 }
 
 // The balanced cross-face assignment behind runGlobalWhiteBalance, on
@@ -1761,7 +1763,7 @@ export async function runGlobalWhiteBalance(
 // per color. A center misread past its logo was otherwise one sticker too
 // many for its color, and the balance pushed the least typical real sticker
 // of that color out (a blue read 19% "white").
-export function classifyAcrossFaces(baselineFaces: Record<string, ColorDetectionResult>): LearnedColorClassificationResult {
+export function classifyAcrossFaces(baselineFaces: Record<string, ColorDetectionResult>, referencePalette?: Record<string, RGB>): LearnedColorClassificationResult {
   const gridSize = Object.values(baselineFaces)[0]?.colors.length ?? 0
   const middle = (gridSize - 1) / 2
   const fixedCenters = gridSize >= 3 && gridSize % 2 === 1 && Object.keys(baselineFaces).length === 6
@@ -1776,7 +1778,7 @@ export function classifyAcrossFaces(baselineFaces: Record<string, ColorDetection
     }
   }
 
-  const learned = learnStickerColors(samples)
+  const learned = learnStickerColors(samples, referencePalette)
   if (!learned) return { learned: null, applied: false, faces: baselineFaces }
 
   // Every sticker's final color/confidence comes directly from
@@ -1790,6 +1792,8 @@ export function classifyAcrossFaces(baselineFaces: Record<string, ColorDetection
       colors: det.colors.map((row) => [...row]),
       cellConfidences: det.cellConfidences.map((row) => [...row]),
       cellColors: det.cellColors,
+      centerColor: det.centerColor,
+      outerCellRatio: det.outerCellRatio,
       cellLookalikes: det.colors.map((row) => row.map(() => null)),
       confidence: 0,
     }
