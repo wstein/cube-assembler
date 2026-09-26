@@ -118,7 +118,7 @@ export interface OKLCH {
 
 export type Oklab = { l: number; a: number; b: number }
 
-function srgbChannelToLinear(c: number): number {
+export function srgbChannelToLinear(c: number): number {
   const v = c / 255
   return v <= 0.04045 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4)
 }
@@ -141,7 +141,7 @@ export function rgbToOklab(rgb: RGB): Oklab {
   }
 }
 
-function linearChannelToSrgb(v: number): number {
+export function linearChannelToSrgb(v: number): number {
   const clamped = Math.max(0, Math.min(1, v))
   const encoded = clamped <= 0.0031308 ? clamped * 12.92 : 1.055 * Math.pow(clamped, 1 / 2.4) - 0.055
   return Math.max(0, Math.min(255, Math.round(encoded * 255)))
