@@ -43,10 +43,11 @@ describe('local fixture upload server', () => {
     return fetch(`${url}/upload`, { method: 'POST', headers, body: form })
   }
 
-  it('writes exactly the seven fixture files and refuses GET', async () => {
+  it('pings without exposing files, writes seven files, and refuses downloads', async () => {
     await start()
-    const probe = await fetch(`${url}/upload`, { method: 'POST', headers: { 'X-Fixture-Probe': '1' } })
-    expect(probe.status).toBe(204)
+    const ping = await fetch(`${url}/ping`)
+    expect(ping.status).toBe(204)
+    expect(await ping.text()).toBe('')
     expect(await readdir(root!)).toEqual([])
     const response = await upload(fixtureForm())
     expect(response.status).toBe(201)
@@ -55,6 +56,7 @@ describe('local fixture upload server', () => {
     ])
     expect(JSON.parse(await readFile(join(root!, 'capture-test', 'meta.json'), 'utf8')).gridSize).toBe(3)
     expect((await fetch(`${url}/upload`)).status).toBe(405)
+    expect((await fetch(`${url}/ping`, { method: 'POST' })).status).toBe(405)
     expect((await fetch(`${url}/`)).status).toBe(404)
   })
 
