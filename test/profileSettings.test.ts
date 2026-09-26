@@ -3,7 +3,7 @@ import { STICKER_COLORS } from '../src/client/imageProcessing'
 import {
   AUTO_COLORS_ID, EMPTY_SETTINGS, GENERIC_COLORS_ID, GENERIC_STICKER_COLORS, activeColorProfile, activeCube, allCubes, builtinCube,
   captureColorProfileSnapshot, capturePalette, colorPalette, convertLegacySettings, genericColorProfile, copyColorProfile, copyCubeSetting, cubesForSize, deleteColorProfile, groupCubesByName, mergeSettings, parseProfileSettings,
-  saveColorProfile, saveCube, selectColorProfile, selectCube, setAutoColorMatch, resolvedColorProfileSnapshot,
+  renameColorProfile, renameCube, saveColorProfile, saveCube, selectColorProfile, selectCube, setAutoColorMatch, resolvedColorProfileSnapshot,
 } from '../src/client/profileSettings'
 
 describe('separate cube and color settings', () => {
@@ -142,5 +142,35 @@ describe('separate cube and color settings', () => {
     expect(settings.colors).toMatchObject([{ id: 'colors-old-cube', name: 'My 3×3 colors', captures: 1 }])
     expect(settings.activeColorsId).toBe('colors-old-cube')
     expect(JSON.stringify(legacy)).toBe(before)
+  })
+})
+
+describe('renaming profiles', () => {
+  const cube = { id: 'cube-a', name: 'GAN', size: 3, sampling: { stickerCore: 0.65 } }
+  const colors = { id: 'colors-a', name: 'Daylight', colors: colorPalette({ colors: STICKER_COLORS }), captures: 1 }
+  const settings = { ...EMPTY_SETTINGS, cubes: [cube], colors: [colors], activeCubeBySize: { 3: 'cube-a' }, activeColorsId: 'colors-a' }
+
+  it('renames a saved cube and keeps it active', () => {
+    const next = renameCube(settings, 'cube-a', '  GAN 356  ')
+    expect(next.cubes[0]).toEqual({ ...cube, name: 'GAN 356' })
+    expect(next.activeCubeBySize[3]).toBe('cube-a')
+  })
+
+  it('renames a saved color profile and keeps it selected', () => {
+    const next = renameColorProfile(settings, 'colors-a', 'Desk lamp')
+    expect(next.colors[0]).toEqual({ ...colors, name: 'Desk lamp' })
+    expect(next.activeColorsId).toBe('colors-a')
+  })
+
+  it('caps names at 60 characters', () => {
+    expect(renameCube(settings, 'cube-a', 'x'.repeat(80)).cubes[0].name).toHaveLength(60)
+  })
+
+  it('refuses built-in profiles, unknown ids and empty names', () => {
+    expect(() => renameCube(settings, builtinCube(3).id, 'Mine')).toThrow()
+    expect(() => renameColorProfile(settings, GENERIC_COLORS_ID, 'Mine')).toThrow()
+    expect(() => renameColorProfile(settings, AUTO_COLORS_ID, 'Mine')).toThrow()
+    expect(() => renameCube(settings, 'nope', 'Mine')).toThrow()
+    expect(() => renameColorProfile(settings, 'colors-a', '   ')).toThrow()
   })
 })
