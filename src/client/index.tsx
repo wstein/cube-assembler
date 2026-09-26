@@ -3652,6 +3652,7 @@ function App() {
           faces={FACE_ORDER.filter((f) => capturedFaces[f]?.croppedImage).map((f) => ({
             face: f, label: FACE_DISPLAY_LABEL[f], photo: capturedFaces[f].croppedImage!,
             gains: appliedBackgroundGains[f] ?? NEUTRAL_GAINS, background: capturedFaces[f].backgroundColor ?? null,
+            stickers: capturedFaces[f].cellColors,
           }))}
           reference={backdropReference(Object.fromEntries(FACE_ORDER.map((f) => [f, capturedFaces[f]?.backgroundColor ?? null])))}
           onClose={() => setShowBackdropDialog(false)}

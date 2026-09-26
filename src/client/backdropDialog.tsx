@@ -1,9 +1,11 @@
 // Shows what the backdrop white balance did to each face: the photo as
-// captured next to the same photo adjusted by that face's gains (the way its
-// stickers were adjusted before classification), with the gains and the
-// face's backdrop against the median backdrop every face is brought to.
+// captured next to the same photo adjusted by that face's gains, with the
+// gains and the face's backdrop against the median backdrop every face is
+// brought to. The adjusted photo only illustrates the adjustment: the
+// classifier picks each sticker's pixels on the original photo and adjusts
+// their average, so the exact colors it used are shown as sticker grids.
 import { useEffect, useState } from 'preact/hooks'
-import { applyGainsToPixels, type RGB } from './imageProcessing'
+import { applyGainsToPixels, removeGains, type RGB } from './imageProcessing'
 
 export interface BackdropFace {
   face: string
@@ -12,6 +14,8 @@ export interface BackdropFace {
   photo: string
   gains: RGB
   background: RGB | null
+  // The sticker colors the classifier used (after the adjustment), row by row.
+  stickers?: RGB[][]
 }
 
 interface Props {
@@ -53,6 +57,17 @@ function useAdjustedPhoto(photo: string, gains: RGB): string | null {
   return url
 }
 
+function StickerGrid({ colors, label }: { colors: RGB[][]; label: string }) {
+  return (
+    <figure class="backdrop-stickers">
+      <div class="backdrop-sticker-grid" style={{ gridTemplateColumns: `repeat(${colors.length}, 1fr)` }} role="img" aria-label={label}>
+        {colors.flat().map((color, i) => <span key={i} style={{ background: css(color) }} title={css(color)} />)}
+      </div>
+      <figcaption>{label}</figcaption>
+    </figure>
+  )
+}
+
 function FaceRow({ face, reference }: { face: BackdropFace; reference: RGB | null }) {
   const adjusted = useAdjustedPhoto(face.photo, face.gains)
   const channels = [['R', face.gains.r], ['G', face.gains.g], ['B', face.gains.b]] as const
@@ -68,6 +83,12 @@ function FaceRow({ face, reference }: { face: BackdropFace; reference: RGB | nul
         {adjusted ? <img src={adjusted} alt={`${face.label} after the backdrop adjustment`} /> : <div class="backdrop-pending" />}
         <figcaption>Backdrop adjusted</figcaption>
       </figure>
+      {face.stickers && (
+        <div class="backdrop-sticker-pair">
+          <StickerGrid colors={face.stickers.map((row) => row.map((color) => removeGains(color, face.gains)))} label="Stickers before" />
+          <StickerGrid colors={face.stickers} label="Stickers used" />
+        </div>
+      )}
       <div class="backdrop-details">
         <p class={strong ? 'backdrop-strong' : ''}>
           {channels.map(([name, gain]) => (
@@ -98,7 +119,8 @@ export function BackdropDialog({ faces, reference, onClose }: Props) {
         </div>
         <p class="backdrop-intro">
           Before the six faces are classified together, each face is scaled so the backdrop around it matches the median backdrop of all faces.
-          The adjusted photo shows the colors the classifier saw.
+          The adjusted photo illustrates that scaling. The sticker grids show the exact colors the classifier used, before and after it:
+          it picks each sticker's pixels on the original photo and scales their average, which can differ from the photo by a few shades.
         </p>
         <div class="backdrop-rows">
           {faces.map((face) => <FaceRow key={face.face} face={face} reference={reference} />)}
