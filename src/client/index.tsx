@@ -2208,7 +2208,8 @@ function App() {
     const reviewPhoto = photoFace
       ? { size: puzzleSize, src: capturedFaces[photoFace].croppedImage!, label: `${FACE_DISPLAY_LABEL[photoFace]} face` } : null
     return <ProfilesPage tab={profilesPageTab} settings={profileStore} onChange={applyProfileStore}
-      capture={reviewCapture.faces.length ? reviewCapture : null} photo={reviewPhoto} onClose={() => { location.hash = '' }} />
+      capture={reviewCapture.faces.length ? reviewCapture : null} photo={reviewPhoto} onClose={() => { location.hash = '' }}
+      onExport={handleDownloadSampling} onImport={handleUploadSampling} fileMessage={samplingFileMessage} />
   }
 
   return (
@@ -2912,10 +2913,10 @@ function App() {
                   </p>
                   <div class="sampling-setup-actions">
                     <button type="button" class="btn btn-secondary btn-sm" onClick={handleDownloadSampling}>
-                      ↓ Download
+                      ↓ Export cubes &amp; colors
                     </button>
                     <label class="btn btn-secondary btn-sm" title="Load a settings file downloaded earlier">
-                      ↑ Upload
+                      ↑ Import cubes &amp; colors
                       <input type="file" accept=".json,application/json" hidden onChange={handleUploadSampling} />
                     </label>
                     <div class="sampling-setup-actions-spacer" />
