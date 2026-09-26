@@ -21,10 +21,12 @@ import {
   type OrientedCandidate, type OrientationSolution, type FaceKey, type GuidedArrangement, type GuidedCenterIssue,
 } from './cubeAssembly'
 import {
-  parseProfileStore, activeProfile, profilesForSize, saveProfile, selectProfile, deleteProfile,
-  copyCubeProfile,
-  profilePalette, withLearnedColors, withoutLearnedColors, suggestProfile, type CubeProfile, type ProfileStore,
-} from './cubeProfiles'
+  AUTO_COLORS_ID, GENERIC_COLORS_ID, activeCube, allCubes, activeColorProfile, allColorProfiles, colorPalette, copyCubeSetting,
+  convertLegacySettings, deleteCube, deleteColorProfile, isBuiltinCube, mergeSettings, saveCube, saveColorProfile,
+  selectCube, selectColorProfile, setAutoColorMatch, type ProfileSettings,
+} from './profileSettings'
+import { loadProfileSettings, saveProfileSettings, settingsFile, parseSettingsFile } from './profileStorage'
+import { assessPalette, blendColorProfile, matchColorProfile } from './colorProfileLearning'
 import { readFixtureColors } from './fixtureFormat'
 import { buildFixture, summarizeFixture, unzipFixture, zipFixture, type Fixture, type FixtureSummary } from './fixtureZip'
 import { fixtureUploadServerAvailable, uploadFixtureToDevServer } from './fixtureUpload'
@@ -91,20 +93,12 @@ const CAMERA_CONSTRAINTS: MediaTrackConstraints = {
 declare const __APP_VERSION__: string
 declare const __APP_COMMIT__: string
 
-// Cube profiles (see cubeProfiles.ts) are a property of the user's cubes
-// and camera, not of one capture, so they're remembered between sessions -
-// in localStorage, which has room for any number of them (a cookie, used
-// before, held about 9). Storage is per origin: the Pages site and each
-// local dev port keep their own; the settings file moves them between.
-const PROFILES_KEY = 'cube-assembler-profiles'
-// Where earlier versions kept them - read once, moved over and cleared.
+// v3 cube geometry and colors are stored separately; the old cookie is
+// only a migration source and stays untouched for older app versions.
 const LEGACY_PROFILES_COOKIE = 'cube-assembler-profiles'
 // Per-size sampling settings from before cube profiles existed - migrated
 // into generic profiles the same way.
 const LEGACY_SAMPLING_COOKIE = 'cube-assembler-sampling'
-// Marks a downloaded settings file, so uploading some other JSON is refused.
-const PROFILES_FILE_TYPE = 'cube-assembler-profiles'
-const LEGACY_SAMPLING_FILE_TYPE = 'cube-assembler-sampling'
 
 function readCookie(name: string): unknown {
   try {
@@ -115,29 +109,16 @@ function readCookie(name: string): unknown {
   }
 }
 
-function loadProfileStore(): ProfileStore {
-  try {
-    const saved = localStorage.getItem(PROFILES_KEY)
-    if (saved !== null) return parseProfileStore(JSON.parse(saved))
-  } catch {
-    // Storage unavailable or corrupt - fall back to the old cookies.
-  }
+function loadProfileStore(): ProfileSettings {
   const legacy = readCookie(LEGACY_PROFILES_COOKIE) ?? readCookie(LEGACY_SAMPLING_COOKIE)
-  const store = parseProfileStore(legacy)
-  if (legacy !== null && saveProfileStore(store)) {
-    for (const name of [LEGACY_PROFILES_COOKIE, LEGACY_SAMPLING_COOKIE]) document.cookie = `${name}=; path=/; max-age=0; SameSite=Lax`
-  }
-  return store
+  try { return loadProfileSettings(localStorage, legacy) }
+  catch { return convertLegacySettings(legacy) }
 }
 
 // False when the browser won't store it (storage blocked or full).
-function saveProfileStore(store: ProfileStore): boolean {
-  try {
-    localStorage.setItem(PROFILES_KEY, JSON.stringify(store))
-    return true
-  } catch {
-    return false
-  }
+function saveProfileStore(store: ProfileSettings): boolean {
+  try { return saveProfileSettings(localStorage, store) }
+  catch { return false }
 }
 
 interface CameraInfo {
@@ -759,12 +740,11 @@ function App() {
   // let it be turned off for cameras that don't need it (e.g. a rear
   // phone camera fed in via some capture setups).
   const [mirrorPreview, setMirrorPreview] = useState(true)
-  const [profileStore, setProfileStore] = useState<ProfileStore>(loadProfileStore)
-  const profile = activeProfile(profileStore, puzzleSize)
+  const [profileStore, setProfileStore] = useState<ProfileSettings>(loadProfileStore)
+  const profile = activeCube(profileStore, puzzleSize)
+  const colorProfile = activeColorProfile(profileStore)
   const sampling = profile.sampling
-  // This cube's colors from its last capture, if any - what the live
-  // preview and each face's first-pass colors are read against.
-  const palette = useMemo(() => profilePalette(profile), [profile.id, profile.learnedAt])
+  const palette = useMemo(() => colorPalette(colorProfile), [colorProfile.id, colorProfile.updatedAt, colorProfile.captures])
   const [samplingSetupOpen, setSamplingSetupOpen] = useState(false)
   // Upload Fixture option: start the review from what detection reads
   // today instead of the colors the fixture was saved with, so a capture
@@ -774,50 +754,57 @@ function App() {
   // cross-face recalibration didn't run) - what the color-fix picker scores
   // each alternative against.
   const [learnedPalette, setLearnedPalette] = useState<Record<string, RGB> | null>(null)
+  const [pendingPalette, setPendingPalette] = useState<{ colors: Record<string, RGB>; confidentFraction: number; recalibrated: boolean } | null>(null)
+  const [profileLearningOffer, setProfileLearningOffer] = useState<Record<string, RGB> | null>(null)
+  const [newColorName, setNewColorName] = useState('')
   const [samplingFileMessage, setSamplingFileMessage] = useState('')
-  // The cube profile the current capture was taken with (its settings and
-  // remembered colors drove detection) - or, for an uploaded fixture, the
-  // one it recorded. Can differ from the dropdown if that's changed later.
+  // The cube geometry and colors selected when this capture was taken.
   const [captureProfile, setCaptureProfile] = useState<{ id?: string; name: string } | null>(null)
-  // Set after a capture whose colors clearly match another saved cube
-  // better than the selected one: that cube, plus what's needed to move the
-  // just-learned colors over to it (and give the selected cube its old ones
-  // back) if the user switches.
-  const [profileSuggestion, setProfileSuggestion] = useState<{
-    suggested: CubeProfile
-    previous: CubeProfile
-    learned: Record<string, RGB>
-    at: Date
-  } | null>(null)
+  const [captureColorProfile, setCaptureColorProfile] = useState<{ id?: string; name: string } | null>(null)
   // Applied for this session even when the browser won't keep it.
-  const applyProfileStore = (updated: ProfileStore) => {
+  const applyProfileStore = (updated: ProfileSettings) => {
     if (!saveProfileStore(updated)) {
-      setSamplingFileMessage("❌ This browser won't keep cube profiles (storage blocked or full) - download the settings file to save them")
+      setSamplingFileMessage("❌ This browser won't keep settings (storage blocked or full) - download the settings file to save them")
     }
     setProfileStore(updated)
   }
-  const updateSampling = (next: SamplingGeometry) => applyProfileStore(saveProfile(profileStore, { ...profile, sampling: next }))
+  const updateSampling = (next: SamplingGeometry) => {
+    if (isBuiltinCube(profile.id)) return
+    applyProfileStore(saveCube(profileStore, { ...profile, sampling: next }))
+  }
   const [newCubeName, setNewCubeName] = useState<string | null>(null)
   const handleCreateCube = () => {
     if (!newCubeName?.trim()) return
-    applyProfileStore(saveProfile(profileStore, copyCubeProfile(profileStore, profile, newCubeName)))
+    applyProfileStore(saveCube(profileStore, copyCubeSetting(profileStore, profile, newCubeName)))
     setNewCubeName(null)
     setSamplingSetupOpen(true)
   }
-  // Settings file: all cube profiles, so a setup tuned in one browser or
+  const handleCreateColors = () => {
+    if (!profileLearningOffer || !newColorName.trim()) return
+    const id = `colors-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
+    const saved = saveColorProfile(profileStore, {
+      id, name: newColorName.trim().slice(0, 60), colors: profileLearningOffer,
+      captures: 1, updatedAt: new Date().toISOString(),
+    })
+    applyProfileStore(profileStore.activeColorsId === AUTO_COLORS_ID
+      ? setAutoColorMatch(selectColorProfile(saved, AUTO_COLORS_ID), id) : saved)
+    setProfileLearningOffer(null)
+    setNewColorName('')
+  }
+  // Settings file: cubes and colors, so a setup tuned in one browser or
   // on one machine can be carried to another.
   const handleDownloadSampling = () => {
     const blob = new Blob(
-      [JSON.stringify({ type: PROFILES_FILE_TYPE, version: 2, ...profileStore }, null, 2)],
+      [JSON.stringify(settingsFile(profileStore), null, 2)],
       { type: 'application/json' }
     )
     const url = URL.createObjectURL(blob)
     const link = document.createElement('a')
     link.href = url
-    link.download = 'cube-assembler-profiles.json'
+    link.download = 'cube-assembler-settings.json'
     link.click()
     URL.revokeObjectURL(url)
-    setSamplingFileMessage('✓ Cube profiles downloaded')
+    setSamplingFileMessage('✓ Settings downloaded')
   }
   const handleUploadSampling = async (e: Event) => {
     const input = e.currentTarget as HTMLInputElement
@@ -827,18 +814,13 @@ function App() {
     try {
       const data = JSON.parse(await file.text())
       // Files saved before cube profiles held per-size settings instead.
-      const uploaded = data?.type === PROFILES_FILE_TYPE ? parseProfileStore(data)
-        : data?.type === LEGACY_SAMPLING_FILE_TYPE ? parseProfileStore(data.samplingBySize)
-        : null
-      if (!uploaded || uploaded.profiles.length === 0) {
-        setSamplingFileMessage(`❌ ${file.name} isn't a cube profiles file`)
+      const uploaded = parseSettingsFile(data)
+      if (!uploaded) {
+        setSamplingFileMessage(`❌ ${file.name} isn't a settings file`)
         return
       }
-      // Profiles with the same id are replaced, others kept.
-      let merged = profileStore
-      for (const p of uploaded.profiles) merged = saveProfile(merged, p)
-      applyProfileStore({ ...merged, active: { ...merged.active, ...uploaded.active } })
-      setSamplingFileMessage(`✓ Loaded ${uploaded.profiles.map((p) => p.name).join(', ')}`)
+      applyProfileStore(mergeSettings(profileStore, uploaded))
+      setSamplingFileMessage(`✓ Loaded ${uploaded.cubes.length} cubes and ${uploaded.colors.length} color profiles`)
     } catch {
       setSamplingFileMessage(`❌ ${file.name} isn't valid JSON`)
     }
@@ -1065,7 +1047,8 @@ function App() {
   // starts over - keeping it drew e.g. a 5x5's 25 stickers per face into a
   // 6x6 net. Shared by the main size bar and the capture dialog.
   const changePuzzleSize = (size: number) => {
-    if (size === puzzleSize) return
+    if (size === puzzleSize) return true
+    if (Object.keys(capturedFaces).length > 0 && !window.confirm('Changing cube size clears the captured faces. Continue?')) return false
     setPuzzleSize(size)
     setCube(null)
     setParity(null)
@@ -1084,10 +1067,21 @@ function App() {
     setGlobalWhiteBalanceNote(null)
     setAppliedBackgroundGains(null)
     setLearnedPalette(null)
+    setPendingPalette(null)
+    setProfileLearningOffer(null)
     setCaptureProfile(null)
-    setProfileSuggestion(null)
+    setCaptureColorProfile(null)
     setCaptureMessage('')
     setFixtureSaveMessage('')
+    return true
+  }
+
+  const changeCube = (id: string) => {
+    const selected = allCubes(profileStore).find((cube) => cube.id === id)
+    if (!selected) return false
+    if (selected.size !== puzzleSize && !changePuzzleSize(selected.size)) return false
+    applyProfileStore(selectCube(profileStore, id))
+    return true
   }
 
   const handleApplySolved = async () => {
@@ -1286,6 +1280,8 @@ function App() {
   const finalizeAllFacesCaptured = async (newCapturedFaces: Record<string, FaceCaptureData>) => {
     setCaptureMessage('✓ All faces captured! Checking white balance across all stickers...')
     setLoading(true)
+    setPendingPalette(null)
+    setProfileLearningOffer(null)
 
     const canRecalibrate = FACE_ORDER.every((f) => newCapturedFaces[f].croppedImage)
     if (canRecalibrate) {
@@ -1301,15 +1297,16 @@ function App() {
 
         const wb = await runGlobalWhiteBalance(images, puzzleSize, faceGains ?? undefined, sampling)
         setLearnedPalette(wb.learned?.colors ?? null)
+        const confidences = FACE_ORDER.flatMap((face) => wb.faces[face]?.cellConfidences?.flat() ?? [])
+        setPendingPalette(wb.learned ? {
+          colors: wb.learned.colors,
+          confidentFraction: confidences.length ? confidences.filter((value) => value >= 0.7).length / confidences.length : 0,
+          recalibrated: wb.applied,
+        } : null)
         setCaptureProfile({ id: profile.id, name: profile.name })
-        // Remember this cube's colors for its next capture - only from the
-        // camera, since imported photos may be of another cube or light.
-        if (wb.learned && FACE_ORDER.every((f) => newCapturedFaces[f].source === 'camera')) {
-          const at = new Date()
-          const suggested = suggestProfile(profileStore, profile, wb.learned.colors)
-          setProfileSuggestion(suggested ? { suggested, previous: profile, learned: wb.learned.colors, at } : null)
-          applyProfileStore(saveProfile(profileStore, withLearnedColors(profile, wb.learned.colors, at)))
-        }
+        setCaptureColorProfile({ id: colorProfile.id, name: colorProfile.name })
+        // Keep calibration provisional until the customer approves the
+        // complete cube in the orientation review.
         if (wb.applied) {
           const recalibrated = { ...newCapturedFaces }
           for (const f of FACE_ORDER) {
@@ -1325,6 +1322,7 @@ function App() {
         console.error('Global white balance error:', err)
         setGlobalWhiteBalanceNote(null)
         setLearnedPalette(null)
+        setPendingPalette(null)
       }
     }
 
@@ -1387,6 +1385,7 @@ function App() {
           backgroundWhiteBalanceMethod?: string
           sampling?: SamplingGeometry
           profile?: { id?: string; name?: string } | null
+          colorProfile?: { id?: string; name?: string } | null
           protocol?: string | null
         }
       }
@@ -1436,10 +1435,13 @@ function App() {
       }
 
       setCaptureMessage('Detecting colors from the fixture photos...')
-      setProfileSuggestion(null)
+      setPendingPalette(null)
+      setProfileLearningOffer(null)
       setUploadedProtocol(meta.capture?.protocol ?? null)
       const recordedProfile = meta.capture?.profile
       setCaptureProfile(recordedProfile?.name ? { id: recordedProfile.id, name: recordedProfile.name } : null)
+      const recordedColors = meta.capture?.colorProfile
+      setCaptureColorProfile(recordedColors?.name ? { id: recordedColors.id, name: recordedColors.name } : null)
       const images = Object.fromEntries(Object.entries(newEntries).map(([f, d]) => [f, d.croppedImage!]))
       // Background gains are replayed only if made the current way (see
       // BACKGROUND_WB_METHOD); older ones swapped red and orange.
@@ -1670,6 +1672,38 @@ function App() {
     const cubeState = assembleCubeFromFaces(chosen.faces, puzzleSize)
     setCube(cubeState)
     updateParityStatus(cubeState)
+    if (pendingPalette) {
+      let reviewedValid = false
+      try { reviewedValid = checkParity(cubeState, puzzleSize).valid } catch { /* Keep learned colors out of a failed review. */ }
+      const correctedCells = FACE_ORDER.reduce((count, face) => {
+        const captured = capturedFaces[face]
+        if (!captured?.detectedColors) return count + puzzleSize * puzzleSize
+        return count + captured.colors.reduce((sum, row, r) => sum + row.filter((color, c) =>
+          color !== captured.detectedColors?.[r]?.[c]).length, 0)
+      }, 0)
+      const evidence = {
+        reviewedValid,
+        cameraOnly: FACE_ORDER.every((face) => capturedFaces[face]?.source === 'camera'),
+        recalibrated: pendingPalette.recalibrated,
+        confidentFraction: pendingPalette.confidentFraction,
+        correctedFraction: correctedCells / (6 * puzzleSize * puzzleSize),
+      }
+      const automatic = profileStore.activeColorsId === AUTO_COLORS_ID
+      const matched = automatic && reviewedValid && evidence.cameraOnly && evidence.recalibrated
+        ? matchColorProfile(profileStore.colors, pendingPalette.colors) : null
+      const target = automatic ? matched ?? activeColorProfile(setAutoColorMatch(profileStore, null)) : colorProfile
+      const quality = assessPalette(target, pendingPalette.colors, evidence)
+      if (quality.accepted && target.id !== GENERIC_COLORS_ID) {
+        const next = saveColorProfile(profileStore, blendColorProfile(target, pendingPalette.colors, new Date().toISOString()))
+        applyProfileStore(automatic ? setAutoColorMatch(selectColorProfile(next, AUTO_COLORS_ID), target.id) : next)
+      } else if (reviewedValid && evidence.cameraOnly && evidence.recalibrated
+        && evidence.confidentFraction >= 0.8 && evidence.correctedFraction <= 0.02) {
+        if (automatic) applyProfileStore(setAutoColorMatch(profileStore, null))
+        setProfileLearningOffer(pendingPalette.colors)
+        setNewColorName(`${profile.name} colors`)
+      }
+      setPendingPalette(null)
+    }
     setShowReviewDialog(false)
   }
 
@@ -1756,6 +1790,7 @@ function App() {
         // The cube profile the capture was taken with - same condition as
         // camera, since a re-saved upload wasn't shot with the current one.
         profile: FACE_ORDER.some((f) => capturedFaces[f].source === 'camera') ? captureProfile : null,
+        colorProfile: FACE_ORDER.some((f) => capturedFaces[f].source === 'camera') ? captureColorProfile : null,
         // How the photos were taken (see CAPTURE_STEPS) and the cube they
         // were approved as - the fixture test puts the photos together
         // again and checks it gets that cube.
@@ -1947,7 +1982,7 @@ function App() {
 
   return (
     <div class="app-layout">
-      {/* Header: name, puzzle size and the cube profile in use */}
+      {/* Header: name, cube geometry and color settings */}
       <header class="app-header">
         <div class="header-content">
           <svg class="app-logo" width="32" height="32" viewBox="0 0 32 32" aria-hidden="true">
@@ -1960,28 +1995,23 @@ function App() {
             <p>Photograph a cube, get its exact state</p>
           </div>
           <div class="header-spacer" />
-          <div class="size-selector" role="group" aria-label="Puzzle size">
-            {[2, 3, 4, 5, 6, 7].map((size) => (
-              <button
-                key={size}
-                type="button"
-                class={`size-btn ${puzzleSize === size ? 'active' : ''}`}
-                aria-pressed={puzzleSize === size}
-                onClick={() => changePuzzleSize(size)}
-              >
-                {size}×{size}
-              </button>
-            ))}
-          </div>
           <select
             class="header-profile"
-            aria-label="Cube profile"
+            aria-label="Cube"
             value={profile.id}
-            onChange={(e) => applyProfileStore(selectProfile(profileStore, puzzleSize, e.currentTarget.value))}
+            onChange={(e) => { if (!changeCube(e.currentTarget.value)) e.currentTarget.value = profile.id }}
           >
-            {profilesForSize(profileStore, puzzleSize).map((p) => (
-              <option key={p.id} value={p.id}>{p.name}</option>
+            {[2, 3, 4, 5, 6, 7].map((size) => (
+              <optgroup label={`${size}×${size}`} key={size}>
+                {allCubes(profileStore).filter((cube) => cube.size === size).map((cube) => (
+                  <option key={cube.id} value={cube.id}>{cube.name}</option>
+                ))}
+              </optgroup>
             ))}
+          </select>
+          <select class="header-profile" aria-label="Colors" value={profileStore.activeColorsId}
+            onChange={(e) => applyProfileStore(selectColorProfile(profileStore, e.currentTarget.value))}>
+            {allColorProfiles(profileStore).map((colors) => <option key={colors.id} value={colors.id}>{colors.name}</option>)}
           </select>
         </div>
       </header>
@@ -2183,8 +2213,15 @@ function App() {
             {captureProfile && FACE_ORDER.every((f) => capturedFaces[f]?.croppedImage) && (
               <span class="capture-profile-used" title="Cube profile this capture was taken with">
                 Cube: {captureProfile.name}
-                {profileSuggestion && ` · looks like ${profileSuggestion.suggested.name}`}
               </span>
+            )}
+            {profileLearningOffer && !showReviewDialog && (
+              <div class="profile-suggestion" role="status">
+                <span>Save these reviewed colors as a new profile for future captures.</span>
+                <input aria-label="New color profile name" maxLength={60} value={newColorName}
+                  onInput={(e) => setNewColorName(e.currentTarget.value)} />
+                <button type="button" class="btn btn-secondary btn-sm" disabled={!newColorName.trim()} onClick={handleCreateColors}>Save new colors</button>
+              </div>
             )}
             <div class="card-divider" />
             <div class="capture-alternatives">
@@ -2449,33 +2486,25 @@ function App() {
                 <summary>
                   Cube & camera settings
                   <span class="capture-settings-summary">
-                    {' '}{puzzleSize}×{puzzleSize} · {profile.name}{mirrorPreview ? ' · mirrored' : ''}
+                    {' '}{puzzleSize}×{puzzleSize} · {profile.name} · {profileStore.activeColorsId === AUTO_COLORS_ID
+                      ? `Auto colors${profileStore.autoMatchedColorsId ? ` (${colorProfile.name})` : ''}` : colorProfile.name}
+                    {mirrorPreview ? ' · mirrored' : ''}
                   </span>
                 </summary>
-                <div class="capture-size-row">
-                  <span class="capture-size-label">Cube size:</span>
-                  <div class="capture-size-buttons">
-                    {[2, 3, 4, 5, 6, 7].map((size) => (
-                      <button
-                        key={size}
-                        class={`wb-btn ${puzzleSize === size ? 'active' : ''}`}
-                        onClick={() => changePuzzleSize(size)}
-                      >
-                        {size}×{size}
-                      </button>
-                    ))}
-                  </div>
-                </div>
                 <div class="capture-size-row">
                   <label class="capture-size-label" for="cube-profile">Cube:</label>
                   <select
                     id="cube-profile"
                     class="cube-profile-select"
                     value={profile.id}
-                    onChange={(e) => applyProfileStore(selectProfile(profileStore, puzzleSize, e.currentTarget.value))}
+                    onChange={(e) => { if (!changeCube(e.currentTarget.value)) e.currentTarget.value = profile.id }}
                   >
-                    {profilesForSize(profileStore, puzzleSize).map((p) => (
-                      <option key={p.id} value={p.id}>{p.name}</option>
+                    {[2, 3, 4, 5, 6, 7].map((size) => (
+                      <optgroup label={`${size}×${size}`} key={size}>
+                        {allCubes(profileStore).filter((cube) => cube.size === size).map((cube) => (
+                          <option key={cube.id} value={cube.id}>{cube.name}</option>
+                        ))}
+                      </optgroup>
                     ))}
                   </select>
                   <button
@@ -2486,6 +2515,13 @@ function App() {
                   >
                     ＋ New cube
                   </button>
+                </div>
+                <div class="capture-size-row">
+                  <label class="capture-size-label" for="color-profile">Colors:</label>
+                  <select id="color-profile" class="cube-profile-select" value={profileStore.activeColorsId}
+                    onChange={(e) => applyProfileStore(selectColorProfile(profileStore, e.currentTarget.value))}>
+                    {allColorProfiles(profileStore).map((colors) => <option key={colors.id} value={colors.id}>{colors.name}</option>)}
+                  </select>
                 </div>
                 {newCubeName !== null && (
                   <div class="capture-size-row new-cube-form">
@@ -2536,9 +2572,10 @@ function App() {
                       class="cube-profile-name"
                       maxLength={60}
                       value={profile.name}
+                      disabled={isBuiltinCube(profile.id)}
                       onChange={(e) => {
                         const name = e.currentTarget.value.trim()
-                        if (name) applyProfileStore(saveProfile(profileStore, { ...profile, name }))
+                        if (name) applyProfileStore(saveCube(profileStore, { ...profile, name }))
                       }}
                     />
                   </label>
@@ -2552,29 +2589,32 @@ function App() {
                       max={70}
                       step={5}
                       value={Math.round((1 - sampling.stickerCore) * 100)}
+                      disabled={isBuiltinCube(profile.id)}
                       onInput={(e) => updateSampling({ ...sampling, stickerCore: 1 - Number(e.currentTarget.value) / 100 })}
                     />
                   </label>
+                  {isBuiltinCube(profile.id) && <p class="sampling-setup-hint">To change this gap, choose New cube and save a named copy.</p>}
                   <p class="sampling-setup-hint">
-                    {profile.learnedAt ? (
+                    {profileStore.activeColorsId === AUTO_COLORS_ID ? (
+                      `Automatic colors currently use ${colorProfile.name}. A clear profile match is selected after a reviewed capture.`
+                    ) : colorProfile.updatedAt ? (
                       <>
-                        Colors learned from this cube's capture on {new Date(profile.learnedAt).toLocaleString()}.{' '}
+                        Colors learned from {colorProfile.captures} capture(s), last updated {new Date(colorProfile.updatedAt).toLocaleString()}.{' '}
                         <button
                           type="button"
                           class="link-button"
-                          onClick={() => applyProfileStore(saveProfile(profileStore, withoutLearnedColors(profile)))}
+                          onClick={() => applyProfileStore(deleteColorProfile(profileStore, colorProfile.id))}
                         >
-                          Forget them
+                          Delete colors
                         </button>
                       </>
                     ) : (
-                      "This cube's colors will be learned from its first capture."
+                      'Generic colors are a read-only starting palette. A reviewed capture can be saved as new colors.'
                     )}
                   </p>
                   <p class="sampling-setup-hint">
                     Hold a face in the square. Each small box should sit fully inside its sticker, and its outline
-                    should show that sticker's color. The striped band around the square is left out when
-                    balancing colors - widen it until it covers your fingers and the edge of the cube.
+                    should show that sticker's color. The outer 25% band is left out when balancing colors.
                   </p>
                   <div class="sampling-setup-actions">
                     <button type="button" class="btn btn-secondary btn-sm" onClick={handleDownloadSampling}>
@@ -2585,12 +2625,12 @@ function App() {
                       <input type="file" accept=".json,application/json" hidden onChange={handleUploadSampling} />
                     </label>
                     <div class="sampling-setup-actions-spacer" />
-                    {profileStore.profiles.some((p) => p.id === profile.id) && (
+                    {!isBuiltinCube(profile.id) && (
                       <button
                         type="button"
                         class="btn btn-secondary btn-sm"
                         title="Forget this cube's settings"
-                        onClick={() => applyProfileStore(deleteProfile(profileStore, profile.id))}
+                        onClick={() => applyProfileStore(deleteCube(profileStore, profile.id))}
                       >
                         Delete cube
                       </button>
@@ -2678,7 +2718,6 @@ function App() {
               {captureProfile && (
                 <p class="capture-profile-used review-profile-used">
                   Cube: <strong>{captureProfile.name}</strong>
-                  {profileSuggestion && <> · looks like <strong>{profileSuggestion.suggested.name}</strong></>}
                 </p>
               )}
               {globalWhiteBalanceNote && (
@@ -2701,30 +2740,6 @@ function App() {
                   </div>
                 )
               })()}
-              {profileSuggestion && (
-                <div class="profile-suggestion" role="status">
-                  <span>
-                    These colors look more like your <strong>{profileSuggestion.suggested.name}</strong> than{' '}
-                    <strong>{profileSuggestion.previous.name}</strong>.
-                  </span>
-                  <button
-                    type="button"
-                    class="btn btn-secondary btn-sm"
-                    onClick={() => {
-                      const { suggested, previous, learned, at } = profileSuggestion
-                      const restored = saveProfile(profileStore, previous)
-                      applyProfileStore(saveProfile(restored, withLearnedColors(suggested, learned, at)))
-                      setCaptureProfile({ id: suggested.id, name: suggested.name })
-                      setProfileSuggestion(null)
-                    }}
-                  >
-                    Switch to {profileSuggestion.suggested.name}
-                  </button>
-                  <button type="button" class="btn btn-secondary btn-sm" onClick={() => setProfileSuggestion(null)}>
-                    Keep
-                  </button>
-                </div>
-              )}
               {data && (
                 <>
                   <div class="review-wizard-panes">
