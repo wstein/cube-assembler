@@ -4,6 +4,7 @@ import '../../web/style.css'
 import { AUTO_CAPTURE_MIN_CONFIDENCE, AUTO_CAPTURE_STABLE_FRAMES, TURN_CUE_START, agreedSize, nextAutoCaptureProgress, nextSizeVotes, nextTurnCue, sizeDetectionActive, turnCueCleared, turnPoseChanged, type AutoCaptureProgress, type TurnCuePose, type TurnCueState } from './autoCapture'
 import { oppositeFacePreview } from './capturePresentation'
 import type { ReviewCapture } from './colorReviewPage'
+import { BackdropDialog } from './backdropDialog'
 import { faceSources, pieceKey, sourceIndex } from './netPresentation'
 import { ProfilesPage } from './profilesPage'
 import { profilesHash, profilesTab } from './profilesRoute'
@@ -14,7 +15,7 @@ import { runFullParity, type ParityResult } from './parity'
 import { WIZARD_FACE_ORDER, faceContentKey, groupWizardOptions, pickWizardFace, preferredGuidedArrangementIndex } from './orientationWizard'
 import {
   faceBoundsForMode, captureAndProcessCanvas, captureAndProcessImage, extractBackgroundColor, hasVisibleCubeFace,
-  runGlobalWhiteBalance, classifyAcrossFaces, computeBackgroundGains, BACKGROUND_WB_METHOD, BACKGROUND_CUBE_GAP, NEUTRAL_GAINS, CROP_JPEG_QUALITY,
+  runGlobalWhiteBalance, classifyAcrossFaces, computeBackgroundGains, backdropReference, BACKGROUND_WB_METHOD, BACKGROUND_CUBE_GAP, NEUTRAL_GAINS, CROP_JPEG_QUALITY,
   DEFAULT_SAMPLING, STICKER_MEASUREMENT, stickerSampleRect, colorConfidences, STICKER_COLORS, type SamplingGeometry,
   rgbToOKLCH, hueCircularRange, hueRangesOverlap, linearRange,
   type ColorDetectionResult, type FaceCaptureResult, type RGB,
@@ -954,6 +955,7 @@ function App() {
   // (see computeBackgroundGains) - recorded in saved fixtures, which
   // replay them.
   const [appliedBackgroundGains, setAppliedBackgroundGains] = useState<Record<string, RGB> | null>(null)
+  const [showBackdropDialog, setShowBackdropDialog] = useState(false)
   const [reviewStep, setReviewStep] = useState(0)
   // Captured once per webcam session (device label isn't available until
   // getUserMedia grants permission) - purely informational, attached to
@@ -1638,7 +1640,7 @@ function App() {
       let meta: {
         gridSize: number
         colorsURFDLB?: string
-        faces: Record<string, { photo: string; capturedAt?: string; previewColorProfile?: PreviewColorProfile } & Record<string, unknown>>
+        faces: Record<string, { photo: string; capturedAt?: string; background?: RGB | null; previewColorProfile?: PreviewColorProfile } & Record<string, unknown>>
         capture?: {
           backgroundWhiteBalance?: Record<string, RGB> | null
           backgroundWhiteBalanceMethod?: string
@@ -1685,6 +1687,7 @@ function App() {
           croppedImage: dataUrl,
           source: 'fixture',
           timestamp: faceData.capturedAt ? Date.parse(faceData.capturedAt) || Date.now() : Date.now(),
+          ...(faceData.background && { backgroundColor: faceData.background }),
           ...(faceData.previewColorProfile?.id && faceData.previewColorProfile.name && faceData.previewColorProfile.colors
             && { previewColorProfile: faceData.previewColorProfile }),
         }
@@ -2577,6 +2580,7 @@ function App() {
                       .sort((a, b) => a.timestamp - b.timestamp).map((data) => data.previewColorProfile?.name)) ?? 'not recorded'}
                     {resolvedColorProfile.selection === 'automatic' && automaticResolution && ` · Final: ${describeResolution(automaticResolution)}`}
                     {' · '}Colors {learnedPalette ? 'calibrated from all six faces' : 'not calibrated (six-face calibration unavailable)'}
+                    {appliedBackgroundGains && <>{' · '}<button type="button" class="color-review-link" onClick={() => setShowBackdropDialog(true)}>Compare backdrop adjustment</button></>}
                   </span>
                 </>}
               </span>
@@ -3641,6 +3645,16 @@ function App() {
             </div>
           </div>
         </div>
+      )}
+      {showBackdropDialog && appliedBackgroundGains && (
+        <BackdropDialog
+          faces={FACE_ORDER.filter((f) => capturedFaces[f]?.croppedImage).map((f) => ({
+            face: f, label: FACE_DISPLAY_LABEL[f], photo: capturedFaces[f].croppedImage!,
+            gains: appliedBackgroundGains[f] ?? NEUTRAL_GAINS, background: capturedFaces[f].backgroundColor ?? null,
+          }))}
+          reference={backdropReference(Object.fromEntries(FACE_ORDER.map((f) => [f, capturedFaces[f]?.backgroundColor ?? null])))}
+          onClose={() => setShowBackdropDialog(false)}
+        />
       )}
     </div>
   )
