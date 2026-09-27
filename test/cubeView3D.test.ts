@@ -1,7 +1,11 @@
 import { describe, expect, it } from 'vitest'
 import { createSolvedCube } from '../src/client/cubeAssembly'
 import {
+  applyCubeMove,
   buildCubeMesh,
+  cubeStateToFaces,
+  facesToCubeState,
+  generateScrambleMoves,
   getDefaultZoom,
   getFaceletColor,
   getFaceSeams,
@@ -12,6 +16,7 @@ import {
   mat4RotateX,
   mat4RotateY,
   mat4Translate,
+  rotateVec,
 } from '../src/client/cubeView3D'
 
 describe('cubeView3D math and geometry', () => {
@@ -415,6 +420,91 @@ describe('cubeView3D math and geometry', () => {
       // 7x7: scales less than linear 7 * 2.8 = 19.6
       expect(getDefaultZoom(7)).toBeLessThan(7 * 2.8)
       expect(getDefaultZoom(7)).toBeCloseTo(15.6)
+    })
+  })
+
+  describe('rotateVec', () => {
+    it('rotates vectors 90 degrees around X, Y, and Z axes', () => {
+      const v: [number, number, number] = [0, 1, 0]
+      // 90 deg around Z carries [0, 1, 0] to [-1, 0, 0]
+      const rz = rotateVec(v, 'z', Math.PI / 2)
+      expect(rz[0]).toBeCloseTo(-1)
+      expect(rz[1]).toBeCloseTo(0)
+      expect(rz[2]).toBeCloseTo(0)
+
+      // 90 deg around X carries [0, 1, 0] to [0, 0, 1]
+      const rx = rotateVec(v, 'x', Math.PI / 2)
+      expect(rx[0]).toBeCloseTo(0)
+      expect(rx[1]).toBeCloseTo(0)
+      expect(rx[2]).toBeCloseTo(1)
+
+      // 90 deg around Y carries [1, 0, 0] to [0, 0, -1]
+      const ry = rotateVec([1, 0, 0], 'y', Math.PI / 2)
+      expect(ry[0]).toBeCloseTo(0)
+      expect(ry[1]).toBeCloseTo(0)
+      expect(ry[2]).toBeCloseTo(-1)
+    })
+  })
+
+  describe('interactive layer turns and scramble', () => {
+    it('roundtrips CubeState to Faces and back', () => {
+      const cube = createSolvedCube(3)
+      const faces = cubeStateToFaces(cube, 3)
+      const back = facesToCubeState(faces)
+      expect(back).toEqual(cube)
+    })
+
+    it('4 quarter turns of any face return cube to solved state', () => {
+      const solved = createSolvedCube(3)
+      for (const face of ['U', 'D', 'L', 'R', 'F', 'B'] as const) {
+        let c = solved
+        for (let i = 0; i < 4; i++) {
+          c = applyCubeMove(c, 3, face, 1)
+        }
+        expect(c).toEqual(solved)
+      }
+    })
+
+    it('a clockwise turn followed by counter-clockwise turn returns to solved state', () => {
+      const solved = createSolvedCube(3)
+      for (const face of ['U', 'D', 'L', 'R', 'F', 'B'] as const) {
+        const turned = applyCubeMove(solved, 3, face, 1)
+        expect(turned).not.toEqual(solved)
+        const restored = applyCubeMove(turned, 3, face, -1)
+        expect(restored).toEqual(solved)
+      }
+    })
+
+    it('generates random scramble move sequences without consecutive duplicate faces', () => {
+      const moves = generateScrambleMoves(20)
+      expect(moves.length).toBe(20)
+      for (let i = 1; i < moves.length; i++) {
+        expect(moves[i].face).not.toBe(moves[i - 1].face)
+      }
+    })
+
+    it('builds mesh with animated turning layer rotated properly without crashing', () => {
+      const solved = createSolvedCube(3)
+      const staticMesh = buildCubeMesh(solved, 3)
+      const turningMesh = buildCubeMesh(solved, 3, undefined, true, {
+        face: 'U',
+        angle: Math.PI / 4, // 45 degree mid-turn
+      })
+
+      expect(turningMesh.vertexCount).toBe(staticMesh.vertexCount)
+      expect(turningMesh.indexCount).toBe(staticMesh.indexCount)
+      // Turning layer vertices moved
+      let changedVertices = 0
+      for (let i = 0; i < turningMesh.positions.length; i += 3) {
+        if (
+          Math.abs(turningMesh.positions[i] - staticMesh.positions[i]) > 1e-4 ||
+          Math.abs(turningMesh.positions[i + 2] - staticMesh.positions[i + 2]) >
+            1e-4
+        ) {
+          changedVertices++
+        }
+      }
+      expect(changedVertices).toBeGreaterThan(0)
     })
   })
 })

@@ -7,7 +7,8 @@ import {
   preferenceCookie,
   readPreference,
 } from './preferences'
-import type { CubeState } from './cubeAssembly'
+import type { CubeState, FaceKey } from './cubeAssembly'
+import { turnFace, type Faces, type Axis } from './cubeGeometry'
 
 export const DEFAULT_STICKER_HEX: Record<string, string> = {
   W: '#f7f6f1',
@@ -99,11 +100,87 @@ export function getFaceSeams(
   }
 }
 
+export function rotateVec(
+  v: [number, number, number],
+  axis: Axis,
+  angle: number,
+): [number, number, number] {
+  const cos = Math.cos(angle)
+  const sin = Math.sin(angle)
+  const [x, y, z] = v
+  switch (axis) {
+    case 'x':
+      return [x, y * cos - z * sin, y * sin + z * cos]
+    case 'y':
+      return [x * cos + z * sin, y, -x * sin + z * cos]
+    case 'z':
+      return [x * cos - y * sin, x * sin + y * cos, z]
+  }
+}
+
+export function cubeStateToFaces(cube: CubeState, n: number): Faces {
+  const getGrid = (arr: string[]): string[][] =>
+    Array.from({ length: n }, (_, r) => arr.slice(r * n, (r + 1) * n))
+  return {
+    U: getGrid(cube.u),
+    R: getGrid(cube.r),
+    F: getGrid(cube.f),
+    D: getGrid(cube.d),
+    L: getGrid(cube.l),
+    B: getGrid(cube.b),
+  }
+}
+
+export function facesToCubeState(faces: Faces): CubeState {
+  return {
+    u: faces.U.flat(),
+    r: faces.R.flat(),
+    f: faces.F.flat(),
+    d: faces.D.flat(),
+    l: faces.L.flat(),
+    b: faces.B.flat(),
+  }
+}
+
+export function applyCubeMove(
+  cube: CubeState,
+  n: number,
+  face: FaceKey,
+  quarterTurns = 1,
+): CubeState {
+  const faces = cubeStateToFaces(cube, n)
+  const turned = turnFace(faces, face, quarterTurns)
+  return facesToCubeState(turned)
+}
+
+const SCRAMBLE_FACES: FaceKey[] = ['U', 'D', 'L', 'R', 'F', 'B']
+
+export function generateScrambleMoves(
+  length = 20,
+): Array<{ face: FaceKey; turns: number }> {
+  const moves: Array<{ face: FaceKey; turns: number }> = []
+  let lastFace: FaceKey | null = null
+  for (let i = 0; i < length; i++) {
+    const allowed = SCRAMBLE_FACES.filter((f) => f !== lastFace)
+    const face = allowed[Math.floor(Math.random() * allowed.length)]
+    lastFace = face
+    const turns = [1, -1, 2][Math.floor(Math.random() * 3)]
+    moves.push({ face, turns })
+  }
+  return moves
+}
+
+export interface TurningLayer {
+  face: FaceKey
+  angle: number // in radians
+}
+
 export function buildCubeMesh(
   cube: CubeState,
   n: number,
   palette: Record<string, string> = DEFAULT_STICKER_HEX,
   stickerless = true,
+  turn?: TurningLayer,
 ): MeshData {
   const last = n - 1
   const posList: number[] = []
@@ -472,9 +549,47 @@ export function buildCubeMesh(
           continue
         }
 
-        const cx = x - last / 2
-        const cy = y - last / 2
-        const cz = z - last / 2
+        let cx = x - last / 2
+        let cy = y - last / 2
+        let cz = z - last / 2
+        let getAxes = (faceKey: string) => FACE_AXES[faceKey]
+
+        if (turn && turn.angle !== 0) {
+          const isTurnCubie =
+            (turn.face === 'U' && y === last) ||
+            (turn.face === 'D' && y === 0) ||
+            (turn.face === 'R' && x === last) ||
+            (turn.face === 'L' && x === 0) ||
+            (turn.face === 'F' && z === last) ||
+            (turn.face === 'B' && z === 0)
+
+          if (isTurnCubie) {
+            const axis: Axis =
+              turn.face === 'R' || turn.face === 'L'
+                ? 'x'
+                : turn.face === 'U' || turn.face === 'D'
+                  ? 'y'
+                  : 'z'
+            const sign =
+              turn.face === 'R' || turn.face === 'U' || turn.face === 'F'
+                ? -1
+                : 1
+            const rotAngle = sign * turn.angle
+            const rotated = rotateVec([cx, cy, cz], axis, rotAngle)
+            cx = rotated[0]
+            cy = rotated[1]
+            cz = rotated[2]
+
+            getAxes = (faceKey: string) => {
+              const a = FACE_AXES[faceKey]
+              return {
+                u: rotateVec(a.u, axis, rotAngle),
+                v: rotateVec(a.v, axis, rotAngle),
+                n: rotateVec(a.n, axis, rotAngle),
+              }
+            }
+          }
+        }
 
         if (stickerless) {
           // Solid colored plastic speedcube: rounded edges, rounded corners, no black lines
@@ -485,7 +600,7 @@ export function buildCubeMesh(
             const rgb = hexToRgb(
               palette[colorKey] ?? DEFAULT_STICKER_HEX[colorKey] ?? '#888',
             )
-            const a = FACE_AXES.u
+            const a = getAxes('u')
             const seams = getFaceSeams('u', x, y, z, n)
             addBeveledFace(cx, cy, cz, a.u, a.v, a.n, H, r, rgb, 0, seams)
           }
@@ -494,7 +609,7 @@ export function buildCubeMesh(
             const rgb = hexToRgb(
               palette[colorKey] ?? DEFAULT_STICKER_HEX[colorKey] ?? '#888',
             )
-            const a = FACE_AXES.d
+            const a = getAxes('d')
             const seams = getFaceSeams('d', x, y, z, n)
             addBeveledFace(cx, cy, cz, a.u, a.v, a.n, H, r, rgb, 0, seams)
           }
@@ -503,7 +618,7 @@ export function buildCubeMesh(
             const rgb = hexToRgb(
               palette[colorKey] ?? DEFAULT_STICKER_HEX[colorKey] ?? '#888',
             )
-            const a = FACE_AXES.f
+            const a = getAxes('f')
             const seams = getFaceSeams('f', x, y, z, n)
             addBeveledFace(cx, cy, cz, a.u, a.v, a.n, H, r, rgb, 0, seams)
           }
@@ -512,7 +627,7 @@ export function buildCubeMesh(
             const rgb = hexToRgb(
               palette[colorKey] ?? DEFAULT_STICKER_HEX[colorKey] ?? '#888',
             )
-            const a = FACE_AXES.b
+            const a = getAxes('b')
             const seams = getFaceSeams('b', x, y, z, n)
             addBeveledFace(cx, cy, cz, a.u, a.v, a.n, H, r, rgb, 0, seams)
           }
@@ -521,7 +636,7 @@ export function buildCubeMesh(
             const rgb = hexToRgb(
               palette[colorKey] ?? DEFAULT_STICKER_HEX[colorKey] ?? '#888',
             )
-            const a = FACE_AXES.r
+            const a = getAxes('r')
             const seams = getFaceSeams('r', x, y, z, n)
             addBeveledFace(cx, cy, cz, a.u, a.v, a.n, H, r, rgb, 0, seams)
           }
@@ -530,7 +645,7 @@ export function buildCubeMesh(
             const rgb = hexToRgb(
               palette[colorKey] ?? DEFAULT_STICKER_HEX[colorKey] ?? '#888',
             )
-            const a = FACE_AXES.l
+            const a = getAxes('l')
             const seams = getFaceSeams('l', x, y, z, n)
             addBeveledFace(cx, cy, cz, a.u, a.v, a.n, H, r, rgb, 0, seams)
           }
@@ -546,7 +661,7 @@ export function buildCubeMesh(
           const addFaceWithSticker = (
             faceKey: 'u' | 'd' | 'f' | 'b' | 'r' | 'l',
           ) => {
-            const a = FACE_AXES[faceKey]
+            const a = getAxes(faceKey)
             const seams = getFaceSeams(faceKey, x, y, z, n)
             // 1. Black beveled plastic cubie body
             addBeveledFace(
@@ -918,6 +1033,7 @@ export function CubeView3D({
   stickerless = true,
 }: CubeView3DProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
+  const [currentCube, setCurrentCube] = useState<CubeState>(cube)
   const [pitch, setPitch] = useState<number>(0.42) // ~24 deg
   const [yaw, setYaw] = useState<number>(-0.62) // ~-35 deg
   const [zoom, setZoom] = useState<number>(getDefaultZoom(puzzleSize))
@@ -928,6 +1044,30 @@ export function CubeView3D({
   const [isStickerless, setIsStickerless] = useState<boolean>(() =>
     readPreference(document.cookie, STICKERLESS_COOKIE, stickerless),
   )
+  const [isScrambling, setIsScrambling] = useState<boolean>(false)
+
+  const currentCubeRef = useRef<CubeState>(cube)
+  currentCubeRef.current = currentCube
+
+  useEffect(() => {
+    setCurrentCube(cube)
+    currentCubeRef.current = cube
+    turnQueueRef.current = []
+    currentTurnRef.current = null
+    setIsScrambling(false)
+    forceUpdateMeshRef.current = true
+  }, [cube])
+
+  const turnQueueRef = useRef<
+    Array<{ face: FaceKey; turns: number; duration?: number }>
+  >([])
+  const currentTurnRef = useRef<{
+    face: FaceKey
+    turns: number
+    startTime: number
+    duration: number
+  } | null>(null)
+  const forceUpdateMeshRef = useRef(false)
 
   useEffect(() => {
     document.cookie = preferenceCookie(AUTO_ROTATE_COOKIE, isRotating)
@@ -971,6 +1111,38 @@ export function CubeView3D({
     setPitch(targetPitch)
     setYaw(targetYaw)
   }
+
+  const triggerTurn = (face: FaceKey, turns: number) => {
+    pauseAutoRotation()
+    turnQueueRef.current.push({ face, turns, duration: 160 })
+  }
+
+  const toggleScramble = () => {
+    pauseAutoRotation()
+    if (isScrambling) {
+      turnQueueRef.current = []
+      setIsScrambling(false)
+    } else {
+      setIsScrambling(true)
+      const moves = generateScrambleMoves(18)
+      turnQueueRef.current = moves.map((m) => ({ ...m, duration: 85 }))
+    }
+  }
+
+  const resetCube = () => {
+    turnQueueRef.current = []
+    currentTurnRef.current = null
+    setIsScrambling(false)
+    currentCubeRef.current = cube
+    setCurrentCube(cube)
+    forceUpdateMeshRef.current = true
+  }
+
+  const isInitialCube =
+    currentCube === cube ||
+    (['u', 'r', 'f', 'd', 'l', 'b'] as const).every((k) =>
+      currentCube[k].every((v, i) => v === cube[k][i]),
+    )
 
   useEffect(() => {
     const canvas = canvasRef.current
@@ -1018,19 +1190,24 @@ export function CubeView3D({
     gl.clearColor(0, 0, 0, 0)
 
     // Build geometry
-    const mesh = buildCubeMesh(cube, puzzleSize, palette, isStickerless)
+    const mesh = buildCubeMesh(
+      currentCubeRef.current,
+      puzzleSize,
+      palette,
+      isStickerless,
+    )
 
     const posBuf = gl.createBuffer()
     gl.bindBuffer(gl.ARRAY_BUFFER, posBuf)
-    gl.bufferData(gl.ARRAY_BUFFER, mesh.positions, gl.STATIC_DRAW)
+    gl.bufferData(gl.ARRAY_BUFFER, mesh.positions, gl.DYNAMIC_DRAW)
 
     const normBuf = gl.createBuffer()
     gl.bindBuffer(gl.ARRAY_BUFFER, normBuf)
-    gl.bufferData(gl.ARRAY_BUFFER, mesh.normals, gl.STATIC_DRAW)
+    gl.bufferData(gl.ARRAY_BUFFER, mesh.normals, gl.DYNAMIC_DRAW)
 
     const colBuf = gl.createBuffer()
     gl.bindBuffer(gl.ARRAY_BUFFER, colBuf)
-    gl.bufferData(gl.ARRAY_BUFFER, mesh.colors, gl.STATIC_DRAW)
+    gl.bufferData(gl.ARRAY_BUFFER, mesh.colors, gl.DYNAMIC_DRAW)
 
     const idxBuf = gl.createBuffer()
     gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, idxBuf)
@@ -1052,6 +1229,87 @@ export function CubeView3D({
     const render = (time: number) => {
       const elapsed = Math.min(time - (lastFrameTimeRef.current ?? time), 50)
       lastFrameTimeRef.current = time
+
+      // Handle layer turn animation & mesh updates
+      if (forceUpdateMeshRef.current) {
+        forceUpdateMeshRef.current = false
+        const updatedMesh = buildCubeMesh(
+          currentCubeRef.current,
+          puzzleSize,
+          palette,
+          isStickerless,
+        )
+        gl.bindBuffer(gl.ARRAY_BUFFER, posBuf)
+        gl.bufferSubData(gl.ARRAY_BUFFER, 0, updatedMesh.positions)
+        gl.bindBuffer(gl.ARRAY_BUFFER, normBuf)
+        gl.bufferSubData(gl.ARRAY_BUFFER, 0, updatedMesh.normals)
+        gl.bindBuffer(gl.ARRAY_BUFFER, colBuf)
+        gl.bufferSubData(gl.ARRAY_BUFFER, 0, updatedMesh.colors)
+      } else if (currentTurnRef.current) {
+        const anim = currentTurnRef.current
+        const turnElapsed = time - anim.startTime
+        const progress = Math.min(1, Math.max(0, turnElapsed / anim.duration))
+        const ease = 0.5 - 0.5 * Math.cos(progress * Math.PI)
+        const targetAngle = anim.turns * (Math.PI / 2)
+        const currentAngle = ease * targetAngle
+
+        const turnMesh = buildCubeMesh(
+          currentCubeRef.current,
+          puzzleSize,
+          palette,
+          isStickerless,
+          { face: anim.face, angle: currentAngle },
+        )
+        gl.bindBuffer(gl.ARRAY_BUFFER, posBuf)
+        gl.bufferSubData(gl.ARRAY_BUFFER, 0, turnMesh.positions)
+        gl.bindBuffer(gl.ARRAY_BUFFER, normBuf)
+        gl.bufferSubData(gl.ARRAY_BUFFER, 0, turnMesh.normals)
+
+        if (progress >= 1) {
+          const nextCube = applyCubeMove(
+            currentCubeRef.current,
+            puzzleSize,
+            anim.face,
+            anim.turns,
+          )
+          currentCubeRef.current = nextCube
+          setCurrentCube(nextCube)
+
+          const finalMesh = buildCubeMesh(
+            nextCube,
+            puzzleSize,
+            palette,
+            isStickerless,
+          )
+          gl.bindBuffer(gl.ARRAY_BUFFER, posBuf)
+          gl.bufferSubData(gl.ARRAY_BUFFER, 0, finalMesh.positions)
+          gl.bindBuffer(gl.ARRAY_BUFFER, normBuf)
+          gl.bufferSubData(gl.ARRAY_BUFFER, 0, finalMesh.normals)
+          gl.bindBuffer(gl.ARRAY_BUFFER, colBuf)
+          gl.bufferSubData(gl.ARRAY_BUFFER, 0, finalMesh.colors)
+
+          if (turnQueueRef.current.length > 0) {
+            const next = turnQueueRef.current.shift()!
+            currentTurnRef.current = {
+              face: next.face,
+              turns: next.turns,
+              startTime: time,
+              duration: next.duration ?? 90,
+            }
+          } else {
+            currentTurnRef.current = null
+            setIsScrambling(false)
+          }
+        }
+      } else if (turnQueueRef.current.length > 0) {
+        const next = turnQueueRef.current.shift()!
+        currentTurnRef.current = {
+          face: next.face,
+          turns: next.turns,
+          startTime: time,
+          duration: next.duration ?? 160,
+        }
+      }
       if (!isDraggingRef.current) {
         const yawStep = stepDragInertia(inertiaRef.current.yaw, elapsed)
         const pitchStep = stepDragInertia(inertiaRef.current.pitch, elapsed)
@@ -1384,7 +1642,7 @@ export function CubeView3D({
             </div>
 
             <div class="cube-3d-section">
-              <span class="cube-3d-label">Tilt / Turn:</span>
+              <span class="cube-3d-label">Tilt:</span>
               <div class="cube-3d-presets">
                 <button
                   type="button"
@@ -1421,6 +1679,49 @@ export function CubeView3D({
                   aria-label="Rotate Right"
                 >
                   ▶ Right
+                </button>
+              </div>
+            </div>
+
+            <div class="cube-3d-section">
+              <span class="cube-3d-label">Layer Turns:</span>
+              <div class="cube-3d-presets">
+                {(['U', 'D', 'L', 'R', 'F', 'B'] as FaceKey[]).map((f) => (
+                  <div key={f} class="cube-3d-turn-pair">
+                    <button
+                      type="button"
+                      class="cube-3d-btn"
+                      onClick={() => triggerTurn(f, 1)}
+                      title={`Turn ${f} clockwise`}
+                    >
+                      {f}
+                    </button>
+                    <button
+                      type="button"
+                      class="cube-3d-btn"
+                      onClick={() => triggerTurn(f, -1)}
+                      title={`Turn ${f} counter-clockwise`}
+                    >
+                      {f}'
+                    </button>
+                  </div>
+                ))}
+                <button
+                  type="button"
+                  class={`cube-3d-btn ${isScrambling ? 'cube-3d-btn-active' : ''}`}
+                  onClick={toggleScramble}
+                  title={isScrambling ? 'Stop scramble' : 'Scramble cube'}
+                >
+                  {isScrambling ? 'Stop' : 'Scramble'}
+                </button>
+                <button
+                  type="button"
+                  class="cube-3d-btn"
+                  onClick={resetCube}
+                  disabled={isInitialCube}
+                  title="Reset cube to initial assembled state"
+                >
+                  Reset
                 </button>
               </div>
             </div>
