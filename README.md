@@ -34,31 +34,33 @@ Cube and Colors are separate settings. The Cube menu groups sizes by cube name:
 Generic always offers 2×2 through 7×7, each with a 60% sticker core and 40%
 total gap. Choosing a cube sets the size. Colors can be reused across sizes.
 Sampling setup adjusts the gap around each sticker on a named cube. **New colors**
-copies the current palette into a named profile such as Matte, ready to learn
+copies the current palette into a named profile such as Satin colors, ready to learn
 from its first valid capture; its name can be edited in Sampling setup. Built-in
-cubes and Generic colors are read-only; capture learning never changes Generic colors.
+cubes and the eight color profiles in `cube-assembler-profiles.json` are read-only;
+capture learning never changes a built-in profile.
 The Profiles page has **Export cubes & colors** and **Import cubes & colors**
 on both tabs. The download, `cube-assembler-profiles.json`, carries cube names,
 sizes, sticker gaps, color profiles, and the selected settings; importing
 merges them by ID.
-The repository's `cube-assembler-profiles.json` is an importable collection
-with Classic, Matte, Acryl, and five numbered Plastic color palettes.
+The repository's `cube-assembler-profiles.json` supplies the built-in Classic,
+Matte, Acryl, and five numbered Plastic color palettes. These are always available
+without importing or storing duplicates.
 The Colors tab starts with a conservative merge limit of ΔE 3.0; adjust the
 slider before merging profiles whose sticker shades are farther apart.
 In the A/B swatches, ΔE below 3 is labeled **same**, 3 to under 12 is
 **slightly different**, and 12 or more is **different**. The swatch labels
 do not change the merge gate.
-**Automatic colors** compares the first live face with Generic and saved color
+**Automatic colors** compares the first live face with built-in and saved color
 profiles, using the closest fit for its preview and capture. After each face,
 it rechecks the profile against the captured sticker readings. The live badge and settings summary show the current
 preview palette. Once all
 six faces are captured, the app recalibrates them together and uses the nearest
-saved color profile if it is close enough, even when several saved profiles
+color profile if it is close enough, even when several profiles
 have similar palettes. If none is close, the result is named
 **Colors from this capture**. A previous capture's match is never preselected.
 Selecting a profile by name keeps that manual choice. After review, the
 Capture card shows the final profile beside the cube profile, its six-color
-fit score when a saved profile matched, and how previews were classified.
+fit score when a profile matched, and how previews were classified.
 The fit score describes palette similarity, not the probability of a brand.
 Backdrop white balance excludes a 25% band around the detected face. Once two
 faces have backdrop readings, the live preview and next camera capture use a
