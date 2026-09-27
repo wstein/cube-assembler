@@ -23,21 +23,17 @@ to the original real-fixture testing discussion. See
 
 ## Next
 
-1. **#14 Diagnose legacy fixture failures.** For the local captures ending
-   `17-33-06`, `17-37-13`, `19-14-39`, `20-10-05`, `20-55-24`, and `21-08-47`,
-   find the first failing pipeline stage. Fix the reading or mark a verified
-   limitation with `expectedFail`.
-2. **#5 Distinguish vivid and muted palettes.** Red/orange confusion remains a
+1. **#5 Distinguish vivid and muted palettes.** Red/orange confusion remains a
    likely error source. Compare proposed anchors against the checked-in
    fixtures before changing classification.
-3. **#10 Detect slipped grid rows.** When the outer grid lines miss the face
+2. **#10 Detect slipped grid rows.** When the outer grid lines miss the face
    edge, ask the user to re-center instead of accepting a shifted row.
-4. **#7 Replay missed live faces.** Four saved 2026-09-25 frames (three
+3. **#7 Replay missed live faces.** Four saved 2026-09-25 frames (three
    `no-grid`, one `no-sticker-pattern`) reproduce the live decision. Use them
    to test a focused detector fix.
-5. **#8–9 Resolve old assembly fixtures.** Recheck the two captures saved
+4. **#8–9 Resolve old assembly fixtures.** Recheck the two captures saved
    with a 90-degree wizard error and the 4×4 capture that did not reassemble.
-6. **Stub the camera in Playwright.** Cover capture, canvas crop, saved photo,
+5. **Stub the camera in Playwright.** Cover capture, canvas crop, saved photo,
    and re-detection together; the existing upload tests do not exercise a
    live camera.
 
