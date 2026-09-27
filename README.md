@@ -177,7 +177,16 @@ npm run fixture:server
 
 # Run tests
 npm test
+
+# Check lint and formatting
+npm run lint
+npm run format:check
 ```
+
+`npm run lint` uses typescript-eslint for TypeScript/JavaScript and the ReScript
+compiler with warnings treated as errors for `.res` files. Biome formats the
+TypeScript, JavaScript, CSS, and JSON files; `npm run format` applies it and
+the ReScript formatter. The project currently has no ReScript source files.
 
 ### GitHub Pages deployment
 
