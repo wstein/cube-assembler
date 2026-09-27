@@ -7,7 +7,9 @@ const ONE_YEAR = 365 * 24 * 60 * 60
 
 // Whether the live view is mirrored: off unless the viewer turned it on.
 export function readMirrorPreference(cookies: string): boolean {
-  return cookies.split(';').some((cookie) => cookie.trim() === `${MIRROR_COOKIE}=1`)
+  return cookies
+    .split(';')
+    .some((cookie) => cookie.trim() === `${MIRROR_COOKIE}=1`)
 }
 
 export function mirrorCookie(mirrored: boolean): string {
