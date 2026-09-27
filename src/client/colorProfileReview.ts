@@ -31,6 +31,16 @@ export function whiteBalancedColors(colors: Record<string, RGB>, white = BALANCE
   }))
 }
 
+// The reverse of whiteBalancedColors: `colors` as they look under `white`,
+// scaled per channel in linear light so their White becomes `white`.
+export function colorsUnderWhite(colors: Record<string, RGB>, white: RGB): Record<string, RGB> {
+  const from = toLinear(colors.W).map((v) => Math.max(v, 1e-4)), to = toLinear(white)
+  return Object.fromEntries(Object.entries(colors).map(([key, color]) => {
+    const [r, g, b] = toLinear(color).map((v, i) => v / from[i] * to[i])
+    return [key, { r: linearChannelToSrgb(r), g: linearChannelToSrgb(g), b: linearChannelToSrgb(b) }]
+  }))
+}
+
 // Mean OKLab distance x 100 of the five colored stickers once both
 // profiles are balanced: under 5 is hard to tell apart.
 export function profileDistance(a: Record<string, RGB>, b: Record<string, RGB>): number {

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
-  AVERAGE_LIMIT_FRACTION, colorDeletionEffects, colorDifferences, deleteColorProfiles, groupDifferences, groupSimilarProfiles, withinMergeLimit, mergeColorProfiles, mergedColors, profileDistance, splitColorLevel, unusedColorProfiles, whiteBalancedColors,
+  AVERAGE_LIMIT_FRACTION, colorDeletionEffects, colorsUnderWhite, colorDifferences, deleteColorProfiles, groupDifferences, groupSimilarProfiles, withinMergeLimit, mergeColorProfiles, mergedColors, profileDistance, splitColorLevel, unusedColorProfiles, whiteBalancedColors,
 } from '../src/client/colorProfileReview'
 import { AUTO_COLORS_ID, EMPTY_SETTINGS, GENERIC_COLORS_ID, type ColorProfile, type ProfileSettings } from '../src/client/profileSettings'
 import type { RGB } from '../src/client/imageProcessing'
@@ -172,5 +172,16 @@ describe('deleting color profiles', () => {
 
   it('selects profiles that are neither selected nor the automatic match', () => {
     expect(unusedColorProfiles(base)).toEqual(['pastel'])
+  })
+})
+
+describe('colorsUnderWhite', () => {
+  it("shows a balanced profile's stickers under a capture's White", () => {
+    // Colors that don't clip when balanced (orange's red would).
+    const capture = { W: { r: 177, g: 211, b: 255 }, B: { r: 3, g: 74, b: 229 }, G: { r: 0, g: 166, b: 108 } }
+    const back = colorsUnderWhite(whiteBalancedColors(capture), capture.W)
+    for (const key of Object.keys(capture) as Array<keyof typeof capture>) {
+      for (const channel of ['r', 'g', 'b'] as const) expect(Math.abs(back[key][channel] - capture[key][channel])).toBeLessThanOrEqual(1)
+    }
   })
 })
