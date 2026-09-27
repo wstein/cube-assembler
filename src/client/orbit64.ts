@@ -1,13 +1,22 @@
-// Browser port of the Orbit64 state/facelet boundary for 2×2–5×5 cubes.
-// Format and slot convention: flix-orbit64@6aedfc1 (Apache-2.0).
+// Browser port of the Orbit64 state/facelet boundary for 2×2–7×7 cubes.
+// Format and slot convention: flix-orbit64@00c0a97 (Apache-2.0).
 // The app deliberately handles state tokens only; move and algorithm tokens are
 // different Orbit64 classes.
 import { orbit64Tables as t } from './orbit64Tables'
+import { largeTables } from './orbit64LargeTables'
 
 const alphabet =
   'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_'
 const faces = 'URFDLB'
-const widths: Record<number, number> = { 2: 5, 3: 12, 4: 27, 5: 43 }
+const widths: Record<number, number> = {
+  2: 5,
+  3: 12,
+  4: 27,
+  5: 43,
+  6: 66,
+  7: 90,
+}
+const large = { 6: largeTables(6), 7: largeTables(7) }
 const factorial = (n: number): bigint => {
   let out = 1n
   for (let i = 2; i <= n; i++) out *= BigInt(i)
@@ -30,6 +39,14 @@ const radices: Record<number, bigint[]> = {
   3: [cornerRadix, midgeRadix],
   4: [cornerRadix, wingRadix, centreRadix],
   5: [cornerRadix, midgeRadix, wingRadix, centreRadix, centreRadix],
+  6: [cornerRadix, wingRadix, wingRadix, ...Array<bigint>(4).fill(centreRadix)],
+  7: [
+    cornerRadix,
+    midgeRadix,
+    wingRadix,
+    wingRadix,
+    ...Array<bigint>(6).fill(centreRadix),
+  ],
 }
 const stateCount = (n: number): bigint =>
   radices[n].reduce((a, b) => a * b, n % 2 ? 24n : 1n)
@@ -227,11 +244,27 @@ const cornerColors = t.cornerColor
 const edgeColors = t.edgeColor
 const wingColors = t.wingColour4
 const cornerTable = (n: number): readonly (readonly number[])[] =>
-  n === 4 ? t.cornerFacelet4 : n === 5 ? t.cornerFacelet5 : t.cornerFacelet
+  n >= 6
+    ? large[n as 6 | 7].corner
+    : n === 4
+      ? t.cornerFacelet4
+      : n === 5
+        ? t.cornerFacelet5
+        : t.cornerFacelet
 const edgeTable = (n: number): readonly (readonly number[])[] =>
-  n === 5 ? t.midgeFacelet5 : t.edgeFacelet
-const wingTable = (n: number): readonly (readonly number[])[] =>
-  n === 5 ? t.wingFacelet5 : t.wingFacelet4
+  n === 7 ? large[7].midge : n === 5 ? t.midgeFacelet5 : t.edgeFacelet
+const wingTable = (n: number, depth = 1): readonly (readonly number[])[] =>
+  n >= 6
+    ? large[n as 6 | 7].wings[depth - 1]
+    : n === 5
+      ? t.wingFacelet5
+      : t.wingFacelet4
+const centreTables = (n: number): readonly (readonly number[])[] =>
+  n >= 6
+    ? large[n as 6 | 7].centres
+    : n === 5
+      ? [t.xFacelet5, t.plusFacelet5]
+      : [t.centreFacelet4]
 const readOriented = (
   fs: number[],
   slots: readonly (readonly number[])[],
@@ -299,11 +332,12 @@ const readCoordinates = (
     out.push(midge)
   }
   if (n >= 4) {
-    const wing = readWing(fs, wingTable(n))
-    if (!wing) return null
-    out.push(wing)
-    out.push(readCentre(fs, n === 4 ? t.centreFacelet4 : t.xFacelet5))
-    if (n === 5) out.push(readCentre(fs, t.plusFacelet5))
+    for (let depth = 1; depth <= Math.floor((n - 2) / 2); depth++) {
+      const wing = readWing(fs, wingTable(n, depth))
+      if (!wing) return null
+      out.push(wing)
+    }
+    for (const table of centreTables(n)) out.push(readCentre(fs, table))
   }
   if (!out.every(validCoordinate)) return null
   if (n % 2 && permParity(out[0].pieces) !== permParity(out[1].pieces))
@@ -331,15 +365,15 @@ const writeCoordinates = (n: number, coords: Coordinate[]): number[] => {
   let next = 1
   if (n % 2) placeOriented(fs, coords[next++], edgeTable(n), edgeColors)
   if (n >= 4) {
-    wingTable(n).forEach((indices, slot) =>
-      wingColors[coords[next].pieces[slot]].forEach((color, j) => {
-        fs[indices[j]] = color
-      }),
-    )
-    next++
-    const centreTables =
-      n === 4 ? [t.centreFacelet4] : [t.xFacelet5, t.plusFacelet5]
-    centreTables.forEach((table) => {
+    for (let depth = 1; depth <= Math.floor((n - 2) / 2); depth++) {
+      wingTable(n, depth).forEach((indices, slot) =>
+        wingColors[coords[next].pieces[slot]].forEach((color, j) => {
+          fs[indices[j]] = color
+        }),
+      )
+      next++
+    }
+    centreTables(n).forEach((table) => {
       table.forEach((at, slot) => {
         fs[at] = coords[next].pieces[slot]
       })
@@ -515,14 +549,12 @@ export function decodeOrbit64State(token: string): string | null {
   if (rank === null || rank >= stateCount(n)) return null
   const frame = n % 2 ? Number(rank % 24n) : 0
   if (n % 2) rank /= 24n
-  const kinds: Coordinate['kind'][] =
-    n === 2
-      ? ['corner']
-      : n === 3
-        ? ['corner', 'midge']
-        : n === 4
-          ? ['corner', 'wing', 'centre']
-          : ['corner', 'midge', 'wing', 'centre', 'centre']
+  const kinds: Coordinate['kind'][] = [
+    'corner',
+    ...(n % 2 ? (['midge'] as const) : []),
+    ...Array<Coordinate['kind']>(Math.floor((n - 2) / 2)).fill('wing'),
+    ...Array<Coordinate['kind']>(Math.floor((n - 2) ** 2 / 4)).fill('centre'),
+  ]
   const values = Array<bigint>(kinds.length)
   for (let i = kinds.length - 1; i >= 0; i--) {
     values[i] = rank % radices[n][i]
