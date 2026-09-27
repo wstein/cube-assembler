@@ -159,7 +159,7 @@ export function buildCubeMesh(
     },
   ) {
     const s = H - r
-    const miter = r * 0.9 // outer edge and corner bevel miter (doubled outside fase)
+    const miter = r * 0.5 // outer edge and corner 45° bevel midpoint (H - r/2)
     const hNorm = H + elevation
     const zOuter = hNorm - r * 0.65
     const zSkirt = hNorm - 0.14
@@ -238,11 +238,11 @@ export function buildCubeMesh(
       crnTR = pt(H - miter, H - miter, hNorm - miter)
       ncrnTR = norm(0.577, 0.577, 0.577)
     } else if (seamRt && !seamTop) {
-      crnTR = pt(H, H - miter, zOuter)
-      ncrnTR = norm(0.5, 0.5, 0.7)
+      crnTR = pt(H, H - miter, hNorm - miter)
+      ncrnTR = norm(0, 0.7, 0.7)
     } else {
-      crnTR = pt(H - miter, H, zOuter)
-      ncrnTR = norm(0.5, 0.5, 0.7)
+      crnTR = pt(H - miter, H, hNorm - miter)
+      ncrnTR = norm(0.7, 0, 0.7)
     }
 
     // 2. Top-Left (TL)
@@ -255,11 +255,11 @@ export function buildCubeMesh(
       crnTL = pt(-(H - miter), H - miter, hNorm - miter)
       ncrnTL = norm(-0.577, 0.577, 0.577)
     } else if (seamLt && !seamTop) {
-      crnTL = pt(-H, H - miter, zOuter)
-      ncrnTL = norm(-0.5, 0.5, 0.7)
+      crnTL = pt(-H, H - miter, hNorm - miter)
+      ncrnTL = norm(0, 0.7, 0.7)
     } else {
-      crnTL = pt(-(H - miter), H, zOuter)
-      ncrnTL = norm(-0.5, 0.5, 0.7)
+      crnTL = pt(-(H - miter), H, hNorm - miter)
+      ncrnTL = norm(-0.7, 0, 0.7)
     }
 
     // 3. Bottom-Left (BL)
@@ -272,11 +272,11 @@ export function buildCubeMesh(
       crnBL = pt(-(H - miter), -(H - miter), hNorm - miter)
       ncrnBL = norm(-0.577, -0.577, 0.577)
     } else if (seamLt && !seamBot) {
-      crnBL = pt(-H, -(H - miter), zOuter)
-      ncrnBL = norm(-0.5, -0.5, 0.7)
+      crnBL = pt(-H, -(H - miter), hNorm - miter)
+      ncrnBL = norm(0, -0.7, 0.7)
     } else {
-      crnBL = pt(-(H - miter), -H, zOuter)
-      ncrnBL = norm(-0.5, -0.5, 0.7)
+      crnBL = pt(-(H - miter), -H, hNorm - miter)
+      ncrnBL = norm(-0.7, 0, 0.7)
     }
 
     // 4. Bottom-Right (BR)
@@ -289,11 +289,11 @@ export function buildCubeMesh(
       crnBR = pt(H - miter, -(H - miter), hNorm - miter)
       ncrnBR = norm(0.577, -0.577, 0.577)
     } else if (seamRt && !seamBot) {
-      crnBR = pt(H, -(H - miter), zOuter)
-      ncrnBR = norm(0.5, -0.5, 0.7)
+      crnBR = pt(H, -(H - miter), hNorm - miter)
+      ncrnBR = norm(0, -0.7, 0.7)
     } else {
-      crnBR = pt(H - miter, -H, zOuter)
-      ncrnBR = norm(0.5, -0.5, 0.7)
+      crnBR = pt(H - miter, -H, hNorm - miter)
+      ncrnBR = norm(0.7, 0, 0.7)
     }
 
     // 1. Center flat region
@@ -365,42 +365,6 @@ export function buildCubeMesh(
       addFacingTri(a, sink(b), b, nOut)
     }
 
-    // Where a seam meets the chamfered outer edge, this face's chamfer rises
-    // from the bottom of the edge to its corner vertex, and so does the
-    // neighbouring face's, along a different line. Close the wedge between
-    // the two, and the triangle it leaves in the seam plane.
-    function addEdgePlug(
-      su: number,
-      sv: number,
-      seamU: boolean,
-      seamV: boolean,
-      corner: [number, number, number],
-    ) {
-      if (seamU === seamV) return
-      const bottom = hNorm - miter
-      if (seamU) {
-        const start = pt(su * s, sv * (H - miter), bottom)
-        const other = pt(su * H, sv * zOuter, bottom)
-        addFacingTri(start, corner, other, norm(0, sv, 1))
-        addFacingTri(
-          corner,
-          pt(su * H, sv * (H - miter), bottom),
-          other,
-          norm(su, 0, 0),
-        )
-      } else {
-        const start = pt(su * (H - miter), sv * s, bottom)
-        const other = pt(su * zOuter, sv * H, bottom)
-        addFacingTri(start, corner, other, norm(su, 0, 1))
-        addFacingTri(
-          corner,
-          pt(su * (H - miter), sv * H, bottom),
-          other,
-          norm(0, sv, 0),
-        )
-      }
-    }
-
     // 4. Side skirts into internal seam grooves ONLY (matching cubie color)
     if (seamTop) {
       const sTop0 = pt(-s, H, zSkirt),
@@ -453,10 +417,6 @@ export function buildCubeMesh(
       addWall(crnBL, eLt0, -1, 0)
       addWall(eLt1, crnTL, -1, 0)
     }
-    addEdgePlug(1, 1, seamRt, seamTop, crnTR)
-    addEdgePlug(-1, 1, seamLt, seamTop, crnTL)
-    addEdgePlug(-1, -1, seamLt, seamBot, crnBL)
-    addEdgePlug(1, -1, seamRt, seamBot, crnBR)
   }
 
   // Face coordinate axes: [uAxis, vAxis, nAxis] with u x v = n

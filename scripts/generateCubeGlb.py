@@ -41,7 +41,7 @@ def get_face_seams(face, x, y, z, n):
 def make_beveled_face(u_axis, v_axis, n_axis, H=0.495, r=0.058, seams=(True, True, True, True)):
     s = H - r
     d = r * 0.4
-    miter = r * 0.90
+    miter = r * 0.50
     z_outer = H - r * 0.65
     z_skirt = H - 0.14
     seam_top, seam_bot, seam_rt, seam_lt = seams
@@ -94,11 +94,11 @@ def make_beveled_face(u_axis, v_axis, n_axis, H=0.495, r=0.058, seams=(True, Tru
         crn_tr = pt(H - miter, H - miter, H - miter)
         ncrn_tr = norm(0.577, 0.577, 0.577)
     elif seam_rt and not seam_top:
-        crn_tr = pt(H, H - miter, z_outer)
-        ncrn_tr = norm(0.5, 0.5, 0.7)
+        crn_tr = pt(H, H - miter, H - miter)
+        ncrn_tr = norm(0, 0.7, 0.7)
     else:
-        crn_tr = pt(H - miter, H, z_outer)
-        ncrn_tr = norm(0.5, 0.5, 0.7)
+        crn_tr = pt(H - miter, H, H - miter)
+        ncrn_tr = norm(0.7, 0, 0.7)
 
     # 2. Top-Left (TL)
     if seam_lt and seam_top:
@@ -108,11 +108,11 @@ def make_beveled_face(u_axis, v_axis, n_axis, H=0.495, r=0.058, seams=(True, Tru
         crn_tl = pt(-(H - miter), H - miter, H - miter)
         ncrn_tl = norm(-0.577, 0.577, 0.577)
     elif seam_lt and not seam_top:
-        crn_tl = pt(-H, H - miter, z_outer)
-        ncrn_tl = norm(-0.5, 0.5, 0.7)
+        crn_tl = pt(-H, H - miter, H - miter)
+        ncrn_tl = norm(0, 0.7, 0.7)
     else:
-        crn_tl = pt(-(H - miter), H, z_outer)
-        ncrn_tl = norm(-0.5, 0.5, 0.7)
+        crn_tl = pt(-(H - miter), H, H - miter)
+        ncrn_tl = norm(-0.7, 0, 0.7)
 
     # 3. Bottom-Left (BL)
     if seam_lt and seam_bot:
@@ -122,11 +122,11 @@ def make_beveled_face(u_axis, v_axis, n_axis, H=0.495, r=0.058, seams=(True, Tru
         crn_bl = pt(-(H - miter), -(H - miter), H - miter)
         ncrn_bl = norm(-0.577, -0.577, 0.577)
     elif seam_lt and not seam_bot:
-        crn_bl = pt(-H, -(H - miter), z_outer)
-        ncrn_bl = norm(-0.5, -0.5, 0.7)
+        crn_bl = pt(-H, -(H - miter), H - miter)
+        ncrn_bl = norm(0, -0.7, 0.7)
     else:
-        crn_bl = pt(-(H - miter), -H, z_outer)
-        ncrn_bl = norm(-0.5, -0.5, 0.7)
+        crn_bl = pt(-(H - miter), -H, H - miter)
+        ncrn_bl = norm(-0.7, 0, 0.7)
 
     # 4. Bottom-Right (BR)
     if seam_rt and seam_bot:
@@ -136,11 +136,11 @@ def make_beveled_face(u_axis, v_axis, n_axis, H=0.495, r=0.058, seams=(True, Tru
         crn_br = pt(H - miter, -(H - miter), H - miter)
         ncrn_br = norm(0.577, -0.577, 0.577)
     elif seam_rt and not seam_bot:
-        crn_br = pt(H, -(H - miter), z_outer)
-        ncrn_br = norm(0.5, -0.5, 0.7)
+        crn_br = pt(H, -(H - miter), H - miter)
+        ncrn_br = norm(0, -0.7, 0.7)
     else:
-        crn_br = pt(H - miter, -H, z_outer)
-        ncrn_br = norm(0.5, -0.5, 0.7)
+        crn_br = pt(H - miter, -H, H - miter)
+        ncrn_br = norm(0.7, 0, 0.7)
 
     verts = [
         c0, c1, c2, c3,
