@@ -1,5 +1,24 @@
 import { expect, test } from '@playwright/test'
 
+test('layer turns update the facelet notation across views and reset', async ({
+  page,
+}) => {
+  await page.goto('/')
+  await page.getByRole('button', { name: 'Solved cube' }).click()
+  const notation = page.getByRole('textbox', { name: 'Notation' })
+  const solved = await notation.inputValue()
+  await page.getByRole('button', { name: '3D View' }).click()
+  await page.getByTitle('Turn U clockwise').click()
+  await expect(notation).not.toHaveValue(solved)
+
+  const turned = await notation.inputValue()
+  await page.getByRole('button', { name: '2D Net' }).click()
+  await expect(notation).toHaveValue(turned)
+  await page.getByRole('button', { name: '3D View' }).click()
+  await page.getByRole('button', { name: 'Reset', exact: true }).click()
+  await expect(notation).toHaveValue(solved)
+})
+
 test('lists face presets in URFDLB order', async ({ page }) => {
   await page.goto('/')
   await page.getByRole('button', { name: 'Solved cube' }).click()

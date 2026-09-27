@@ -1020,6 +1020,8 @@ function initProgram(gl: WebGLRenderingContext): WebGLProgram | null {
 
 export interface CubeView3DProps {
   cube: CubeState
+  initialCube?: CubeState
+  onCubeChange?: (cube: CubeState) => void
   puzzleSize: number
   palette?: Record<string, string>
   stickerless?: boolean
@@ -1028,12 +1030,14 @@ export interface CubeView3DProps {
 
 export function CubeView3D({
   cube,
+  initialCube = cube,
+  onCubeChange,
   puzzleSize,
   palette = DEFAULT_STICKER_HEX,
   stickerless = true,
 }: CubeView3DProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
-  const [currentCube, setCurrentCube] = useState<CubeState>(cube)
+  const [currentCube, setCurrentCube] = useState<CubeState>(initialCube)
   const [pitch, setPitch] = useState<number>(0.42) // ~24 deg
   const [yaw, setYaw] = useState<number>(-0.62) // ~-35 deg
   const [zoom, setZoom] = useState<number>(getDefaultZoom(puzzleSize))
@@ -1046,10 +1050,15 @@ export function CubeView3D({
   )
   const [isScrambling, setIsScrambling] = useState<boolean>(false)
 
-  const currentCubeRef = useRef<CubeState>(cube)
+  const currentCubeRef = useRef<CubeState>(initialCube)
   currentCubeRef.current = currentCube
+  const onCubeChangeRef = useRef(onCubeChange)
+  onCubeChangeRef.current = onCubeChange
+  const sourceCubeRef = useRef(cube)
 
   useEffect(() => {
+    if (sourceCubeRef.current === cube) return
+    sourceCubeRef.current = cube
     setCurrentCube(cube)
     currentCubeRef.current = cube
     turnQueueRef.current = []
@@ -1135,6 +1144,7 @@ export function CubeView3D({
     setIsScrambling(false)
     currentCubeRef.current = cube
     setCurrentCube(cube)
+    onCubeChangeRef.current?.(cube)
     forceUpdateMeshRef.current = true
   }
 
@@ -1274,6 +1284,7 @@ export function CubeView3D({
           )
           currentCubeRef.current = nextCube
           setCurrentCube(nextCube)
+          onCubeChangeRef.current?.(nextCube)
 
           const finalMesh = buildCubeMesh(
             nextCube,

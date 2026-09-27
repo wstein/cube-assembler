@@ -1087,6 +1087,10 @@ function App() {
     () => selectedCubeSize(document.cookie) ?? 3,
   )
   const [cube, setCube] = useState<CubeState | null>(null)
+  const [turnedCube, setTurnedCube] = useState<{
+    source: CubeState
+    value: CubeState
+  } | null>(null)
   const [cubeViewMode, setCubeViewMode] = useState<'net' | '3d'>(
     () => selectedCubeView(document.cookie) ?? 'net',
   )
@@ -3473,14 +3477,21 @@ function App() {
   // Render
   // ─────────────────────────────────────────────────────────────────────────
 
+  const displayedCube =
+    cube && turnedCube?.source === cube ? turnedCube.value : cube
+  const visibleCube = displayedCube ?? createSolvedCube(puzzleSize)
   const getNotationOutput = () => {
-    if (!cube) return 'null'
-    return notationFormat === 'wrg' ? toWRGFacelets(cube) : toURFFacelets(cube)
+    if (!displayedCube) return 'null'
+    return notationFormat === 'wrg'
+      ? toWRGFacelets(displayedCube)
+      : toURFFacelets(displayedCube)
   }
   const currentOrbit64Token = useMemo(
     () =>
-      cube && puzzleSize <= 7 ? encodeOrbit64State(toURFFacelets(cube)) : null,
-    [cube, puzzleSize],
+      displayedCube && puzzleSize <= 7
+        ? encodeOrbit64State(toURFFacelets(displayedCube))
+        : null,
+    [displayedCube, puzzleSize],
   )
 
   const profilesPageTab = profilesTab(page)
@@ -3670,6 +3681,10 @@ function App() {
                 >
                   <CubeView3D
                     cube={cube}
+                    initialCube={visibleCube}
+                    onCubeChange={(value) =>
+                      setTurnedCube({ source: cube, value })
+                    }
                     puzzleSize={puzzleSize}
                     palette={STICKER_HEX}
                   />
@@ -3707,12 +3722,12 @@ function App() {
                     )
                   const netSources = faceSources(
                     {
-                      u: rows(cube.u),
-                      r: rows(cube.r),
-                      f: rows(cube.f),
-                      d: rows(cube.d),
-                      l: rows(cube.l),
-                      b: rows(cube.b),
+                      u: rows(visibleCube.u),
+                      r: rows(visibleCube.r),
+                      f: rows(visibleCube.f),
+                      d: rows(visibleCube.d),
+                      l: rows(visibleCube.l),
+                      b: rows(visibleCube.b),
                     },
                     Object.fromEntries(
                       FACE_ORDER.filter((f) => capturedFaces[f]).map((f) => [
@@ -3755,9 +3770,9 @@ function App() {
                     const r = Math.floor(index / puzzleSize),
                       c = index % puzzleSize
                     const detected = photo?.detectedColors?.[r]?.[c]
-                    const color = cube[hoveredNetCell.face as keyof CubeState][
-                      hoveredNetCell.index
-                    ] as string
+                    const color = visibleCube[
+                      hoveredNetCell.face as keyof CubeState
+                    ][hoveredNetCell.index] as string
                     return {
                       faceName: NET_FACE_NAMES[hoveredNetCell.face],
                       pieceName:
@@ -3803,12 +3818,12 @@ function App() {
                       >
                         {(
                           [
-                            ['U', cube.u, 'net-u'],
-                            ['L', cube.l, 'net-l'],
-                            ['F', cube.f, 'net-f'],
-                            ['R', cube.r, 'net-r'],
-                            ['B', cube.b, 'net-b'],
-                            ['D', cube.d, 'net-d'],
+                            ['U', visibleCube.u, 'net-u'],
+                            ['L', visibleCube.l, 'net-l'],
+                            ['F', visibleCube.f, 'net-f'],
+                            ['R', visibleCube.r, 'net-r'],
+                            ['B', visibleCube.b, 'net-b'],
+                            ['D', visibleCube.d, 'net-d'],
                           ] as [string, string[], string][]
                         ).map(([label, data, cls]) => {
                           // Faces are named by their lowercase CubeIR key ('u','r',...)
