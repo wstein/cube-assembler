@@ -4,11 +4,9 @@ test('lists face presets in URFDLB order', async ({ page }) => {
   await page.goto('/')
   await page.getByRole('button', { name: 'Solved cube' }).click()
   await page.getByRole('button', { name: '3D View' }).click()
-  const labels = await page
-    .locator('.cube-3d-section')
-    .first()
-    .locator('button')
-    .allTextContents()
+  const section = page.locator('.cube-3d-section').first()
+  await expect(section).toBeVisible()
+  const labels = await section.locator('button').allTextContents()
   expect(labels.map((label) => label.trim())).toEqual([
     'Up (U)',
     'Right (R)',
