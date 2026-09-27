@@ -33,16 +33,23 @@ to the original real-fixture testing discussion. See
 
 ## Next
 
-1. **#8–9 Resolve old assembly fixtures.** Recheck the two captures saved
+1. **Lazy-load the 3D viewer and Profiles page.** Measure the initial scanner
+   bundle before and after splitting these routes from it.
+2. **#13 Speed up the real-capture benchmark.** It adds about 35–50 s to
+   `npm test`; profile the slow cases, then cache or optimize without dropping
+   the committed capture coverage.
+3. **#8–9 Resolve old assembly fixtures.** Recheck the two captures saved
    with a 90-degree wizard error and the 4×4 capture that did not reassemble.
-2. **Stub the camera in Playwright.** Cover capture, canvas crop, saved photo,
+4. **Stub the camera in Playwright.** Cover capture, canvas crop, saved photo,
    and re-detection together; the existing upload tests do not exercise a
    live camera.
 
 ## Later
 
-- **#13 Speed up the local real-capture benchmark.** It can add about 35 s to
-  `npm test`; measure the slow cases before changing its scope.
+- Add interactive layer turns and scramble animation to the 3D viewer so a
+  user can inspect individual moves and the resulting state.
+- Round the three-way outer corner apex on 3D pieces after the layer-turn
+  model is settled; keep the cap subtle enough to preserve sticker shapes.
 - **#4 Learn color centroids from confirmed fixtures.** Wait until the corpus
   spans more cubes and lighting conditions, then compare before/after on all
   fixtures.
@@ -51,8 +58,6 @@ to the original real-fixture testing discussion. See
 - Continue splitting `src/client/index.tsx`: the fixture preview and its
   upload/download lifecycle now have a component and hook; extract the photo
   upload review and capture flows in further tested moves.
-- Load the 3D viewer and Profiles page only when opened; measure the main
-  bundle size before and after.
 - Add a production-build Playwright test for localhost upload and CORS.
 - Configure Vitest to flag slow tests before GitHub's 5-second timeout.
 - Remove Git LFS download from Pages once its build is confirmed independent
