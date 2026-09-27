@@ -1,0 +1,1041 @@
+{
+  "gridSize": 3,
+  "colorsURFDLB": "BGBGBGBGB WYWYWYWYW YWYWYWYWY GBGBGBGBG ROROROROR ORORORORO",
+  "detectedURFDLB": "BGBGBGBGB WYWYWYWYW YWYWYWYWY GBGBGBGBG ROROROROR ORORORORO",
+  "faces": {
+    "u": {
+      "photo": "face-u.jpg",
+      "readings": [
+        [
+          18,
+          152,
+          190
+        ],
+        [
+          70,
+          199,
+          55
+        ],
+        [
+          3,
+          153,
+          192
+        ],
+        [
+          75,
+          203,
+          61
+        ],
+        [
+          24,
+          152,
+          189
+        ],
+        [
+          71,
+          206,
+          56
+        ],
+        [
+          33,
+          168,
+          202
+        ],
+        [
+          67,
+          203,
+          51
+        ],
+        [
+          2,
+          152,
+          191
+        ]
+      ],
+      "confidences": [
+        96,
+        93,
+        96,
+        95,
+        85,
+        97,
+        95,
+        96,
+        96
+      ],
+      "source": "camera",
+      "capturedAt": "2026-09-27T08:54:14.447Z",
+      "background": {
+        "r": 124.91245511371193,
+        "g": 87.81300150729264,
+        "b": 72.92163186593962
+      },
+      "frame": {
+        "width": 1920,
+        "height": 1080
+      },
+      "crop": {
+        "x": 629,
+        "y": 231,
+        "width": 683,
+        "height": 683
+      },
+      "sharpness": 22.4,
+      "camera": {
+        "aspectRatio": 1.7777777777777777,
+        "backgroundBlur": false,
+        "frameRate": 30,
+        "height": 1080,
+        "resizeMode": "none",
+        "width": 1920
+      },
+      "previewColorProfile": {
+        "id": "generic-colors",
+        "name": "Generic colors",
+        "colors": {
+          "W": {
+            "r": 174,
+            "g": 186,
+            "b": 206
+          },
+          "Y": {
+            "r": 179,
+            "g": 202,
+            "b": 73
+          },
+          "O": {
+            "r": 217,
+            "g": 87,
+            "b": 66
+          },
+          "R": {
+            "r": 176,
+            "g": 41,
+            "b": 71
+          },
+          "G": {
+            "r": 46,
+            "g": 166,
+            "b": 86
+          },
+          "B": {
+            "r": 28,
+            "g": 98,
+            "b": 172
+          }
+        }
+      }
+    },
+    "r": {
+      "photo": "face-r.jpg",
+      "readings": [
+        [
+          181,
+          196,
+          206
+        ],
+        [
+          217,
+          220,
+          3
+        ],
+        [
+          188,
+          199,
+          207
+        ],
+        [
+          175,
+          225,
+          7
+        ],
+        [
+          175,
+          190,
+          196
+        ],
+        [
+          183,
+          229,
+          5
+        ],
+        [
+          191,
+          209,
+          219
+        ],
+        [
+          193,
+          230,
+          8
+        ],
+        [
+          190,
+          207,
+          213
+        ]
+      ],
+      "confidences": [
+        95,
+        89,
+        92,
+        94,
+        94,
+        93,
+        85,
+        93,
+        87
+      ],
+      "source": "camera",
+      "capturedAt": "2026-09-27T08:54:16.973Z",
+      "background": {
+        "r": 117.38195034617172,
+        "g": 77.22519858131919,
+        "b": 57.84013778880693
+      },
+      "frame": {
+        "width": 1920,
+        "height": 1080
+      },
+      "crop": {
+        "x": 617,
+        "y": 180,
+        "width": 675,
+        "height": 675,
+        "angle": -1.6166992739215993
+      },
+      "sharpness": 13.2,
+      "camera": {
+        "aspectRatio": 1.7777777777777777,
+        "backgroundBlur": false,
+        "frameRate": 30,
+        "height": 1080,
+        "resizeMode": "none",
+        "width": 1920
+      },
+      "previewColorProfile": {
+        "id": "generic-colors",
+        "name": "Generic colors",
+        "colors": {
+          "W": {
+            "r": 174,
+            "g": 186,
+            "b": 206
+          },
+          "Y": {
+            "r": 179,
+            "g": 202,
+            "b": 73
+          },
+          "O": {
+            "r": 217,
+            "g": 87,
+            "b": 66
+          },
+          "R": {
+            "r": 176,
+            "g": 41,
+            "b": 71
+          },
+          "G": {
+            "r": 46,
+            "g": 166,
+            "b": 86
+          },
+          "B": {
+            "r": 28,
+            "g": 98,
+            "b": 172
+          }
+        }
+      }
+    },
+    "f": {
+      "photo": "face-f.jpg",
+      "readings": [
+        [
+          167,
+          201,
+          4
+        ],
+        [
+          185,
+          164,
+          171
+        ],
+        [
+          178,
+          206,
+          4
+        ],
+        [
+          165,
+          177,
+          183
+        ],
+        [
+          185,
+          205,
+          10
+        ],
+        [
+          175,
+          185,
+          190
+        ],
+        [
+          173,
+          213,
+          6
+        ],
+        [
+          174,
+          175,
+          179
+        ],
+        [
+          180,
+          209,
+          4
+        ]
+      ],
+      "confidences": [
+        92,
+        83,
+        95,
+        89,
+        91,
+        96,
+        97,
+        89,
+        97
+      ],
+      "source": "camera",
+      "capturedAt": "2026-09-27T08:54:22.630Z",
+      "background": {
+        "r": 121.04993288590605,
+        "g": 85.81971312014738,
+        "b": 64.40569548624819
+      },
+      "frame": {
+        "width": 1920,
+        "height": 1080
+      },
+      "crop": {
+        "x": 629,
+        "y": 215,
+        "width": 663,
+        "height": 663
+      },
+      "sharpness": 14.6,
+      "camera": {
+        "aspectRatio": 1.7777777777777777,
+        "backgroundBlur": false,
+        "frameRate": 30,
+        "height": 1080,
+        "resizeMode": "none",
+        "width": 1920
+      },
+      "previewColorProfile": {
+        "id": "generic-colors",
+        "name": "Generic colors",
+        "colors": {
+          "W": {
+            "r": 174,
+            "g": 186,
+            "b": 206
+          },
+          "Y": {
+            "r": 179,
+            "g": 202,
+            "b": 73
+          },
+          "O": {
+            "r": 217,
+            "g": 87,
+            "b": 66
+          },
+          "R": {
+            "r": 176,
+            "g": 41,
+            "b": 71
+          },
+          "G": {
+            "r": 46,
+            "g": 166,
+            "b": 86
+          },
+          "B": {
+            "r": 28,
+            "g": 98,
+            "b": 172
+          }
+        }
+      }
+    },
+    "d": {
+      "photo": "face-d.jpg",
+      "readings": [
+        [
+          75,
+          209,
+          56
+        ],
+        [
+          27,
+          156,
+          185
+        ],
+        [
+          81,
+          224,
+          55
+        ],
+        [
+          39,
+          166,
+          194
+        ],
+        [
+          79,
+          217,
+          60
+        ],
+        [
+          29,
+          169,
+          200
+        ],
+        [
+          77,
+          224,
+          58
+        ],
+        [
+          20,
+          162,
+          192
+        ],
+        [
+          73,
+          220,
+          47
+        ]
+      ],
+      "confidences": [
+        99,
+        97,
+        93,
+        96,
+        87,
+        95,
+        94,
+        98,
+        95
+      ],
+      "source": "camera",
+      "capturedAt": "2026-09-27T08:54:20.162Z",
+      "background": {
+        "r": 119.48524369251501,
+        "g": 84.89587284885572,
+        "b": 71.49251685611043
+      },
+      "frame": {
+        "width": 1920,
+        "height": 1080
+      },
+      "crop": {
+        "x": 627,
+        "y": 272,
+        "width": 609,
+        "height": 609
+      },
+      "sharpness": 32.7,
+      "camera": {
+        "aspectRatio": 1.7777777777777777,
+        "backgroundBlur": false,
+        "frameRate": 30,
+        "height": 1080,
+        "resizeMode": "none",
+        "width": 1920
+      },
+      "previewColorProfile": {
+        "id": "generic-colors",
+        "name": "Generic colors",
+        "colors": {
+          "W": {
+            "r": 174,
+            "g": 186,
+            "b": 206
+          },
+          "Y": {
+            "r": 179,
+            "g": 202,
+            "b": 73
+          },
+          "O": {
+            "r": 217,
+            "g": 87,
+            "b": 66
+          },
+          "R": {
+            "r": 176,
+            "g": 41,
+            "b": 71
+          },
+          "G": {
+            "r": 46,
+            "g": 166,
+            "b": 86
+          },
+          "B": {
+            "r": 28,
+            "g": 98,
+            "b": 172
+          }
+        }
+      }
+    },
+    "l": {
+      "photo": "face-l.jpg",
+      "readings": [
+        [
+          188,
+          36,
+          58
+        ],
+        [
+          245,
+          87,
+          38
+        ],
+        [
+          207,
+          33,
+          57
+        ],
+        [
+          244,
+          98,
+          51
+        ],
+        [
+          188,
+          29,
+          51
+        ],
+        [
+          241,
+          89,
+          33
+        ],
+        [
+          215,
+          45,
+          70
+        ],
+        [
+          247,
+          88,
+          33
+        ],
+        [
+          193,
+          23,
+          46
+        ]
+      ],
+      "confidences": [
+        97,
+        99,
+        94,
+        94,
+        94,
+        97,
+        90,
+        98,
+        98
+      ],
+      "source": "camera",
+      "capturedAt": "2026-09-27T08:54:25.102Z",
+      "background": {
+        "r": 116.75177135366847,
+        "g": 86.76169093421193,
+        "b": 73.12267509831013
+      },
+      "frame": {
+        "width": 1920,
+        "height": 1080
+      },
+      "crop": {
+        "x": 636,
+        "y": 249,
+        "width": 590,
+        "height": 590
+      },
+      "sharpness": 17.8,
+      "camera": {
+        "aspectRatio": 1.7777777777777777,
+        "backgroundBlur": false,
+        "frameRate": 30,
+        "height": 1080,
+        "resizeMode": "none",
+        "width": 1920
+      },
+      "previewColorProfile": {
+        "id": "generic-colors",
+        "name": "Generic colors",
+        "colors": {
+          "W": {
+            "r": 174,
+            "g": 186,
+            "b": 206
+          },
+          "Y": {
+            "r": 179,
+            "g": 202,
+            "b": 73
+          },
+          "O": {
+            "r": 217,
+            "g": 87,
+            "b": 66
+          },
+          "R": {
+            "r": 176,
+            "g": 41,
+            "b": 71
+          },
+          "G": {
+            "r": 46,
+            "g": 166,
+            "b": 86
+          },
+          "B": {
+            "r": 28,
+            "g": 98,
+            "b": 172
+          }
+        }
+      }
+    },
+    "b": {
+      "photo": "face-b.jpg",
+      "readings": [
+        [
+          244,
+          80,
+          38
+        ],
+        [
+          191,
+          24,
+          53
+        ],
+        [
+          250,
+          75,
+          33
+        ],
+        [
+          185,
+          32,
+          60
+        ],
+        [
+          239,
+          76,
+          32
+        ],
+        [
+          176,
+          10,
+          43
+        ],
+        [
+          245,
+          78,
+          38
+        ],
+        [
+          182,
+          7,
+          40
+        ],
+        [
+          242,
+          74,
+          28
+        ]
+      ],
+      "confidences": [
+        99,
+        99,
+        96,
+        96,
+        93,
+        93,
+        98,
+        95,
+        97
+      ],
+      "source": "camera",
+      "capturedAt": "2026-09-27T08:54:27.778Z",
+      "background": {
+        "r": 110.76689443875283,
+        "g": 83.00150290916822,
+        "b": 67.47437805655964
+      },
+      "frame": {
+        "width": 1920,
+        "height": 1080
+      },
+      "crop": {
+        "x": 656,
+        "y": 267,
+        "width": 611,
+        "height": 611,
+        "angle": -2.614288358345009
+      },
+      "sharpness": 8.1,
+      "camera": {
+        "aspectRatio": 1.7777777777777777,
+        "backgroundBlur": false,
+        "frameRate": 30,
+        "height": 1080,
+        "resizeMode": "none",
+        "width": 1920
+      },
+      "previewColorProfile": {
+        "id": "generic-colors",
+        "name": "Generic colors",
+        "colors": {
+          "W": {
+            "r": 174,
+            "g": 186,
+            "b": 206
+          },
+          "Y": {
+            "r": 179,
+            "g": 202,
+            "b": 73
+          },
+          "O": {
+            "r": 217,
+            "g": 87,
+            "b": 66
+          },
+          "R": {
+            "r": 176,
+            "g": 41,
+            "b": 71
+          },
+          "G": {
+            "r": 46,
+            "g": 166,
+            "b": 86
+          },
+          "B": {
+            "r": 28,
+            "g": 98,
+            "b": 172
+          }
+        }
+      }
+    }
+  },
+  "capture": {
+    "capturedAt": "2026-09-27T08:54:38.632Z",
+    "app": {
+      "version": "0.1.0",
+      "commit": "c28c49a"
+    },
+    "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/154.0.0.0 Safari/537.36",
+    "devicePixelRatio": 2,
+    "photo": {
+      "format": "image/jpeg",
+      "quality": 1
+    },
+    "mirrored": true,
+    "camera": {
+      "label": "FaceTime HD Camera (2C0E:82E3)",
+      "requested": {
+        "facingMode": "environment",
+        "width": {
+          "ideal": 1920
+        },
+        "height": {
+          "ideal": 1080
+        }
+      },
+      "granted": {
+        "aspectRatio": 1.7777777777777777,
+        "backgroundBlur": false,
+        "frameRate": 30,
+        "height": 1080,
+        "resizeMode": "none",
+        "width": 1920
+      },
+      "supported": {
+        "aspectRatio": {
+          "max": 1920,
+          "min": 0.0005208333333333333
+        },
+        "backgroundBlur": [
+          false
+        ],
+        "facingMode": [],
+        "frameRate": {
+          "max": 30,
+          "min": 0
+        },
+        "height": {
+          "max": 1920,
+          "min": 1
+        },
+        "resizeMode": [
+          "none",
+          "crop-and-scale"
+        ],
+        "width": {
+          "max": 1920,
+          "min": 1
+        }
+      }
+    },
+    "profile": {
+      "id": "builtin-generic-3",
+      "name": "Generic 3×3"
+    },
+    "colorProfile": {
+      "id": "capture-colors",
+      "name": "Colors from this capture",
+      "selection": "automatic",
+      "colors": {
+        "W": {
+          "r": 199,
+          "g": 205,
+          "b": 210
+        },
+        "Y": {
+          "r": 202,
+          "g": 225,
+          "b": 5
+        },
+        "O": {
+          "r": 247,
+          "g": 95,
+          "b": 31
+        },
+        "R": {
+          "r": 207,
+          "g": 25,
+          "b": 47
+        },
+        "G": {
+          "r": 59,
+          "g": 190,
+          "b": 44
+        },
+        "B": {
+          "r": 0,
+          "g": 137,
+          "b": 211
+        }
+      }
+    },
+    "colorResolution": {
+      "reason": "none",
+      "nearest": []
+    },
+    "colorReference": null,
+    "protocol": null,
+    "measurement": "colorful-30/v1",
+    "assembledURFDLB": "WYWYWYWYW ROROROROR GBGBGBGBG YWYWYWYWY ORORORORO BGBGBGBGB",
+    "backgroundWhiteBalance": {
+      "U": {
+        "r": 0.8918091726985117,
+        "g": 0.9431460553021576,
+        "b": 0.9085910265463952
+      },
+      "R": {
+        "r": 1.0194228006486032,
+        "g": 1.2274433918012015,
+        "b": 1.435262190423222
+      },
+      "F": {
+        "r": 0.9542428737022686,
+        "g": 0.9889685014597995,
+        "b": 1.1636128691084935
+      },
+      "D": {
+        "r": 0.9813034770283957,
+        "g": 1.0112803774755086,
+        "b": 0.9454593865118848
+      },
+      "L": {
+        "r": 1.0312521890939388,
+        "g": 0.9669298962685772,
+        "b": 0.903568622280262
+      },
+      "B": {
+        "r": 1.153960767486048,
+        "g": 1.059316476782356,
+        "b": 1.0612183906541837
+      }
+    },
+    "backgroundWhiteBalanceMethod": "median-around-cube/v2",
+    "sampling": {
+      "stickerCore": 0.6
+    },
+    "colorCalibration": {
+      "applied": true,
+      "learnedColors": {
+        "B": [
+          0,
+          137,
+          211
+        ],
+        "O": [
+          247,
+          95,
+          31
+        ],
+        "Y": [
+          202,
+          225,
+          5
+        ],
+        "W": [
+          199,
+          205,
+          210
+        ],
+        "R": [
+          207,
+          25,
+          47
+        ],
+        "G": [
+          59,
+          190,
+          44
+        ]
+      }
+    },
+    "colorStats": {
+      "W": {
+        "count": 9,
+        "expected": 9,
+        "lightness": {
+          "min": 0.7389754612669388,
+          "max": 0.8501592777472516
+        },
+        "chroma": {
+          "min": 0.0057841076018686904,
+          "max": 0.026255794814219326
+        },
+        "hue": {
+          "min": 220.90072063476708,
+          "max": 355.5900785890611,
+          "span": 134.689357954294
+        },
+        "hueOverlapsWith": [
+          "B"
+        ]
+      },
+      "O": {
+        "count": 9,
+        "expected": 9,
+        "lightness": {
+          "min": 0.6413355328526041,
+          "max": 0.67619766093577
+        },
+        "chroma": {
+          "min": 0.18955832620408403,
+          "max": 0.21765943994043024
+        },
+        "hue": {
+          "min": 34.148935353123676,
+          "max": 38.36952651002758,
+          "span": 4.220591156903879
+        },
+        "hueOverlapsWith": []
+      },
+      "G": {
+        "count": 9,
+        "expected": 9,
+        "lightness": {
+          "min": 0.7311836617637364,
+          "max": 0.7988258488638004
+        },
+        "chroma": {
+          "min": 0.2122535407990276,
+          "max": 0.2392013039148523
+        },
+        "hue": {
+          "min": 140.9656054873679,
+          "max": 141.70453055470793,
+          "span": 0.7389250673400056
+        },
+        "hueOverlapsWith": []
+      },
+      "R": {
+        "count": 9,
+        "expected": 9,
+        "lightness": {
+          "min": 0.48190324797665907,
+          "max": 0.5768274476998495
+        },
+        "chroma": {
+          "min": 0.18569289752120977,
+          "max": 0.20488424735756877
+        },
+        "hue": {
+          "min": 17.933996804218474,
+          "max": 22.434240845958062,
+          "span": 4.50024404173962
+        },
+        "hueOverlapsWith": []
+      },
+      "B": {
+        "count": 9,
+        "expected": 9,
+        "lightness": {
+          "min": 0.6319150090819574,
+          "max": 0.6799837972357329
+        },
+        "chroma": {
+          "min": 0.11012963073118254,
+          "max": 0.11910412378904643
+        },
+        "hue": {
+          "min": 216.9022166527639,
+          "max": 224.4367269577335,
+          "span": 7.534510304969558
+        },
+        "hueOverlapsWith": [
+          "W"
+        ]
+      },
+      "Y": {
+        "count": 9,
+        "expected": 9,
+        "lightness": {
+          "min": 0.7827600532990437,
+          "max": 0.8672691939948018
+        },
+        "chroma": {
+          "min": 0.18361367601624115,
+          "max": 0.21009258729875974
+        },
+        "hue": {
+          "min": 110.76883450659975,
+          "max": 124.30393789797105,
+          "span": 13.535103391371308
+        },
+        "hueOverlapsWith": []
+      }
+    }
+  }
+}

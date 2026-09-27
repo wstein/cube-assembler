@@ -8,6 +8,5 @@ lib/
 # Bun lockfile — using npm as package manager
 bun.lock
 
-test/fixtures/capture-20*
 # Previously saved local camera diagnostics may still contain personal images.
 test/diagnostics/
