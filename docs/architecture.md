@@ -54,8 +54,9 @@ imports, exports, and stores custom definitions under
 [`cube-assembler-profiles.json`](../cube-assembler-profiles.json).
 [`colorProfileLearning.ts`](../src/client/colorProfileLearning.ts) guards
 manual profile updates. [`preferences.ts`](../src/client/preferences.ts) keeps
-the selected cube size and color profile ID, Mirror, Auto capture, and sound in
-first-party cookies. See [Cubes and color profiles](color-profiles.md).
+the selected cube size and color profile ID, Mirror, Auto capture, sound, and
+2D/3D display options in first-party cookies. See
+[Cubes and color profiles](color-profiles.md).
 
 ## Tests and fixtures
 
