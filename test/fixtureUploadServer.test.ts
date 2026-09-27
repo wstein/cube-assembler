@@ -91,7 +91,7 @@ describe('local fixture upload server', () => {
     ).toBe(3)
     expect((await fetch(`${url}/upload`)).status).toBe(405)
     expect((await fetch(`${url}/ping`, { method: 'POST' })).status).toBe(405)
-    expect((await fetch(`${url}/`)).status).toBe(404)
+    expect((await fetch(`${url}/meta.json`)).status).toBe(404)
   })
 
   it('stores size-prefixed fixture names as directory names', async () => {
@@ -205,5 +205,22 @@ describe('local fixture upload server', () => {
       headers: { Origin: 'https://wstein.github.io' },
     })
     expect(published.headers.get('access-control-allow-origin')).toBeNull()
+  })
+
+  it('shows a status page at / without listing saved fixtures', async () => {
+    await start()
+    expect((await upload(fixtureForm('secret-name'))).status).toBe(201)
+    const page = await fetch(`${url}/`)
+    expect(page.status).toBe(200)
+    expect(page.headers.get('content-type')).toMatch(/^text\/html/)
+    expect(page.headers.get('content-security-policy')).toContain(
+      "default-src 'none'",
+    )
+    const html = await page.text()
+    expect(html).toContain('Fixture upload server')
+    expect(html).toContain('https://wstein.github.io')
+    expect(html).toContain('https://wstein.github.io/cube-assembler/')
+    expect(html).not.toContain('secret-name')
+    expect((await fetch(`${url}/`, { method: 'POST' })).status).toBe(405)
   })
 })
