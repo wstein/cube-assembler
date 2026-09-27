@@ -48,8 +48,9 @@ do not change the merge gate.
 profiles, using the closest fit for its preview and capture. After each face,
 it rechecks the profile against the captured sticker readings. The live badge and settings summary show the current
 preview palette. Once all
-six faces are captured, the app recalibrates them together and resolves one
-final saved profile if it matches clearly. Otherwise the result is named
+six faces are captured, the app recalibrates them together and uses the nearest
+saved color profile if it is close enough, even when several saved profiles
+have similar palettes. If none is close, the result is named
 **Colors from this capture**. A previous capture's match is never preselected.
 Selecting a profile by name keeps that manual choice. After review, the
 Capture card shows the final profile beside the cube profile, its six-color
@@ -68,9 +69,7 @@ captures update a manually selected profile gradually when the readings are
 close enough. Automatic colors only selects a profile. After a valid, confident
 reviewed capture, **Update NAME profile** explicitly blends the new colors into
 the detected profile; without that click, Automatic never changes its stored
-RGB values or capture count. Automatic matches only with a clear margin;
-ambiguous colors use the capture's own learned palette. Color similarity never
-identifies the cube itself.
+RGB values or capture count. A color match does not identify the physical cube.
 Settings can be downloaded and restored as JSON. The v3 storage key preserves
 the previous combined-profile key for older app versions.
 
