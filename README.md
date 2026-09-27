@@ -364,16 +364,20 @@ formats, toggled with the same switch in both places (see
 
 The URF facelets and compact state tokens can be exchanged with
 [Orbit64.Net](https://github.com/wstein/flix-orbit64/blob/main/FORMAT.md#spaced-facelet-reference-vectors)
-for 2×2 through 5×5 cubes. Select **Faces (URF)** to copy facelets; the
+for 2×2 through 7×7 cubes. Select **Faces (URF)** to copy facelets; the
 notation panel also shows a compact token with its own copy button. Paste
 either form into **Type colors**. The browser codec is checked against Orbit64's
-100 published token/facelet pairs. Orbit64 has no facelet mapping for 6×6 or
-7×7 yet, so token import and export stop at 5×5; move and algorithm tokens are
-different formats and are not accepted.
+100 published token/facelet pairs, the documented 6×6/7×7 solved vectors,
+four scrambled inner-slice tokens, and four scattered large-cube states rendered
+by upstream Flix. Move and algorithm tokens are different formats and are not
+accepted.
 
 The browser codec and slot tables are adapted from `flix-orbit64` under
 [Apache-2.0](third_party/flix-orbit64.LICENSE); the 100 cross-project vectors
 are in `test/orbit64Vectors.json`.
+The four large-cube cross-language vectors are in `test/orbit64LargeVectors.json`.
+The 6×6/7×7 slot geometry follows upstream's
+[large-cube convention](https://github.com/wstein/flix-orbit64/blob/00c0a97c7793d22249039743830f305925b23a38/FORMAT.md).
 
 Both are client-only formats.
 
