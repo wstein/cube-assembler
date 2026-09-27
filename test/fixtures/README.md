@@ -60,8 +60,9 @@ palette learned from all six photos and used to classify them together.
 classification reference; it is absent or null when Automatic used only the
 capture's own colors. Older fixtures without this field replay as before.
 
-Commit the new directory - these are small (cropped-region) JPEGs, meant to
-be checked in like any other test fixture.
+Commit the new directory after reviewing its photos and metadata. JPEGs are
+stored with Git LFS, so run `git lfs pull` if a checkout contains pointer
+files instead of images.
 
 ## Running the checks
 
@@ -69,10 +70,10 @@ be checked in like any other test fixture.
 npx vitest run test/fixtures.test.ts
 ```
 
-Real `capture-*` directories are ignored by Git, so these image checks run
-locally when captures are present and are skipped in CI. The 7×7 capture is
-included in local checks. `bun test test/gridAlignmentRealCrops.test.ts` can
-take about 30 seconds with the current corpus and has a 60-second test timeout.
+The committed `capture-*` directories, including a 7×7 capture, run in CI and
+locally. Image checks skip only when a checkout has no real captures.
+`bun test test/gridAlignmentRealCrops.test.ts` can take about 30 seconds with
+the current corpus and has a 60-second test timeout.
 
 Reproduces the app's actual `runGlobalWhiteBalance` flow: extracts each
 face with neutral gains, pools every sticker across all 6 faces, runs
