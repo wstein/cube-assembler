@@ -28,7 +28,7 @@ export interface MeshData {
   positions: Float32Array
   normals: Float32Array
   colors: Float32Array
-  indices: Uint16Array
+  indices: Uint16Array | Uint32Array
   vertexCount: number
   indexCount: number
 }
@@ -441,12 +441,19 @@ export function buildCubeMesh(
           }
         } else {
           // Stickered mode:
-          // 1. Black beveled plastic cubie body with reduced gap (0.010)
+          // Draw black beveled body and sticker tile only on exterior faces
           const HBody = 0.495
           const rBody = 0.04
-          for (const key of ['u', 'd', 'f', 'b', 'r', 'l'] as const) {
-            const a = FACE_AXES[key]
-            const seams = getFaceSeams(key, x, y, z, n)
+          const HStk = 0.445
+          const rStk = 0.035
+          const eps = 0.005
+
+          const addFaceWithSticker = (
+            faceKey: 'u' | 'd' | 'f' | 'b' | 'r' | 'l',
+          ) => {
+            const a = FACE_AXES[faceKey]
+            const seams = getFaceSeams(faceKey, x, y, z, n)
+            // 1. Black beveled plastic cubie body
             addBeveledFace(
               cx,
               cy,
@@ -460,138 +467,46 @@ export function buildCubeMesh(
               0,
               seams,
             )
+            // 2. Rounded sticker tile on exterior face
+            const colorKey = getFaceletColor(cube, n, faceKey, x, y, z)
+            const rgb = hexToRgb(
+              palette[colorKey] ?? DEFAULT_STICKER_HEX[colorKey] ?? '#888',
+            )
+            addBeveledFace(
+              cx,
+              cy,
+              cz,
+              a.u,
+              a.v,
+              a.n,
+              HStk,
+              rStk,
+              rgb,
+              HBody - HStk + eps,
+            )
           }
 
-          // 2. Rounded sticker tiles on exterior faces
-          const HStk = 0.445
-          const rStk = 0.035
-          const eps = 0.005
-
-          if (y === last) {
-            const colorKey = getFaceletColor(cube, n, 'u', x, y, z)
-            const rgb = hexToRgb(
-              palette[colorKey] ?? DEFAULT_STICKER_HEX[colorKey] ?? '#888',
-            )
-            const a = FACE_AXES.u
-            addBeveledFace(
-              cx,
-              cy,
-              cz,
-              a.u,
-              a.v,
-              a.n,
-              HStk,
-              rStk,
-              rgb,
-              HBody - HStk + eps,
-            )
-          }
-          if (y === 0) {
-            const colorKey = getFaceletColor(cube, n, 'd', x, y, z)
-            const rgb = hexToRgb(
-              palette[colorKey] ?? DEFAULT_STICKER_HEX[colorKey] ?? '#888',
-            )
-            const a = FACE_AXES.d
-            addBeveledFace(
-              cx,
-              cy,
-              cz,
-              a.u,
-              a.v,
-              a.n,
-              HStk,
-              rStk,
-              rgb,
-              HBody - HStk + eps,
-            )
-          }
-          if (z === last) {
-            const colorKey = getFaceletColor(cube, n, 'f', x, y, z)
-            const rgb = hexToRgb(
-              palette[colorKey] ?? DEFAULT_STICKER_HEX[colorKey] ?? '#888',
-            )
-            const a = FACE_AXES.f
-            addBeveledFace(
-              cx,
-              cy,
-              cz,
-              a.u,
-              a.v,
-              a.n,
-              HStk,
-              rStk,
-              rgb,
-              HBody - HStk + eps,
-            )
-          }
-          if (z === 0) {
-            const colorKey = getFaceletColor(cube, n, 'b', x, y, z)
-            const rgb = hexToRgb(
-              palette[colorKey] ?? DEFAULT_STICKER_HEX[colorKey] ?? '#888',
-            )
-            const a = FACE_AXES.b
-            addBeveledFace(
-              cx,
-              cy,
-              cz,
-              a.u,
-              a.v,
-              a.n,
-              HStk,
-              rStk,
-              rgb,
-              HBody - HStk + eps,
-            )
-          }
-          if (x === last) {
-            const colorKey = getFaceletColor(cube, n, 'r', x, y, z)
-            const rgb = hexToRgb(
-              palette[colorKey] ?? DEFAULT_STICKER_HEX[colorKey] ?? '#888',
-            )
-            const a = FACE_AXES.r
-            addBeveledFace(
-              cx,
-              cy,
-              cz,
-              a.u,
-              a.v,
-              a.n,
-              HStk,
-              rStk,
-              rgb,
-              HBody - HStk + eps,
-            )
-          }
-          if (x === 0) {
-            const colorKey = getFaceletColor(cube, n, 'l', x, y, z)
-            const rgb = hexToRgb(
-              palette[colorKey] ?? DEFAULT_STICKER_HEX[colorKey] ?? '#888',
-            )
-            const a = FACE_AXES.l
-            addBeveledFace(
-              cx,
-              cy,
-              cz,
-              a.u,
-              a.v,
-              a.n,
-              HStk,
-              rStk,
-              rgb,
-              HBody - HStk + eps,
-            )
-          }
+          if (y === last) addFaceWithSticker('u')
+          if (y === 0) addFaceWithSticker('d')
+          if (z === last) addFaceWithSticker('f')
+          if (z === 0) addFaceWithSticker('b')
+          if (x === last) addFaceWithSticker('r')
+          if (x === 0) addFaceWithSticker('l')
         }
       }
     }
   }
 
+  const vertexCount = posList.length / 3
+  const use32Bit = vertexCount > 65535
+  const indices = use32Bit ? new Uint32Array(idxList) : new Uint16Array(idxList)
+
   return {
     positions: new Float32Array(posList),
     normals: new Float32Array(normList),
     colors: new Float32Array(colList),
-    indices: new Uint16Array(idxList),
-    vertexCount: posList.length / 3,
+    indices,
+    vertexCount,
     indexCount: idxList.length,
   }
 }
@@ -923,6 +838,11 @@ export function CubeView3D({
   const stateRef = useRef({ pitch, yaw, zoom, isRotating })
   stateRef.current = { pitch, yaw, zoom, isRotating }
 
+  // Auto-scale zoom when puzzleSize changes
+  useEffect(() => {
+    setZoom(puzzleSize * 2.8)
+  }, [puzzleSize])
+
   // Reset to isometric view
   const resetView = () => {
     setPitch(0.42)
@@ -940,11 +860,21 @@ export function CubeView3D({
     const canvas = canvasRef.current
     if (!canvas) return
 
-    const gl = canvas.getContext('webgl', { antialias: true, alpha: false })
+    const gl =
+      (canvas.getContext('webgl2', {
+        antialias: true,
+        alpha: false,
+      }) as WebGL2RenderingContext | null) ||
+      (canvas.getContext('webgl', {
+        antialias: true,
+        alpha: false,
+      }) as WebGLRenderingContext | null)
     if (!gl) {
       setIsSupported(false)
       return
     }
+
+    gl.getExtension('OES_element_index_uint')
 
     const program = initProgram(gl)
     if (!program) {
@@ -1054,7 +984,11 @@ export function CubeView3D({
       gl.enableVertexAttribArray(aCol)
 
       gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, idxBuf)
-      gl.drawElements(gl.TRIANGLES, mesh.indexCount, gl.UNSIGNED_SHORT, 0)
+      const indexType =
+        mesh.indices instanceof Uint32Array
+          ? gl.UNSIGNED_INT
+          : gl.UNSIGNED_SHORT
+      gl.drawElements(gl.TRIANGLES, mesh.indexCount, indexType, 0)
 
       animFrameRef.current = requestAnimationFrame(render)
     }

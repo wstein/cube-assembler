@@ -151,6 +151,44 @@ describe('cubeView3D math and geometry', () => {
         expect(mesh.indices[i]).toBeLessThan(mesh.vertexCount)
       }
     })
+
+    it('builds valid rounded mesh for 6x6 cube in both stickered and stickerless modes', () => {
+      const cube = createSolvedCube(6)
+      const stickerlessMesh = buildCubeMesh(cube, 6, undefined, true)
+      expect(stickerlessMesh.vertexCount).toBeGreaterThan(0)
+      expect(stickerlessMesh.indexCount).toBeGreaterThan(0)
+      for (let i = 0; i < stickerlessMesh.indices.length; i++) {
+        expect(stickerlessMesh.indices[i]).toBeLessThan(
+          stickerlessMesh.vertexCount,
+        )
+      }
+
+      const stickeredMesh = buildCubeMesh(cube, 6, undefined, false)
+      expect(stickeredMesh.vertexCount).toBeGreaterThan(0)
+      expect(stickeredMesh.indexCount).toBeGreaterThan(0)
+      for (let i = 0; i < stickeredMesh.indices.length; i++) {
+        expect(stickeredMesh.indices[i]).toBeLessThan(stickeredMesh.vertexCount)
+      }
+    })
+
+    it('builds valid rounded mesh for 7x7 cube in both stickered and stickerless modes', () => {
+      const cube = createSolvedCube(7)
+      const stickerlessMesh = buildCubeMesh(cube, 7, undefined, true)
+      expect(stickerlessMesh.vertexCount).toBeGreaterThan(0)
+      expect(stickerlessMesh.indexCount).toBeGreaterThan(0)
+      for (let i = 0; i < stickerlessMesh.indices.length; i++) {
+        expect(stickerlessMesh.indices[i]).toBeLessThan(
+          stickerlessMesh.vertexCount,
+        )
+      }
+
+      const stickeredMesh = buildCubeMesh(cube, 7, undefined, false)
+      expect(stickeredMesh.vertexCount).toBeGreaterThan(0)
+      expect(stickeredMesh.indexCount).toBeGreaterThan(0)
+      for (let i = 0; i < stickeredMesh.indices.length; i++) {
+        expect(stickeredMesh.indices[i]).toBeLessThan(stickeredMesh.vertexCount)
+      }
+    })
   })
 
   describe('matrix operations', () => {
