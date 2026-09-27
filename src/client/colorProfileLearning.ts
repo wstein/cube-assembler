@@ -101,19 +101,18 @@ const CLOSE_PROFILE_DISTANCE = 0.04
 
 export interface AutomaticResolution {
   profile: ColorProfile | null
-  // clear: matchColorProfile's clear match. preview: the profile the live
-  // preview used, still the nearest and close, though without a clear lead.
-  // tie: close profiles, none clearly ahead. far: no saved profile is close.
-  // none: no saved profiles.
-  reason: 'clear' | 'preview' | 'tie' | 'far' | 'none'
+  // clear: a strong lead. preview: the nearest close profile also drove the
+  // latest live preview. nearest: another close profile won after six faces.
+  // tie is retained for older fixtures that fell back to captured colors.
+  // far: no saved profile is close. none: no saved profiles.
+  reason: 'clear' | 'preview' | 'nearest' | 'tie' | 'far' | 'none'
   // The nearest saved profiles with their fit (profileColorFitPercent), best first.
   nearest: Array<{ profile: ColorProfile; fit: number }>
 }
 
-// The saved profile Automatic settles on for a complete capture, and why.
-// The live preview always takes the nearest profile; the final choice
-// wants a clear lead, but keeps the preview's profile when that is still
-// the nearest and close, so the two don't disagree on a near tie.
+// The saved palette Automatic settles on for a complete capture. The final
+// six-face distance outranks a partial live preview; a close nearest palette
+// is used even when several saved palettes resemble one another.
 export function resolveAutomaticProfile(profiles: ColorProfile[], measured: Record<string, RGB>, previewId: string | null): AutomaticResolution {
   const ranked = profiles.filter((profile) => profile.captures > 0)
     .map((profile) => ({ profile, distance: paletteDistance(profile.colors, measured) }))
@@ -125,7 +124,7 @@ export function resolveAutomaticProfile(profiles: ColorProfile[], measured: Reco
   if (clear) return { profile: clear, reason: 'clear', nearest }
   if (best.distance > CLOSE_PROFILE_DISTANCE) return { profile: null, reason: 'far', nearest }
   if (best.profile.id === previewId) return { profile: best.profile, reason: 'preview', nearest }
-  return { profile: null, reason: 'tie', nearest }
+  return { profile: best.profile, reason: 'nearest', nearest }
 }
 
 // "plastic2 (faces 2–6), Generic colors (face 1)": which profile previewed
@@ -151,7 +150,7 @@ export function summarizePreviewProfiles(names: Array<string | undefined>): stri
 // they differed; otherwise report a failed automatic selection, if any.
 export function captureProfileFinding(previewNames: Array<string | undefined>, resolvedName: string,
   reason: AutomaticResolution['reason'] | null): string | null {
-  if (reason === 'tie') return 'Saved color profiles were too similar to choose'
+  if (reason === 'tie') return 'Saved profiles matched equally; colors from this capture were used'
   if (reason === 'far') return 'No saved color profile was close enough'
   if (previewNames.length === 0 || previewNames.every((name) => name === resolvedName)) return null
   const preview = summarizePreviewProfiles(previewNames)
