@@ -120,7 +120,7 @@ readable and honest instead of it turning into a flat, noisy pass/fail list
   profile, white balance mode, light source), they're appended to the test's title, e.g.
   `"my-cube" [light:Fluorescent (green cast), pastel]`. Tag software-rendered
   fixtures as `synthetic` and `software-rendered`, as in
-  `synt-6x6-2026-09-27T17-01-48-164Z`, so they stay distinct from camera
+  `synt-6x6-2026-09-27T17-01-48`, so they stay distinct from camera
   captures. That's enough for a pattern across failures (e.g. "every failure
   mentions Fluorescent") to be
   visible straight from `npm test` output - no separate report to run.
