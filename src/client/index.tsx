@@ -4565,7 +4565,9 @@ function App() {
           {repositoryLink(__APP_COMMIT__).label}
         </a>
         {' · '}
-        <a href={`${import.meta.env.BASE_URL}licenses/`}>Third-party licenses</a>
+        <a href={`${import.meta.env.BASE_URL}licenses/`}>
+          Third-party licenses
+        </a>
       </footer>
 
       {/* Webcam Modal */}
