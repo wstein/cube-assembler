@@ -1,17 +1,40 @@
-// Viewer preferences kept in first-party cookies. Strictly necessary: they
-// only remember choices made in the app, are read by nothing else, and are
-// never sent to a third party, so they need no consent. Each is off unless
-// the viewer turned it on.
+// Viewer preferences kept in first-party cookies. These hold only choices
+// made in the app; profile definitions remain in local storage.
 
 export const MIRROR_COOKIE = 'cube-assembler-mirror'
 export const AUTO_CAPTURE_COOKIE = 'cube-assembler-auto-capture'
 export const SOUND_COOKIE = 'cube-assembler-capture-sound'
+export const CUBE_SIZE_COOKIE = 'cube-assembler-cube-size'
+export const COLOR_PROFILE_COOKIE = 'cube-assembler-color-profile'
 const ONE_YEAR = 365 * 24 * 60 * 60
+const ATTRIBUTES = `Max-Age=${ONE_YEAR}; Path=/; SameSite=Lax`
 
 export function readPreference(cookies: string, name: string): boolean {
   return cookies.split(';').some((cookie) => cookie.trim() === `${name}=1`)
 }
 
 export function preferenceCookie(name: string, on: boolean): string {
-  return `${name}=${on ? 1 : 0}; Max-Age=${ONE_YEAR}; Path=/; SameSite=Lax`
+  return `${name}=${on ? 1 : 0}; ${ATTRIBUTES}`
+}
+
+export function readSelection(cookies: string, name: string): string | null {
+  const entry = cookies
+    .split(';')
+    .map((cookie) => cookie.trim())
+    .find((cookie) => cookie.startsWith(`${name}=`))
+  if (!entry) return null
+  try {
+    return decodeURIComponent(entry.slice(name.length + 1))
+  } catch {
+    return null
+  }
+}
+
+export function selectionCookie(name: string, value: string): string {
+  return `${name}=${encodeURIComponent(value)}; ${ATTRIBUTES}`
+}
+
+export function selectedCubeSize(cookies: string): number | null {
+  const value = readSelection(cookies, CUBE_SIZE_COOKIE)
+  return value && /^[2-7]$/.test(value) ? Number(value) : null
 }

@@ -45,10 +45,15 @@ import { repositoryLink } from './repositoryLink'
 import { profilesHash, profilesTab } from './profilesRoute'
 import {
   AUTO_CAPTURE_COOKIE,
+  COLOR_PROFILE_COOKIE,
+  CUBE_SIZE_COOKIE,
   MIRROR_COOKIE,
   SOUND_COOKIE,
   preferenceCookie,
   readPreference,
+  readSelection,
+  selectedCubeSize,
+  selectionCookie,
 } from './preferences'
 import { holdConfirmedFace, NO_HOLD, type LiveHold } from './liveHold'
 import { scaleBounds, type LiveAnalysisRequest } from './liveAnalysis'
@@ -243,7 +248,12 @@ declare const __APP_COMMIT__: string
 
 function loadProfileStore(): ProfileSettings {
   try {
-    return loadProfileSettings(localStorage)
+    const settings = loadProfileSettings(localStorage)
+    const selectedId = readSelection(document.cookie, COLOR_PROFILE_COOKIE)
+    return selectedId &&
+      allColorProfiles(settings).some((profile) => profile.id === selectedId)
+      ? selectColorProfile(settings, selectedId)
+      : settings
   } catch {
     return EMPTY_SETTINGS
   }
@@ -1077,7 +1087,9 @@ const ORIENTATION_CHOICES_PER_PAGE = 2
 // ─────────────────────────────────────────────────────────────────────────────
 
 function App() {
-  const [puzzleSize, setPuzzleSize] = useState(3)
+  const [puzzleSize, setPuzzleSize] = useState(
+    () => selectedCubeSize(document.cookie) ?? 3,
+  )
   const [cube, setCube] = useState<CubeState | null>(null)
   const [parity, setParity] = useState<ParityResult | null>(null)
   // Which highlight group (see parity.ts's HighlightGroup) is
@@ -1251,6 +1263,15 @@ function App() {
   }
   const [profileStore, setProfileStore] =
     useState<ProfileSettings>(loadProfileStore)
+  useEffect(() => {
+    document.cookie = selectionCookie(CUBE_SIZE_COOKIE, String(puzzleSize))
+  }, [puzzleSize])
+  useEffect(() => {
+    document.cookie = selectionCookie(
+      COLOR_PROFILE_COOKIE,
+      profileStore.activeColorsId,
+    )
+  }, [profileStore.activeColorsId])
   const profile = activeCube(profileStore, puzzleSize)
   const colorProfile = activeColorProfile(profileStore)
   const sampling = profile.sampling
