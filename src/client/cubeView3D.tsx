@@ -1349,10 +1349,10 @@ export function CubeView3D({
                 <button
                   type="button"
                   class="cube-3d-btn"
-                  onClick={() => setPreset(-Math.PI / 2 + 0.05, 0)}
-                  title="Down face"
+                  onClick={() => setPreset(0, -Math.PI / 2)}
+                  title="Right face"
                 >
-                  Down (D)
+                  Right (R)
                 </button>
                 <button
                   type="button"
@@ -1365,10 +1365,10 @@ export function CubeView3D({
                 <button
                   type="button"
                   class="cube-3d-btn"
-                  onClick={() => setPreset(0, Math.PI)}
-                  title="Back face"
+                  onClick={() => setPreset(-Math.PI / 2 + 0.05, 0)}
+                  title="Down face"
                 >
-                  Back (B)
+                  Down (D)
                 </button>
                 <button
                   type="button"
@@ -1381,10 +1381,10 @@ export function CubeView3D({
                 <button
                   type="button"
                   class="cube-3d-btn"
-                  onClick={() => setPreset(0, -Math.PI / 2)}
-                  title="Right face"
+                  onClick={() => setPreset(0, Math.PI)}
+                  title="Back face"
                 >
-                  Right (R)
+                  Back (B)
                 </button>
                 <button
                   type="button"
