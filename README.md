@@ -360,6 +360,13 @@ formats, toggled with the same switch in both places (see
   for a solved 3×3: `UUUUUUUUU RRRRRRRRR FFFFFFFFF DDDDDDDDD LLLLLLLLL
   BBBBBBBBB`.
 
+The URF facelets can be exchanged with
+[Orbit64.Net](https://github.com/wstein/flix-orbit64/blob/main/FORMAT.md#spaced-facelet-reference-vectors)
+for 2×2 through 5×5 cubes. Select **Faces (URF / Orbit64)** to copy a capture,
+or paste Orbit64's spaced facelets into **Type colors**. This exchanges facelet
+text; Orbit64's compact state tokens require its Flix codec and are not parsed
+by this browser app. Orbit64 has no facelet mapping for 6×6 or 7×7 yet.
+
 Both are client-only formats.
 
 Pasting into the manual-entry textarea auto-detects which of the two
