@@ -4,7 +4,6 @@ import {
 
 export const PROFILE_SETTINGS_KEY = 'cube-assembler-profiles-v1'
 export const SETTINGS_FILE_TYPE = 'cube-assembler-profiles'
-const OBSOLETE_KEYS = ['cube-assembler-settings-v3', 'cube-assembler-settings', 'cube-assembler-profiles']
 
 function isV3(value: unknown): value is Record<string, unknown> {
   const raw = value as Record<string, unknown> | null
@@ -30,10 +29,7 @@ export function saveProfileSettings(storage: Pick<Storage, 'setItem'>, settings:
   }
 }
 
-export function loadProfileSettings(storage: Pick<Storage, 'getItem' | 'removeItem'>): ProfileSettings {
-  for (const key of OBSOLETE_KEYS) {
-    try { storage.removeItem(key) } catch { /* Storage may be blocked. */ }
-  }
+export function loadProfileSettings(storage: Pick<Storage, 'getItem'>): ProfileSettings {
   try {
     const stored = storage.getItem(PROFILE_SETTINGS_KEY)
     if (stored) {
