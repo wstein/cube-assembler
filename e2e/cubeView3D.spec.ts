@@ -78,3 +78,21 @@ test('auto-rotate pauses for a drag and resumes without changing its setting', a
   await page.waitForTimeout(150)
   expect((await canvas.screenshot()).equals(resumed)).toBe(false)
 })
+
+for (const control of ['Front (F)', 'Isometric', 'Tilt Up', 'Rotate Left']) {
+  test(`${control} pauses auto-rotate so its view can be inspected`, async ({
+    page,
+  }) => {
+    await page.goto('/')
+    await page.getByRole('button', { name: 'Solved cube' }).click()
+    await page.getByRole('button', { name: '3D View' }).click()
+    await page.getByRole('button', { name: 'Auto-rotate' }).click()
+    await page.getByRole('button', { name: control }).click()
+    const canvas = page.locator('.cube-3d-canvas')
+    await page.waitForTimeout(100)
+    const held = await canvas.screenshot()
+    await page.waitForTimeout(150)
+    expect((await canvas.screenshot()).equals(held)).toBe(true)
+    await expect(page.getByRole('button', { name: 'Pause' })).toBeVisible()
+  })
+}
