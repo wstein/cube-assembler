@@ -141,6 +141,8 @@ turn and releases the capture gate when two sides look identical. A color patter
 an earlier capture is shown as a warning in the camera and capture net, since
 different faces can look identical, especially on even cubes. It does not
 prevent the next capture.
+After all six faces are captured, **Capture again** is on the left and
+**Edit colors** is on the right of the Capture card.
 
 On the real-capture benchmark (`test/gridAlignmentRealCrops.test.ts`) a
 7x7 held 4% off-center goes from 16% misread stickers to 0%, and tilted
