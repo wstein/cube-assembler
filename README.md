@@ -40,6 +40,8 @@ The Profiles page has **Export cubes & colors** and **Import cubes & colors**
 on both tabs. The download, `cube-assembler-profiles.json`, carries cube names,
 sizes, sticker gaps, color profiles, and the selected settings; importing
 merges them by ID.
+The repository's `cube-assembler-profiles.json` is an importable collection
+with Classic, Matte, Acryl, and five numbered Plastic color palettes.
 The Colors tab starts with a conservative merge limit of ΔE 3.0; adjust the
 slider before merging profiles whose sticker shades are farther apart.
 In the A/B swatches, ΔE below 3 is labeled **same**, 3 to under 12 is
