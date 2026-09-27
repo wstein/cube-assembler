@@ -686,6 +686,8 @@ export interface LearnedColors {
   leaveOneOutDistances: number[]
   // Each sample's pinned color (see clearStickerColors), or null.
   clearLabels: Array<string | null>
+  // Colors whose cluster likely mixed two colors (see mixedUpClusters).
+  mixedUpColors: string[]
 }
 
 // "Virtual sample count" a learned centroid is shrunk toward its matched
@@ -800,6 +802,22 @@ export function glareStickers(points: RGB[], labels: string[], palette: Record<s
     }
   }
   return glare
+// How far a cluster's center may sit from the stickers finally given its
+// color before the cluster is taken to have mixed two colors. On the saved
+// captures the red/blue mixes sat 0.09-0.12 away; every other cluster,
+// glare included, at most 0.044.
+const MIXED_CLUSTER_DRIFT = 0.07
+
+// The clusters whose center is far from the mean of the points assigned to
+// them. A cluster that took in two colors has its center between them -
+// the red/blue mix was purple - while the final assignment, pulled toward
+// the reference colors, hands it only one; its learned color can't be
+// trusted even when every sticker came out right.
+export function mixedUpClusters(points: RGB[], centroids: RGB[], assignment: number[]): number[] {
+  return centroids.flatMap((centroid, ci) => {
+    const members = points.filter((_, pi) => assignment[pi] === ci)
+    return members.length > 0 && clusterDistance(centroid, oklabMean(members)) > MIXED_CLUSTER_DRIFT ? [ci] : []
+  })
 }
 
 // Learns each of the 6 sticker colors' actual RGB directly from the
@@ -914,7 +932,9 @@ export function learnStickerColors(samples: StickerSample[], referencePalette: R
     return clusterDistance(point, shrunkCentroids[clusterIdx])
   })
 
-  return { colors, clusterSizes, labelsBySampleIndex, leaveOneOutDistances, clearLabels: points.map((_, i) => clearLabels[i] ?? null) }
+  const mixedUpColors = mixedUpClusters(points, centroids, pointAssignment).map((ci) => canonicalKeys[permutation[ci]])
+
+  return { colors, clusterSizes, labelsBySampleIndex, leaveOneOutDistances, clearLabels: points.map((_, i) => clearLabels[i] ?? null), mixedUpColors }
 }
 
 export interface FaceBounds {
