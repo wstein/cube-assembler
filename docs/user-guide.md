@@ -50,8 +50,11 @@ First-party cookies remember the selected cube size and color profile,
 Mirror, Auto capture, capture sound, and the **2D Net / 3D View** choice.
 Within 3D View, **Stickerless / Stickered** and **Auto-rotate / Pause** are
 remembered too. Swipe a sticker in the 3D view to turn its row or column,
-including inner slices on larger cubes. Drag the background to rotate the
-view; it keeps turning briefly after release. Layer turns update the 2D net,
+including inner slices on larger cubes. With a mouse, drag the background to
+rotate the view; it keeps turning briefly after release. On a touch screen,
+one finger only turns layers; two fingers tilt the cube and pinch to zoom. On
+a touchpad, a two-finger swipe tilts the cube and a pinch zooms, while a mouse
+wheel still zooms. Layer turns update the 2D net,
 facelet notation, and Orbit64 token. The move list records completed turns;
 **Undo** reverses the last one, and **Reset** returns to the captured state.
 **Scramble** uses more moves for larger cubes and turns inner layers on 4×4–7×7,
