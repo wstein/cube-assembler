@@ -31,7 +31,7 @@ import { faceSources, pieceKey, sourceIndex } from './netPresentation'
 import { ProfilesPage } from './profilesPage'
 import { repositoryLink } from './repositoryLink'
 import { profilesHash, profilesTab } from './profilesRoute'
-import { mirrorCookie, readMirrorPreference } from './preferences'
+import { AUTO_CAPTURE_COOKIE, MIRROR_COOKIE, SOUND_COOKIE, preferenceCookie, readPreference } from './preferences'
 import { holdConfirmedFace, NO_HOLD, type LiveHold } from './liveHold'
 import { scaleBounds, type LiveAnalysisRequest } from './liveAnalysis'
 import type { LiveFrameMessage, LiveResultMessage } from './liveAnalysis.worker'
@@ -1046,14 +1046,6 @@ function focusModalOnOpen(el: HTMLElement | null) {
   if (el && !el.contains(document.activeElement)) el.focus()
 }
 
-function storedCaptureSound(): boolean {
-  try {
-    return localStorage.getItem('cube-assembler.capture-sound') !== 'off'
-  } catch {
-    return true
-  }
-}
-
 const FACE_LABELS: Record<FaceKey, string> = {
   U: 'Up',
   R: 'Right',
@@ -1087,11 +1079,13 @@ function App() {
   } | null>(null)
   const [webcamOpen, setWebcamOpen] = useState(false)
   const [captureMode, setCaptureMode] = useState<CaptureMode>('cv')
-  const [autoCapture, setAutoCapture] = useState(true)
+  // Auto capture, sound and mirror start off; the viewer's choices are kept
+  // in cookies (see preferences.ts).
+  const [autoCapture, setAutoCapture] = useState(() => readPreference(document.cookie, AUTO_CAPTURE_COOKIE))
   const [autoCaptureFrames, setAutoCaptureFrames] = useState(0)
   const [autoCapturePaused, setAutoCapturePaused] = useState(false)
   const [captureFlash, setCaptureFlash] = useState(false)
-  const [captureSound, setCaptureSound] = useState(storedCaptureSound)
+  const [captureSound, setCaptureSound] = useState(() => readPreference(document.cookie, SOUND_COOKIE))
   const captureAudio = useRef<AudioContext | null>(null)
   const flashTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const autoCaptureInFlight = useRef(false)
@@ -1213,13 +1207,10 @@ function App() {
   // physical mirror), which is what most users expect; default on but
   // let it be turned off for cameras that don't need it (e.g. a rear
   // phone camera fed in via some capture setups).
-  // Off by default; the viewer's choice is kept in a cookie (see preferences.ts).
-  const [mirrorPreview, setMirrorPreview] = useState(() =>
-    readMirrorPreference(document.cookie),
-  )
-  const changeMirrorPreview = (mirrored: boolean) => {
-    setMirrorPreview(mirrored)
-    document.cookie = mirrorCookie(mirrored)
+  const [mirrorPreview, setMirrorPreview] = useState(() => readPreference(document.cookie, MIRROR_COOKIE))
+  const changePreference = (name: string, set: (on: boolean) => void, on: boolean) => {
+    set(on)
+    document.cookie = preferenceCookie(name, on)
   }
   const [profileStore, setProfileStore] =
     useState<ProfileSettings>(loadProfileStore)
@@ -4243,14 +4234,44 @@ function App() {
                   {liveMedianWB && ' · median WB'}
                 </span>
               </div>
-              <label class="mirror-toggle">
-                <input
-                  type="checkbox"
-                  checked={mirrorPreview}
-                  onChange={(e) => changeMirrorPreview(e.currentTarget.checked)}
-                />
-                Mirror
-              </label>
+              <div class="capture-live-options">
+                <label class="mirror-toggle">
+                  <input
+                    type="checkbox"
+                    checked={mirrorPreview}
+                    onChange={(e) => changePreference(MIRROR_COOKIE, setMirrorPreview, e.currentTarget.checked)}
+                  />
+                  Mirror
+                </label>
+                {captureMode === 'cv' && (
+                  <>
+                    <label class="auto-capture-toggle">
+                      <input
+                        type="checkbox"
+                        checked={autoCapture}
+                        onChange={(e) => changePreference(AUTO_CAPTURE_COOKIE, setAutoCapture, e.currentTarget.checked)}
+                      />
+                      <span>
+                        {autoCapture
+                          ? `Auto capture · matching frames ${autoCaptureFrames}/${AUTO_CAPTURE_STABLE_FRAMES}${autoCapturePaused ? ' · paused' : ''}`
+                          : 'Auto capture'}
+                      </span>
+                    </label>
+                    <label class="capture-sound-toggle">
+                      <input
+                        type="checkbox"
+                        checked={captureSound}
+                        onChange={(e) => {
+                          const enabled = e.currentTarget.checked
+                          changePreference(SOUND_COOKIE, setCaptureSound, enabled)
+                          armCaptureAudio(enabled)
+                        }}
+                      />
+                      Sound
+                    </label>
+                  </>
+                )}
+              </div>
             </div>
             <div class="capture-side">
               <div class="capture-side-header">
@@ -4736,44 +4757,6 @@ function App() {
                 </div>
               )}
               <div class="capture-actions">
-                {captureMode === 'cv' && (
-                  <div class="capture-feedback-settings">
-                    <label class="auto-capture-toggle">
-                      <input
-                        type="checkbox"
-                        checked={autoCapture}
-                        onChange={(e) =>
-                          setAutoCapture(e.currentTarget.checked)
-                        }
-                      />
-                      <span>
-                        {autoCapture
-                          ? `Auto capture · matching frames ${autoCaptureFrames}/${AUTO_CAPTURE_STABLE_FRAMES}${autoCapturePaused ? ' · paused' : ''}`
-                          : 'Auto capture'}
-                      </span>
-                    </label>
-                    <button
-                      type="button"
-                      class="capture-sound-toggle"
-                      aria-pressed={captureSound}
-                      onClick={() => {
-                        const enabled = !captureSound
-                        setCaptureSound(enabled)
-                        try {
-                          localStorage.setItem(
-                            'cube-assembler.capture-sound',
-                            enabled ? 'on' : 'off',
-                          )
-                        } catch {
-                          /* Storage is optional. */
-                        }
-                        armCaptureAudio(enabled)
-                      }}
-                    >
-                      {captureSound ? '🔊 Sound on' : '🔇 Sound off'}
-                    </button>
-                  </div>
-                )}
                 <div
                   role="status"
                   class={`capture-message ${captureMessage ? (captureMessage.includes('✓') ? 'success' : captureMessage.includes('❌') ? 'error' : '') : 'is-empty'}`}

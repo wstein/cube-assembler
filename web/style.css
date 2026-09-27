@@ -884,7 +884,7 @@ textarea {
     width: min(100%, 42vh);
   }
 
-  .capture-modal-content .capture-live .mirror-toggle {
+  .capture-modal-content .capture-live-options label {
     color: var(--color-text-primary);
   }
 
@@ -2153,17 +2153,12 @@ label.capture-size-label {
   cursor: pointer;
 }
 
-.capture-feedback-settings {
+.capture-sound-toggle {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: var(--spacing-sm);
-}
-.capture-sound-toggle {
-  border: 0;
-  background: none;
+  gap: var(--spacing-xs);
+  font-size: 0.9rem;
   color: var(--color-text-secondary);
-  font: inherit;
   cursor: pointer;
   white-space: nowrap;
 }
@@ -2444,8 +2439,18 @@ label.capture-size-label {
   margin-left: auto;
 }
 
-.capture-live .mirror-toggle {
+/* Mirror, Auto capture and Sound, right below the live view. */
+.capture-live-options {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: var(--spacing-xs) var(--spacing-lg);
+}
+
+.capture-live-options label {
   margin-left: 0;
+  font-size: 0.85rem;
   color: #ffffff;
 }
 
