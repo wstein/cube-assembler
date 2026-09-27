@@ -1,7 +1,7 @@
 /**
  * test/provisionalPaletteReplay.test.ts
  * Replays Automatic's provisional palette choice over the saved real
- * captures (gitignored, like test/fixtures.test.ts). After each captured
+ * captures. After each captured
  * face, in the order the faces were taken, matchPartialColorProfile picks a
  * profile from the faces so far - the palette the live preview then uses for
  * the next face. This measures, per capture:
@@ -36,7 +36,7 @@ const captures = existsSync(root)
   ? readdirSync(root)
       .filter(
         (name) =>
-          name.startsWith('capture-') &&
+          /^(?:capture-|cube-\d+x\d+-)/.test(name) &&
           existsSync(join(root, name, 'meta.json')),
       )
       .sort()
