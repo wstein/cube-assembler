@@ -27,6 +27,7 @@ interface Face {
   data: Uint8ClampedArray
   size: number
   gridSize: number
+  truth: string[][]
 }
 
 function loadFaces(): Face[] {
@@ -48,13 +49,20 @@ function loadFaces(): Face[] {
         const sy = Math.floor((y * source) / size)
         for (let x = 0; x < size; x++) {
           const from = (sy * image.width + Math.floor((x * source) / size)) * 4
-          data[(y * size + x) * 4] = image.data[from]
-          data[(y * size + x) * 4 + 1] = image.data[from + 1]
-          data[(y * size + x) * 4 + 2] = image.data[from + 2]
-          data[(y * size + x) * 4 + 3] = 255
+          const dest = (y * size + x) * 4
+          data[dest] = image.data[from]
+          data[dest + 1] = image.data[from + 1]
+          data[dest + 2] = image.data[from + 2]
+          data[dest + 3] = 255
         }
       }
-      faces.push({ data, size, gridSize: meta.gridSize })
+      const truth = extractColorsFromImageData(
+        data,
+        size,
+        size,
+        meta.gridSize,
+      ).colors
+      faces.push({ data, size, gridSize: meta.gridSize, truth })
     }
   }
   return faces
@@ -74,22 +82,26 @@ function frame(face: Face, dx: number, dy: number, scale: number, tilt = 0) {
   const drawn = Math.round(face.size * scale)
   const x0 = Math.round(guide.x + (face.size - drawn) / 2 + dx * face.size)
   const y0 = Math.round(guide.y + (face.size - drawn) / 2 + dy * face.size)
-  // Nearest-neighbour rows, built once and copied per target row.
-  const row = new Uint8ClampedArray(drawn * 4)
+  const from = Math.max(0, -x0)
+  const to = Math.min(drawn, width - x0)
+  const srcX = new Int32Array(to - from)
+  for (let x = from; x < to; x++) {
+    srcX[x - from] = Math.floor(x / scale) * 4
+  }
+
   for (let y = 0; y < drawn; y++) {
     const ty = y0 + y
     if (ty < 0 || ty >= width) continue
-    const sourceRow = Math.floor(y / scale) * face.size
-    for (let x = 0; x < drawn; x++) {
-      const source = (sourceRow + Math.floor(x / scale)) * 4
-      row[x * 4] = face.data[source]
-      row[x * 4 + 1] = face.data[source + 1]
-      row[x * 4 + 2] = face.data[source + 2]
-      row[x * 4 + 3] = 255
+    const sourceRow = Math.floor(y / scale) * face.size * 4
+    let dest = (ty * width + x0 + from) * 4
+    for (let i = 0; i < srcX.length; i++) {
+      const src = sourceRow + srcX[i]
+      data[dest] = face.data[src]
+      data[dest + 1] = face.data[src + 1]
+      data[dest + 2] = face.data[src + 2]
+      data[dest + 3] = 255
+      dest += 4
     }
-    const from = Math.max(0, -x0),
-      to = Math.min(drawn, width - x0)
-    data.set(row.subarray(from * 4, to * 4), (ty * width + x0 + from) * 4)
   }
   return { data, width, guide }
 }
@@ -110,19 +122,32 @@ function tiltedFrame(
   }
   const data = new Uint8ClampedArray(width * width * 4).fill(128)
   const size = face.size * scale
-  const cx = guide.x + face.size / 2 + dx * face.size,
-    cy = guide.y + face.size / 2 + dy * face.size
-  const turn = (tilt * Math.PI) / 180,
-    cos = Math.cos(turn),
-    sin = Math.sin(turn)
+  if (size <= 0) return { data, width, guide }
+  const cx = guide.x + face.size / 2 + dx * face.size
+  const cy = guide.y + face.size / 2 + dy * face.size
+  const turn = (tilt * Math.PI) / 180
+  const cos = Math.cos(turn)
+  const sin = Math.sin(turn)
+  const cosS = cos / scale
+  const sinS = sin / scale
+  const halfFace = face.size / 2
+
+  let dest = 0
   for (let y = 0; y < width; y++) {
+    const yOff = y - cy
+    let u = -cosS * cx + sinS * yOff + halfFace
+    let v = sinS * cx + cosS * yOff + halfFace
     for (let x = 0; x < width; x++) {
-      const u = (cos * (x - cx) + sin * (y - cy)) / scale + face.size / 2
-      const v = (-sin * (x - cx) + cos * (y - cy)) / scale + face.size / 2
-      if (u < 0 || v < 0 || u >= face.size || v >= face.size || size <= 0)
-        continue
-      const source = (Math.floor(v) * face.size + Math.floor(u)) * 4
-      data.set(face.data.subarray(source, source + 4), (y * width + x) * 4)
+      if (u >= 0 && v >= 0 && u < face.size && v < face.size) {
+        const source = (Math.floor(v) * face.size + Math.floor(u)) * 4
+        data[dest] = face.data[source]
+        data[dest + 1] = face.data[source + 1]
+        data[dest + 2] = face.data[source + 2]
+        data[dest + 3] = 255
+      }
+      u += cosS
+      v -= sinS
+      dest += 4
     }
   }
   return { data, width, guide }
@@ -137,27 +162,29 @@ function readTilted(
   gridSize: number,
 ): string[][] {
   const size = Math.round(square.size)
-  const cx = square.x + square.size / 2,
-    cy = square.y + square.size / 2
-  const cos = Math.cos(angle),
-    sin = Math.sin(angle)
+  const cx = square.x + square.size / 2
+  const cy = square.y + square.size / 2
+  const cos = Math.cos(angle)
+  const sin = Math.sin(angle)
   const crop = new Uint8ClampedArray(size * size * 4)
+  const halfSize = size / 2
+
+  let dest = 0
   for (let y = 0; y < size; y++) {
+    const v = y - halfSize
+    let rx = cx - cos * halfSize - sin * v
+    let ry = cy - sin * halfSize + cos * v
     for (let x = 0; x < size; x++) {
-      const u = x - size / 2,
-        v = y - size / 2
-      const sx = Math.min(
-        width - 1,
-        Math.max(0, Math.round(cx + cos * u - sin * v)),
-      )
-      const sy = Math.min(
-        width - 1,
-        Math.max(0, Math.round(cy + sin * u + cos * v)),
-      )
-      crop.set(
-        data.subarray((sy * width + sx) * 4, (sy * width + sx) * 4 + 4),
-        (y * size + x) * 4,
-      )
+      const sx = Math.min(width - 1, Math.max(0, Math.round(rx)))
+      const sy = Math.min(width - 1, Math.max(0, Math.round(ry)))
+      const sIdx = (sy * width + sx) * 4
+      crop[dest] = data[sIdx]
+      crop[dest + 1] = data[sIdx + 1]
+      crop[dest + 2] = data[sIdx + 2]
+      crop[dest + 3] = 255
+      rx += cos
+      ry += sin
+      dest += 4
     }
   }
   return extractColorsFromImageData(crop, size, size, gridSize).colors
@@ -170,17 +197,20 @@ function read(
   gridSize: number,
 ): string[][] {
   const size = Math.round(square.size)
-  const x0 = Math.round(square.x),
-    y0 = Math.round(square.y)
+  const x0 = Math.round(square.x)
+  const y0 = Math.round(square.y)
+  const from = Math.max(0, x0)
+  const to = Math.min(width, x0 + size)
+  const copyWidth = (to - from) * 4
+  const xOffset = (from - x0) * 4
+
   // The search keeps the square inside the frame, so whole rows copy.
   const crop = new Uint8ClampedArray(size * size * 4)
   for (let y = 0; y < size; y++) {
     const sy = Math.min(width - 1, Math.max(0, y0 + y))
-    const from = Math.max(0, x0),
-      to = Math.min(width, x0 + size)
     crop.set(
-      data.subarray((sy * width + from) * 4, (sy * width + to) * 4),
-      (y * size + from - x0) * 4,
+      data.subarray((sy * width + from) * 4, (sy * width + from) * 4 + copyWidth),
+      y * size * 4 + xOffset,
     )
   }
   return extractColorsFromImageData(crop, size, size, gridSize).colors
@@ -210,12 +240,7 @@ describe('grid alignment on real capture crops', () => {
         { guide: number; aligned: number; total: number }
       > = {}
       for (const face of faces) {
-        const truth = extractColorsFromImageData(
-          face.data,
-          face.size,
-          face.size,
-          face.gridSize,
-        ).colors
+        const truth = face.truth
         const { data, width, guide } = frame(face, dx, dy, scale, tilt)
         const found = alignFace(data, width, width, guide, face.gridSize)
         const byGuide = read(data, width, guide, face.gridSize)
