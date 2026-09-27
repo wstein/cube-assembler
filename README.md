@@ -4,13 +4,16 @@
 
 [Open the static scanner demo](https://wstein.github.io/cube-assembler/) · [Source repository](https://github.com/wstein/cube-assembler)
 
+The scanner footer links to the source commit used for the deployed build.
+
 Scanning, review, parity checks, and fixture ZIP import/export run in the
 browser. Local development also offers an optional upload-only fixture server
 that saves reviewed captures directly into `test/fixtures/`.
 
+[![CI](https://github.com/wstein/cube-assembler/actions/workflows/ci.yml/badge.svg)](https://github.com/wstein/cube-assembler/actions/workflows/ci.yml)
+[![Pages](https://github.com/wstein/cube-assembler/actions/workflows/pages.yml/badge.svg)](https://github.com/wstein/cube-assembler/actions/workflows/pages.yml)
+![TypeScript: strict](https://img.shields.io/badge/TypeScript-strict-blue)
 ![License: MIT](https://img.shields.io/badge/License-MIT-cyan.svg)
-![npm](https://img.shields.io/badge/runtime-npm-black)
-![Tests](https://img.shields.io/badge/tests-vitest-brightgreen)
 
 A web app that reads a physical puzzle cube (2×2–7×7, such as a Rubik's Cube)
 from six camera photos and reconstructs its state. Two ambiguities have to be
@@ -179,12 +182,14 @@ npm run fixture:server
 npm test
 
 # Check lint and formatting
+npm run typecheck
 npm run lint
 npm run format:check
 ```
 
-`npm run lint` uses typescript-eslint for TypeScript/JavaScript and the ReScript
-compiler with warnings treated as errors for `.res` files. Biome formats the
+`npm run typecheck` checks the strict TypeScript project without emitting files.
+`npm run lint` uses type-aware typescript-eslint rules, selected Biome rules for
+buttons and CSS, and ReScript compiler warnings as errors for `.res` files. Biome formats the
 TypeScript, JavaScript, CSS, and JSON files; `npm run format` applies it and
 the ReScript formatter. The project currently has no ReScript source files.
 

@@ -12,13 +12,14 @@ Cube geometry and sticker colors are independent settings: `profileSettings.ts` 
 - `npm run dev` starts the Vite dev server.
 - `npm run fixture:server` starts the optional localhost-only fixture upload server for the dev UI's **Upload to localhost** action.
 - `npm run build` builds the client with Vite.
+- `npm run typecheck` checks strict TypeScript without emitting files.
 - `npm test` runs Vitest once; `npm run test:watch` reruns tests during edits.
-- `npm run lint` runs typescript-eslint and ReScript compiler warnings as errors.
+- `npm run lint` runs type-aware typescript-eslint, selected Biome checks, and ReScript compiler warnings as errors.
 - `npm run format:check` checks Biome and ReScript formatting; `npm run format` applies it.
 
 ## Coding Style & Naming Conventions
 
-Use two-space indentation, single quotes, and semicolons only when needed in TypeScript and TSX. Biome enforces formatting; `eslint.config.mjs` applies typescript-eslint rules. ReScript formatting and warning checks are configured for future `.res` files; there are none currently. Name tests `<feature>.test.ts`. Keep geometry, color classification, capture state, and UI presentation in their existing modules rather than mixing them into components.
+Use two-space indentation, single quotes, and semicolons only when needed in TypeScript and TSX. Biome enforces formatting, explicit button types, and basic CSS correctness; `eslint.config.mjs` applies type-aware typescript-eslint rules. ReScript formatting and warning checks are configured for future `.res` files; there are none currently. Name tests `<feature>.test.ts`. Keep geometry, color classification, capture state, and UI presentation in their existing modules rather than mixing them into components.
 
 ## Testing Guidelines
 
