@@ -31,7 +31,13 @@ import { faceSources, pieceKey, sourceIndex } from './netPresentation'
 import { ProfilesPage } from './profilesPage'
 import { repositoryLink } from './repositoryLink'
 import { profilesHash, profilesTab } from './profilesRoute'
-import { AUTO_CAPTURE_COOKIE, MIRROR_COOKIE, SOUND_COOKIE, preferenceCookie, readPreference } from './preferences'
+import {
+  AUTO_CAPTURE_COOKIE,
+  MIRROR_COOKIE,
+  SOUND_COOKIE,
+  preferenceCookie,
+  readPreference,
+} from './preferences'
 import { holdConfirmedFace, NO_HOLD, type LiveHold } from './liveHold'
 import { scaleBounds, type LiveAnalysisRequest } from './liveAnalysis'
 import type { LiveFrameMessage, LiveResultMessage } from './liveAnalysis.worker'
@@ -1081,11 +1087,15 @@ function App() {
   const [captureMode, setCaptureMode] = useState<CaptureMode>('cv')
   // Auto capture, sound and mirror start off; the viewer's choices are kept
   // in cookies (see preferences.ts).
-  const [autoCapture, setAutoCapture] = useState(() => readPreference(document.cookie, AUTO_CAPTURE_COOKIE))
+  const [autoCapture, setAutoCapture] = useState(() =>
+    readPreference(document.cookie, AUTO_CAPTURE_COOKIE),
+  )
   const [autoCaptureFrames, setAutoCaptureFrames] = useState(0)
   const [autoCapturePaused, setAutoCapturePaused] = useState(false)
   const [captureFlash, setCaptureFlash] = useState(false)
-  const [captureSound, setCaptureSound] = useState(() => readPreference(document.cookie, SOUND_COOKIE))
+  const [captureSound, setCaptureSound] = useState(() =>
+    readPreference(document.cookie, SOUND_COOKIE),
+  )
   const captureAudio = useRef<AudioContext | null>(null)
   const flashTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const autoCaptureInFlight = useRef(false)
@@ -1207,8 +1217,14 @@ function App() {
   // physical mirror), which is what most users expect; default on but
   // let it be turned off for cameras that don't need it (e.g. a rear
   // phone camera fed in via some capture setups).
-  const [mirrorPreview, setMirrorPreview] = useState(() => readPreference(document.cookie, MIRROR_COOKIE))
-  const changePreference = (name: string, set: (on: boolean) => void, on: boolean) => {
+  const [mirrorPreview, setMirrorPreview] = useState(() =>
+    readPreference(document.cookie, MIRROR_COOKIE),
+  )
+  const changePreference = (
+    name: string,
+    set: (on: boolean) => void,
+    on: boolean,
+  ) => {
     set(on)
     document.cookie = preferenceCookie(name, on)
   }
@@ -4239,7 +4255,13 @@ function App() {
                   <input
                     type="checkbox"
                     checked={mirrorPreview}
-                    onChange={(e) => changePreference(MIRROR_COOKIE, setMirrorPreview, e.currentTarget.checked)}
+                    onChange={(e) =>
+                      changePreference(
+                        MIRROR_COOKIE,
+                        setMirrorPreview,
+                        e.currentTarget.checked,
+                      )
+                    }
                   />
                   Mirror
                 </label>
@@ -4249,7 +4271,13 @@ function App() {
                       <input
                         type="checkbox"
                         checked={autoCapture}
-                        onChange={(e) => changePreference(AUTO_CAPTURE_COOKIE, setAutoCapture, e.currentTarget.checked)}
+                        onChange={(e) =>
+                          changePreference(
+                            AUTO_CAPTURE_COOKIE,
+                            setAutoCapture,
+                            e.currentTarget.checked,
+                          )
+                        }
                       />
                       <span>
                         {autoCapture
@@ -4263,7 +4291,11 @@ function App() {
                         checked={captureSound}
                         onChange={(e) => {
                           const enabled = e.currentTarget.checked
-                          changePreference(SOUND_COOKIE, setCaptureSound, enabled)
+                          changePreference(
+                            SOUND_COOKIE,
+                            setCaptureSound,
+                            enabled,
+                          )
                           armCaptureAudio(enabled)
                         }}
                       />

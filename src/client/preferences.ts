@@ -9,9 +9,7 @@ export const SOUND_COOKIE = 'cube-assembler-capture-sound'
 const ONE_YEAR = 365 * 24 * 60 * 60
 
 export function readPreference(cookies: string, name: string): boolean {
-  return cookies
-    .split(';')
-    .some((cookie) => cookie.trim() === `${name}=1`)
+  return cookies.split(';').some((cookie) => cookie.trim() === `${name}=1`)
 }
 
 export function preferenceCookie(name: string, on: boolean): string {
