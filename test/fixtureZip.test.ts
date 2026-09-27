@@ -58,6 +58,8 @@ describe('fixture zips', () => {
       await files.find((f) => f.name === 'meta.json')!.text(),
     )
     expect(meta).toEqual({
+      $schema:
+        'https://wstein.github.io/cube-assembler/schemas/fixture-meta.schema.json',
       gridSize: saved.gridSize,
       colorsURFDLB: saved.colorsURFDLB,
       faces: Object.fromEntries(

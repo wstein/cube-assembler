@@ -1,0 +1,59 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://wstein.github.io/cube-assembler/schemas/fixture-meta.schema.json",
+  "title": "CubeAssembler fixture metadata",
+  "description": "The meta.json accompanying six photographed cube faces. Face keys are capture slots, not resolved cube faces. The app also checks that each facelet block has gridSize squared letters.",
+  "type": "object",
+  "required": ["$schema", "gridSize", "colorsURFDLB", "faces"],
+  "properties": {
+    "$schema": {
+      "const": "https://wstein.github.io/cube-assembler/schemas/fixture-meta.schema.json"
+    },
+    "gridSize": { "type": "integer", "minimum": 2, "maximum": 7 },
+    "colorsURFDLB": { "$ref": "#/$defs/facelets" },
+    "detectedURFDLB": { "$ref": "#/$defs/facelets" },
+    "faces": {
+      "type": "object",
+      "required": ["u", "r", "f", "d", "l", "b"],
+      "properties": {
+        "u": { "$ref": "#/$defs/face" },
+        "r": { "$ref": "#/$defs/face" },
+        "f": { "$ref": "#/$defs/face" },
+        "d": { "$ref": "#/$defs/face" },
+        "l": { "$ref": "#/$defs/face" },
+        "b": { "$ref": "#/$defs/face" }
+      },
+      "additionalProperties": false
+    },
+    "capture": {
+      "type": "object",
+      "description": "Optional camera, sampling, color-profile, and review diagnostics. Fields may be added without changing the fixture format."
+    },
+    "tags": { "type": "array", "items": { "type": "string" } },
+    "expectedFail": {
+      "type": "object",
+      "required": ["reason"],
+      "properties": { "reason": { "type": "string", "minLength": 1 } },
+      "additionalProperties": true
+    }
+  },
+  "additionalProperties": true,
+  "$defs": {
+    "facelets": {
+      "type": "string",
+      "description": "Six space-separated capture-slot grids, each with W/O/G/R/B/Y sticker letters. The app verifies each block contains gridSize squared letters.",
+      "pattern": "^[WOGRBY]{4,49}( [WOGRBY]{4,49}){5}$"
+    },
+    "face": {
+      "type": "object",
+      "required": ["photo"],
+      "properties": {
+        "photo": {
+          "type": "string",
+          "pattern": "^face-[urfdlb]\\.(jpg|png)$"
+        }
+      },
+      "additionalProperties": true
+    }
+  }
+}

@@ -1,4 +1,5 @@
 {
+  "$schema": "https://wstein.github.io/cube-assembler/schemas/fixture-meta.schema.json",
   "gridSize": 3,
   "colorsURFDLB": "ROROROROR GBGBGBGBG ORORORORO BGBGBGBGB YWYWYWYWY WYWYWYWYW",
   "detectedURFDLB": "ROROROROR GBGBGBGBG ORORORORO BGBGBGBGB YWYWYWYWY WYWYWYWYW",
