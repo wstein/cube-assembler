@@ -125,6 +125,73 @@ async function validateFixture(byName) {
   }
 }
 
+const escapeHtml = (text) =>
+  text.replace(
+    /[&<>"']/g,
+    (c) =>
+      ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[
+        c
+      ],
+  )
+
+// What a browser shows at /: that the server runs, who may upload, and how.
+// It never lists or links saved fixtures.
+function statusPage(rootDir, allowedOrigins) {
+  const origins = ['localhost pages (any port)', ...allowedOrigins]
+    .map((origin) => `<li><code>${escapeHtml(origin)}</code></li>`)
+    .join('')
+  return `<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Fixture upload server</title>
+<style>
+  :root { color-scheme: light dark; --bg: #fafaf7; --fg: #1d1d1b; --muted: #5f5f5a; --ok: #1f7a3a; --card: #fff; --line: #e3e3dd; }
+  @media (prefers-color-scheme: dark) { :root { --bg: #151514; --fg: #ededea; --muted: #a3a39d; --ok: #5cc27d; --card: #1f1f1d; --line: #33332f; } }
+  body { margin: 0; background: var(--bg); color: var(--fg); font: 16px/1.5 system-ui, sans-serif; }
+  main { max-width: 42rem; margin: 0 auto; padding: 2rem 1rem; }
+  h1 { font-size: 1.5rem; margin: 0 0 .25rem; }
+  .status { color: var(--ok); font-weight: 600; margin: 0 0 1.5rem; }
+  section { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 1rem 1.25rem; margin-bottom: 1rem; }
+  h2 { font-size: 1rem; margin: 0 0 .5rem; }
+  ul, ol { margin: 0; padding-left: 1.25rem; }
+  code { font: .9em ui-monospace, monospace; overflow-wrap: anywhere; }
+  .muted { color: var(--muted); font-size: .9rem; }
+  a { color: inherit; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Fixture upload server</h1>
+  <p class="status">● Running · uploads go to <code>${escapeHtml(rootDir)}</code></p>
+  <section>
+    <h2>Save a capture as a test fixture</h2>
+    <ol>
+      <li>Open CubeAssembler: <a href="https://wstein.github.io/cube-assembler/">published app</a> or the dev server at <a href="http://localhost:5173/">localhost:5173</a>.</li>
+      <li>Capture and review a cube, then choose <strong>Save as test fixture</strong>.</li>
+      <li>Choose <strong>Upload to localhost</strong>. The first time on the published app, Chrome may ask to allow access to devices on your local network.</li>
+    </ol>
+  </section>
+  <section>
+    <h2>Uploads accepted from</h2>
+    <ul>${origins}</ul>
+    <p class="muted">Set <code>FIXTURE_UPLOAD_ORIGINS</code> (comma separated) to change the non-local sites.</p>
+  </section>
+  <section>
+    <h2>Endpoints</h2>
+    <ul>
+      <li><code>GET /ping</code> answers 204 when the server runs.</li>
+      <li><code>POST /upload</code> takes a name, <code>meta.json</code> and six face photos, with <code>X-Fixture-Upload: 1</code>. Existing fixtures are never overwritten.</li>
+    </ul>
+    <p class="muted">Listens on 127.0.0.1 only and never serves saved files.</p>
+  </section>
+</main>
+</body>
+</html>
+`
+}
+
 export function createFixtureUploadServer(
   rootDir,
   log = console.log,
@@ -165,6 +232,18 @@ export function createFixtureUploadServer(
       res.writeHead(204, { 'Cache-Control': 'no-store' })
       res.end()
       return trace(204, `preflight ${origin ?? ''}`.trim())
+    }
+    if (req.url === '/') {
+      if (req.method !== 'GET') return send(405, 'Method not allowed')
+      res.writeHead(200, {
+        'Content-Type': 'text/html; charset=utf-8',
+        'Cache-Control': 'no-store',
+        'Content-Security-Policy':
+          "default-src 'none'; style-src 'unsafe-inline'; frame-ancestors 'none'",
+        'X-Content-Type-Options': 'nosniff',
+      })
+      res.end(statusPage(rootDir, allowedOrigins))
+      return trace(200, 'status page')
     }
     if (req.url === '/ping') {
       if (req.method !== 'GET') return send(405, 'Method not allowed')
