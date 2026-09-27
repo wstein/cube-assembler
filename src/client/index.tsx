@@ -33,6 +33,7 @@ import {
 } from './orbit64'
 import type { ReviewCapture } from './colorReviewPage'
 import { BackdropDialog } from './backdropDialog'
+import { CubeView3D } from './cubeView3D'
 import { faceSources, pieceKey, sourceIndex } from './netPresentation'
 import { ProfilesPage } from './profilesPage'
 import {
@@ -1091,6 +1092,7 @@ function App() {
     () => selectedCubeSize(document.cookie) ?? 3,
   )
   const [cube, setCube] = useState<CubeState | null>(null)
+  const [cubeViewMode, setCubeViewMode] = useState<'net' | '3d'>('net')
   const [parity, setParity] = useState<ParityResult | null>(null)
   // Which highlight group (see parity.ts's HighlightGroup) is
   // currently moused-over in the Cube Net, if any - lets hovering one
@@ -3687,250 +3689,284 @@ function App() {
                   </span>
                 )}
               </div>
+              <div class="header-spacer" />
+              {cube && (
+                <div
+                  class="cube-view-toggle"
+                  role="group"
+                  aria-label="Cube view mode"
+                >
+                  <button
+                    type="button"
+                    class={`cube-view-toggle-btn ${cubeViewMode === 'net' ? 'is-active' : ''}`}
+                    onClick={() => setCubeViewMode('net')}
+                  >
+                    2D Net
+                  </button>
+                  <button
+                    type="button"
+                    class={`cube-view-toggle-btn ${cubeViewMode === '3d' ? 'is-active' : ''}`}
+                    onClick={() => setCubeViewMode('3d')}
+                  >
+                    3D View
+                  </button>
+                </div>
+              )}
             </div>
             {cube ? (
-              (() => {
-                // parity.highlight (see parity.ts's HighlightGroup) is a
-                // list of readings, each with its own `group` tag (the color
-                // combination or matched piece name it read as) and the facelets
-                // backing it. Multiple entries can share a `group` - e.g. every
-                // wing that matched an over-represented pair - which is exactly
-                // the set to cross-highlight on hover, since they're the
-                // candidates for "which of these is actually the misread one".
-                const highlightGroups: Array<{
-                  group: string
-                  facelets: { face: string; index: number }[]
-                }> = parity?.highlight ?? []
-                const totalHighlighted = highlightGroups.reduce(
-                  (n, g) => n + g.facelets.length,
-                  0,
-                )
-                const groupAt = (
-                  face: string,
-                  index: number,
-                ): string | undefined =>
-                  highlightGroups.find((g) =>
-                    g.facelets.some(
-                      (f) => f.face === face && f.index === index,
-                    ),
-                  )?.group
-                // Which photo each net face shows, for its review marks and preview.
-                const rows = (flat: string[]) =>
-                  Array.from({ length: puzzleSize }, (_, r) =>
-                    flat.slice(r * puzzleSize, (r + 1) * puzzleSize),
+              cubeViewMode === '3d' ? (
+                <CubeView3D
+                  cube={cube}
+                  puzzleSize={puzzleSize}
+                  palette={STICKER_HEX}
+                />
+              ) : (
+                (() => {
+                  // parity.highlight (see parity.ts's HighlightGroup) is a
+                  // list of readings, each with its own `group` tag (the color
+                  // combination or matched piece name it read as) and the facelets
+                  // backing it. Multiple entries can share a `group` - e.g. every
+                  // wing that matched an over-represented pair - which is exactly
+                  // the set to cross-highlight on hover, since they're the
+                  // candidates for "which of these is actually the misread one".
+                  const highlightGroups: Array<{
+                    group: string
+                    facelets: { face: string; index: number }[]
+                  }> = parity?.highlight ?? []
+                  const totalHighlighted = highlightGroups.reduce(
+                    (n, g) => n + g.facelets.length,
+                    0,
                   )
-                const netSources = faceSources(
-                  {
-                    u: rows(cube.u),
-                    r: rows(cube.r),
-                    f: rows(cube.f),
-                    d: rows(cube.d),
-                    l: rows(cube.l),
-                    b: rows(cube.b),
-                  },
-                  Object.fromEntries(
-                    FACE_ORDER.filter((f) => capturedFaces[f]).map((f) => [
-                      f,
-                      capturedFaces[f].colors,
-                    ]),
-                  ),
-                )
-                const hoveredPiece = hoveredNetCell
-                  ? pieceKey(
-                      puzzleSize,
-                      hoveredNetCell.face,
-                      hoveredNetCell.index,
+                  const groupAt = (
+                    face: string,
+                    index: number,
+                  ): string | undefined =>
+                    highlightGroups.find((g) =>
+                      g.facelets.some(
+                        (f) => f.face === face && f.index === index,
+                      ),
+                    )?.group
+                  // Which photo each net face shows, for its review marks and preview.
+                  const rows = (flat: string[]) =>
+                    Array.from({ length: puzzleSize }, (_, r) =>
+                      flat.slice(r * puzzleSize, (r + 1) * puzzleSize),
                     )
-                  : null
-                const hoveredInfo = (() => {
-                  if (!hoveredNetCell || !hoveredPiece) return null
-                  const members = (
-                    ['u', 'r', 'f', 'd', 'l', 'b'] as const
-                  ).filter((face) =>
-                    Array.from(
-                      { length: puzzleSize * puzzleSize },
-                      (_, i) => i,
-                    ).some(
-                      (i) => pieceKey(puzzleSize, face, i) === hoveredPiece,
+                  const netSources = faceSources(
+                    {
+                      u: rows(cube.u),
+                      r: rows(cube.r),
+                      f: rows(cube.f),
+                      d: rows(cube.d),
+                      l: rows(cube.l),
+                      b: rows(cube.b),
+                    },
+                    Object.fromEntries(
+                      FACE_ORDER.filter((f) => capturedFaces[f]).map((f) => [
+                        f,
+                        capturedFaces[f].colors,
+                      ]),
                     ),
-                  ).length
-                  const source = netSources[hoveredNetCell.face]
-                  const photo = source ? capturedFaces[source.slot] : undefined
-                  const index = source
-                    ? sourceIndex(
+                  )
+                  const hoveredPiece = hoveredNetCell
+                    ? pieceKey(
                         puzzleSize,
-                        source.turns,
+                        hoveredNetCell.face,
                         hoveredNetCell.index,
                       )
-                    : -1
-                  const mark = photo ? stickerMark(photo, index) : null
-                  const r = Math.floor(index / puzzleSize),
-                    c = index % puzzleSize
-                  const detected = photo?.detectedColors?.[r]?.[c]
-                  const color = cube[hoveredNetCell.face as keyof CubeState][
-                    hoveredNetCell.index
-                  ] as string
-                  return {
-                    faceName: NET_FACE_NAMES[hoveredNetCell.face],
-                    pieceName:
-                      members === 3
-                        ? 'corner piece'
-                        : members === 2
-                          ? 'edge piece'
-                          : 'center piece',
-                    photo: photo?.croppedImage,
-                    turns: source?.turns ?? 0,
-                    note:
-                      mark === 'corrected'
-                        ? `Detected ${COLOR_NAME[detected!] ?? detected}, you changed it to ${COLOR_NAME[color] ?? color}.`
-                        : mark === 'flagged'
-                          ? 'Detection was unsure about this sticker.'
-                          : null,
-                  }
-                })()
-                return (
-                  <div class="net-region">
-                    {totalHighlighted > 0 && (
-                      <p class="net-highlight-note">
-                        ⚠ {totalHighlighted} sticker
-                        {totalHighlighted === 1 ? '' : 's'} outlined below may
-                        be involved in the problem above. Hover one to see which
-                        others share its color reading.
-                      </p>
-                    )}
-                    <div
-                      class="cube-net"
-                      style={{
-                        '--net-gap':
-                          puzzleSize >= 6
-                            ? '1px'
-                            : puzzleSize >= 4
-                              ? '2px'
-                              : '3px',
-                      }}
-                      onMouseLeave={() => {
-                        setHoveredNetCell(null)
-                        setHoveredHighlightGroup(null)
-                      }}
-                    >
-                      {(
-                        [
-                          ['U', cube.u, 'net-u'],
-                          ['L', cube.l, 'net-l'],
-                          ['F', cube.f, 'net-f'],
-                          ['R', cube.r, 'net-r'],
-                          ['B', cube.b, 'net-b'],
-                          ['D', cube.d, 'net-d'],
-                        ] as [string, string[], string][]
-                      ).map(([label, data, cls]) => {
-                        // Faces are named by their lowercase CubeIR key ('u','r',...)
-                        // in parity.highlight, matching `cube`'s own keys - `label`
-                        // here is only the uppercase display letter used for the
-                        // net-u/net-l/... CSS class.
-                        const faceKey = label.toLowerCase()
-                        const source = netSources[faceKey]
-                        const photo = source
-                          ? capturedFaces[source.slot]
-                          : undefined
-                        return (
-                          <div class={`net-face ${cls}`} key={label}>
-                            <div class="net-face-label">
-                              {NET_FACE_NAMES[faceKey]}
-                            </div>
-                            <div
-                              class="net-face-grid"
-                              style={{
-                                gridTemplateColumns: `repeat(${puzzleSize}, 1fr)`,
-                              }}
-                            >
-                              {data.map((color, i) => {
-                                const group = groupAt(faceKey, i)
-                                const isHoverRelated =
-                                  group !== undefined &&
-                                  group === hoveredHighlightGroup
-                                const samePiece =
-                                  hoveredPiece !== null &&
-                                  pieceKey(puzzleSize, faceKey, i) ===
-                                    hoveredPiece
-                                const mark =
-                                  photo && source
-                                    ? stickerMark(
-                                        photo,
-                                        sourceIndex(
-                                          puzzleSize,
-                                          source.turns,
-                                          i,
-                                        ),
-                                      )
-                                    : null
-                                return (
-                                  <div
-                                    class={`net-cell ${group !== undefined ? 'net-cell-highlighted' : ''} ${isHoverRelated ? 'net-cell-hover-related' : ''} ${samePiece ? 'net-cell-piece' : ''}`}
-                                    key={i}
-                                    style={{
-                                      background: STICKER_HEX[color] || '#888',
-                                    }}
-                                    onMouseEnter={() => {
-                                      setHoveredNetCell({
-                                        face: faceKey,
-                                        index: i,
-                                      })
-                                      setHoveredHighlightGroup(group ?? null)
-                                    }}
-                                  >
-                                    {mark === 'corrected' && (
-                                      <span
-                                        class="net-cell-mark corrected"
-                                        aria-hidden="true"
-                                      >
-                                        ✎
-                                      </span>
-                                    )}
-                                    {mark === 'flagged' && (
-                                      <span
-                                        class="net-cell-mark flagged"
-                                        aria-hidden="true"
-                                      />
-                                    )}
-                                  </div>
-                                )
-                              })}
-                            </div>
-                          </div>
+                    : null
+                  const hoveredInfo = (() => {
+                    if (!hoveredNetCell || !hoveredPiece) return null
+                    const members = (
+                      ['u', 'r', 'f', 'd', 'l', 'b'] as const
+                    ).filter((face) =>
+                      Array.from(
+                        { length: puzzleSize * puzzleSize },
+                        (_, i) => i,
+                      ).some(
+                        (i) => pieceKey(puzzleSize, face, i) === hoveredPiece,
+                      ),
+                    ).length
+                    const source = netSources[hoveredNetCell.face]
+                    const photo = source
+                      ? capturedFaces[source.slot]
+                      : undefined
+                    const index = source
+                      ? sourceIndex(
+                          puzzleSize,
+                          source.turns,
+                          hoveredNetCell.index,
                         )
-                      })}
-                      <div class="net-info" aria-live="polite">
-                        {hoveredInfo ? (
-                          <>
-                            {hoveredInfo.photo && (
-                              <img
-                                class="net-info-photo"
-                                src={hoveredInfo.photo}
-                                alt={`Photo of the ${hoveredInfo.faceName} face`}
+                      : -1
+                    const mark = photo ? stickerMark(photo, index) : null
+                    const r = Math.floor(index / puzzleSize),
+                      c = index % puzzleSize
+                    const detected = photo?.detectedColors?.[r]?.[c]
+                    const color = cube[hoveredNetCell.face as keyof CubeState][
+                      hoveredNetCell.index
+                    ] as string
+                    return {
+                      faceName: NET_FACE_NAMES[hoveredNetCell.face],
+                      pieceName:
+                        members === 3
+                          ? 'corner piece'
+                          : members === 2
+                            ? 'edge piece'
+                            : 'center piece',
+                      photo: photo?.croppedImage,
+                      turns: source?.turns ?? 0,
+                      note:
+                        mark === 'corrected'
+                          ? `Detected ${COLOR_NAME[detected!] ?? detected}, you changed it to ${COLOR_NAME[color] ?? color}.`
+                          : mark === 'flagged'
+                            ? 'Detection was unsure about this sticker.'
+                            : null,
+                    }
+                  })()
+                  return (
+                    <div class="net-region">
+                      {totalHighlighted > 0 && (
+                        <p class="net-highlight-note">
+                          ⚠ {totalHighlighted} sticker
+                          {totalHighlighted === 1 ? '' : 's'} outlined below may
+                          be involved in the problem above. Hover one to see
+                          which others share its color reading.
+                        </p>
+                      )}
+                      <div
+                        class="cube-net"
+                        style={{
+                          '--net-gap':
+                            puzzleSize >= 6
+                              ? '1px'
+                              : puzzleSize >= 4
+                                ? '2px'
+                                : '3px',
+                        }}
+                        onMouseLeave={() => {
+                          setHoveredNetCell(null)
+                          setHoveredHighlightGroup(null)
+                        }}
+                      >
+                        {(
+                          [
+                            ['U', cube.u, 'net-u'],
+                            ['L', cube.l, 'net-l'],
+                            ['F', cube.f, 'net-f'],
+                            ['R', cube.r, 'net-r'],
+                            ['B', cube.b, 'net-b'],
+                            ['D', cube.d, 'net-d'],
+                          ] as [string, string[], string][]
+                        ).map(([label, data, cls]) => {
+                          // Faces are named by their lowercase CubeIR key ('u','r',...)
+                          // in parity.highlight, matching `cube`'s own keys - `label`
+                          // here is only the uppercase display letter used for the
+                          // net-u/net-l/... CSS class.
+                          const faceKey = label.toLowerCase()
+                          const source = netSources[faceKey]
+                          const photo = source
+                            ? capturedFaces[source.slot]
+                            : undefined
+                          return (
+                            <div class={`net-face ${cls}`} key={label}>
+                              <div class="net-face-label">
+                                {NET_FACE_NAMES[faceKey]}
+                              </div>
+                              <div
+                                class="net-face-grid"
                                 style={{
-                                  transform: `rotate(${hoveredInfo.turns * 90}deg)`,
+                                  gridTemplateColumns: `repeat(${puzzleSize}, 1fr)`,
                                 }}
-                              />
-                            )}
-                            <p>
-                              <strong>{hoveredInfo.faceName}</strong> ·{' '}
-                              {hoveredInfo.pieceName}
+                              >
+                                {data.map((color, i) => {
+                                  const group = groupAt(faceKey, i)
+                                  const isHoverRelated =
+                                    group !== undefined &&
+                                    group === hoveredHighlightGroup
+                                  const samePiece =
+                                    hoveredPiece !== null &&
+                                    pieceKey(puzzleSize, faceKey, i) ===
+                                      hoveredPiece
+                                  const mark =
+                                    photo && source
+                                      ? stickerMark(
+                                          photo,
+                                          sourceIndex(
+                                            puzzleSize,
+                                            source.turns,
+                                            i,
+                                          ),
+                                        )
+                                      : null
+                                  return (
+                                    <div
+                                      class={`net-cell ${group !== undefined ? 'net-cell-highlighted' : ''} ${isHoverRelated ? 'net-cell-hover-related' : ''} ${samePiece ? 'net-cell-piece' : ''}`}
+                                      key={i}
+                                      style={{
+                                        background:
+                                          STICKER_HEX[color] || '#888',
+                                      }}
+                                      onMouseEnter={() => {
+                                        setHoveredNetCell({
+                                          face: faceKey,
+                                          index: i,
+                                        })
+                                        setHoveredHighlightGroup(group ?? null)
+                                      }}
+                                    >
+                                      {mark === 'corrected' && (
+                                        <span
+                                          class="net-cell-mark corrected"
+                                          aria-hidden="true"
+                                        >
+                                          ✎
+                                        </span>
+                                      )}
+                                      {mark === 'flagged' && (
+                                        <span
+                                          class="net-cell-mark flagged"
+                                          aria-hidden="true"
+                                        />
+                                      )}
+                                    </div>
+                                  )
+                                })}
+                              </div>
+                            </div>
+                          )
+                        })}
+                        <div class="net-info" aria-live="polite">
+                          {hoveredInfo ? (
+                            <>
+                              {hoveredInfo.photo && (
+                                <img
+                                  class="net-info-photo"
+                                  src={hoveredInfo.photo}
+                                  alt={`Photo of the ${hoveredInfo.faceName} face`}
+                                  style={{
+                                    transform: `rotate(${hoveredInfo.turns * 90}deg)`,
+                                  }}
+                                />
+                              )}
+                              <p>
+                                <strong>{hoveredInfo.faceName}</strong> ·{' '}
+                                {hoveredInfo.pieceName}
+                              </p>
+                              {hoveredInfo.note && (
+                                <p class="net-info-note">{hoveredInfo.note}</p>
+                              )}
+                            </>
+                          ) : (
+                            <p class="net-info-hint">
+                              Point at a sticker to see its whole piece and the
+                              photo it came from.
                             </p>
-                            {hoveredInfo.note && (
-                              <p class="net-info-note">{hoveredInfo.note}</p>
-                            )}
-                          </>
-                        ) : (
-                          <p class="net-info-hint">
-                            Point at a sticker to see its whole piece and the
-                            photo it came from.
-                          </p>
-                        )}
+                          )}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                )
-              })()
+                  )
+                })()
+              )
             ) : (
               <p class="empty-state">
                 No cube yet — capture the faces, upload a fixture or type the
