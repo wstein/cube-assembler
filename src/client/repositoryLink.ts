@@ -8,7 +8,7 @@ export function repositoryLink(commit: string): {
   if (!hash) return { href: REPOSITORY_URL, label: 'GitHub' }
   const dirty = commit.endsWith('-dirty') ? '-dirty' : ''
   return {
-    href: `${REPOSITORY_URL}/commit/${hash}`,
+    href: `${REPOSITORY_URL}/tree/${hash}`,
     label: `GitHub · ${hash.slice(0, 7)}${dirty}`,
   }
 }
