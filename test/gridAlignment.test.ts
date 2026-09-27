@@ -11,6 +11,62 @@ import {
 import { placed, scene } from './syntheticFace'
 
 describe('findGridAlignment', () => {
+  for (const gridSize of [6, 7]) {
+    it(`asks to re-center a ${gridSize}x${gridSize} whose seam grid slips outside its outline`, () => {
+      const guideSize = 300
+      const width = Math.round(guideSize * 1.67)
+      const guide = {
+        x: (width - guideSize) / 2,
+        y: (width - guideSize) / 2,
+        size: guideSize,
+      }
+      const face = placed(guide, 0.25, 0, 0.9)
+      const { data, height } = scene(
+        gridSize,
+        face,
+        guideSize,
+        { outer: 1.5 },
+        1.67,
+      )
+      const found = alignFace(data, width, height, guide, gridSize)
+      expect(found.seams).toBe(false)
+      expect(found.needsRecentering).toBe(true)
+
+      const near = placed(guide, 0.2, 0, 0.9)
+      const readable = scene(gridSize, near, guideSize, { outer: 1.5 }, 1.67)
+      const inReach = alignFace(readable.data, width, height, guide, gridSize)
+      expect(inReach.seams).toBe(true)
+      expect(inReach.needsRecentering).toBeUndefined()
+    })
+  }
+
+  it('keeps a 7x7 face seen at an angle', () => {
+    const guideSize = 300
+    const width = Math.round(guideSize * 1.67)
+    const guide = {
+      x: (width - guideSize) / 2,
+      y: (width - guideSize) / 2,
+      size: guideSize,
+    }
+    const face = placed(guide, 0, 0, 0.95)
+    const corners: [number, number][] = [
+      [face.x + 14, face.y + 16],
+      [face.x + face.size - 4, face.y - 4],
+      [face.x + face.size + 2, face.y + face.size + 6],
+      [face.x + 10, face.y + face.size - 12],
+    ]
+    const { data, height } = scene(
+      7,
+      face,
+      guideSize,
+      { corners, outer: 1.5 },
+      1.67,
+    )
+    const found = alignFace(data, width, height, guide, 7)
+    expect(found.seams).toBe(true)
+    expect(found.needsRecentering).toBeUndefined()
+  })
+
   for (const [scale, dx, dy] of [
     [1, 0.1, -0.07],
     [0.75, -0.12, 0.08],

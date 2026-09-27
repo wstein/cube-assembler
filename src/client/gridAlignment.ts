@@ -29,6 +29,9 @@ export interface GridAlignment extends FaceSquare {
   // Whether the returned square's grid lines sit on seams at all - true
   // for an aligned square, and for a kept guide that already fits.
   seams: boolean
+  // Seams were found, but their outer lines do not bound a complete face.
+  // The caller should ask for the cube to be re-centered instead of reading it.
+  needsRecentering?: boolean
   // Width of the outer rows and columns relative to the inner ones.
   outer: number
   // In-plane tilt (radians, canvas rotate() direction) the square is turned
@@ -356,6 +359,10 @@ export function alignFace(
   guide: FaceSquare,
   gridSize: number,
 ): GridAlignment {
+  const checked = (found: GridAlignment): GridAlignment =>
+    gridSize >= 6 && found.seams && missingFaceEdge(data, width, height, found)
+      ? { ...found, seams: false, aligned: false, needsRecentering: true }
+      : found
   // The perimeter fixes the grid origin before the seam search. Searching
   // seams from the fixed guide alone can land one whole cell off on 7x7.
   const coarse = locateFaceOutline(data, width, height, guide)
@@ -391,11 +398,57 @@ export function alignFace(
       scaleRange,
     )
     if (tilted.seams && (!aligned.seams || tilted.score > aligned.score))
-      return coarse ? { ...tilted, aligned: true } : tilted
+      return checked(coarse ? { ...tilted, aligned: true } : tilted)
   }
-  if (aligned.seams) return coarse ? { ...aligned, aligned: true } : aligned
+  if (aligned.seams)
+    return checked(coarse ? { ...aligned, aligned: true } : aligned)
   if (!coarse) return aligned
-  return findGridAlignment(data, width, height, guide, gridSize)
+  return checked(findGridAlignment(data, width, height, guide, gridSize))
+}
+
+// A one-cell-shifted grid can score strongly on inner seams while an outer
+// line sits in the backdrop. Compare pixels just inside and outside each
+// candidate edge. One missing side beside a strong side is evidence that
+// the fitted seams do not bound the whole face. All-weak outlines are left
+// alone so faint stickerless grids can still be read.
+function missingFaceEdge(
+  data: Uint8ClampedArray,
+  width: number,
+  height: number,
+  found: GridAlignment,
+): boolean {
+  const half = found.size / 2
+  const inset = found.size * 0.025
+  const cos = Math.cos(found.angle),
+    sin = Math.sin(found.angle)
+  const pixel = (u: number, v: number) => {
+    const x = Math.round(found.center[0] + cos * u - sin * v)
+    const y = Math.round(found.center[1] + sin * u + cos * v)
+    if (x < 0 || x >= width || y < 0 || y >= height) return null
+    const i = (y * width + x) * 4
+    return [data[i], data[i + 1], data[i + 2]]
+  }
+  const contrast = (a: number[] | null, b: number[] | null) =>
+    a && b ? Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]) : 0
+  const sides = [0, 1, 2, 3].map((side) => {
+    let sum = 0
+    for (let i = 0; i < 10; i++) {
+      const along = ((i + 0.5) / 10 - 0.5) * found.size
+      sum +=
+        side === 0
+          ? contrast(pixel(-half - inset, along), pixel(-half + inset, along))
+          : side === 1
+            ? contrast(pixel(half - inset, along), pixel(half + inset, along))
+            : side === 2
+              ? contrast(
+                  pixel(along, -half - inset),
+                  pixel(along, -half + inset),
+                )
+              : contrast(pixel(along, half - inset), pixel(along, half + inset))
+    }
+    return sum / 10
+  })
+  return Math.min(...sides) < 5 && Math.max(...sides) > 30
 }
 
 // A sparse perimeter scan supplies an approximate square, independent of

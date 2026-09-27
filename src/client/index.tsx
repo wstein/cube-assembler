@@ -1211,6 +1211,7 @@ function App() {
   const [liveDetection, setLiveDetection] =
     useState<ColorDetectionResult | null>(null)
   const [liveFaceVisible, setLiveFaceVisible] = useState(false)
+  const [liveNeedsRecentering, setLiveNeedsRecentering] = useState(false)
   const [liveMedianWB, setLiveMedianWB] = useState(false)
   const [liveAutoColorProfileId, setLiveAutoColorProfileId] = useState<
     string | null
@@ -1670,6 +1671,7 @@ function App() {
     if (!webcamOpen) {
       setLiveDetection(null)
       setLiveFaceVisible(false)
+      setLiveNeedsRecentering(false)
       setLiveMedianWB(false)
       setLiveAutoColorProfileId(null)
       setLiveCapturedFace(null)
@@ -1717,6 +1719,7 @@ function App() {
         // from the worker's single read of the face.
         const bounds = scaleBounds(result.bounds, event.data.scale)
         const { detection, visible } = result
+        setLiveNeedsRecentering(bounds.needsRecentering === true)
         setLiveMedianWB(result.backgroundColor !== null)
         setLiveAutoColorProfileId(
           result.colorProfileId ?? provisionalColorProfile?.id ?? null,
@@ -3452,7 +3455,9 @@ function App() {
           !hasVisibleCubeFace(canvas, puzzleSize, bounds, true)
         ) {
           throw new Error(
-            'No cube face detected. Show the face clearly or choose Guide grid.',
+            bounds.needsRecentering
+              ? 'Grid does not reach the face edge. Move the cube toward the center and try again.'
+              : 'No cube face detected. Show the face clearly or choose Guide grid.',
           )
         }
       }
@@ -4667,7 +4672,9 @@ function App() {
                 >
                   <span class="capture-scan-label">
                     {captureMode === 'cv'
-                      ? 'Show one face in this area'
+                      ? liveNeedsRecentering
+                        ? 'Move face toward center'
+                        : 'Show one face in this area'
                       : 'Fit face in this square'}
                   </span>
                   {captureMode === 'cv' &&
@@ -4719,13 +4726,15 @@ function App() {
                   Live ·{' '}
                   {liveCapturedFace
                     ? `Looks like ${FACE_DISPLAY_LABEL[liveCapturedFace]} · capture allowed`
-                    : liveDetection
-                      ? liveFaceVisible
-                        ? `${(liveDetection.confidence * 100).toFixed(0)}% color match`
-                        : captureMode === 'cv'
-                          ? 'Align face in view'
-                          : 'Align face in guide'
-                      : '—'}
+                    : captureMode === 'cv' && liveNeedsRecentering
+                      ? 'Move face toward center'
+                      : liveDetection
+                        ? liveFaceVisible
+                          ? `${(liveDetection.confidence * 100).toFixed(0)}% color match`
+                          : captureMode === 'cv'
+                            ? 'Align face in view'
+                            : 'Align face in guide'
+                        : '—'}
                   {profileStore.activeColorsId === AUTO_COLORS_ID &&
                     liveAutoColorProfile &&
                     ` · ${liveAutoColorProfile.name}`}

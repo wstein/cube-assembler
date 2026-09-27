@@ -1124,6 +1124,8 @@ export interface FaceBounds {
   // Set by seam alignment. False means the returned guide is only a
   // placeholder; Detect face must not capture it as an automatic result.
   gridFound?: boolean
+  // A seam fit was rejected because its outer lines missed the face edge.
+  needsRecentering?: boolean
 }
 
 interface FaceRegion extends FaceBounds {
@@ -1261,7 +1263,12 @@ export function boundsFromAlignment(
   corners?: [number, number][] | null,
 ): FaceBounds {
   const angle = found.angle
-  if (!found.aligned && !angle) return { ...guide, gridFound: found.seams }
+  if (!found.aligned && !angle)
+    return {
+      ...guide,
+      gridFound: found.seams,
+      ...(found.needsRecentering && { needsRecentering: true }),
+    }
   const size = Math.round(found.size)
   // Keep the square's center on the canvas; a tilted square is read through
   // a rotation, which clamps nothing else.
@@ -1285,6 +1292,7 @@ export function boundsFromAlignment(
       ),
     }),
     gridFound: found.seams,
+    ...(found.needsRecentering && { needsRecentering: true }),
   }
 }
 
