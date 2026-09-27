@@ -25,7 +25,7 @@ import { join } from 'node:path'
 import { matchPartialColorProfile } from '../src/client/colorProfileLearning'
 import { readFixtureColors } from '../src/client/fixtureFormat'
 import { classifySticker, type RGB } from '../src/client/imageProcessing'
-import { genericColorProfile, type ColorProfile } from '../src/client/profileSettings'
+import { builtinColorProfiles, type ColorProfile } from '../src/client/profileSettings'
 import { parseSettingsFile } from '../src/client/profileStorage'
 
 const root = join(__dirname, 'fixtures')
@@ -78,8 +78,8 @@ describe('provisional palette replay on real captures', () => {
 
   it('replays every capture face by face', () => {
     const loaded = captures.map(loadCapture).filter((entry) => entry !== null)
-    // Candidates: Generic, every profile a capture recorded, and any supplied.
-    const candidates = new Map<string, ColorProfile>([[genericColorProfile().id, genericColorProfile()]])
+    // Candidates: every built-in, every profile a capture recorded, and any supplied.
+    const candidates = new Map<string, ColorProfile>(builtinColorProfiles().map((profile) => [profile.id, profile]))
     for (const { recordedProfile } of loaded) if (recordedProfile) candidates.set(recordedProfile.id, recordedProfile)
     for (const profile of extraProfiles()) candidates.set(profile.id, profile)
     const profiles = [...candidates.values()]

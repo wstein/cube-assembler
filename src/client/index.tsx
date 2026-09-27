@@ -37,8 +37,8 @@ import {
   type OrientedCandidate, type OrientationSolution, type FaceKey, type GuidedArrangement, type GuidedCenterIssue,
 } from './cubeAssembly'
 import {
-  AUTO_COLORS_ID, GENERIC_COLORS_ID, activeCube, allCubes, activeColorProfile, allColorProfiles, captureColorProfileSnapshot, capturePalette, colorPalette, copyColorProfile, copyCubeSetting,
-  cubeGroupName, deleteCube, deleteColorProfile, genericColorProfile, groupCubesByName, isBuiltinCube, mergeSettings, saveCube, saveColorProfile,
+  AUTO_COLORS_ID, activeCube, allCubes, activeColorProfile, allColorProfiles, builtinColorProfiles, captureColorProfileSnapshot, capturePalette, colorPalette, copyColorProfile, copyCubeSetting,
+  cubeGroupName, deleteCube, deleteColorProfile, groupCubesByName, isBuiltinColorProfile, isBuiltinCube, mergeSettings, saveCube, saveColorProfile,
   resolvedColorProfileSnapshot, selectCube, selectColorProfile, setAutoColorMatch, type ProfileSettings, type UsedColorProfile,
 } from './profileSettings'
 import { loadProfileSettings, saveProfileSettings, settingsFile, parseSettingsFile } from './profileStorage'
@@ -797,7 +797,7 @@ function App() {
   const profile = activeCube(profileStore, puzzleSize)
   const colorProfile = activeColorProfile(profileStore)
   const sampling = profile.sampling
-  const autoColorProfiles = useMemo(() => [genericColorProfile(), ...profileStore.colors], [profileStore.colors])
+  const autoColorProfiles = useMemo(() => [...builtinColorProfiles(), ...profileStore.colors], [profileStore.colors])
   const provisionalColorProfile = useMemo(() => matchPartialColorProfile(
     autoColorProfiles,
     FACE_ORDER.flatMap((face) => capturedFaces[face]?.cellColors?.flat() ?? []),
@@ -1509,10 +1509,10 @@ function App() {
         // whether it kept or replaced that provisional palette.
         const latestPreview = FACE_ORDER.map((f) => newCapturedFaces[f]).filter((data) => data?.previewColorProfile)
           .sort((a, b) => b.timestamp - a.timestamp)[0]?.previewColorProfile
-        const resolution = automatic && wb.learned ? resolveAutomaticProfile(profileStore.colors, wb.learned.colors, latestPreview?.id ?? null) : null
+        const resolution = automatic && wb.learned ? resolveAutomaticProfile(autoColorProfiles, wb.learned.colors, latestPreview?.id ?? null) : null
         setAutomaticResolution(resolution)
         const matched = resolution?.profile ?? null
-        const compared = matched ?? (!automatic ? profileStore.colors.find((saved) => saved.id === colorProfile.id) : null)
+        const compared = matched ?? (!automatic ? colorProfile : null)
         const colorFit = compared && wb.learned ? profileColorFitPercent(compared.colors, wb.learned.colors) : undefined
         // Matched on colors balanced on White, so its stickers are read as
         // they look under this capture's White (a merged profile's is grey).
@@ -1939,7 +1939,7 @@ function App() {
       }
       const automatic = profileStore.activeColorsId === AUTO_COLORS_ID
       const matched = automatic && reviewedValid && evidence.cameraOnly && evidence.recalibrated
-        ? profileStore.colors.find((saved) => saved.id === resolvedColorProfile?.id) ?? null : null
+        ? autoColorProfiles.find((profile) => profile.id === resolvedColorProfile?.id) ?? null : null
       // The Automatic match or the hand-selected profile is only ever
       // updated through the explicit Update action, never silently.
       const updatable = profileToUpdate(profileStore.colors,
@@ -2988,7 +2988,7 @@ function App() {
                     <input type="text" class="cube-profile-name" maxLength={60}
                       key={profileStore.activeColorsId}
                       defaultValue={profileStore.activeColorsId === AUTO_COLORS_ID ? 'Automatic colors' : colorProfile.name}
-                      disabled={profileStore.activeColorsId === AUTO_COLORS_ID || profileStore.activeColorsId === GENERIC_COLORS_ID}
+                      disabled={isBuiltinColorProfile(profileStore.activeColorsId)}
                       onBlur={(e) => {
                         const name = e.currentTarget.value.trim()
                         if (!name) e.currentTarget.value = colorProfile.name
@@ -3003,10 +3003,10 @@ function App() {
                       <>
                         Colors learned from {colorProfile.captures} {colorProfile.captures === 1 ? 'capture' : 'captures'}, last updated {new Date(colorProfile.updatedAt).toLocaleString()}.
                       </>
-                    ) : profileStore.activeColorsId !== GENERIC_COLORS_ID ? (
+                    ) : !isBuiltinColorProfile(profileStore.activeColorsId) ? (
                       'This named profile will learn from its first valid, reviewed capture.'
                     ) : (
-                      'Generic colors are a read-only starting palette. A reviewed capture can be saved as new colors.'
+                      'Built-in colors are read-only. A reviewed capture can be saved as new colors.'
                     )}
                   </p>
                   {profileStore.colors.some((saved) => saved.id === profileStore.activeColorsId) && (

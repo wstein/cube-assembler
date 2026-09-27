@@ -10,7 +10,7 @@ import {
 import { DeleteButton, SelectionBar } from './profileDeletion'
 import { EditableName } from './profileRename'
 import { classifySticker, rgbToOklab, rgbToOKLCH, type RGB } from './imageProcessing'
-import { AUTO_COLORS_ID, GENERIC_COLORS_ID, allColorProfiles, renameColorProfile, type ColorProfile, type ProfileSettings } from './profileSettings'
+import { AUTO_COLORS_ID, allColorProfiles, builtinColorProfiles, isBuiltinColorProfile, renameColorProfile, type ColorProfile, type ProfileSettings } from './profileSettings'
 
 const ORDER = ['W', 'Y', 'R', 'O', 'G', 'B']
 const NAMES: Record<string, string> = { W: 'White', Y: 'Yellow', R: 'Red', O: 'Orange', G: 'Green', B: 'Blue' }
@@ -40,19 +40,19 @@ const deltaE = (a: RGB, b: RGB) => {
   return 100 * Math.hypot(x.l - y.l, x.a - y.a, x.b - y.b)
 }
 const pairLevel = (d: number): ['bad' | 'warn' | 'ok', string] => d < MIXED ? ['bad', 'may be mixed up'] : d < CLOSE ? ['warn', 'close'] : ['ok', 'clear']
-const isBuiltin = (id: string) => id === GENERIC_COLORS_ID || id === AUTO_COLORS_ID
+const isBuiltin = isBuiltinColorProfile
 
 function Swatch({ color, letter, class: cls = 'color-review-chip' }: { color: RGB; letter?: string; class?: string }) {
   return <span class={cls} style={{ background: css(color), color: ink(color) }} title={hex(color)}>{letter}</span>
 }
 
 export function ColorReviewTab({ settings, onChange, capture }: Props) {
-  // Automatic isn't a palette of its own; Generic stays as the reference.
+  // Automatic isn't a palette of its own; the JSON palettes are references.
   const profiles = allColorProfiles(settings).filter((profile) => profile.id !== AUTO_COLORS_ID)
   const saved = settings.colors
   // A starts on the profile in use, B on the first other saved one.
-  const [a, setA] = useState(() => settings.activeColorsId !== AUTO_COLORS_ID ? settings.activeColorsId : GENERIC_COLORS_ID)
-  const [b, setB] = useState(() => saved.find((p) => p.id !== a)?.id ?? GENERIC_COLORS_ID)
+  const [a, setA] = useState(() => settings.activeColorsId !== AUTO_COLORS_ID ? settings.activeColorsId : builtinColorProfiles()[0].id)
+  const [b, setB] = useState(() => saved.find((p) => p.id !== a)?.id ?? builtinColorProfiles().find((p) => p.id !== a)!.id)
   const [balanced, setBalanced] = useState(true)
   const [limit, setLimit] = useState(DEFAULT_LIMIT)
   const [unticked, setUnticked] = useState<Set<string>>(new Set())
@@ -296,7 +296,7 @@ export function ColorReviewTab({ settings, onChange, capture }: Props) {
 
       <section class="card color-review-section" aria-labelledby="review-all">
         <h2 id="review-all">All profiles</h2>
-        <p class="color-review-muted">Each row is one profile's six reference colors on the same neutral grey. Tick profiles to delete several at once; Generic colors can't be deleted.</p>
+        <p class="color-review-muted">Each row is one profile's six reference colors on the same neutral grey. Tick saved profiles to delete several at once; built-in colors are read-only.</p>
         {saved.length > 0 && (
           <SelectionBar noun={['color profile', 'color profiles']} selected={selected}
             quick={[{ label: 'Select unused', ids: unusedColorProfiles(settings) }]}

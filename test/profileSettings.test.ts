@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import { STICKER_COLORS } from '../src/client/imageProcessing'
 import {
-  AUTO_COLORS_ID, EMPTY_SETTINGS, GENERIC_COLORS_ID, GENERIC_STICKER_COLORS, activeColorProfile, activeCube, allCubes, builtinCube,
-  captureColorProfileSnapshot, capturePalette, colorPalette, genericColorProfile, copyColorProfile, copyCubeSetting, cubesForSize, deleteColorProfile, groupCubesByName, mergeSettings, parseProfileSettings,
+  AUTO_COLORS_ID, EMPTY_SETTINGS, activeColorProfile, activeCube, allCubes, builtinColorProfiles, builtinCube,
+  captureColorProfileSnapshot, capturePalette, colorPalette, copyColorProfile, copyCubeSetting, cubesForSize, deleteColorProfile, groupCubesByName, mergeSettings, parseProfileSettings,
   renameColorProfile, renameCube, saveColorProfile, saveCube, selectColorProfile, selectCube, setAutoColorMatch, resolvedColorProfileSnapshot,
 } from '../src/client/profileSettings'
 
@@ -42,14 +42,13 @@ describe('separate cube and color settings', () => {
     expect(activeCube(saved, 3).size).toBe(3)
     expect(activeCube(saved, 7).size).toBe(7)
     expect(EMPTY_SETTINGS.activeColorsId).toBe(AUTO_COLORS_ID)
-    expect(activeColorProfile(EMPTY_SETTINGS).id).toBe(GENERIC_COLORS_ID)
-    expect(colorPalette(activeColorProfile(EMPTY_SETTINGS))).toEqual(GENERIC_STICKER_COLORS)
+    expect(activeColorProfile(EMPTY_SETTINGS).name).toBe('Classic')
     const auto = setAutoColorMatch(selectColorProfile(saved, AUTO_COLORS_ID), custom.id)
     expect(auto.activeColorsId).toBe(AUTO_COLORS_ID)
     expect(activeColorProfile(auto).id).toBe(custom.id)
-    expect(activeColorProfile(setAutoColorMatch(auto, null)).id).toBe(GENERIC_COLORS_ID)
+    expect(activeColorProfile(setAutoColorMatch(auto, null)).name).toBe('Classic')
     expect(activeColorProfile(parseProfileSettings(JSON.parse(JSON.stringify(auto)))).id).toBe(custom.id)
-    expect(activeColorProfile(deleteColorProfile(auto, custom.id)).id).toBe(GENERIC_COLORS_ID)
+    expect(activeColorProfile(deleteColorProfile(auto, custom.id)).name).toBe('Classic')
   })
 
   it('does not preselect the last automatic match for a new capture', () => {
@@ -66,19 +65,16 @@ describe('separate cube and color settings', () => {
     })
   })
 
-  it('gives Generic colors camera-realistic references, not pure RGB', () => {
-    // Pure 255/0/0 red or 0/0/255 blue is never what a camera reads; the
-    // realistic values come from real captures (see GENERIC_STICKER_COLORS).
-    const generic = genericColorProfile()
-    expect(generic.colors).toEqual(colorPalette({ colors: GENERIC_STICKER_COLORS }))
-    for (const key of ['W', 'Y', 'O', 'R', 'G', 'B']) expect(generic.colors[key]).not.toEqual(STICKER_COLORS[key])
+  it('gives built-in colors camera-realistic references, not pure RGB', () => {
+    const classic = builtinColorProfiles().find((profile) => profile.name === 'Classic')!
+    for (const key of ['W', 'Y', 'O', 'R', 'G', 'B']) expect(classic.colors[key]).not.toEqual(STICKER_COLORS[key])
   })
 
-  it('keeps Generic and Automatic color choices read-only', () => {
-    const generic = activeColorProfile(EMPTY_SETTINGS)
-    expect(() => saveColorProfile(EMPTY_SETTINGS, { ...generic, name: 'Changed' })).toThrow('built-in')
-    expect(() => saveColorProfile(EMPTY_SETTINGS, { ...generic, id: AUTO_COLORS_ID })).toThrow('built-in')
-    expect(() => deleteColorProfile(EMPTY_SETTINGS, GENERIC_COLORS_ID)).toThrow('built-in')
+  it('keeps built-in and Automatic color choices read-only', () => {
+    const classic = activeColorProfile(EMPTY_SETTINGS)
+    expect(() => saveColorProfile(EMPTY_SETTINGS, { ...classic, name: 'Changed' })).toThrow('built-in')
+    expect(() => saveColorProfile(EMPTY_SETTINGS, { ...classic, id: AUTO_COLORS_ID })).toThrow('built-in')
+    expect(() => deleteColorProfile(EMPTY_SETTINGS, classic.id)).toThrow('built-in')
     expect(() => deleteColorProfile(EMPTY_SETTINGS, AUTO_COLORS_ID)).toThrow('built-in')
   })
 
@@ -150,7 +146,7 @@ describe('renaming profiles', () => {
 
   it('refuses built-in profiles, unknown ids and empty names', () => {
     expect(() => renameCube(settings, builtinCube(3).id, 'Mine')).toThrow()
-    expect(() => renameColorProfile(settings, GENERIC_COLORS_ID, 'Mine')).toThrow()
+    expect(() => renameColorProfile(settings, builtinColorProfiles()[0].id, 'Mine')).toThrow()
     expect(() => renameColorProfile(settings, AUTO_COLORS_ID, 'Mine')).toThrow()
     expect(() => renameCube(settings, 'nope', 'Mine')).toThrow()
     expect(() => renameColorProfile(settings, 'colors-a', '   ')).toThrow()

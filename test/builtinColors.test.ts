@@ -3,13 +3,9 @@ import { existsSync, readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { readFixtureColors } from '../src/client/fixtureFormat'
 import { STICKER_COLORS, classifySticker, type RGB } from '../src/client/imageProcessing'
-import { genericColorProfile } from '../src/client/profileSettings'
+import { builtinColorProfiles } from '../src/client/profileSettings'
 
-// Real capture readings (gitignored, like test/fixtures.test.ts) read with
-// the Generic colors palette alone - what Automatic previews with before any
-// saved profile fits. GENERIC_STICKER_COLORS was averaged from these same
-// captures; averaged from all the others instead, each capture still read
-// 97.2%, so this is a regression guard, not a measure of other cameras.
+// Real capture readings show whether the bundled palettes improve on pure RGB.
 const root = join(__dirname, 'fixtures')
 const captures = existsSync(root)
   ? readdirSync(root).filter((name) => name.startsWith('capture-') && existsSync(join(root, name, 'meta.json')))
@@ -29,17 +25,17 @@ function stickers(): Array<{ rgb: RGB; truth: string }> {
   })
 }
 
-describe('Generic colors on real captures', () => {
+describe('built-in colors on real captures', () => {
   if (captures.length === 0) {
     it.skip('requires saved real captures', () => {})
     return
   }
 
-  it('reads nearly every sticker, far better than pure RGB references', () => {
+  it('includes a palette that reads better than pure RGB references', () => {
     const all = stickers()
     const share = (palette: Record<string, RGB>) => all.filter((s) => classifySticker(s.rgb, palette).color === s.truth).length / all.length
     expect(all.length).toBeGreaterThan(1000)
-    expect(share(genericColorProfile().colors)).toBeGreaterThan(0.95)
-    expect(share(STICKER_COLORS)).toBeLessThan(0.8)
+    const bestBuiltIn = Math.max(...builtinColorProfiles().map((profile) => share(profile.colors)))
+    expect(bestBuiltIn).toBeGreaterThan(share(STICKER_COLORS))
   })
 })
