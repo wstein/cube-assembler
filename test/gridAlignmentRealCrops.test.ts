@@ -202,27 +202,27 @@ describe('grid alignment on real capture crops', () => {
     return
   }
 
-  it('reads off-center and undersized faces like centered ones', () => {
-    const faces = loadFaces()
-    const misread: Record<
-      string,
-      Record<number, { guide: number; aligned: number; total: number }>
-    > = {}
-    for (const face of faces) {
-      const truth = extractColorsFromImageData(
-        face.data,
-        face.size,
-        face.size,
-        face.gridSize,
-      ).colors
-      for (const [label, dx, dy, scale, tilt] of CASES) {
+  const faces = loadFaces()
+  for (const [label, dx, dy, scale, tilt] of CASES) {
+    it(`reads ${label} faces like centered ones`, () => {
+      const misread: Record<
+        number,
+        { guide: number; aligned: number; total: number }
+      > = {}
+      for (const face of faces) {
+        const truth = extractColorsFromImageData(
+          face.data,
+          face.size,
+          face.size,
+          face.gridSize,
+        ).colors
         const { data, width, guide } = frame(face, dx, dy, scale, tilt)
         const found = alignFace(data, width, width, guide, face.gridSize)
         const byGuide = read(data, width, guide, face.gridSize)
         const byAlignment = found.angle
           ? readTilted(data, width, found, found.angle, face.gridSize)
           : read(data, width, found, face.gridSize)
-        const entry = ((misread[label] ??= {})[face.gridSize] ??= {
+        const entry = (misread[face.gridSize] ??= {
           guide: 0,
           aligned: 0,
           total: 0,
@@ -235,28 +235,24 @@ describe('grid alignment on real capture crops', () => {
           }
         }
       }
-    }
-    const rate = (n: number, total: number) =>
-      `${((100 * n) / total).toFixed(0)}%`
-    for (const [label, sizes] of Object.entries(misread)) {
+      const rate = (n: number, total: number) =>
+        `${((100 * n) / total).toFixed(0)}%`
       console.log(
         label.padEnd(18),
-        Object.entries(sizes)
+        Object.entries(misread)
           .map(
             ([n, e]) =>
               `${n}x${n} ${rate(e.guide, e.total)} -> ${rate(e.aligned, e.total)}`,
           )
           .join('   '),
       )
-    }
-    // Inside the search range (offset plus the size change stays under half
-    // a cell), alignment must never read worse than the guide beyond noise.
-    // Further out the grid can snap one cell off - the guide misreads a
-    // third of a 7x7 there anyway. The saved crops themselves sit up to ~9%
-    // off their guide, which adds to the simulated offset, so the 5% bound
-    // only applies within 60% of the range.
-    for (const [label, dx, dy, scale] of CASES) {
-      for (const [n, entry] of Object.entries(misread[label])) {
+      // Inside the search range (offset plus the size change stays under half
+      // a cell), alignment must never read worse than the guide beyond noise.
+      // Further out the grid can snap one cell off - the guide misreads a
+      // third of a 7x7 there anyway. The saved crops themselves sit up to ~9%
+      // off their guide, which adds to the simulated offset, so the 5% bound
+      // only applies within 60% of the range.
+      for (const [n, entry] of Object.entries(misread)) {
         const reach =
           Math.max(Math.abs(dx), Math.abs(dy)) + Math.abs(1 - scale) / 2
         const range = Math.min(ALIGNMENT_MAX_OFFSET, 0.45 / Number(n))
@@ -270,8 +266,8 @@ describe('grid alignment on real capture crops', () => {
             `${label}, ${n}x${n}`,
           ).toBeLessThanOrEqual(0.05)
       }
-    }
-  }, 60_000)
+    }, 60_000)
+  }
 })
 
 // A solved GoCube with a clear shell: its outline search locked onto the
