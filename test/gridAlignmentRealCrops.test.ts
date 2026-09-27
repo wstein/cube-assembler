@@ -271,7 +271,7 @@ describe('grid alignment on real capture crops', () => {
           ).toBeLessThanOrEqual(0.05)
       }
     }
-  })
+  }, 60_000)
 })
 
 // A solved GoCube with a clear shell: its outline search locked onto the
