@@ -224,7 +224,7 @@ describe('local fixture upload server', () => {
     expect((await fetch(`${url}/`, { method: 'POST' })).status).toBe(405)
   })
 
-  it('serves the app favicon on the status page without exposing fixtures', async () => {
+  it('serves a distinct upload favicon without exposing fixtures', async () => {
     await start()
     const page = await fetch(`${url}/`)
     const html = await page.text()
@@ -237,7 +237,12 @@ describe('local fixture upload server', () => {
     const icon = await fetch(`${url}/favicon.svg`)
     expect(icon.status).toBe(200)
     expect(icon.headers.get('content-type')).toBe('image/svg+xml')
-    expect(await icon.text()).toBe(
+    const uploadIcon = await readFile(
+      join(__dirname, '../scripts/fixtureUploadFavicon.svg'),
+      'utf8',
+    )
+    expect(await icon.text()).toBe(uploadIcon)
+    expect(uploadIcon).not.toBe(
       await readFile(join(__dirname, '../public/favicon.svg'), 'utf8'),
     )
     expect((await fetch(`${url}/favicon.svg`, { method: 'POST' })).status).toBe(

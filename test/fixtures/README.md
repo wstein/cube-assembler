@@ -39,8 +39,8 @@ The optional server listens on `127.0.0.1:7100` and accepts one multipart
 `POST /upload` with a `name` field and seven `file` parts (one `meta.json`
 and six face photos). It requires `X-Fixture-Upload: 1`, rejects duplicates,
 and has no fixture download route. `GET /ping` returns an empty 204 response,
-and `GET /` shows a status page with the app favicon that never lists fixtures.
-Only `/favicon.svg` serves a static asset. The
+and `GET /` shows a status page with its own cube-and-upload favicon that never
+lists fixtures. Only `/favicon.svg` serves a static asset. The
 Vite dev server proxies the browser's upload to it. The published app calls
 `http://127.0.0.1:7100` directly; the server answers CORS requests only from
 localhost pages and `https://wstein.github.io`, and refuses uploads from any
