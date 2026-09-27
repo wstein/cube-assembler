@@ -1,5 +1,5 @@
 import { clusterOklabDistance, linearRgbToOklab, oklabToRgb, paletteDistance, rgbToOklab, srgbChannelToLinear, type Oklab, type RGB } from './imageProcessing'
-import { AUTO_COLORS_ID, GENERIC_COLORS_ID, type ColorProfile } from './profileSettings'
+import { isBuiltinColorProfile, type ColorProfile } from './profileSettings'
 
 const COLOR_KEYS = ['W', 'Y', 'O', 'R', 'G', 'B']
 
@@ -32,12 +32,12 @@ export function assessPalette(profile: ColorProfile, measured: Record<string, RG
 }
 
 export function shouldBlendColorProfile(profile: ColorProfile, measured: Record<string, RGB>, evidence: PaletteEvidence, automatic: boolean): boolean {
-  return !automatic && profile.id !== GENERIC_COLORS_ID && profile.id !== AUTO_COLORS_ID
+  return !automatic && !isBuiltinColorProfile(profile.id)
     && assessPalette(profile, measured, evidence).accepted
 }
 
 export function blendColorProfile(profile: ColorProfile, measured: Record<string, RGB>, updatedAt: string): ColorProfile {
-  if (profile.id === GENERIC_COLORS_ID || profile.id === AUTO_COLORS_ID) throw new Error('Cannot update Generic colors')
+  if (isBuiltinColorProfile(profile.id)) throw new Error('Cannot update built-in colors')
   const weight = profile.captures === 0 ? 1 : Math.max(0.2, 1 / (profile.captures + 1))
   const colors = Object.fromEntries(COLOR_KEYS.map((key) => {
     const oldLab = rgbToOklab(profile.colors[key])
@@ -53,7 +53,7 @@ export function blendColorProfile(profile: ColorProfile, measured: Record<string
 
 // Called only by the explicit Update profile action for an Automatic match.
 export function updateProfileFromCapture(profile: ColorProfile, measured: Record<string, RGB>, evidence: PaletteEvidence, updatedAt: string): ColorProfile | null {
-  return profile.id !== GENERIC_COLORS_ID && profile.id !== AUTO_COLORS_ID && assessPalette(profile, measured, evidence).accepted
+  return !isBuiltinColorProfile(profile.id) && assessPalette(profile, measured, evidence).accepted
     ? blendColorProfile(profile, measured, updatedAt) : null
 }
 
@@ -100,7 +100,7 @@ export function matchColorProfile(profiles: ColorProfile[], measured: Record<str
 // first-pass color label. Equal fits retain the first profile in the list.
 export function matchPartialColorProfile(profiles: ColorProfile[], samples: RGB[]): ColorProfile | null {
   if (samples.length === 0) return null
-  const ranked = profiles.filter((profile) => profile.captures > 0 || profile.id === GENERIC_COLORS_ID)
+  const ranked = profiles.filter((profile) => profile.captures > 0 || isBuiltinColorProfile(profile.id))
     .map((profile) => ({
       profile,
       distance: samples.reduce((sum, sample) => sum + Math.min(...COLOR_KEYS.map((key) =>
@@ -151,7 +151,7 @@ export function resolveAutomaticProfile(profiles: ColorProfile[], measured: Reco
   return { profile: best.profile, reason: 'nearest', nearest }
 }
 
-// "plastic2 (faces 2–6), Generic colors (face 1)": which profile previewed
+// "Plastic 2 (faces 2–6), Classic (face 1)": which profile previewed
 // each face, in capture order; null when no face recorded one.
 export function summarizePreviewProfiles(names: Array<string | undefined>): string | null {
   const faces = new Map<string, number[]>()

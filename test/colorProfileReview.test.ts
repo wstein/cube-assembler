@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   AVERAGE_LIMIT_FRACTION, colorDeletionEffects, colorsUnderWhite, colorDifferences, deleteColorProfiles, groupDifferences, groupSimilarProfiles, withinMergeLimit, mergeColorProfiles, mergedColors, profileDistance, splitColorLevel, unusedColorProfiles, whiteBalancedColors,
 } from '../src/client/colorProfileReview'
-import { AUTO_COLORS_ID, EMPTY_SETTINGS, GENERIC_COLORS_ID, type ColorProfile, type ProfileSettings } from '../src/client/profileSettings'
+import { AUTO_COLORS_ID, EMPTY_SETTINGS, builtinColorProfiles, type ColorProfile, type ProfileSettings } from '../src/client/profileSettings'
 import type { RGB } from '../src/client/imageProcessing'
 
 const rgb = (r: number, g: number, b: number): RGB => ({ r, g, b })
@@ -141,7 +141,7 @@ describe('mergeColorProfiles', () => {
   it('refuses fewer than two profiles, built-in colors, unknown ids and an empty name', () => {
     const at = '2026-09-26T20:00:00.000Z'
     expect(() => mergeColorProfiles(base, ['warm'], 'X', at)).toThrow()
-    expect(() => mergeColorProfiles(base, ['warm', GENERIC_COLORS_ID], 'X', at)).toThrow()
+    expect(() => mergeColorProfiles(base, ['warm', builtinColorProfiles()[0].id], 'X', at)).toThrow()
     expect(() => mergeColorProfiles(base, ['warm', 'nope'], 'X', at)).toThrow()
     expect(() => mergeColorProfiles(base, ['warm', 'uv'], '  ', at)).toThrow()
   })
@@ -160,7 +160,7 @@ describe('deleting color profiles', () => {
   })
 
   it('refuses built-in and unknown profiles', () => {
-    expect(() => deleteColorProfiles(base, [GENERIC_COLORS_ID])).toThrow()
+    expect(() => deleteColorProfiles(base, [builtinColorProfiles()[0].id])).toThrow()
     expect(() => deleteColorProfiles(base, ['nope'])).toThrow()
   })
 

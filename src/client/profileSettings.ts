@@ -1,6 +1,7 @@
 // Cube geometry and sticker colors are independent: one color profile can
 // serve cubes of several sizes, while each cube keeps its own sticker gap.
 import type { RGB, SamplingGeometry } from './imageProcessing'
+import profileCollection from '../../cube-assembler-profiles.json'
 
 export interface CubeSetting {
   id: string
@@ -34,13 +35,26 @@ export interface ProfileSettings {
 }
 
 export const CUBE_SIZES = [2, 3, 4, 5, 6, 7]
-export const GENERIC_COLORS_ID = 'generic-colors'
 export const AUTO_COLORS_ID = 'auto-colors'
 export const CAPTURE_COLORS_ID = 'capture-colors'
 const COLOR_KEYS = ['W', 'Y', 'O', 'R', 'G', 'B']
 
 export const EMPTY_SETTINGS: ProfileSettings = {
   cubes: [], colors: [], activeCubeBySize: {}, activeColorsId: AUTO_COLORS_ID,
+}
+
+const BUILTIN_COLOR_PROFILES: ColorProfile[] = profileCollection.colors.map((profile) => ({
+  id: profile.id, name: profile.name, colors: profile.colors, captures: profile.captures,
+  updatedAt: profile.updatedAt,
+}))
+const DEFAULT_COLOR_PROFILE = BUILTIN_COLOR_PROFILES.find((profile) => profile.name === 'Classic')!
+
+export function builtinColorProfiles(): ColorProfile[] {
+  return BUILTIN_COLOR_PROFILES
+}
+
+export function isBuiltinColorProfile(id: string): boolean {
+  return id === AUTO_COLORS_ID || BUILTIN_COLOR_PROFILES.some((profile) => profile.id === id)
 }
 
 // Keep these objects stable: the live camera effect depends on the selected
@@ -137,28 +151,10 @@ export function renameCube(settings: ProfileSettings, id: string, name: string):
 
 // Renames a saved color profile; Generic and Automatic keep their names.
 export function renameColorProfile(settings: ProfileSettings, id: string, name: string): ProfileSettings {
-  if (id === GENERIC_COLORS_ID || id === AUTO_COLORS_ID) throw new Error('Cannot rename built-in colors')
+  if (isBuiltinColorProfile(id)) throw new Error('Cannot rename built-in colors')
   if (!settings.colors.some((profile) => profile.id === id)) throw new Error('Unknown color profile')
   const trimmed = profileName(name, 'Color profile')
   return { ...settings, colors: settings.colors.map((profile) => profile.id === id ? { ...profile, name: trimmed } : profile) }
-}
-
-// Generic colors as a camera reads them: each sticker color averaged, in
-// linear light, over the per-capture means of 27 reviewed real captures
-// (2x2-7x7, several cubes and rooms). Pure references such as 255/0/0 red
-// read 73% of those stickers; these read 97% even when averaged without the
-// capture being read. STICKER_COLORS stays the classifier's canonical set.
-export const GENERIC_STICKER_COLORS: Record<string, RGB> = {
-  W: { r: 174, g: 186, b: 206 },
-  Y: { r: 179, g: 202, b: 73 },
-  O: { r: 217, g: 87, b: 66 },
-  R: { r: 176, g: 41, b: 71 },
-  G: { r: 46, g: 166, b: 86 },
-  B: { r: 28, g: 98, b: 172 },
-}
-
-export function genericColorProfile(): ColorProfile {
-  return { id: GENERIC_COLORS_ID, name: 'Generic colors', colors: colorPalette({ colors: GENERIC_STICKER_COLORS }), captures: 0 }
 }
 
 export function colorPalette(profile: Pick<ColorProfile, 'colors'>): Record<string, RGB> {
@@ -175,13 +171,14 @@ export function copyColorProfile(settings: ProfileSettings, source: ColorProfile
 }
 
 export function allColorProfiles(settings: ProfileSettings): ColorProfile[] {
-  return [{ ...genericColorProfile(), id: AUTO_COLORS_ID, name: 'Automatic colors' }, genericColorProfile(), ...settings.colors]
+  return [{ ...DEFAULT_COLOR_PROFILE, id: AUTO_COLORS_ID, name: 'Automatic colors' },
+    ...BUILTIN_COLOR_PROFILES, ...settings.colors.filter((profile) => !isBuiltinColorProfile(profile.id))]
 }
 
 export function activeColorProfile(settings: ProfileSettings): ColorProfile {
   if (settings.activeColorsId === AUTO_COLORS_ID)
-    return settings.colors.find((profile) => profile.id === settings.autoMatchedColorsId) ?? genericColorProfile()
-  return allColorProfiles(settings).find((profile) => profile.id === settings.activeColorsId) ?? genericColorProfile()
+    return allColorProfiles(settings).find((profile) => profile.id === settings.autoMatchedColorsId) ?? DEFAULT_COLOR_PROFILE
+  return allColorProfiles(settings).find((profile) => profile.id === settings.activeColorsId) ?? DEFAULT_COLOR_PROFILE
 }
 
 // Automatic does not reuse a match from an earlier complete cube. The capture
@@ -205,13 +202,13 @@ export function resolvedColorProfileSnapshot(active: ColorProfile, selection: Us
 }
 
 export function setAutoColorMatch(settings: ProfileSettings, id: string | null): ProfileSettings {
-  if (id !== null && !settings.colors.some((profile) => profile.id === id)) throw new Error('Unknown color profile')
+  if (id !== null && !allColorProfiles(settings).some((profile) => profile.id === id && id !== AUTO_COLORS_ID)) throw new Error('Unknown color profile')
   const { autoMatchedColorsId: _previous, ...rest } = settings
   return id === null ? rest : { ...rest, autoMatchedColorsId: id }
 }
 
 export function saveColorProfile(settings: ProfileSettings, profile: ColorProfile): ProfileSettings {
-  if (profile.id === GENERIC_COLORS_ID || profile.id === AUTO_COLORS_ID) throw new Error('Cannot change built-in colors')
+  if (isBuiltinColorProfile(profile.id)) throw new Error('Cannot change built-in colors')
   if (!validColorProfile(profile)) throw new Error('Invalid color profile')
   const exists = settings.colors.some((saved) => saved.id === profile.id)
   return {
@@ -227,7 +224,7 @@ export function selectColorProfile(settings: ProfileSettings, id: string): Profi
 }
 
 export function deleteColorProfile(settings: ProfileSettings, id: string): ProfileSettings {
-  if (id === GENERIC_COLORS_ID || id === AUTO_COLORS_ID) throw new Error('Cannot delete built-in colors')
+  if (isBuiltinColorProfile(id)) throw new Error('Cannot delete built-in colors')
   return {
     ...settings,
     colors: settings.colors.filter((profile) => profile.id !== id),
@@ -285,7 +282,7 @@ export function parseProfileSettings(value: unknown): ProfileSettings {
   if (!raw || !Array.isArray(raw.cubes) || !Array.isArray(raw.colors)) return EMPTY_SETTINGS
   const cubes = raw.cubes.filter(validCube).filter((cube) => !isBuiltinCube(cube.id))
     .map((cube) => ({ id: cube.id, name: cube.name.slice(0, 60), size: cube.size, sampling: { stickerCore: cube.sampling.stickerCore } }))
-  const colors = raw.colors.filter(validColorProfile).filter((profile) => profile.id !== GENERIC_COLORS_ID && profile.id !== AUTO_COLORS_ID)
+  const colors = raw.colors.filter(validColorProfile).filter((profile) => !isBuiltinColorProfile(profile.id))
     .map((profile) => ({ id: profile.id, name: profile.name.slice(0, 60), colors: colorPalette(profile), captures: profile.captures,
       ...(typeof profile.updatedAt === 'string' ? { updatedAt: profile.updatedAt } : {}) }))
   const activeCubeBySize: Record<number, string> = {}
@@ -295,10 +292,10 @@ export function parseProfileSettings(value: unknown): ProfileSettings {
         .some((cube) => cube.id === id && cube.size === Number(size))) activeCubeBySize[Number(size)] = id
   }
   const activeColorsId = typeof raw.activeColorsId === 'string'
-    && (raw.activeColorsId === AUTO_COLORS_ID || raw.activeColorsId === GENERIC_COLORS_ID
+    && (isBuiltinColorProfile(raw.activeColorsId)
       || colors.some((profile) => profile.id === raw.activeColorsId))
     ? raw.activeColorsId : AUTO_COLORS_ID
   const autoMatchedColorsId = typeof raw.autoMatchedColorsId === 'string'
-    && colors.some((profile) => profile.id === raw.autoMatchedColorsId) ? raw.autoMatchedColorsId : undefined
+    && [...BUILTIN_COLOR_PROFILES, ...colors].some((profile) => profile.id === raw.autoMatchedColorsId) ? raw.autoMatchedColorsId : undefined
   return { cubes, colors, activeCubeBySize, activeColorsId, ...(autoMatchedColorsId ? { autoMatchedColorsId } : {}) }
 }

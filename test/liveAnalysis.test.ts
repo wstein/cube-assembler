@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { analyzeLiveFrame, scaleBounds, type LiveAnalysisRequest } from '../src/client/liveAnalysis'
 import { DEFAULT_SAMPLING, linearChannelToSrgb, srgbChannelToLinear } from '../src/client/imageProcessing'
 import { scene } from './syntheticFace'
-import { genericColorProfile, type ColorProfile } from '../src/client/profileSettings'
+import { builtinColorProfiles, type ColorProfile } from '../src/client/profileSettings'
 
 const COLORS: Record<string, number[]> = {
   W: [240, 240, 235], Y: [240, 210, 30], R: [200, 40, 50], O: [230, 110, 30], G: [40, 160, 70], B: [40, 80, 200],
@@ -56,7 +56,7 @@ function downscale(data: Uint8ClampedArray, width: number, height: number) {
 
 describe('analyzeLiveFrame', () => {
   it('selects a saved palette for the first live face in Automatic mode', () => {
-    const generic = genericColorProfile()
+    const generic = builtinColorProfiles()[0]
     const exact: ColorProfile = { ...generic, id: 'camera-colors', name: 'Camera colors', captures: 1,
       colors: Object.fromEntries(Object.entries(COLORS).map(([key, rgb]) => [key, { r: rgb[0], g: rgb[1], b: rgb[2] }])) }
     const result = analyzeLiveFrame(frame(1280, 720, 3), 1280, 720, request(3, { autoProfiles: [generic, exact] }))

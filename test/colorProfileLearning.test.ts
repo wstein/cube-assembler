@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { STICKER_COLORS } from '../src/client/imageProcessing'
 import { assessPalette, balancedPaletteDistance, blendColorProfile, canCreateProfileFromCapture, captureProfileFinding, matchColorProfile, matchPartialColorProfile, profileColorFitPercent, profileToUpdate, resolveAutomaticProfile, shouldBlendColorProfile, summarizePreviewProfiles, updateProfileFromCapture } from '../src/client/colorProfileLearning'
-import { genericColorProfile, type ColorProfile } from '../src/client/profileSettings'
+import { builtinColorProfiles, type ColorProfile } from '../src/client/profileSettings'
 import { mergedColors } from '../src/client/colorProfileReview'
 
 const base: ColorProfile = { id: 'base', name: 'Base', colors: STICKER_COLORS, captures: 4 }
@@ -52,13 +52,13 @@ describe('color profile learning', () => {
     expect(updateProfileFromCapture(base, shifted, { ...evidence, confidentFraction: 0.7 }, '2026-09-26T00:00:00.000Z')).toBeNull()
   })
 
-  it('never updates Generic colors through automatic, manual, or direct blending', () => {
-    const generic = genericColorProfile()
+  it('never updates built-in colors through automatic, manual, or direct blending', () => {
+    const generic = builtinColorProfiles()[0]
     const evidence = { reviewedValid: true, cameraOnly: true, recalibrated: true, confidentFraction: 1, correctedFraction: 0 }
     expect(shouldBlendColorProfile(generic, shifted, evidence, false)).toBe(false)
     expect(shouldBlendColorProfile(generic, shifted, evidence, true)).toBe(false)
     expect(updateProfileFromCapture(generic, shifted, evidence, '2026-09-26T00:00:00.000Z')).toBeNull()
-    expect(() => blendColorProfile(generic, shifted, '2026-09-26T00:00:00.000Z')).toThrow('Cannot update Generic colors')
+    expect(() => blendColorProfile(generic, shifted, '2026-09-26T00:00:00.000Z')).toThrow('Cannot update built-in colors')
   })
 
   it('rejects one color drifting too far even when mean distance is small', () => {
@@ -86,7 +86,7 @@ describe('color profile learning', () => {
   })
 
   it('chooses the closest available preview palette from a single visible face', () => {
-    const generic = genericColorProfile()
+    const generic = builtinColorProfiles()[0]
     const muted: ColorProfile = { ...base, id: 'muted-preview', colors: { ...STICKER_COLORS, Y: { r: 174, g: 199, b: 47 }, W: { r: 183, g: 191, b: 215 } } }
     const samples = [muted.colors.Y, muted.colors.W, muted.colors.Y, muted.colors.W]
     expect(matchPartialColorProfile([generic, muted], samples)?.id).toBe(muted.id)
@@ -194,8 +194,8 @@ describe('resolving the automatic profile after all six faces', () => {
 
 describe('summarizing the preview profiles per face', () => {
   it('groups faces by the profile that previewed them, in capture order', () => {
-    expect(summarizePreviewProfiles(['Generic colors', 'plastic2', 'plastic2', 'plastic2', 'plastic2', 'plastic2']))
-      .toBe('Generic colors (face 1), plastic2 (faces 2–6)')
+    expect(summarizePreviewProfiles(['Classic', 'plastic2', 'plastic2', 'plastic2', 'plastic2', 'plastic2']))
+      .toBe('Classic (face 1), plastic2 (faces 2–6)')
     expect(summarizePreviewProfiles(['plastic2', 'plastic2', 'plastic1', 'plastic2', undefined, undefined]))
       .toBe('plastic2 (faces 1–2, 4), plastic1 (face 3)')
     expect(summarizePreviewProfiles([undefined, undefined])).toBeNull()
@@ -204,8 +204,8 @@ describe('summarizing the preview profiles per face', () => {
   it('reports only a meaningful difference from the final color choice', () => {
     expect(captureProfileFinding(Array(6).fill('GoCube'), 'GoCube', 'clear')).toBeNull()
     expect(captureProfileFinding(Array(6).fill('GoCube'), 'GoCube', 'preview')).toBeNull()
-    expect(captureProfileFinding(['Generic colors', ...Array(5).fill('GoCube')], 'GoCube', 'clear'))
-      .toBe('Preview used Generic colors (face 1), GoCube (faces 2–6)')
+    expect(captureProfileFinding(['Classic', ...Array(5).fill('GoCube')], 'GoCube', 'clear'))
+      .toBe('Preview used Classic (face 1), GoCube (faces 2–6)')
     expect(captureProfileFinding(Array(6).fill('GoCube'), 'Colors from this capture', 'tie'))
       .toBe('Saved profiles matched equally; colors from this capture were used')
     expect(captureProfileFinding(Array(6).fill('GoCube'), 'Colors from this capture', 'far'))
@@ -225,8 +225,9 @@ describe('offering to update a profile after a reviewed capture', () => {
     expect(profileToUpdate([plastic2], { automatic: false, resolvedId: 'plastic2', selectedId: 'plastic2' }, shifted, good)?.id).toBe('plastic2')
   })
 
-  it('offers nothing for Generic colors, weak captures or colors too far off', () => {
-    expect(profileToUpdate([plastic2], { automatic: false, resolvedId: 'generic-colors', selectedId: 'generic-colors' }, shifted, good)).toBeNull()
+  it('offers nothing for built-in colors, weak captures or colors too far off', () => {
+    const builtinId = builtinColorProfiles()[0].id
+    expect(profileToUpdate([plastic2], { automatic: false, resolvedId: builtinId, selectedId: builtinId }, shifted, good)).toBeNull()
     expect(profileToUpdate([plastic2], { automatic: false, resolvedId: 'plastic2', selectedId: 'plastic2' }, shifted, { ...good, cameraOnly: false })).toBeNull()
     expect(profileToUpdate([plastic2], { automatic: false, resolvedId: 'plastic2', selectedId: 'plastic2' }, shifted, { ...good, reviewedValid: false })).toBeNull()
     const far = { ...STICKER_COLORS, G: STICKER_COLORS.B }
