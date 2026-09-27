@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { classifyAcrossFaces, learnStickerColors, type ColorDetectionResult, type RGB } from '../src/client/imageProcessing'
+import { classifyAcrossFaces, learnStickerColors, mixedUpClusters, type ColorDetectionResult, type RGB } from '../src/client/imageProcessing'
 
 const COLORS: Record<string, RGB> = {
   W: { r: 238, g: 238, b: 232 }, Y: { r: 238, g: 208, b: 32 }, R: { r: 198, g: 40, b: 52 },
@@ -182,5 +182,24 @@ describe('classifyAcrossFaces with a wide lightness range', () => {
     const wrong = Object.entries(classified.faces).flatMap(([face, det]) =>
       det.colors.flat().flatMap((color, i) => (color === RED_BLUE_TRUTH[face][i] ? [] : [`${face}${i}:${color}`])))
     expect(wrong).toEqual([])
+  })
+})
+
+describe('mixedUpClusters', () => {
+  // The clustering's red/blue mix from capture 2026-09-26T23-55-08: a
+  // purple center whose stickers all ended up red.
+  const reds: RGB[] = [[117, 11, 22], [121, 20, 23], [133, 32, 31], [123, 14, 40], [122, 7, 28], [121, 8, 31], [113, 9, 36], [144, 52, 88], [133, 45, 77]]
+    .map(([r, g, b]) => ({ r, g, b }))
+
+  it('flags a cluster center far from the stickers assigned to it', () => {
+    expect(mixedUpClusters(reds, [{ r: 106, g: 72, b: 110 }], reds.map(() => 0))).toEqual([0])
+  })
+
+  it('leaves a cluster centered on its stickers alone', () => {
+    expect(mixedUpClusters(reds, [{ r: 125, g: 22, b: 38 }], reds.map(() => 0))).toEqual([])
+  })
+
+  it('names no mixed-up color on a well-separated capture', () => {
+    expect(classifyAcrossFaces(readingFaces(RED_BLUE_READINGS)).learned!.mixedUpColors).toEqual([])
   })
 })
