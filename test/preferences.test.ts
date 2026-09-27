@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest'
-import { MIRROR_COOKIE, mirrorCookie, readMirrorPreference } from '../src/client/preferences'
+import {
+  MIRROR_COOKIE,
+  mirrorCookie,
+  readMirrorPreference,
+} from '../src/client/preferences'
 
 describe('mirror preference cookie', () => {
   it('is off without a cookie', () => {
@@ -13,7 +17,11 @@ describe('mirror preference cookie', () => {
   })
 
   it('stores the choice as a first-party cookie for a year', () => {
-    expect(mirrorCookie(true)).toBe(`${MIRROR_COOKIE}=1; Max-Age=31536000; Path=/; SameSite=Lax`)
-    expect(mirrorCookie(false)).toBe(`${MIRROR_COOKIE}=0; Max-Age=31536000; Path=/; SameSite=Lax`)
+    expect(mirrorCookie(true)).toBe(
+      `${MIRROR_COOKIE}=1; Max-Age=31536000; Path=/; SameSite=Lax`,
+    )
+    expect(mirrorCookie(false)).toBe(
+      `${MIRROR_COOKIE}=0; Max-Age=31536000; Path=/; SameSite=Lax`,
+    )
   })
 })

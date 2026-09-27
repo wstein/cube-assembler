@@ -1214,7 +1214,9 @@ function App() {
   // let it be turned off for cameras that don't need it (e.g. a rear
   // phone camera fed in via some capture setups).
   // Off by default; the viewer's choice is kept in a cookie (see preferences.ts).
-  const [mirrorPreview, setMirrorPreview] = useState(() => readMirrorPreference(document.cookie))
+  const [mirrorPreview, setMirrorPreview] = useState(() =>
+    readMirrorPreference(document.cookie),
+  )
   const changeMirrorPreview = (mirrored: boolean) => {
     setMirrorPreview(mirrored)
     document.cookie = mirrorCookie(mirrored)
