@@ -24,11 +24,13 @@ export type PhotoFrameMode = 'auto' | 'cropped' | 'full'
 export function photoReadModes(
   name: string,
   mode: PhotoFrameMode,
-): Array<'aligned' | 'cropped'> {
+  captureMode: 'cv' | 'guide' = 'cv',
+): Array<'aligned' | 'fixed' | 'cropped'> {
+  const fullPhotoGeometry = captureMode === 'guide' ? 'fixed' : 'aligned'
   if (mode === 'cropped' || (mode === 'auto' && isNamedFaceCrop(name)))
     return ['cropped']
-  if (mode === 'full') return ['aligned']
-  return ['aligned', 'cropped']
+  if (mode === 'full') return [fullPhotoGeometry]
+  return [fullPhotoGeometry, 'cropped']
 }
 
 // A fixture's six face-*.jpg files have an unambiguous slot order. Other
