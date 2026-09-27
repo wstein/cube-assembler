@@ -3396,19 +3396,6 @@ function App() {
                   </span>
                 )}
               </div>
-              <div class="header-spacer" />
-              {FACE_ORDER.every((f) => f in capturedFaces) && (
-                <button
-                  type="button"
-                  class="btn btn-secondary btn-sm"
-                  onClick={() => {
-                    setReviewStep(0)
-                    setShowReviewDialog(true)
-                  }}
-                >
-                  Edit colors
-                </button>
-              )}
             </div>
             {cube ? (
               (() => {
@@ -3779,6 +3766,18 @@ function App() {
                     Capture again
                   </button>
                 )}
+              {FACE_ORDER.every((f) => f in capturedFaces) && (
+                <button
+                  type="button"
+                  class="btn btn-secondary btn-lg"
+                  onClick={() => {
+                    setReviewStep(0)
+                    setShowReviewDialog(true)
+                  }}
+                >
+                  Edit colors
+                </button>
+              )}
               <button
                 type="button"
                 class="btn btn-primary btn-lg"
