@@ -1,6 +1,8 @@
 node_modules/
 .cache/
 dist/
+playwright-report/
+test-results/
 lib/
 .DS_Store
 *.log
