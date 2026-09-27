@@ -14,6 +14,21 @@ of profile; **Import cubes & colors** merges them by ID.
 
 ## Automatic colors
 
+```mermaid
+flowchart TD
+    Live[Live face] --> Match[Compare built-in and saved palettes]
+    Match --> Capture[Preview and capture with closest fit]
+    Capture --> More{Another face?}
+    More -- Yes --> Match
+    More -- All six captured --> Calibrate[Recalibrate all six faces together]
+    Calibrate --> Close{Saved palette close enough?}
+    Close -- Yes --> Saved[Resolve nearest profile]
+    Close -- No --> Own[Colors from this capture]
+    Saved --> Review[Review the cube]
+    Own --> Review
+    Review -. Explicit action, if eligible .-> Edit[Create new or update saved colors]
+```
+
 Automatic compares the live face with built-in and saved color profiles and
 uses the closest fit for its preview. It rechecks after each captured face.
 After all six faces, the app recalibrates their colors together and reports
