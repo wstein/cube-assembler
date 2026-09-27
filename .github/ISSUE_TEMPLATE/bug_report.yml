@@ -1,0 +1,46 @@
+name: Bug report
+description: Something doesn't work, such as a misread sticker or a missed face
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: What you did, what you expected, and what the app did instead.
+    validations:
+      required: true
+  - type: dropdown
+    id: mode
+    attributes:
+      label: Scanner mode
+      options:
+        - Detect face
+        - Guide grid
+        - Not scanner related
+    validations:
+      required: true
+  - type: input
+    id: cube
+    attributes:
+      label: Cube and colors
+      description: Cube size and color profile shown in the app, e.g. "Generic 3×3, Automatic (Matte)".
+  - type: input
+    id: device
+    attributes:
+      label: Browser and device
+      placeholder: e.g. Safari 19 on iPhone 16, Chrome 140 on macOS
+    validations:
+      required: true
+  - type: input
+    id: revision
+    attributes:
+      label: App revision
+      description: The commit linked in the app footer, if you know it.
+  - type: textarea
+    id: files
+    attributes:
+      label: Screenshots or test fixture
+      description: >-
+        For a misread cube, use **Save as test fixture** after review and
+        attach the ZIP. It contains your six face photos, which become public
+        here.
