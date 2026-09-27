@@ -580,7 +580,72 @@ function kMeansCluster(points: RGB[], k: number, iterations = 20): RGB[] {
     )
   }
 
-  return centroids
+  return splitMixedPairs(points, centroids, iterations)
+}
+
+function oklabMean(points: RGB[]): RGB {
+  const labs = points.map(rgbToOklab)
+  return oklabToRgb({
+    l: labs.reduce((sum, lab) => sum + lab.l, 0) / labs.length,
+    a: labs.reduce((sum, lab) => sum + lab.a, 0) / labs.length,
+    b: labs.reduce((sum, lab) => sum + lab.b, 0) / labs.length,
+  })
+}
+
+// The cheapest way to put exactly `size` of `points` with the first centroid
+// and the rest with the second: those that gain most from the first go
+// there. Exact, and far cheaper than balancedAssign for two clusters.
+function splitInTwo(points: RGB[], centroids: RGB[], size: number): number[] {
+  const gain = points.map((p) => clusterDistance(p, centroids[1]) ** 2 - clusterDistance(p, centroids[0]) ** 2)
+  const order = points.map((_, i) => i).sort((i, j) => gain[j] - gain[i])
+  const split = new Array(points.length).fill(1)
+  for (const i of order.slice(0, size)) split[i] = 0
+  return split
+}
+
+// Lloyd's iterations can settle with two colors shared between two
+// clusters. On a real capture whose blues ranged from shadowed edges
+// (L 0.31) to a bright center (L 0.59), the reds and blues split by
+// lightness into two purple clusters - dark reds with dark blues, light
+// with light - at 3.7x the error of the true grouping, and every start
+// (each sticker, or the six centers) ended there. So each pair of
+// clusters is split again from its two most different members, and the
+// split is kept when it lowers the total error.
+function splitMixedPairs(points: RGB[], centroids: RGB[], iterations: number): RGB[] {
+  const best = [...centroids]
+  let assignment = balancedAssign(points, best)
+  for (let x = 0; x < best.length; x++) {
+    for (let y = x + 1; y < best.length; y++) {
+      const members = points.filter((_, pi) => assignment[pi] === x || assignment[pi] === y)
+      if (members.length < 2) continue
+      const before = points.reduce((sum, p, pi) => (assignment[pi] === x || assignment[pi] === y ? sum + clusterDistance(p, best[assignment[pi]]) ** 2 : sum), 0)
+      let seeds: RGB[] = [members[0], members[1]]
+      let farthest = -1
+      for (const p of members) {
+        for (const q of members) {
+          const d = clusterDistance(p, q)
+          if (d > farthest) { farthest = d; seeds = [p, q] }
+        }
+      }
+      const size = assignment.filter((ci) => ci === x).length
+      let split = splitInTwo(members, seeds, size)
+      for (let iter = 0; iter < iterations; iter++) {
+        seeds = [0, 1].map((side) => {
+          const group = members.filter((_, mi) => split[mi] === side)
+          return group.length > 0 ? oklabMean(group) : seeds[side]
+        })
+        split = splitInTwo(members, seeds, size)
+      }
+      // Only these members move, so comparing their error decides it.
+      const after = members.reduce((sum, p, mi) => sum + clusterDistance(p, seeds[split[mi]]) ** 2, 0)
+      if (after < before - 1e-9) {
+        best[x] = seeds[0]
+        best[y] = seeds[1]
+        assignment = balancedAssign(points, best)
+      }
+    }
+  }
+  return best
 }
 
 // Brute-force over all k! assignments (k=6 -> 720, trivial) to find the
