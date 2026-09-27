@@ -55,6 +55,7 @@ more. The Cubes tab likewise reviews cube geometry profiles.
 
 Custom profiles use the browser storage key `cube-assembler-profiles-v1`.
 First-party cookies remember the chosen cube size and color profile ID, along
-with Mirror, Auto capture, and sound. Profile colors and custom cube settings
-stay in browser storage. If a saved profile is missing, the selection falls
-back safely. Export JSON before clearing browser data or moving devices.
+with Mirror, Auto capture, sound, and 2D/3D display preferences. Profile
+colors and custom cube settings stay in browser storage. If a saved profile
+is missing, the selection falls back safely. Export JSON before clearing
+browser data or moving devices.

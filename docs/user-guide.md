@@ -44,6 +44,15 @@ even when photographed out of order. Even cubes have no fixed center, so they
 stay in capture order. The net always shows captured colors, even with Mirror
 enabled. Changing size after a capture asks before clearing saved faces.
 
+### Remembered choices
+
+First-party cookies remember the selected cube size and color profile,
+Mirror, Auto capture, capture sound, and the **2D Net / 3D View** choice.
+Within 3D View, **Stickerless / Stickered** and **Auto-rotate / Pause** are
+remembered too. Dragging the 3D cube gives it a short, slowing spin after
+release. These are display preferences; captured photos and cube states are not
+stored in cookies.
+
 ## Use photos or a saved fixture
 
 **Upload files** accepts six cropped face images or full camera photos, with or
