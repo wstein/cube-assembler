@@ -52,7 +52,10 @@ Within 3D View, **Stickerless / Stickered** and **Auto-rotate / Pause** are
 remembered too. Swipe a sticker in the 3D view to turn its row or column,
 including inner slices on larger cubes. Drag the background to rotate the
 view; it keeps turning briefly after release. Layer turns update the 2D net,
-facelet notation, and Orbit64 token. **Reset** returns to the captured state.
+facelet notation, and Orbit64 token. The move list records completed turns;
+**Undo** reverses the last one, and **Reset** returns to the captured state.
+**Scramble** uses more moves for larger cubes and turns inner layers on 4×4–7×7,
+while leaving the fixed middle layer alone on odd cubes.
 Auto-rotate pauses during a drag, face preset, or Tilt / Turn action and
 resumes about 1.5 seconds later. These interactions do not change the saved
 setting. Captured photos and cube states are not stored in cookies.

@@ -38,8 +38,8 @@ to the original real-fixture testing discussion. See
   reducing benchmark test time from ~48 s to ~31 s (~35% faster).
 - **Interactive layer turns and scramble animation in 3D:** added layer turn
   simulation (`applyCubeMove`), smooth 60fps layer rotation animation in WebGL
-  geometry, `U/D/L/R/F/B` clockwise and counter-clockwise controls, scramble,
-  and reset.
+  geometry, `U/D/L/R/F/B` clockwise and counter-clockwise controls, size-aware
+  scramble, move history, Undo, and Reset.
 - **Three-way outer corner spherical caps in 3D:** refined corner cubie outer
   chamfer geometry where 3 outer edges meet at the apex with spherical radius
   $R = r / \sqrt{2}$ matching 45° bevels and unit normals.
