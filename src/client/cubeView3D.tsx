@@ -185,17 +185,30 @@ export function formatCubeTurn({ face, depth, turns }: CubeTurn): string {
 }
 
 const SCRAMBLE_FACES: FaceKey[] = ['U', 'D', 'L', 'R', 'F', 'B']
-export function generateScrambleMoves(
-  length = 20,
-): Array<{ face: FaceKey; turns: number }> {
-  const moves: Array<{ face: FaceKey; turns: number }> = []
-  let lastFace: FaceKey | null = null
+const SCRAMBLE_LENGTHS = [11, 20, 40, 60, 80, 100]
+
+function turnAxis(face: FaceKey): 'x' | 'y' | 'z' {
+  return face === 'R' || face === 'L'
+    ? 'x'
+    : face === 'U' || face === 'D'
+      ? 'y'
+      : 'z'
+}
+
+export function generateScrambleMoves(size: number): CubeTurn[] {
+  const length = SCRAMBLE_LENGTHS[size - 2] ?? 20
+  // Odd cubes keep the exact middle slice fixed during a scramble.
+  const maxDepth = Math.floor(size / 2)
+  const moves: CubeTurn[] = []
+  let lastAxis: 'x' | 'y' | 'z' | null = null
   for (let i = 0; i < length; i++) {
-    const allowed = SCRAMBLE_FACES.filter((f) => f !== lastFace)
+    const allowed = SCRAMBLE_FACES.filter((f) => turnAxis(f) !== lastAxis)
     const face = allowed[Math.floor(Math.random() * allowed.length)]
-    lastFace = face
+    lastAxis = turnAxis(face)
     const turns = [1, -1, 2][Math.floor(Math.random() * 3)]
-    moves.push({ face, turns })
+    const depth =
+      i === 0 && size >= 4 ? 2 : 1 + Math.floor(Math.random() * maxDepth)
+    moves.push({ face, depth, turns })
   }
   return moves
 }
@@ -1196,7 +1209,7 @@ export function CubeView3D({
     } else {
       setIsScrambling(true)
       setIsTurning(true)
-      const moves = generateScrambleMoves(18)
+      const moves = generateScrambleMoves(puzzleSize)
       turnQueueRef.current = moves.map((m) => ({ ...m, duration: 85 }))
     }
   }

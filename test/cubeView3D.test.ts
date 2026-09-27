@@ -506,11 +506,22 @@ describe('cubeView3D math and geometry', () => {
       }
     })
 
-    it('generates random scramble move sequences without consecutive duplicate faces', () => {
-      const moves = generateScrambleMoves(20)
-      expect(moves.length).toBe(20)
-      for (let i = 1; i < moves.length; i++) {
-        expect(moves[i].face).not.toBe(moves[i - 1].face)
+    it('scales scramble length and layer depths to the cube size', () => {
+      const lengths = [11, 20, 40, 60, 80, 100]
+      for (let size = 2; size <= 7; size++) {
+        const moves = generateScrambleMoves(size)
+        expect(moves).toHaveLength(lengths[size - 2])
+        expect(
+          moves.every(
+            (move) => move.depth >= 1 && move.depth <= Math.floor(size / 2),
+          ),
+        ).toBe(true)
+        if (size >= 4) expect(moves.some((move) => move.depth > 1)).toBe(true)
+        for (let i = 1; i < moves.length; i++) {
+          const axis = (face: string) =>
+            'RL'.includes(face) ? 'x' : 'UD'.includes(face) ? 'y' : 'z'
+          expect(axis(moves[i].face)).not.toBe(axis(moves[i - 1].face))
+        }
       }
     })
 

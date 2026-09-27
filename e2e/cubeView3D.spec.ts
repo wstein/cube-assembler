@@ -42,11 +42,11 @@ test('scramble records completed turns that can be undone', async ({
   await page.getByRole('button', { name: 'Scramble', exact: true }).click()
   await expect
     .poll(async () => (await history.textContent())?.trim().split(/\s+/).length)
-    .toBe(19)
+    .toBe(21)
   await page.getByRole('button', { name: 'Undo', exact: true }).click()
   await expect
     .poll(async () => (await history.textContent())?.trim().split(/\s+/).length)
-    .toBe(18)
+    .toBe(20)
 })
 
 test('layer turns update the facelet notation across views and reset', async ({
