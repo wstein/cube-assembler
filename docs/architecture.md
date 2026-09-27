@@ -8,15 +8,15 @@ use Vitest, and browser tests use Playwright.
 ## Capture data flow
 
 ```mermaid
-flowchart LR
-    Camera[Camera frames] --> Live[Live worker: detect and preview]
+flowchart TD
+    Camera[Camera frames] --> Live[Detect and preview]
     Live --> Hold[Stable-face check]
-    Hold --> Photos[Six captured photos]
-    Upload[Uploaded photos without metadata] --> Photos
-    Photos --> Colors[Six-face color recalibration and review]
-    Colors --> Assembly[Face placement and orientation]
-    Assembly --> Validity[Validity and parity checks]
-    Validity --> Net[Cube net and 3D view]
+    Hold --> Photos[Six face photos]
+    Upload[Photos without metadata] --> Photos
+    Photos --> Colors[Recalibrate and review]
+    Colors --> Assembly[Place and orient faces]
+    Assembly --> Validity[Validity and parity]
+    Validity --> Net[2D net and 3D view]
     Net --> Fixture[Reviewed fixture ZIP]
     Photos -.-> Fixture
 ```

@@ -7,18 +7,18 @@ through 7×7 before taking photos.
 ## Scan a cube
 
 ```mermaid
-flowchart LR
-    Setup[Choose cube and colors] --> Faces[Capture or upload six faces]
-    Faces --> Calibrate[Recalibrate colors together]
-    Calibrate --> Review{Needs color review?}
-    Review -- Yes --> Edit[Check and correct stickers]
-    Review -- No --> Arrange[Proposed assembly]
+flowchart TD
+    Setup[Choose cube and colors] --> Faces[Capture or upload faces]
+    Faces --> Calibrate[Recalibrate colors]
+    Calibrate --> Review{Review colors?}
+    Review -- Yes --> Edit[Correct stickers]
+    Review -- No --> Arrange[Propose assembly]
     Edit --> Arrange
-    Arrange --> Ambiguous{Several arrangements fit?}
+    Arrange --> Ambiguous{More than one fit?}
     Ambiguous -- Yes --> Choose[Choose each side]
     Ambiguous -- No --> Confirm[Approve cube]
     Choose --> Confirm
-    Confirm --> Net[Cube net and 3D view]
+    Confirm --> Net[2D net and 3D view]
 ```
 
 1. Choose a **Cube** (which sets its size) and **Colors**. Automatic compares
