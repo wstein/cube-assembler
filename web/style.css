@@ -324,13 +324,72 @@ h3 {
 
 .capture-alternatives {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: var(--spacing-sm);
+}
+
+@media (max-width: 650px) {
+  .capture-alternatives {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 .capture-alternatives .btn {
   width: 100%;
   padding: 0 var(--spacing-sm);
+}
+
+.photo-upload-review {
+  margin-top: var(--spacing-md);
+  padding: var(--spacing-md);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-secondary);
+}
+
+.photo-upload-review p {
+  margin: 0 0 var(--spacing-sm);
+  color: var(--color-text-secondary);
+}
+
+.photo-upload-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(135px, 1fr));
+  gap: var(--spacing-sm);
+}
+
+.photo-upload-item {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  font-size: 0.8rem;
+}
+
+.photo-upload-item img {
+  width: 100%;
+  aspect-ratio: 1;
+  object-fit: contain;
+  border-radius: var(--radius-sm);
+  background: var(--color-bg-primary);
+}
+
+.photo-upload-item span {
+  overflow-wrap: anywhere;
+}
+
+.photo-upload-order,
+.photo-upload-actions {
+  display: flex;
+  gap: var(--spacing-xs);
+}
+
+.photo-upload-order .btn {
+  flex: 1;
+}
+
+.photo-upload-actions {
+  justify-content: flex-end;
+  margin-top: var(--spacing-md);
 }
 
 .checkbox-option {

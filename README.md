@@ -271,8 +271,8 @@ or imported photos and reconstructs its state:
 
 1. **Capture** — one neutral entry point walks through 6 faces (labeled
    1–6, not U/R/F/D/L/B — the app has no way to know a face's identity
-   from a photo alone). Detect face estimates the grid size from the first
-   visible face; the 2×2–7×7 selector remains available for manual choice.
+   from a photo alone). Detect face finds and straightens a face at the
+   selected 2×2–7×7 size.
    Changing size after a capture clears the saved faces. The first two
    adjacent odd-size faces keep their photographed slots. If the second
    face is opposite the first, it goes to slot 3 and slot 2 waits for an
@@ -280,6 +280,13 @@ or imported photos and reconstructs its state:
    center colors even when photographed out of order. Even cubes have no
    fixed center, so they stay in capture order. The saved net always shows
    the captured colors, including with Mirror enabled.
+
+   **Upload photos** accepts six images without fixture metadata. It previews
+   their order before reading them, with arrows to rearrange faces;
+   `face-u.jpg` through `face-b.jpg` start in capture-slot order. It uses the
+   selected cube size and then runs the same six-face color calibration and
+   review as camera captures. **Upload fixture** accepts a saved ZIP or
+   `meta.json` plus its face photos.
 2. **Review** — after all 6 faces are captured, a global recalibration
    pass re-clusters all stickers together. If every sticker has high confidence,
    no correction or warning remains, and the assembled cube is valid, the app
