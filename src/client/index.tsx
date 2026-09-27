@@ -32,6 +32,7 @@ import {
 } from './profileSettings'
 import { loadProfileSettings, saveProfileSettings, settingsFile, parseSettingsFile } from './profileStorage'
 import { canCreateProfileFromCapture, captureProfileFinding, matchPartialColorProfile, profileColorFitPercent, profileToUpdate, resolveAutomaticProfile, updateProfileFromCapture, type AutomaticResolution, type PaletteEvidence } from './colorProfileLearning'
+import { colorsUnderWhite } from './colorProfileReview'
 import { readFixtureColors } from './fixtureFormat'
 import { buildFixture, summarizeFixture, unzipFixture, zipFixture, type Fixture, type FixtureSummary } from './fixtureZip'
 import { currentAppCommit, fixtureUploadServerAvailable, uploadFixtureToDevServer } from './fixtureUpload'
@@ -1519,8 +1520,11 @@ function App() {
         const matched = resolution?.profile ?? null
         const compared = matched ?? (!automatic ? profileStore.colors.find((saved) => saved.id === colorProfile.id) : null)
         const colorFit = compared && wb.learned ? profileColorFitPercent(compared.colors, wb.learned.colors) : undefined
-        if (matched) wb = classifyAcrossFaces(wb.faces, matched.colors)
-        setResolvedColorReference(matched?.colors ?? (automatic ? null : palette ?? null))
+        // Matched on colors balanced on White, so its stickers are read as
+        // they look under this capture's White (a merged profile's is grey).
+        const matchedReference = matched && wb.learned ? colorsUnderWhite(matched.colors, wb.learned.colors.W) : null
+        if (matchedReference) wb = classifyAcrossFaces(wb.faces, matchedReference)
+        setResolvedColorReference(matchedReference ?? (automatic ? null : palette ?? null))
         setResolvedColorProfile(automatic
           ? matched ? resolvedColorProfileSnapshot(matched, 'automatic', colorFit)
             : wb.learned ? captureColorProfileSnapshot(wb.learned.colors) : null
