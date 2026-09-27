@@ -37,8 +37,9 @@ copies the current palette into a named profile such as GoCube, ready to learn
 from its first valid capture; its name can be edited in Sampling setup. Built-in
 cubes and Generic colors are read-only; capture learning never changes Generic colors.
 The Profiles page has **Export cubes & colors** and **Import cubes & colors**
-on both tabs. One JSON file carries cube names, sizes, sticker gaps, color
-profiles, and the selected settings; importing merges them by ID.
+on both tabs. The download, `cube-assembler-profiles.json`, carries cube names,
+sizes, sticker gaps, color profiles, and the selected settings; importing
+merges them by ID.
 The Colors tab starts with a conservative merge limit of ΔE 3.0; adjust the
 slider before merging profiles whose sticker shades are farther apart.
 In the A/B swatches, ΔE below 3 is labeled **same**, 3 to under 12 is

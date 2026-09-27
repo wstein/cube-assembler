@@ -902,7 +902,7 @@ function App() {
     applyProfileStore(profileStore.activeColorsId === AUTO_COLORS_ID ? setAutoColorMatch(saved, updated.id) : saved)
     setProfileLearningOffer({ ...offer, matchedProfileId: null, updatedProfileName: updated.name })
   }
-  // Settings file: cubes and colors, so a setup tuned in one browser or
+  // Profiles file: cubes and colors, so a setup tuned in one browser or
   // on one machine can be carried to another.
   const handleDownloadSampling = () => {
     const blob = new Blob(
@@ -912,10 +912,10 @@ function App() {
     const url = URL.createObjectURL(blob)
     const link = document.createElement('a')
     link.href = url
-    link.download = 'cube-assembler-settings.json'
+    link.download = 'cube-assembler-profiles.json'
     link.click()
     URL.revokeObjectURL(url)
-    setSamplingFileMessage('✓ Settings downloaded')
+    setSamplingFileMessage('✓ Profiles downloaded')
   }
   const handleUploadSampling = async (e: Event) => {
     const input = e.currentTarget as HTMLInputElement
@@ -927,7 +927,7 @@ function App() {
       // Files saved before cube profiles held per-size settings instead.
       const uploaded = parseSettingsFile(data)
       if (!uploaded) {
-        setSamplingFileMessage(`❌ ${file.name} isn't a settings file`)
+        setSamplingFileMessage(`❌ ${file.name} isn't a cube and color profiles file`)
         return
       }
       applyProfileStore(mergeSettings(profileStore, uploaded))
@@ -3029,7 +3029,7 @@ function App() {
                     <button type="button" class="btn btn-secondary btn-sm" onClick={handleDownloadSampling}>
                       ↓ Export cubes &amp; colors
                     </button>
-                    <label class="btn btn-secondary btn-sm" title="Load a settings file downloaded earlier">
+                    <label class="btn btn-secondary btn-sm" title="Load a cube and color profiles file downloaded earlier">
                       ↑ Import cubes &amp; colors
                       <input type="file" accept=".json,application/json" hidden onChange={handleUploadSampling} />
                     </label>
