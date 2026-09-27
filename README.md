@@ -92,12 +92,10 @@ The capture dialog has two modes; neither needs a downloaded model.
   is found it says *Align face in view* and waits.
 - **Guide grid** reads exactly the square drawn on screen.
 
-On the first face in Detect face mode, the app counts repeating seams in
-both directions to identify a 2×2–7×7 grid. It changes the size only after
-five detections of the same size. Frames without a size estimate pause the
-count; a different detected size starts it over. Live analysis runs every
-200 ms. A manually selected size takes precedence, and the size stays fixed
-after the first face is captured.
+Choose the cube size (2×2–7×7) from the Cube list before capturing. Detect face
+aligns each image to that size; it does not change the selected cube. Live
+analysis runs every 200 ms. Changing size after capturing faces asks before
+clearing them.
 
 ### How Detect face finds a face
 

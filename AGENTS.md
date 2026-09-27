@@ -20,7 +20,7 @@ Use two-space indentation and follow the surrounding file's quote and semicolon 
 
 ## Testing Guidelines
 
-Use test-driven development for behavior changes: write a focused failing test, implement the smallest fix, then refactor with the test passing. Use synthetic cases for edge conditions and saved photos for regressions. Relevant suites include `test/gridAlignment.test.ts`, `test/gridAlignmentRealCrops.test.ts`, `test/gridSizeDetection.test.ts`, and `test/autoCapture.test.ts`. Run a targeted suite, for example `npx vitest run test/gridAlignment.test.ts`, then `npm test`. Include no-cube scenes when changing live face detection. Follow `test/fixtures/README.md` before adding capture images.
+Use test-driven development for behavior changes: write a focused failing test, implement the smallest fix, then refactor with the test passing. Use synthetic cases for edge conditions and saved photos for regressions. Relevant suites include `test/gridAlignment.test.ts`, `test/gridAlignmentRealCrops.test.ts`, `test/liveAnalysis.test.ts`, and `test/autoCapture.test.ts`. Run a targeted suite, for example `npx vitest run test/gridAlignment.test.ts`, then `npm test`. Include no-cube scenes when changing live face detection. Follow `test/fixtures/README.md` before adding capture images.
 
 ## Commit & Pull Request Guidelines
 
@@ -28,6 +28,6 @@ Make multiple atomic, focused commits when a task has distinct changes; keep eac
 
 ## Scanner Modes
 
-Detect face is the default: it searches for sticker seams near the camera guide, aligns the grid, then reads colors. Guide grid samples the fixed on-screen square when selected manually. With the cube list on Auto (the default), Detect face estimates the size before the first face (`estimateFaceGridSize`) and takes it after five detections of the same size; missed detections pause the count and a different detected size restarts it. Auto capture waits for the size, and a size picked from the list is never changed; the estimate must stay silent rather than guess, so keep `test/gridSizeDetection.test.ts` free of wrong sizes. Both modes use the same color classifier and require no downloaded model. Keep behavior and tests for both modes explicit when changing capture code.
+Detect face is the default: it searches for sticker seams near the camera guide, aligns the grid for the selected cube size, then reads colors. Guide grid samples the fixed on-screen square when selected manually. Cube size is chosen from the Cube list; changing it after capturing faces asks before clearing them. Both modes use the same color classifier and require no downloaded model. Keep behavior and tests for both modes explicit when changing capture code.
 
 The live analysis effect clears auto-capture progress when its settings change. Keep selected cube sampling and palette references stable across frame-driven renders; a new object each render prevents the five-frame capture threshold from being reached.
