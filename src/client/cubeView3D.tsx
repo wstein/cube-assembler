@@ -17,6 +17,9 @@ export const DEFAULT_STICKER_HEX: Record<string, string> = {
   Y: '#f2d21b',
 }
 
+const AUTO_ROTATE_RESUME_DELAY_MS = 1500
+const AUTO_ROTATE_RADIANS_PER_MS = 0.008 / (1000 / 60)
+
 export function hexToRgb(hex: string): [number, number, number] {
   const clean = hex.replace('#', '')
   if (clean.length === 3) {
@@ -947,6 +950,7 @@ export function CubeView3D({
   }, [isStickerless])
 
   const isDraggingRef = useRef(false)
+  const resumeAutoAtRef = useRef(0)
   const lastPointerRef = useRef({ x: 0, y: 0, time: 0 })
   const inertiaRef = useRef({ yaw: 0, pitch: 0 })
   const lastFrameTimeRef = useRef<number | null>(null)
@@ -1043,7 +1047,7 @@ export function CubeView3D({
     const render = (time: number) => {
       const elapsed = Math.min(time - (lastFrameTimeRef.current ?? time), 50)
       lastFrameTimeRef.current = time
-      if (!isDraggingRef.current && !stateRef.current.isRotating) {
+      if (!isDraggingRef.current) {
         const yawStep = stepDragInertia(inertiaRef.current.yaw, elapsed)
         const pitchStep = stepDragInertia(inertiaRef.current.pitch, elapsed)
         inertiaRef.current = {
@@ -1060,8 +1064,14 @@ export function CubeView3D({
           )
         }
       }
-      if (stateRef.current.isRotating) {
-        setYaw((prev) => prev + 0.008)
+      if (
+        stateRef.current.isRotating &&
+        !isDraggingRef.current &&
+        time >= resumeAutoAtRef.current &&
+        inertiaRef.current.yaw === 0 &&
+        inertiaRef.current.pitch === 0
+      ) {
+        setYaw((prev) => prev + elapsed * AUTO_ROTATE_RADIANS_PER_MS)
       }
 
       const rect = canvas.getBoundingClientRect()
@@ -1149,6 +1159,7 @@ export function CubeView3D({
 
   const handlePointerDown = (e: PointerEvent) => {
     isDraggingRef.current = true
+    resumeAutoAtRef.current = Number.POSITIVE_INFINITY
     inertiaRef.current = { yaw: 0, pitch: 0 }
     lastPointerRef.current = { x: e.clientX, y: e.clientY, time: e.timeStamp }
     ;(e.target as HTMLElement).setPointerCapture?.(e.pointerId)
@@ -1176,6 +1187,7 @@ export function CubeView3D({
 
   const handlePointerUp = (e: PointerEvent) => {
     isDraggingRef.current = false
+    resumeAutoAtRef.current = performance.now() + AUTO_ROTATE_RESUME_DELAY_MS
     if (
       e.type === 'pointercancel' ||
       e.timeStamp - lastPointerRef.current.time > 120
@@ -1400,6 +1412,7 @@ export function CubeView3D({
                 class={`cube-3d-btn ${isRotating ? 'cube-3d-btn-active' : ''}`}
                 onClick={() => {
                   inertiaRef.current = { yaw: 0, pitch: 0 }
+                  resumeAutoAtRef.current = 0
                   setIsRotating((v) => !v)
                 }}
               >
