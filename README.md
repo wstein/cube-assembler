@@ -454,3 +454,14 @@ finding which cells of two adjacent faces coincide), which is what
 ## License
 
 MIT © 2026 Werner Stein. See [LICENSE](LICENSE).
+
+The bundled fonts (Space Grotesk, IBM Plex Sans and IBM Plex Mono) are
+licensed under the SIL Open Font License 1.1.
+
+## Trademarks
+
+Rubik's, Rubik's Cube, GoCube, GAN, QiYi and other brand names mentioned
+here are trademarks of their respective owners. CubeAssembler is an
+independent open-source project, not affiliated with, endorsed or sponsored
+by any puzzle maker. Brand names are used only to describe the puzzles the
+app works with.
