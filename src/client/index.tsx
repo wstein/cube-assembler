@@ -67,7 +67,6 @@ import {
   computeBackgroundGains,
   backdropReference,
   BACKGROUND_WB_METHOD,
-  BACKGROUND_CUBE_GAP,
   NEUTRAL_GAINS,
   CROP_JPEG_QUALITY,
   DEFAULT_SAMPLING,
@@ -119,11 +118,7 @@ import {
   copyColorProfile,
   copyCubeSetting,
   cubeGroupName,
-  deleteCube,
-  deleteColorProfile,
   groupCubesByName,
-  isBuiltinColorProfile,
-  isBuiltinCube,
   mergeSettings,
   saveCube,
   saveColorProfile,
@@ -1278,7 +1273,6 @@ function App() {
       ? { id: used.id, name: used.name, colors: colorPalette(used) }
       : undefined
   }
-  const [samplingSetupOpen, setSamplingSetupOpen] = useState(false)
   // Upload Fixture option: start the review from what detection reads
   // today instead of the colors the fixture was saved with, so a capture
   // can be reviewed afresh without its earlier hand corrections.
@@ -1336,10 +1330,6 @@ function App() {
     }
     setProfileStore(updated)
   }
-  const updateSampling = (next: SamplingGeometry) => {
-    if (isBuiltinCube(profile.id)) return
-    applyProfileStore(saveCube(profileStore, { ...profile, sampling: next }))
-  }
   const [newCubeName, setNewCubeName] = useState<string | null>(null)
   const [newColorProfileName, setNewColorProfileName] = useState<string | null>(
     null,
@@ -1353,7 +1343,8 @@ function App() {
       ),
     )
     setNewCubeName(null)
-    setSamplingSetupOpen(true)
+    setWebcamOpen(false)
+    location.hash = profilesHash('cubes')
   }
   const handleCreateNamedColors = () => {
     if (!newColorProfileName?.trim()) return
@@ -4263,17 +4254,6 @@ function App() {
                     )}
                   </div>
                 )}
-                {captureMode === 'guide' && samplingSetupOpen && (
-                  // The band around the face that the background (white
-                  // balance) sample skips, sized from the fixed 25% gap.
-                  <div
-                    class="capture-background-gap"
-                    style={{
-                      width: `${60 * (1 + 2 * BACKGROUND_CUBE_GAP)}%`,
-                      padding: `${60 * BACKGROUND_CUBE_GAP}%`,
-                    }}
-                  />
-                )}
                 {/* Guide mode frames the exact sample square. Detect face shows
                     the wider seam search area; its moving grid marks the crop. */}
                 <div
@@ -4588,13 +4568,6 @@ function App() {
                   >
                     ＋ New cube
                   </button>
-                  <a
-                    class="color-review-link"
-                    href={profilesHash('cubes')}
-                    onClick={() => setWebcamOpen(false)}
-                  >
-                    Manage profiles…
-                  </a>
                 </div>
                 <div class="capture-size-row">
                   <label class="capture-size-label" for="color-profile">
@@ -4628,13 +4601,6 @@ function App() {
                   >
                     ＋ New colors
                   </button>
-                  <a
-                    class="color-review-link"
-                    href={profilesHash('colors')}
-                    onClick={() => setWebcamOpen(false)}
-                  >
-                    Manage profiles…
-                  </a>
                 </div>
                 {newColorProfileName !== null && (
                   <div class="capture-size-row new-cube-form">
@@ -4689,16 +4655,6 @@ function App() {
                     </button>
                   </div>
                 )}
-                <div class="capture-options-row">
-                  <button
-                    type="button"
-                    class={`btn btn-secondary btn-sm ${samplingSetupOpen ? 'active' : ''}`}
-                    aria-expanded={samplingSetupOpen}
-                    onClick={() => setSamplingSetupOpen((open) => !open)}
-                  >
-                    ⚙ Sampling setup
-                  </button>
-                </div>
                 <label class="capture-import">
                   Or use a photo file for this step
                   <input
@@ -4709,181 +4665,6 @@ function App() {
                   />
                 </label>
               </details>
-              {/* Below the live view, so adjusting it never pushes the video off
-                  screen (Chrome pauses muted videos that aren't visible). */}
-              {samplingSetupOpen && (
-                <div class="sampling-setup">
-                  <label class="sampling-slider">
-                    <span>Cube name</span>
-                    <input
-                      type="text"
-                      class="cube-profile-name"
-                      maxLength={60}
-                      value={profile.name}
-                      disabled={isBuiltinCube(profile.id)}
-                      onChange={(e) => {
-                        const name = e.currentTarget.value.trim()
-                        if (name)
-                          applyProfileStore(
-                            saveCube(profileStore, { ...profile, name }),
-                          )
-                      }}
-                    />
-                  </label>
-                  <label class="sampling-slider">
-                    <span>
-                      Gap around each sticker{' '}
-                      <output>
-                        {Math.round((1 - sampling.stickerCore) * 100)}%
-                      </output>
-                    </span>
-                    <input
-                      type="range"
-                      min={10}
-                      max={70}
-                      step={5}
-                      value={Math.round((1 - sampling.stickerCore) * 100)}
-                      disabled={isBuiltinCube(profile.id)}
-                      onInput={(e) =>
-                        updateSampling({
-                          ...sampling,
-                          stickerCore: 1 - Number(e.currentTarget.value) / 100,
-                        })
-                      }
-                    />
-                  </label>
-                  {isBuiltinCube(profile.id) && (
-                    <p class="sampling-setup-hint">
-                      To change this gap, choose New cube and save a named copy.
-                    </p>
-                  )}
-                  <label class="sampling-slider">
-                    <span>Color profile name</span>
-                    <input
-                      type="text"
-                      class="cube-profile-name"
-                      maxLength={60}
-                      key={profileStore.activeColorsId}
-                      defaultValue={
-                        profileStore.activeColorsId === AUTO_COLORS_ID
-                          ? 'Automatic colors'
-                          : colorProfile.name
-                      }
-                      disabled={isBuiltinColorProfile(
-                        profileStore.activeColorsId,
-                      )}
-                      onBlur={(e) => {
-                        const name = e.currentTarget.value.trim()
-                        if (!name) e.currentTarget.value = colorProfile.name
-                        else if (name !== colorProfile.name)
-                          applyProfileStore(
-                            saveColorProfile(profileStore, {
-                              ...colorProfile,
-                              name,
-                            }),
-                          )
-                      }}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') e.currentTarget.blur()
-                      }}
-                    />
-                  </label>
-                  <p class="sampling-setup-hint">
-                    {profileStore.activeColorsId === AUTO_COLORS_ID ? (
-                      'Automatic compares the live face with saved colors, then rechecks using all captured faces after each capture. Final colors are calibrated from all six faces.'
-                    ) : colorProfile.updatedAt ? (
-                      <>
-                        Colors learned from {colorProfile.captures}{' '}
-                        {colorProfile.captures === 1 ? 'capture' : 'captures'},
-                        last updated{' '}
-                        {new Date(colorProfile.updatedAt).toLocaleString()}.
-                      </>
-                    ) : !isBuiltinColorProfile(profileStore.activeColorsId) ? (
-                      'This named profile will learn from its first valid, reviewed capture.'
-                    ) : (
-                      'Built-in colors are read-only. A reviewed capture can be saved as new colors.'
-                    )}
-                  </p>
-                  {profileStore.colors.some(
-                    (saved) => saved.id === profileStore.activeColorsId,
-                  ) && (
-                    <button
-                      type="button"
-                      class="link-button"
-                      onClick={() =>
-                        applyProfileStore(
-                          deleteColorProfile(profileStore, colorProfile.id),
-                        )
-                      }
-                    >
-                      Delete this color profile
-                    </button>
-                  )}
-                  <p class="sampling-setup-hint">
-                    Hold a face in the square. Each small box should sit fully
-                    inside its sticker, and its outline should show that
-                    sticker's color. The outer 25% band is left out when
-                    balancing colors.
-                  </p>
-                  <div class="sampling-setup-actions">
-                    <button
-                      type="button"
-                      class="btn btn-secondary btn-sm"
-                      onClick={handleDownloadSampling}
-                    >
-                      ↓ Export cubes &amp; colors
-                    </button>
-                    <label
-                      class="btn btn-secondary btn-sm"
-                      title="Load a cube and color profiles file downloaded earlier"
-                    >
-                      ↑ Import cubes &amp; colors
-                      <input
-                        type="file"
-                        accept=".json,application/json"
-                        hidden
-                        onChange={handleUploadSampling}
-                      />
-                    </label>
-                    <div class="sampling-setup-actions-spacer" />
-                    {!isBuiltinCube(profile.id) && (
-                      <button
-                        type="button"
-                        class="btn btn-secondary btn-sm"
-                        title="Forget this cube's settings"
-                        onClick={() =>
-                          applyProfileStore(
-                            deleteCube(profileStore, profile.id),
-                          )
-                        }
-                      >
-                        Delete cube
-                      </button>
-                    )}
-                    {!isBuiltinCube(profile.id) && (
-                      <button
-                        type="button"
-                        class="btn btn-secondary btn-sm"
-                        onClick={() => updateSampling(DEFAULT_SAMPLING)}
-                      >
-                        Reset cube gap
-                      </button>
-                    )}
-                    <button
-                      type="button"
-                      class="btn btn-primary btn-sm"
-                      onClick={() => setSamplingSetupOpen(false)}
-                    >
-                      Done
-                    </button>
-                  </div>
-                  {samplingFileMessage && (
-                    <p role="status" class="sampling-setup-hint">
-                      {samplingFileMessage}
-                    </p>
-                  )}
-                </div>
-              )}
               <div class="capture-actions">
                 <div
                   role="status"

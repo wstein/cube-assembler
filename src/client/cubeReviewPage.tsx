@@ -148,6 +148,8 @@ export function CubeReviewTab({ settings, onChange, photo }: Props) {
   const [a, setA] = useState<string | null>(null)
   const [b, setB] = useState<string | null>(null)
   const [trial, setTrial] = useState<number | null>(null)
+  const [editingGapId, setEditingGapId] = useState<string | null>(null)
+  const [gapDraft, setGapDraft] = useState(40)
   const outer = useOuterRatio(photo)
 
   const groups = useMemo(
@@ -409,8 +411,86 @@ export function CubeReviewTab({ settings, onChange, photo }: Props) {
                             </span>
                           )}
                       </div>
+                      {editingGapId === cube.id && (
+                        <div class="cube-review-gap-editor">
+                          <label for={`cube-gap-${cube.id}`}>
+                            Gap around each sticker: {gapDraft}%
+                          </label>
+                          <input
+                            id={`cube-gap-${cube.id}`}
+                            type="range"
+                            min={10}
+                            max={70}
+                            step={5}
+                            value={gapDraft}
+                            onInput={(e) =>
+                              setGapDraft(Number(e.currentTarget.value))
+                            }
+                          />
+                          <div class="color-review-toolbar">
+                            <button
+                              type="button"
+                              class="btn btn-primary btn-sm"
+                              disabled={
+                                gapDraft ===
+                                Math.round(
+                                  (1 - cube.sampling.stickerCore) * 100,
+                                )
+                              }
+                              onClick={() => {
+                                const core = 1 - gapDraft / 100
+                                commit(
+                                  {
+                                    ...settings,
+                                    cubes: settings.cubes.map((saved) =>
+                                      saved.id === cube.id
+                                        ? {
+                                            ...saved,
+                                            sampling: {
+                                              ...saved.sampling,
+                                              stickerCore: core,
+                                            },
+                                          }
+                                        : saved,
+                                    ),
+                                  },
+                                  `${cube.name} now samples ${pct(core)} of each sticker.`,
+                                )
+                                setTrial(null)
+                                setEditingGapId(null)
+                              }}
+                            >
+                              Save gap
+                            </button>
+                            <button
+                              type="button"
+                              class="btn btn-secondary btn-sm"
+                              onClick={() => setEditingGapId(null)}
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        </div>
+                      )}
                       {!isBuiltinCube(cube.id) && (
                         <div class="cube-review-actions">
+                          <button
+                            type="button"
+                            class="btn btn-secondary btn-sm"
+                            aria-expanded={editingGapId === cube.id}
+                            onClick={() => {
+                              setEditingGapId(
+                                editingGapId === cube.id ? null : cube.id,
+                              )
+                              setGapDraft(
+                                Math.round(
+                                  (1 - cube.sampling.stickerCore) * 100,
+                                ),
+                              )
+                            }}
+                          >
+                            Edit gap
+                          </button>
                           <label class="cube-review-select">
                             <input
                               type="checkbox"
