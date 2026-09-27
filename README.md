@@ -415,6 +415,9 @@ alone rather than guessed).
 **Save as test fixture** (once a cube is confirmed) previews `<name>.zip`
 with `<name>/meta.json` and the six face photos. Download and unzip it into
 `test/fixtures/`, or select **Upload to localhost** while both dev servers are running.
+New saves include the cube size in both names, for example
+`cube-3x3-2026-09-27T08-55-46-205Z.zip` and
+`test/fixtures/cube-3x3-2026-09-27T08-55-46-205Z/`.
 The button stays disabled until the upload server responds and rechecks while
 the fixture dialog is open. Availability uses an empty `GET /ping` response;
 there is no fixture download route.
