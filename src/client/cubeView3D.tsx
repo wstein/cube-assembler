@@ -59,6 +59,30 @@ export function getFaceletColor(
   }
 }
 
+export function getFaceSeams(
+  face: 'u' | 'd' | 'f' | 'b' | 'r' | 'l',
+  x: number,
+  y: number,
+  z: number,
+  n: number,
+): { top: boolean; bot: boolean; rt: boolean; lt: boolean } {
+  const last = n - 1
+  switch (face) {
+    case 'u':
+      return { top: z > 0, bot: z < last, rt: x < last, lt: x > 0 }
+    case 'd':
+      return { top: z < last, bot: z > 0, rt: x < last, lt: x > 0 }
+    case 'f':
+      return { top: y < last, bot: y > 0, rt: x < last, lt: x > 0 }
+    case 'b':
+      return { top: y < last, bot: y > 0, rt: x > 0, lt: x < last }
+    case 'r':
+      return { top: y < last, bot: y > 0, rt: z > 0, lt: z < last }
+    case 'l':
+      return { top: y < last, bot: y > 0, rt: z < last, lt: z > 0 }
+  }
+}
+
 export function buildCubeMesh(
   cube: CubeState,
   n: number,
@@ -123,11 +147,20 @@ export function buildCubeMesh(
     r: number,
     col: [number, number, number],
     elevation = 0,
+    seams: { top: boolean; bot: boolean; rt: boolean; lt: boolean } = {
+      top: true,
+      bot: true,
+      rt: true,
+      lt: true,
+    },
   ) {
     const s = H - r
     const Ho = H
-    const d = r * 0.35 // corner rounding inset
+    const d = r * 0.35 // corner rounding inset (original Fase)
     const hNorm = H + elevation
+    const zOuter = hNorm - r * 0.7
+    const zSkirt = hNorm - 0.08
+    const { top: seamTop, bot: seamBot, rt: seamRt, lt: seamLt } = seams
 
     function pt(u: number, v: number, n: number): [number, number, number] {
       return [
@@ -160,43 +193,73 @@ export function buildCubeMesh(
     const c3 = pt(-s, s, hNorm),
       nc3 = norm(0, 0, 1)
 
-    // Bevel outer vertices
-    const zOuter = hNorm - r * 0.7
-    const eTop0 = pt(-s, Ho, zOuter),
-      neTop0 = norm(0, 0.7, 0.7)
-    const eTop1 = pt(s, Ho, zOuter),
-      neTop1 = norm(0, 0.7, 0.7)
+    // Bevel outer vertices:
+    // If it's an internal seam, bevel down to zOuter with beveled normal.
+    // If it's an outer cube edge, stay flat at hNorm with flat normal (0, 0, 1).
+    const zTop = seamTop ? zOuter : hNorm
+    const eTop0 = pt(-s, Ho, zTop),
+      neTop0 = seamTop ? norm(0, 0.7, 0.7) : norm(0, 0, 1)
+    const eTop1 = pt(s, Ho, zTop),
+      neTop1 = seamTop ? norm(0, 0.7, 0.7) : norm(0, 0, 1)
 
-    const eBot0 = pt(-s, -Ho, zOuter),
-      neBot0 = norm(0, -0.7, 0.7)
-    const eBot1 = pt(s, -Ho, zOuter),
-      neBot1 = norm(0, -0.7, 0.7)
+    const zBot = seamBot ? zOuter : hNorm
+    const eBot0 = pt(-s, -Ho, zBot),
+      neBot0 = seamBot ? norm(0, -0.7, 0.7) : norm(0, 0, 1)
+    const eBot1 = pt(s, -Ho, zBot),
+      neBot1 = seamBot ? norm(0, -0.7, 0.7) : norm(0, 0, 1)
 
-    const eRt0 = pt(Ho, -s, zOuter),
-      neRt0 = norm(0.7, 0, 0.7)
-    const eRt1 = pt(Ho, s, zOuter),
-      neRt1 = norm(0.7, 0, 0.7)
+    const zRt = seamRt ? zOuter : hNorm
+    const eRt0 = pt(Ho, -s, zRt),
+      neRt0 = seamRt ? norm(0.7, 0, 0.7) : norm(0, 0, 1)
+    const eRt1 = pt(Ho, s, zRt),
+      neRt1 = seamRt ? norm(0.7, 0, 0.7) : norm(0, 0, 1)
 
-    const eLt0 = pt(-Ho, -s, zOuter),
-      neLt0 = norm(-0.7, 0, 0.7)
-    const eLt1 = pt(-Ho, s, zOuter),
-      neLt1 = norm(-0.7, 0, 0.7)
+    const zLt = seamLt ? zOuter : hNorm
+    const eLt0 = pt(-Ho, -s, zLt),
+      neLt0 = seamLt ? norm(-0.7, 0, 0.7) : norm(0, 0, 1)
+    const eLt1 = pt(-Ho, s, zLt),
+      neLt1 = seamLt ? norm(-0.7, 0, 0.7) : norm(0, 0, 1)
 
-    // 4 rounded corners
-    const crnTR = pt(Ho - d, Ho - d, zOuter),
-      ncrnTR = norm(0.6, 0.6, 0.5)
-    const crnTL = pt(-(Ho - d), Ho - d, zOuter),
-      ncrnTL = norm(-0.6, 0.6, 0.5)
-    const crnBL = pt(-(Ho - d), -(Ho - d), zOuter),
-      ncrnBL = norm(-0.6, -0.6, 0.5)
-    const crnBR = pt(Ho - d, -(Ho - d), zOuter),
-      ncrnBR = norm(0.6, -0.6, 0.5)
+    // 4 corners:
+    // Only apply corner inset d if BOTH adjacent edges are internal seams (4-cubie cross).
+    // If either edge is an outer cube edge, stay flat at hNorm and full Ho.
+    const bothSeamTR = seamRt && seamTop
+    const crnTR = pt(
+        bothSeamTR ? Ho - d : Ho,
+        bothSeamTR ? Ho - d : Ho,
+        bothSeamTR ? zOuter : hNorm,
+      ),
+      ncrnTR = bothSeamTR ? norm(0.6, 0.6, 0.5) : norm(0, 0, 1)
+
+    const bothSeamTL = seamLt && seamTop
+    const crnTL = pt(
+        bothSeamTL ? -(Ho - d) : -Ho,
+        bothSeamTL ? Ho - d : Ho,
+        bothSeamTL ? zOuter : hNorm,
+      ),
+      ncrnTL = bothSeamTL ? norm(-0.6, 0.6, 0.5) : norm(0, 0, 1)
+
+    const bothSeamBL = seamLt && seamBot
+    const crnBL = pt(
+        bothSeamBL ? -(Ho - d) : -Ho,
+        bothSeamBL ? -(Ho - d) : -Ho,
+        bothSeamBL ? zOuter : hNorm,
+      ),
+      ncrnBL = bothSeamBL ? norm(-0.6, -0.6, 0.5) : norm(0, 0, 1)
+
+    const bothSeamBR = seamRt && seamBot
+    const crnBR = pt(
+        bothSeamBR ? Ho - d : Ho,
+        bothSeamBR ? -(Ho - d) : -Ho,
+        bothSeamBR ? zOuter : hNorm,
+      ),
+      ncrnBR = bothSeamBR ? norm(0.6, -0.6, 0.5) : norm(0, 0, 1)
 
     // 1. Center flat region
     addTri(c0, c1, c2, nc0, nc1, nc2, col)
     addTri(c0, c2, c3, nc0, nc2, nc3, col)
 
-    // 2. Beveled edges
+    // 2. Edges
     addTri(c3, c2, eTop1, nc3, nc2, neTop1, col)
     addTri(c3, eTop1, eTop0, nc3, neTop1, neTop0, col)
 
@@ -209,7 +272,7 @@ export function buildCubeMesh(
     addTri(eLt0, c0, c3, neLt0, nc0, nc3, col)
     addTri(eLt0, c3, eLt1, neLt0, nc3, neLt1, col)
 
-    // 3. Rounded corner transitions
+    // 3. Corner transitions
     addTri(c2, eRt1, crnTR, nc2, neRt1, ncrnTR, col)
     addTri(c2, crnTR, eTop1, nc2, ncrnTR, neTop1, col)
 
@@ -221,6 +284,39 @@ export function buildCubeMesh(
 
     addTri(c1, eBot1, crnBR, nc1, neBot1, ncrnBR, col)
     addTri(c1, crnBR, eRt0, nc1, ncrnBR, neRt0, col)
+
+    // 4. Side skirts into internal seam grooves ONLY (never along outer cube perimeter)
+    if (seamTop) {
+      const sTop0 = pt(-s, Ho, zSkirt),
+        nsTop = norm(0, 1, 0)
+      const sTop1 = pt(s, Ho, zSkirt)
+      addTri(eTop0, eTop1, sTop1, nsTop, nsTop, nsTop, col)
+      addTri(eTop0, sTop1, sTop0, nsTop, nsTop, nsTop, col)
+    }
+
+    if (seamBot) {
+      const sBot0 = pt(-s, -Ho, zSkirt),
+        nsBot = norm(0, -1, 0)
+      const sBot1 = pt(s, -Ho, zSkirt)
+      addTri(eBot1, eBot0, sBot0, nsBot, nsBot, nsBot, col)
+      addTri(eBot1, sBot0, sBot1, nsBot, nsBot, nsBot, col)
+    }
+
+    if (seamRt) {
+      const sRt0 = pt(Ho, -s, zSkirt),
+        nsRt = norm(1, 0, 0)
+      const sRt1 = pt(Ho, s, zSkirt)
+      addTri(eRt1, eRt0, sRt0, nsRt, nsRt, nsRt, col)
+      addTri(eRt1, sRt0, sRt1, nsRt, nsRt, nsRt, col)
+    }
+
+    if (seamLt) {
+      const sLt0 = pt(-Ho, -s, zSkirt),
+        nsLt = norm(-1, 0, 0)
+      const sLt1 = pt(-Ho, s, zSkirt)
+      addTri(eLt0, eLt1, sLt1, nsLt, nsLt, nsLt, col)
+      addTri(eLt0, sLt1, sLt0, nsLt, nsLt, nsLt, col)
+    }
   }
 
   // Face coordinate axes: [uAxis, vAxis, nAxis] with u x v = n
@@ -262,21 +358,21 @@ export function buildCubeMesh(
         if (stickerless) {
           // In stickerless mode:
           // 1. Dark interior mechanism backing
-          const hCore = 0.44
+          const hCore = 0.478
           // Box faces for internal core
           addQuad(
-            [cx - hCore, cy + hCore, cz - hCore],
-            [cx + hCore, cy + hCore, cz - hCore],
-            [cx + hCore, cy + hCore, cz + hCore],
             [cx - hCore, cy + hCore, cz + hCore],
+            [cx + hCore, cy + hCore, cz + hCore],
+            [cx + hCore, cy + hCore, cz - hCore],
+            [cx - hCore, cy + hCore, cz - hCore],
             [0, 1, 0],
             darkPlastic,
           )
           addQuad(
-            [cx - hCore, cy - hCore, cz + hCore],
-            [cx + hCore, cy - hCore, cz + hCore],
-            [cx + hCore, cy - hCore, cz - hCore],
             [cx - hCore, cy - hCore, cz - hCore],
+            [cx + hCore, cy - hCore, cz - hCore],
+            [cx + hCore, cy - hCore, cz + hCore],
+            [cx - hCore, cy - hCore, cz + hCore],
             [0, -1, 0],
             darkPlastic,
           )
@@ -289,32 +385,32 @@ export function buildCubeMesh(
             darkPlastic,
           )
           addQuad(
-            [cx - hCore, cy + hCore, cz - hCore],
-            [cx + hCore, cy + hCore, cz - hCore],
             [cx + hCore, cy - hCore, cz - hCore],
             [cx - hCore, cy - hCore, cz - hCore],
+            [cx - hCore, cy + hCore, cz - hCore],
+            [cx + hCore, cy + hCore, cz - hCore],
             [0, 0, -1],
             darkPlastic,
           )
           addQuad(
+            [cx + hCore, cy - hCore, cz + hCore],
             [cx + hCore, cy - hCore, cz - hCore],
             [cx + hCore, cy + hCore, cz - hCore],
             [cx + hCore, cy + hCore, cz + hCore],
-            [cx + hCore, cy - hCore, cz + hCore],
             [1, 0, 0],
             darkPlastic,
           )
           addQuad(
+            [cx - hCore, cy - hCore, cz - hCore],
             [cx - hCore, cy - hCore, cz + hCore],
             [cx - hCore, cy + hCore, cz + hCore],
             [cx - hCore, cy + hCore, cz - hCore],
-            [cx - hCore, cy - hCore, cz - hCore],
             [-1, 0, 0],
             darkPlastic,
           )
 
-          // 2. Each exterior face has a rounded beveled colored plastic cap
-          const H = 0.475
+          // 2. Each exterior face has a rounded beveled colored plastic cap with reduced gap (0.020) and original Fase (r=0.045)
+          const H = 0.49
           const r = 0.045
           if (y === last) {
             const colorKey = getFaceletColor(cube, n, 'u', x, y, z)
@@ -322,7 +418,8 @@ export function buildCubeMesh(
               palette[colorKey] ?? DEFAULT_STICKER_HEX[colorKey] ?? '#888',
             )
             const a = FACE_AXES.u
-            addBeveledFace(cx, cy, cz, a.u, a.v, a.n, H, r, rgb)
+            const seams = getFaceSeams('u', x, y, z, n)
+            addBeveledFace(cx, cy, cz, a.u, a.v, a.n, H, r, rgb, 0, seams)
           }
           if (y === 0) {
             const colorKey = getFaceletColor(cube, n, 'd', x, y, z)
@@ -330,7 +427,8 @@ export function buildCubeMesh(
               palette[colorKey] ?? DEFAULT_STICKER_HEX[colorKey] ?? '#888',
             )
             const a = FACE_AXES.d
-            addBeveledFace(cx, cy, cz, a.u, a.v, a.n, H, r, rgb)
+            const seams = getFaceSeams('d', x, y, z, n)
+            addBeveledFace(cx, cy, cz, a.u, a.v, a.n, H, r, rgb, 0, seams)
           }
           if (z === last) {
             const colorKey = getFaceletColor(cube, n, 'f', x, y, z)
@@ -338,7 +436,8 @@ export function buildCubeMesh(
               palette[colorKey] ?? DEFAULT_STICKER_HEX[colorKey] ?? '#888',
             )
             const a = FACE_AXES.f
-            addBeveledFace(cx, cy, cz, a.u, a.v, a.n, H, r, rgb)
+            const seams = getFaceSeams('f', x, y, z, n)
+            addBeveledFace(cx, cy, cz, a.u, a.v, a.n, H, r, rgb, 0, seams)
           }
           if (z === 0) {
             const colorKey = getFaceletColor(cube, n, 'b', x, y, z)
@@ -346,7 +445,8 @@ export function buildCubeMesh(
               palette[colorKey] ?? DEFAULT_STICKER_HEX[colorKey] ?? '#888',
             )
             const a = FACE_AXES.b
-            addBeveledFace(cx, cy, cz, a.u, a.v, a.n, H, r, rgb)
+            const seams = getFaceSeams('b', x, y, z, n)
+            addBeveledFace(cx, cy, cz, a.u, a.v, a.n, H, r, rgb, 0, seams)
           }
           if (x === last) {
             const colorKey = getFaceletColor(cube, n, 'r', x, y, z)
@@ -354,7 +454,8 @@ export function buildCubeMesh(
               palette[colorKey] ?? DEFAULT_STICKER_HEX[colorKey] ?? '#888',
             )
             const a = FACE_AXES.r
-            addBeveledFace(cx, cy, cz, a.u, a.v, a.n, H, r, rgb)
+            const seams = getFaceSeams('r', x, y, z, n)
+            addBeveledFace(cx, cy, cz, a.u, a.v, a.n, H, r, rgb, 0, seams)
           }
           if (x === 0) {
             const colorKey = getFaceletColor(cube, n, 'l', x, y, z)
@@ -362,7 +463,8 @@ export function buildCubeMesh(
               palette[colorKey] ?? DEFAULT_STICKER_HEX[colorKey] ?? '#888',
             )
             const a = FACE_AXES.l
-            addBeveledFace(cx, cy, cz, a.u, a.v, a.n, H, r, rgb)
+            const seams = getFaceSeams('l', x, y, z, n)
+            addBeveledFace(cx, cy, cz, a.u, a.v, a.n, H, r, rgb, 0, seams)
           }
         } else {
           // Stickered mode:
@@ -371,7 +473,20 @@ export function buildCubeMesh(
           const rBody = 0.04
           for (const key of ['u', 'd', 'f', 'b', 'r', 'l'] as const) {
             const a = FACE_AXES[key]
-            addBeveledFace(cx, cy, cz, a.u, a.v, a.n, HBody, rBody, darkPlastic)
+            const seams = getFaceSeams(key, x, y, z, n)
+            addBeveledFace(
+              cx,
+              cy,
+              cz,
+              a.u,
+              a.v,
+              a.n,
+              HBody,
+              rBody,
+              darkPlastic,
+              0,
+              seams,
+            )
           }
 
           // 2. Rounded sticker tiles on exterior faces

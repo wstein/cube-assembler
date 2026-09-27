@@ -3,6 +3,7 @@ import { createSolvedCube } from '../src/client/cubeAssembly'
 import {
   buildCubeMesh,
   getFaceletColor,
+  getFaceSeams,
   hexToRgb,
   mat4Create,
   mat4Multiply,
@@ -51,6 +52,52 @@ describe('cubeView3D math and geometry', () => {
       expect(getFaceletColor(cube, 3, 'b', 1, 1, 0)).toBe('B')
       // L face center (x=0, y=1, z=1)
       expect(getFaceletColor(cube, 3, 'l', 0, 1, 1)).toBe('O')
+    })
+  })
+
+  describe('getFaceSeams', () => {
+    it('identifies all 4 seams on center facelets of 3x3', () => {
+      // U center (x=1, y=2, z=1)
+      expect(getFaceSeams('u', 1, 2, 1, 3)).toEqual({
+        top: true,
+        bot: true,
+        rt: true,
+        lt: true,
+      })
+      // F center (x=1, y=1, z=2)
+      expect(getFaceSeams('f', 1, 1, 2, 3)).toEqual({
+        top: true,
+        bot: true,
+        rt: true,
+        lt: true,
+      })
+    })
+
+    it('identifies outer cube edges on corner facelets (no seam on cube boundary)', () => {
+      // U top-front-right corner (x=2, y=2, z=2)
+      // On U: +X is right (boundary), +Z is bot (boundary), -Z is top (seam), -X is lt (seam)
+      expect(getFaceSeams('u', 2, 2, 2, 3)).toEqual({
+        top: true,
+        bot: false,
+        rt: false,
+        lt: true,
+      })
+      // R top-front-right corner (x=2, y=2, z=2)
+      // On R: +Y is top (boundary to U), +Z is lt (boundary to F)
+      expect(getFaceSeams('r', 2, 2, 2, 3)).toEqual({
+        top: false,
+        bot: true,
+        rt: true,
+        lt: false,
+      })
+      // F top-front-right corner (x=2, y=2, z=2)
+      // On F: +Y is top (boundary to U), +X is rt (boundary to R)
+      expect(getFaceSeams('f', 2, 2, 2, 3)).toEqual({
+        top: false,
+        bot: true,
+        rt: false,
+        lt: true,
+      })
     })
   })
 
