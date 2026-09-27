@@ -69,6 +69,11 @@ be checked in like any other test fixture.
 npx vitest run test/fixtures.test.ts
 ```
 
+Real `capture-*` directories are ignored by Git, so these image checks run
+locally when captures are present and are skipped in CI. The 7×7 capture is
+included in local checks. `bun test test/gridAlignmentRealCrops.test.ts` can
+take about 30 seconds with the current corpus and has a 60-second test timeout.
+
 Reproduces the app's actual `runGlobalWhiteBalance` flow: extracts each
 face with neutral gains, pools every sticker across all 6 faces, runs
 `learnStickerColors` once, and compares the result against each fixture's
