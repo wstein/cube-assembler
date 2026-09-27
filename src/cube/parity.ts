@@ -466,7 +466,7 @@ export function runFullParity(cube: CubeIR): ParityResult {
   // is an actual permutation of 0..7. A real capture demonstrated this
   // exact gap: every individual triple read as a valid corner, yet the
   // piece list was [0,1,1,0,7,6,6,7] - not a permutation at all (2026-09-23
-  // design discussion; same fix mirrored in src/client/cubeAssembly.ts's
+  // design discussion; same fix mirrored in src/cube/cubeAssembly.ts's
   // isFullyValid).
   const slotsByPiece = new Map<number, number[]>()
   for (let slot = 0; slot < cornerPieces.length; slot++) {

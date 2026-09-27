@@ -1,11 +1,11 @@
 /**
- * test/cubeGeometry.test.ts
- * The 3D sticker model (src/client/cubeGeometry.ts): face turns and
+ * test/cube/cubeGeometry.test.ts
+ * The 3D sticker model (src/cube/cubeGeometry.ts): face turns and
  * whole-cube rotations. Scrambles built with it must read as valid cubes
  * to the existing orientation solver - which catches any sticker placed
  * on the wrong spot or read back mirrored.
  *
- * Run: npx vitest run test/cubeGeometry.test.ts
+ * Run: npx vitest run test/cube/cubeGeometry.test.ts
  */
 import { describe, it, expect } from 'vitest'
 import {
@@ -14,8 +14,11 @@ import {
   allOrientations,
   solvedCubeFaces,
   type Faces,
-} from '../src/client/cubeGeometry'
-import { solveFaceOrientations, type FaceKey } from '../src/client/cubeAssembly'
+} from '../../src/cube/cubeGeometry'
+import {
+  solveFaceOrientations,
+  type FaceKey,
+} from '../../src/cube/cubeAssembly'
 
 const WCA: Record<FaceKey, string> = {
   U: 'W',

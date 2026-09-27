@@ -1,4 +1,4 @@
-import { OPPOSITE_COLOR } from './cubeAssembly'
+import { OPPOSITE_COLOR } from '../cube/cubeAssembly'
 
 // Mirror mode presents the face on the far side of the cube. A scrambled
 // opposite face cannot be reconstructed sticker by sticker from its partner;

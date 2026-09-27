@@ -756,7 +756,7 @@ h3 {
 }
 
 /* A parity failure implicating specific stickers (see ParityResponse's
-   highlight field in src/client/parity.ts) outlines exactly those cells here,
+   highlight field in src/cube/parity.ts) outlines exactly those cells here,
    distinct from the review wizard's own dashed low-confidence flagging
    (.review-detected-cell-flagged) - this is "the check says this is
    wrong", not "detection wasn't sure". outline (not border) so it doesn't

@@ -1,6 +1,6 @@
 # Cube validity and parity
 
-After face placement and orientation, [`parity.ts`](../src/client/parity.ts)
+After face placement and orientation, [`parity.ts`](../src/cube/parity.ts)
 checks whether the observed stickers can describe a physical cube. The cube
 net highlights stickers involved in a failed check so they can be compared
 with the photos.
@@ -35,5 +35,5 @@ color remain for centers.
 The facelet slot tables account for the back face being viewed from outside
 the cube, with left and right reversed relative to the front. Wing directions
 are derived from explicit 3D coordinates. Tests in
-[`parity.test.ts`](../test/parity.test.ts) include real captures that exposed
+[`parity.test.ts`](../test/cube/parity.test.ts) include real captures that exposed
 mistaken back-face mirroring and reversed wing positions.

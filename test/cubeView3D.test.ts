@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { createSolvedCube } from '../src/client/cubeAssembly'
+import { createSolvedCube } from '../src/cube/cubeAssembly'
 import {
   applyCubeMove,
   buildCubeMesh,

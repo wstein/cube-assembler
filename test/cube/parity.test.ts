@@ -1,16 +1,16 @@
 /**
- * test/parity.test.ts
- * Regression tests for src/client/parity.ts's runFullParity and its
+ * test/cube/parity.test.ts
+ * Regression tests for src/cube/parity.ts's runFullParity and its
  * facelet-index tables (CORNER_SLOTS, EDGE_FACELETS_3x3, EDGE_LINES).
  *
- * Run: npx vitest run test/parity.test.ts
+ * Run: npx vitest run test/cube/parity.test.ts
  */
 import { describe, it, expect } from 'vitest'
-import type { CubeIR } from '../src/client/cubeAssembly'
+import type { CubeIR } from '../../src/cube/cubeAssembly'
 import {
   runFullParity as checkParity,
   validateWingEdges,
-} from '../src/client/parity'
+} from '../../src/cube/parity'
 
 type FaceGrid = CubeIR['u']
 

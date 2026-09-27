@@ -1,6 +1,6 @@
 /**
- * test/notationOutput.test.ts
- * Vitest tests for src/client/notationOutput.ts - the app's two cube-state
+ * test/cube/notation/notationOutput.test.ts
+ * Vitest tests for src/cube/notation/notationOutput.ts - the app's two cube-state
  * input/output formats, both six space-separated N²-letter blocks per
  * face in U R F D L B order:
  *   - "WRG facelets": WOGRBY color letters.
@@ -9,7 +9,7 @@
  *     whose solved color the sticker matches, so a solved cube reads
  *     "UUUUUUUUU RRRRRRRRR FFFFFFFFF DDDDDDDDD LLLLLLLLL BBBBBBBBB").
  *
- * Run: npx vitest run test/notationOutput.test.ts
+ * Run: npx vitest run test/cube/notation/notationOutput.test.ts
  */
 import { describe, it, expect } from 'vitest'
 import {
@@ -21,7 +21,7 @@ import {
   gridsToWRGFacelets,
   wrgFaceletsToGrids,
   type CubeState,
-} from '../src/client/notationOutput'
+} from '../../../src/cube/notation/notationOutput'
 
 function solvedCube(size: number): CubeState {
   const face = (color: string) => Array(size * size).fill(color)

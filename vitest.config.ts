@@ -9,11 +9,11 @@ export default defineConfig({
       provider: 'v8',
       reporter: ['text', 'json', 'html'],
       // The client TS modules with dedicated unit tests
-      // (test/cubeAssembly.test.ts, test/notationOutput.test.ts,
+      // (test/cube/cubeAssembly.test.ts, test/cube/notation/notationOutput.test.ts,
       // test/imageProcessing.test.ts)
       include: [
-        'src/client/cubeAssembly.ts',
-        'src/client/notationOutput.ts',
+        'src/cube/cubeAssembly.ts',
+        'src/cube/notation/notationOutput.ts',
         'src/client/imageProcessing.ts',
       ],
     },
