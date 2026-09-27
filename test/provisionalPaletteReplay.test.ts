@@ -219,5 +219,8 @@ describe('provisional palette replay on real captures', () => {
       writeFileSync(process.env.REPLAY_REPORT, JSON.stringify(report, null, 2))
     expect(rows.length).toBeGreaterThan(0)
     expect(rows.every((row) => row.choices.length === 6)).toBe(true)
+    // The report is useful for diagnosis, but a large preview regression
+    // should also fail CI. The committed corpus currently reads 99.6%.
+    expect(report.stickerAccuracy.preview).toBeGreaterThanOrEqual(0.98)
   })
 })
