@@ -46,3 +46,41 @@ test('ignores invalid size and missing color profile cookies', async ({
     'auto-colors',
   )
 })
+
+test('restores the 3D view, sticker style, and auto-rotation after reload', async ({
+  page,
+}) => {
+  await page.goto('/')
+  await page.getByRole('button', { name: 'Solved cube' }).click()
+  const views = page.getByRole('group', { name: 'Cube view mode' })
+  await views.getByRole('button', { name: '3D View' }).click()
+  await page.getByRole('button', { name: 'Stickerless' }).click()
+  await page.getByRole('button', { name: 'Auto-rotate' }).click()
+  await expect
+    .poll(async () => page.evaluate(() => document.cookie))
+    .toContain('cube-assembler-cube-view=3d')
+  await expect
+    .poll(async () => page.evaluate(() => document.cookie))
+    .toContain('cube-assembler-stickerless=0')
+  await expect
+    .poll(async () => page.evaluate(() => document.cookie))
+    .toContain('cube-assembler-auto-rotate=1')
+
+  await page.reload()
+  await page.getByRole('button', { name: 'Solved cube' }).click()
+  await expect(views.getByRole('button', { name: '3D View' })).toHaveClass(
+    /is-active/,
+  )
+  await expect(page.getByRole('button', { name: 'Stickered' })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Pause' })).toBeVisible()
+
+  await views.getByRole('button', { name: '2D Net' }).click()
+  await expect
+    .poll(async () => page.evaluate(() => document.cookie))
+    .toContain('cube-assembler-cube-view=net')
+  await page.reload()
+  await page.getByRole('button', { name: 'Solved cube' }).click()
+  await expect(views.getByRole('button', { name: '2D Net' })).toHaveClass(
+    /is-active/,
+  )
+})

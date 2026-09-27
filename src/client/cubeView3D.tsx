@@ -1,4 +1,10 @@
 import { useEffect, useRef, useState } from 'preact/hooks'
+import {
+  AUTO_ROTATE_COOKIE,
+  STICKERLESS_COOKIE,
+  preferenceCookie,
+  readPreference,
+} from './preferences'
 import type { CubeState } from './cubeAssembly'
 
 export const DEFAULT_STICKER_HEX: Record<string, string> = {
@@ -826,9 +832,20 @@ export function CubeView3D({
   const [pitch, setPitch] = useState<number>(0.42) // ~24 deg
   const [yaw, setYaw] = useState<number>(-0.62) // ~-35 deg
   const [zoom, setZoom] = useState<number>(puzzleSize * 2.8)
-  const [isRotating, setIsRotating] = useState<boolean>(false)
+  const [isRotating, setIsRotating] = useState<boolean>(() =>
+    readPreference(document.cookie, AUTO_ROTATE_COOKIE),
+  )
   const [isSupported, setIsSupported] = useState<boolean>(true)
-  const [isStickerless, setIsStickerless] = useState<boolean>(stickerless)
+  const [isStickerless, setIsStickerless] = useState<boolean>(() =>
+    readPreference(document.cookie, STICKERLESS_COOKIE, stickerless),
+  )
+
+  useEffect(() => {
+    document.cookie = preferenceCookie(AUTO_ROTATE_COOKIE, isRotating)
+  }, [isRotating])
+  useEffect(() => {
+    document.cookie = preferenceCookie(STICKERLESS_COOKIE, isStickerless)
+  }, [isStickerless])
 
   const isDraggingRef = useRef(false)
   const lastPointerRef = useRef({ x: 0, y: 0 })

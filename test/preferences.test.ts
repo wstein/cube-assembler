@@ -1,16 +1,20 @@
 import { describe, expect, it } from 'vitest'
 import {
   AUTO_CAPTURE_COOKIE,
+  AUTO_ROTATE_COOKIE,
   COLOR_PROFILE_COOKIE,
   CUBE_SIZE_COOKIE,
+  CUBE_VIEW_COOKIE,
   FIXTURE_SERVER_COOKIE,
   MIRROR_COOKIE,
   SOUND_COOKIE,
+  STICKERLESS_COOKIE,
   preferenceCookie,
   readPreference,
   readSelection,
   selectionCookie,
   selectedCubeSize,
+  selectedCubeView,
 } from '../src/client/preferences'
 
 describe('preference cookies', () => {
@@ -46,8 +50,11 @@ describe('preference cookies', () => {
         CUBE_SIZE_COOKIE,
         COLOR_PROFILE_COOKIE,
         FIXTURE_SERVER_COOKIE,
+        CUBE_VIEW_COOKIE,
+        STICKERLESS_COOKIE,
+        AUTO_ROTATE_COOKIE,
       ]).size,
-    ).toBe(6)
+    ).toBe(9)
   })
 
   it('stores and reads the cube size and color profile selection', () => {
@@ -70,5 +77,22 @@ describe('preference cookies', () => {
     expect(
       readSelection(`${COLOR_PROFILE_COOKIE}=%GG`, COLOR_PROFILE_COOKIE),
     ).toBeNull()
+  })
+
+  it('remembers only supported cube views and keeps stickerless as the default', () => {
+    expect(selectedCubeView('')).toBeNull()
+    expect(selectedCubeView(`${CUBE_VIEW_COOKIE}=3d`)).toBe('3d')
+    expect(selectedCubeView(`${CUBE_VIEW_COOKIE}=net`)).toBe('net')
+    expect(selectedCubeView(`${CUBE_VIEW_COOKIE}=other`)).toBeNull()
+    expect(readPreference('', STICKERLESS_COOKIE, true)).toBe(true)
+    expect(
+      readPreference(`${STICKERLESS_COOKIE}=0`, STICKERLESS_COOKIE, true),
+    ).toBe(false)
+    expect(
+      readPreference(`${STICKERLESS_COOKIE}=invalid`, STICKERLESS_COOKIE, true),
+    ).toBe(true)
+    expect(readPreference(`${AUTO_ROTATE_COOKIE}=1`, AUTO_ROTATE_COOKIE)).toBe(
+      true,
+    )
   })
 })
