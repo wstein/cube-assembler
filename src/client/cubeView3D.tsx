@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'preact/hooks'
+import { createShadowRenderer } from './cubeShadow'
 import { stepDragInertia } from './dragInertia'
 import {
   AUTO_ROTATE_COOKIE,
@@ -1011,6 +1012,19 @@ export function CubeView3D({
       return
     }
 
+    const shadow = createShadowRenderer(gl)
+    // Shadow strength comes from the backdrop's CSS so it follows the theme.
+    let shadowAlpha = 0.3
+    const readShadowAlpha = () => {
+      const value = Number.parseFloat(
+        getComputedStyle(canvas).getPropertyValue('--cube-3d-shadow'),
+      )
+      shadowAlpha = Number.isFinite(value) ? value : 0.3
+    }
+    readShadowAlpha()
+    const colorScheme = window.matchMedia?.('(prefers-color-scheme: dark)')
+    colorScheme?.addEventListener('change', readShadowAlpha)
+
     gl.useProgram(program)
     gl.enable(gl.DEPTH_TEST)
     gl.enable(gl.CULL_FACE)
@@ -1120,6 +1134,14 @@ export function CubeView3D({
       mat4Multiply(viewProj, proj, view)
       mat4Multiply(mvp, viewProj, model)
 
+      shadow?.draw(
+        viewProj,
+        puzzleSize,
+        stateRef.current.pitch,
+        stateRef.current.yaw,
+        shadowAlpha,
+      )
+      gl.useProgram(program)
       gl.uniformMatrix4fv(uMvp, false, mvp)
       gl.uniformMatrix4fv(uModel, false, model)
       gl.uniform3f(uCameraPos, 0, 0, currentZoom)
@@ -1159,6 +1181,8 @@ export function CubeView3D({
       gl.deleteBuffer(colBuf)
       gl.deleteBuffer(idxBuf)
       gl.deleteProgram(program)
+      shadow?.dispose()
+      colorScheme?.removeEventListener('change', readShadowAlpha)
     }
   }, [cube, puzzleSize, palette, isStickerless])
 
