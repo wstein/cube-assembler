@@ -965,9 +965,14 @@ export function CubeView3D({
     setZoom(puzzleSize * 2.8)
   }, [puzzleSize])
 
+  const pauseAutoRotation = () => {
+    inertiaRef.current = { yaw: 0, pitch: 0 }
+    resumeAutoAtRef.current = performance.now() + AUTO_ROTATE_RESUME_DELAY_MS
+  }
+
   // Reset to isometric view
   const resetView = () => {
-    inertiaRef.current = { yaw: 0, pitch: 0 }
+    pauseAutoRotation()
     setPitch(0.42)
     setYaw(-0.62)
     setZoom(puzzleSize * 2.8)
@@ -975,7 +980,7 @@ export function CubeView3D({
 
   // Preset face views
   const setPreset = (targetPitch: number, targetYaw: number) => {
-    inertiaRef.current = { yaw: 0, pitch: 0 }
+    pauseAutoRotation()
     setPitch(targetPitch)
     setYaw(targetYaw)
   }
@@ -1214,10 +1219,22 @@ export function CubeView3D({
   const limit = Math.PI / 2 - 0.05
   const step = 0.2
 
-  const tiltUp = () => setPitch((p) => Math.min(limit, p + step))
-  const tiltDown = () => setPitch((p) => Math.max(-limit, p - step))
-  const rotateLeft = () => setYaw((y) => y + step)
-  const rotateRight = () => setYaw((y) => y - step)
+  const tiltUp = () => {
+    pauseAutoRotation()
+    setPitch((p) => Math.min(limit, p + step))
+  }
+  const tiltDown = () => {
+    pauseAutoRotation()
+    setPitch((p) => Math.max(-limit, p - step))
+  }
+  const rotateLeft = () => {
+    pauseAutoRotation()
+    setYaw((y) => y + step)
+  }
+  const rotateRight = () => {
+    pauseAutoRotation()
+    setYaw((y) => y - step)
+  }
 
   const handleKeyDown = (e: KeyboardEvent) => {
     switch (e.key) {
