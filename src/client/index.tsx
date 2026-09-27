@@ -3738,7 +3738,7 @@ function App() {
                   aria-pressed={notationFormat === 'urf'}
                   onClick={() => setNotationFormat('urf')}
                 >
-                  Faces (URF)
+                  Faces (URF / Orbit64)
                 </button>
               </div>
               <div class="header-spacer" />
@@ -3777,7 +3777,7 @@ function App() {
             <p class="notation-hint">
               {notationFormat === 'wrg'
                 ? `6 blocks of ${puzzleSize * puzzleSize} colors (W O G R B Y) in U R F D L B order.`
-                : `6 blocks of ${puzzleSize * puzzleSize} face letters (U R F D L B) in U R F D L B order.`}
+                : `6 blocks of ${puzzleSize * puzzleSize} face letters (U R F D L B) in U R F D L B order; compatible with Orbit64 facelet interchange for 2×2–5×5.`}
             </p>
             {fixtureSaveMessage && (
               <div
@@ -4062,7 +4062,7 @@ function App() {
                     class={`wb-btn ${notationFormat === 'urf' ? 'active' : ''}`}
                     onClick={() => setNotationFormat('urf')}
                   >
-                    URF Facelets
+                    URF / Orbit64 Facelets
                   </button>
                 </div>
                 <label>

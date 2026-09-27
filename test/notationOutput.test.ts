@@ -184,6 +184,24 @@ describe('fromURFFacelets', () => {
   })
 })
 
+// Orbit64.Net's published state-token/facelet reference vectors use the same
+// U R F D L B boundary. Keep this conversion compatible even though this
+// browser app does not run the Flix token codec itself.
+describe('Orbit64 facelet interchange', () => {
+  const referenceFacelets = [
+    'LFLD BLRD BLBU RFRR UUDU DFFB',
+    'UUUUURUUU RURBRLRDR FFFLFRFFF DDDLDRDDD LLLFLFLDL BBBBBRBBB',
+    'DLLDLLDLBFLFLRBR DRDLFBRLUURUUDDU FUUFLDFDRBUFURRL LBDFFFDFFFBRFBFR RDDDBLUUBURBRULB BFBBUDRURBLLBRDU',
+    'DBRFRFUBLDDBUFFURBDDFUUDL BLDBFULULLLRRUURRDFDRLLFD LFLRURFURRFFFFBUBLUFRLUBU BDBRFDFRUULRDFDULLDDRBRFL LDBFUUFDUFRLLURBRDDBBRFRD DLDUFBBBBLFRBDUBDLBLBLBRU',
+  ]
+
+  it.each(referenceFacelets)('round-trips Orbit64 facelets: %s', (facelets) => {
+    const cube = fromURFFacelets(facelets)
+    expect(cube).not.toBeNull()
+    expect(toURFFacelets(cube!)).toBe(facelets)
+  })
+})
+
 describe('detectNotationFormat', () => {
   it('detects WRG from letters unique to its alphabet (W, Y, O, G)', () => {
     expect(detectNotationFormat(toWRGFacelets(solvedCube(3)))).toBe('wrg')
