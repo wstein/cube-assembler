@@ -38,11 +38,12 @@ def get_face_seams(face, x, y, z, n):
     return (True, True, True, True)
 
 
-def make_beveled_face(u_axis, v_axis, n_axis, H=0.490, r=0.045, seams=(True, True, True, True)):
+def make_beveled_face(u_axis, v_axis, n_axis, H=0.495, r=0.040, seams=(True, True, True, True)):
     s = H - r
-    d = r * 0.35
-    z_outer = H - r * 0.7
-    z_skirt = H - 0.08
+    d = r * 0.4
+    miter = r * 0.45
+    z_outer = H - r * 0.6
+    z_skirt = H - 0.12
     seam_top, seam_bot, seam_rt, seam_lt = seams
 
     def pt(u, v, n):
@@ -65,37 +66,81 @@ def make_beveled_face(u_axis, v_axis, n_axis, H=0.490, r=0.045, seams=(True, Tru
     c2, nc2 = pt(s, s, H), norm(0, 0, 1)
     c3, nc3 = pt(-s, s, H), norm(0, 0, 1)
 
-    z_top = z_outer if seam_top else H
-    e_top0, ne_top0 = pt(-s, H, z_top), norm(0, 0.7, 0.7) if seam_top else norm(0, 0, 1)
-    e_top1, ne_top1 = pt(s, H, z_top), norm(0, 0.7, 0.7) if seam_top else norm(0, 0, 1)
+    v_top = H if seam_top else H - miter
+    z_top = z_outer if seam_top else H - miter
+    e_top0, ne_top0 = pt(-s, v_top, z_top), norm(0, 0.7, 0.7)
+    e_top1, ne_top1 = pt(s, v_top, z_top), norm(0, 0.7, 0.7)
 
-    z_bot = z_outer if seam_bot else H
-    e_bot0, ne_bot0 = pt(-s, -H, z_bot), norm(0, -0.7, 0.7) if seam_bot else norm(0, 0, 1)
-    e_bot1, ne_bot1 = pt(s, -H, z_bot), norm(0, -0.7, 0.7) if seam_bot else norm(0, 0, 1)
+    v_bot = -H if seam_bot else -(H - miter)
+    z_bot = z_outer if seam_bot else H - miter
+    e_bot0, ne_bot0 = pt(-s, v_bot, z_bot), norm(0, -0.7, 0.7)
+    e_bot1, ne_bot1 = pt(s, v_bot, z_bot), norm(0, -0.7, 0.7)
 
-    z_rt = z_outer if seam_rt else H
-    e_rt0, ne_rt0 = pt(H, -s, z_rt), norm(0.7, 0, 0.7) if seam_rt else norm(0, 0, 1)
-    e_rt1, ne_rt1 = pt(H, s, z_rt), norm(0.7, 0, 0.7) if seam_rt else norm(0, 0, 1)
+    u_rt = H if seam_rt else H - miter
+    z_rt = z_outer if seam_rt else H - miter
+    e_rt0, ne_rt0 = pt(u_rt, -s, z_rt), norm(0.7, 0, 0.7)
+    e_rt1, ne_rt1 = pt(u_rt, s, z_rt), norm(0.7, 0, 0.7)
 
-    z_lt = z_outer if seam_lt else H
-    e_lt0, ne_lt0 = pt(-H, -s, z_lt), norm(-0.7, 0, 0.7) if seam_lt else norm(0, 0, 1)
-    e_lt1, ne_lt1 = pt(-H, s, z_lt), norm(-0.7, 0, 0.7) if seam_lt else norm(0, 0, 1)
+    u_lt = -H if seam_lt else -(H - miter)
+    z_lt = z_outer if seam_lt else H - miter
+    e_lt0, ne_lt0 = pt(u_lt, -s, z_lt), norm(-0.7, 0, 0.7)
+    e_lt1, ne_lt1 = pt(u_lt, s, z_lt), norm(-0.7, 0, 0.7)
 
-    both_seam_tr = seam_rt and seam_top
-    crn_tr = pt(H - d if both_seam_tr else H, H - d if both_seam_tr else H, z_outer if both_seam_tr else H)
-    ncrn_tr = norm(0.6, 0.6, 0.5) if both_seam_tr else norm(0, 0, 1)
+    # 1. Top-Right (TR)
+    if seam_rt and seam_top:
+        crn_tr = pt(H - d, H - d, z_outer)
+        ncrn_tr = norm(0.6, 0.6, 0.5)
+    elif not seam_rt and not seam_top:
+        crn_tr = pt(H - miter, H - miter, H - miter)
+        ncrn_tr = norm(0.577, 0.577, 0.577)
+    elif seam_rt and not seam_top:
+        crn_tr = pt(H, H - miter, z_outer)
+        ncrn_tr = norm(0.5, 0.5, 0.7)
+    else:
+        crn_tr = pt(H - miter, H, z_outer)
+        ncrn_tr = norm(0.5, 0.5, 0.7)
 
-    both_seam_tl = seam_lt and seam_top
-    crn_tl = pt(-(H - d) if both_seam_tl else -H, H - d if both_seam_tl else H, z_outer if both_seam_tl else H)
-    ncrn_tl = norm(-0.6, 0.6, 0.5) if both_seam_tl else norm(0, 0, 1)
+    # 2. Top-Left (TL)
+    if seam_lt and seam_top:
+        crn_tl = pt(-(H - d), H - d, z_outer)
+        ncrn_tl = norm(-0.6, 0.6, 0.5)
+    elif not seam_lt and not seam_top:
+        crn_tl = pt(-(H - miter), H - miter, H - miter)
+        ncrn_tl = norm(-0.577, 0.577, 0.577)
+    elif seam_lt and not seam_top:
+        crn_tl = pt(-H, H - miter, z_outer)
+        ncrn_tl = norm(-0.5, 0.5, 0.7)
+    else:
+        crn_tl = pt(-(H - miter), H, z_outer)
+        ncrn_tl = norm(-0.5, 0.5, 0.7)
 
-    both_seam_bl = seam_lt and seam_bot
-    crn_bl = pt(-(H - d) if both_seam_bl else -H, -(H - d) if both_seam_bl else -H, z_outer if both_seam_bl else H)
-    ncrn_bl = norm(-0.6, -0.6, 0.5) if both_seam_bl else norm(0, 0, 1)
+    # 3. Bottom-Left (BL)
+    if seam_lt and seam_bot:
+        crn_bl = pt(-(H - d), -(H - d), z_outer)
+        ncrn_bl = norm(-0.6, -0.6, 0.5)
+    elif not seam_lt and not seam_bot:
+        crn_bl = pt(-(H - miter), -(H - miter), H - miter)
+        ncrn_bl = norm(-0.577, -0.577, 0.577)
+    elif seam_lt and not seam_bot:
+        crn_bl = pt(-H, -(H - miter), z_outer)
+        ncrn_bl = norm(-0.5, -0.5, 0.7)
+    else:
+        crn_bl = pt(-(H - miter), -H, z_outer)
+        ncrn_bl = norm(-0.5, -0.5, 0.7)
 
-    both_seam_br = seam_rt and seam_bot
-    crn_br = pt(H - d if both_seam_br else H, -(H - d) if both_seam_br else -H, z_outer if both_seam_br else H)
-    ncrn_br = norm(0.6, -0.6, 0.5) if both_seam_br else norm(0, 0, 1)
+    # 4. Bottom-Right (BR)
+    if seam_rt and seam_bot:
+        crn_br = pt(H - d, -(H - d), z_outer)
+        ncrn_br = norm(0.6, -0.6, 0.5)
+    elif not seam_rt and not seam_bot:
+        crn_br = pt(H - miter, -(H - miter), H - miter)
+        ncrn_br = norm(0.577, -0.577, 0.577)
+    elif seam_rt and not seam_bot:
+        crn_br = pt(H, -(H - miter), z_outer)
+        ncrn_br = norm(0.5, -0.5, 0.7)
+    else:
+        crn_br = pt(H - miter, -H, z_outer)
+        ncrn_br = norm(0.5, -0.5, 0.7)
 
     verts = [
         c0, c1, c2, c3,
@@ -179,21 +224,12 @@ def create_cube_glb(fixture_path, output_glb_path):
             'B': [5, 70, 140],
         }
 
-    # Color index mapping: 0 = BlackPlastic (internal core), 1..6 = W, Y, O, R, G, B
+    # Color index mapping: 0..5 = W, Y, O, R, G, B
     color_keys = ['W', 'Y', 'O', 'R', 'G', 'B']
-    mat_index = {c: i + 1 for i, c in enumerate(color_keys)}
+    mat_index = {c: i for i, c in enumerate(color_keys)}
 
     # Build PBR materials
-    materials = [
-        {
-            'name': 'Plastic_Core_Black',
-            'pbrMetallicRoughness': {
-                'baseColorFactor': [0.08, 0.08, 0.09, 1.0],
-                'roughnessFactor': 0.7,
-                'metallicFactor': 0.0,
-            },
-        }
-    ]
+    materials = []
     for c in color_keys:
         rgb = learned[c]
         lin_rgb = [round(srgb_to_linear(v), 4) for v in rgb]
@@ -240,37 +276,7 @@ def create_cube_glb(fixture_path, output_glb_path):
             'max_pos': max_pos,
         }
 
-    # 1. Internal dark mechanism core box (size 0.956, half-width 0.478)
-    hc = 0.478
-    core_verts = []
-    core_norms = []
-    core_indices = []
-
-    core_faces = [
-        # +Y
-        ([[-hc, hc, hc], [hc, hc, hc], [hc, hc, -hc], [-hc, hc, -hc]], [0, 1, 0]),
-        # -Y
-        ([[-hc, -hc, -hc], [hc, -hc, -hc], [hc, -hc, hc], [-hc, -hc, hc]], [0, -1, 0]),
-        # +Z
-        ([[-hc, -hc, hc], [hc, -hc, hc], [hc, hc, hc], [-hc, hc, hc]], [0, 0, 1]),
-        # -Z
-        ([[hc, -hc, -hc], [-hc, -hc, -hc], [-hc, hc, -hc], [hc, hc, -hc]], [0, 0, -1]),
-        # +X
-        ([[hc, -hc, hc], [hc, -hc, -hc], [hc, hc, -hc], [hc, hc, hc]], [1, 0, 0]),
-        # -X
-        ([[-hc, -hc, -hc], [-hc, -hc, hc], [-hc, hc, hc], [-hc, hc, -hc]], [-1, 0, 0]),
-    ]
-    for f_verts, norm in core_faces:
-        base_idx = len(core_verts)
-        core_verts.extend(f_verts)
-        core_norms.extend([norm] * 4)
-        core_indices.extend(
-            [base_idx, base_idx + 1, base_idx + 2, base_idx, base_idx + 2, base_idx + 3]
-        )
-
-    core_geom = add_geom(core_verts, core_norms, core_indices)
-
-    # 2. Rounded beveled face caps with reduced gap (0.020) and original Fase (r=0.045)
+    # Rounded beveled face caps with tight gap and smoothed rounded miters
     # Right-handed coordinate frames (u x v = n)
     face_axes_def = {
         'u': ([1, 0, 0], [0, 0, -1], [0, 1, 0]),
@@ -304,7 +310,7 @@ def create_cube_glb(fixture_path, output_glb_path):
     beveled_geoms = {}
     for f_key, seams in sorted(needed_combos):
         u_ax, v_ax, n_ax = face_axes_def[f_key]
-        v, n_vecs, idx = make_beveled_face(u_ax, v_ax, n_ax, H=0.490, r=0.045, seams=seams)
+        v, n_vecs, idx = make_beveled_face(u_ax, v_ax, n_ax, H=0.495, r=0.040, seams=seams)
         beveled_geoms[(f_key, seams)] = add_geom(v, n_vecs, idx)
 
     # Align binary chunks to 4 bytes
@@ -348,34 +354,8 @@ def create_cube_glb(fixture_path, output_glb_path):
         },
     ]
 
-    # Accessors for Core Box:
-    accessors = [
-        {
-            'bufferView': 0,
-            'byteOffset': core_geom['pos_offset'],
-            'componentType': 5126,
-            'count': core_geom['v_count'],
-            'type': 'VEC3',
-            'min': core_geom['min_pos'],
-            'max': core_geom['max_pos'],
-        },
-        {
-            'bufferView': 1,
-            'byteOffset': core_geom['norm_offset'],
-            'componentType': 5126,
-            'count': core_geom['v_count'],
-            'type': 'VEC3',
-        },
-        {
-            'bufferView': 2,
-            'byteOffset': core_geom['idx_offset'],
-            'componentType': 5123,
-            'count': core_geom['i_count'],
-            'type': 'SCALAR',
-        },
-    ]
-
     # Accessors for Beveled Face Caps:
+    accessors = []
     beveled_accessors = {}
     for (f_key, seams), g in sorted(beveled_geoms.items()):
         pos_acc = len(accessors)
@@ -444,13 +424,7 @@ def create_cube_glb(fixture_path, output_glb_path):
                 ):
                     continue
 
-                primitives = [
-                    {
-                        'attributes': {'POSITION': 0, 'NORMAL': 1},
-                        'indices': 2,
-                        'material': 0,  # Dark interior core
-                    }
-                ]
+                primitives = []
 
                 # Exterior rounded caps
                 if y == last:
