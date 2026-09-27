@@ -14,6 +14,9 @@ before its fine seam search, or searches around the centered guide when an
 outline is unclear. The outline scan covers faces 0.7–1.3 times guide size
 with centers up to 22% of a guide width away. The seam search stays within
 half a cell of that estimate to avoid slipping a row on 5×5–7×7 faces.
+For 6×6 and 7×7, an additional outer-edge check rejects seam fits whose
+grid lines miss the face. The live view then asks you to move the face toward
+the center instead of accepting the shifted reading.
 
 Seam scoring uses each pixel's strongest color channel so red or blue
 stickers remain distinguishable from dark plastic. The detector accepts up to
