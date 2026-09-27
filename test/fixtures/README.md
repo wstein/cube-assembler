@@ -22,9 +22,15 @@ is present. With only six images selected, it opens the photo-order preview:
 
 ```
 test/fixtures/<name>/
-  meta.json       { gridSize, colorsURFDLB, detectedURFDLB, faces: { u: { photo, ... }, ... }, capture }
+  meta.json       { $schema, gridSize, colorsURFDLB, detectedURFDLB, faces: { u: { photo, ... }, ... }, capture }
   face-u.jpg       (etc. for r, f, d, l, b)
 ```
+
+New metadata and the checked-in fixtures point `$schema` to the
+[published fixture metadata schema](https://wstein.github.io/cube-assembler/schemas/fixture-meta.schema.json).
+Editors can use it to check required fields and photo references. The app also
+checks that each facelet block has exactly `gridSize²` stickers. Older fixture
+files without `$schema` remain importable.
 
 The optional server listens on `127.0.0.1:7100` and accepts one multipart
 `POST /upload` with a `name` field and seven `file` parts (one `meta.json`
