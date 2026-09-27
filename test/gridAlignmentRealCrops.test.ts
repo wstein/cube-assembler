@@ -9,8 +9,8 @@ import {
   type FaceSquare,
 } from '../src/client/gridAlignment'
 
-// Real capture crops (gitignored, like test/fixtures.test.ts) held off the
-// guide: each crop is the face, pasted at an offset or scale into a grey
+// Real capture crops (committed fixtures, like test/fixtures.test.ts) held off
+// the guide: each crop is the face, pasted at an offset or scale into a grey
 // frame 1.4x its size with the guide centered. A sticker counts as misread
 // when it differs from the centered crop's own reading.
 

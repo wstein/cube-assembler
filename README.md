@@ -257,8 +257,8 @@ cube-assembler/
     └── fixtures/                  Saved captures for fixtures.test.ts (see fixtures/README.md)
 ```
 
-Real captures in `test/fixtures/capture-*` are gitignored; the tests that
-need them skip without.
+Reviewed captures in `test/fixtures/capture-*` are committed with Git LFS and
+run in CI. Image tests skip only when a checkout has no real captures.
 
 ---
 
