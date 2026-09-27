@@ -47,7 +47,12 @@
   --shadow-md: 0 4px 10px rgba(23, 23, 27, 0.1);
   --shadow-lg: 0 24px 64px rgba(23, 23, 27, 0.35);
 
-  /* Strength of the 3D cube's floor shadow, which WebGL draws. */
+  /* 3D cube backdrop: a warm studio sweep that matches the page. The floor
+     shadow itself is drawn by WebGL with --cube-3d-shadow as its strength. */
+  --cube-3d-sweep-top: #e7e3d9;
+  --cube-3d-sweep-bottom: #c9c2b2;
+  --cube-3d-glow: rgba(255, 253, 247, 0.75);
+  --cube-3d-vignette: rgba(66, 54, 32, 0.16);
   --cube-3d-shadow: 0.34;
 }
 
@@ -63,6 +68,13 @@
     --color-success: #58c48b;
     --color-success-soft: #173826;
     --color-warning: #f0b44c;
+
+    /* Dark mode: a slate stage under a soft spotlight. */
+    --cube-3d-sweep-top: #252c38;
+    --cube-3d-sweep-bottom: #0f1319;
+    --cube-3d-glow: rgba(160, 180, 220, 0.22);
+    --cube-3d-vignette: rgba(0, 0, 0, 0.4);
+    --cube-3d-shadow: 0.62;
   }
 }
 
@@ -603,12 +615,23 @@ h3 {
   position: relative;
   width: 100%;
   height: 380px;
-  background: radial-gradient(
-    ellipse at 50% 42%,
-    #747a80 0%,
-    #555b61 64%,
-    #393f45 100%
-  );
+  background:
+    radial-gradient(
+      ellipse at 50% 50%,
+      transparent 58%,
+      var(--cube-3d-vignette)
+    ),
+    radial-gradient(
+      ellipse 55% 50% at 50% 40%,
+      var(--cube-3d-glow),
+      transparent 72%
+    ),
+    linear-gradient(
+      180deg,
+      var(--cube-3d-sweep-top) 0%,
+      var(--cube-3d-sweep-top) 35%,
+      var(--cube-3d-sweep-bottom) 100%
+    );
   border-radius: var(--radius-md);
   overflow: hidden;
   box-shadow: inset 0 1px 5px rgba(12, 15, 18, 0.24);
