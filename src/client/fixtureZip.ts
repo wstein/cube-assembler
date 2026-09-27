@@ -70,7 +70,8 @@ export function buildFixture(
 
   // The zip's folder name, and so the fixture's directory name.
   const rawName =
-    request.name ?? `capture-${now.toISOString().replace(/[:.]/g, '-')}`
+    request.name ??
+    `cube-${request.gridSize}x${request.gridSize}-${now.toISOString().replace(/[:.]/g, '-')}`
   const name = rawName.replace(/[^a-zA-Z0-9_-]/g, '-').slice(0, 80)
   if (!name) throw new Error('Invalid fixture name')
 

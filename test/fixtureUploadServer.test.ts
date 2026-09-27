@@ -91,6 +91,22 @@ describe('local fixture upload server', () => {
     expect((await fetch(`${url}/`)).status).toBe(404)
   })
 
+  it('stores size-prefixed fixture names as directory names', async () => {
+    await start()
+    const name = 'cube-3x3-2026-09-27T08-55-46-205Z'
+    expect((await upload(fixtureForm(name))).status).toBe(201)
+    expect(await readdir(root!)).toEqual([name])
+    expect((await readdir(join(root!, name))).sort()).toEqual([
+      'face-b.jpg',
+      'face-d.jpg',
+      'face-f.jpg',
+      'face-l.jpg',
+      'face-r.jpg',
+      'face-u.jpg',
+      'meta.json',
+    ])
+  })
+
   it('rejects cross-site form posts, unsafe names, incomplete batches and overwrites', async () => {
     await start()
     expect((await upload(fixtureForm(), {})).status).toBe(403)

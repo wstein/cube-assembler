@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { strToU8, zipSync } from 'fflate'
+import { strToU8, unzipSync, zipSync } from 'fflate'
 import {
   buildFixture,
   summarizeFixture,
@@ -70,13 +70,28 @@ describe('fixture zips', () => {
     })
   })
 
-  it('names an unnamed fixture by time and keeps names path-safe', () => {
+  it('names an unnamed fixture by cube size and time for ZIPs and uploads', () => {
+    const fixture = buildFixture(
+      request({ name: undefined }),
+      new Date('2026-09-27T08:55:46.205Z'),
+    )
+    expect(fixture.name).toBe('cube-3x3-2026-09-27T08-55-46-205Z')
+    expect(Object.keys(unzipSync(zipFixture(fixture)))).toContain(
+      `${fixture.name}/meta.json`,
+    )
     expect(
       buildFixture(
-        request({ name: undefined }),
-        new Date('2026-09-25T18:50:01.234Z'),
+        request({
+          name: undefined,
+          gridSize: 2,
+          colorsURFDLB: 'WWWW RRRR GGGG YYYY OOOO BBBB',
+        }),
+        new Date('2026-09-27T08:55:46.205Z'),
       ).name,
-    ).toBe('capture-2026-09-25T18-50-01-234Z')
+    ).toBe('cube-2x2-2026-09-27T08-55-46-205Z')
+  })
+
+  it('keeps explicit fixture names path-safe', () => {
     expect(buildFixture(request({ name: '../../etc/passwd' })).name).toBe(
       '------etc-passwd',
     )
