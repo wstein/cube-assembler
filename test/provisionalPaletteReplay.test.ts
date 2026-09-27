@@ -11,7 +11,7 @@
  *     (capture.colorProfile, newer fixtures only);
  *   - how many stickers the chosen palette reads as reviewed, including
  *     the first face whose live frame picks a profile before previewing it.
- * It asserts only that the replay runs. The numbers are written as JSON to
+ * It also guards the committed corpus's preview accuracy. The numbers are written as JSON to
  * $REPLAY_REPORT when set; $REPLAY_PROFILES may name a saved settings or
  * profiles file whose color profiles join the built-in candidates. A profile
  * learned from the replayed capture itself (id fixture-<capture time>) is
