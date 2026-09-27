@@ -32,7 +32,7 @@ export function ProfilesPage({ tab, settings, onChange, capture, photo, onClose,
         ))}
       </nav>
       <div class="profiles-file-actions">
-        <span class="color-review-muted">One settings file contains cubes and sticker colors.</span>
+        <span class="color-review-muted">One profiles file contains cubes and sticker colors.</span>
         <button type="button" class="btn btn-secondary btn-sm" onClick={onExport}>↓ Export cubes &amp; colors</button>
         <label class="btn btn-secondary btn-sm">
           ↑ Import cubes &amp; colors
