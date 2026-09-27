@@ -25,6 +25,7 @@ import {
   type TurnCueState,
 } from './autoCapture'
 import { oppositeFacePreview } from './capturePresentation'
+import { readyAssemblyAfterCapture } from './captureReviewRouting'
 import type { ReviewCapture } from './colorReviewPage'
 import { BackdropDialog } from './backdropDialog'
 import { faceSources, pieceKey, sourceIndex } from './netPresentation'
@@ -1463,6 +1464,11 @@ function App() {
   > | null>(null)
   const [showBackdropDialog, setShowBackdropDialog] = useState(false)
   const [reviewStep, setReviewStep] = useState(0)
+  const [reviewRouting, setReviewRouting] = useState<{
+    faces: Record<string, FaceCaptureData>
+    glare: string[]
+    mixedUp: string[]
+  } | null>(null)
   // Captured once per webcam session (device label isn't available until
   // getUserMedia grants permission) - purely informational, attached to
   // saved fixtures so a color regression can be cross-checked against the
@@ -2069,9 +2075,8 @@ function App() {
     setWebcamOpen(true)
   }
 
-  // Stores a capture result for `face`, opens the review dialog once all 6
-  // faces are in (so the user can fix any misdetected colors before the
-  // cube is assembled), and otherwise auto-advances the modal to the next
+  // Stores a capture result for `face`, routes all 6 faces through final
+  // calibration and review/assembly, and otherwise advances to the next
   // uncaptured face so the user doesn't have to close/reopen it per face.
   const applyFaceCapture = async (
     face: string,
@@ -2183,10 +2188,13 @@ function App() {
   // white-balance recalibration (learning each sticker color from all 6
   // faces together, see runGlobalWhiteBalance) only makes sense with a
   // complete set, so this is the single place both capture paths converge
-  // before opening the review wizard.
+  // before routing to color review or assembly.
   const finalizeAllFacesCaptured = async (
     newCapturedFaces: Record<string, FaceCaptureData>,
   ) => {
+    let finalFaces = newCapturedFaces
+    let finalGlare: string[] = []
+    let finalMixedUp: string[] = []
     setCaptureMessage(
       '✓ All faces captured! Checking white balance across all stickers...',
     )
@@ -2267,7 +2275,8 @@ function App() {
             : resolvedColorProfileSnapshot(colorProfile, 'manual', colorFit),
         )
         setLearnedPalette(wb.learned?.colors ?? null)
-        setMixedUpColors(wb.learned?.mixedUpColors ?? [])
+        finalMixedUp = wb.learned?.mixedUpColors ?? []
+        setMixedUpColors(finalMixedUp)
         const confidences = FACE_ORDER.flatMap(
           (face) => wb.faces[face]?.cellConfidences?.flat() ?? [],
         )
@@ -2300,12 +2309,14 @@ function App() {
               confidence: det.confidence,
             }
           }
+          finalFaces = recalibrated
           setCapturedFaces(recalibrated)
           setGlobalWhiteBalanceNote(CALIBRATION_NOTE)
         } else {
           setGlobalWhiteBalanceNote(null)
         }
-        setGlareFaces(glareFacesToWarn(wb.glare))
+        finalGlare = glareFacesToWarn(wb.glare)
+        setGlareFaces(finalGlare)
       } catch (err) {
         console.error('Global white balance error:', err)
         setGlobalWhiteBalanceNote(null)
@@ -2318,8 +2329,11 @@ function App() {
 
     setLoading(false)
     setWebcamOpen(false)
-    setReviewStep(0)
-    setShowReviewDialog(true)
+    setReviewRouting({
+      faces: finalFaces,
+      glare: finalGlare,
+      mixedUp: finalMixedUp,
+    })
   }
 
   // Restores a fixture saved earlier via handleSaveFixture - the customer
@@ -2584,8 +2598,8 @@ function App() {
     setWebcamOpen(true)
   }
 
-  // After the per-face color review (so a misread sticker can't send a good
-  // capture to the fallback): works out how the 6 photos fit together and
+  // After color review, or automatically for a high-confidence valid cube:
+  // works out how the 6 photos fit together and
   // asks the customer to approve it, falling back step by step -
   //   guided capture (camera, sides then top/bottom): the 64 arrangements
   //   the turning pattern allows (solveGuidedCapture);
@@ -2596,11 +2610,16 @@ function App() {
   //   still be used or rejected.
   // Rejecting an arrangement opens the "Which way is your ... face?"
   // wizard with the remaining ones.
-  const handleConfirmReview = () => {
+  const handleConfirmReview = (
+    precomputedFree?: OrientationSolution | null,
+  ) => {
     setReviewNotice(null)
     const faceData: Record<string, string[][]> = {}
     for (const f of FACE_ORDER) faceData[f] = capturedFaces[f].colors
-    const free = solveFaceOrientations(faceData)
+    const free =
+      precomputedFree === undefined
+        ? solveFaceOrientations(faceData)
+        : precomputedFree
     const guided = isGuidedCapture()
 
     if (guided) {
@@ -2689,6 +2708,26 @@ function App() {
     }
     void handleChooseOrientation(free.alternatives[0])
   }
+
+  useEffect(() => {
+    if (!reviewRouting || capturedFaces !== reviewRouting.faces) return
+    setReviewRouting(null)
+    const showColorReview = () => {
+      setReviewStep(0)
+      setShowReviewDialog(true)
+    }
+    const ready = readyAssemblyAfterCapture(
+      capturedFaces,
+      FACE_ORDER,
+      reviewRouting.glare,
+      reviewRouting.mixedUp,
+    )
+    if (!ready) {
+      showColorReview()
+      return
+    }
+    handleConfirmReview(ready)
+  }, [reviewRouting, capturedFaces])
 
   // Whether the current faces followed the guided protocol: a camera
   // capture, or an uploaded fixture that recorded it. Faces mixed with
@@ -5109,7 +5148,7 @@ function App() {
                         <button
                           type="button"
                           class="btn btn-primary btn-review-next"
-                          onClick={handleConfirmReview}
+                          onClick={() => handleConfirmReview()}
                         >
                           Looks right — put the cube together
                         </button>
