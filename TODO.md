@@ -27,17 +27,18 @@ to the original real-fixture testing discussion. See
   three are white logo centers read as blue. All committed fixture pipelines
   pass after six-face calibration. New broad palette anchors are not justified
   by this corpus; keep the two orange samples as a focused regression target.
+- **#10 Detect slipped large-cube grids:** a seam fit that misses an outer
+  face edge is rejected on 6×6 and 7×7, with a re-centering cue. Synthetic
+  out-of-reach cases and the committed real-crop replay guard the change.
 
 ## Next
 
-1. **#10 Detect slipped grid rows.** When the outer grid lines miss the face
-   edge, ask the user to re-center instead of accepting a shifted row.
-2. **#7 Replay missed live faces.** Four saved 2026-09-25 frames (three
+1. **#7 Replay missed live faces.** Four saved 2026-09-25 frames (three
    `no-grid`, one `no-sticker-pattern`) reproduce the live decision. Use them
    to test a focused detector fix.
-3. **#8–9 Resolve old assembly fixtures.** Recheck the two captures saved
+2. **#8–9 Resolve old assembly fixtures.** Recheck the two captures saved
    with a 90-degree wizard error and the 4×4 capture that did not reassemble.
-4. **Stub the camera in Playwright.** Cover capture, canvas crop, saved photo,
+3. **Stub the camera in Playwright.** Cover capture, canvas crop, saved photo,
    and re-detection together; the existing upload tests do not exercise a
    live camera.
 
