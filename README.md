@@ -4,6 +4,8 @@
 
 [Open the static scanner demo](https://wstein.github.io/cube-assembler/) · [Source repository](https://github.com/wstein/cube-assembler)
 
+The app footer links to the GitHub source tree for the revision used in its build.
+
 The scanner footer links to the source commit used for the deployed build.
 
 Scanning, review, parity checks, and fixture ZIP import/export run in the
