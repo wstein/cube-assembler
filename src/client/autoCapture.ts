@@ -87,31 +87,3 @@ export function nextAutoCaptureProgress(
   const stable = colorDifference(sample.colors, first.colors) <= Math.max(1, Math.floor(cells * 0.04))
   return stable ? { first, frames: previous.frames + 1 } : { first: sample, frames: 1 }
 }
-
-// With the cube size on Auto, count matching detected sizes before the first
-// face. A missed detection pauses the count; a different size restarts it.
-// A size picked from the list is final.
-export const SIZE_VOTE_AGREE = 5
-
-export function nextSizeVotes(votes: readonly (number | null)[], estimate: number | null): Array<number | null> {
-  if (estimate === null) return [...votes]
-  if (votes.length === 0 || votes[0] !== estimate) return [estimate]
-  return [...votes, estimate].slice(-SIZE_VOTE_AGREE)
-}
-
-export function agreedSize(votes: readonly (number | null)[]): number | null {
-  return votes.length >= SIZE_VOTE_AGREE ? votes[0] : null
-}
-
-export interface SizeDetectionState {
-  autoSize: boolean
-  // The size agreed on since capture started, if any.
-  detectedSize: number | null
-  facesCaptured: number
-  // Detect face mode; Guide grid finds no face outline to measure.
-  detectFace: boolean
-}
-
-export function sizeDetectionActive({ autoSize, detectedSize, facesCaptured, detectFace }: SizeDetectionState): boolean {
-  return autoSize && detectFace && detectedSize === null && facesCaptured === 0
-}
