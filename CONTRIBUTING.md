@@ -22,7 +22,15 @@ npm install
 npm run dev          # Vite dev server
 npm test             # Vitest, once
 npx vitest run test/gridAlignment.test.ts   # a single suite
+npx playwright install chromium             # once for browser tests
+npm run test:e2e     # Playwright uploads and preferences
 ```
+
+For local fixture uploads, start `npm run fixture:server` in another terminal.
+It listens only on `127.0.0.1:7100`; the browser's development server proxies
+uploads to it. Saved JPEGs use Git LFS, so run `git lfs pull` if a checkout has
+pointer files instead of photos. Review the [fixture guide](test/fixtures/README.md)
+before adding captures.
 
 Before opening a pull request, run the same checks as CI:
 
@@ -32,6 +40,24 @@ npm run lint
 npm run format:check   # npm run format fixes it
 npm run build
 npm test
+```
+
+`npm run typecheck` checks strict TypeScript. Lint combines type-aware
+typescript-eslint, Biome checks, and ReScript warnings; `npm run format`
+applies Biome and ReScript formatting. There are currently no `.res` files.
+The browser suite starts a Vite server on port 4174 and uses Chromium.
+
+## GitHub Pages
+
+The `Publish Pages` workflow builds the static client with the repository
+subpath as its asset base and deploys `dist/` after a push to `main`. The `CI`
+workflow builds and tests pushes and pull requests. In repository settings,
+Pages must use **Build and deployment → GitHub Actions**. Preview the static
+build locally with:
+
+```sh
+VITE_BASE_PATH=/cube-assembler/ npm run build
+npx vite preview
 ```
 
 ## How changes are made

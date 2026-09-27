@@ -6,6 +6,7 @@
 
 Cube geometry and sticker colors are independent settings: `profileSettings.ts` defines them, `profileStorage.ts` stores and exports them, and `colorProfileLearning.ts` gates updates after a reviewed capture. Each size has one read-only Generic cube with a 60% sticker core. The eight color palettes in `cube-assembler-profiles.json` are read-only built-ins; Automatic compares them with saved profiles. The profiles page (`#profiles`, `profilesPage.tsx`; the old `#colors` link opens it too) has a Colors tab (`colorReviewPage.tsx`) that compares and merges color profiles and a Cubes tab (`cubeReviewPage.tsx`, logic in `cubeProfileReview.ts`) that merges duplicate cubes; both tabs delete saved profiles singly or in bulk through `profileDeletion.tsx`; `colorProfileReview.ts` balances each profile on its own White before grouping, because captures are already white balanced. Store current data under `cube-assembler-profiles-v1`; ignore other storage keys.
 `preferences.ts` keeps cube size and selected color profile ID in cookies; custom profile definitions remain in browser storage.
+Reader guides live in `docs/`; use `CONTRIBUTING.md` for setup and deployment, and `test/fixtures/README.md` for saved-capture instructions.
 
 ## Build, Test, and Development Commands
 
