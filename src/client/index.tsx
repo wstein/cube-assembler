@@ -840,6 +840,8 @@ function App() {
   // cross-face recalibration didn't run) - what the color-fix picker scores
   // each alternative against.
   const [learnedPalette, setLearnedPalette] = useState<Record<string, RGB> | null>(null)
+  // Learned colors whose cluster mixed two colors (see mixedUpClusters).
+  const [mixedUpColors, setMixedUpColors] = useState<string[]>([])
   const [pendingPalette, setPendingPalette] = useState<{ colors: Record<string, RGB>; confidentFraction: number; recalibrated: boolean } | null>(null)
   const [profileLearningOffer, setProfileLearningOffer] = useState<{
     colors: Record<string, RGB>
@@ -1282,6 +1284,7 @@ function App() {
     setGlareFaces([])
     setAppliedBackgroundGains(null)
     setLearnedPalette(null)
+    setMixedUpColors([])
     setPendingPalette(null)
     setProfileLearningOffer(null)
     setCaptureProfile(null)
@@ -1558,6 +1561,7 @@ function App() {
             : wb.learned ? captureColorProfileSnapshot(wb.learned.colors) : null
           : resolvedColorProfileSnapshot(colorProfile, 'manual', colorFit))
         setLearnedPalette(wb.learned?.colors ?? null)
+        setMixedUpColors(wb.learned?.mixedUpColors ?? [])
         const confidences = FACE_ORDER.flatMap((face) => wb.faces[face]?.cellConfidences?.flat() ?? [])
         setPendingPalette(wb.learned ? {
           colors: wb.learned.colors,
@@ -1584,6 +1588,7 @@ function App() {
         setGlobalWhiteBalanceNote(null)
         setGlareFaces([])
         setLearnedPalette(null)
+        setMixedUpColors([])
         setPendingPalette(null)
       }
     }
@@ -1741,6 +1746,7 @@ function App() {
         ? CALIBRATION_NOTE
         : null)
       setLearnedPalette(wb.learned?.colors ?? null)
+      setMixedUpColors(wb.learned?.mixedUpColors ?? [])
 
       setPuzzleSize(meta.gridSize)
       setCapturedFaces(newEntries)
@@ -3182,6 +3188,12 @@ function App() {
                 <div class="capture-warning" role="status">
                   ⚠ Glare washed out some stickers on {glareFaces.map((f) => FACE_DISPLAY_LABEL[f]).join(', ')}. Check their
                   colors, or tilt the cube away from the light and retake.
+                </div>
+              )}
+              {mixedUpColors.length > 0 && (
+                <div class="capture-warning" role="status">
+                  ⚠ {mixedUpColors.map((c) => COLOR_NAME[c] ?? c).join(' and ')} came out mixed with another color, so
+                  two colors may be swapped. Check those stickers, or retake in more even light.
                 </div>
               )}
               {(() => {
