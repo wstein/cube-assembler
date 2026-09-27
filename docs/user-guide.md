@@ -49,10 +49,13 @@ enabled. Changing size after a capture asks before clearing saved faces.
 First-party cookies remember the selected cube size and color profile,
 Mirror, Auto capture, capture sound, and the **2D Net / 3D View** choice.
 Within 3D View, **Stickerless / Stickered** and **Auto-rotate / Pause** are
-remembered too. Dragging the 3D cube gives it a short, slowing spin after
-release. Auto-rotate pauses during a drag, face preset, or Tilt / Turn action
-and resumes about 1.5 seconds later. These interactions do not change the
-saved setting. Captured photos and cube states are not stored in cookies.
+remembered too. Swipe a sticker in the 3D view to turn its row or column,
+including inner slices on larger cubes. Drag the background to rotate the
+view; it keeps turning briefly after release. Layer turns update the 2D net,
+facelet notation, and Orbit64 token. **Reset** returns to the captured state.
+Auto-rotate pauses during a drag, face preset, or Tilt / Turn action and
+resumes about 1.5 seconds later. These interactions do not change the saved
+setting. Captured photos and cube states are not stored in cookies.
 
 ## Use photos or a saved fixture
 
