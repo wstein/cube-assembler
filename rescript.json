@@ -1,5 +1,12 @@
 {
   "name": "cube-assembler",
-  "sources": [{ "dir": "src", "subdirs": true }],
-  "package-specs": { "module": "esmodule" }
+  "sources": [{ "dir": "src/cube", "subdirs": true }],
+  "package-specs": { "module": "esmodule", "in-source": true },
+  "suffix": ".res.mjs",
+  "namespace": false,
+  "gentypeconfig": {
+    "module": "esmodule",
+    "moduleResolution": "bundler",
+    "generatedFileExtension": ".gen.tsx"
+  }
 }
