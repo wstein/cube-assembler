@@ -702,8 +702,10 @@ textarea {
 .capture-live {
   position: relative;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
+  gap: var(--spacing-sm);
   padding: var(--spacing-lg);
   background: #121215;
   min-height: 0;
@@ -719,8 +721,8 @@ textarea {
 
 .capture-live-badge {
   position: absolute;
-  left: calc(var(--spacing-lg) + 12px);
-  bottom: calc(var(--spacing-lg) + 12px);
+  left: 12px;
+  bottom: 12px;
   display: inline-flex;
   align-items: center;
   gap: 8px;
@@ -882,9 +884,8 @@ textarea {
     width: min(100%, 42vh);
   }
 
-  .capture-modal-content .capture-live-badge {
-    left: calc(var(--spacing-md) + 12px);
-    bottom: 12px;
+  .capture-modal-content .capture-live .mirror-toggle {
+    color: var(--color-text-primary);
   }
 
   .capture-modal-content .capture-progress {
@@ -2441,6 +2442,11 @@ label.capture-size-label {
   cursor: pointer;
   white-space: nowrap;
   margin-left: auto;
+}
+
+.capture-live .mirror-toggle {
+  margin-left: 0;
+  color: #ffffff;
 }
 
 .mirror-toggle input {
