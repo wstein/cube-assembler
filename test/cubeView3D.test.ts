@@ -246,4 +246,100 @@ describe('cubeView3D math and geometry', () => {
       expect(proj[11]).toBe(-1)
     })
   })
+
+  describe('seam junctions', () => {
+    type Vec = [number, number, number]
+    // Nearest front-facing hit along a ray; back faces are culled on screen.
+    function nearestHit(
+      mesh: ReturnType<typeof buildCubeMesh>,
+      o: Vec,
+      d: Vec,
+    ) {
+      const p = mesh.positions
+      const idx = mesh.indices
+      let best = Infinity
+      for (let i = 0; i < idx.length; i += 3) {
+        const a = idx[i] * 3
+        const b = idx[i + 1] * 3
+        const c = idx[i + 2] * 3
+        const e1 = [p[b] - p[a], p[b + 1] - p[a + 1], p[b + 2] - p[a + 2]]
+        const e2 = [p[c] - p[a], p[c + 1] - p[a + 1], p[c + 2] - p[a + 2]]
+        const q = [
+          d[1] * e2[2] - d[2] * e2[1],
+          d[2] * e2[0] - d[0] * e2[2],
+          d[0] * e2[1] - d[1] * e2[0],
+        ]
+        const det = e1[0] * q[0] + e1[1] * q[1] + e1[2] * q[2]
+        if (det < 1e-12) continue
+        const s = [o[0] - p[a], o[1] - p[a + 1], o[2] - p[a + 2]]
+        const u = (s[0] * q[0] + s[1] * q[1] + s[2] * q[2]) / det
+        if (u < 0 || u > 1) continue
+        const r = [
+          s[1] * e1[2] - s[2] * e1[1],
+          s[2] * e1[0] - s[0] * e1[2],
+          s[0] * e1[1] - s[1] * e1[0],
+        ]
+        const v = (d[0] * r[0] + d[1] * r[1] + d[2] * r[2]) / det
+        if (v < 0 || u + v > 1) continue
+        const t = (e2[0] * r[0] + e2[1] * r[1] + e2[2] * r[2]) / det
+        if (t > 0 && t < best) best = t
+      }
+      return best
+    }
+
+    for (const n of [3, 7])
+      for (const stickerless of [true, false])
+        it(`closes every junction of four cubies on a ${n}x${n} (${stickerless ? 'stickerless' : 'stickered'})`, () => {
+          const mesh = buildCubeMesh(
+            createSolvedCube(n),
+            n,
+            undefined,
+            stickerless,
+          )
+          const half = n / 2
+          // Junctions of four cubies on the front face, and where a seam
+          // meets the top edge. Edge rays must head down into the cube;
+          // rising rays near the edge can leave it legitimately.
+          const junctions: [number, number, boolean][] = []
+          for (let i = 1; i < n; i++)
+            for (let j = 1; j < n; j++)
+              junctions.push([i - half, j - half, false])
+          for (let i = 1; i < n; i++)
+            junctions.push([i - half, half - 0.035, true])
+          const views: Vec[] = [
+            [-0.35, -0.5, -1],
+            [0.6, 0.4, -1],
+            [-0.2, 0.7, -1],
+            [0.5, -0.4, -1],
+          ]
+          const leaks: string[] = []
+          for (const view of views) {
+            const len = Math.hypot(...view)
+            const d = view.map((x) => x / len) as Vec
+            for (const [jx, jy, edge] of junctions) {
+              if (edge && d[1] >= 0) continue
+              for (let i = -4; i <= 4; i++)
+                for (let j = -4; j <= 4; j++) {
+                  const target: Vec = [
+                    jx + i * 0.008,
+                    jy + j * 0.008,
+                    half - 0.01,
+                  ]
+                  const o: Vec = [
+                    target[0] - d[0] * 10,
+                    target[1] - d[1] * 10,
+                    target[2] - d[2] * 10,
+                  ]
+                  // Anything farther than the groove depth is the far side of
+                  // the cube or the background showing through.
+                  if (nearestHit(mesh, o, d) > 10.3)
+                    leaks.push(
+                      `${view.join()} @ ${target.map((x) => x.toFixed(3)).join()}`,
+                    )
+                }
+            }
+          }
+          expect(leaks.slice(0, 5)).toEqual([])
+        })
+  })
 })
