@@ -74,8 +74,8 @@ for browser tests, lint and formatting, fixture uploads, and Pages deployment.
 
 ## License and trademarks
 
-MIT © 2026 Werner Stein. See [LICENSE](LICENSE). Bundled Space Grotesk and
-IBM Plex fonts use the SIL Open Font License 1.1.
+MIT © 2026 Werner Stein. See [LICENSE](LICENSE). The bundled fonts and runtime
+libraries retain their own licenses; see the [third-party notices](public/licenses/index.html).
 
 Rubik's, Rubik's Cube, GoCube, GAN, QiYi, and other brand names are trademarks
 of their respective owners. CubeAssembler is independent and is not
