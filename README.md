@@ -415,6 +415,8 @@ alone rather than guessed).
 **Save as test fixture** (once a cube is confirmed) previews `<name>.zip`
 with `<name>/meta.json` and the six face photos. Download and unzip it into
 `test/fixtures/`, or select **Upload to localhost** while both dev servers are running.
+Software-rendered fixtures use `synt-` names and
+`synthetic`/`software-rendered` metadata tags; their saved images are JPEGs.
 New saves include the cube size in both names, for example
 `cube-3x3-2026-09-27T08-55-46-205Z.zip` and
 `test/fixtures/cube-3x3-2026-09-27T08-55-46-205Z/`.
