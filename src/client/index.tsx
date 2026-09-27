@@ -3766,18 +3766,6 @@ function App() {
                     Capture again
                   </button>
                 )}
-              {FACE_ORDER.every((f) => f in capturedFaces) && (
-                <button
-                  type="button"
-                  class="btn btn-secondary btn-lg"
-                  onClick={() => {
-                    setReviewStep(0)
-                    setShowReviewDialog(true)
-                  }}
-                >
-                  Edit colors
-                </button>
-              )}
               <button
                 type="button"
                 class="btn btn-primary btn-lg"
@@ -3811,6 +3799,18 @@ function App() {
                     ? `Continue (${FACE_ORDER.filter((f) => f in capturedFaces).length}/${FACE_ORDER.length})`
                     : 'Capture faces'}
               </button>
+              {FACE_ORDER.every((f) => f in capturedFaces) && (
+                <button
+                  type="button"
+                  class="btn btn-secondary btn-lg"
+                  onClick={() => {
+                    setReviewStep(0)
+                    setShowReviewDialog(true)
+                  }}
+                >
+                  Edit colors
+                </button>
+              )}
             </div>
             <p class="card-hint">
               Four sides while turning the cube, then top and bottom — about a
