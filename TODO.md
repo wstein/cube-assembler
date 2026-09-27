@@ -33,12 +33,9 @@ to the original real-fixture testing discussion. See
 
 ## Next
 
-1. **#7 Replay missed live faces.** Four saved 2026-09-25 frames (three
-   `no-grid`, one `no-sticker-pattern`) reproduce the live decision. Use them
-   to test a focused detector fix.
-2. **#8–9 Resolve old assembly fixtures.** Recheck the two captures saved
+1. **#8–9 Resolve old assembly fixtures.** Recheck the two captures saved
    with a 90-degree wizard error and the 4×4 capture that did not reassemble.
-3. **Stub the camera in Playwright.** Cover capture, canvas crop, saved photo,
+2. **Stub the camera in Playwright.** Cover capture, canvas crop, saved photo,
    and re-detection together; the existing upload tests do not exercise a
    live camera.
 
