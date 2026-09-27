@@ -7,8 +7,8 @@ import {
   preferenceCookie,
   readPreference,
 } from './preferences'
-import type { CubeState, FaceKey } from './cubeAssembly'
-import { turnFace, type Faces, type Axis } from './cubeGeometry'
+import type { CubeState, FaceKey } from '../cube/cubeAssembly'
+import { turnFace, type Faces, type Axis } from '../cube/cubeGeometry'
 
 export const DEFAULT_STICKER_HEX: Record<string, string> = {
   W: '#f7f6f1',

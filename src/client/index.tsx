@@ -30,7 +30,7 @@ import {
   decodeOrbit64State,
   encodeOrbit64State,
   looksLikeOrbit64StateToken,
-} from './orbit64'
+} from '../cube/notation/orbit64'
 import type { ReviewCapture } from './colorReviewPage'
 import { BackdropDialog } from './backdropDialog'
 import { FixtureDownloadDialog } from './fixtureDownloadDialog'
@@ -69,14 +69,14 @@ import {
 import { holdConfirmedFace, NO_HOLD, type LiveHold } from './liveHold'
 import { scaleBounds, type LiveAnalysisRequest } from './liveAnalysis'
 import type { LiveFrameMessage, LiveResultMessage } from './liveAnalysis.worker'
-import { runFullParity, type ParityResult } from './parity'
+import { runFullParity, type ParityResult } from '../cube/parity'
 import {
   WIZARD_FACE_ORDER,
   faceContentKey,
   groupWizardOptions,
   pickWizardFace,
   preferredGuidedArrangementIndex,
-} from './orientationWizard'
+} from '../cube/orientationWizard'
 import {
   faceBoundsForMode,
   captureAndProcessCanvas,
@@ -128,7 +128,7 @@ import {
   type CubeState,
   type GuidedArrangement,
   type GuidedCenterIssue,
-} from './cubeAssembly'
+} from '../cube/cubeAssembly'
 import {
   AUTO_COLORS_ID,
   EMPTY_SETTINGS,
@@ -187,7 +187,7 @@ import {
   fromURFFacelets,
   detectNotationFormat,
   gridsToWRGFacelets,
-} from './notationOutput'
+} from '../cube/notation/notationOutput'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types

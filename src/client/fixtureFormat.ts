@@ -4,7 +4,7 @@
 //             (fixtures saved before 97efa6d, e.g. by an older checkout).
 // Both are keyed by capture slot U..B (the photos' capture order).
 
-import { wrgFaceletsToGrids } from './notationOutput'
+import { wrgFaceletsToGrids } from '../cube/notation/notationOutput'
 
 const SLOTS = ['u', 'r', 'f', 'd', 'l', 'b']
 const COLORS = new Set(['W', 'Y', 'O', 'R', 'G', 'B'])

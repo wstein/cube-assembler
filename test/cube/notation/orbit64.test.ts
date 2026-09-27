@@ -3,9 +3,9 @@ import {
   decodeOrbit64State,
   encodeOrbit64State,
   looksLikeOrbit64StateToken,
-} from '../src/client/orbit64'
+} from '../../../src/cube/notation/orbit64'
 import examples from './orbit64Vectors.json'
-import { largeTables } from '../src/client/orbit64LargeTables'
+import { largeTables } from '../../../src/cube/notation/orbit64LargeTables'
 import largeExamples from './orbit64LargeVectors.json'
 
 // Published by flix-orbit64@6aedfc1 in FORMAT.md and ORBIT64-EXAMPLES.md.

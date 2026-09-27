@@ -80,4 +80,7 @@ export function highConfidenceColorReadings(
     )
   })
 }
-import { solveFaceOrientations, type OrientationSolution } from './cubeAssembly'
+import {
+  solveFaceOrientations,
+  type OrientationSolution,
+} from '../cube/cubeAssembly'

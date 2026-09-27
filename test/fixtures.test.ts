@@ -24,13 +24,13 @@ import { describe, it, expect } from 'vitest'
 import { existsSync, readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import jpeg from 'jpeg-js'
-import { wrgFaceletsToGrids } from '../src/client/notationOutput'
+import { wrgFaceletsToGrids } from '../src/cube/notation/notationOutput'
 import { readFixtureColors } from '../src/client/fixtureFormat'
 import {
   solveGuidedCapture,
   orientationFreeSignature,
   type FaceKey,
-} from '../src/client/cubeAssembly'
+} from '../src/cube/cubeAssembly'
 import {
   BACKGROUND_WB_METHOD,
   DEFAULT_SAMPLING,

@@ -1,5 +1,5 @@
 // Matching good live detections must agree before the camera captures a face.
-import { findCapturedFaceMatch } from './cubeAssembly'
+import { findCapturedFaceMatch } from '../cube/cubeAssembly'
 
 export const AUTO_CAPTURE_STABLE_FRAMES = 5
 export const AUTO_CAPTURE_MIN_CONFIDENCE = 0.6

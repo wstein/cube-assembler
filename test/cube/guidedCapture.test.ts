@@ -1,12 +1,12 @@
 /**
- * test/guidedCapture.test.ts
- * solveGuidedCapture / checkGuidedCenters (src/client/cubeAssembly.ts):
+ * test/cube/guidedCapture.test.ts
+ * solveGuidedCapture / checkGuidedCenters (src/cube/cubeAssembly.ts):
  * simulates a person following the guided protocol on scrambled cubes -
  * held any way up, turned left or right between the 4 side photos, then
  * the top and bottom photographed in either order at any angle - and
  * checks the search puts the cube back together.
  *
- * Run: npx vitest run test/guidedCapture.test.ts
+ * Run: npx vitest run test/cube/guidedCapture.test.ts
  */
 import { describe, it, expect } from 'vitest'
 import { existsSync, readFileSync } from 'node:fs'
@@ -16,7 +16,7 @@ import {
   allOrientations,
   solvedCubeFaces,
   type Faces,
-} from '../src/client/cubeGeometry'
+} from '../../src/cube/cubeGeometry'
 import {
   solveGuidedCapture,
   checkGuidedCenters,
@@ -29,8 +29,8 @@ import {
   placeCapturedFace,
   type FaceKey,
   type GuidedCapture,
-} from '../src/client/cubeAssembly'
-import { preferredGuidedArrangementIndex } from '../src/client/orientationWizard'
+} from '../../src/cube/cubeAssembly'
+import { preferredGuidedArrangementIndex } from '../../src/cube/orientationWizard'
 
 const WCA: Record<FaceKey, string> = {
   U: 'W',
@@ -43,7 +43,7 @@ const WCA: Record<FaceKey, string> = {
 const FACES: FaceKey[] = ['U', 'R', 'F', 'D', 'L', 'B']
 
 const guidedFixture = new URL(
-  './fixtures/capture-2026-09-25T12-43-31-363Z/meta.json',
+  '../fixtures/capture-2026-09-25T12-43-31-363Z/meta.json',
   import.meta.url,
 )
 const savedFixtureTest = existsSync(guidedFixture) ? it : it.skip

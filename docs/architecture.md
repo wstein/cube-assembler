@@ -35,11 +35,11 @@ dark gray gradient and soft shadow behind the cube.
    the sticker grid. [`imageProcessing.ts`](../src/client/imageProcessing.ts)
    samples colors, checks face visibility, and recalibrates across six faces.
    [`autoCapture.ts`](../src/client/autoCapture.ts) tracks stable readings.
-3. [`cubeAssembly.ts`](../src/client/cubeAssembly.ts) searches face identities
+3. [`cubeAssembly.ts`](../src/cube/cubeAssembly.ts) searches face identities
    and rotations. Odd cubes use fixed center colors; even cubes search identity
    and rotation together. Guided capture narrows the candidate arrangements
-   to 64. [`orientationWizard.ts`](../src/client/orientationWizard.ts) asks about
-   ambiguous placements, then [`parity.ts`](../src/client/parity.ts) checks
+   to 64. [`orientationWizard.ts`](../src/cube/orientationWizard.ts) asks about
+   ambiguous placements, then [`parity.ts`](../src/cube/parity.ts) checks
    physical validity.
 4. [`fixtureZip.ts`](../src/client/fixtureZip.ts) exports reviewed photos and
    metadata. [`fixtureFormat.ts`](../src/client/fixtureFormat.ts) reads saved
@@ -68,5 +68,5 @@ browser flows. Reviewed capture photos and metadata live in `test/fixtures/`
 and use Git LFS. Start with the [fixture guide](../test/fixtures/README.md)
 before adding one. The Orbit64 browser codec is adapted from
 `flix-orbit64` under [Apache-2.0](../third_party/flix-orbit64.LICENSE), with
-cross-project vectors in `test/orbit64Vectors.json` and
-`test/orbit64LargeVectors.json`.
+cross-project vectors in `test/cube/notation/orbit64Vectors.json` and
+`test/cube/notation/orbit64LargeVectors.json`.

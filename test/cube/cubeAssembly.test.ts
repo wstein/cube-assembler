@@ -1,6 +1,6 @@
 /**
- * test/cubeAssembly.test.ts
- * Vitest tests for src/client/cubeAssembly.ts's face-orientation solver.
+ * test/cube/cubeAssembly.test.ts
+ * Vitest tests for src/cube/cubeAssembly.ts's face-orientation solver.
  *
  * solveFaceOrientations() identifies each of 6 arbitrarily-captured faces
  * and finds the 0/90/180/270 rotation of each that maximizes valid corner
@@ -10,10 +10,10 @@
  * center sticker; even sizes (2x2, 4x4, 6x6) have no such reference and
  * search for identity jointly with rotation.
  *
- * Run: npx vitest run test/cubeAssembly.test.ts
+ * Run: npx vitest run test/cube/cubeAssembly.test.ts
  */
 import { describe, it, expect } from 'vitest'
-import { solveFaceOrientations } from '../src/client/cubeAssembly'
+import { solveFaceOrientations } from '../../src/cube/cubeAssembly'
 
 const SOLVED_COLOR: Record<string, string> = {
   U: 'W',
@@ -317,7 +317,7 @@ describe('solveFaceOrientations', () => {
       // "representative" wing sticker per edge side using the same raw
       // index on both faces, but 4 of the 12 edges (UR, UB, DB, DL) read
       // their two faces' wing positions in OPPOSITE directions - the same
-      // class of bug src/client/parity.ts's EDGE_LINES table documents
+      // class of bug src/cube/parity.ts's EDGE_LINES table documents
       // already hitting (and fixing) for the wing-edge parity check. This
       // capture (posted as evidence of a real, valid cube that the app
       // nonetheless warned about) used to score 11/12 - DB specifically -

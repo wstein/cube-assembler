@@ -4,12 +4,12 @@ import {
   solveFaceOrientations,
   type FaceKey,
   type OrientedCandidate,
-} from '../src/client/cubeAssembly'
+} from '../../src/cube/cubeAssembly'
 import {
   faceContentKey,
   groupWizardOptions,
   pickWizardFace,
-} from '../src/client/orientationWizard'
+} from '../../src/cube/orientationWizard'
 
 const grid = (rows: string) =>
   rows.split('/').map((row) => row.trim().split(' '))
