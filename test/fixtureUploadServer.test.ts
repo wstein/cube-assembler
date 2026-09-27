@@ -45,9 +45,12 @@ describe('local fixture upload server', () => {
     if (root) await rm(root, { recursive: true, force: true })
   })
 
-  async function start(log: (line: string) => void = () => {}) {
+  async function start(
+    log: (line: string) => void = () => {},
+    options?: { allowedOrigins?: string[] },
+  ) {
     root = await mkdtemp(join(tmpdir(), 'fixture-upload-'))
-    const started = createFixtureUploadServer(root, log)
+    const started = createFixtureUploadServer(root, log, options)
     server = started
     started.listen(0, '127.0.0.1')
     await once(started, 'listening')
@@ -130,5 +133,77 @@ describe('local fixture upload server', () => {
     expect(lines[1]).toMatch(/POST \/upload 201.*trace-test/)
     expect(lines[2]).toMatch(/POST \/upload 409.*Fixture already exists/)
     expect(lines.join('\n')).not.toContain('colorsURFDLB')
+  })
+
+  it('lets the published app ping and upload across origins', async () => {
+    await start()
+    const origin = 'https://wstein.github.io'
+    const preflight = await fetch(`${url}/upload`, {
+      method: 'OPTIONS',
+      headers: {
+        Origin: origin,
+        'Access-Control-Request-Method': 'POST',
+        'Access-Control-Request-Headers': 'x-fixture-upload',
+        'Access-Control-Request-Private-Network': 'true',
+      },
+    })
+    expect(preflight.status).toBe(204)
+    expect(preflight.headers.get('access-control-allow-origin')).toBe(origin)
+    expect(preflight.headers.get('access-control-allow-methods')).toContain(
+      'POST',
+    )
+    expect(
+      preflight.headers.get('access-control-allow-headers')?.toLowerCase(),
+    ).toContain('x-fixture-upload')
+    expect(preflight.headers.get('access-control-allow-private-network')).toBe(
+      'true',
+    )
+    const ping = await fetch(`${url}/ping`, { headers: { Origin: origin } })
+    expect(ping.status).toBe(204)
+    expect(ping.headers.get('access-control-allow-origin')).toBe(origin)
+    const response = await upload(fixtureForm(), {
+      'X-Fixture-Upload': '1',
+      Origin: origin,
+    })
+    expect(response.status).toBe(201)
+    expect(response.headers.get('access-control-allow-origin')).toBe(origin)
+  })
+
+  it('accepts the local dev server but refuses other sites', async () => {
+    await start()
+    const dev = await upload(fixtureForm('from-dev'), {
+      'X-Fixture-Upload': '1',
+      Origin: 'http://localhost:5173',
+    })
+    expect(dev.status).toBe(201)
+    const evil = 'https://evil.example'
+    const preflight = await fetch(`${url}/upload`, {
+      method: 'OPTIONS',
+      headers: { Origin: evil, 'Access-Control-Request-Method': 'POST' },
+    })
+    expect(preflight.status).toBe(403)
+    expect(preflight.headers.get('access-control-allow-origin')).toBeNull()
+    const ping = await fetch(`${url}/ping`, { headers: { Origin: evil } })
+    expect(ping.headers.get('access-control-allow-origin')).toBeNull()
+    const post = await upload(fixtureForm('from-evil'), {
+      'X-Fixture-Upload': '1',
+      Origin: evil,
+    })
+    expect(post.status).toBe(403)
+    expect(await readdir(root!)).toEqual(['from-dev'])
+  })
+
+  it('takes the allowed origins as an option', async () => {
+    await start(() => {}, { allowedOrigins: ['https://example.test'] })
+    const allowed = await fetch(`${url}/ping`, {
+      headers: { Origin: 'https://example.test' },
+    })
+    expect(allowed.headers.get('access-control-allow-origin')).toBe(
+      'https://example.test',
+    )
+    const published = await fetch(`${url}/ping`, {
+      headers: { Origin: 'https://wstein.github.io' },
+    })
+    expect(published.headers.get('access-control-allow-origin')).toBeNull()
   })
 })

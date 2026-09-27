@@ -5,6 +5,10 @@ import { fileURLToPath } from 'node:url'
 
 const FACES = ['u', 'r', 'f', 'd', 'l', 'b']
 const MAX_BYTES = 30 * 1024 * 1024
+// The published app may upload here too. Loopback pages (the Vite dev server,
+// a local preview) are always allowed; any other site is refused.
+export const DEFAULT_ALLOWED_ORIGINS = ['https://wstein.github.io']
+const LOOPBACK_ORIGIN = /^http:\/\/(localhost|127\.0\.0\.1|\[::1\])(:\d+)?$/
 
 class UploadError extends Error {
   constructor(status, message) {
@@ -121,9 +125,22 @@ async function validateFixture(byName) {
   }
 }
 
-export function createFixtureUploadServer(rootDir, log = console.log) {
+export function createFixtureUploadServer(
+  rootDir,
+  log = console.log,
+  { allowedOrigins = DEFAULT_ALLOWED_ORIGINS } = {},
+) {
   return createServer(async (req, res) => {
     const started = performance.now()
+    const origin = req.headers.origin
+    const originAllowed =
+      origin === undefined ||
+      LOOPBACK_ORIGIN.test(origin) ||
+      allowedOrigins.includes(origin)
+    if (origin !== undefined && originAllowed) {
+      res.setHeader('Access-Control-Allow-Origin', origin)
+      res.setHeader('Vary', 'Origin')
+    }
     const path = (req.url ?? '')
       .split('?')[0]
       .replace(/[\x00-\x1f\x7f]/g, '?')
@@ -136,6 +153,19 @@ export function createFixtureUploadServer(rootDir, log = console.log) {
       reply(res, status, message)
       trace(status, message)
     }
+    if (req.method === 'OPTIONS') {
+      if (!originAllowed || (req.url !== '/ping' && req.url !== '/upload'))
+        return send(403, 'Origin not allowed')
+      res.setHeader('Access-Control-Allow-Methods', 'GET, POST')
+      res.setHeader('Access-Control-Allow-Headers', 'X-Fixture-Upload')
+      res.setHeader('Access-Control-Max-Age', '600')
+      // Chrome asks before a public site may reach a local address.
+      if (req.headers['access-control-request-private-network'] === 'true')
+        res.setHeader('Access-Control-Allow-Private-Network', 'true')
+      res.writeHead(204, { 'Cache-Control': 'no-store' })
+      res.end()
+      return trace(204, `preflight ${origin ?? ''}`.trim())
+    }
     if (req.url === '/ping') {
       if (req.method !== 'GET') return send(405, 'Method not allowed')
       res.writeHead(204, { 'Cache-Control': 'no-store' })
@@ -144,6 +174,7 @@ export function createFixtureUploadServer(rootDir, log = console.log) {
     }
     if (req.url !== '/upload') return send(404, 'Not found')
     if (req.method !== 'POST') return send(405, 'Method not allowed')
+    if (!originAllowed) return send(403, 'Origin not allowed')
     if (req.headers['x-fixture-upload'] !== '1')
       return send(403, 'Upload header required')
     if (!req.headers['content-type']?.startsWith('multipart/form-data;')) {
@@ -192,13 +223,19 @@ export function createFixtureUploadServer(rootDir, log = console.log) {
 
 if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
   const port = 7100
-  createFixtureUploadServer(join(process.cwd(), 'test', 'fixtures')).listen(
-    port,
-    '127.0.0.1',
-    () => {
-      process.stdout.write(
-        `Fixture upload only: http://127.0.0.1:${port}/upload\n`,
-      )
+  const allowedOrigins = process.env.FIXTURE_UPLOAD_ORIGINS
+    ? process.env.FIXTURE_UPLOAD_ORIGINS.split(',').map((o) => o.trim())
+    : DEFAULT_ALLOWED_ORIGINS
+  createFixtureUploadServer(
+    join(process.cwd(), 'test', 'fixtures'),
+    undefined,
+    {
+      allowedOrigins,
     },
-  )
+  ).listen(port, '127.0.0.1', () => {
+    process.stdout.write(
+      `Fixture upload only: http://127.0.0.1:${port}/upload\n` +
+        `Accepting uploads from localhost and ${allowedOrigins.join(', ')}\n`,
+    )
+  })
 }
