@@ -85,6 +85,9 @@ the detected profile; without that click, Automatic never changes its stored
 RGB values or capture count. A color match does not identify the physical cube.
 Profiles can be exported and restored as JSON. Browser storage uses
 `cube-assembler-profiles-v1`; other storage keys are ignored.
+First-party cookies remember the selected cube size and color profile ID,
+alongside mirror, auto capture, and sound. Profile colors and custom cube
+settings remain in browser storage; a missing saved profile falls back safely.
 
 The update gate uses a mean palette distance of 0.08 and a per-color limit
 of 0.14 in the classifier's OKLab metric, after a valid reviewed camera
@@ -267,7 +270,7 @@ cube-assembler/
     └── fixtures/                  Saved captures for fixtures.test.ts (see fixtures/README.md)
 ```
 
-Reviewed captures in `test/fixtures/capture-*` are committed with Git LFS and
+Reviewed captures in `test/fixtures/cube-*` are committed with Git LFS and
 run in CI. Image tests skip only when a checkout has no real captures.
 
 ---
@@ -418,8 +421,8 @@ with `<name>/meta.json` and the six face photos. Download and unzip it into
 Software-rendered fixtures use `synt-` names and
 `synthetic`/`software-rendered` metadata tags; their saved images are JPEGs.
 New saves include the cube size in both names, for example
-`cube-3x3-2026-09-27T08-55-46-205Z.zip` and
-`test/fixtures/cube-3x3-2026-09-27T08-55-46-205Z/`.
+`cube-3x3-2026-09-27T08-55-46.zip` and
+`test/fixtures/cube-3x3-2026-09-27T08-55-46/`. The timestamp uses whole UTC seconds.
 The button stays disabled until the upload server responds and rechecks while
 the fixture dialog is open. Availability uses an empty `GET /ping` response;
 there is no fixture download route.
