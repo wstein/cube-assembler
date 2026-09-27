@@ -33,8 +33,7 @@ real cubes" design discussion. Numbering matches that discussion's ratings;
   through two weak live frames.
 - **Removed what the app no longer used**: automatic cube-size detection,
   the server-side assembly worker, the scramble/algorithm/parse endpoints,
-  the ReScript library, the vendored cubing.js, preact-router and the
-  server's broken static page.
+  the ReScript library, preact-router and the server's broken static page.
 - **No server any more**: the parity check runs in the browser
   (`src/client/parity.ts`), and fixtures download and upload as zip files
   (`src/client/fixtureZip.ts`), so the GitHub Pages demo does everything.
