@@ -48,8 +48,9 @@ to the original real-fixture testing discussion. See
   fixtures.
 - **#6 Evaluate a small learned classifier.** Only revisit when the corpus
   contains tens of diverse real captures; a smaller set would overfit.
-- Split the large `src/client/index.tsx` upload, fixture, and capture flows
-  into separate components and hooks, one tested move at a time.
+- Continue splitting `src/client/index.tsx`: the fixture preview and its
+  upload/download lifecycle now have a component and hook; extract the photo
+  upload review and capture flows in further tested moves.
 - Load the 3D viewer and Profiles page only when opened; measure the main
   bundle size before and after.
 - Add a production-build Playwright test for localhost upload and CORS.
