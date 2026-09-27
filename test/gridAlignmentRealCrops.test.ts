@@ -18,7 +18,7 @@ const root = join(__dirname, 'fixtures')
 const captures = existsSync(root)
   ? readdirSync(root).filter(
       (name) =>
-        name.startsWith('capture-') &&
+        /^(?:capture-|cube-\d+x\d+-)/.test(name) &&
         existsSync(join(root, name, 'meta.json')),
     )
   : []
