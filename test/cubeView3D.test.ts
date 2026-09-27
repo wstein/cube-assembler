@@ -313,29 +313,43 @@ describe('cubeView3D math and geometry', () => {
             [-0.2, 0.7, -1],
             [0.5, -0.4, -1],
           ]
+          // Only the front surface near a junction can stop its rays within
+          // the groove depth; casting against just that keeps this fast.
+          const front: { i: number; box: number[] }[] = []
+          for (let i = 0; i < mesh.indices.length; i += 3) {
+            const corners = [0, 1, 2].map((k) => mesh.indices[i + k] * 3)
+            const xs = corners.map((c) => mesh.positions[c])
+            const ys = corners.map((c) => mesh.positions[c + 1])
+            const zs = corners.map((c) => mesh.positions[c + 2])
+            if (Math.max(...zs) > half - 0.6)
+              front.push({
+                i,
+                box: [
+                  Math.min(...xs),
+                  Math.max(...xs),
+                  Math.min(...ys),
+                  Math.max(...ys),
+                ],
+              })
+          }
+          const nearby = junctions.map(([jx, jy]) =>
+            front
+              .filter(
+                ({ box }) =>
+                  box[1] > jx - 0.6 &&
+                  box[0] < jx + 0.6 &&
+                  box[3] > jy - 0.6 &&
+                  box[2] < jy + 0.6,
+              )
+              .map(({ i }) => i),
+          )
           const leaks: string[] = []
           for (const view of views) {
             const len = Math.hypot(...view)
             const d = view.map((x) => x / len) as Vec
-            for (const [jx, jy, edge] of junctions) {
+            for (const [k, [jx, jy, edge]] of junctions.entries()) {
               if (edge && d[1] >= 0) continue
-              // Only the front surface near the junction can stop these rays
-              // within the groove depth; skipping the rest keeps this fast.
-              const near: number[] = []
-              for (let i = 0; i < mesh.indices.length; i += 3) {
-                const corners = [0, 1, 2].map((k) => mesh.indices[i + k] * 3)
-                const xs = corners.map((c) => mesh.positions[c])
-                const ys = corners.map((c) => mesh.positions[c + 1])
-                const zs = corners.map((c) => mesh.positions[c + 2])
-                if (
-                  Math.max(...xs) > jx - 0.6 &&
-                  Math.min(...xs) < jx + 0.6 &&
-                  Math.max(...ys) > jy - 0.6 &&
-                  Math.min(...ys) < jy + 0.6 &&
-                  Math.max(...zs) > half - 0.6
-                )
-                  near.push(i)
-              }
+              const near = nearby[k]
               for (let i = -4; i <= 4; i++)
                 for (let j = -4; j <= 4; j++) {
                   const target: Vec = [
