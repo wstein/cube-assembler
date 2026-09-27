@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { expect, test, type Page } from '@playwright/test'
 
-const fixture = resolve('test/fixtures/capture-2026-09-27T09-00-11-513Z')
+const fixture = resolve('test/fixtures/cube-3x3-2026-09-27T09-00-11')
 const faceKeys = ['u', 'r', 'f', 'd', 'l', 'b'] as const
 const faceLabels = ['Side 1', 'Side 2', 'Side 3', 'Side 4', 'Top', 'Bottom']
 const photos = faceKeys.map((face) => resolve(fixture, `face-${face}.jpg`))

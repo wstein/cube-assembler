@@ -69,9 +69,10 @@ export function buildFixture(
   }
 
   // The zip's folder name, and so the fixture's directory name.
+  // Use whole UTC seconds for the ZIP and localhost upload folder.
+  const timestamp = now.toISOString().slice(0, 19).replace(/:/g, '-')
   const rawName =
-    request.name ??
-    `cube-${request.gridSize}x${request.gridSize}-${now.toISOString().replace(/[:.]/g, '-')}`
+    request.name ?? `cube-${request.gridSize}x${request.gridSize}-${timestamp}`
   const name = rawName.replace(/[^a-zA-Z0-9_-]/g, '-').slice(0, 80)
   if (!name) throw new Error('Invalid fixture name')
 

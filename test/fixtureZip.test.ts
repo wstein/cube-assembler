@@ -75,7 +75,7 @@ describe('fixture zips', () => {
       request({ name: undefined }),
       new Date('2026-09-27T08:55:46.205Z'),
     )
-    expect(fixture.name).toBe('cube-3x3-2026-09-27T08-55-46-205Z')
+    expect(fixture.name).toBe('cube-3x3-2026-09-27T08-55-46')
     expect(Object.keys(unzipSync(zipFixture(fixture)))).toContain(
       `${fixture.name}/meta.json`,
     )
@@ -88,7 +88,7 @@ describe('fixture zips', () => {
         }),
         new Date('2026-09-27T08:55:46.205Z'),
       ).name,
-    ).toBe('cube-2x2-2026-09-27T08-55-46-205Z')
+    ).toBe('cube-2x2-2026-09-27T08-55-46')
   })
 
   it('keeps explicit fixture names path-safe', () => {

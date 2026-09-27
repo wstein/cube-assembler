@@ -93,7 +93,7 @@ describe('local fixture upload server', () => {
 
   it('stores size-prefixed fixture names as directory names', async () => {
     await start()
-    const name = 'cube-3x3-2026-09-27T08-55-46-205Z'
+    const name = 'cube-3x3-2026-09-27T08-55-46'
     expect((await upload(fixtureForm(name))).status).toBe(201)
     expect(await readdir(root!)).toEqual([name])
     expect((await readdir(join(root!, name))).sort()).toEqual([
