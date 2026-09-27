@@ -97,3 +97,34 @@ test('uploads the same photos with meta.json and preserves all saved face colors
   const grids = await reviewFaces(page)
   expect(grids).toEqual(metadata.colorsURFDLB.split(' '))
 })
+
+test('shows the fixture contents before downloading and closes with Escape', async ({
+  page,
+}) => {
+  await page.goto('/')
+  await page
+    .locator('.capture-alternatives input[type="file"]')
+    .setInputFiles([...photos, resolve(fixture, 'meta.json')])
+  const review = page.locator('.review-modal-content')
+  await expect(review).toBeVisible()
+  for (let side = 0; side < 5; side++) {
+    await review
+      .getByRole('button', { name: 'Looks right — next side' })
+      .click()
+  }
+  await review
+    .getByRole('button', { name: 'Looks right — put the cube together' })
+    .click()
+  const approve = page.getByRole('button', { name: 'Yes, this is my cube' })
+  if (await approve.isVisible()) await approve.click()
+  await page.getByRole('button', { name: 'Save as test fixture' }).click()
+  const dialog = page.getByRole('dialog', { name: 'Save as test fixture' })
+  await expect(
+    dialog.getByRole('list', { name: 'Photos in the zip' }).locator('li'),
+  ).toHaveCount(6)
+  await expect(
+    dialog.getByRole('button', { name: 'Download zip' }),
+  ).toBeVisible()
+  await dialog.press('Escape')
+  await expect(dialog).toHaveCount(0)
+})
