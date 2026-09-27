@@ -9,13 +9,13 @@
  *     on the six-face choice;
  *   - whether it agrees with the profile the capture recorded as resolved
  *     (capture.colorProfile, newer fixtures only);
- *   - how many stickers of the next face the choice reads as reviewed,
- *     against camera hues alone (no palette) before the first face.
+ *   - how many stickers the chosen palette reads as reviewed, including
+ *     the first face whose live frame picks a profile before previewing it.
  * It asserts only that the replay runs. The numbers are written as JSON to
  * $REPLAY_REPORT when set; $REPLAY_PROFILES may name a saved settings or
- * profiles file whose color profiles join the candidates. A profile learned
- * from the replayed capture itself (id fixture-<capture time>) is left out
- * of that capture's candidates, or the replay would grade itself.
+ * profiles file whose color profiles join the built-in candidates. A profile
+ * learned from the replayed capture itself (id fixture-<capture time>) is
+ * left out of that capture's candidates, or the replay would grade itself.
  *
  * Run: REPLAY_REPORT=report.json npx vitest run test/provisionalPaletteReplay.test.ts
  */
@@ -58,15 +58,13 @@ type Meta = {
   gridSize: number
   faces: Record<string, { readings?: number[][]; capturedAt?: string }>
   capture?: {
-    colorProfile?: { id: string; name: string; colors?: Record<string, RGB> }
+    colorProfile?: { id: string; name: string }
   }
 }
 
 // Faces in the order they were taken, with their per-sticker readings and
 // reviewed colors; null when a face lacks readings.
-function loadCapture(
-  name: string,
-): { capture: Capture; recordedProfile: ColorProfile | null } | null {
+function loadCapture(name: string): Capture | null {
   const meta = JSON.parse(
     readFileSync(join(root, name, 'meta.json'), 'utf8'),
   ) as Meta
@@ -91,22 +89,11 @@ function loadCapture(
     })
   }
   const recorded = meta.capture?.colorProfile ?? null
-  const recordedProfile = recorded?.colors
-    ? {
-        id: recorded.id,
-        name: recorded.name,
-        colors: recorded.colors,
-        captures: 1,
-      }
-    : null
   return {
-    capture: {
-      name,
-      size: meta.gridSize,
-      faces,
-      recorded: recorded && { id: recorded.id, name: recorded.name },
-    },
-    recordedProfile,
+    name,
+    size: meta.gridSize,
+    faces,
+    recorded: recorded && { id: recorded.id, name: recorded.name },
   }
 }
 
@@ -129,18 +116,19 @@ describe('provisional palette replay on real captures', () => {
 
   it('replays every capture face by face', () => {
     const loaded = captures.map(loadCapture).filter((entry) => entry !== null)
-    // Candidates: every built-in, every profile a capture recorded, and any supplied.
+    // Candidates available in a fresh install, plus any supplied profiles.
+    // Do not import a fixture's own recorded palette into its test set.
     const candidates = new Map<string, ColorProfile>(
       builtinColorProfiles().map((profile) => [profile.id, profile]),
     )
-    for (const { recordedProfile } of loaded)
-      if (recordedProfile) candidates.set(recordedProfile.id, recordedProfile)
     for (const profile of extraProfiles()) candidates.set(profile.id, profile)
     const profiles = [...candidates.values()]
 
-    const rows = loaded.map(({ capture }) => {
-      const own =
-        `fixture-${capture.name.slice('capture-'.length)}`.toLowerCase()
+    const rows = loaded.map((capture) => {
+      const timestamp =
+        capture.name.match(/^(?:capture|cube-\d+x\d+)-(.*)$/)?.[1] ??
+        capture.name
+      const own = `fixture-${timestamp}`.toLowerCase()
       const fair = profiles.filter(
         (profile) => profile.id.toLowerCase() !== own,
       )
@@ -159,16 +147,31 @@ describe('provisional palette replay on real captures', () => {
         choices.findIndex((_, i) =>
           choices.slice(i).every((id) => id === final),
         ) + 1
-      // The next face read with the palette chosen so far (none before the
-      // first face), with the six-face choice, and with camera hues only.
+      // The first live frame chooses a profile from its own readings; later
+      // frames use the profile chosen from faces already captured.
       let preview = 0,
         withFinal = 0,
         cameraHues = 0,
         stickers = 0
+      const previewErrors: Array<{
+        face: string
+        cell: number
+        expected: string
+        got: string
+      }> = []
       capture.faces.forEach((face, i) => {
-        const chosen =
-          i === 0 ? undefined : candidates.get(choices[i - 1])!.colors
-        preview += correct(face, chosen)
+        const chosen = candidates.get(choices[Math.max(0, i - 1)])!.colors
+        face.readings.forEach((rgb, cell) => {
+          const got = classifySticker(rgb, chosen).color
+          if (got === face.truth[cell]) preview++
+          else
+            previewErrors.push({
+              face: face.slot,
+              cell,
+              expected: face.truth[cell],
+              got,
+            })
+        })
         withFinal += correct(face, candidates.get(final)!.colors)
         cameraHues += correct(face, undefined)
         stickers += face.readings.length
@@ -187,6 +190,7 @@ describe('provisional palette replay on real captures', () => {
             : null,
         stickers,
         preview,
+        previewErrors,
         withFinal,
         cameraHues,
       }
