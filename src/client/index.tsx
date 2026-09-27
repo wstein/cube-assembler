@@ -1546,7 +1546,8 @@ function App() {
         setAppliedBackgroundGains(faceGains)
 
         let wb = await runGlobalWhiteBalance(images, puzzleSize, faceGains ?? undefined, sampling, automatic ? undefined : palette)
-        // The preview's latest choice counts on a near tie (see resolveAutomaticProfile).
+        // Record the latest preview so the final six-face choice can explain
+        // whether it kept or replaced that provisional palette.
         const latestPreview = FACE_ORDER.map((f) => newCapturedFaces[f]).filter((data) => data?.previewColorProfile)
           .sort((a, b) => b.timestamp - a.timestamp)[0]?.previewColorProfile
         const resolution = automatic && wb.learned ? resolveAutomaticProfile(profileStore.colors, wb.learned.colors, latestPreview?.id ?? null) : null

@@ -149,12 +149,20 @@ describe('resolving the automatic profile after all six faces', () => {
     expect(result.reason).toBe('preview')
   })
 
-  it('names the nearest candidates with their fit when nothing is chosen', () => {
+  it('uses the nearest close profile when the preview chose another profile', () => {
     const result = resolveAutomaticProfile([plastic1, plastic2, far], between, 'plastic1')
-    expect(result.profile).toBeNull()
-    expect(result.reason).toBe('tie')
+    expect(result.profile?.id).toBe('plastic2')
+    expect(result.reason).toBe('nearest')
     expect(result.nearest.map((entry) => entry.profile.id).slice(0, 2)).toEqual(['plastic2', 'plastic1'])
     expect(result.nearest[0].fit).toBeGreaterThanOrEqual(result.nearest[1].fit)
+  })
+
+  it('breaks an exact color tie consistently without changing stored profiles', () => {
+    const duplicate = { ...plastic1, id: 'duplicate', name: 'Duplicate' }
+    const result = resolveAutomaticProfile([plastic1, duplicate], plastic1.colors, null)
+    expect(result.profile?.id).toBe('plastic1')
+    expect(result.reason).toBe('nearest')
+    expect(plastic1.colors).toEqual(STICKER_COLORS)
   })
 
   it('says when no saved profile is close', () => {
@@ -179,7 +187,7 @@ describe('summarizing the preview profiles per face', () => {
     expect(captureProfileFinding(['Generic colors', ...Array(5).fill('GoCube')], 'GoCube', 'clear'))
       .toBe('Preview used Generic colors (face 1), GoCube (faces 2–6)')
     expect(captureProfileFinding(Array(6).fill('GoCube'), 'Colors from this capture', 'tie'))
-      .toBe('Saved color profiles were too similar to choose')
+      .toBe('Saved profiles matched equally; colors from this capture were used')
     expect(captureProfileFinding(Array(6).fill('GoCube'), 'Colors from this capture', 'far'))
       .toBe('No saved color profile was close enough')
   })
