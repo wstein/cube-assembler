@@ -885,11 +885,11 @@ export function CubeView3D({
     const gl =
       (canvas.getContext('webgl2', {
         antialias: true,
-        alpha: false,
+        alpha: true,
       }) as WebGL2RenderingContext | null) ||
       (canvas.getContext('webgl', {
         antialias: true,
-        alpha: false,
+        alpha: true,
       }) as WebGLRenderingContext | null)
     if (!gl) {
       setIsSupported(false)
@@ -908,7 +908,7 @@ export function CubeView3D({
     gl.enable(gl.DEPTH_TEST)
     gl.enable(gl.CULL_FACE)
     gl.cullFace(gl.BACK)
-    gl.clearColor(0.08, 0.08, 0.1, 1.0)
+    gl.clearColor(0, 0, 0, 0)
 
     // Build geometry
     const mesh = buildCubeMesh(cube, puzzleSize, palette, isStickerless)
