@@ -16,10 +16,33 @@
 import { cellEdges } from '../src/client/gridAlignment'
 import { describe, it, expect } from 'vitest'
 import {
-  learnStickerColors, rgbToOKLCH, hueCircularRange, hueRangesOverlap, linearRange,
-  hungarianAssignment, trimmedMeanColor, STICKER_COLORS, extractBackgroundColor, BACKGROUND_CUBE_GAP, applyGains, applyGainsToPixels, backdropReference, removeGains, computeBackgroundGains,
-  stickerSampleRect, DEFAULT_SAMPLING, measureSharpness, classifySticker, stickerColor,
-  extractColorsFromImageData, hasPlausibleStickerFace, hasVisibleCubeFace, faceVisibility, faceBoundsForMode, NEUTRAL_GAINS, type RGB,
+  learnStickerColors,
+  rgbToOKLCH,
+  hueCircularRange,
+  hueRangesOverlap,
+  linearRange,
+  hungarianAssignment,
+  trimmedMeanColor,
+  STICKER_COLORS,
+  extractBackgroundColor,
+  BACKGROUND_CUBE_GAP,
+  applyGains,
+  applyGainsToPixels,
+  backdropReference,
+  removeGains,
+  computeBackgroundGains,
+  stickerSampleRect,
+  DEFAULT_SAMPLING,
+  measureSharpness,
+  classifySticker,
+  stickerColor,
+  extractColorsFromImageData,
+  hasPlausibleStickerFace,
+  hasVisibleCubeFace,
+  faceVisibility,
+  faceBoundsForMode,
+  NEUTRAL_GAINS,
+  type RGB,
 } from '../src/client/imageProcessing'
 
 describe('capture geometry modes', () => {
@@ -28,14 +51,21 @@ describe('capture geometry modes', () => {
     const canvas = {
       width: 200,
       height: 100,
-      getContext: () => { contextReads++; return null },
+      getContext: () => {
+        contextReads++
+        return null
+      },
     } as unknown as HTMLCanvasElement
     expect(faceBoundsForMode(canvas, 3, 'fixed')).toEqual({
-      startX: 70, startY: 20, faceWidth: 60, faceHeight: 60,
+      startX: 70,
+      startY: 20,
+      faceWidth: 60,
+      faceHeight: 60,
     })
     expect(contextReads).toBe(0)
     expect(faceBoundsForMode(canvas, 3, 'aligned')).toEqual({
-      ...faceBoundsForMode(canvas, 3, 'fixed'), gridFound: false,
+      ...faceBoundsForMode(canvas, 3, 'fixed'),
+      gridFound: false,
     })
     expect(contextReads).toBe(1)
   })
@@ -60,71 +90,122 @@ describe('live face appearance', () => {
 
   it('rejects a uniformly colored background despite its high color confidence', () => {
     const blank = frame(() => ({ r: 210, g: 195, b: 170 }))
-    expect(extractColorsFromImageData(blank, size, size).confidence).toBeGreaterThan(0.5)
+    expect(
+      extractColorsFromImageData(blank, size, size).confidence,
+    ).toBeGreaterThan(0.5)
     expect(hasPlausibleStickerFace(blank, size, size, 3)).toBe(false)
   })
 
   it('accepts coherent sticker colors separated by a regular dark grid', () => {
-    const face = frame((x, y) => x % 30 < 3 || y % 30 < 3
-      ? { r: 10, g: 10, b: 10 }
-      : { r: 220, g: 105, b: 30 })
+    const face = frame((x, y) =>
+      x % 30 < 3 || y % 30 < 3
+        ? { r: 10, g: 10, b: 10 }
+        : { r: 220, g: 105, b: 30 },
+    )
     expect(hasPlausibleStickerFace(face, size, size, 3)).toBe(true)
   })
 
   it('does not call room lines a cube in Detect face without an outer boundary', () => {
-    const gridLikeRoom = frame((x, y) => x % 30 < 3 || y % 30 < 3
-      ? { r: 10, g: 10, b: 10 }
-      : { r: 220, g: 105, b: 30 })
-    expect(faceVisibility(gridLikeRoom, size, size, 3, () => false).visible).toBe(true)
-    expect(faceVisibility(gridLikeRoom, size, size, 3, () => false, true)).toEqual({
-      visible: false, coherent: true, plausible: true, outline: false,
+    const gridLikeRoom = frame((x, y) =>
+      x % 30 < 3 || y % 30 < 3
+        ? { r: 10, g: 10, b: 10 }
+        : { r: 220, g: 105, b: 30 },
+    )
+    expect(
+      faceVisibility(gridLikeRoom, size, size, 3, () => false).visible,
+    ).toBe(true)
+    expect(
+      faceVisibility(gridLikeRoom, size, size, 3, () => false, true),
+    ).toEqual({
+      visible: false,
+      coherent: true,
+      plausible: true,
+      outline: false,
     })
-    expect(faceVisibility(gridLikeRoom, size, size, 3, () => true, true).visible).toBe(true)
+    expect(
+      faceVisibility(gridLikeRoom, size, size, 3, () => true, true).visible,
+    ).toBe(true)
   })
 
   it("reads an odd cube's center past a large logo", () => {
     // 3x3, 100px cells with dark seams; the center is a white cap with a
     // thick blue logo (three bars) across its middle, like a GAN center.
-    const n = 3, big = 300
-    const logo = (x: number, y: number) => x >= 125 && x < 175 && y >= 125 && y < 175 && ((y - 125) % 18 < 11 || (x - 125) % 25 < 8)
+    const n = 3,
+      big = 300
+    const logo = (x: number, y: number) =>
+      x >= 125 &&
+      x < 175 &&
+      y >= 125 &&
+      y < 175 &&
+      ((y - 125) % 18 < 11 || (x - 125) % 25 < 8)
     const draw = (center: number[]) => {
       const face = new Uint8ClampedArray(big * big * 4)
       for (let y = 0; y < big; y++) {
         for (let x = 0; x < big; x++) {
-          const seam = x % 100 < 4 || x % 100 > 95 || y % 100 < 4 || y % 100 > 95
+          const seam =
+            x % 100 < 4 || x % 100 > 95 || y % 100 < 4 || y % 100 > 95
           const isCenter = x >= 100 && x < 200 && y >= 100 && y < 200
-          const rgb = seam ? [15, 15, 15] : isCenter ? (logo(x, y) ? [30, 70, 190] : center) : [30, 150, 80]
+          const rgb = seam
+            ? [15, 15, 15]
+            : isCenter
+              ? logo(x, y)
+                ? [30, 70, 190]
+                : center
+              : [30, 150, 80]
           face.set([rgb[0], rgb[1], rgb[2], 255], (y * big + x) * 4)
         }
       }
       return face
     }
-    const logoed = extractColorsFromImageData(draw([240, 240, 235]), big, big, n)
+    const logoed = extractColorsFromImageData(
+      draw([240, 240, 235]),
+      big,
+      big,
+      n,
+    )
     expect(logoed.colors[1][1]).toBe('W')
     // The recorded reading itself is untouched - still pulled to the logo.
     expect(classifySticker(logoed.cellColors[1][1]).color).toBe('B')
     // Plain centers read as before.
     const plainBlue = draw([30, 70, 190])
-    for (let y = 125; y < 175; y++) for (let x = 125; x < 175; x++) plainBlue.set([30, 70, 190, 255], (y * big + x) * 4)
-    expect(extractColorsFromImageData(plainBlue, big, big, n).colors[1][1]).toBe('B')
+    for (let y = 125; y < 175; y++)
+      for (let x = 125; x < 175; x++)
+        plainBlue.set([30, 70, 190, 255], (y * big + x) * 4)
+    expect(
+      extractColorsFromImageData(plainBlue, big, big, n).colors[1][1],
+    ).toBe('B')
     const plainWhite = draw([240, 240, 235])
-    for (let y = 125; y < 175; y++) for (let x = 125; x < 175; x++) plainWhite.set([240, 240, 235, 255], (y * big + x) * 4)
-    expect(extractColorsFromImageData(plainWhite, big, big, n).colors[1][1]).toBe('W')
+    for (let y = 125; y < 175; y++)
+      for (let x = 125; x < 175; x++)
+        plainWhite.set([240, 240, 235, 255], (y * big + x) * 4)
+    expect(
+      extractColorsFromImageData(plainWhite, big, big, n).colors[1][1],
+    ).toBe('W')
   })
 
   it('judges a stickerless big-cube face in its wide-perimeter layout', () => {
     // A white 7x7 whose outer cubies are 1.6x the inner ones (real 6x6/7x7
     // faces measured up to 1.56x), with the faint grey lines of a
     // stickerless cube: an even grid misses a third of them.
-    const n = 7, big = 420
+    const n = 7,
+      big = 420
     const edges = cellEdges(n, 1.6).map((edge) => edge * big)
-    const cellOf = (p: number) => Math.min(n - 1, edges.findIndex((edge) => edge > p) - 1)
+    const cellOf = (p: number) =>
+      Math.min(n - 1, edges.findIndex((edge) => edge > p) - 1)
     const face = new Uint8ClampedArray(big * big * 4)
     for (let y = 0; y < big; y++) {
       for (let x = 0; x < big; x++) {
-        const c = cellOf(x), r = cellOf(y)
-        const line = x - edges[c] < 1.5 || edges[c + 1] - x < 1.5 || y - edges[r] < 1.5 || edges[r + 1] - y < 1.5
-        face.set(line ? [220, 220, 216, 255] : [240, 240, 236, 255], (y * big + x) * 4)
+        const c = cellOf(x),
+          r = cellOf(y)
+        const line =
+          x - edges[c] < 1.5 ||
+          edges[c + 1] - x < 1.5 ||
+          y - edges[r] < 1.5 ||
+          edges[r + 1] - y < 1.5
+        face.set(
+          line ? [220, 220, 216, 255] : [240, 240, 236, 255],
+          (y * big + x) * 4,
+        )
       }
     }
     expect(hasPlausibleStickerFace(face, big, big, n)).toBe(false)
@@ -132,18 +213,25 @@ describe('live face appearance', () => {
   })
 
   it('rejects a dark grid over heavily varied sticker interiors', () => {
-    const face = frame((x, y) => x % 30 < 3 || y % 30 < 3 || (x + y) % 2 === 0
-      ? { r: 10, g: 10, b: 10 }
-      : { r: 220, g: 105, b: 30 })
+    const face = frame((x, y) =>
+      x % 30 < 3 || y % 30 < 3 || (x + y) % 2 === 0
+        ? { r: 10, g: 10, b: 10 }
+        : { r: 220, g: 105, b: 30 },
+    )
     expect(hasPlausibleStickerFace(face, size, size, 3)).toBe(false)
   })
 
   // Six sticker colors laid out 3x3, one per 30 px cell.
   const STICKERS: RGB[] = [
-    { r: 220, g: 105, b: 30 }, { r: 30, g: 150, b: 80 }, { r: 240, g: 240, b: 235 },
-    { r: 200, g: 40, b: 50 }, { r: 40, g: 80, b: 200 }, { r: 240, g: 210, b: 30 },
+    { r: 220, g: 105, b: 30 },
+    { r: 30, g: 150, b: 80 },
+    { r: 240, g: 240, b: 235 },
+    { r: 200, g: 40, b: 50 },
+    { r: 40, g: 80, b: 200 },
+    { r: 240, g: 210, b: 30 },
   ]
-  const sticker = (x: number, y: number) => STICKERS[(Math.floor(x / 30) + 3 * Math.floor(y / 30)) % 6]
+  const sticker = (x: number, y: number) =>
+    STICKERS[(Math.floor(x / 30) + 3 * Math.floor(y / 30)) % 6]
 
   it('accepts rounded stickers that show the dark body only at their corners', () => {
     // Corner radius 9 px, no gap between stickers along their edges: no
@@ -152,7 +240,9 @@ describe('live face appearance', () => {
     const face = frame((x, y) => {
       const dx = Math.max(0, Math.abs((x % 30) - 14.5) - (14.5 - radius))
       const dy = Math.max(0, Math.abs((y % 30) - 14.5) - (14.5 - radius))
-      return dx * dx + dy * dy > radius * radius ? { r: 15, g: 15, b: 15 } : sticker(x, y)
+      return dx * dx + dy * dy > radius * radius
+        ? { r: 15, g: 15, b: 15 }
+        : sticker(x, y)
     })
     expect(hasPlausibleStickerFace(face, size, size, 3)).toBe(true)
   })
@@ -162,12 +252,16 @@ describe('live face appearance', () => {
   })
 
   it('rejects tiles with light grout, which is no dark cube body', () => {
-    const wall = frame((x, y) => x % 30 < 2 || y % 30 < 2 ? { r: 235, g: 235, b: 230 } : STICKERS[4])
+    const wall = frame((x, y) =>
+      x % 30 < 2 || y % 30 < 2 ? { r: 235, g: 235, b: 230 } : STICKERS[4],
+    )
     expect(hasPlausibleStickerFace(wall, size, size, 3)).toBe(false)
   })
 
   it('rejects a two-color checkerboard', () => {
-    const board = frame((x, y) => (Math.floor(x / 30) + Math.floor(y / 30)) % 2 ? STICKERS[0] : STICKERS[2])
+    const board = frame((x, y) =>
+      (Math.floor(x / 30) + Math.floor(y / 30)) % 2 ? STICKERS[0] : STICKERS[2],
+    )
     expect(hasPlausibleStickerFace(board, size, size, 3)).toBe(false)
   })
 
@@ -190,15 +284,26 @@ describe('live face appearance', () => {
           const data = new Uint8ClampedArray(width * height * 4)
           for (let row = 0; row < height; row++) {
             const source = ((y + row) * cameraSize + x) * 4
-            data.set(cameraData.subarray(source, source + width * 4), row * width * 4)
+            data.set(
+              cameraData.subarray(source, source + width * 4),
+              row * width * 4,
+            )
           }
           return { data }
         },
       }),
     } as unknown as HTMLCanvasElement
     expect(hasVisibleCubeFace(canvas, 3)).toBe(true)
-    expect(hasVisibleCubeFace(canvas, 3, { startX: 30, startY: 30, faceWidth: 90, faceHeight: 90 }, true)).toBe(true)
-    for (let i = 0; i < cameraData.length; i += 4) cameraData.set([200, 190, 175], i)
+    expect(
+      hasVisibleCubeFace(
+        canvas,
+        3,
+        { startX: 30, startY: 30, faceWidth: 90, faceHeight: 90 },
+        true,
+      ),
+    ).toBe(true)
+    for (let i = 0; i < cameraData.length; i += 4)
+      cameraData.set([200, 190, 175], i)
     expect(hasVisibleCubeFace(canvas, 3)).toBe(false)
   })
 
@@ -210,7 +315,10 @@ describe('live face appearance', () => {
     for (let y = 0; y < cameraSize; y++) {
       for (let x = 0; x < cameraSize; x++) {
         const cube = x >= 54 && x < 126 && y >= 36 && y < 108
-        cameraData.set([...(cube ? [220, 105, 30] : [200, 190, 175]), 255], (y * cameraSize + x) * 4)
+        cameraData.set(
+          [...(cube ? [220, 105, 30] : [200, 190, 175]), 255],
+          (y * cameraSize + x) * 4,
+        )
       }
     }
     const canvas = {
@@ -221,13 +329,23 @@ describe('live face appearance', () => {
           const data = new Uint8ClampedArray(width * height * 4)
           for (let row = 0; row < height; row++) {
             const source = ((y + row) * cameraSize + x) * 4
-            data.set(cameraData.subarray(source, source + width * 4), row * width * 4)
+            data.set(
+              cameraData.subarray(source, source + width * 4),
+              row * width * 4,
+            )
           }
           return { data, width, height }
         },
       }),
     } as unknown as HTMLCanvasElement
-    expect(hasVisibleCubeFace(canvas, 3, { startX: 54, startY: 36, faceWidth: 72, faceHeight: 72 })).toBe(true)
+    expect(
+      hasVisibleCubeFace(canvas, 3, {
+        startX: 54,
+        startY: 36,
+        faceWidth: 72,
+        faceHeight: 72,
+      }),
+    ).toBe(true)
   })
 })
 
@@ -237,13 +355,17 @@ describe('live face appearance', () => {
 // over, just reached via the public rgbToOKLCH rather than the private
 // Cartesian conversion.
 function colorDistance(c1: RGB, c2: RGB): number {
-  const o1 = rgbToOKLCH(c1), o2 = rgbToOKLCH(c2)
+  const o1 = rgbToOKLCH(c1),
+    o2 = rgbToOKLCH(c2)
   const toAB = (o: { c: number; h: number }) => {
     const rad = (o.h * Math.PI) / 180
     return { a: o.c * Math.cos(rad), b: o.c * Math.sin(rad) }
   }
-  const ab1 = toAB(o1), ab2 = toAB(o2)
-  const dl = o1.l - o2.l, da = ab1.a - ab2.a, db = ab1.b - ab2.b
+  const ab1 = toAB(o1),
+    ab2 = toAB(o2)
+  const dl = o1.l - o2.l,
+    da = ab1.a - ab2.a,
+    db = ab1.b - ab2.b
   return Math.sqrt(dl * dl + da * da + db * db)
 }
 
@@ -253,18 +375,22 @@ function colorDistance(c1: RGB, c2: RGB): number {
 // hand with imageProcessing.ts's CLUSTER_L_WEIGHT constant.
 const CLUSTER_L_WEIGHT = 0.6
 function clusterDistance(c1: RGB, c2: RGB): number {
-  const o1 = rgbToOKLCH(c1), o2 = rgbToOKLCH(c2)
+  const o1 = rgbToOKLCH(c1),
+    o2 = rgbToOKLCH(c2)
   const toAB = (o: { c: number; h: number }) => {
     const rad = (o.h * Math.PI) / 180
     return { a: o.c * Math.cos(rad), b: o.c * Math.sin(rad) }
   }
-  const ab1 = toAB(o1), ab2 = toAB(o2)
-  const dl = (o1.l - o2.l) * CLUSTER_L_WEIGHT, da = ab1.a - ab2.a, db = ab1.b - ab2.b
+  const ab1 = toAB(o1),
+    ab2 = toAB(o2)
+  const dl = (o1.l - o2.l) * CLUSTER_L_WEIGHT,
+    da = ab1.a - ab2.a,
+    db = ab1.b - ab2.b
   return Math.sqrt(dl * dl + da * da + db * db)
 }
 
 describe('rgbToOKLCH', () => {
-  it('matches Ottosson\'s published OKLab reference values for pure red', () => {
+  it("matches Ottosson's published OKLab reference values for pure red", () => {
     // https://bottosson.github.io/posts/oklab/ - the standard cross-check
     // for any OKLab implementation. L/C/H derived from the same L/a/b.
     const oklch = rgbToOKLCH({ r: 255, g: 0, b: 0 })
@@ -287,7 +413,10 @@ describe('rgbToOKLCH', () => {
     const hues = Object.entries(STICKER_COLORS)
       .filter(([name]) => name !== 'W') // white's hue is undefined (~zero chroma)
       .map(([, rgb]) => rgbToOKLCH(rgb).h)
-    expect(new Set(hues.map((h) => Math.round(h)))).toHaveProperty('size', hues.length)
+    expect(new Set(hues.map((h) => Math.round(h)))).toHaveProperty(
+      'size',
+      hues.length,
+    )
   })
 
   it('separates Red and Orange by hue substantially more than their RGB Euclidean distance suggests', () => {
@@ -313,7 +442,11 @@ describe('hueCircularRange', () => {
   })
 
   it('finds the plain min/max span for a cluster nowhere near the wraparound', () => {
-    expect(hueCircularRange([28, 30, 35, 32])).toEqual({ min: 28, max: 35, span: 7 })
+    expect(hueCircularRange([28, 30, 35, 32])).toEqual({
+      min: 28,
+      max: 35,
+      span: 7,
+    })
   })
 
   it('finds the correct short arc for a cluster straddling the 0/360 wraparound', () => {
@@ -339,15 +472,30 @@ describe('hueCircularRange', () => {
 
 describe('hueRangesOverlap', () => {
   it('returns false for clearly disjoint arcs', () => {
-    expect(hueRangesOverlap({ min: 0, max: 10, span: 10 }, { min: 100, max: 110, span: 10 })).toBe(false)
+    expect(
+      hueRangesOverlap(
+        { min: 0, max: 10, span: 10 },
+        { min: 100, max: 110, span: 10 },
+      ),
+    ).toBe(false)
   })
 
   it('returns true for partially overlapping arcs', () => {
-    expect(hueRangesOverlap({ min: 0, max: 20, span: 20 }, { min: 10, max: 30, span: 20 })).toBe(true)
+    expect(
+      hueRangesOverlap(
+        { min: 0, max: 20, span: 20 },
+        { min: 10, max: 30, span: 20 },
+      ),
+    ).toBe(true)
   })
 
   it('returns true when one arc fully contains another', () => {
-    expect(hueRangesOverlap({ min: 0, max: 40, span: 40 }, { min: 10, max: 20, span: 10 })).toBe(true)
+    expect(
+      hueRangesOverlap(
+        { min: 0, max: 40, span: 40 },
+        { min: 10, max: 20, span: 10 },
+      ),
+    ).toBe(true)
   })
 
   it('returns true for identical arcs', () => {
@@ -356,18 +504,38 @@ describe('hueRangesOverlap', () => {
   })
 
   it('treats touching endpoints as overlapping', () => {
-    expect(hueRangesOverlap({ min: 0, max: 10, span: 10 }, { min: 10, max: 20, span: 10 })).toBe(true)
+    expect(
+      hueRangesOverlap(
+        { min: 0, max: 10, span: 10 },
+        { min: 10, max: 20, span: 10 },
+      ),
+    ).toBe(true)
   })
 
   it('handles arcs that straddle the 0/360 wraparound correctly', () => {
     // Arc A: 350 -> 10 (through 0). Arc B: 5 -> 15. They share 5-10.
-    expect(hueRangesOverlap({ min: 350, max: 10, span: 20 }, { min: 5, max: 15, span: 10 })).toBe(true)
+    expect(
+      hueRangesOverlap(
+        { min: 350, max: 10, span: 20 },
+        { min: 5, max: 15, span: 10 },
+      ),
+    ).toBe(true)
     // Arc A: 350 -> 10. Arc C: 100 -> 110 - nowhere near the wraparound region.
-    expect(hueRangesOverlap({ min: 350, max: 10, span: 20 }, { min: 100, max: 110, span: 10 })).toBe(false)
+    expect(
+      hueRangesOverlap(
+        { min: 350, max: 10, span: 20 },
+        { min: 100, max: 110, span: 10 },
+      ),
+    ).toBe(false)
   })
 
   it('returns false for two arcs on opposite sides of the circle with real gaps on both sides', () => {
-    expect(hueRangesOverlap({ min: 0, max: 30, span: 30 }, { min: 180, max: 210, span: 30 })).toBe(false)
+    expect(
+      hueRangesOverlap(
+        { min: 0, max: 30, span: 30 },
+        { min: 180, max: 210, span: 30 },
+      ),
+    ).toBe(false)
   })
 })
 
@@ -402,7 +570,10 @@ describe('trimmedMeanColor', () => {
     const glare = { r: 250, g: 248, b: 245 }
     const pixels = [...Array(18).fill(stickerColor), glare, glare]
 
-    const plainMean = pixels.reduce((sum, p) => ({ r: sum.r + p.r, g: sum.g + p.g, b: sum.b + p.b }), { r: 0, g: 0, b: 0 })
+    const plainMean = pixels.reduce(
+      (sum, p) => ({ r: sum.r + p.r, g: sum.g + p.g, b: sum.b + p.b }),
+      { r: 0, g: 0, b: 0 },
+    )
     const plainR = plainMean.r / pixels.length
     expect(plainR).toBeGreaterThan(stickerColor.r) // a plain mean WOULD be pulled upward by the glare
 
@@ -418,7 +589,11 @@ describe('trimmedMeanColor', () => {
   })
 
   it('trims symmetric extremes when the sample is large enough', () => {
-    const pixels = [{ r: 10, g: 10, b: 10 }, { r: 20, g: 20, b: 20 }, { r: 250, g: 250, b: 250 }]
+    const pixels = [
+      { r: 10, g: 10, b: 10 },
+      { r: 20, g: 20, b: 20 },
+      { r: 250, g: 250, b: 250 },
+    ]
     // trimCount = floor(3*0.5) = 1; 1*2=2 < 3, so this trims 1 pixel off
     // each end, leaving just the middle one.
     expect(trimmedMeanColor(pixels, 0.5)).toEqual({ r: 20, g: 20, b: 20 })
@@ -428,12 +603,18 @@ describe('trimmedMeanColor', () => {
     // 2 pixels, trimFraction 0.6 -> trimCount = floor(2*0.6) = 1;
     // 1*2=2 is NOT < 2, so the "not enough left" guard skips trimming
     // entirely rather than returning an empty/degenerate result.
-    const pixels = [{ r: 10, g: 10, b: 10 }, { r: 250, g: 250, b: 250 }]
+    const pixels = [
+      { r: 10, g: 10, b: 10 },
+      { r: 250, g: 250, b: 250 },
+    ]
     expect(trimmedMeanColor(pixels, 0.6)).toEqual({ r: 130, g: 130, b: 130 })
   })
 
   it('does not trim when the sample is too small for trimming to make sense', () => {
-    const pixels = [{ r: 10, g: 10, b: 10 }, { r: 250, g: 250, b: 250 }]
+    const pixels = [
+      { r: 10, g: 10, b: 10 },
+      { r: 250, g: 250, b: 250 },
+    ]
     // trimCount = floor(2*0.15) = 0 -> no trim, both pixels average.
     expect(trimmedMeanColor(pixels)).toEqual({ r: 130, g: 130, b: 130 })
   })
@@ -446,13 +627,27 @@ describe('hungarianAssignment', () => {
 
   it('picks the cheaper of two possible perfect matchings on a 2x2 matrix', () => {
     // row0->col0 + row1->col1 = 1+1 = 2; row0->col1 + row1->col0 = 9+9 = 18.
-    expect(hungarianAssignment([[1, 9], [9, 1]])).toEqual([0, 1])
+    expect(
+      hungarianAssignment([
+        [1, 9],
+        [9, 1],
+      ]),
+    ).toEqual([0, 1])
     // Now the crossed matching is cheaper.
-    expect(hungarianAssignment([[9, 1], [1, 9]])).toEqual([1, 0])
+    expect(
+      hungarianAssignment([
+        [9, 1],
+        [1, 9],
+      ]),
+    ).toEqual([1, 0])
   })
 
   it('always returns a valid bijection (every row and column used exactly once)', () => {
-    const cost = [[4, 1, 3], [2, 0, 5], [3, 2, 2]]
+    const cost = [
+      [4, 1, 3],
+      [2, 0, 5],
+      [3, 2, 2],
+    ]
     const assignment = hungarianAssignment(cost)
     expect(new Set(assignment).size).toBe(cost.length)
     assignment.forEach((col) => expect(col).toBeGreaterThanOrEqual(0))
@@ -476,7 +671,7 @@ describe('hungarianAssignment', () => {
         return
       }
       for (let i = l; i < arr.length; i++) {
-        [arr[l], arr[i]] = [arr[i], arr[l]]
+        ;[arr[l], arr[i]] = [arr[i], arr[l]]
         permute(arr, l + 1)
         ;[arr[l], arr[i]] = [arr[i], arr[l]]
       }
@@ -487,12 +682,20 @@ describe('hungarianAssignment', () => {
 
   it('matches brute-force optimal cost on many random small matrices', () => {
     let seed = 42
-    const rand = () => { seed = (seed * 1103515245 + 12345) & 0x7fffffff; return seed / 0x7fffffff }
+    const rand = () => {
+      seed = (seed * 1103515245 + 12345) & 0x7fffffff
+      return seed / 0x7fffffff
+    }
     for (let trial = 0; trial < 300; trial++) {
       const n = 2 + (trial % 5) // 2..6
-      const cost = Array.from({ length: n }, () => Array.from({ length: n }, () => Math.floor(rand() * 100)))
+      const cost = Array.from({ length: n }, () =>
+        Array.from({ length: n }, () => Math.floor(rand() * 100)),
+      )
       const assignment = hungarianAssignment(cost)
-      const gotCost = assignment.reduce((sum, col, row) => sum + cost[row][col], 0)
+      const gotCost = assignment.reduce(
+        (sum, col, row) => sum + cost[row][col],
+        0,
+      )
       expect(gotCost).toBe(bruteForceMinCost(cost))
     }
   })
@@ -503,14 +706,18 @@ describe('hungarianAssignment', () => {
 function cleanSamples(): { rgb: RGB; colorGuess: string }[] {
   const samples: { rgb: RGB; colorGuess: string }[] = []
   for (const [name, rgb] of Object.entries(STICKER_COLORS)) {
-    for (let i = 0; i < 9; i++) samples.push({ rgb: { ...rgb }, colorGuess: name })
+    for (let i = 0; i < 9; i++)
+      samples.push({ rgb: { ...rgb }, colorGuess: name })
   }
   return samples
 }
 
 describe('learnStickerColors', () => {
   it('uses the selected profile as the common six-face color reference', () => {
-    const reference = { ...STICKER_COLORS, R: { ...STICKER_COLORS.R, g: STICKER_COLORS.R.g + 20 } }
+    const reference = {
+      ...STICKER_COLORS,
+      R: { ...STICKER_COLORS.R, g: STICKER_COLORS.R.g + 20 },
+    }
     const generic = learnStickerColors(cleanSamples())!
     const selected = learnStickerColors(cleanSamples(), reference)!
     expect(selected.colors.R.g).toBeGreaterThan(generic.colors.R.g)
@@ -539,18 +746,30 @@ describe('learnStickerColors', () => {
   // verify Hungarian is never worse, not because production should ever
   // fall back to it.
   function referenceGreedyAssign(points: RGB[], centroids: RGB[]): number[] {
-    const k = centroids.length, n = points.length, capacity = Math.ceil(n / k)
+    const k = centroids.length,
+      n = points.length,
+      capacity = Math.ceil(n / k)
     const pairs: { pointIdx: number; centroidIdx: number; dist: number }[] = []
     for (let pi = 0; pi < n; pi++) {
-      for (let ci = 0; ci < k; ci++) pairs.push({ pointIdx: pi, centroidIdx: ci, dist: colorDistance(points[pi], centroids[ci]) })
+      for (let ci = 0; ci < k; ci++)
+        pairs.push({
+          pointIdx: pi,
+          centroidIdx: ci,
+          dist: colorDistance(points[pi], centroids[ci]),
+        })
     }
     pairs.sort((a, b) => a.dist - b.dist)
-    const assignment = new Array(n).fill(0), counts = new Array(k).fill(0), isAssigned = new Array(n).fill(false)
+    const assignment = new Array(n).fill(0),
+      counts = new Array(k).fill(0),
+      isAssigned = new Array(n).fill(false)
     let assignedCount = 0
     for (const { pointIdx, centroidIdx } of pairs) {
       if (assignedCount === n) break
       if (isAssigned[pointIdx] || counts[centroidIdx] >= capacity) continue
-      assignment[pointIdx] = centroidIdx; isAssigned[pointIdx] = true; counts[centroidIdx]++; assignedCount++
+      assignment[pointIdx] = centroidIdx
+      isAssigned[pointIdx] = true
+      counts[centroidIdx]++
+      assignedCount++
     }
     return assignment
   }
@@ -577,10 +796,17 @@ describe('learnStickerColors', () => {
       colorGuess: 'O',
     }))
     const clean = (name: string, n: number) =>
-      Array.from({ length: n }, () => ({ rgb: { ...STICKER_COLORS[name] }, colorGuess: name }))
+      Array.from({ length: n }, () => ({
+        rgb: { ...STICKER_COLORS[name] },
+        colorGuess: name,
+      }))
     const samples = [
-      ...blueLike, ...orangeLike,
-      ...clean('G', 16), ...clean('R', 16), ...clean('W', 16), ...clean('Y', 16),
+      ...blueLike,
+      ...orangeLike,
+      ...clean('G', 16),
+      ...clean('R', 16),
+      ...clean('W', 16),
+      ...clean('Y', 16),
     ]
     expect(samples.length).toBe(96)
 
@@ -603,31 +829,56 @@ describe('learnStickerColors', () => {
     // BOTH of two centroids; greedy's globally-sorted-pairs walk can snap
     // X up for the wrong one early, before it can tell that centroid
     // didn't actually need X as much as a point still waiting its turn.
-    const centroids: RGB[] = [{ r: 20, g: 40, b: 220 }, { r: 230, g: 120, b: 30 }, { r: 20, g: 150, b: 30 }]
+    const centroids: RGB[] = [
+      { r: 20, g: 40, b: 220 },
+      { r: 230, g: 120, b: 30 },
+      { r: 20, g: 150, b: 30 },
+    ]
     const X: RGB = { r: 60, g: 60, b: 150 }
     const points: RGB[] = [
       X,
-      ...Array.from({ length: 8 }, (_, i) => ({ r: 15 + i, g: 35 + i, b: 225 - i })), // 9 candidates for centroid 0 (capacity 3)
-      ...Array.from({ length: 3 }, (_, i) => ({ r: 220 + i * 3, g: 110 + i * 4, b: 20 + i * 3 })),
+      ...Array.from({ length: 8 }, (_, i) => ({
+        r: 15 + i,
+        g: 35 + i,
+        b: 225 - i,
+      })), // 9 candidates for centroid 0 (capacity 3)
+      ...Array.from({ length: 3 }, (_, i) => ({
+        r: 220 + i * 3,
+        g: 110 + i * 4,
+        b: 20 + i * 3,
+      })),
       ...Array.from({ length: 3 }, () => ({ r: 20, g: 150, b: 30 })),
     ]
 
     const greedy = referenceGreedyAssign(points, centroids)
-    const cost = (assignment: number[]) => assignment.reduce((sum, ci, pi) => sum + colorDistance(points[pi], centroids[ci]), 0)
+    const cost = (assignment: number[]) =>
+      assignment.reduce(
+        (sum, ci, pi) => sum + colorDistance(points[pi], centroids[ci]),
+        0,
+      )
 
     // Mirror production's balancedAssign construction (capacity-expanded
     // slots through hungarianAssignment) directly, since balancedAssign
     // itself isn't exported.
-    const k = centroids.length, n = points.length, capacity = Math.ceil(n / k), totalSlots = k * capacity
+    const k = centroids.length,
+      n = points.length,
+      capacity = Math.ceil(n / k),
+      totalSlots = k * capacity
     const cost2d: number[][] = []
     for (let pi = 0; pi < n; pi++) {
       const row: number[] = []
-      for (let ci = 0; ci < k; ci++) { const d = colorDistance(points[pi], centroids[ci]); for (let s = 0; s < capacity; s++) row.push(d) }
+      for (let ci = 0; ci < k; ci++) {
+        const d = colorDistance(points[pi], centroids[ci])
+        for (let s = 0; s < capacity; s++) row.push(d)
+      }
       cost2d.push(row)
     }
-    for (let pi = n; pi < totalSlots; pi++) cost2d.push(new Array(totalSlots).fill(0))
+    for (let pi = n; pi < totalSlots; pi++)
+      cost2d.push(new Array(totalSlots).fill(0))
     const slotAssignment = hungarianAssignment(cost2d)
-    const optimal = slotAssignment.slice(0, n).map((slot) => Math.floor(slot / capacity))
+    const optimal = slotAssignment
+      .slice(0, n)
+      .map((slot) => Math.floor(slot / capacity))
 
     // Strictly less (not just <=) - this specific case is constructed so
     // greedy provably leaves cost on the table, confirmed against this
@@ -644,7 +895,8 @@ describe('learnStickerColors', () => {
     // isolates the leave-one-out MATH from any classification question.
     function samplesWithOneOffsetRed(offsetRGB: RGB) {
       const samples = cleanSamples().filter((s) => s.colorGuess !== 'R')
-      for (let i = 0; i < 8; i++) samples.push({ rgb: { ...STICKER_COLORS.R }, colorGuess: 'R' })
+      for (let i = 0; i < 8; i++)
+        samples.push({ rgb: { ...STICKER_COLORS.R }, colorGuess: 'R' })
       samples.push({ rgb: offsetRGB, colorGuess: 'R' })
       return samples
     }
@@ -657,7 +909,10 @@ describe('learnStickerColors', () => {
       const label = learned.labelsBySampleIndex[offsetIdx]
       expect(label).toBe('R') // still correctly clustered as red - this is a confidence test, not a classification one
 
-      const selfInclusiveDistance = clusterDistance(offsetRGB, learned.colors[label])
+      const selfInclusiveDistance = clusterDistance(
+        offsetRGB,
+        learned.colors[label],
+      )
       const leaveOneOutDistance = learned.leaveOneOutDistances[offsetIdx]
 
       // Exact expected value: excluding the offset point, the other 8 red
@@ -678,10 +933,15 @@ describe('learnStickerColors', () => {
       const offsetRGB: RGB = { r: 200, g: 50, b: 10 }
       const samples = samplesWithOneOffsetRed(offsetRGB)
       const learned = learnStickerColors(samples)!
-      const perfectRedIdx = samples.findIndex((s, i) => s.colorGuess === 'R' && samples[i].rgb !== offsetRGB)
+      const perfectRedIdx = samples.findIndex(
+        (s, i) => s.colorGuess === 'R' && samples[i].rgb !== offsetRGB,
+      )
 
       const label = learned.labelsBySampleIndex[perfectRedIdx]
-      const selfInclusiveDistance = clusterDistance(samples[perfectRedIdx].rgb, learned.colors[label])
+      const selfInclusiveDistance = clusterDistance(
+        samples[perfectRedIdx].rgb,
+        learned.colors[label],
+      )
       const leaveOneOutDistance = learned.leaveOneOutDistances[perfectRedIdx]
 
       // The single outlier only pulls the 9-member centroid a little;
@@ -689,14 +949,19 @@ describe('learnStickerColors', () => {
       // (OKLab distances between meaningfully different colors run
       // ~0.15-0.6 - see CONFIDENCE_DISTANCE_SCALE's derivation - so 0.02
       // is a small fraction of that).
-      expect(Math.abs(leaveOneOutDistance - selfInclusiveDistance)).toBeLessThan(0.02)
+      expect(
+        Math.abs(leaveOneOutDistance - selfInclusiveDistance),
+      ).toBeLessThan(0.02)
     })
 
     it('falls back to the ordinary centroid distance for a singleton cluster (no other member to average)', () => {
       // The minimum possible input (exactly K=6 samples, one per color)
       // forces every cluster's capacity down to 1 member - degenerate but
       // should not divide by zero or throw.
-      const samples = Object.entries(STICKER_COLORS).map(([name, rgb]) => ({ rgb: { ...rgb }, colorGuess: name }))
+      const samples = Object.entries(STICKER_COLORS).map(([name, rgb]) => ({
+        rgb: { ...rgb },
+        colorGuess: name,
+      }))
       const learned = learnStickerColors(samples)!
       samples.forEach((_, i) => {
         expect(learned.clusterSizes[learned.labelsBySampleIndex[i]]).toBe(1)
@@ -716,7 +981,11 @@ describe('extractBackgroundColor', () => {
   // will disagree with what was actually allocated, drifting further off
   // with every row until it reads past the buffer's real end - this mock
   // reproduces exactly that rounding behavior so the test can catch it.
-  function fakeCanvas(width: number, height: number, fill: RGB): HTMLCanvasElement {
+  function fakeCanvas(
+    width: number,
+    height: number,
+    fill: RGB,
+  ): HTMLCanvasElement {
     return {
       width,
       height,
@@ -753,8 +1022,16 @@ describe('extractBackgroundColor', () => {
   })
 
   it('never returns a non-finite channel, regardless of input dimensions', () => {
-    for (const [w, h] of [[640, 480], [641, 481], [999, 333], [100, 100], [237, 891]]) {
-      const result = extractBackgroundColor(fakeCanvas(w, h, { r: 50, g: 60, b: 70 }))
+    for (const [w, h] of [
+      [640, 480],
+      [641, 481],
+      [999, 333],
+      [100, 100],
+      [237, 891],
+    ]) {
+      const result = extractBackgroundColor(
+        fakeCanvas(w, h, { r: 50, g: 60, b: 70 }),
+      )
       if (result) {
         expect(Number.isFinite(result.r)).toBe(true)
         expect(Number.isFinite(result.g)).toBe(true)
@@ -764,93 +1041,175 @@ describe('extractBackgroundColor', () => {
   })
 
   it('returns null for a frame too small to have a meaningful background ring', () => {
-    expect(extractBackgroundColor(fakeCanvas(30, 30, { r: 100, g: 100, b: 100 }))).toBeNull()
+    expect(
+      extractBackgroundColor(fakeCanvas(30, 30, { r: 100, g: 100, b: 100 })),
+    ).toBeNull()
   })
 
   it('returns null when the ring reads back too dark to be a reliable reference', () => {
-    expect(extractBackgroundColor(fakeCanvas(640, 480, { r: 2, g: 2, b: 2 }))).toBeNull()
+    expect(
+      extractBackgroundColor(fakeCanvas(640, 480, { r: 2, g: 2, b: 2 })),
+    ).toBeNull()
   })
 })
 
 describe('stickerSampleRect', () => {
   it('defaults to sampling the centered 60% of each cell of the whole square', () => {
-    expect(stickerSampleRect(0, 0, 3, 300, 300)).toEqual({ x: 20, y: 20, width: 60, height: 60 })
+    expect(stickerSampleRect(0, 0, 3, 300, 300)).toEqual({
+      x: 20,
+      y: 20,
+      width: 60,
+      height: 60,
+    })
     expect(DEFAULT_SAMPLING).toEqual({ stickerCore: 0.6 })
   })
 
   it('shrinks the sampled zone with a smaller sticker core, keeping it centered', () => {
-    expect(stickerSampleRect(1, 2, 3, 300, 300, { stickerCore: 0.5 }))
-      .toEqual({ x: 225, y: 125, width: 50, height: 50 })
+    expect(stickerSampleRect(1, 2, 3, 300, 300, { stickerCore: 0.5 })).toEqual({
+      x: 225,
+      y: 125,
+      width: 50,
+      height: 50,
+    })
   })
 })
 
 describe('extractBackgroundColor gap to the cube', () => {
   // A frame with a grey backdrop and red pixels wherever `red` says - a
   // face, or a hand hugging it.
-  function frame(width: number, height: number, red: (x: number, y: number) => boolean): HTMLCanvasElement {
+  function frame(
+    width: number,
+    height: number,
+    red: (x: number, y: number) => boolean,
+  ): HTMLCanvasElement {
     return {
       width,
       height,
       getContext: () => ({
         getImageData(sx: number, sy: number, sw: number, sh: number) {
           const data = new Uint8ClampedArray(sw * sh * 4)
-          for (let y = 0; y < sh; y++) for (let x = 0; x < sw; x++) {
-            data.set(red(sx + x, sy + y) ? [200, 40, 40, 255] : [120, 120, 120, 255], (y * sw + x) * 4)
-          }
+          for (let y = 0; y < sh; y++)
+            for (let x = 0; x < sw; x++) {
+              data.set(
+                red(sx + x, sy + y) ? [200, 40, 40, 255] : [120, 120, 120, 255],
+                (y * sw + x) * 4,
+              )
+            }
           return { data, width: sw, height: sh }
         },
       }),
     } as unknown as HTMLCanvasElement
   }
   // 800x500: the 300px guide square is x 250..550, y 100..400.
-  const handBand = (reach: number) => frame(800, 500, (x, y) => x >= 250 - reach && x < 550 + reach && y >= 100 - reach && y < 400 + reach)
+  const handBand = (reach: number) =>
+    frame(
+      800,
+      500,
+      (x, y) =>
+        x >= 250 - reach &&
+        x < 550 + reach &&
+        y >= 100 - reach &&
+        y < 400 + reach,
+    )
 
   it('always leaves out a band of BACKGROUND_CUBE_GAP around the face', () => {
     expect(BACKGROUND_CUBE_GAP * 300).toBe(75)
-    expect(extractBackgroundColor(handBand(70))).toEqual({ r: 120, g: 120, b: 120 })
+    expect(extractBackgroundColor(handBand(70))).toEqual({
+      r: 120,
+      g: 120,
+      b: 120,
+    })
   })
 
   it('keeps the fixed band when more hand surrounds the face', () => {
     const wide = handBand(100)
-    expect(extractBackgroundColor(wide)!.r).toBeGreaterThan(extractBackgroundColor(wide)!.g + 5)
+    expect(extractBackgroundColor(wide)!.r).toBeGreaterThan(
+      extractBackgroundColor(wide)!.g + 5,
+    )
   })
 
   it('goes by the detected face, not the guide square', () => {
     // 900x500: the guide square is x 300..600; a 220px red face sits at
     // x 670..890, y 140..360, mostly outside it and its gap.
     const face = { startX: 670, startY: 140, faceWidth: 220, faceHeight: 220 }
-    const offGuide = frame(900, 500, (x, y) => x >= 670 && x < 890 && y >= 140 && y < 360)
-    expect(extractBackgroundColor(offGuide)).not.toEqual({ r: 120, g: 120, b: 120 })
-    expect(extractBackgroundColor(offGuide, face)).toEqual({ r: 120, g: 120, b: 120 })
+    const offGuide = frame(
+      900,
+      500,
+      (x, y) => x >= 670 && x < 890 && y >= 140 && y < 360,
+    )
+    expect(extractBackgroundColor(offGuide)).not.toEqual({
+      r: 120,
+      g: 120,
+      b: 120,
+    })
+    expect(extractBackgroundColor(offGuide, face)).toEqual({
+      r: 120,
+      g: 120,
+      b: 120,
+    })
   })
 
   it('gives up when the cube leaves too little backdrop', () => {
-    expect(extractBackgroundColor(frame(300, 300, () => false), { startX: 0, startY: 0, faceWidth: 300, faceHeight: 300 })).toBeNull()
+    expect(
+      extractBackgroundColor(
+        frame(300, 300, () => false),
+        { startX: 0, startY: 0, faceWidth: 300, faceHeight: 300 },
+      ),
+    ).toBeNull()
   })
 })
 
 describe('computeBackgroundGains', () => {
-  const grey = (v: number, tint: Partial<RGB> = {}): RGB => ({ r: v, g: v, b: v, ...tint })
+  const grey = (v: number, tint: Partial<RGB> = {}): RGB => ({
+    r: v,
+    g: v,
+    b: v,
+    ...tint,
+  })
 
   it('brings each face to the median backdrop, so one odd face moves only itself', () => {
-    const backdrops = { U: grey(100), R: grey(100), F: grey(100), D: grey(100), L: grey(100), B: grey(100, { b: 125 }) }
+    const backdrops = {
+      U: grey(100),
+      R: grey(100),
+      F: grey(100),
+      D: grey(100),
+      L: grey(100),
+      B: grey(100, { b: 125 }),
+    }
     const gains = computeBackgroundGains(backdrops)!
-    for (const f of ['U', 'R', 'F', 'D', 'L']) expect(gains[f]).toEqual({ r: 1, g: 1, b: 1 })
+    for (const f of ['U', 'R', 'F', 'D', 'L'])
+      expect(gains[f]).toEqual({ r: 1, g: 1, b: 1 })
     // Applied in linear light, the odd face's backdrop lands on the others'.
     expect(applyGains(backdrops.B, gains.B)).toEqual(grey(100))
   })
 
   it('works in linear light, not on sRGB values', () => {
     // sRGB 125 -> 100 is a linear factor of about 0.62, not 100/125 = 0.8.
-    const gains = computeBackgroundGains({ U: grey(100), R: grey(100), F: grey(100), B: grey(100, { b: 125 }) })!
+    const gains = computeBackgroundGains({
+      U: grey(100),
+      R: grey(100),
+      F: grey(100),
+      B: grey(100, { b: 125 }),
+    })!
     expect(gains.B.b).toBeCloseTo(0.62, 2)
     // Doubling linear light turns sRGB 128 into 176, not 256.
-    expect(applyGains(grey(128), { r: 2, g: 1, b: 1 })).toEqual({ r: 176, g: 128, b: 128 })
+    expect(applyGains(grey(128), { r: 2, g: 1, b: 1 })).toEqual({
+      r: 176,
+      g: 128,
+      b: 128,
+    })
     expect(applyGains(grey(0), { r: 2, g: 2, b: 2 })).toEqual(grey(0))
   })
 
   it('caps each gain at the old strength and leaves faces without a reading neutral', () => {
-    const gains = computeBackgroundGains({ U: grey(100), R: grey(100), F: grey(100), D: grey(50), L: null, B: undefined })!
+    const gains = computeBackgroundGains({
+      U: grey(100),
+      R: grey(100),
+      F: grey(100),
+      D: grey(50),
+      L: null,
+      B: undefined,
+    })!
     // 1.3 in sRGB terms, i.e. 1.3^2.2 in linear light.
     expect(gains.D.r).toBeCloseTo(1.3 ** 2.2, 5)
     expect(gains.L).toEqual(NEUTRAL_GAINS)
@@ -858,7 +1217,9 @@ describe('computeBackgroundGains', () => {
   })
 
   it('needs at least 3 readings', () => {
-    expect(computeBackgroundGains({ U: grey(100), R: grey(90), F: null })).toBeNull()
+    expect(
+      computeBackgroundGains({ U: grey(100), R: grey(90), F: null }),
+    ).toBeNull()
   })
 })
 
@@ -867,23 +1228,29 @@ describe('measureSharpness', () => {
   const size = 64
   function checkerboard(): Uint8ClampedArray {
     const data = new Uint8ClampedArray(size * size * 4)
-    for (let y = 0; y < size; y++) for (let x = 0; x < size; x++) {
-      const v = ((x >> 3) + (y >> 3)) % 2 ? 230 : 20
-      data.set([v, v, v, 255], (y * size + x) * 4)
-    }
+    for (let y = 0; y < size; y++)
+      for (let x = 0; x < size; x++) {
+        const v = ((x >> 3) + (y >> 3)) % 2 ? 230 : 20
+        data.set([v, v, v, 255], (y * size + x) * 4)
+      }
     return data
   }
   function boxBlur(src: Uint8ClampedArray, radius: number): Uint8ClampedArray {
     const out = new Uint8ClampedArray(src.length)
-    for (let y = 0; y < size; y++) for (let x = 0; x < size; x++) {
-      let sum = 0, n = 0
-      for (let dy = -radius; dy <= radius; dy++) for (let dx = -radius; dx <= radius; dx++) {
-        const xx = Math.min(size - 1, Math.max(0, x + dx)), yy = Math.min(size - 1, Math.max(0, y + dy))
-        sum += src[(yy * size + xx) * 4]; n++
+    for (let y = 0; y < size; y++)
+      for (let x = 0; x < size; x++) {
+        let sum = 0,
+          n = 0
+        for (let dy = -radius; dy <= radius; dy++)
+          for (let dx = -radius; dx <= radius; dx++) {
+            const xx = Math.min(size - 1, Math.max(0, x + dx)),
+              yy = Math.min(size - 1, Math.max(0, y + dy))
+            sum += src[(yy * size + xx) * 4]
+            n++
+          }
+        const v = sum / n
+        out.set([v, v, v, 255], (y * size + x) * 4)
       }
-      const v = sum / n
-      out.set([v, v, v, 255], (y * size + x) * 4)
-    }
     return out
   }
 
@@ -902,22 +1269,67 @@ describe('measureSharpness', () => {
 })
 
 describe('classifySticker', () => {
-  const hex = (h: string): RGB => ({ r: parseInt(h.slice(1, 3), 16), g: parseInt(h.slice(3, 5), 16), b: parseInt(h.slice(5, 7), 16) })
-  const scale = (c: RGB, f: number): RGB => ({ r: c.r * f, g: c.g * f, b: c.b * f })
+  const hex = (h: string): RGB => ({
+    r: parseInt(h.slice(1, 3), 16),
+    g: parseInt(h.slice(3, 5), 16),
+    b: parseInt(h.slice(5, 7), 16),
+  })
+  const scale = (c: RGB, f: number): RGB => ({
+    r: c.r * f,
+    g: c.g * f,
+    b: c.b * f,
+  })
   // Sticker shades differ a lot between manufacturers (W, Y, O, R, G, B).
   const palettes: Record<string, string[]> = {
-    "Rubik's brand": ['#FFFFFF', '#FFD500', '#FF5800', '#B71234', '#009B48', '#0046AD'],
-    'stickerless bright': ['#FFFFFF', '#FFFF00', '#FF8C00', '#FF1010', '#00D800', '#0060FF'],
-    fluorescent: ['#F4F4F4', '#EBFF00', '#FF6A00', '#FF0040', '#39FF14', '#1F51FF'],
+    "Rubik's brand": [
+      '#FFFFFF',
+      '#FFD500',
+      '#FF5800',
+      '#B71234',
+      '#009B48',
+      '#0046AD',
+    ],
+    'stickerless bright': [
+      '#FFFFFF',
+      '#FFFF00',
+      '#FF8C00',
+      '#FF1010',
+      '#00D800',
+      '#0060FF',
+    ],
+    fluorescent: [
+      '#F4F4F4',
+      '#EBFF00',
+      '#FF6A00',
+      '#FF0040',
+      '#39FF14',
+      '#1F51FF',
+    ],
     pastel: ['#FFFFFF', '#FFF3A0', '#FFB385', '#FF7A8A', '#8EE6A6', '#8AB6FF'],
-    'dark classic': ['#E8E8E8', '#E0C000', '#E05000', '#A00010', '#006030', '#002F80'],
+    'dark classic': [
+      '#E8E8E8',
+      '#E0C000',
+      '#E05000',
+      '#A00010',
+      '#006030',
+      '#002F80',
+    ],
   }
 
   for (const [name, colors] of Object.entries(palettes)) {
     it(`reads the ${name} palette without a learned palette, at full and dim exposure`, () => {
       for (const exposure of [1, 0.6, 0.4]) {
-        const read = colors.map((c) => classifySticker(scale(hex(c), exposure)).color)
-        expect(read, `exposure ${exposure}`).toEqual(['W', 'Y', 'O', 'R', 'G', 'B'])
+        const read = colors.map(
+          (c) => classifySticker(scale(hex(c), exposure)).color,
+        )
+        expect(read, `exposure ${exposure}`).toEqual([
+          'W',
+          'Y',
+          'O',
+          'R',
+          'G',
+          'B',
+        ])
       }
     })
   }
@@ -930,8 +1342,12 @@ describe('classifySticker', () => {
     // A real 7x7's learned orange (hue ~33) sits closer to the typical red
     // hue than the typical orange one - only its learned palette tells them apart.
     const learned: Record<string, RGB> = {
-      W: { r: 168, g: 172, b: 172 }, Y: { r: 182, g: 200, b: 38 }, O: { r: 217, g: 69, b: 38 },
-      R: { r: 164, g: 22, b: 36 }, G: { r: 4, g: 142, b: 55 }, B: { r: 0, g: 58, b: 121 },
+      W: { r: 168, g: 172, b: 172 },
+      Y: { r: 182, g: 200, b: 38 },
+      O: { r: 217, g: 69, b: 38 },
+      R: { r: 164, g: 22, b: 36 },
+      G: { r: 4, g: 142, b: 55 },
+      B: { r: 0, g: 58, b: 121 },
     }
     const orange = { r: 215, g: 65, b: 38 }
     expect(classifySticker(orange).color).toBe('R')
@@ -948,19 +1364,26 @@ describe('classifySticker', () => {
 })
 
 describe('stickerColor', () => {
-  const repeat = (c: RGB, times: number) => Array.from({ length: times }, () => ({ ...c }))
+  const repeat = (c: RGB, times: number) =>
+    Array.from({ length: times }, () => ({ ...c }))
 
   it('measures a colored sticker through a reflection covering half of it', () => {
     // An orange sticker, half of it mirroring a lamp as pale pink - the
     // trimmed mean lands in between, the sticker's own pixels don't.
     const orange = { r: 170, g: 62, b: 40 }
-    const pixels = [...repeat(orange, 50), ...repeat({ r: 209, g: 134, b: 198 }, 50)]
+    const pixels = [
+      ...repeat(orange, 50),
+      ...repeat({ r: 209, g: 134, b: 198 }, 50),
+    ]
     expect(classifySticker(trimmedMeanColor(pixels)!).color).not.toBe('O')
     expect(stickerColor(pixels)).toEqual(orange)
   })
 
   it('keeps the plain trimmed mean for a white sticker', () => {
-    const pixels = [...repeat({ r: 200, g: 202, b: 205 }, 90), ...repeat({ r: 210, g: 150, b: 120 }, 10)]
+    const pixels = [
+      ...repeat({ r: 200, g: 202, b: 205 }, 90),
+      ...repeat({ r: 210, g: 150, b: 120 }, 10),
+    ]
     expect(stickerColor(pixels)).toEqual(trimmedMeanColor(pixels))
   })
 
@@ -970,14 +1393,25 @@ describe('stickerColor', () => {
 })
 
 describe('showing the backdrop adjustment', () => {
-  const grey = (v: number, tint: Partial<RGB> = {}): RGB => ({ r: v, g: v, b: v, ...tint })
+  const grey = (v: number, tint: Partial<RGB> = {}): RGB => ({
+    r: v,
+    g: v,
+    b: v,
+    ...tint,
+  })
 
   it('adjusts every pixel of a photo as the stickers are adjusted', () => {
     const pixels = new Uint8ClampedArray([128, 128, 128, 255, 10, 200, 90, 255])
     const gains = { r: 2, g: 1, b: 0.5 }
     const out = applyGainsToPixels(pixels, gains)
-    expect([...out.subarray(0, 4)]).toEqual([...Object.values(applyGains(grey(128), gains)), 255])
-    expect([...out.subarray(4, 8)]).toEqual([...Object.values(applyGains({ r: 10, g: 200, b: 90 }, gains)), 255])
+    expect([...out.subarray(0, 4)]).toEqual([
+      ...Object.values(applyGains(grey(128), gains)),
+      255,
+    ])
+    expect([...out.subarray(4, 8)]).toEqual([
+      ...Object.values(applyGains({ r: 10, g: 200, b: 90 }, gains)),
+      255,
+    ])
     expect([...applyGainsToPixels(pixels, NEUTRAL_GAINS)]).toEqual([...pixels])
   })
 
@@ -986,7 +1420,9 @@ describe('showing the backdrop adjustment', () => {
     const reference = backdropReference(backdrops)!
     expect(reference).toEqual(grey(100))
     // Applying a face's gain to its backdrop lands on the reference.
-    expect(applyGains(backdrops.F, computeBackgroundGains(backdrops)!.F)).toEqual(reference)
+    expect(
+      applyGains(backdrops.F, computeBackgroundGains(backdrops)!.F),
+    ).toEqual(reference)
     expect(backdropReference({ U: grey(100), R: null })).toBeNull()
   })
 })
@@ -994,12 +1430,20 @@ describe('showing the backdrop adjustment', () => {
 describe('undoing the backdrop adjustment on a sticker reading', () => {
   it('recovers the sticker color before its face was adjusted', () => {
     const gains = { r: 0.6, g: 1.26, b: 0.95 }
-    for (const color of [{ r: 85, g: 168, b: 52 }, { r: 200, g: 40, b: 50 }, { r: 30, g: 70, b: 190 }]) {
+    for (const color of [
+      { r: 85, g: 168, b: 52 },
+      { r: 200, g: 40, b: 50 },
+      { r: 30, g: 70, b: 190 },
+    ]) {
       const back = removeGains(applyGains(color, gains), gains)
       expect(Math.abs(back.r - color.r)).toBeLessThanOrEqual(1)
       expect(Math.abs(back.g - color.g)).toBeLessThanOrEqual(1)
       expect(Math.abs(back.b - color.b)).toBeLessThanOrEqual(1)
     }
-    expect(removeGains({ r: 12, g: 34, b: 56 }, NEUTRAL_GAINS)).toEqual({ r: 12, g: 34, b: 56 })
+    expect(removeGains({ r: 12, g: 34, b: 56 }, NEUTRAL_GAINS)).toEqual({
+      r: 12,
+      g: 34,
+      b: 56,
+    })
   })
 })

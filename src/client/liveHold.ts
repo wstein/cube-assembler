@@ -18,10 +18,19 @@ export const NO_HOLD: LiveHold<never> = { shown: null, weak: 0 }
 // What to show for `frame`: itself when `confirmed`, otherwise the last
 // confirmed result for up to LIVE_HOLD_FRAMES weak frames, then `frame`
 // as not found.
-export function holdConfirmedFace<T>(hold: LiveHold<T>, frame: T, confirmed: boolean): { hold: LiveHold<T>; show: T; visible: boolean } {
-  if (confirmed) return { hold: { shown: frame, weak: 0 }, show: frame, visible: true }
+export function holdConfirmedFace<T>(
+  hold: LiveHold<T>,
+  frame: T,
+  confirmed: boolean,
+): { hold: LiveHold<T>; show: T; visible: boolean } {
+  if (confirmed)
+    return { hold: { shown: frame, weak: 0 }, show: frame, visible: true }
   if (hold.shown !== null && hold.weak < LIVE_HOLD_FRAMES) {
-    return { hold: { shown: hold.shown, weak: hold.weak + 1 }, show: hold.shown, visible: true }
+    return {
+      hold: { shown: hold.shown, weak: hold.weak + 1 },
+      show: hold.shown,
+      visible: true,
+    }
   }
   return { hold: NO_HOLD, show: frame, visible: false }
 }

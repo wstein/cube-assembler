@@ -2,20 +2,34 @@ import type { Fixture } from './fixtureZip'
 
 // Vite proxies this path to the separate localhost-only dev server. The
 // production build never shows the upload action or configures the proxy.
-export async function fixtureUploadServerAvailable(fetcher: typeof fetch = fetch, signal?: AbortSignal): Promise<boolean> {
+export async function fixtureUploadServerAvailable(
+  fetcher: typeof fetch = fetch,
+  signal?: AbortSignal,
+): Promise<boolean> {
   try {
-    const response = await fetcher('/fixture-upload/ping', { method: 'GET', cache: 'no-store', signal })
+    const response = await fetcher('/fixture-upload/ping', {
+      method: 'GET',
+      cache: 'no-store',
+      signal,
+    })
     return response.status === 204
   } catch {
     return false
   }
 }
 
-export async function uploadFixtureToDevServer(fixture: Fixture, fetcher: typeof fetch = fetch): Promise<void> {
+export async function uploadFixtureToDevServer(
+  fixture: Fixture,
+  fetcher: typeof fetch = fetch,
+): Promise<void> {
   const form = new FormData()
   form.set('name', fixture.name)
   for (const [filename, bytes] of Object.entries(fixture.files)) {
-    const type = filename.endsWith('.json') ? 'application/json' : filename.endsWith('.png') ? 'image/png' : 'image/jpeg'
+    const type = filename.endsWith('.json')
+      ? 'application/json'
+      : filename.endsWith('.png')
+        ? 'image/png'
+        : 'image/jpeg'
     form.append('file', new Blob([bytes as BlobPart], { type }), filename)
   }
   const response = await fetcher('/fixture-upload/upload', {
@@ -25,7 +39,11 @@ export async function uploadFixtureToDevServer(fixture: Fixture, fetcher: typeof
   })
   if (!response.ok) {
     const body = await response.json().catch(() => null)
-    throw new Error(typeof body?.error === 'string' ? body.error : `Upload failed (${response.status})`)
+    throw new Error(
+      typeof body?.error === 'string'
+        ? body.error
+        : `Upload failed (${response.status})`,
+    )
   }
 }
 
@@ -33,12 +51,20 @@ export async function uploadFixtureToDevServer(fixture: Fixture, fetcher: typeof
 // current commit on each request (see vite.config.ts); the commit built into
 // the page is read once when the dev server starts, so it goes stale while
 // it runs. Without an answer, the built-in commit is kept.
-export async function currentAppCommit(builtIn: string, fetcher: typeof fetch = fetch): Promise<string> {
+export async function currentAppCommit(
+  builtIn: string,
+  fetcher: typeof fetch = fetch,
+): Promise<string> {
   try {
-    const response = await fetcher('/__app-commit', { method: 'GET', cache: 'no-store' })
+    const response = await fetcher('/__app-commit', {
+      method: 'GET',
+      cache: 'no-store',
+    })
     if (!response.ok) return builtIn
     const body = await response.json()
-    return typeof body?.commit === 'string' && body.commit ? body.commit : builtIn
+    return typeof body?.commit === 'string' && body.commit
+      ? body.commit
+      : builtIn
   } catch {
     return builtIn
   }

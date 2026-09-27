@@ -7,10 +7,15 @@ import pkg from './package.json' with { type: 'json' }
 // for uncommitted changes. The dev server reads it once at startup, so
 // commits made while it runs don't show until it restarts.
 function gitCommit(): string {
-  const git = (args: string) => execSync(`git ${args}`, { stdio: ['ignore', 'pipe', 'ignore'] }).toString().trim()
+  const git = (args: string) =>
+    execSync(`git ${args}`, { stdio: ['ignore', 'pipe', 'ignore'] })
+      .toString()
+      .trim()
   try {
     const hash = git('rev-parse --short HEAD')
-    return git('status --porcelain --untracked-files=no') ? `${hash}-dirty` : hash
+    return git('status --porcelain --untracked-files=no')
+      ? `${hash}-dirty`
+      : hash
   } catch {
     return 'unknown'
   }

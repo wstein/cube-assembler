@@ -1,10 +1,16 @@
 import { describe, expect, it } from 'vitest'
-import { faceSources, pieceKey, sourceIndex } from '../src/client/netPresentation'
+import {
+  faceSources,
+  pieceKey,
+  sourceIndex,
+} from '../src/client/netPresentation'
 
 const members = (n: number, face: string, index: number) => {
   const key = pieceKey(n, face, index)
   const out: string[] = []
-  for (const f of ['u', 'r', 'f', 'd', 'l', 'b']) for (let i = 0; i < n * n; i++) if (pieceKey(n, f, i) === key) out.push(`${f}${i}`)
+  for (const f of ['u', 'r', 'f', 'd', 'l', 'b'])
+    for (let i = 0; i < n * n; i++)
+      if (pieceKey(n, f, i) === key) out.push(`${f}${i}`)
   return out.sort()
 }
 
@@ -30,7 +36,9 @@ describe('pieceKey', () => {
 
   it('gives every sticker of a 5x5 exactly one piece', () => {
     const sizes = new Map<string, number>()
-    for (const f of ['u', 'r', 'f', 'd', 'l', 'b']) for (let i = 0; i < 25; i++) sizes.set(pieceKey(5, f, i), (sizes.get(pieceKey(5, f, i)) ?? 0) + 1)
+    for (const f of ['u', 'r', 'f', 'd', 'l', 'b'])
+      for (let i = 0; i < 25; i++)
+        sizes.set(pieceKey(5, f, i), (sizes.get(pieceKey(5, f, i)) ?? 0) + 1)
     const counts = [...sizes.values()]
     expect(counts.filter((c) => c === 3)).toHaveLength(8)
     expect(counts.filter((c) => c === 2)).toHaveLength(36)
@@ -39,21 +47,35 @@ describe('pieceKey', () => {
 })
 
 describe('faceSources', () => {
-  const grid = (letters: string) => [letters.slice(0, 3).split(''), letters.slice(3, 6).split(''), letters.slice(6, 9).split('')]
+  const grid = (letters: string) => [
+    letters.slice(0, 3).split(''),
+    letters.slice(3, 6).split(''),
+    letters.slice(6, 9).split(''),
+  ]
   // rotateGrid clockwise: new[r][c] = old[n-1-c][r].
-  const clockwise = (g: string[][]) => g.map((row, r) => row.map((_, c) => g[g.length - 1 - c][r]))
+  const clockwise = (g: string[][]) =>
+    g.map((row, r) => row.map((_, c) => g[g.length - 1 - c][r]))
 
   it('finds the captured photo and quarter turns behind each net face', () => {
-    const photoA = grid('WWGWWWWWW'), photoB = grid('RRRRRRRRY')
-    const sources = faceSources({ u: clockwise(photoA), f: photoB }, { U: photoB, R: photoA })
+    const photoA = grid('WWGWWWWWW'),
+      photoB = grid('RRRRRRRRY')
+    const sources = faceSources(
+      { u: clockwise(photoA), f: photoB },
+      { U: photoB, R: photoA },
+    )
     expect(sources.u).toEqual({ slot: 'R', turns: 1 })
     expect(sources.f).toEqual({ slot: 'U', turns: 0 })
   })
 
   it('uses each photo once and gives up on a face no photo matches', () => {
     const same = grid('GGGGGGGGG')
-    const sources = faceSources({ u: same, f: same, r: grid('OOOOOOOOO') }, { U: same, R: same })
-    expect(new Set([sources.u?.slot, sources.f?.slot])).toEqual(new Set(['U', 'R']))
+    const sources = faceSources(
+      { u: same, f: same, r: grid('OOOOOOOOO') },
+      { U: same, R: same },
+    )
+    expect(new Set([sources.u?.slot, sources.f?.slot])).toEqual(
+      new Set(['U', 'R']),
+    )
     expect(sources.r).toBeNull()
   })
 

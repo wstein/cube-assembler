@@ -53,15 +53,24 @@ const MIN_TILT_COHERENCE = 0.1
 // weighted by strength) point at the tilt. 0 when the edges show no common
 // direction, when the tilt is too small to matter, or beyond MAX_TILT,
 // where rows and columns become ambiguous.
-export function estimateTilt(data: Uint8ClampedArray, width: number, height: number, square: FaceSquare): number {
+export function estimateTilt(
+  data: Uint8ClampedArray,
+  width: number,
+  height: number,
+  square: FaceSquare,
+): number {
   // Luminance averaged over small blocks (~150 across the square): smooths
   // pixel staircases along tilted edges, which would pull the tilt toward
   // the pixel axes, and keeps this cheap.
   const block = Math.max(1, Math.round(square.size / 150))
   const x0 = Math.max(0, Math.round(square.x + square.size * 0.05))
   const y0 = Math.max(0, Math.round(square.y + square.size * 0.05))
-  const cols = Math.floor((Math.min(width, Math.round(square.x + square.size * 0.95)) - x0) / block)
-  const rows = Math.floor((Math.min(height, Math.round(square.y + square.size * 0.95)) - y0) / block)
+  const cols = Math.floor(
+    (Math.min(width, Math.round(square.x + square.size * 0.95)) - x0) / block,
+  )
+  const rows = Math.floor(
+    (Math.min(height, Math.round(square.y + square.size * 0.95)) - y0) / block,
+  )
   if (cols < 8 || rows < 8) return 0
   const grid = new Float64Array(cols * rows)
   for (let r = 0; r < rows; r++) {
@@ -82,16 +91,31 @@ export function estimateTilt(data: Uint8ClampedArray, width: number, height: num
   for (let r = 1; r < rows - 1; r++) {
     for (let c = 1; c < cols - 1; c++) {
       let sum = 0
-      for (let dr = -1; dr <= 1; dr++) for (let dc = -1; dc <= 1; dc++) sum += grid[(r + dr) * cols + c + dc]
+      for (let dr = -1; dr <= 1; dr++)
+        for (let dc = -1; dc <= 1; dc++) sum += grid[(r + dr) * cols + c + dc]
       smooth[r * cols + c] = sum / 9
     }
   }
   const at = (c: number, r: number) => smooth[r * cols + c]
-  let sin = 0, cos = 0, total = 0
+  let sin = 0,
+    cos = 0,
+    total = 0
   for (let r = 2; r < rows - 2; r++) {
     for (let c = 2; c < cols - 2; c++) {
-      const gx = 3 * (at(c + 1, r - 1) + at(c + 1, r + 1) - at(c - 1, r - 1) - at(c - 1, r + 1)) + 10 * (at(c + 1, r) - at(c - 1, r))
-      const gy = 3 * (at(c - 1, r + 1) + at(c + 1, r + 1) - at(c - 1, r - 1) - at(c + 1, r - 1)) + 10 * (at(c, r + 1) - at(c, r - 1))
+      const gx =
+        3 *
+          (at(c + 1, r - 1) +
+            at(c + 1, r + 1) -
+            at(c - 1, r - 1) -
+            at(c - 1, r + 1)) +
+        10 * (at(c + 1, r) - at(c - 1, r))
+      const gy =
+        3 *
+          (at(c - 1, r + 1) +
+            at(c + 1, r + 1) -
+            at(c - 1, r - 1) -
+            at(c + 1, r - 1)) +
+        10 * (at(c, r + 1) - at(c, r - 1))
       const magnitude = Math.hypot(gx, gy)
       if (magnitude < 60) continue
       const angle = 4 * Math.atan2(gy, gx)
@@ -110,9 +134,14 @@ export function estimateTilt(data: Uint8ClampedArray, width: number, height: num
 // 1.15x, 3x3/4x4 about even (1.0-1.1). The grid lines of an N-cell face, from 0 to 1,
 // with the two outer cells `outer` times as wide as the inner ones.
 export function cellEdges(gridSize: number, outer = 1): number[] {
-  if (gridSize <= 2 || outer === 1) return Array.from({ length: gridSize + 1 }, (_, i) => i / gridSize)
+  if (gridSize <= 2 || outer === 1)
+    return Array.from({ length: gridSize + 1 }, (_, i) => i / gridSize)
   const total = gridSize - 2 + 2 * outer
-  return [0, ...Array.from({ length: gridSize - 1 }, (_, i) => (outer + i) / total), 1]
+  return [
+    0,
+    ...Array.from({ length: gridSize - 1 }, (_, i) => (outer + i) / total),
+    1,
+  ]
 }
 
 // Outer-cell ratios tried per cube size. 4x4 and smaller measured about
@@ -153,12 +182,26 @@ function brightestChannel(data: Uint8ClampedArray, index: number): number {
 
 // A turn about (cx, cy): profiles are then taken across the face as if it
 // were upright, reading each point through the rotation.
-interface Turn { cx: number; cy: number; cos: number; sin: number }
+interface Turn {
+  cx: number
+  cy: number
+  cos: number
+  sin: number
+}
 
 // Mean brightestChannel of each column (vertical) or row over `from..to` of the
 // other axis, averaging every `step`-th line - a mean loses nothing by
 // skipping rows on a large guide.
-function profile(data: Uint8ClampedArray, width: number, height: number, vertical: boolean, from: number, to: number, turn?: Turn, step = 1): Float64Array {
+function profile(
+  data: Uint8ClampedArray,
+  width: number,
+  height: number,
+  vertical: boolean,
+  from: number,
+  to: number,
+  turn?: Turn,
+  step = 1,
+): Float64Array {
   const length = vertical ? width : height
   const out = new Float64Array(length)
   const start = Math.max(0, Math.round(from))
@@ -166,11 +209,19 @@ function profile(data: Uint8ClampedArray, width: number, height: number, vertica
   let count = 0
   for (let along = start; along < end; along += step, count++) {
     for (let p = 0; p < length; p++) {
-      let x = vertical ? p : along, y = vertical ? along : p
+      let x = vertical ? p : along,
+        y = vertical ? along : p
       if (turn) {
-        const dx = x - turn.cx, dy = y - turn.cy
-        x = Math.min(width - 1, Math.max(0, Math.round(turn.cx + turn.cos * dx - turn.sin * dy)))
-        y = Math.min(height - 1, Math.max(0, Math.round(turn.cy + turn.sin * dx + turn.cos * dy)))
+        const dx = x - turn.cx,
+          dy = y - turn.cy
+        x = Math.min(
+          width - 1,
+          Math.max(0, Math.round(turn.cx + turn.cos * dx - turn.sin * dy)),
+        )
+        y = Math.min(
+          height - 1,
+          Math.max(0, Math.round(turn.cy + turn.sin * dx + turn.cos * dy)),
+        )
       }
       out[p] += brightestChannel(data, (y * width + x) * 4)
     }
@@ -185,12 +236,21 @@ function profile(data: Uint8ClampedArray, width: number, height: number, vertica
 // brighter regions - a plain color step scores negative. A mean (not the
 // darkest point) peaks when the line sits in the middle of a wide seam,
 // which pins down the face size on 2x2 and 3x3 grids with few lines.
-function seamDarkness(values: Float64Array, position: number, cell: number): number {
-  const at = (p: number) => values[Math.min(values.length - 1, Math.max(0, Math.round(p)))]
+function seamDarkness(
+  values: Float64Array,
+  position: number,
+  cell: number,
+): number {
+  const at = (p: number) =>
+    values[Math.min(values.length - 1, Math.max(0, Math.round(p)))]
   const window = Math.max(1, cell * 0.03)
-  let sum = 0, count = 0
-  for (let p = position - window; p <= position + window; p++, count++) sum += at(p)
-  return Math.min(at(position - cell * 0.3), at(position + cell * 0.3)) - sum / count
+  let sum = 0,
+    count = 0
+  for (let p = position - window; p <= position + window; p++, count++)
+    sum += at(p)
+  return (
+    Math.min(at(position - cell * 0.3), at(position + cell * 0.3)) - sum / count
+  )
 }
 
 // The face's outer edge need not be a dark line: a single-color stickerless
@@ -198,9 +258,17 @@ function seamDarkness(values: Float64Array, position: number, cell: number): num
 // side of `position` peaks right at the edge; capped so a high-contrast
 // background cannot outweigh the seams inside the face.
 const MAX_EDGE_STEP = 40
-function edgeStep(values: Float64Array, position: number, cell: number): number {
-  const at = (p: number) => values[Math.min(values.length - 1, Math.max(0, Math.round(p)))]
-  return Math.min(MAX_EDGE_STEP, Math.abs(at(position + cell * 0.05) - at(position - cell * 0.05)))
+function edgeStep(
+  values: Float64Array,
+  position: number,
+  cell: number,
+): number {
+  const at = (p: number) =>
+    values[Math.min(values.length - 1, Math.max(0, Math.round(p)))]
+  return Math.min(
+    MAX_EDGE_STEP,
+    Math.abs(at(position + cell * 0.05) - at(position - cell * 0.05)),
+  )
 }
 
 // Mean seam darkness over all N + 1 grid lines of one axis (at `edges`, see
@@ -208,15 +276,25 @@ function edgeStep(values: Float64Array, position: number, cell: number): number 
 // half in the mean and may also be a plain edge (see edgeStep): the far side
 // there is background, not a sticker. A 2x2's one inner line leaves only the
 // outer lines to agree with it.
-function axisScore(values: Float64Array, offset: number, size: number, gridSize: number, edges: number[]): { score: number; onSeams: number } {
+function axisScore(
+  values: Float64Array,
+  offset: number,
+  size: number,
+  gridSize: number,
+  edges: number[],
+): { score: number; onSeams: number } {
   // Seams are judged at the scale of an inner cell, the narrowest one.
   const cell = (gridSize >= 3 ? edges[2] - edges[1] : 1 / gridSize) * size
-  let sum = 0, hits = 0
+  let sum = 0,
+    hits = 0
   for (let i = 0; i <= gridSize; i++) {
     const outer = i === 0 || i === gridSize
     const position = offset + edges[i] * size
     const darkness = outer
-      ? Math.max(seamDarkness(values, position, cell), edgeStep(values, position, cell))
+      ? Math.max(
+          seamDarkness(values, position, cell),
+          edgeStep(values, position, cell),
+        )
       : seamDarkness(values, position, cell)
     sum += (outer ? 0.5 : 1) * darkness
     if ((outer ? gridSize === 2 : true) && darkness >= MIN_LINE_DARKNESS) hits++
@@ -236,15 +314,36 @@ export function findGridAlignment(
   guide: FaceSquare,
   gridSize: number,
   angle = 0,
-  scaleRange: [number, number] = SCALE_RANGE
+  scaleRange: [number, number] = SCALE_RANGE,
 ): GridAlignment {
-  const cx = guide.x + guide.size / 2, cy = guide.y + guide.size / 2
-  const turn = angle ? { cx, cy, cos: Math.cos(angle), sin: Math.sin(angle) } : undefined
-  const found = searchUpright(data, width, height, guide, gridSize, turn, scaleRange)
+  const cx = guide.x + guide.size / 2,
+    cy = guide.y + guide.size / 2
+  const turn = angle
+    ? { cx, cy, cos: Math.cos(angle), sin: Math.sin(angle) }
+    : undefined
+  const found = searchUpright(
+    data,
+    width,
+    height,
+    guide,
+    gridSize,
+    turn,
+    scaleRange,
+  )
   // Back from the upright copy: turn the square's center about the guide's.
-  const ux = found.x + found.size / 2 - cx, uy = found.y + found.size / 2 - cy
-  const center: [number, number] = [cx + Math.cos(angle) * ux - Math.sin(angle) * uy, cy + Math.sin(angle) * ux + Math.cos(angle) * uy]
-  return { ...found, angle, center, x: center[0] - found.size / 2, y: center[1] - found.size / 2 }
+  const ux = found.x + found.size / 2 - cx,
+    uy = found.y + found.size / 2 - cy
+  const center: [number, number] = [
+    cx + Math.cos(angle) * ux - Math.sin(angle) * uy,
+    cy + Math.sin(angle) * ux + Math.cos(angle) * uy,
+  ]
+  return {
+    ...found,
+    angle,
+    center,
+    x: center[0] - found.size / 2,
+    y: center[1] - found.size / 2,
+  }
 }
 
 // Tilt, position and size of the face around `guide`: the measured tilt is
@@ -255,7 +354,7 @@ export function alignFace(
   width: number,
   height: number,
   guide: FaceSquare,
-  gridSize: number
+  gridSize: number,
 ): GridAlignment {
   // The perimeter fixes the grid origin before the seam search. Searching
   // seams from the fixed guide alone can land one whole cell off on 7x7.
@@ -270,12 +369,29 @@ export function alignFace(
   const minScale = gridSize <= 4 ? 1 - 0.8 / gridSize : 0.92
   const scaleRange: [number, number] = coarse ? [minScale, 1.08] : SCALE_RANGE
   const angle = estimateTilt(data, width, height, searchGuide)
-  const aligned = findGridAlignment(data, width, height, searchGuide, gridSize, 0, scaleRange)
+  const aligned = findGridAlignment(
+    data,
+    width,
+    height,
+    searchGuide,
+    gridSize,
+    0,
+    scaleRange,
+  )
   if (angle) {
     // The tilt must beat reading the face upright, not merely find seams:
     // round stickers can suggest a tilt that isn't there.
-    const tilted = findGridAlignment(data, width, height, searchGuide, gridSize, angle, scaleRange)
-    if (tilted.seams && (!aligned.seams || tilted.score > aligned.score)) return coarse ? { ...tilted, aligned: true } : tilted
+    const tilted = findGridAlignment(
+      data,
+      width,
+      height,
+      searchGuide,
+      gridSize,
+      angle,
+      scaleRange,
+    )
+    if (tilted.seams && (!aligned.seams || tilted.score > aligned.score))
+      return coarse ? { ...tilted, aligned: true } : tilted
   }
   if (aligned.seams) return coarse ? { ...aligned, aligned: true } : aligned
   if (!coarse) return aligned
@@ -285,16 +401,23 @@ export function alignFace(
 // A sparse perimeter scan supplies an approximate square, independent of
 // sticker count. It compares points just inside and outside all four edges;
 // a complete outline wins over an inner seam or a single background edge.
-function locateFaceOutline(data: Uint8ClampedArray, width: number, height: number, guide: FaceSquare): FaceSquare | null {
+function locateFaceOutline(
+  data: Uint8ClampedArray,
+  width: number,
+  height: number,
+  guide: FaceSquare,
+): FaceSquare | null {
   const pixel = (x: number, y: number) => {
     const i = (Math.round(y) * width + Math.round(x)) * 4
     return [data[i], data[i + 1], data[i + 2]]
   }
   const difference = (ax: number, ay: number, bx: number, by: number) => {
-    const a = pixel(ax, ay), b = pixel(bx, by)
+    const a = pixel(ax, ay),
+      b = pixel(bx, by)
     return Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2])
   }
-  const cx = guide.x + guide.size / 2, cy = guide.y + guide.size / 2
+  const cx = guide.x + guide.size / 2,
+    cy = guide.y + guide.size / 2
   let best: { square: FaceSquare; score: number } | null = null
   for (let scale = 0.7; scale <= 1.3 + 1e-9; scale += 0.03) {
     const size = guide.size * scale
@@ -309,8 +432,14 @@ function locateFaceOutline(data: Uint8ClampedArray, width: number, height: numbe
         const outside: number[][] = []
         for (let sample = 0; sample < 10; sample++) {
           const t = (sample + 0.5) / 10
-          const sx = x + t * size, sy = y + t * size
-          outside.push(pixel(x - inset, sy), pixel(x + size + inset, sy), pixel(sx, y - inset), pixel(sx, y + size + inset))
+          const sx = x + t * size,
+            sy = y + t * size
+          outside.push(
+            pixel(x - inset, sy),
+            pixel(x + size + inset, sy),
+            pixel(sx, y - inset),
+            pixel(sx, y + size + inset),
+          )
           sides[0] += difference(x - inset, sy, x + inset, sy)
           sides[1] += difference(x + size - inset, sy, x + size + inset, sy)
           sides[2] += difference(sx, y - inset, sx, y + inset)
@@ -319,14 +448,35 @@ function locateFaceOutline(data: Uint8ClampedArray, width: number, height: numbe
         // A face has four edges. Penalize candidates explaining only one or
         // two strong lines, common with furniture and internal grid seams.
         const weakest = Math.min(...sides) / 10
-        const mean = [0, 1, 2].map((channel) => outside.reduce((sum, rgb) => sum + rgb[channel], 0) / outside.length)
-        const spread = Math.sqrt(outside.reduce((sum, rgb) => sum + rgb.reduce((part, value, channel) => part + (value - mean[channel]) ** 2, 0), 0) / outside.length)
-        const score = sides.reduce((sum, side) => sum + side, 0) / 40 + weakest - spread + 150 * scale
-        if (!best || score > best.score) best = { square: { x, y, size }, score }
+        const mean = [0, 1, 2].map(
+          (channel) =>
+            outside.reduce((sum, rgb) => sum + rgb[channel], 0) /
+            outside.length,
+        )
+        const spread = Math.sqrt(
+          outside.reduce(
+            (sum, rgb) =>
+              sum +
+              rgb.reduce(
+                (part, value, channel) => part + (value - mean[channel]) ** 2,
+                0,
+              ),
+            0,
+          ) / outside.length,
+        )
+        const score =
+          sides.reduce((sum, side) => sum + side, 0) / 40 +
+          weakest -
+          spread +
+          150 * scale
+        if (!best || score > best.score)
+          best = { square: { x, y, size }, score }
       }
     }
   }
-  return best && best.score >= 45 + 150 * (best.square.size / guide.size) ? best.square : null
+  return best && best.score >= 45 + 150 * (best.square.size / guide.size)
+    ? best.square
+    : null
 }
 
 function searchUpright(
@@ -336,29 +486,67 @@ function searchUpright(
   guide: FaceSquare,
   gridSize: number,
   turn?: Turn,
-  scaleRange: [number, number] = SCALE_RANGE
+  scaleRange: [number, number] = SCALE_RANGE,
 ): Omit<GridAlignment, 'angle' | 'center'> {
   // Profiles span the middle of the guide on the other axis, which stays
   // on the face even when it is offset.
   const lines = Math.max(1, Math.round(guide.size / 300))
-  const columns = profile(data, width, height, true, guide.y + guide.size * 0.2, guide.y + guide.size * 0.8, turn, lines)
-  const rows = profile(data, width, height, false, guide.x + guide.size * 0.2, guide.x + guide.size * 0.8, turn, lines)
-  const layouts = outerRatios(gridSize).map((outer) => ({ outer, edges: cellEdges(gridSize, outer) }))
+  const columns = profile(
+    data,
+    width,
+    height,
+    true,
+    guide.y + guide.size * 0.2,
+    guide.y + guide.size * 0.8,
+    turn,
+    lines,
+  )
+  const rows = profile(
+    data,
+    width,
+    height,
+    false,
+    guide.x + guide.size * 0.2,
+    guide.x + guide.size * 0.8,
+    turn,
+    lines,
+  )
+  const layouts = outerRatios(gridSize).map((outer) => ({
+    outer,
+    edges: cellEdges(gridSize, outer),
+  }))
   // The guide as it is, with its best-fitting outer-cell ratio.
   // It counts as a grid only with its lines on seams, as a moved square
   // must: a 2x2 outline's edges alone scored enough with no inner seam.
   let stay = { score: -Infinity, outer: 1, onSeams: false }
   for (const { outer, edges } of layouts) {
-    const x = axisScore(columns, guide.x, guide.size, gridSize, edges), y = axisScore(rows, guide.y, guide.size, gridSize, edges)
+    const x = axisScore(columns, guide.x, guide.size, gridSize, edges),
+      y = axisScore(rows, guide.y, guide.size, gridSize, edges)
     const score = (x.score + y.score) / 2
-    if (score > stay.score) stay = { score, outer, onSeams: x.onSeams >= MIN_LINES_ON_SEAMS && y.onSeams >= MIN_LINES_ON_SEAMS }
+    if (score > stay.score)
+      stay = {
+        score,
+        outer,
+        onSeams:
+          x.onSeams >= MIN_LINES_ON_SEAMS && y.onSeams >= MIN_LINES_ON_SEAMS,
+      }
   }
 
   // Offsets stay under half of the narrowest (inner) cell.
-  const maxOffset = guide.size * Math.min(ALIGNMENT_MAX_OFFSET, MAX_OFFSET_CELLS / gridSize)
+  const maxOffset =
+    guide.size * Math.min(ALIGNMENT_MAX_OFFSET, MAX_OFFSET_CELLS / gridSize)
   const step = Math.max(1, guide.size / 200)
-  let best: Omit<GridAlignment, 'angle' | 'center' | 'seams'> = { ...guide, score: stay.score, aligned: false, outer: stay.outer }
-  for (let scale = scaleRange[0]; scale <= scaleRange[1] + 1e-9; scale += SCALE_STEP) {
+  let best: Omit<GridAlignment, 'angle' | 'center' | 'seams'> = {
+    ...guide,
+    score: stay.score,
+    aligned: false,
+    outer: stay.outer,
+  }
+  for (
+    let scale = scaleRange[0];
+    scale <= scaleRange[1] + 1e-9;
+    scale += SCALE_STEP
+  ) {
     const size = guide.size * scale
     const centered = (guide.size - size) / 2
     for (const { outer, edges } of layouts) {
@@ -366,21 +554,39 @@ function searchUpright(
         let top = { offset: origin + centered, score: -Infinity }
         for (let shift = -maxOffset; shift <= maxOffset; shift += step) {
           const offset = origin + centered + shift
-          const { score, onSeams } = axisScore(values, offset, size, gridSize, edges)
-          if (onSeams >= MIN_LINES_ON_SEAMS && score > top.score) top = { offset, score }
+          const { score, onSeams } = axisScore(
+            values,
+            offset,
+            size,
+            gridSize,
+            edges,
+          )
+          if (onSeams >= MIN_LINES_ON_SEAMS && score > top.score)
+            top = { offset, score }
         }
         return top
       }
       const x = bestOffset(columns, guide.x)
       const y = bestOffset(rows, guide.y)
       const score = (x.score + y.score) / 2
-      if (score > best.score) best = { x: x.offset, y: y.offset, size, score, aligned: true, outer }
+      if (score > best.score)
+        best = { x: x.offset, y: y.offset, size, score, aligned: true, outer }
     }
   }
 
-  if (!best.aligned || best.score < MIN_SEAM_SCORE || best.score - stay.score < MIN_IMPROVEMENT) {
+  if (
+    !best.aligned ||
+    best.score < MIN_SEAM_SCORE ||
+    best.score - stay.score < MIN_IMPROVEMENT
+  ) {
     const seams = stay.score >= MIN_SEAM_SCORE && stay.onSeams
-    return { ...guide, score: stay.score, aligned: false, seams, outer: seams ? stay.outer : 1 }
+    return {
+      ...guide,
+      score: stay.score,
+      aligned: false,
+      seams,
+      outer: seams ? stay.outer : 1,
+    }
   }
   return { ...best, seams: true }
 }
@@ -388,7 +594,12 @@ function searchUpright(
 // The outer-cell ratio of a face that already fills `data` (an aligned
 // crop): the layout whose grid lines sit best on dark seams, or 1 when no
 // layout shows convincing seams.
-export function estimateOuterCellRatio(data: Uint8ClampedArray, width: number, height: number, gridSize: number): number {
+export function estimateOuterCellRatio(
+  data: Uint8ClampedArray,
+  width: number,
+  height: number,
+  gridSize: number,
+): number {
   const layouts = outerRatios(gridSize)
   if (layouts.length === 1) return 1
   const columns = profile(data, width, height, true, height * 0.2, height * 0.8)
@@ -397,11 +608,16 @@ export function estimateOuterCellRatio(data: Uint8ClampedArray, width: number, h
   let even = -Infinity
   for (const outer of layouts) {
     const edges = cellEdges(gridSize, outer)
-    const score = (axisScore(columns, 0, width, gridSize, edges).score + axisScore(rows, 0, height, gridSize, edges).score) / 2
+    const score =
+      (axisScore(columns, 0, width, gridSize, edges).score +
+        axisScore(rows, 0, height, gridSize, edges).score) /
+      2
     if (outer === 1) even = score
     if (score > best.score) best = { score, outer }
   }
-  return best.score >= MIN_SEAM_SCORE && best.score - even >= MIN_IMPROVEMENT ? best.outer : 1
+  return best.score >= MIN_SEAM_SCORE && best.score - even >= MIN_IMPROVEMENT
+    ? best.outer
+    : 1
 }
 
 // The face's four corners (top-left, top-right, bottom-right, bottom-left,
@@ -420,12 +636,18 @@ export function estimateFaceCorners(
   width: number,
   height: number,
   found: GridAlignment,
-  gridSize: number
+  gridSize: number,
 ): [number, number][] | null {
   const { size } = found
   const [cx, cy] = found.center
-  const x = cx - size / 2, y = cy - size / 2
-  const turn: Turn = { cx, cy, cos: Math.cos(found.angle), sin: Math.sin(found.angle) }
+  const x = cx - size / 2,
+    y = cy - size / 2
+  const turn: Turn = {
+    cx,
+    cy,
+    cos: Math.cos(found.angle),
+    sin: Math.sin(found.angle),
+  }
   const edges = cellEdges(gridSize, found.outer)
   const cell = size / gridSize
   const lines = Math.max(1, Math.round(size / 300))
@@ -438,25 +660,48 @@ export function estimateFaceCorners(
   // An outer line is compared with its inner side only: the background
   // beyond it can be anything, and edge steps vary with each sticker's
   // brightness, which tilted the edges between bands.
-  const at = (values: Float64Array, p: number) => values[Math.min(values.length - 1, Math.max(0, Math.round(p)))]
-  const search = (values: Float64Array, predicted: number, side: 0 | -1 | 1) => {
+  const at = (values: Float64Array, p: number) =>
+    values[Math.min(values.length - 1, Math.max(0, Math.round(p)))]
+  const search = (
+    values: Float64Array,
+    predicted: number,
+    side: 0 | -1 | 1,
+  ) => {
     const window = Math.max(1, cell * 0.03)
     let best = { at: predicted, score: -Infinity }
-    for (let p = predicted - cell * 0.3; p <= predicted + cell * 0.3; p += 0.5) {
-      let sum = 0, count = 0
-      for (let q = p - window; q <= p + window; q++, count++) sum += at(values, q)
-      const inside = side === 0 ? Math.min(at(values, p - cell * 0.3), at(values, p + cell * 0.3)) : at(values, p - side * cell * 0.3)
+    for (
+      let p = predicted - cell * 0.3;
+      p <= predicted + cell * 0.3;
+      p += 0.5
+    ) {
+      let sum = 0,
+        count = 0
+      for (let q = p - window; q <= p + window; q++, count++)
+        sum += at(values, q)
+      const inside =
+        side === 0
+          ? Math.min(at(values, p - cell * 0.3), at(values, p + cell * 0.3))
+          : at(values, p - side * cell * 0.3)
       const score = inside - sum / count
       if (score > best.score) best = { at: p, score }
     }
     return best.at
   }
   const positions = (values: Float64Array, origin: number) => {
-    const at = edges.map((edge, i) => i === 0 || i === gridSize ? NaN : search(values, origin + edge * size, 0))
-    const ratio = (i: number, j: number, k: number) => (edges[i] - edges[j]) / (edges[k] - edges[j])
+    const at = edges.map((edge, i) =>
+      i === 0 || i === gridSize ? NaN : search(values, origin + edge * size, 0),
+    )
+    const ratio = (i: number, j: number, k: number) =>
+      (edges[i] - edges[j]) / (edges[k] - edges[j])
     // Outer lines from the two nearest inner lines (a 2x2 has only one).
-    const first = gridSize > 2 ? at[1] + (at[2] - at[1]) * ratio(0, 1, 2) : origin
-    const last = gridSize > 2 ? at[gridSize - 1] + (at[gridSize - 2] - at[gridSize - 1]) * ratio(gridSize, gridSize - 1, gridSize - 2) : origin + size
+    const first =
+      gridSize > 2 ? at[1] + (at[2] - at[1]) * ratio(0, 1, 2) : origin
+    const last =
+      gridSize > 2
+        ? at[gridSize - 1] +
+          (at[gridSize - 2] - at[gridSize - 1]) *
+            ratio(gridSize, gridSize - 1, gridSize - 2)
+        : origin + size
     at[0] = search(values, first, -1)
     at[gridSize] = search(values, last, 1)
     return at
@@ -464,42 +709,100 @@ export function estimateFaceCorners(
   const across = (vertical: boolean) => {
     const origin = vertical ? x : y
     const start = vertical ? y : x
-    const near = profile(data, width, height, vertical, start + size * bands[0], start + size * bands[1], turn, lines)
-    const far = profile(data, width, height, vertical, start + size * bands[2], start + size * bands[3], turn, lines)
-    const a = start + size * (bands[0] + bands[1]) / 2, b = start + size * (bands[2] + bands[3]) / 2
-    const p = positions(near, origin), q = positions(far, origin)
+    const near = profile(
+      data,
+      width,
+      height,
+      vertical,
+      start + size * bands[0],
+      start + size * bands[1],
+      turn,
+      lines,
+    )
+    const far = profile(
+      data,
+      width,
+      height,
+      vertical,
+      start + size * bands[2],
+      start + size * bands[3],
+      turn,
+      lines,
+    )
+    const a = start + (size * (bands[0] + bands[1])) / 2,
+      b = start + (size * (bands[2] + bands[3])) / 2
+    const p = positions(near, origin),
+      q = positions(far, origin)
     // Each line as position = offset + slope * (coordinate along it).
-    return edges.map((_, i) => ({ slope: (q[i] - p[i]) / (b - a), offset: p[i] - (q[i] - p[i]) / (b - a) * a }))
+    return edges.map((_, i) => ({
+      slope: (q[i] - p[i]) / (b - a),
+      offset: p[i] - ((q[i] - p[i]) / (b - a)) * a,
+    }))
   }
-  const columns = across(true), rows = across(false)
+  const columns = across(true),
+    rows = across(false)
   // Outer lines crossing: x = c.offset + c.slope * y and y = r.offset + r.slope * x.
-  const meet = (c: { slope: number; offset: number }, r: { slope: number; offset: number }): [number, number] => {
+  const meet = (
+    c: { slope: number; offset: number },
+    r: { slope: number; offset: number },
+  ): [number, number] => {
     const ux = (c.offset + c.slope * r.offset) / (1 - c.slope * r.slope)
     return [ux, r.offset + r.slope * ux]
   }
-  const upright = [meet(columns[0], rows[0]), meet(columns[gridSize], rows[0]), meet(columns[gridSize], rows[gridSize]), meet(columns[0], rows[gridSize])]
-  const square = [[x, y], [x + size, y], [x + size, y + size], [x, y + size]]
-  const shift = Math.max(...upright.map(([ux, uy], i) => Math.hypot(ux - square[i][0], uy - square[i][1])))
+  const upright = [
+    meet(columns[0], rows[0]),
+    meet(columns[gridSize], rows[0]),
+    meet(columns[gridSize], rows[gridSize]),
+    meet(columns[0], rows[gridSize]),
+  ]
+  const square = [
+    [x, y],
+    [x + size, y],
+    [x + size, y + size],
+    [x, y + size],
+  ]
+  const shift = Math.max(
+    ...upright.map(([ux, uy], i) =>
+      Math.hypot(ux - square[i][0], uy - square[i][1]),
+    ),
+  )
   if (shift > size * MAX_CORNER_SHIFT) return null
-  const length = (i: number, j: number) => Math.hypot(upright[i][0] - upright[j][0], upright[i][1] - upright[j][1])
+  const length = (i: number, j: number) =>
+    Math.hypot(upright[i][0] - upright[j][0], upright[i][1] - upright[j][1])
   const sides = [length(0, 1), length(1, 2), length(2, 3), length(3, 0)]
   const side = sides.reduce((sum, value) => sum + value, 0) / 4
-  const skew = Math.max(...sides.map((value) => Math.abs(value - side) / side), Math.abs(length(0, 2) - length(1, 3)) / (side * Math.SQRT2))
+  const skew = Math.max(
+    ...sides.map((value) => Math.abs(value - side) / side),
+    Math.abs(length(0, 2) - length(1, 3)) / (side * Math.SQRT2),
+  )
   if (skew < MIN_SKEW) return null
   // Back from the upright view into `data`'s pixels.
-  return upright.map(([ux, uy]) => [cx + turn.cos * (ux - cx) - turn.sin * (uy - cy), cy + turn.sin * (ux - cx) + turn.cos * (uy - cy)])
+  return upright.map(([ux, uy]) => [
+    cx + turn.cos * (ux - cx) - turn.sin * (uy - cy),
+    cy + turn.sin * (ux - cx) + turn.cos * (uy - cy),
+  ])
 }
 
 // How well a square face image's grid lines sit on seams: the mean
 // axisScore over both axes, at the outer-cell ratio that fits it best - a
 // face read at an angle and the same face straightened need different ones.
-function squareSeamScore(square: Uint8ClampedArray, size: number, gridSize: number): number {
+function squareSeamScore(
+  square: Uint8ClampedArray,
+  size: number,
+  gridSize: number,
+): number {
   const columns = profile(square, size, size, true, size * 0.2, size * 0.8)
   const rows = profile(square, size, size, false, size * 0.2, size * 0.8)
-  return Math.max(...outerRatios(gridSize).map((outer) => {
-    const edges = cellEdges(gridSize, outer)
-    return (axisScore(columns, 0, size, gridSize, edges).score + axisScore(rows, 0, size, gridSize, edges).score) / 2
-  }))
+  return Math.max(
+    ...outerRatios(gridSize).map((outer) => {
+      const edges = cellEdges(gridSize, outer)
+      return (
+        (axisScore(columns, 0, size, gridSize, edges).score +
+          axisScore(rows, 0, size, gridSize, edges).score) /
+        2
+      )
+    }),
+  )
 }
 
 // Opposite edges of a face seen at an angle converge in step: turned about
@@ -512,15 +815,27 @@ function squareSeamScore(square: Uint8ClampedArray, size: number, gridSize: numb
 // also tilted averaged about -4.4.
 const MAX_EDGE_PAIR_LEAN = (6 * Math.PI) / 180
 
-export function cornersConsistent(corners: [number, number][], angle: number): boolean {
+export function cornersConsistent(
+  corners: [number, number][],
+  angle: number,
+): boolean {
   const [tl, tr, br, bl] = corners
-  const lean = (a: [number, number], b: [number, number], vertical: boolean) => {
-    const raw = vertical ? Math.atan2(-(b[0] - a[0]), b[1] - a[1]) : Math.atan2(b[1] - a[1], b[0] - a[0])
+  const lean = (
+    a: [number, number],
+    b: [number, number],
+    vertical: boolean,
+  ) => {
+    const raw = vertical
+      ? Math.atan2(-(b[0] - a[0]), b[1] - a[1])
+      : Math.atan2(b[1] - a[1], b[0] - a[0])
     return Math.atan2(Math.sin(raw - angle), Math.cos(raw - angle))
   }
   const horizontal = (lean(tl, tr, false) + lean(bl, br, false)) / 2
   const vertical = (lean(tl, bl, true) + lean(tr, br, true)) / 2
-  return Math.abs(horizontal) <= MAX_EDGE_PAIR_LEAN && Math.abs(vertical) <= MAX_EDGE_PAIR_LEAN
+  return (
+    Math.abs(horizontal) <= MAX_EDGE_PAIR_LEAN &&
+    Math.abs(vertical) <= MAX_EDGE_PAIR_LEAN
+  )
 }
 
 // Whether to read the face through `corners`: they must be consistent (see
@@ -528,19 +843,50 @@ export function cornersConsistent(corners: [number, number][], angle: number): b
 // seams better than reading the turned square as it is - both read the same
 // way, as quadrilaterals - and the straightened face must come out upright
 // (no measurable tilt left, see estimateTilt), as it does for right corners.
-export function acceptFaceCorners(data: Uint8ClampedArray, width: number, height: number, found: GridAlignment,
-  corners: [number, number][], gridSize: number): boolean {
+export function acceptFaceCorners(
+  data: Uint8ClampedArray,
+  width: number,
+  height: number,
+  found: GridAlignment,
+  corners: [number, number][],
+  gridSize: number,
+): boolean {
   if (!cornersConsistent(corners, found.angle)) return false
   const size = Math.max(16, Math.round(found.size))
-  const [cx, cy] = found.center, cos = Math.cos(found.angle), sin = Math.sin(found.angle), h = found.size / 2
-  const turned: [number, number][] = [[-h, -h], [h, -h], [h, h], [-h, h]].map(([dx, dy]) => [cx + cos * dx - sin * dy, cy + sin * dx + cos * dy])
+  const [cx, cy] = found.center,
+    cos = Math.cos(found.angle),
+    sin = Math.sin(found.angle),
+    h = found.size / 2
+  const turned: [number, number][] = [
+    [-h, -h],
+    [h, -h],
+    [h, h],
+    [-h, h],
+  ].map(([dx, dy]) => [cx + cos * dx - sin * dy, cy + sin * dx + cos * dy])
   const straightened = warpQuadToSquare(data, width, height, corners, size)
-  if (squareSeamScore(straightened, size, gridSize) <= squareSeamScore(warpQuadToSquare(data, width, height, turned, size), size, gridSize)) return false
+  if (
+    squareSeamScore(straightened, size, gridSize) <=
+    squareSeamScore(
+      warpQuadToSquare(data, width, height, turned, size),
+      size,
+      gridSize,
+    )
+  )
+    return false
   return estimateTilt(straightened, size, size, { x: 0, y: 0, size }) === 0
 }
 
 // The face's corners (see estimateFaceCorners) where they pass acceptFaceCorners.
-export function faceCornersIfBetter(data: Uint8ClampedArray, width: number, height: number, found: GridAlignment, gridSize: number): [number, number][] | null {
+export function faceCornersIfBetter(
+  data: Uint8ClampedArray,
+  width: number,
+  height: number,
+  found: GridAlignment,
+  gridSize: number,
+): [number, number][] | null {
   const corners = estimateFaceCorners(data, width, height, found, gridSize)
-  return corners && acceptFaceCorners(data, width, height, found, corners, gridSize) ? corners : null
+  return corners &&
+    acceptFaceCorners(data, width, height, found, corners, gridSize)
+    ? corners
+    : null
 }

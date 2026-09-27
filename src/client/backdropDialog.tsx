@@ -29,7 +29,8 @@ interface Props {
 // another wall), not from the light on the cube.
 const STRONG_GAIN = 0.25
 
-const css = (c: RGB) => `rgb(${Math.round(c.r)} ${Math.round(c.g)} ${Math.round(c.b)})`
+const css = (c: RGB) =>
+  `rgb(${Math.round(c.r)} ${Math.round(c.g)} ${Math.round(c.b)})`
 
 // The photo adjusted by `gains`, as a data URL; null until it is ready.
 function useAdjustedPhoto(photo: string, gains: RGB): string | null {
@@ -52,7 +53,9 @@ function useAdjustedPhoto(photo: string, gains: RGB): string | null {
       setUrl(canvas.toDataURL('image/jpeg', 0.92))
     }
     image.src = photo
-    return () => { active = false }
+    return () => {
+      active = false
+    }
   }, [photo, gains.r, gains.g, gains.b])
   return url
 }
@@ -60,17 +63,34 @@ function useAdjustedPhoto(photo: string, gains: RGB): string | null {
 function StickerGrid({ colors, label }: { colors: RGB[][]; label: string }) {
   return (
     <figure class="backdrop-stickers">
-      <div class="backdrop-sticker-grid" style={{ gridTemplateColumns: `repeat(${colors.length}, 1fr)` }} role="img" aria-label={label}>
-        {colors.flat().map((color, i) => <span key={i} style={{ background: css(color) }} title={css(color)} />)}
+      <div
+        class="backdrop-sticker-grid"
+        style={{ gridTemplateColumns: `repeat(${colors.length}, 1fr)` }}
+        role="img"
+        aria-label={label}
+      >
+        {colors.flat().map((color, i) => (
+          <span key={i} style={{ background: css(color) }} title={css(color)} />
+        ))}
       </div>
       <figcaption>{label}</figcaption>
     </figure>
   )
 }
 
-function FaceRow({ face, reference }: { face: BackdropFace; reference: RGB | null }) {
+function FaceRow({
+  face,
+  reference,
+}: {
+  face: BackdropFace
+  reference: RGB | null
+}) {
   const adjusted = useAdjustedPhoto(face.photo, face.gains)
-  const channels = [['R', face.gains.r], ['G', face.gains.g], ['B', face.gains.b]] as const
+  const channels = [
+    ['R', face.gains.r],
+    ['G', face.gains.g],
+    ['B', face.gains.b],
+  ] as const
   const strong = channels.some(([, gain]) => Math.abs(gain - 1) >= STRONG_GAIN)
   return (
     <div class="backdrop-row">
@@ -80,28 +100,74 @@ function FaceRow({ face, reference }: { face: BackdropFace; reference: RGB | nul
         <figcaption>Original</figcaption>
       </figure>
       <figure>
-        {adjusted ? <img src={adjusted} alt={`${face.label} after the backdrop adjustment`} /> : <div class="backdrop-pending" />}
+        {adjusted ? (
+          <img
+            src={adjusted}
+            alt={`${face.label} after the backdrop adjustment`}
+          />
+        ) : (
+          <div class="backdrop-pending" />
+        )}
         <figcaption>Backdrop adjusted</figcaption>
       </figure>
       {face.stickers && (
         <div class="backdrop-sticker-pair">
-          <StickerGrid colors={face.stickers.map((row) => row.map((color) => removeGains(color, face.gains)))} label="Stickers before" />
+          <StickerGrid
+            colors={face.stickers.map((row) =>
+              row.map((color) => removeGains(color, face.gains)),
+            )}
+            label="Stickers before"
+          />
           <StickerGrid colors={face.stickers} label="Stickers used" />
         </div>
       )}
       <div class="backdrop-details">
         <p class={strong ? 'backdrop-strong' : ''}>
           {channels.map(([name, gain]) => (
-            <span key={name} class={Math.abs(gain - 1) >= STRONG_GAIN ? 'strong' : ''}>{name} ×{gain.toFixed(2)}</span>
+            <span
+              key={name}
+              class={Math.abs(gain - 1) >= STRONG_GAIN ? 'strong' : ''}
+            >
+              {name} ×{gain.toFixed(2)}
+            </span>
           ))}
         </p>
         <p class="backdrop-swatches">
-          <span class="backdrop-swatch" style={{ background: face.background ? css(face.background) : 'transparent' }} title={face.background ? `Backdrop ${css(face.background)}` : 'No backdrop reading'} />
+          <span
+            class="backdrop-swatch"
+            style={{
+              background: face.background
+                ? css(face.background)
+                : 'transparent',
+            }}
+            title={
+              face.background
+                ? `Backdrop ${css(face.background)}`
+                : 'No backdrop reading'
+            }
+          />
           <span>→</span>
-          <span class="backdrop-swatch" style={{ background: reference ? css(reference) : 'transparent' }} title={reference ? `Median backdrop ${css(reference)}` : 'No median backdrop'} />
-          <span class="backdrop-note">{face.background ? 'this face’s backdrop → median of all faces' : 'no backdrop reading'}</span>
+          <span
+            class="backdrop-swatch"
+            style={{ background: reference ? css(reference) : 'transparent' }}
+            title={
+              reference
+                ? `Median backdrop ${css(reference)}`
+                : 'No median backdrop'
+            }
+          />
+          <span class="backdrop-note">
+            {face.background
+              ? 'this face’s backdrop → median of all faces'
+              : 'no backdrop reading'}
+          </span>
         </p>
-        {strong && <p class="backdrop-warning">Strong adjustment: check that the backdrop around this face really differs in light, not in what is behind the cube.</p>}
+        {strong && (
+          <p class="backdrop-warning">
+            Strong adjustment: check that the backdrop around this face really
+            differs in light, not in what is behind the cube.
+          </p>
+        )}
       </div>
     </div>
   )
@@ -110,20 +176,40 @@ function FaceRow({ face, reference }: { face: BackdropFace; reference: RGB | nul
 export function BackdropDialog({ faces, reference, onClose }: Props) {
   return (
     <div class="modal open">
-      <div class="modal-content backdrop-dialog" role="dialog" aria-modal="true" aria-labelledby="backdrop-title" tabIndex={-1}
-        ref={(el) => { if (el && !el.contains(document.activeElement)) el.focus() }}
-        onKeyDown={(e) => { if (e.key === 'Escape') { e.stopPropagation(); onClose() } }}>
+      <div
+        class="modal-content backdrop-dialog"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="backdrop-title"
+        tabIndex={-1}
+        ref={(el) => {
+          if (el && !el.contains(document.activeElement)) el.focus()
+        }}
+        onKeyDown={(e) => {
+          if (e.key === 'Escape') {
+            e.stopPropagation()
+            onClose()
+          }
+        }}
+      >
         <div class="modal-header">
           <h2 id="backdrop-title">Backdrop adjustment</h2>
-          <button class="modal-close" aria-label="Close" onClick={onClose}>×</button>
+          <button class="modal-close" aria-label="Close" onClick={onClose}>
+            ×
+          </button>
         </div>
         <p class="backdrop-intro">
-          Before the six faces are classified together, each face is scaled so the backdrop around it matches the median backdrop of all faces.
-          The adjusted photo illustrates that scaling. The sticker grids show the exact colors the classifier used, before and after it:
-          it picks each sticker's pixels on the original photo and scales their average, which can differ from the photo by a few shades.
+          Before the six faces are classified together, each face is scaled so
+          the backdrop around it matches the median backdrop of all faces. The
+          adjusted photo illustrates that scaling. The sticker grids show the
+          exact colors the classifier used, before and after it: it picks each
+          sticker's pixels on the original photo and scales their average, which
+          can differ from the photo by a few shades.
         </p>
         <div class="backdrop-rows">
-          {faces.map((face) => <FaceRow key={face.face} face={face} reference={reference} />)}
+          {faces.map((face) => (
+            <FaceRow key={face.face} face={face} reference={reference} />
+          ))}
         </div>
       </div>
     </div>

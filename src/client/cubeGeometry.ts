@@ -20,14 +20,20 @@ const FACES: FaceKey[] = ['U', 'R', 'F', 'D', 'L', 'B']
 // Where grid cell (row, col) of each face sits in 3D.
 function cellPosition(face: FaceKey, row: number, col: number, n: number): Vec {
   const a = -(n - 1) + 2 * col // left -> right across the face as seen
-  const b = (n - 1) - 2 * row // top -> bottom
+  const b = n - 1 - 2 * row // top -> bottom
   switch (face) {
-    case 'F': return [a, b, n]
-    case 'B': return [-a, b, -n]
-    case 'R': return [n, b, -a]
-    case 'L': return [-n, b, a]
-    case 'U': return [a, n, -b]
-    case 'D': return [a, -n, b]
+    case 'F':
+      return [a, b, n]
+    case 'B':
+      return [-a, b, -n]
+    case 'R':
+      return [n, b, -a]
+    case 'L':
+      return [-n, b, a]
+    case 'U':
+      return [a, n, -b]
+    case 'D':
+      return [a, -n, b]
   }
 }
 
@@ -38,9 +44,12 @@ const AXIS_INDEX: Record<Axis, number> = { x: 0, y: 1, z: 2 }
 // F up to U, a U turn carries F to L, an F turn carries U to R.
 function quarterTurn([x, y, z]: Vec, axis: Axis): Vec {
   switch (axis) {
-    case 'x': return [x, z, -y]
-    case 'y': return [-z, y, x]
-    case 'z': return [y, -x, z]
+    case 'x':
+      return [x, z, -y]
+    case 'y':
+      return [-z, y, x]
+    case 'z':
+      return [y, -x, z]
   }
 }
 
@@ -51,7 +60,9 @@ function cellsBySize(n: number): Map<string, [FaceKey, number, number]> {
   if (!cells) {
     cells = new Map()
     for (const f of FACES) {
-      for (let r = 0; r < n; r++) for (let c = 0; c < n; c++) cells.set(cellPosition(f, r, c, n).join(','), [f, r, c])
+      for (let r = 0; r < n; r++)
+        for (let c = 0; c < n; c++)
+          cells.set(cellPosition(f, r, c, n).join(','), [f, r, c])
     }
     cellLookup.set(n, cells)
   }
@@ -60,7 +71,12 @@ function cellsBySize(n: number): Map<string, [FaceKey, number, number]> {
 
 function transform(faces: Faces, move: (p: Vec) => Vec): Faces {
   const n = faces.U.length
-  const out = Object.fromEntries(FACES.map((f) => [f, Array.from({ length: n }, () => Array<string>(n).fill(''))])) as Faces
+  const out = Object.fromEntries(
+    FACES.map((f) => [
+      f,
+      Array.from({ length: n }, () => Array<string>(n).fill('')),
+    ]),
+  ) as Faces
   const cellOf = cellsBySize(n)
   for (const f of FACES) {
     for (let r = 0; r < n; r++) {
@@ -83,15 +99,29 @@ function repeat(p: Vec, axis: Axis, times: number): Vec {
 // Rotates the whole cube `quarterTurns` times clockwise as seen from the
 // positive end of `axis` - x like an R turn, y like a U turn, z like an F
 // turn (the standard x/y/z cube rotations).
-export function rotateCube(faces: Faces, axis: Axis, quarterTurns: number): Faces {
+export function rotateCube(
+  faces: Faces,
+  axis: Axis,
+  quarterTurns: number,
+): Faces {
   return transform(faces, (p) => repeat(p, axis, quarterTurns))
 }
 
 // Turns the outer layer of `face` (plus `depth - 1` inner layers)
 // `quarterTurns` times clockwise as seen from that face.
-export function turnFace(faces: Faces, face: FaceKey, quarterTurns: number, depth = 1): Faces {
+export function turnFace(
+  faces: Faces,
+  face: FaceKey,
+  quarterTurns: number,
+  depth = 1,
+): Faces {
   const n = faces.U.length
-  const axis: Axis = face === 'R' || face === 'L' ? 'x' : face === 'U' || face === 'D' ? 'y' : 'z'
+  const axis: Axis =
+    face === 'R' || face === 'L'
+      ? 'x'
+      : face === 'U' || face === 'D'
+        ? 'y'
+        : 'z'
   const positive = face === 'R' || face === 'U' || face === 'F'
   // Layer k (0 = the face itself) holds cubies whose coordinate along the
   // axis is ±(n-1-2k); stickers on the face itself sit at ±n.
@@ -107,13 +137,28 @@ export function turnFace(faces: Faces, face: FaceKey, quarterTurns: number, dept
 // All 24 whole-cube orientations of the given cube, the identity first:
 // each of the 6 faces brought to the top, then spun around the vertical.
 export function allOrientations(faces: Faces): Faces[] {
-  const tops: Array<[Axis, number]> = [['x', 0], ['x', 1], ['x', 2], ['x', 3], ['z', 1], ['z', 3]]
+  const tops: Array<[Axis, number]> = [
+    ['x', 0],
+    ['x', 1],
+    ['x', 2],
+    ['x', 3],
+    ['z', 1],
+    ['z', 3],
+  ]
   return tops.flatMap(([axis, turns]) => {
     const topped = rotateCube(faces, axis, turns)
     return [0, 1, 2, 3].map((y) => rotateCube(topped, 'y', y))
   })
 }
 
-export function solvedCubeFaces(n: number, colors: Record<FaceKey, string>): Faces {
-  return Object.fromEntries(FACES.map((f) => [f, Array.from({ length: n }, () => Array<string>(n).fill(colors[f]))])) as Faces
+export function solvedCubeFaces(
+  n: number,
+  colors: Record<FaceKey, string>,
+): Faces {
+  return Object.fromEntries(
+    FACES.map((f) => [
+      f,
+      Array.from({ length: n }, () => Array<string>(n).fill(colors[f])),
+    ]),
+  ) as Faces
 }

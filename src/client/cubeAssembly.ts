@@ -36,17 +36,25 @@ export function toCubeIR(cube: CubeState, size: number): CubeIR {
 }
 
 const SOLVED_FACE_COLOR: Record<'U' | 'R' | 'F' | 'D' | 'L' | 'B', string> = {
-  U: 'W', R: 'R', F: 'G', D: 'Y', L: 'O', B: 'B',
+  U: 'W',
+  R: 'R',
+  F: 'G',
+  D: 'Y',
+  L: 'O',
+  B: 'B',
 }
 
-function solvedFace(letter: keyof typeof SOLVED_FACE_COLOR, size: number): string[][] {
+function solvedFace(
+  letter: keyof typeof SOLVED_FACE_COLOR,
+  size: number,
+): string[][] {
   const color = SOLVED_FACE_COLOR[letter]
   return Array.from({ length: size }, () => Array(size).fill(color))
 }
 
 export function assembleCubeFromFaces(
   faces: Record<string, string[][]>,
-  size = 3
+  size = 3,
 ): CubeState {
   // Flatten each NxN face into a size*size-element array
   const flattenFace = (face: string[][]): string[] => {
@@ -91,7 +99,10 @@ export type FaceKey = 'U' | 'R' | 'F' | 'D' | 'L' | 'B'
 const FACE_KEYS: FaceKey[] = ['U', 'R', 'F', 'D', 'L', 'B']
 
 const COLOR_TO_FACE: Record<string, FaceKey> = Object.fromEntries(
-  Object.entries(SOLVED_FACE_COLOR).map(([face, color]) => [color, face as FaceKey])
+  Object.entries(SOLVED_FACE_COLOR).map(([face, color]) => [
+    color,
+    face as FaceKey,
+  ]),
 ) as Record<string, FaceKey>
 
 type CornerPos = 'TL' | 'TR' | 'BL' | 'BR'
@@ -132,13 +143,28 @@ const FACE_EDGES: Record<FaceKey, Record<EdgePos, string>> = {
 // breaks validity checks on half the corners (verified against this app's
 // CORNER_SLOTS/SOLVED_CORNERS tables in parity.ts).
 const CORNER_FACES: Record<string, [FaceKey, FaceKey, FaceKey]> = {
-  UFR: ['U', 'R', 'F'], UFL: ['U', 'F', 'L'], UBR: ['U', 'B', 'R'], UBL: ['U', 'L', 'B'],
-  DFR: ['D', 'F', 'R'], DFL: ['D', 'L', 'F'], DBR: ['D', 'R', 'B'], DBL: ['D', 'B', 'L'],
+  UFR: ['U', 'R', 'F'],
+  UFL: ['U', 'F', 'L'],
+  UBR: ['U', 'B', 'R'],
+  UBL: ['U', 'L', 'B'],
+  DFR: ['D', 'F', 'R'],
+  DFL: ['D', 'L', 'F'],
+  DBR: ['D', 'R', 'B'],
+  DBL: ['D', 'B', 'L'],
 }
 const EDGE_FACES: Record<string, [FaceKey, FaceKey]> = {
-  UF: ['U', 'F'], UR: ['U', 'R'], UB: ['U', 'B'], UL: ['U', 'L'],
-  DF: ['D', 'F'], DR: ['D', 'R'], DB: ['D', 'B'], DL: ['D', 'L'],
-  FR: ['F', 'R'], FL: ['F', 'L'], BR: ['B', 'R'], BL: ['B', 'L'],
+  UF: ['U', 'F'],
+  UR: ['U', 'R'],
+  UB: ['U', 'B'],
+  UL: ['U', 'L'],
+  DF: ['D', 'F'],
+  DR: ['D', 'R'],
+  DB: ['D', 'B'],
+  DL: ['D', 'L'],
+  FR: ['F', 'R'],
+  FL: ['F', 'L'],
+  BR: ['B', 'R'],
+  BL: ['B', 'L'],
 }
 
 function rotations<T>(arr: T[]): T[][] {
@@ -151,14 +177,20 @@ function rotations<T>(arr: T[]): T[][] {
 const VALID_CORNER_TRIPLES = new Set(
   Object.keys(CORNER_FACES).flatMap((name) => {
     const [f1, f2, f3] = CORNER_FACES[name]
-    return rotations([SOLVED_FACE_COLOR[f1], SOLVED_FACE_COLOR[f2], SOLVED_FACE_COLOR[f3]]).map((t) => t.join(''))
-  })
+    return rotations([
+      SOLVED_FACE_COLOR[f1],
+      SOLVED_FACE_COLOR[f2],
+      SOLVED_FACE_COLOR[f3],
+    ]).map((t) => t.join(''))
+  }),
 )
 const VALID_EDGE_PAIRS = new Set(
   Object.keys(EDGE_FACES).flatMap((name) => {
     const [f1, f2] = EDGE_FACES[name]
-    return rotations([SOLVED_FACE_COLOR[f1], SOLVED_FACE_COLOR[f2]]).map((p) => p.join(''))
-  })
+    return rotations([SOLVED_FACE_COLOR[f1], SOLVED_FACE_COLOR[f2]]).map((p) =>
+      p.join(''),
+    )
+  }),
 )
 
 // Precomputed once: which position on each of a corner's/edge's touching
@@ -170,12 +202,18 @@ const VALID_EDGE_PAIRS = new Set(
 // top of rotation alone.
 const CORNER_POSITIONS: Record<string, [CornerPos, CornerPos, CornerPos]> = {}
 for (const [name, [f1, f2, f3]] of Object.entries(CORNER_FACES)) {
-  const posOf = (f: FaceKey) => (Object.entries(FACE_CORNERS[f]) as [CornerPos, string][]).find(([, n]) => n === name)![0]
+  const posOf = (f: FaceKey) =>
+    (Object.entries(FACE_CORNERS[f]) as [CornerPos, string][]).find(
+      ([, n]) => n === name,
+    )![0]
   CORNER_POSITIONS[name] = [posOf(f1), posOf(f2), posOf(f3)]
 }
 const EDGE_POSITIONS: Record<string, [EdgePos, EdgePos]> = {}
 for (const [name, [f1, f2]] of Object.entries(EDGE_FACES)) {
-  const posOf = (f: FaceKey) => (Object.entries(FACE_EDGES[f]) as [EdgePos, string][]).find(([, n]) => n === name)![0]
+  const posOf = (f: FaceKey) =>
+    (Object.entries(FACE_EDGES[f]) as [EdgePos, string][]).find(
+      ([, n]) => n === name,
+    )![0]
   EDGE_POSITIONS[name] = [posOf(f1), posOf(f2)]
 }
 
@@ -183,7 +221,10 @@ function scoreCorners(faces: Record<FaceKey, string[][]>): number {
   let score = 0
   for (const [name, [f1, f2, f3]] of Object.entries(CORNER_FACES)) {
     const [p1, p2, p3] = CORNER_POSITIONS[name]
-    const triple = cornerSticker(faces[f1], p1) + cornerSticker(faces[f2], p2) + cornerSticker(faces[f3], p3)
+    const triple =
+      cornerSticker(faces[f1], p1) +
+      cornerSticker(faces[f2], p2) +
+      cornerSticker(faces[f3], p3)
     if (VALID_CORNER_TRIPLES.has(triple)) score++
   }
   return score
@@ -209,7 +250,8 @@ function scoreEdges(faces: Record<FaceKey, string[][]>): number {
   for (const [name, [f1, f2]] of Object.entries(EDGE_FACES)) {
     const [p1, p2] = EDGE_POSITIONS[name]
     const mirrored = EDGES_WITH_MIRRORED_SECOND_FACE.has(name)
-    const pair = edgeSticker(faces[f1], p1, false) + edgeSticker(faces[f2], p2, mirrored)
+    const pair =
+      edgeSticker(faces[f1], p1, false) + edgeSticker(faces[f2], p2, mirrored)
     if (VALID_EDGE_PAIRS.has(pair)) score++
   }
   return score
@@ -244,18 +286,22 @@ function scoreEdges(faces: Record<FaceKey, string[][]>): number {
 // ─────────────────────────────────────────────────────────────────────────────
 
 const CORNER_NAMES = Object.keys(CORNER_FACES)
-const SOLVED_CORNER_TRIPLE: Record<string, [string, string, string]> = Object.fromEntries(
-  CORNER_NAMES.map((name) => {
-    const [f1, f2, f3] = CORNER_FACES[name]
-    return [name, [SOLVED_FACE_COLOR[f1], SOLVED_FACE_COLOR[f2], SOLVED_FACE_COLOR[f3]]]
-  })
-)
+const SOLVED_CORNER_TRIPLE: Record<string, [string, string, string]> =
+  Object.fromEntries(
+    CORNER_NAMES.map((name) => {
+      const [f1, f2, f3] = CORNER_FACES[name]
+      return [
+        name,
+        [SOLVED_FACE_COLOR[f1], SOLVED_FACE_COLOR[f2], SOLVED_FACE_COLOR[f3]],
+      ]
+    }),
+  )
 const EDGE_NAMES = Object.keys(EDGE_FACES)
 const SOLVED_EDGE_PAIR: Record<string, [string, string]> = Object.fromEntries(
   EDGE_NAMES.map((name) => {
     const [f1, f2] = EDGE_FACES[name]
     return [name, [SOLVED_FACE_COLOR[f1], SOLVED_FACE_COLOR[f2]]]
-  })
+  }),
 )
 
 // Which of the 8 canonical corners the sticker triple AT a position
@@ -263,18 +309,26 @@ const SOLVED_EDGE_PAIR: Record<string, [string, string]> = Object.fromEntries(
 // relative to that piece's solved orientation - null if the triple is an
 // impossible combination (e.g. two same colors, or two opposite colors,
 // touching) that matches no real corner at all.
-function identifyCorner(triple: [string, string, string]): { name: string; twist: number } | null {
+function identifyCorner(
+  triple: [string, string, string],
+): { name: string; twist: number } | null {
   for (const name of CORNER_NAMES) {
     const sc = SOLVED_CORNER_TRIPLE[name]
     for (let rot = 0; rot < 3; rot++) {
-      if (triple[rot % 3] === sc[0] && triple[(rot + 1) % 3] === sc[1] && triple[(rot + 2) % 3] === sc[2]) {
+      if (
+        triple[rot % 3] === sc[0] &&
+        triple[(rot + 1) % 3] === sc[1] &&
+        triple[(rot + 2) % 3] === sc[2]
+      ) {
         return { name, twist: rot }
       }
     }
   }
   return null
 }
-function identifyEdge(pair: [string, string]): { name: string; flip: number } | null {
+function identifyEdge(
+  pair: [string, string],
+): { name: string; flip: number } | null {
   for (const name of EDGE_NAMES) {
     const se = SOLVED_EDGE_PAIR[name]
     if (pair[0] === se[0] && pair[1] === se[1]) return { name, flip: 0 }
@@ -289,7 +343,10 @@ function permParity(perm: number[]): boolean {
   for (let i = 0; i < perm.length; i++) {
     if (!visited[i]) {
       let j = i
-      while (!visited[j]) { visited[j] = true; j = perm[j] }
+      while (!visited[j]) {
+        visited[j] = true
+        j = perm[j]
+      }
       cycles++
     }
   }
@@ -315,14 +372,23 @@ function permParity(perm: number[]): boolean {
 // ─────────────────────────────────────────────────────────────────────────────
 
 type EdgeLineType = 'TOP' | 'BOTTOM' | 'LEFT' | 'RIGHT'
-function edgeLineSticker(grid: string[][], line: EdgeLineType, reverse: boolean, w: number): string {
+function edgeLineSticker(
+  grid: string[][],
+  line: EdgeLineType,
+  reverse: boolean,
+  w: number,
+): string {
   const n = grid.length
   const pos = reverse ? n - 1 - w : w
   switch (line) {
-    case 'TOP': return grid[0][pos]
-    case 'BOTTOM': return grid[n - 1][pos]
-    case 'LEFT': return grid[pos][0]
-    case 'RIGHT': return grid[pos][n - 1]
+    case 'TOP':
+      return grid[0][pos]
+    case 'BOTTOM':
+      return grid[n - 1][pos]
+    case 'LEFT':
+      return grid[pos][0]
+    case 'RIGHT':
+      return grid[pos][n - 1]
   }
 }
 
@@ -333,7 +399,9 @@ function edgeLineSticker(grid: string[][], line: EdgeLineType, reverse: boolean,
 // see parity.ts's EDGE_LINES for the full derivation story (a
 // naive corner-adjacency guess got UR/UB/DB/DL backwards; this is
 // reverse-checked against that already-verified table, not re-derived).
-const WING_EDGE_LINES: Array<[FaceKey, EdgeLineType, boolean, FaceKey, EdgeLineType, boolean]> = [
+const WING_EDGE_LINES: Array<
+  [FaceKey, EdgeLineType, boolean, FaceKey, EdgeLineType, boolean]
+> = [
   ['U', 'BOTTOM', false, 'F', 'TOP', false],
   ['U', 'RIGHT', false, 'R', 'TOP', true],
   ['U', 'TOP', false, 'B', 'TOP', true],
@@ -359,16 +427,30 @@ const WING_EDGE_LINES: Array<[FaceKey, EdgeLineType, boolean, FaceKey, EdgeLineT
 // cross-depth imbalance) but can only ever accept too much, never falsely
 // reject a real cube - and it's still strictly more than the "nothing at
 // all" this replaces.
-function wingEdgeCountsValid(faces: Record<FaceKey, string[][]>, n: number): boolean {
+function wingEdgeCountsValid(
+  faces: Record<FaceKey, string[][]>,
+  n: number,
+): boolean {
   const counts = new Array(EDGE_NAMES.length).fill(0)
-  for (const [faceA, lineA, reverseA, faceB, lineB, reverseB] of WING_EDGE_LINES) {
+  for (const [
+    faceA,
+    lineA,
+    reverseA,
+    faceB,
+    lineB,
+    reverseB,
+  ] of WING_EDGE_LINES) {
     for (let w = 1; w <= n - 2; w++) {
       const c0 = edgeLineSticker(faces[faceA], lineA, reverseA, w)
       const c1 = edgeLineSticker(faces[faceB], lineB, reverseB, w)
       let found = false
       for (let pi = 0; pi < EDGE_NAMES.length; pi++) {
         const [p0, p1] = SOLVED_EDGE_PAIR[EDGE_NAMES[pi]]
-        if ((c0 === p0 && c1 === p1) || (c0 === p1 && c1 === p0)) { counts[pi]++; found = true; break }
+        if ((c0 === p0 && c1 === p1) || (c0 === p1 && c1 === p0)) {
+          counts[pi]++
+          found = true
+          break
+        }
       }
       if (!found) return false
     }
@@ -386,7 +468,9 @@ function isFullyValid(faces: Record<FaceKey, string[][]>): boolean {
   for (const [name, [f1, f2, f3]] of Object.entries(CORNER_FACES)) {
     const [p1, p2, p3] = CORNER_POSITIONS[name]
     const triple: [string, string, string] = [
-      cornerSticker(faces[f1], p1), cornerSticker(faces[f2], p2), cornerSticker(faces[f3], p3),
+      cornerSticker(faces[f1], p1),
+      cornerSticker(faces[f2], p2),
+      cornerSticker(faces[f3], p3),
     ]
     const id = identifyCorner(triple)
     if (!id || usedCorners.has(id.name)) return false
@@ -411,7 +495,10 @@ function isFullyValid(faces: Record<FaceKey, string[][]>): boolean {
   for (const [name, [f1, f2]] of Object.entries(EDGE_FACES)) {
     const [p1, p2] = EDGE_POSITIONS[name]
     const mirrored = EDGES_WITH_MIRRORED_SECOND_FACE.has(name)
-    const pair: [string, string] = [edgeSticker(faces[f1], p1, false), edgeSticker(faces[f2], p2, mirrored)]
+    const pair: [string, string] = [
+      edgeSticker(faces[f1], p1, false),
+      edgeSticker(faces[f2], p2, mirrored),
+    ]
     const id = identifyEdge(pair)
     if (!id || usedEdges.has(id.name)) return false
     usedEdges.add(id.name)
@@ -423,7 +510,10 @@ function isFullyValid(faces: Record<FaceKey, string[][]>): boolean {
   return permParity(cornerPieces) === permParity(edgePieces)
 }
 
-function rotateGrid(grid: string[][], quarterTurnsClockwise: number): string[][] {
+function rotateGrid(
+  grid: string[][],
+  quarterTurnsClockwise: number,
+): string[][] {
   const turns = ((quarterTurnsClockwise % 4) + 4) % 4
   let result = grid
   for (let t = 0; t < turns; t++) {
@@ -447,7 +537,11 @@ function cornerSticker(grid: string[][], pos: CornerPos): string {
   return grid[n - 1][n - 1]
 }
 
-function edgeSticker(grid: string[][], pos: EdgePos, mirrored: boolean): string {
+function edgeSticker(
+  grid: string[][],
+  pos: EdgePos,
+  mirrored: boolean,
+): string {
   const n = grid.length
   const raw = Math.floor(n / 2) // representative sticker per side; enough as a corroborating signal
   const mid = mirrored ? n - 1 - raw : raw
@@ -529,7 +623,9 @@ const MAX_ALTERNATIVES = 48
 // colored face) and must be treated as the same candidate, not a genuine
 // alternative.
 function faceSetSignature(faces: Record<FaceKey, string[][]>): string {
-  return FACE_KEYS.map((f) => faces[f].map((row) => row.join('')).join('')).join('|')
+  return FACE_KEYS.map((f) =>
+    faces[f].map((row) => row.join('')).join(''),
+  ).join('|')
 }
 
 type BestCandidates = {
@@ -561,30 +657,37 @@ type BestCandidates = {
 function considerCandidate(
   faces: Record<FaceKey, string[][]>,
   rotations: Record<FaceKey, number>,
-  best: BestCandidates | null
+  best: BestCandidates | null,
 ): BestCandidates | null {
   const hasEdges = faces.U.length > 2
   const fullyValid = isFullyValid(faces)
   const cornerScore = scoreCorners(faces)
   const edgeScore = hasEdges ? scoreEdges(faces) : NaN
 
-  const beatsBest = !best
-    || (fullyValid && !best.fullyValid)
-    || (fullyValid === best.fullyValid && cornerScore > best.cornerScore)
-    || (fullyValid === best.fullyValid && cornerScore === best.cornerScore && hasEdges && edgeScore > best.edgeScore)
+  const beatsBest =
+    !best ||
+    (fullyValid && !best.fullyValid) ||
+    (fullyValid === best.fullyValid && cornerScore > best.cornerScore) ||
+    (fullyValid === best.fullyValid &&
+      cornerScore === best.cornerScore &&
+      hasEdges &&
+      edgeScore > best.edgeScore)
   if (beatsBest) {
     return {
-      cornerScore, edgeScore, fullyValid,
+      cornerScore,
+      edgeScore,
+      fullyValid,
       alternatives: [{ faces, rotations }],
       seenSignatures: new Set([faceSetSignature(faces)]),
       truncated: false,
     }
   }
 
-  const tiesBest = best !== null
-    && fullyValid === best.fullyValid
-    && cornerScore === best.cornerScore
-    && (!hasEdges || edgeScore === best.edgeScore)
+  const tiesBest =
+    best !== null &&
+    fullyValid === best.fullyValid &&
+    cornerScore === best.cornerScore &&
+    (!hasEdges || edgeScore === best.edgeScore)
   if (tiesBest && best) {
     const signature = faceSetSignature(faces)
     if (!best.seenSignatures.has(signature)) {
@@ -627,7 +730,9 @@ function considerCandidate(
 // case just costs the customer one extra, harmless click among
 // equally-valid options; silently guessing on the 4x4 case could hand
 // back the wrong cube).
-function toOrientationSolution(best: BestCandidates | null): OrientationSolution | null {
+function toOrientationSolution(
+  best: BestCandidates | null,
+): OrientationSolution | null {
   if (!best) return null
   return {
     faces: best.alternatives[0].faces,
@@ -640,7 +745,10 @@ function toOrientationSolution(best: BestCandidates | null): OrientationSolution
   }
 }
 
-function solveOddSizeOrientations(capturedFaces: Record<string, string[][]>, size: number): OrientationSolution | null {
+function solveOddSizeOrientations(
+  capturedFaces: Record<string, string[][]>,
+  size: number,
+): OrientationSolution | null {
   const byIdentity: Partial<Record<FaceKey, string[][]>> = {}
   for (const colors of Object.values(capturedFaces)) {
     const mid = Math.floor(size / 2)
@@ -652,13 +760,28 @@ function solveOddSizeOrientations(capturedFaces: Record<string, string[][]>, siz
   const faces = byIdentity as Record<FaceKey, string[][]>
 
   let best: BestCandidates | null = null
-  for (let rU = 0; rU < 4; rU++) for (let rR = 0; rR < 4; rR++) for (let rF = 0; rF < 4; rF++)
-  for (let rD = 0; rD < 4; rD++) for (let rL = 0; rL < 4; rL++) for (let rB = 0; rB < 4; rB++) {
-    const rot: Record<FaceKey, number> = { U: rU, R: rR, F: rF, D: rD, L: rL, B: rB }
-    const rotated: Record<FaceKey, string[][]> = {} as Record<FaceKey, string[][]>
-    for (const f of FACE_KEYS) rotated[f] = rotateGrid(faces[f], rot[f])
-    best = considerCandidate(rotated, rot, best)
-  }
+  for (let rU = 0; rU < 4; rU++)
+    for (let rR = 0; rR < 4; rR++)
+      for (let rF = 0; rF < 4; rF++)
+        for (let rD = 0; rD < 4; rD++)
+          for (let rL = 0; rL < 4; rL++)
+            for (let rB = 0; rB < 4; rB++) {
+              const rot: Record<FaceKey, number> = {
+                U: rU,
+                R: rR,
+                F: rF,
+                D: rD,
+                L: rL,
+                B: rB,
+              }
+              const rotated: Record<FaceKey, string[][]> = {} as Record<
+                FaceKey,
+                string[][]
+              >
+              for (const f of FACE_KEYS)
+                rotated[f] = rotateGrid(faces[f], rot[f])
+              best = considerCandidate(rotated, rot, best)
+            }
   return toOrientationSolution(best)
 }
 
@@ -687,7 +810,9 @@ function permutations<T>(arr: T[]): T[][] {
 // U is the anchor specifically so the orientation wizard (see index.tsx)
 // can treat it as the one face customers never have to answer a question
 // about - Up is given, then F/R/L/D/B are asked about as needed.
-function solveEvenSizeOrientations(capturedFaces: Record<string, string[][]>): OrientationSolution | null {
+function solveEvenSizeOrientations(
+  capturedFaces: Record<string, string[][]>,
+): OrientationSolution | null {
   const captures = Object.values(capturedFaces)
   if (captures.length !== 6) return null
 
@@ -697,13 +822,21 @@ function solveEvenSizeOrientations(capturedFaces: Record<string, string[][]>): O
   // Precompute every capture's 4 rotations once, rather than re-rotating
   // inside the ~123K-combination search below.
   const firstRotated = rotateGrid(firstCapture, 0)
-  const restRotations = rest.map((capture) => [0, 1, 2, 3].map((r) => rotateGrid(capture, r)))
+  const restRotations = rest.map((capture) =>
+    [0, 1, 2, 3].map((r) => rotateGrid(capture, r)),
+  )
 
   let best: BestCandidates | null = null
   for (const order of permutations([0, 1, 2, 3, 4])) {
     for (let mask = 0; mask < 1024; mask++) {
-      const rotations: Record<FaceKey, number> = { U: 0 } as Record<FaceKey, number>
-      const faces: Record<FaceKey, string[][]> = { U: firstRotated } as Record<FaceKey, string[][]>
+      const rotations: Record<FaceKey, number> = { U: 0 } as Record<
+        FaceKey,
+        number
+      >
+      const faces: Record<FaceKey, string[][]> = { U: firstRotated } as Record<
+        FaceKey,
+        string[][]
+      >
       for (let slot = 0; slot < 5; slot++) {
         const captureIdx = order[slot]
         const rot = (mask >> (slot * 2)) & 0b11
@@ -730,7 +863,7 @@ function solveEvenSizeOrientations(capturedFaces: Record<string, string[][]>): O
  * 8/12 for.
  */
 export function solveFaceOrientations(
-  capturedFaces: Record<string, string[][]>
+  capturedFaces: Record<string, string[][]>,
 ): OrientationSolution | null {
   const size = Object.values(capturedFaces)[0]?.length
   if (!size) return null
@@ -773,13 +906,30 @@ export interface GuidedSolution extends OrientationSolution {
   arrangements: GuidedArrangement[]
 }
 
-export const OPPOSITE_COLOR: Record<string, string> = { W: 'Y', Y: 'W', R: 'O', O: 'R', G: 'B', B: 'G' }
+export const OPPOSITE_COLOR: Record<string, string> = {
+  W: 'Y',
+  Y: 'W',
+  R: 'O',
+  O: 'R',
+  G: 'B',
+  B: 'G',
+}
 
 type CenterVector = readonly [number, number, number]
 const COLOR_NORMAL: Record<string, CenterVector> = {
-  W: [0, 1, 0], Y: [0, -1, 0], R: [1, 0, 0], O: [-1, 0, 0], G: [0, 0, 1], B: [0, 0, -1],
+  W: [0, 1, 0],
+  Y: [0, -1, 0],
+  R: [1, 0, 0],
+  O: [-1, 0, 0],
+  G: [0, 0, 1],
+  B: [0, 0, -1],
 }
-const NORMAL_COLOR = Object.fromEntries(Object.entries(COLOR_NORMAL).map(([color, normal]) => [normal.join(','), color]))
+const NORMAL_COLOR = Object.fromEntries(
+  Object.entries(COLOR_NORMAL).map(([color, normal]) => [
+    normal.join(','),
+    color,
+  ]),
+)
 const cross = (a: CenterVector, b: CenterVector): CenterVector => [
   a[1] * b[2] - a[2] * b[1],
   a[2] * b[0] - a[0] * b[2],
@@ -791,15 +941,24 @@ const cross = (a: CenterVector, b: CenterVector): CenterVector => [
 // determine the remaining colors for the preferred clockwise path; the
 // actual captures and final orientation solver may follow another path.
 // Even cubes have no fixed center sticker, so their slots stay unfilled.
-export function predictGuidedCenters(photos: Array<string[][] | undefined>): Array<string | null> {
+export function predictGuidedCenters(
+  photos: Array<string[][] | undefined>,
+): Array<string | null> {
   const predictions: Array<string | null> = Array(6).fill(null)
   const n = photos.find((photo) => photo)?.length
   if (n !== 3 && n !== 5 && n !== 7) return predictions
   const mid = Math.floor(n / 2)
-  const centers = Array.from({ length: 6 }, (_, i) => photos[i]?.length === n ? photos[i]?.[mid]?.[mid] : undefined)
-  const pairs = [[0, 2], [1, 3], [4, 5]] as const
+  const centers = Array.from({ length: 6 }, (_, i) =>
+    photos[i]?.length === n ? photos[i]?.[mid]?.[mid] : undefined,
+  )
+  const pairs = [
+    [0, 2],
+    [1, 3],
+    [4, 5],
+  ] as const
   for (const [front, back] of pairs) {
-    const a = centers[front], b = centers[back]
+    const a = centers[front],
+      b = centers[back]
     if (a && OPPOSITE_COLOR[a] && !b) predictions[back] = OPPOSITE_COLOR[a]
     if (b && OPPOSITE_COLOR[b] && !a) predictions[front] = OPPOSITE_COLOR[b]
     if (a && b && OPPOSITE_COLOR[a] !== b) return predictions
@@ -807,7 +966,9 @@ export function predictGuidedCenters(photos: Array<string[][] | undefined>): Arr
 
   // Positive normals correspond to Side 1 (front), Side 2 (right), Top.
   const axes = pairs.map(([positive, negative]) => {
-    const color = centers[positive] ?? (centers[negative] ? OPPOSITE_COLOR[centers[negative]] : null)
+    const color =
+      centers[positive] ??
+      (centers[negative] ? OPPOSITE_COLOR[centers[negative]] : null)
     return color ? COLOR_NORMAL[color] : undefined
   })
   if (axes.filter(Boolean).length < 2) return predictions
@@ -817,13 +978,18 @@ export function predictGuidedCenters(photos: Array<string[][] | undefined>): Arr
     right ?? (top && front ? cross(top, front) : undefined),
     top ?? (front && right ? cross(front, right) : undefined),
   ]
-  const colors = completed.map((normal) => normal ? NORMAL_COLOR[normal.join(',')] : undefined)
+  const colors = completed.map((normal) =>
+    normal ? NORMAL_COLOR[normal.join(',')] : undefined,
+  )
   if (colors.some((color) => !color)) return predictions
   for (let axis = 0; axis < pairs.length; axis++) {
     const [positive, negative] = pairs[axis]
     const color = colors[axis]!
-    if ((centers[positive] && centers[positive] !== color)
-      || (centers[negative] && centers[negative] !== OPPOSITE_COLOR[color])) return predictions
+    if (
+      (centers[positive] && centers[positive] !== color) ||
+      (centers[negative] && centers[negative] !== OPPOSITE_COLOR[color])
+    )
+      return predictions
     if (!centers[positive]) predictions[positive] = color
     if (!centers[negative]) predictions[negative] = OPPOSITE_COLOR[color]
   }
@@ -834,15 +1000,28 @@ export function predictGuidedCenters(photos: Array<string[][] | undefined>): Arr
 // photo is opposite the first, it occupies slot 3 and slot 2 stays open.
 // Once the first two adjacent centers are known, reserve a stable slot
 // for each remaining center so later photos can arrive in any order.
-export function captureCenterSlots(photos: Array<string[][] | undefined>): Array<string | null> {
+export function captureCenterSlots(
+  photos: Array<string[][] | undefined>,
+): Array<string | null> {
   if (!photos[0] || !photos[1]) return predictGuidedCenters(photos)
   const n = photos[0].length
-  if (![3, 5, 7].includes(n) || photos[1].length !== n) return Array(6).fill(null)
+  if (![3, 5, 7].includes(n) || photos[1].length !== n)
+    return Array(6).fill(null)
   const mid = Math.floor(n / 2)
-  const first = photos[0][mid]?.[mid], second = photos[1][mid]?.[mid]
-  if (!first || !second || !OPPOSITE_COLOR[first] || !OPPOSITE_COLOR[second] || first === second) return Array(6).fill(null)
+  const first = photos[0][mid]?.[mid],
+    second = photos[1][mid]?.[mid]
+  if (
+    !first ||
+    !second ||
+    !OPPOSITE_COLOR[first] ||
+    !OPPOSITE_COLOR[second] ||
+    first === second
+  )
+    return Array(6).fill(null)
   if (OPPOSITE_COLOR[first] === second) {
-    const remaining = Object.keys(OPPOSITE_COLOR).filter((color) => color !== first && color !== second)
+    const remaining = Object.keys(OPPOSITE_COLOR).filter(
+      (color) => color !== first && color !== second,
+    )
     return [first, second, ...remaining]
   }
   const suggested = predictGuidedCenters([photos[0], photos[1]])
@@ -854,7 +1033,9 @@ export function captureCenterSlots(photos: Array<string[][] | undefined>): Array
 // Later odd-size faces follow their center color.
 // A center already present in another slot is a duplicate, not a new face.
 export function captureSlotForCenter(
-  photos: Array<string[][] | undefined>, requestedIndex: number, candidate: string[][]
+  photos: Array<string[][] | undefined>,
+  requestedIndex: number,
+  candidate: string[][],
 ): number | null {
   if (photos[requestedIndex]) return requestedIndex
   if (!photos[0]) return 0
@@ -862,9 +1043,11 @@ export function captureSlotForCenter(
   if (!photos[1]) {
     if ([3, 5, 7].includes(n) && photos[0].length === n) {
       const mid = Math.floor(n / 2)
-      const first = photos[0][mid]?.[mid], center = candidate[mid]?.[mid]
+      const first = photos[0][mid]?.[mid],
+        center = candidate[mid]?.[mid]
       if (first && center && first === center) return null
-      if (first && center && OPPOSITE_COLOR[first] === center) return photos[2] ? null : 2
+      if (first && center && OPPOSITE_COLOR[first] === center)
+        return photos[2] ? null : 2
     }
     return 1
   }
@@ -878,10 +1061,14 @@ export function captureSlotForCenter(
 // fits no free slot (a misread center, or a face shown twice) stays in the
 // slot being captured, flagged so assembly searches any order.
 export function placeCapturedFace(
-  photos: Array<string[][] | undefined>, requestedIndex: number, candidate: string[][]
+  photos: Array<string[][] | undefined>,
+  requestedIndex: number,
+  candidate: string[][],
 ): { index: number; unexpectedCenter: boolean } {
   const index = captureSlotForCenter(photos, requestedIndex, candidate)
-  return index === null ? { index: requestedIndex, unexpectedCenter: true } : { index, unexpectedCenter: false }
+  return index === null
+    ? { index: requestedIndex, unexpectedCenter: true }
+    : { index, unexpectedCenter: false }
 }
 
 // How many stickers already sit on the face of their own color - used to
@@ -895,7 +1082,8 @@ function standardLookScore(faces: Record<FaceKey, string[][]>): number {
   let score = 0
   for (const f of FACE_KEYS) {
     const color = SOLVED_FACE_COLOR[f]
-    for (let r = 0; r < n; r++) for (let c = 0; c < n; c++) if (faces[f][r][c] === color) score++
+    for (let r = 0; r < n; r++)
+      for (let c = 0; c < n; c++) if (faces[f][r][c] === color) score++
     if (n % 2 === 1 && faces[f][mid][mid] === color) score += 1000
   }
   return score
@@ -908,28 +1096,44 @@ function standardLookScore(faces: Record<FaceKey, string[][]>): number {
 // standard orientation before it's judged. (Even sizes have no fixed
 // centers; every orientation of a valid cube is valid, so this only picks
 // a familiar-looking one.)
-function toStandardOrientation(faces: Record<FaceKey, string[][]>): Record<FaceKey, string[][]> {
+function toStandardOrientation(
+  faces: Record<FaceKey, string[][]>,
+): Record<FaceKey, string[][]> {
   let best = faces
   let bestScore = -1
   for (const oriented of allOrientations(faces)) {
     const score = standardLookScore(oriented)
-    if (score > bestScore) { best = oriented; bestScore = score }
+    if (score > bestScore) {
+      best = oriented
+      bestScore = score
+    }
   }
   return best
 }
 
 // Same content held differently is the same cube: the smallest signature
 // over all 24 orientations identifies it regardless of how it's held.
-export function orientationFreeSignature(faces: Record<FaceKey, string[][]>): string {
+export function orientationFreeSignature(
+  faces: Record<FaceKey, string[][]>,
+): string {
   return allOrientations(faces).map(faceSetSignature).sort()[0]
 }
 
-export function solveGuidedCapture(capture: GuidedCapture): GuidedSolution | null {
+export function solveGuidedCapture(
+  capture: GuidedCapture,
+): GuidedSolution | null {
   const n = capture.sides[0]?.length
-  if (!n || [...capture.sides, ...capture.caps].some((g) => g?.length !== n)) return null
+  if (!n || [...capture.sides, ...capture.caps].some((g) => g?.length !== n))
+    return null
   const [s1, s2, s3, s4] = capture.sides
 
-  type Scored = { faces: Record<FaceKey, string[][]>; arrangement: GuidedArrangement; fullyValid: boolean; cornerScore: number; edgeScore: number }
+  type Scored = {
+    faces: Record<FaceKey, string[][]>
+    arrangement: GuidedArrangement
+    fullyValid: boolean
+    cornerScore: number
+    edgeScore: number
+  }
   const scored: Scored[] = []
   for (const turn of ['left', 'right'] as const) {
     for (const capsSwapped of [false, true]) {
@@ -940,8 +1144,12 @@ export function solveGuidedCapture(capture: GuidedCapture): GuidedSolution | nul
           // Turning left brings the right-hand face to the front, so the
           // second side photo is R; turning right, it's L.
           const frame: Record<FaceKey, string[][]> = {
-            F: s1, R: turn === 'left' ? s2 : s4, B: s3, L: turn === 'left' ? s4 : s2,
-            U: capsSwapped ? cap2 : cap1, D: capsSwapped ? cap1 : cap2,
+            F: s1,
+            R: turn === 'left' ? s2 : s4,
+            B: s3,
+            L: turn === 'left' ? s4 : s2,
+            U: capsSwapped ? cap2 : cap1,
+            D: capsSwapped ? cap1 : cap2,
           }
           const faces = toStandardOrientation(frame)
           scored.push({
@@ -956,10 +1164,15 @@ export function solveGuidedCapture(capture: GuidedCapture): GuidedSolution | nul
     }
   }
 
-  const rank = (a: Scored) => [a.fullyValid ? 1 : 0, a.cornerScore, Number.isNaN(a.edgeScore) ? 0 : a.edgeScore]
+  const rank = (a: Scored) => [
+    a.fullyValid ? 1 : 0,
+    a.cornerScore,
+    Number.isNaN(a.edgeScore) ? 0 : a.edgeScore,
+  ]
   const compare = (a: Scored, b: Scored) => {
     const [ra, rb] = [rank(a), rank(b)]
-    for (let i = 0; i < ra.length; i++) if (ra[i] !== rb[i]) return rb[i] - ra[i]
+    for (let i = 0; i < ra.length; i++)
+      if (ra[i] !== rb[i]) return rb[i] - ra[i]
     return 0
   }
   scored.sort(compare)
@@ -997,7 +1210,9 @@ export type GuidedCenterIssue =
 // 90° (it shows the face opposite the one before it), or two photos that
 // should face away from each other but don't. Empty when all is well, and
 // always empty on even sizes (no fixed centers) or for missing photos.
-export function checkGuidedCenters(photos: Array<string[][] | undefined>): GuidedCenterIssue[] {
+export function checkGuidedCenters(
+  photos: Array<string[][] | undefined>,
+): GuidedCenterIssue[] {
   const n = photos.find(Boolean)?.length
   if (!n || n % 2 === 0) return []
   const mid = Math.floor(n / 2)
@@ -1005,16 +1220,24 @@ export function checkGuidedCenters(photos: Array<string[][] | undefined>): Guide
   const issues: GuidedCenterIssue[] = []
   for (let i = 0; i < center.length; i++) {
     for (let j = 0; j < i; j++) {
-      if (center[i] && center[i] === center[j]) issues.push({ kind: 'same-center', photos: [j, i] })
+      if (center[i] && center[i] === center[j])
+        issues.push({ kind: 'same-center', photos: [j, i] })
     }
   }
   if (issues.length > 0) return issues
-  const opposite = (a?: string, b?: string) => !!a && !!b && OPPOSITE_COLOR[a] === b
+  const opposite = (a?: string, b?: string) =>
+    !!a && !!b && OPPOSITE_COLOR[a] === b
   for (let i = 1; i < 4; i++) {
-    if (opposite(center[i - 1], center[i])) issues.push({ kind: 'turned-twice', photo: i })
+    if (opposite(center[i - 1], center[i]))
+      issues.push({ kind: 'turned-twice', photo: i })
   }
-  for (const [a, b] of [[0, 2], [1, 3], [4, 5]] as Array<[number, number]>) {
-    if (center[a] && center[b] && !opposite(center[a], center[b])) issues.push({ kind: 'not-opposite', photos: [a, b] })
+  for (const [a, b] of [
+    [0, 2],
+    [1, 3],
+    [4, 5],
+  ] as Array<[number, number]>) {
+    if (center[a] && center[b] && !opposite(center[a], center[b]))
+      issues.push({ kind: 'not-opposite', photos: [a, b] })
   }
   return issues
 }
@@ -1039,7 +1262,8 @@ function sameFaceAtSomeRotation(a: string[][], b: string[][]): boolean {
   return [0, 1, 2, 3].some((turns) => {
     const rotated = rotateGrid(b, turns)
     let same = 0
-    for (let r = 0; r < n; r++) for (let c = 0; c < n; c++) if (a[r][c] === rotated[r][c]) same++
+    for (let r = 0; r < n; r++)
+      for (let c = 0; c < n; c++) if (a[r][c] === rotated[r][c]) same++
     return same >= needed
   })
 }
@@ -1054,7 +1278,7 @@ export interface FaceMatchSample {
 export function findCapturedFaceMatch(
   captures: Array<FaceMatchSample | undefined>,
   candidate: FaceMatchSample,
-  excludeIndex = -1
+  excludeIndex = -1,
 ): number | null {
   const n = candidate.colors.length
   for (let i = 0; i < captures.length; i++) {
@@ -1068,7 +1292,8 @@ export function findCapturedFaceMatch(
 // An approval net is in cube orientation, whereas Check colors is in photo
 // order. Find the photo behind a net face even when it was rotated in assembly.
 export function findCaptureSlotForOrientedFace(
-  captures: Array<string[][] | undefined>, face: string[][]
+  captures: Array<string[][] | undefined>,
+  face: string[][],
 ): number | null {
   const n = face.length
   let bestIndex: number | null = null
@@ -1079,9 +1304,10 @@ export function findCaptureSlotForOrientedFace(
     for (let turn = 0; turn < 4; turn++) {
       const rotated = rotateGrid(saved, turn)
       let distance = 0
-      for (let r = 0; r < n; r++) for (let c = 0; c < n; c++) {
-        if (rotated[r][c] !== face[r][c]) distance++
-      }
+      for (let r = 0; r < n; r++)
+        for (let c = 0; c < n; c++) {
+          if (rotated[r][c] !== face[r][c]) distance++
+        }
       if (distance < bestDistance) {
         bestDistance = distance
         bestIndex = i
@@ -1091,7 +1317,9 @@ export function findCaptureSlotForOrientedFace(
   return bestIndex
 }
 
-export function findRepeatedFaces(photos: Array<string[][] | undefined>): Array<[number, number]> {
+export function findRepeatedFaces(
+  photos: Array<string[][] | undefined>,
+): Array<[number, number]> {
   const repeats: Array<[number, number]> = []
   for (let i = 0; i < photos.length; i++) {
     const a = photos[i]

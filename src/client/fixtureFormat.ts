@@ -17,18 +17,35 @@ export interface FixtureColors {
 }
 
 function isGrid(value: unknown, n: number): value is string[][] {
-  return Array.isArray(value) && value.length === n
-    && value.every((row) => Array.isArray(row) && row.length === n && row.every((c) => COLORS.has(c)))
+  return (
+    Array.isArray(value) &&
+    value.length === n &&
+    value.every(
+      (row) =>
+        Array.isArray(row) &&
+        row.length === n &&
+        row.every((c) => COLORS.has(c)),
+    )
+  )
 }
 
 // Per-face grids from the earlier format, or null unless all 6 are there.
-function perFace(faces: Record<string, Record<string, unknown>> | undefined, key: string, n: number): Record<string, string[][]> | null {
+function perFace(
+  faces: Record<string, Record<string, unknown>> | undefined,
+  key: string,
+  n: number,
+): Record<string, string[][]> | null {
   const grids = SLOTS.map((slot) => faces?.[slot]?.[key])
   if (!grids.every((g) => isGrid(g, n))) return null
-  return Object.fromEntries(SLOTS.map((slot, i) => [slot.toUpperCase(), grids[i] as string[][]]))
+  return Object.fromEntries(
+    SLOTS.map((slot, i) => [slot.toUpperCase(), grids[i] as string[][]]),
+  )
 }
 
-function fromString(value: unknown, n: number): Record<string, string[][]> | null {
+function fromString(
+  value: unknown,
+  n: number,
+): Record<string, string[][]> | null {
   const grids = typeof value === 'string' ? wrgFaceletsToGrids(value) : null
   return grids && grids.U.length === n ? grids : null
 }
@@ -42,8 +59,10 @@ export function readFixtureColors(meta: {
 }): FixtureColors | null {
   const n = meta.gridSize
   if (typeof n !== 'number') return null
-  const colors = fromString(meta.colorsURFDLB, n) ?? perFace(meta.faces, 'colors', n)
+  const colors =
+    fromString(meta.colorsURFDLB, n) ?? perFace(meta.faces, 'colors', n)
   if (!colors) return null
-  const detected = fromString(meta.detectedURFDLB, n) ?? perFace(meta.faces, 'detected', n)
+  const detected =
+    fromString(meta.detectedURFDLB, n) ?? perFace(meta.faces, 'detected', n)
   return { colors, detected }
 }
