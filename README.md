@@ -72,7 +72,7 @@ reviewed capture, **Update NAME profile** explicitly blends the new colors into
 the detected profile; without that click, Automatic never changes its stored
 RGB values or capture count. A color match does not identify the physical cube.
 Profiles can be exported and restored as JSON. Browser storage uses
-`cube-assembler-profiles-v1`; earlier storage keys are cleared without importing them.
+`cube-assembler-profiles-v1`; other storage keys are ignored.
 
 The update gate uses a mean palette distance of 0.08 and a per-color limit
 of 0.14 in the classifier's OKLab metric, after a valid reviewed camera

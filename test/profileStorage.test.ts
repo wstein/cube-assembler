@@ -25,22 +25,17 @@ describe('profile settings storage', () => {
     expect(loadProfileSettings(storage)).toEqual(EMPTY_SETTINGS)
   })
 
-  it('wipes earlier storage keys without migrating them', () => {
+  it('ignores unrelated storage keys', () => {
     const storage = memoryStorage()
-    storage.setItem('cube-assembler-settings-v3', JSON.stringify({ version: 3, ...EMPTY_SETTINGS }))
-    storage.setItem('cube-assembler-profiles', JSON.stringify({ profiles: [{ id: 'old' }] }))
-    storage.setItem('cube-assembler-settings', '{}')
+    storage.setItem('unrelated-key', JSON.stringify({ version: 3, ...EMPTY_SETTINGS }))
     expect(loadProfileSettings(storage)).toEqual(EMPTY_SETTINGS)
     expect(storage.getItem(PROFILE_SETTINGS_KEY)).toBeNull()
-    expect(storage.getItem('cube-assembler-settings-v3')).toBeNull()
-    expect(storage.getItem('cube-assembler-profiles')).toBeNull()
-    expect(storage.getItem('cube-assembler-settings')).toBeNull()
+    expect(storage.getItem('unrelated-key')).not.toBeNull()
   })
 
   it('exports and imports only the profiles file type', () => {
     expect(settingsFile(EMPTY_SETTINGS)).toMatchObject({ type: 'cube-assembler-profiles', version: 3 })
     expect(parseSettingsFile(settingsFile(EMPTY_SETTINGS))).toEqual(EMPTY_SETTINGS)
-    expect(parseSettingsFile({ type: 'cube-assembler-settings', version: 3, ...EMPTY_SETTINGS })).toBeNull()
     expect(parseSettingsFile({ type: 'other', version: 3, ...EMPTY_SETTINGS })).toBeNull()
   })
 })
