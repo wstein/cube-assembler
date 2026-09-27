@@ -1,5 +1,5 @@
 // Browser port of the Orbit64 state/facelet boundary for 2×2–5×5 cubes.
-// Format and slot convention: https://github.com/wstein/flix-orbit64 (Apache-2.0).
+// Format and slot convention: flix-orbit64@6aedfc1 (Apache-2.0).
 // The app deliberately handles state tokens only; move and algorithm tokens are
 // different Orbit64 classes.
 import { orbit64Tables as t } from './orbit64Tables'

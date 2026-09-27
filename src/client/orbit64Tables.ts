@@ -1,5 +1,5 @@
 // Tables transcribed from wstein/flix-orbit64 src/Orbit64/Net.flix (Apache-2.0).
-// https://github.com/wstein/flix-orbit64/blob/main/src/Orbit64/Net.flix
+// https://github.com/wstein/flix-orbit64/blob/6aedfc1fcc617274c265e78a5dadc1f61987cf59/src/Orbit64/Net.flix
 export const orbit64Tables = {
   cornerFacelet: [
     [8, 9, 20],
