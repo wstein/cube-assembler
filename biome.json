@@ -12,7 +12,15 @@
     "indentStyle": "space",
     "indentWidth": 2
   },
-  "linter": { "enabled": false },
+  "linter": {
+    "enabled": true,
+    "rules": {
+      "preset": "none",
+      "a11y": { "useButtonType": "error" },
+      "correctness": { "noUnknownProperty": "error" },
+      "suspicious": { "noDuplicateProperties": "error" }
+    }
+  },
   "assist": { "enabled": false },
   "javascript": {
     "formatter": {
