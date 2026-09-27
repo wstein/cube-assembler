@@ -7,6 +7,23 @@ use Vitest, and browser tests use Playwright.
 
 ## Capture data flow
 
+```mermaid
+flowchart LR
+    Camera[Camera frames] --> Live[Live worker: detect and preview]
+    Live --> Hold[Stable-face check]
+    Hold --> Photos[Six captured photos]
+    Upload[Uploaded photos without metadata] --> Photos
+    Photos --> Colors[Six-face color recalibration and review]
+    Colors --> Assembly[Face placement and orientation]
+    Assembly --> Validity[Validity and parity checks]
+    Validity --> Net[Cube net and 3D view]
+    Net --> Fixture[Reviewed fixture ZIP]
+    Photos -.-> Fixture
+```
+
+The dotted path carries the original photos into a fixture alongside the
+reviewed colors; it does not bypass review.
+
 1. [`index.tsx`](../src/client/index.tsx) owns the camera, capture, review,
    and cube net UI. A raw video frame goes to
    [`liveAnalysis.worker.ts`](../src/client/liveAnalysis.worker.ts), keeping
