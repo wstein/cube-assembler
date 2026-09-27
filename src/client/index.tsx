@@ -2699,8 +2699,9 @@ function App() {
           crop?: FaceCaptureResult['crop']
           sharpness?: number
         }
-        const modes = photoReadModes(file.name, mode)
-        if (modes[0] === 'cropped') {
+        const modes = photoReadModes(file.name, mode, captureMode)
+        const firstMode = modes[0]
+        if (firstMode === 'cropped') {
           result = await readCrop()
         } else {
           try {
@@ -2710,7 +2711,7 @@ function App() {
               NEUTRAL_GAINS,
               sampling,
               selectedPalette,
-              'aligned',
+              firstMode,
             )
           } catch (err) {
             const square =
@@ -4371,8 +4372,11 @@ function App() {
                   Check the six photos for the selected {puzzleSize}×
                   {puzzleSize} cube. Use the arrows to change their order before
                   reading them. Auto framing reads named face crops directly and
-                  finds the face in full photos. Choose a framing option below
-                  if Auto reads an image incorrectly.
+                  {captureMode === 'cv'
+                    ? 'finds the face in full photos'
+                    : 'uses Guide grid for full photos'}
+                  . Choose a framing option below if Auto reads an image
+                  incorrectly.
                 </p>
                 <div class="photo-upload-list">
                   {photoUpload.map(({ file, url, mode }, index) => (
