@@ -33,6 +33,10 @@ import {
 } from './orbit64'
 import type { ReviewCapture } from './colorReviewPage'
 import { BackdropDialog } from './backdropDialog'
+import {
+  FixtureDownloadDialog,
+  type FixtureDownloadData,
+} from './fixtureDownloadDialog'
 import { CubeView3D } from './cubeView3D'
 import { faceSources, pieceKey, sourceIndex } from './netPresentation'
 import { ProfilesPage } from './profilesPage'
@@ -172,7 +176,6 @@ import {
   unzipUploadFiles,
   zipFixture,
   type Fixture,
-  type FixtureSummary,
 } from './fixtureZip'
 import {
   currentAppCommit,
@@ -1065,15 +1068,6 @@ function handleModalKeyDown(
 // inside this modal is what limits the focus grab to that first moment:
 // once the container (or something in it) is focused, later re-renders
 // while the customer is actually using the modal leave it alone.
-// File sizes for the fixture download dialog.
-function formatBytes(bytes: number): string {
-  return bytes < 1024
-    ? `${bytes} B`
-    : bytes < 1024 * 1024
-      ? `${Math.round(bytes / 1024)} KB`
-      : `${(bytes / 1024 / 1024).toFixed(1)} MB`
-}
-
 function focusModalOnOpen(el: HTMLElement | null) {
   if (el && !el.contains(document.activeElement)) el.focus()
 }
@@ -1164,13 +1158,8 @@ function App() {
   const [fixtureServerChecked, setFixtureServerChecked] = useState(false)
   // A fixture zip ready to download, shown first with its photos (as blob
   // URLs, revoked on close) and a summary of its meta.json.
-  const [fixtureDownload, setFixtureDownload] = useState<{
-    fixture: Fixture
-    name: string
-    zip: Uint8Array
-    summary: FixtureSummary
-    photoUrls: string[]
-  } | null>(null)
+  const [fixtureDownload, setFixtureDownload] =
+    useState<FixtureDownloadData | null>(null)
   const fixtureUploadUrl = fixtureUploadBase(import.meta.env.DEV)
   const fixtureServerPolling = pollsFixtureUploadServer(
     import.meta.env.DEV,
@@ -5865,108 +5854,21 @@ function App() {
         </div>
       )}
 
-      {/* What a fixture zip holds, before it's downloaded */}
       {fixtureDownload && (
-        <div class="modal open">
-          <div
-            class="modal-content fixture-download-content"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="fixture-download-title"
-            tabIndex={-1}
-            ref={focusModalOnOpen}
-            onKeyDown={(e) =>
-              handleModalKeyDown(e, e.currentTarget, closeFixtureDownload)
-            }
-          >
-            <div class="modal-header">
-              <h2 id="fixture-download-title">Save as test fixture</h2>
-              <button
-                type="button"
-                class="modal-close"
-                aria-label="Close"
-                onClick={closeFixtureDownload}
-              >
-                ×
-              </button>
-            </div>
-            <p class="fixture-download-file">
-              <code>{fixtureDownload.name}.zip</code> ·{' '}
-              {formatBytes(fixtureDownload.zip.length)}
-            </p>
-            <ul class="fixture-download-photos" aria-label="Photos in the zip">
-              {fixtureDownload.summary.photos.map((photo, i) => (
-                <li key={photo.face}>
-                  <img
-                    src={fixtureDownload.photoUrls[i]}
-                    alt={`${FACE_DISPLAY_LABEL[photo.face.toUpperCase()]} photo`}
-                  />
-                  <span>{FACE_DISPLAY_LABEL[photo.face.toUpperCase()]}</span>
-                  <span class="fixture-download-meta">
-                    {photo.file} · {formatBytes(photo.bytes.length)}
-                  </span>
-                </li>
-              ))}
-            </ul>
-            <dl class="fixture-download-summary">
-              {fixtureDownload.summary.rows.map(([label, value]) => (
-                <div key={label}>
-                  <dt>{label}</dt>
-                  <dd>{value}</dd>
-                </div>
-              ))}
-            </dl>
-            <p class="fixture-download-hint">
-              Upload it to <code>test/fixtures/</code> while{' '}
-              <code>npm run fixture:server</code> runs on this computer, or
-              download the ZIP and unzip it there. The main-page{' '}
-              <strong>Upload files</strong> action loads it back into the app.
-            </p>
-            {fixtureServerChecked && !fixtureServerReachable && (
-              <p role="status" class="fixture-download-hint">
-                Upload server offline · run <code>npm run fixture:server</code>.
-              </p>
-            )}
-            {fixtureUploadMessage && (
-              <p role="status" class="capture-message error">
-                {fixtureUploadMessage}
-              </p>
-            )}
-            <div class="input-actions">
-              <button
-                type="button"
-                class="btn btn-secondary btn-sm"
-                onClick={closeFixtureDownload}
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                class="btn btn-primary btn-sm"
-                title="Save into test/fixtures/ through npm run fixture:server on this computer"
-                disabled={
-                  fixtureUploading ||
-                  (fixtureServerChecked && !fixtureServerReachable) ||
-                  (fixtureServerPolling && !fixtureServerChecked)
-                }
-                onClick={uploadFixture}
-              >
-                {fixtureUploading
-                  ? 'Uploading...'
-                  : fixtureServerPolling && !fixtureServerChecked
-                    ? 'Checking upload server...'
-                    : 'Upload to localhost'}
-              </button>
-              <button
-                type="button"
-                class="btn btn-secondary btn-sm"
-                onClick={downloadFixture}
-              >
-                Download zip
-              </button>
-            </div>
-          </div>
-        </div>
+        <FixtureDownloadDialog
+          download={fixtureDownload}
+          faceLabels={FACE_DISPLAY_LABEL}
+          serverChecked={fixtureServerChecked}
+          serverReachable={fixtureServerReachable}
+          serverPolling={fixtureServerPolling}
+          uploading={fixtureUploading}
+          uploadMessage={fixtureUploadMessage}
+          onClose={closeFixtureDownload}
+          onUpload={uploadFixture}
+          onDownload={downloadFixture}
+          focusModalOnOpen={focusModalOnOpen}
+          onModalKeyDown={handleModalKeyDown}
+        />
       )}
       {showBackdropDialog && appliedBackgroundGains && (
         <BackdropDialog
