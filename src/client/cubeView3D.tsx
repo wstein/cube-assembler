@@ -160,6 +160,7 @@ export function buildCubeMesh(
   ) {
     const s = H - r
     const miter = r * 0.5 // outer edge and corner 45° bevel midpoint (H - r/2)
+    const miterApex = r * (1 - 1 / Math.sqrt(6)) // spherical radius matching 45° edge chamfers
     const hNorm = H + elevation
     const zOuter = hNorm - r * 0.65
     const zSkirt = hNorm - 0.14
@@ -235,8 +236,8 @@ export function buildCubeMesh(
       crnTR = pt(H, H, zOuter)
       ncrnTR = norm(0.6, 0.6, 0.5)
     } else if (!seamRt && !seamTop) {
-      crnTR = pt(H - miter, H - miter, hNorm - miter)
-      ncrnTR = norm(0.577, 0.577, 0.577)
+      crnTR = pt(H - miterApex, H - miterApex, hNorm - miterApex)
+      ncrnTR = norm(0.57735, 0.57735, 0.57735)
     } else if (seamRt && !seamTop) {
       crnTR = pt(H, H - miter, hNorm - miter)
       ncrnTR = norm(0, 0.7, 0.7)
@@ -252,8 +253,8 @@ export function buildCubeMesh(
       crnTL = pt(-H, H, zOuter)
       ncrnTL = norm(-0.6, 0.6, 0.5)
     } else if (!seamLt && !seamTop) {
-      crnTL = pt(-(H - miter), H - miter, hNorm - miter)
-      ncrnTL = norm(-0.577, 0.577, 0.577)
+      crnTL = pt(-(H - miterApex), H - miterApex, hNorm - miterApex)
+      ncrnTL = norm(-0.57735, 0.57735, 0.57735)
     } else if (seamLt && !seamTop) {
       crnTL = pt(-H, H - miter, hNorm - miter)
       ncrnTL = norm(0, 0.7, 0.7)
@@ -269,8 +270,8 @@ export function buildCubeMesh(
       crnBL = pt(-H, -H, zOuter)
       ncrnBL = norm(-0.6, -0.6, 0.5)
     } else if (!seamLt && !seamBot) {
-      crnBL = pt(-(H - miter), -(H - miter), hNorm - miter)
-      ncrnBL = norm(-0.577, -0.577, 0.577)
+      crnBL = pt(-(H - miterApex), -(H - miterApex), hNorm - miterApex)
+      ncrnBL = norm(-0.57735, -0.57735, 0.57735)
     } else if (seamLt && !seamBot) {
       crnBL = pt(-H, -(H - miter), hNorm - miter)
       ncrnBL = norm(0, -0.7, 0.7)
@@ -286,8 +287,8 @@ export function buildCubeMesh(
       crnBR = pt(H, -H, zOuter)
       ncrnBR = norm(0.6, -0.6, 0.5)
     } else if (!seamRt && !seamBot) {
-      crnBR = pt(H - miter, -(H - miter), hNorm - miter)
-      ncrnBR = norm(0.577, -0.577, 0.577)
+      crnBR = pt(H - miterApex, -(H - miterApex), hNorm - miterApex)
+      ncrnBR = norm(0.57735, -0.57735, 0.57735)
     } else if (seamRt && !seamBot) {
       crnBR = pt(H, -(H - miter), hNorm - miter)
       ncrnBR = norm(0, -0.7, 0.7)
@@ -314,17 +315,37 @@ export function buildCubeMesh(
     addTri(eLt0, c3, eLt1, neLt0, nc3, neLt1, col)
 
     // 3. Corner transitions
-    addTri(c2, eRt1, crnTR, nc2, neRt1, ncrnTR, col)
-    addTri(c2, crnTR, eTop1, nc2, ncrnTR, neTop1, col)
+    if (!seamRt && !seamTop) {
+      addTri(c2, eRt1, eTop1, nc2, neRt1, neTop1, col)
+      addTri(eRt1, crnTR, eTop1, neRt1, ncrnTR, neTop1, col)
+    } else {
+      addTri(c2, eRt1, crnTR, nc2, neRt1, ncrnTR, col)
+      addTri(c2, crnTR, eTop1, nc2, ncrnTR, neTop1, col)
+    }
 
-    addTri(c3, eTop0, crnTL, nc3, neTop0, ncrnTL, col)
-    addTri(c3, crnTL, eLt1, nc3, ncrnTL, neLt1, col)
+    if (!seamLt && !seamTop) {
+      addTri(c3, eTop0, eLt1, nc3, neTop0, neLt1, col)
+      addTri(eTop0, crnTL, eLt1, neTop0, ncrnTL, neLt1, col)
+    } else {
+      addTri(c3, eTop0, crnTL, nc3, neTop0, ncrnTL, col)
+      addTri(c3, crnTL, eLt1, nc3, ncrnTL, neLt1, col)
+    }
 
-    addTri(c0, eLt0, crnBL, nc0, neLt0, ncrnBL, col)
-    addTri(c0, crnBL, eBot0, nc0, ncrnBL, neBot0, col)
+    if (!seamLt && !seamBot) {
+      addTri(c0, eLt0, eBot0, nc0, neLt0, neBot0, col)
+      addTri(eLt0, crnBL, eBot0, neLt0, ncrnBL, neBot0, col)
+    } else {
+      addTri(c0, eLt0, crnBL, nc0, neLt0, ncrnBL, col)
+      addTri(c0, crnBL, eBot0, nc0, ncrnBL, neBot0, col)
+    }
 
-    addTri(c1, eBot1, crnBR, nc1, neBot1, ncrnBR, col)
-    addTri(c1, crnBR, eRt0, nc1, ncrnBR, neRt0, col)
+    if (!seamRt && !seamBot) {
+      addTri(c1, eBot1, eRt0, nc1, neBot1, neRt0, col)
+      addTri(eBot1, crnBR, eRt0, neBot1, ncrnBR, neRt0, col)
+    } else {
+      addTri(c1, eBot1, crnBR, nc1, neBot1, ncrnBR, col)
+      addTri(c1, crnBR, eRt0, nc1, ncrnBR, neRt0, col)
+    }
 
     // A triangle wound counter-clockwise as seen from `nOut`, so back-face
     // culling keeps it from that side.
