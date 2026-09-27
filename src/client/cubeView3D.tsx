@@ -174,8 +174,17 @@ export function applyCubeLayerMove(
   )
 }
 
-const SCRAMBLE_FACES: FaceKey[] = ['U', 'D', 'L', 'R', 'F', 'B']
+export interface CubeTurn {
+  face: FaceKey
+  depth: number
+  turns: number
+}
 
+export function formatCubeTurn({ face, depth, turns }: CubeTurn): string {
+  return `${depth > 1 ? depth : ''}${face}${Math.abs(turns) === 2 ? '2' : turns < 0 ? "'" : ''}`
+}
+
+const SCRAMBLE_FACES: FaceKey[] = ['U', 'D', 'L', 'R', 'F', 'B']
 export function generateScrambleMoves(
   length = 20,
 ): Array<{ face: FaceKey; turns: number }> {
@@ -1044,7 +1053,8 @@ function initProgram(gl: WebGLRenderingContext): WebGLProgram | null {
 export interface CubeView3DProps {
   cube: CubeState
   initialCube?: CubeState
-  onCubeChange?: (cube: CubeState) => void
+  initialMoves?: CubeTurn[]
+  onTurnStateChange?: (cube: CubeState, moves: CubeTurn[]) => void
   puzzleSize: number
   palette?: Record<string, string>
   stickerless?: boolean
@@ -1054,13 +1064,15 @@ export interface CubeView3DProps {
 export function CubeView3D({
   cube,
   initialCube = cube,
-  onCubeChange,
+  initialMoves = [],
+  onTurnStateChange,
   puzzleSize,
   palette = DEFAULT_STICKER_HEX,
   stickerless = true,
 }: CubeView3DProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
   const [currentCube, setCurrentCube] = useState<CubeState>(initialCube)
+  const [moves, setMoves] = useState<CubeTurn[]>(initialMoves)
   const [pitch, setPitch] = useState<number>(0.42) // ~24 deg
   const [yaw, setYaw] = useState<number>(-0.62) // ~-35 deg
   const [zoom, setZoom] = useState<number>(getDefaultZoom(puzzleSize))
@@ -1072,11 +1084,14 @@ export function CubeView3D({
     readPreference(document.cookie, STICKERLESS_COOKIE, stickerless),
   )
   const [isScrambling, setIsScrambling] = useState<boolean>(false)
+  const [isTurning, setIsTurning] = useState(false)
 
   const currentCubeRef = useRef<CubeState>(initialCube)
   currentCubeRef.current = currentCube
-  const onCubeChangeRef = useRef(onCubeChange)
-  onCubeChangeRef.current = onCubeChange
+  const movesRef = useRef(initialMoves)
+  movesRef.current = moves
+  const onTurnStateChangeRef = useRef(onTurnStateChange)
+  onTurnStateChangeRef.current = onTurnStateChange
   const sourceCubeRef = useRef(cube)
 
   useEffect(() => {
@@ -1084,14 +1099,23 @@ export function CubeView3D({
     sourceCubeRef.current = cube
     setCurrentCube(cube)
     currentCubeRef.current = cube
+    movesRef.current = []
+    setMoves([])
     turnQueueRef.current = []
     currentTurnRef.current = null
     setIsScrambling(false)
+    setIsTurning(false)
     forceUpdateMeshRef.current = true
   }, [cube])
 
   const turnQueueRef = useRef<
-    Array<{ face: FaceKey; depth?: number; turns: number; duration?: number }>
+    Array<{
+      face: FaceKey
+      depth?: number
+      turns: number
+      duration?: number
+      undo?: boolean
+    }>
   >([])
   const currentTurnRef = useRef<{
     face: FaceKey
@@ -1099,6 +1123,7 @@ export function CubeView3D({
     turns: number
     startTime: number
     duration: number
+    undo?: boolean
   } | null>(null)
   const forceUpdateMeshRef = useRef(false)
 
@@ -1151,9 +1176,15 @@ export function CubeView3D({
     setYaw(targetYaw)
   }
 
-  const triggerTurn = (face: FaceKey, turns: number, depth = 1) => {
+  const triggerTurn = (
+    face: FaceKey,
+    turns: number,
+    depth = 1,
+    undo = false,
+  ) => {
     pauseAutoRotation()
-    turnQueueRef.current.push({ face, depth, turns, duration: 160 })
+    turnQueueRef.current.push({ face, depth, turns, duration: 160, undo })
+    setIsTurning(true)
   }
 
   const toggleScramble = () => {
@@ -1161,8 +1192,10 @@ export function CubeView3D({
     if (isScrambling) {
       turnQueueRef.current = []
       setIsScrambling(false)
+      if (!currentTurnRef.current) setIsTurning(false)
     } else {
       setIsScrambling(true)
+      setIsTurning(true)
       const moves = generateScrambleMoves(18)
       turnQueueRef.current = moves.map((m) => ({ ...m, duration: 85 }))
     }
@@ -1172,10 +1205,19 @@ export function CubeView3D({
     turnQueueRef.current = []
     currentTurnRef.current = null
     setIsScrambling(false)
+    setIsTurning(false)
     currentCubeRef.current = cube
     setCurrentCube(cube)
-    onCubeChangeRef.current?.(cube)
+    movesRef.current = []
+    setMoves([])
+    onTurnStateChangeRef.current?.(cube, [])
     forceUpdateMeshRef.current = true
+  }
+
+  const undoLastTurn = () => {
+    if (isTurning) return
+    const last = movesRef.current.at(-1)
+    if (last) triggerTurn(last.face, -last.turns, last.depth, true)
   }
 
   const isInitialCube =
@@ -1315,7 +1357,19 @@ export function CubeView3D({
           )
           currentCubeRef.current = nextCube
           setCurrentCube(nextCube)
-          onCubeChangeRef.current?.(nextCube)
+          const nextMoves = anim.undo
+            ? movesRef.current.slice(0, -1)
+            : [
+                ...movesRef.current,
+                {
+                  face: anim.face,
+                  depth: anim.depth ?? 1,
+                  turns: anim.turns,
+                },
+              ]
+          movesRef.current = nextMoves
+          setMoves(nextMoves)
+          onTurnStateChangeRef.current?.(nextCube, nextMoves)
 
           const finalMesh = buildCubeMesh(
             nextCube,
@@ -1338,10 +1392,12 @@ export function CubeView3D({
               turns: next.turns,
               startTime: time,
               duration: next.duration ?? 90,
+              undo: next.undo,
             }
           } else {
             currentTurnRef.current = null
             setIsScrambling(false)
+            setIsTurning(false)
           }
         }
       } else if (turnQueueRef.current.length > 0) {
@@ -1352,6 +1408,7 @@ export function CubeView3D({
           turns: next.turns,
           startTime: time,
           duration: next.duration ?? 160,
+          undo: next.undo,
         }
       }
       if (!isDraggingRef.current) {
@@ -1807,13 +1864,31 @@ export function CubeView3D({
                 <button
                   type="button"
                   class="cube-3d-btn"
+                  onClick={undoLastTurn}
+                  disabled={moves.length === 0 || isTurning}
+                  title="Undo the last completed layer turn"
+                >
+                  Undo
+                </button>
+                <button
+                  type="button"
+                  class="cube-3d-btn"
                   onClick={resetCube}
-                  disabled={isInitialCube}
+                  disabled={isInitialCube && moves.length === 0}
                   title="Reset cube to initial assembled state"
                 >
                   Reset
                 </button>
               </div>
+            </div>
+
+            <div
+              class="cube-3d-move-history"
+              role="status"
+              aria-label="Move history"
+            >
+              Moves:{' '}
+              {moves.length ? moves.map(formatCubeTurn).join(' ') : 'None'}
             </div>
 
             <div class="cube-3d-actions">

@@ -6,6 +6,7 @@ import {
   buildCubeMesh,
   cubeStateToFaces,
   facesToCubeState,
+  formatCubeTurn,
   generateScrambleMoves,
   getDefaultZoom,
   getFaceletColor,
@@ -448,6 +449,13 @@ describe('cubeView3D math and geometry', () => {
   })
 
   describe('interactive layer turns and scramble', () => {
+    it('labels outer and inner turns unambiguously', () => {
+      expect(formatCubeTurn({ face: 'R', depth: 1, turns: 1 })).toBe('R')
+      expect(formatCubeTurn({ face: 'U', depth: 1, turns: -1 })).toBe("U'")
+      expect(formatCubeTurn({ face: 'L', depth: 2, turns: -1 })).toBe("2L'")
+      expect(formatCubeTurn({ face: 'F', depth: 3, turns: 2 })).toBe('3F2')
+    })
+
     it('roundtrips CubeState to Faces and back', () => {
       const cube = createSolvedCube(3)
       const faces = cubeStateToFaces(cube, 3)

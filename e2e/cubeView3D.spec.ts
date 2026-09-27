@@ -1,5 +1,54 @@
 import { expect, test } from '@playwright/test'
 
+test('move history and Undo survive a view switch, then Reset clears them', async ({
+  page,
+}) => {
+  await page.goto('/')
+  await page.getByRole('button', { name: 'Solved cube' }).click()
+  const notation = page.getByRole('textbox', { name: 'Notation' })
+  const solved = await notation.inputValue()
+  await page.getByRole('button', { name: '3D View' }).click()
+  const undo = page.getByRole('button', { name: 'Undo', exact: true })
+  const history = page.getByRole('status', { name: 'Move history' })
+  await expect(undo).toBeDisabled()
+
+  await page.getByTitle('Turn R clockwise').click()
+  await expect(history).toHaveText('Moves: R')
+  const afterR = await notation.inputValue()
+  expect(afterR).not.toBe(solved)
+  await page.getByTitle('Turn U counter-clockwise').click()
+  await expect(history).toHaveText("Moves: R U'")
+  await expect(notation).not.toHaveValue(afterR)
+
+  await page.getByRole('button', { name: '2D Net' }).click()
+  await page.getByRole('button', { name: '3D View' }).click()
+  await expect(history).toHaveText("Moves: R U'")
+  await undo.click()
+  await expect(notation).toHaveValue(afterR)
+  await expect(history).toHaveText('Moves: R')
+  await page.getByRole('button', { name: 'Reset', exact: true }).click()
+  await expect(notation).toHaveValue(solved)
+  await expect(history).toHaveText('Moves: None')
+  await expect(undo).toBeDisabled()
+})
+
+test('scramble records completed turns that can be undone', async ({
+  page,
+}) => {
+  await page.goto('/')
+  await page.getByRole('button', { name: 'Solved cube' }).click()
+  await page.getByRole('button', { name: '3D View' }).click()
+  const history = page.getByRole('status', { name: 'Move history' })
+  await page.getByRole('button', { name: 'Scramble', exact: true }).click()
+  await expect
+    .poll(async () => (await history.textContent())?.trim().split(/\s+/).length)
+    .toBe(19)
+  await page.getByRole('button', { name: 'Undo', exact: true }).click()
+  await expect
+    .poll(async () => (await history.textContent())?.trim().split(/\s+/).length)
+    .toBe(18)
+})
+
 test('layer turns update the facelet notation across views and reset', async ({
   page,
 }) => {
@@ -44,6 +93,11 @@ test('swiping a sticker turns its inner slice on a 5x5 cube', async ({
   const turned = (await notation.inputValue()).split(' ')
   expect(turned[1]).toBe(solved[1])
   expect(turned[4]).toBe(solved[4])
+  await expect(page.getByRole('status', { name: 'Move history' })).toHaveText(
+    "Moves: 2L'",
+  )
+  await page.getByRole('button', { name: 'Undo', exact: true }).click()
+  await expect(notation).toHaveValue(solved.join(' '))
 })
 
 test('lists face presets in URFDLB order', async ({ page }) => {

@@ -713,6 +713,15 @@ h3 {
   gap: 4px;
 }
 
+.cube-3d-move-history {
+  order: 1;
+  flex-basis: 100%;
+  color: var(--color-text-secondary);
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  overflow-wrap: anywhere;
+}
+
 .cube-3d-btn {
   background: var(--color-bg-secondary);
   border: 1px solid var(--color-border);

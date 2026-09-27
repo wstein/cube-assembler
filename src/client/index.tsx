@@ -1090,6 +1090,7 @@ function App() {
   const [turnedCube, setTurnedCube] = useState<{
     source: CubeState
     value: CubeState
+    moves: import('./cubeView3D').CubeTurn[]
   } | null>(null)
   const [cubeViewMode, setCubeViewMode] = useState<'net' | '3d'>(
     () => selectedCubeView(document.cookie) ?? 'net',
@@ -3682,8 +3683,11 @@ function App() {
                   <CubeView3D
                     cube={cube}
                     initialCube={visibleCube}
-                    onCubeChange={(value) =>
-                      setTurnedCube({ source: cube, value })
+                    initialMoves={
+                      turnedCube?.source === cube ? turnedCube.moves : []
+                    }
+                    onTurnStateChange={(value, moves) =>
+                      setTurnedCube({ source: cube, value, moves })
                     }
                     puzzleSize={puzzleSize}
                     palette={STICKER_HEX}
