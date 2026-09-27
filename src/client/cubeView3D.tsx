@@ -1,5 +1,10 @@
 import { useEffect, useRef, useState } from 'preact/hooks'
 import { createShadowRenderer } from './cubeShadow'
+import {
+  getSwipeLayerTurn,
+  pickCubeSurface,
+  type CubeSurfaceHit,
+} from './cubeGesture'
 import { stepDragInertia } from './dragInertia'
 import {
   AUTO_ROTATE_COOKIE,
@@ -153,6 +158,22 @@ export function applyCubeMove(
   return facesToCubeState(turned)
 }
 
+export function applyCubeLayerMove(
+  cube: CubeState,
+  n: number,
+  face: FaceKey,
+  depth: number,
+  quarterTurns = 1,
+): CubeState {
+  if (depth < 1 || depth > n) return cube
+  if (depth === 1) return applyCubeMove(cube, n, face, quarterTurns)
+  const faces = cubeStateToFaces(cube, n)
+  const throughLayer = turnFace(faces, face, quarterTurns, depth)
+  return facesToCubeState(
+    turnFace(throughLayer, face, -quarterTurns, depth - 1),
+  )
+}
+
 const SCRAMBLE_FACES: FaceKey[] = ['U', 'D', 'L', 'R', 'F', 'B']
 
 export function generateScrambleMoves(
@@ -172,6 +193,7 @@ export function generateScrambleMoves(
 
 export interface TurningLayer {
   face: FaceKey
+  depth?: number
   angle: number // in radians
 }
 
@@ -555,13 +577,14 @@ export function buildCubeMesh(
         let getAxes = (faceKey: string) => FACE_AXES[faceKey]
 
         if (turn && turn.angle !== 0) {
+          const depth = turn.depth ?? 1
           const isTurnCubie =
-            (turn.face === 'U' && y === last) ||
-            (turn.face === 'D' && y === 0) ||
-            (turn.face === 'R' && x === last) ||
-            (turn.face === 'L' && x === 0) ||
-            (turn.face === 'F' && z === last) ||
-            (turn.face === 'B' && z === 0)
+            (turn.face === 'U' && y === last - depth + 1) ||
+            (turn.face === 'D' && y === depth - 1) ||
+            (turn.face === 'R' && x === last - depth + 1) ||
+            (turn.face === 'L' && x === depth - 1) ||
+            (turn.face === 'F' && z === last - depth + 1) ||
+            (turn.face === 'B' && z === depth - 1)
 
           if (isTurnCubie) {
             const axis: Axis =
@@ -1068,10 +1091,11 @@ export function CubeView3D({
   }, [cube])
 
   const turnQueueRef = useRef<
-    Array<{ face: FaceKey; turns: number; duration?: number }>
+    Array<{ face: FaceKey; depth?: number; turns: number; duration?: number }>
   >([])
   const currentTurnRef = useRef<{
     face: FaceKey
+    depth?: number
     turns: number
     startTime: number
     duration: number
@@ -1086,6 +1110,12 @@ export function CubeView3D({
   }, [isStickerless])
 
   const isDraggingRef = useRef(false)
+  const gestureRef = useRef<{
+    x: number
+    y: number
+    hit: CubeSurfaceHit | null
+    mode: 'pending' | 'camera' | 'turn'
+  } | null>(null)
   const resumeAutoAtRef = useRef(0)
   const lastPointerRef = useRef({ x: 0, y: 0, time: 0 })
   const inertiaRef = useRef({ yaw: 0, pitch: 0 })
@@ -1121,9 +1151,9 @@ export function CubeView3D({
     setYaw(targetYaw)
   }
 
-  const triggerTurn = (face: FaceKey, turns: number) => {
+  const triggerTurn = (face: FaceKey, turns: number, depth = 1) => {
     pauseAutoRotation()
-    turnQueueRef.current.push({ face, turns, duration: 160 })
+    turnQueueRef.current.push({ face, depth, turns, duration: 160 })
   }
 
   const toggleScramble = () => {
@@ -1268,7 +1298,7 @@ export function CubeView3D({
           puzzleSize,
           palette,
           isStickerless,
-          { face: anim.face, angle: currentAngle },
+          { face: anim.face, depth: anim.depth, angle: currentAngle },
         )
         gl.bindBuffer(gl.ARRAY_BUFFER, posBuf)
         gl.bufferSubData(gl.ARRAY_BUFFER, 0, turnMesh.positions)
@@ -1276,10 +1306,11 @@ export function CubeView3D({
         gl.bufferSubData(gl.ARRAY_BUFFER, 0, turnMesh.normals)
 
         if (progress >= 1) {
-          const nextCube = applyCubeMove(
+          const nextCube = applyCubeLayerMove(
             currentCubeRef.current,
             puzzleSize,
             anim.face,
+            anim.depth ?? 1,
             anim.turns,
           )
           currentCubeRef.current = nextCube
@@ -1303,6 +1334,7 @@ export function CubeView3D({
             const next = turnQueueRef.current.shift()!
             currentTurnRef.current = {
               face: next.face,
+              depth: next.depth,
               turns: next.turns,
               startTime: time,
               duration: next.duration ?? 90,
@@ -1316,6 +1348,7 @@ export function CubeView3D({
         const next = turnQueueRef.current.shift()!
         currentTurnRef.current = {
           face: next.face,
+          depth: next.depth,
           turns: next.turns,
           startTime: time,
           duration: next.duration ?? 160,
@@ -1446,11 +1479,52 @@ export function CubeView3D({
     resumeAutoAtRef.current = Number.POSITIVE_INFINITY
     inertiaRef.current = { yaw: 0, pitch: 0 }
     lastPointerRef.current = { x: e.clientX, y: e.clientY, time: e.timeStamp }
+    const rect = canvasRef.current?.getBoundingClientRect()
+    const hit =
+      rect && !currentTurnRef.current && turnQueueRef.current.length === 0
+        ? pickCubeSurface(e.clientX - rect.left, e.clientY - rect.top, {
+            width: rect.width,
+            height: rect.height,
+            zoom: stateRef.current.zoom,
+            pitch: stateRef.current.pitch,
+            yaw: stateRef.current.yaw,
+            size: puzzleSize,
+          })
+        : null
+    gestureRef.current = {
+      x: e.clientX,
+      y: e.clientY,
+      hit,
+      mode: hit ? 'pending' : 'camera',
+    }
     ;(e.target as HTMLElement).setPointerCapture?.(e.pointerId)
   }
 
   const handlePointerMove = (e: PointerEvent) => {
     if (!isDraggingRef.current) return
+    const gesture = gestureRef.current
+    if (gesture?.mode === 'turn') return
+    if (gesture?.mode === 'pending' && gesture.hit) {
+      const rect = canvasRef.current?.getBoundingClientRect()
+      if (!rect) return
+      const dx = e.clientX - gesture.x
+      const dy = e.clientY - gesture.y
+      if (Math.hypot(dx, dy) < 18) return
+      const turn = getSwipeLayerTurn(gesture.hit, dx, dy, {
+        width: rect.width,
+        height: rect.height,
+        zoom: stateRef.current.zoom,
+        pitch: stateRef.current.pitch,
+        yaw: stateRef.current.yaw,
+        size: puzzleSize,
+      })
+      if (turn) {
+        gesture.mode = 'turn'
+        triggerTurn(turn.face, turn.turns, turn.depth)
+        return
+      }
+      gesture.mode = 'camera'
+    }
     const dx = e.clientX - lastPointerRef.current.x
     const dy = e.clientY - lastPointerRef.current.y
     const elapsed = Math.max(e.timeStamp - lastPointerRef.current.time, 8)
@@ -1471,6 +1545,10 @@ export function CubeView3D({
 
   const handlePointerUp = (e: PointerEvent) => {
     isDraggingRef.current = false
+    if (gestureRef.current?.mode === 'turn') {
+      inertiaRef.current = { yaw: 0, pitch: 0 }
+    }
+    gestureRef.current = null
     resumeAutoAtRef.current = performance.now() + AUTO_ROTATE_RESUME_DELAY_MS
     if (
       e.type === 'pointercancel' ||
@@ -1586,7 +1664,8 @@ export function CubeView3D({
               aria-label="Interactive 3D Rubik's Cube Viewer"
             />
             <div class="cube-3d-hint">
-              Drag or use arrow keys &bull; Scroll to zoom
+              Swipe a sticker to turn its layer &bull; Drag the background to
+              rotate &bull; Scroll to zoom
             </div>
           </div>
           <div class="cube-3d-toolbar">

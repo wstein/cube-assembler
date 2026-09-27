@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { createSolvedCube } from '../src/cube/cubeAssembly'
 import {
   applyCubeMove,
+  applyCubeLayerMove,
   buildCubeMesh,
   cubeStateToFaces,
   facesToCubeState,
@@ -472,6 +473,28 @@ describe('cubeView3D math and geometry', () => {
         expect(turned).not.toEqual(solved)
         const restored = applyCubeMove(turned, 3, face, -1)
         expect(restored).toEqual(solved)
+      }
+    })
+
+    it('turns one inner slice without moving the outer face', () => {
+      const solved = createSolvedCube(5)
+      const turned = applyCubeLayerMove(solved, 5, 'R', 3, 1)
+      expect(turned.r).toEqual(solved.r)
+      expect(turned.l).toEqual(solved.l)
+      expect(turned.f).not.toEqual(solved.f)
+      expect(applyCubeLayerMove(turned, 5, 'R', 3, -1)).toEqual(solved)
+    })
+
+    it('roundtrips every inner slice on 4x4 through 7x7 cubes', () => {
+      for (let size = 4; size <= 7; size++) {
+        const solved = createSolvedCube(size)
+        for (let depth = 2; depth < size; depth++) {
+          const turned = applyCubeLayerMove(solved, size, 'U', depth, 1)
+          expect(turned.u).toEqual(solved.u)
+          expect(applyCubeLayerMove(turned, size, 'U', depth, -1)).toEqual(
+            solved,
+          )
+        }
       }
     })
 

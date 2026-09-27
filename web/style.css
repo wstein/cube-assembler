@@ -664,6 +664,9 @@ h3 {
   bottom: 8px;
   left: 50%;
   transform: translateX(-50%);
+  width: max-content;
+  max-width: calc(100% - 16px);
+  text-align: center;
   background: rgba(18, 18, 22, 0.75);
   color: rgba(255, 255, 255, 0.7);
   font-size: 0.75rem;

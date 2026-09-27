@@ -19,6 +19,33 @@ test('layer turns update the facelet notation across views and reset', async ({
   await expect(notation).toHaveValue(solved)
 })
 
+test('swiping a sticker turns its inner slice on a 5x5 cube', async ({
+  page,
+}) => {
+  await page.goto('/')
+  await page
+    .getByRole('combobox', { name: 'Cube' })
+    .selectOption({ label: '5×5' })
+  await page.getByRole('button', { name: 'Solved cube' }).click()
+  await page.getByRole('button', { name: '3D View' }).click()
+  await page.getByRole('button', { name: 'Front (F)' }).click()
+  const notation = page.getByRole('textbox', { name: 'Notation' })
+  const solved = (await notation.inputValue()).split(' ')
+  const bounds = await page.locator('.cube-3d-canvas').boundingBox()
+  expect(bounds).not.toBeNull()
+  if (!bounds) return
+  const x = bounds.x + bounds.width / 2 - 38
+  const y = bounds.y + bounds.height / 2
+  await page.mouse.move(x, y)
+  await page.mouse.down()
+  await page.mouse.move(x, y - 70, { steps: 5 })
+  await page.mouse.up()
+  await expect(notation).not.toHaveValue(solved.join(' '))
+  const turned = (await notation.inputValue()).split(' ')
+  expect(turned[1]).toBe(solved[1])
+  expect(turned[4]).toBe(solved[4])
+})
+
 test('lists face presets in URFDLB order', async ({ page }) => {
   await page.goto('/')
   await page.getByRole('button', { name: 'Solved cube' }).click()
@@ -67,7 +94,7 @@ test('a dragged cube keeps turning briefly after release', async ({ page }) => {
   expect(bounds).not.toBeNull()
   if (!bounds) return
 
-  const x = bounds.x + bounds.width / 2
+  const x = bounds.x + bounds.width * 0.12
   const y = bounds.y + bounds.height / 2
   await page.mouse.move(x, y)
   await page.mouse.down()
@@ -91,7 +118,7 @@ test('auto-rotate pauses for a drag and resumes without changing its setting', a
   expect(bounds).not.toBeNull()
   if (!bounds) return
 
-  const x = bounds.x + bounds.width / 2
+  const x = bounds.x + bounds.width * 0.12
   const y = bounds.y + bounds.height / 2
   await page.mouse.move(x, y)
   await page.mouse.down()
