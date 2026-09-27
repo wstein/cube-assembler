@@ -252,13 +252,14 @@ describe('cubeView3D math and geometry', () => {
     // Nearest front-facing hit along a ray; back faces are culled on screen.
     function nearestHit(
       mesh: ReturnType<typeof buildCubeMesh>,
+      tris: number[],
       o: Vec,
       d: Vec,
     ) {
       const p = mesh.positions
       const idx = mesh.indices
       let best = Infinity
-      for (let i = 0; i < idx.length; i += 3) {
+      for (const i of tris) {
         const a = idx[i] * 3
         const b = idx[i + 1] * 3
         const c = idx[i + 2] * 3
@@ -318,6 +319,23 @@ describe('cubeView3D math and geometry', () => {
             const d = view.map((x) => x / len) as Vec
             for (const [jx, jy, edge] of junctions) {
               if (edge && d[1] >= 0) continue
+              // Only the front surface near the junction can stop these rays
+              // within the groove depth; skipping the rest keeps this fast.
+              const near: number[] = []
+              for (let i = 0; i < mesh.indices.length; i += 3) {
+                const corners = [0, 1, 2].map((k) => mesh.indices[i + k] * 3)
+                const xs = corners.map((c) => mesh.positions[c])
+                const ys = corners.map((c) => mesh.positions[c + 1])
+                const zs = corners.map((c) => mesh.positions[c + 2])
+                if (
+                  Math.max(...xs) > jx - 0.6 &&
+                  Math.min(...xs) < jx + 0.6 &&
+                  Math.max(...ys) > jy - 0.6 &&
+                  Math.min(...ys) < jy + 0.6 &&
+                  Math.max(...zs) > half - 0.6
+                )
+                  near.push(i)
+              }
               for (let i = -4; i <= 4; i++)
                 for (let j = -4; j <= 4; j++) {
                   const target: Vec = [
@@ -332,7 +350,7 @@ describe('cubeView3D math and geometry', () => {
                   ]
                   // Anything farther than the groove depth is the far side of
                   // the cube or the background showing through.
-                  if (nearestHit(mesh, o, d) > 10.3)
+                  if (nearestHit(mesh, near, o, d) > 10.3)
                     leaks.push(
                       `${view.join()} @ ${target.map((x) => x.toFixed(3)).join()}`,
                     )
