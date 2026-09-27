@@ -1,7 +1,7 @@
 # Regression fixtures
 
-Real captures, saved with their actual photos plus the color grid after any
-manual corrections - each one becomes a permanent regression check via
+Real captures and software-rendered cubes, saved with their images plus the
+color grid after any manual corrections, become regression checks via
 `test/fixtures.test.ts`. A misclassification a human caught once stays
 caught, instead of only living in a bug report.
 
@@ -94,8 +94,11 @@ readable and honest instead of it turning into a flat, noisy pass/fail list
 - **`"tags": ["pastel", "office-lighting"]`** - free-text labels you add by
   hand. Combined with tags auto-derived from `capture` (camera label, cube
   profile, white balance mode, light source), they're appended to the test's title, e.g.
-  `"my-cube" [light:Fluorescent (green cast), pastel]`. That's enough for a
-  pattern across failures (e.g. "every failure mentions Fluorescent") to be
+  `"my-cube" [light:Fluorescent (green cast), pastel]`. Tag software-rendered
+  fixtures as `synthetic` and `software-rendered`, as in
+  `synt-6x6-2026-09-27T17-01-48-164Z`, so they stay distinct from camera
+  captures. That's enough for a pattern across failures (e.g. "every failure
+  mentions Fluorescent") to be
   visible straight from `npm test` output - no separate report to run.
 - **`"expectedFail": { "reason": "..." }`** - marks a fixture as a known,
   not-yet-fixed limitation (e.g. a genuine palette-geometry case with no
