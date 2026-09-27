@@ -14,8 +14,9 @@ unzip it into `test/fixtures/`, or run `npm run fixture:server` alongside
 `npm run dev` and choose **Upload to localhost** in the preview. The button
 enables only while the upload server responds to `GET /ping`. Both paths create
 `test/fixtures/<name>/` with the six cropped photos and corrected color grid.
-New ZIPs and upload-server folders default to `cube-<size>x<size>-<timestamp>`;
-existing `capture-*` fixtures still load normally.
+New ZIPs and upload-server folders default to
+`cube-<size>x<size>-YYYY-MM-DDTHH-MM-SS` using whole UTC seconds. Existing
+`capture-*` folders remain loadable.
 **Upload files** loads that ZIP or folder back into the app when `meta.json`
 is present. With only six images selected, it opens the photo-order preview:
 
@@ -73,7 +74,7 @@ files instead of images.
 npx vitest run test/fixtures.test.ts
 ```
 
-The committed `capture-*` directories, including a 7×7 capture, run in CI and
+The committed `cube-*` directories, including a 7×7 capture, run in CI and
 locally. Image checks skip only when a checkout has no real captures.
 `bun test test/gridAlignmentRealCrops.test.ts` takes about 30 seconds locally
 with the current corpus. Its seven cases have separate 60-second timeouts so
