@@ -4,6 +4,8 @@ dist/
 playwright-report/
 test-results/
 lib/
+*.res.mjs
+*.gen.tsx
 .DS_Store
 *.log
 
