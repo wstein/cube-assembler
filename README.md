@@ -1,6 +1,6 @@
 # CubeAssembler
 
-> Assemble valid Rubik's Cube states from unlabelled face images — 2×2 to 7×7.
+> Assemble valid puzzle cube states from unlabelled face images — 2×2 to 7×7.
 
 [Open the static scanner demo](https://wstein.github.io/cube-assembler/) · [Source repository](https://github.com/wstein/cube-assembler)
 
@@ -12,8 +12,9 @@ that saves reviewed captures directly into `test/fixtures/`.
 ![npm](https://img.shields.io/badge/runtime-npm-black)
 ![Tests](https://img.shields.io/badge/tests-vitest-brightgreen)
 
-A web app that reads a physical Rubik's cube (2×2–7×7) from six camera photos
-and reconstructs its state. Two ambiguities have to be resolved:
+A web app that reads a physical puzzle cube (2×2–7×7, such as a Rubik's Cube)
+from six camera photos and reconstructs its state. Two ambiguities have to be
+resolved:
 
 1. **Face placement** — which photo shows which face?
 2. **Face orientation** — how was each photo rotated?

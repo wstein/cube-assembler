@@ -1,7 +1,7 @@
 {
   "name": "cube-assembler",
   "version": "0.1.0",
-  "description": "Rubik's Cube scanner: reads a physical 2x2-7x7 cube from six camera photos and checks the result (Preact + Vite, runs entirely in the browser).",
+  "description": "Puzzle cube scanner: reads a physical 2x2-7x7 cube from six camera photos and checks the result (Preact + Vite, runs entirely in the browser).",
   "type": "module",
   "scripts": {
     "dev": "vite",
