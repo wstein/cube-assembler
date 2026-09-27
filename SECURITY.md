@@ -9,14 +9,15 @@ Only the current `main` branch and the deployed site at
 
 CubeAssembler runs entirely in the browser. Camera frames, captures, and
 color profiles stay on the device (browser storage and cookies for
-preferences) and are not sent to a server. The only upload is the dev
-server's **Upload to localhost** action, which goes to the optional fixture
-server in `scripts/fixtureUploadServer.mjs`; it only listens on `127.0.0.1`
-and is not part of the deployed site.
+preferences) and are not sent to a server. The only upload is **Upload to
+localhost**, which sends a saved fixture to the optional fixture server in
+`scripts/fixtureUploadServer.mjs` running on the same computer. That server
+only listens on `127.0.0.1` and accepts browser uploads only from localhost
+pages and the published app's origin.
 
 Relevant reports include, for example, script injection through imported
 profile JSON or fixture ZIP files, data leaving the browser unexpectedly, or
-a way to reach the fixture upload server from anywhere other than localhost.
+a way for any other site to upload to the fixture server.
 
 ## Reporting a vulnerability
 
