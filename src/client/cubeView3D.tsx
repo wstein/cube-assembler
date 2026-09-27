@@ -150,7 +150,6 @@ export function buildCubeMesh(
     },
   ) {
     const s = H - r
-    const d = r * 0.4 // corner fillet for internal 4-way intersections
     const miter = r * 0.9 // outer edge and corner bevel miter (doubled outside fase)
     const hNorm = H + elevation
     const zOuter = hNorm - r * 0.6
@@ -224,7 +223,7 @@ export function buildCubeMesh(
     let crnTR: [number, number, number]
     let ncrnTR: [number, number, number]
     if (seamRt && seamTop) {
-      crnTR = pt(H - d, H - d, zOuter)
+      crnTR = pt(H, H, zOuter)
       ncrnTR = norm(0.6, 0.6, 0.5)
     } else if (!seamRt && !seamTop) {
       crnTR = pt(H - miter, H - miter, hNorm - miter)
@@ -241,7 +240,7 @@ export function buildCubeMesh(
     let crnTL: [number, number, number]
     let ncrnTL: [number, number, number]
     if (seamLt && seamTop) {
-      crnTL = pt(-(H - d), H - d, zOuter)
+      crnTL = pt(-H, H, zOuter)
       ncrnTL = norm(-0.6, 0.6, 0.5)
     } else if (!seamLt && !seamTop) {
       crnTL = pt(-(H - miter), H - miter, hNorm - miter)
@@ -258,7 +257,7 @@ export function buildCubeMesh(
     let crnBL: [number, number, number]
     let ncrnBL: [number, number, number]
     if (seamLt && seamBot) {
-      crnBL = pt(-(H - d), -(H - d), zOuter)
+      crnBL = pt(-H, -H, zOuter)
       ncrnBL = norm(-0.6, -0.6, 0.5)
     } else if (!seamLt && !seamBot) {
       crnBL = pt(-(H - miter), -(H - miter), hNorm - miter)
@@ -275,7 +274,7 @@ export function buildCubeMesh(
     let crnBR: [number, number, number]
     let ncrnBR: [number, number, number]
     if (seamRt && seamBot) {
-      crnBR = pt(H - d, -(H - d), zOuter)
+      crnBR = pt(H, -H, zOuter)
       ncrnBR = norm(0.6, -0.6, 0.5)
     } else if (!seamRt && !seamBot) {
       crnBR = pt(H - miter, -(H - miter), hNorm - miter)
@@ -318,6 +317,81 @@ export function buildCubeMesh(
     addTri(c1, eBot1, crnBR, nc1, neBot1, ncrnBR, col)
     addTri(c1, crnBR, eRt0, nc1, ncrnBR, neRt0, col)
 
+    // A triangle wound counter-clockwise as seen from `nOut`, so back-face
+    // culling keeps it from that side.
+    function addFacingTri(
+      a: [number, number, number],
+      b: [number, number, number],
+      c: [number, number, number],
+      nOut: [number, number, number],
+    ) {
+      const e1 = [b[0] - a[0], b[1] - a[1], b[2] - a[2]]
+      const e2 = [c[0] - a[0], c[1] - a[1], c[2] - a[2]]
+      const facing =
+        (e1[1] * e2[2] - e1[2] * e2[1]) * nOut[0] +
+        (e1[2] * e2[0] - e1[0] * e2[2]) * nOut[1] +
+        (e1[0] * e2[1] - e1[1] * e2[0]) * nOut[2]
+      if (facing > 0) addTri(a, b, c, nOut, nOut, nOut, col)
+      else addTri(a, c, b, nOut, nOut, nOut, col)
+    }
+
+    // A wall from surface points a-b straight down to the skirt depth, facing
+    // out along the face-local direction (ou, ov).
+    function addWall(
+      a: [number, number, number],
+      b: [number, number, number],
+      ou: number,
+      ov: number,
+    ) {
+      const sink = (p: [number, number, number]): [number, number, number] => {
+        const k =
+          (p[0] - cx) * nAxis[0] +
+          (p[1] - cy) * nAxis[1] +
+          (p[2] - cz) * nAxis[2] -
+          zSkirt
+        return [p[0] - k * nAxis[0], p[1] - k * nAxis[1], p[2] - k * nAxis[2]]
+      }
+      const nOut = norm(ou, ov, 0)
+      addFacingTri(a, sink(a), sink(b), nOut)
+      addFacingTri(a, sink(b), b, nOut)
+    }
+
+    // Where a seam meets the chamfered outer edge, this face's chamfer rises
+    // from the bottom of the edge to its corner vertex, and so does the
+    // neighbouring face's, along a different line. Close the wedge between
+    // the two, and the triangle it leaves in the seam plane.
+    function addEdgePlug(
+      su: number,
+      sv: number,
+      seamU: boolean,
+      seamV: boolean,
+      corner: [number, number, number],
+    ) {
+      if (seamU === seamV) return
+      const bottom = hNorm - miter
+      if (seamU) {
+        const start = pt(su * s, sv * (H - miter), bottom)
+        const other = pt(su * H, sv * zOuter, bottom)
+        addFacingTri(start, corner, other, norm(0, sv, 1))
+        addFacingTri(
+          corner,
+          pt(su * H, sv * (H - miter), bottom),
+          other,
+          norm(su, 0, 0),
+        )
+      } else {
+        const start = pt(su * (H - miter), sv * s, bottom)
+        const other = pt(su * zOuter, sv * H, bottom)
+        addFacingTri(start, corner, other, norm(su, 0, 1))
+        addFacingTri(
+          corner,
+          pt(su * (H - miter), sv * H, bottom),
+          other,
+          norm(0, sv, 0),
+        )
+      }
+    }
+
     // 4. Side skirts into internal seam grooves ONLY (matching cubie color)
     if (seamTop) {
       const sTop0 = pt(-s, H, zSkirt),
@@ -350,6 +424,30 @@ export function buildCubeMesh(
       addTri(eLt0, eLt1, sLt1, nsLt, nsLt, nsLt, col)
       addTri(eLt0, sLt1, sLt0, nsLt, nsLt, nsLt, col)
     }
+
+    // 5. The skirts span only the flat part of each side. Continue every seam
+    // wall out to the corners, or the junctions of four cubies stay open and
+    // the background shows through them.
+    if (seamTop) {
+      addWall(crnTL, eTop0, 0, 1)
+      addWall(eTop1, crnTR, 0, 1)
+    }
+    if (seamBot) {
+      addWall(crnBL, eBot0, 0, -1)
+      addWall(eBot1, crnBR, 0, -1)
+    }
+    if (seamRt) {
+      addWall(crnBR, eRt0, 1, 0)
+      addWall(eRt1, crnTR, 1, 0)
+    }
+    if (seamLt) {
+      addWall(crnBL, eLt0, -1, 0)
+      addWall(eLt1, crnTL, -1, 0)
+    }
+    addEdgePlug(1, 1, seamRt, seamTop, crnTR)
+    addEdgePlug(-1, 1, seamLt, seamTop, crnTL)
+    addEdgePlug(-1, -1, seamLt, seamBot, crnBL)
+    addEdgePlug(1, -1, seamRt, seamBot, crnBR)
   }
 
   // Face coordinate axes: [uAxis, vAxis, nAxis] with u x v = n
