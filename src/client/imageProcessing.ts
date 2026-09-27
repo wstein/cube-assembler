@@ -802,6 +802,8 @@ export function glareStickers(points: RGB[], labels: string[], palette: Record<s
     }
   }
   return glare
+}
+
 // How far a cluster's center may sit from the stickers finally given its
 // color before the cluster is taken to have mixed two colors. On the saved
 // captures the red/blue mixes sat 0.09-0.12 away; every other cluster,
