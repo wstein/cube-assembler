@@ -123,18 +123,6 @@ export function buildCubeMesh(
     idxList.push(base, base + 1, base + 2)
   }
 
-  function addQuad(
-    p0: [number, number, number],
-    p1: [number, number, number],
-    p2: [number, number, number],
-    p3: [number, number, number],
-    norm: [number, number, number],
-    col: [number, number, number],
-  ) {
-    addTri(p0, p1, p2, norm, norm, norm, col)
-    addTri(p0, p2, p3, norm, norm, norm, col)
-  }
-
   // Generate a rounded, beveled face with smoothed normals
   function addBeveledFace(
     cx: number,
@@ -155,11 +143,11 @@ export function buildCubeMesh(
     },
   ) {
     const s = H - r
-    const Ho = H
-    const d = r * 0.35 // corner rounding inset (original Fase)
+    const d = r * 0.4 // corner fillet for internal 4-way intersections
+    const miter = r * 0.45 // outer edge and corner bevel miter
     const hNorm = H + elevation
-    const zOuter = hNorm - r * 0.7
-    const zSkirt = hNorm - 0.08
+    const zOuter = hNorm - r * 0.6
+    const zSkirt = hNorm - 0.12
     const { top: seamTop, bot: seamBot, rt: seamRt, lt: seamLt } = seams
 
     function pt(u: number, v: number, n: number): [number, number, number] {
@@ -193,67 +181,105 @@ export function buildCubeMesh(
     const c3 = pt(-s, s, hNorm),
       nc3 = norm(0, 0, 1)
 
-    // Bevel outer vertices:
-    // If it's an internal seam, bevel down to zOuter with beveled normal.
-    // If it's an outer cube edge, stay flat at hNorm with flat normal (0, 0, 1).
-    const zTop = seamTop ? zOuter : hNorm
-    const eTop0 = pt(-s, Ho, zTop),
-      neTop0 = seamTop ? norm(0, 0.7, 0.7) : norm(0, 0, 1)
-    const eTop1 = pt(s, Ho, zTop),
-      neTop1 = seamTop ? norm(0, 0.7, 0.7) : norm(0, 0, 1)
+    // Edge outer vertices:
+    // If internal seam: reaches H at depth zOuter
+    // If outer cube edge: meets adjacent face of same cubie at 45° rounded miter
+    const vTop = seamTop ? H : H - miter
+    const zTop = seamTop ? zOuter : hNorm - miter
+    const eTop0 = pt(-s, vTop, zTop),
+      neTop0 = norm(0, 0.7, 0.7)
+    const eTop1 = pt(s, vTop, zTop),
+      neTop1 = norm(0, 0.7, 0.7)
 
-    const zBot = seamBot ? zOuter : hNorm
-    const eBot0 = pt(-s, -Ho, zBot),
-      neBot0 = seamBot ? norm(0, -0.7, 0.7) : norm(0, 0, 1)
-    const eBot1 = pt(s, -Ho, zBot),
-      neBot1 = seamBot ? norm(0, -0.7, 0.7) : norm(0, 0, 1)
+    const vBot = seamBot ? -H : -(H - miter)
+    const zBot = seamBot ? zOuter : hNorm - miter
+    const eBot0 = pt(-s, vBot, zBot),
+      neBot0 = norm(0, -0.7, 0.7)
+    const eBot1 = pt(s, vBot, zBot),
+      neBot1 = norm(0, -0.7, 0.7)
 
-    const zRt = seamRt ? zOuter : hNorm
-    const eRt0 = pt(Ho, -s, zRt),
-      neRt0 = seamRt ? norm(0.7, 0, 0.7) : norm(0, 0, 1)
-    const eRt1 = pt(Ho, s, zRt),
-      neRt1 = seamRt ? norm(0.7, 0, 0.7) : norm(0, 0, 1)
+    const uRt = seamRt ? H : H - miter
+    const zRt = seamRt ? zOuter : hNorm - miter
+    const eRt0 = pt(uRt, -s, zRt),
+      neRt0 = norm(0.7, 0, 0.7)
+    const eRt1 = pt(uRt, s, zRt),
+      neRt1 = norm(0.7, 0, 0.7)
 
-    const zLt = seamLt ? zOuter : hNorm
-    const eLt0 = pt(-Ho, -s, zLt),
-      neLt0 = seamLt ? norm(-0.7, 0, 0.7) : norm(0, 0, 1)
-    const eLt1 = pt(-Ho, s, zLt),
-      neLt1 = seamLt ? norm(-0.7, 0, 0.7) : norm(0, 0, 1)
+    const uLt = seamLt ? -H : -(H - miter)
+    const zLt = seamLt ? zOuter : hNorm - miter
+    const eLt0 = pt(uLt, -s, zLt),
+      neLt0 = norm(-0.7, 0, 0.7)
+    const eLt1 = pt(uLt, s, zLt),
+      neLt1 = norm(-0.7, 0, 0.7)
 
-    // 4 corners:
-    // Only apply corner inset d if BOTH adjacent edges are internal seams (4-cubie cross).
-    // If either edge is an outer cube edge, stay flat at hNorm and full Ho.
-    const bothSeamTR = seamRt && seamTop
-    const crnTR = pt(
-        bothSeamTR ? Ho - d : Ho,
-        bothSeamTR ? Ho - d : Ho,
-        bothSeamTR ? zOuter : hNorm,
-      ),
-      ncrnTR = bothSeamTR ? norm(0.6, 0.6, 0.5) : norm(0, 0, 1)
+    // Corner vertices:
+    // 1. Top-Right (TR)
+    let crnTR: [number, number, number]
+    let ncrnTR: [number, number, number]
+    if (seamRt && seamTop) {
+      crnTR = pt(H - d, H - d, zOuter)
+      ncrnTR = norm(0.6, 0.6, 0.5)
+    } else if (!seamRt && !seamTop) {
+      crnTR = pt(H - miter, H - miter, hNorm - miter)
+      ncrnTR = norm(0.577, 0.577, 0.577)
+    } else if (seamRt && !seamTop) {
+      crnTR = pt(H, H - miter, zOuter)
+      ncrnTR = norm(0.5, 0.5, 0.7)
+    } else {
+      crnTR = pt(H - miter, H, zOuter)
+      ncrnTR = norm(0.5, 0.5, 0.7)
+    }
 
-    const bothSeamTL = seamLt && seamTop
-    const crnTL = pt(
-        bothSeamTL ? -(Ho - d) : -Ho,
-        bothSeamTL ? Ho - d : Ho,
-        bothSeamTL ? zOuter : hNorm,
-      ),
-      ncrnTL = bothSeamTL ? norm(-0.6, 0.6, 0.5) : norm(0, 0, 1)
+    // 2. Top-Left (TL)
+    let crnTL: [number, number, number]
+    let ncrnTL: [number, number, number]
+    if (seamLt && seamTop) {
+      crnTL = pt(-(H - d), H - d, zOuter)
+      ncrnTL = norm(-0.6, 0.6, 0.5)
+    } else if (!seamLt && !seamTop) {
+      crnTL = pt(-(H - miter), H - miter, hNorm - miter)
+      ncrnTL = norm(-0.577, 0.577, 0.577)
+    } else if (seamLt && !seamTop) {
+      crnTL = pt(-H, H - miter, zOuter)
+      ncrnTL = norm(-0.5, 0.5, 0.7)
+    } else {
+      crnTL = pt(-(H - miter), H, zOuter)
+      ncrnTL = norm(-0.5, 0.5, 0.7)
+    }
 
-    const bothSeamBL = seamLt && seamBot
-    const crnBL = pt(
-        bothSeamBL ? -(Ho - d) : -Ho,
-        bothSeamBL ? -(Ho - d) : -Ho,
-        bothSeamBL ? zOuter : hNorm,
-      ),
-      ncrnBL = bothSeamBL ? norm(-0.6, -0.6, 0.5) : norm(0, 0, 1)
+    // 3. Bottom-Left (BL)
+    let crnBL: [number, number, number]
+    let ncrnBL: [number, number, number]
+    if (seamLt && seamBot) {
+      crnBL = pt(-(H - d), -(H - d), zOuter)
+      ncrnBL = norm(-0.6, -0.6, 0.5)
+    } else if (!seamLt && !seamBot) {
+      crnBL = pt(-(H - miter), -(H - miter), hNorm - miter)
+      ncrnBL = norm(-0.577, -0.577, 0.577)
+    } else if (seamLt && !seamBot) {
+      crnBL = pt(-H, -(H - miter), zOuter)
+      ncrnBL = norm(-0.5, -0.5, 0.7)
+    } else {
+      crnBL = pt(-(H - miter), -H, zOuter)
+      ncrnBL = norm(-0.5, -0.5, 0.7)
+    }
 
-    const bothSeamBR = seamRt && seamBot
-    const crnBR = pt(
-        bothSeamBR ? Ho - d : Ho,
-        bothSeamBR ? -(Ho - d) : -Ho,
-        bothSeamBR ? zOuter : hNorm,
-      ),
-      ncrnBR = bothSeamBR ? norm(0.6, -0.6, 0.5) : norm(0, 0, 1)
+    // 4. Bottom-Right (BR)
+    let crnBR: [number, number, number]
+    let ncrnBR: [number, number, number]
+    if (seamRt && seamBot) {
+      crnBR = pt(H - d, -(H - d), zOuter)
+      ncrnBR = norm(0.6, -0.6, 0.5)
+    } else if (!seamRt && !seamBot) {
+      crnBR = pt(H - miter, -(H - miter), hNorm - miter)
+      ncrnBR = norm(0.577, -0.577, 0.577)
+    } else if (seamRt && !seamBot) {
+      crnBR = pt(H, -(H - miter), zOuter)
+      ncrnBR = norm(0.5, -0.5, 0.7)
+    } else {
+      crnBR = pt(H - miter, -H, zOuter)
+      ncrnBR = norm(0.5, -0.5, 0.7)
+    }
 
     // 1. Center flat region
     addTri(c0, c1, c2, nc0, nc1, nc2, col)
@@ -285,35 +311,35 @@ export function buildCubeMesh(
     addTri(c1, eBot1, crnBR, nc1, neBot1, ncrnBR, col)
     addTri(c1, crnBR, eRt0, nc1, ncrnBR, neRt0, col)
 
-    // 4. Side skirts into internal seam grooves ONLY (never along outer cube perimeter)
+    // 4. Side skirts into internal seam grooves ONLY (matching cubie color)
     if (seamTop) {
-      const sTop0 = pt(-s, Ho, zSkirt),
+      const sTop0 = pt(-s, H, zSkirt),
         nsTop = norm(0, 1, 0)
-      const sTop1 = pt(s, Ho, zSkirt)
+      const sTop1 = pt(s, H, zSkirt)
       addTri(eTop0, eTop1, sTop1, nsTop, nsTop, nsTop, col)
       addTri(eTop0, sTop1, sTop0, nsTop, nsTop, nsTop, col)
     }
 
     if (seamBot) {
-      const sBot0 = pt(-s, -Ho, zSkirt),
+      const sBot0 = pt(-s, -H, zSkirt),
         nsBot = norm(0, -1, 0)
-      const sBot1 = pt(s, -Ho, zSkirt)
+      const sBot1 = pt(s, -H, zSkirt)
       addTri(eBot1, eBot0, sBot0, nsBot, nsBot, nsBot, col)
       addTri(eBot1, sBot0, sBot1, nsBot, nsBot, nsBot, col)
     }
 
     if (seamRt) {
-      const sRt0 = pt(Ho, -s, zSkirt),
+      const sRt0 = pt(H, -s, zSkirt),
         nsRt = norm(1, 0, 0)
-      const sRt1 = pt(Ho, s, zSkirt)
+      const sRt1 = pt(H, s, zSkirt)
       addTri(eRt1, eRt0, sRt0, nsRt, nsRt, nsRt, col)
       addTri(eRt1, sRt0, sRt1, nsRt, nsRt, nsRt, col)
     }
 
     if (seamLt) {
-      const sLt0 = pt(-Ho, -s, zSkirt),
+      const sLt0 = pt(-H, -s, zSkirt),
         nsLt = norm(-1, 0, 0)
-      const sLt1 = pt(-Ho, s, zSkirt)
+      const sLt1 = pt(-H, s, zSkirt)
       addTri(eLt0, eLt1, sLt1, nsLt, nsLt, nsLt, col)
       addTri(eLt0, sLt1, sLt0, nsLt, nsLt, nsLt, col)
     }
@@ -356,62 +382,9 @@ export function buildCubeMesh(
         const cz = z - last / 2
 
         if (stickerless) {
-          // In stickerless mode:
-          // 1. Dark interior mechanism backing
-          const hCore = 0.478
-          // Box faces for internal core
-          addQuad(
-            [cx - hCore, cy + hCore, cz + hCore],
-            [cx + hCore, cy + hCore, cz + hCore],
-            [cx + hCore, cy + hCore, cz - hCore],
-            [cx - hCore, cy + hCore, cz - hCore],
-            [0, 1, 0],
-            darkPlastic,
-          )
-          addQuad(
-            [cx - hCore, cy - hCore, cz - hCore],
-            [cx + hCore, cy - hCore, cz - hCore],
-            [cx + hCore, cy - hCore, cz + hCore],
-            [cx - hCore, cy - hCore, cz + hCore],
-            [0, -1, 0],
-            darkPlastic,
-          )
-          addQuad(
-            [cx - hCore, cy - hCore, cz + hCore],
-            [cx + hCore, cy - hCore, cz + hCore],
-            [cx + hCore, cy + hCore, cz + hCore],
-            [cx - hCore, cy + hCore, cz + hCore],
-            [0, 0, 1],
-            darkPlastic,
-          )
-          addQuad(
-            [cx + hCore, cy - hCore, cz - hCore],
-            [cx - hCore, cy - hCore, cz - hCore],
-            [cx - hCore, cy + hCore, cz - hCore],
-            [cx + hCore, cy + hCore, cz - hCore],
-            [0, 0, -1],
-            darkPlastic,
-          )
-          addQuad(
-            [cx + hCore, cy - hCore, cz + hCore],
-            [cx + hCore, cy - hCore, cz - hCore],
-            [cx + hCore, cy + hCore, cz - hCore],
-            [cx + hCore, cy + hCore, cz + hCore],
-            [1, 0, 0],
-            darkPlastic,
-          )
-          addQuad(
-            [cx - hCore, cy - hCore, cz - hCore],
-            [cx - hCore, cy - hCore, cz + hCore],
-            [cx - hCore, cy + hCore, cz + hCore],
-            [cx - hCore, cy + hCore, cz - hCore],
-            [-1, 0, 0],
-            darkPlastic,
-          )
-
-          // 2. Each exterior face has a rounded beveled colored plastic cap with reduced gap (0.020) and original Fase (r=0.045)
-          const H = 0.49
-          const r = 0.045
+          // Solid colored plastic speedcube: rounded edges, rounded corners, no black lines
+          const H = 0.495
+          const r = 0.04
           if (y === last) {
             const colorKey = getFaceletColor(cube, n, 'u', x, y, z)
             const rgb = hexToRgb(
