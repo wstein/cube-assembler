@@ -72,8 +72,9 @@ npx vitest run test/fixtures.test.ts
 
 The committed `capture-*` directories, including a 7×7 capture, run in CI and
 locally. Image checks skip only when a checkout has no real captures.
-`bun test test/gridAlignmentRealCrops.test.ts` can take about 30 seconds with
-the current corpus and has a 60-second test timeout.
+`bun test test/gridAlignmentRealCrops.test.ts` takes about 30 seconds locally
+with the current corpus. Its seven cases have separate 60-second timeouts so
+the complete benchmark can also finish on slower CI runners.
 
 Reproduces the app's actual `runGlobalWhiteBalance` flow: extracts each
 face with neutral gains, pools every sticker across all 6 faces, runs
