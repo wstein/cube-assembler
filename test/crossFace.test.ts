@@ -142,3 +142,45 @@ describe('classifyAcrossFaces with a reference palette', () => {
     }
   })
 })
+
+// Readings from a real capture (2026-09-26T23-55-08) whose blues range
+// from shadowed edges (L 0.31) to a bright center (L 0.59). The clustering
+// settled on two purple clusters - dark reds with dark blues, light reds
+// with light blues - and every red and orange came out swapped.
+const RED_BLUE_READINGS: Record<string, number[][]> = {
+  U: [[17, 47, 94], [77, 120, 56], [26, 53, 99], [168, 58, 40], [83, 151, 119], [180, 63, 48], [30, 89, 173], [64, 142, 75], [3, 60, 130]],
+  R: [[173, 60, 17], [170, 62, 19], [173, 64, 26], [85, 178, 137], [186, 189, 94], [85, 174, 135], [170, 56, 46], [171, 51, 35], [173, 57, 41]],
+  F: [[92, 146, 60], [9, 47, 90], [94, 133, 49], [144, 52, 88], [72, 125, 200], [133, 45, 77], [85, 161, 85], [2, 54, 110], [79, 145, 55]],
+  D: [[117, 11, 22], [121, 20, 23], [133, 32, 31], [38, 93, 174], [168, 179, 238], [38, 89, 169], [123, 14, 40], [122, 7, 28], [121, 8, 31]],
+  L: [[174, 178, 214], [171, 174, 206], [174, 173, 201], [192, 194, 116], [113, 9, 36], [187, 181, 95], [170, 197, 255], [171, 193, 247], [164, 183, 235]],
+  B: [[173, 160, 62], [172, 158, 60], [172, 155, 57], [163, 193, 247], [161, 55, 29], [162, 189, 242], [179, 190, 104], [185, 193, 92], [179, 184, 89]],
+}
+const RED_BLUE_TRUTH: Record<string, string> = {
+  U: 'BGBOGOBGB', R: 'OOOGYGOOO', F: 'GBGRBRGBG', D: 'RRRBWBRRR', L: 'WWWYRYWWW', B: 'YYYWOWYYY',
+}
+
+function readingFaces(readings: Record<string, number[][]>): Record<string, ColorDetectionResult> {
+  const out: Record<string, ColorDetectionResult> = {}
+  for (const [face, cells] of Object.entries(readings)) {
+    const cellColors = [0, 1, 2].map((r) => [0, 1, 2].map((c) => {
+      const [red, g, b] = cells[r * 3 + c]
+      return { r: red, g, b }
+    }))
+    out[face] = {
+      colors: cellColors.map((row) => row.map(() => 'W')),
+      cellConfidences: cellColors.map((row) => row.map(() => 0.9)),
+      cellColors,
+      confidence: 0.9,
+    }
+  }
+  return out
+}
+
+describe('classifyAcrossFaces with a wide lightness range', () => {
+  it('keeps reds and blues apart when the blues range from dark to bright', () => {
+    const classified = classifyAcrossFaces(readingFaces(RED_BLUE_READINGS))
+    const wrong = Object.entries(classified.faces).flatMap(([face, det]) =>
+      det.colors.flat().flatMap((color, i) => (color === RED_BLUE_TRUTH[face][i] ? [] : [`${face}${i}:${color}`])))
+    expect(wrong).toEqual([])
+  })
+})
