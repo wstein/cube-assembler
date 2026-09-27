@@ -277,7 +277,10 @@ or imported photos and reconstructs its state:
    fixed center, so they stay in capture order. The saved net always shows
    the captured colors, including with Mirror enabled.
 2. **Review** — after all 6 faces are captured, a global recalibration
-   pass re-clusters all stickers together (k-means, with each iteration's
+   pass re-clusters all stickers together. If every sticker has high confidence,
+   no correction or warning remains, and the assembled cube is valid, the app
+   goes straight to assembly approval. **Edit colors** still opens the review.
+   Otherwise, the per-face color review opens. The recalibration uses k-means, with each iteration's
    assignment step solved as a genuine optimal balanced assignment —
    `hungarianAssignment` in `imageProcessing.ts` — rather than a greedy
    heuristic, so the N² -per-color physical invariant is enforced exactly
