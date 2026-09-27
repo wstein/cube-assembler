@@ -21,10 +21,29 @@ def srgb_to_linear(c):
     return v / 12.92 if v <= 0.04045 else ((v + 0.055) / 1.055) ** 2.4
 
 
-def make_beveled_face(u_axis, v_axis, n_axis, H=0.475, r=0.045):
+def get_face_seams(face, x, y, z, n):
+    last = n - 1
+    if face == 'u':
+        return (z > 0, z < last, x < last, x > 0)
+    if face == 'd':
+        return (z < last, z > 0, x < last, x > 0)
+    if face == 'f':
+        return (y < last, y > 0, x < last, x > 0)
+    if face == 'b':
+        return (y < last, y > 0, x > 0, x < last)
+    if face == 'r':
+        return (y < last, y > 0, z > 0, z < last)
+    if face == 'l':
+        return (y < last, y > 0, z < last, z > 0)
+    return (True, True, True, True)
+
+
+def make_beveled_face(u_axis, v_axis, n_axis, H=0.490, r=0.045, seams=(True, True, True, True)):
     s = H - r
     d = r * 0.35
     z_outer = H - r * 0.7
+    z_skirt = H - 0.08
+    seam_top, seam_bot, seam_rt, seam_lt = seams
 
     def pt(u, v, n):
         return [
@@ -46,22 +65,37 @@ def make_beveled_face(u_axis, v_axis, n_axis, H=0.475, r=0.045):
     c2, nc2 = pt(s, s, H), norm(0, 0, 1)
     c3, nc3 = pt(-s, s, H), norm(0, 0, 1)
 
-    e_top0, ne_top0 = pt(-s, H, z_outer), norm(0, 0.7, 0.7)
-    e_top1, ne_top1 = pt(s, H, z_outer), norm(0, 0.7, 0.7)
+    z_top = z_outer if seam_top else H
+    e_top0, ne_top0 = pt(-s, H, z_top), norm(0, 0.7, 0.7) if seam_top else norm(0, 0, 1)
+    e_top1, ne_top1 = pt(s, H, z_top), norm(0, 0.7, 0.7) if seam_top else norm(0, 0, 1)
 
-    e_bot0, ne_bot0 = pt(-s, -H, z_outer), norm(0, -0.7, 0.7)
-    e_bot1, ne_bot1 = pt(s, -H, z_outer), norm(0, -0.7, 0.7)
+    z_bot = z_outer if seam_bot else H
+    e_bot0, ne_bot0 = pt(-s, -H, z_bot), norm(0, -0.7, 0.7) if seam_bot else norm(0, 0, 1)
+    e_bot1, ne_bot1 = pt(s, -H, z_bot), norm(0, -0.7, 0.7) if seam_bot else norm(0, 0, 1)
 
-    e_rt0, ne_rt0 = pt(H, -s, z_outer), norm(0.7, 0, 0.7)
-    e_rt1, ne_rt1 = pt(H, s, z_outer), norm(0.7, 0, 0.7)
+    z_rt = z_outer if seam_rt else H
+    e_rt0, ne_rt0 = pt(H, -s, z_rt), norm(0.7, 0, 0.7) if seam_rt else norm(0, 0, 1)
+    e_rt1, ne_rt1 = pt(H, s, z_rt), norm(0.7, 0, 0.7) if seam_rt else norm(0, 0, 1)
 
-    e_lt0, ne_lt0 = pt(-H, -s, z_outer), norm(-0.7, 0, 0.7)
-    e_lt1, ne_lt1 = pt(-H, s, z_outer), norm(-0.7, 0, 0.7)
+    z_lt = z_outer if seam_lt else H
+    e_lt0, ne_lt0 = pt(-H, -s, z_lt), norm(-0.7, 0, 0.7) if seam_lt else norm(0, 0, 1)
+    e_lt1, ne_lt1 = pt(-H, s, z_lt), norm(-0.7, 0, 0.7) if seam_lt else norm(0, 0, 1)
 
-    crn_tr, ncrn_tr = pt(H - d, H - d, z_outer), norm(0.6, 0.6, 0.5)
-    crn_tl, ncrn_tl = pt(-(H - d), H - d, z_outer), norm(-0.6, 0.6, 0.5)
-    crn_bl, ncrn_bl = pt(-(H - d), -(H - d), z_outer), norm(-0.6, -0.6, 0.5)
-    crn_br, ncrn_br = pt(H - d, -(H - d), z_outer), norm(0.6, -0.6, 0.5)
+    both_seam_tr = seam_rt and seam_top
+    crn_tr = pt(H - d if both_seam_tr else H, H - d if both_seam_tr else H, z_outer if both_seam_tr else H)
+    ncrn_tr = norm(0.6, 0.6, 0.5) if both_seam_tr else norm(0, 0, 1)
+
+    both_seam_tl = seam_lt and seam_top
+    crn_tl = pt(-(H - d) if both_seam_tl else -H, H - d if both_seam_tl else H, z_outer if both_seam_tl else H)
+    ncrn_tl = norm(-0.6, 0.6, 0.5) if both_seam_tl else norm(0, 0, 1)
+
+    both_seam_bl = seam_lt and seam_bot
+    crn_bl = pt(-(H - d) if both_seam_bl else -H, -(H - d) if both_seam_bl else -H, z_outer if both_seam_bl else H)
+    ncrn_bl = norm(-0.6, -0.6, 0.5) if both_seam_bl else norm(0, 0, 1)
+
+    both_seam_br = seam_rt and seam_bot
+    crn_br = pt(H - d if both_seam_br else H, -(H - d) if both_seam_br else -H, z_outer if both_seam_br else H)
+    ncrn_br = norm(0.6, -0.6, 0.5) if both_seam_br else norm(0, 0, 1)
 
     verts = [
         c0, c1, c2, c3,
@@ -76,25 +110,46 @@ def make_beveled_face(u_axis, v_axis, n_axis, H=0.475, r=0.045):
         ncrn_tr, ncrn_tl, ncrn_bl, ncrn_br,
     ]
     indices = [
-        # Center quad
         0, 1, 2,  0, 2, 3,
-        # Top bevel
         3, 2, 5,  3, 5, 4,
-        # Bottom bevel
         6, 7, 1,  6, 1, 0,
-        # Right bevel
         1, 8, 9,  1, 9, 2,
-        # Left bevel
         10, 0, 3,  10, 3, 11,
-        # Top-Right corner
         2, 9, 12,  2, 12, 5,
-        # Top-Left corner
         3, 4, 13,  3, 13, 11,
-        # Bottom-Left corner
         0, 10, 14,  0, 14, 6,
-        # Bottom-Right corner
         1, 7, 15,  1, 15, 8,
     ]
+
+    # Side skirts into internal seam grooves ONLY
+    if seam_top:
+        idx_base = len(verts)
+        verts.extend([pt(-s, H, z_skirt), pt(s, H, z_skirt)])
+        ns = norm(0, 1, 0)
+        norms.extend([ns, ns])
+        indices.extend([4, 5, idx_base + 1, 4, idx_base + 1, idx_base])
+
+    if seam_bot:
+        idx_base = len(verts)
+        verts.extend([pt(-s, -H, z_skirt), pt(s, -H, z_skirt)])
+        ns = norm(0, -1, 0)
+        norms.extend([ns, ns])
+        indices.extend([7, 6, idx_base, 7, idx_base, idx_base + 1])
+
+    if seam_rt:
+        idx_base = len(verts)
+        verts.extend([pt(H, -s, z_skirt), pt(H, s, z_skirt)])
+        ns = norm(1, 0, 0)
+        norms.extend([ns, ns])
+        indices.extend([9, 8, idx_base, 9, idx_base, idx_base + 1])
+
+    if seam_lt:
+        idx_base = len(verts)
+        verts.extend([pt(-H, -s, z_skirt), pt(-H, s, z_skirt)])
+        ns = norm(-1, 0, 0)
+        norms.extend([ns, ns])
+        indices.extend([10, 11, idx_base + 1, 10, idx_base + 1, idx_base])
+
     return verts, norms, indices
 
 
@@ -185,8 +240,8 @@ def create_cube_glb(fixture_path, output_glb_path):
             'max_pos': max_pos,
         }
 
-    # 1. Internal dark mechanism core box (size 0.88, half-width 0.44)
-    hc = 0.44
+    # 1. Internal dark mechanism core box (size 0.956, half-width 0.478)
+    hc = 0.478
     core_verts = []
     core_norms = []
     core_indices = []
@@ -215,7 +270,7 @@ def create_cube_glb(fixture_path, output_glb_path):
 
     core_geom = add_geom(core_verts, core_norms, core_indices)
 
-    # 2. Rounded beveled face caps for each of the 6 faces
+    # 2. Rounded beveled face caps with reduced gap (0.020) and original Fase (r=0.045)
     # Right-handed coordinate frames (u x v = n)
     face_axes_def = {
         'u': ([1, 0, 0], [0, 0, -1], [0, 1, 0]),
@@ -226,10 +281,31 @@ def create_cube_glb(fixture_path, output_glb_path):
         'l': ([0, 0, 1], [0, 1, 0], [-1, 0, 0]),
     }
 
+    # Find all unique (f_key, seams) combinations across the cube
+    needed_combos = set()
+    for z in range(n):
+        for y in range(n):
+            for x in range(n):
+                if x != 0 and x != last and y != 0 and y != last and z != 0 and z != last:
+                    continue
+                if y == last:
+                    needed_combos.add(('u', get_face_seams('u', x, y, z, n)))
+                if y == 0:
+                    needed_combos.add(('d', get_face_seams('d', x, y, z, n)))
+                if z == last:
+                    needed_combos.add(('f', get_face_seams('f', x, y, z, n)))
+                if z == 0:
+                    needed_combos.add(('b', get_face_seams('b', x, y, z, n)))
+                if x == last:
+                    needed_combos.add(('r', get_face_seams('r', x, y, z, n)))
+                if x == 0:
+                    needed_combos.add(('l', get_face_seams('l', x, y, z, n)))
+
     beveled_geoms = {}
-    for f_key, (u_ax, v_ax, n_ax) in face_axes_def.items():
-        v, n_vecs, idx = make_beveled_face(u_ax, v_ax, n_ax, H=0.475, r=0.045)
-        beveled_geoms[f_key] = add_geom(v, n_vecs, idx)
+    for f_key, seams in sorted(needed_combos):
+        u_ax, v_ax, n_ax = face_axes_def[f_key]
+        v, n_vecs, idx = make_beveled_face(u_ax, v_ax, n_ax, H=0.490, r=0.045, seams=seams)
+        beveled_geoms[(f_key, seams)] = add_geom(v, n_vecs, idx)
 
     # Align binary chunks to 4 bytes
     def pad4(b, pad_byte=b'\x00'):
@@ -301,8 +377,7 @@ def create_cube_glb(fixture_path, output_glb_path):
 
     # Accessors for Beveled Face Caps:
     beveled_accessors = {}
-    for f_key in ['u', 'd', 'f', 'b', 'r', 'l']:
-        g = beveled_geoms[f_key]
+    for (f_key, seams), g in sorted(beveled_geoms.items()):
         pos_acc = len(accessors)
         accessors.append(
             {
@@ -335,7 +410,7 @@ def create_cube_glb(fixture_path, output_glb_path):
                 'type': 'SCALAR',
             }
         )
-        beveled_accessors[f_key] = (pos_acc, norm_acc, idx_acc)
+        beveled_accessors[(f_key, seams)] = (pos_acc, norm_acc, idx_acc)
 
     nodes = []
     meshes = []
@@ -380,7 +455,8 @@ def create_cube_glb(fixture_path, output_glb_path):
                 # Exterior rounded caps
                 if y == last:
                     color = get_facelet_color(x, y, z, 'u')
-                    pos_acc, norm_acc, idx_acc = beveled_accessors['u']
+                    seams = get_face_seams('u', x, y, z, n)
+                    pos_acc, norm_acc, idx_acc = beveled_accessors[('u', seams)]
                     primitives.append(
                         {
                             'attributes': {'POSITION': pos_acc, 'NORMAL': norm_acc},
@@ -390,7 +466,8 @@ def create_cube_glb(fixture_path, output_glb_path):
                     )
                 if y == 0:
                     color = get_facelet_color(x, y, z, 'd')
-                    pos_acc, norm_acc, idx_acc = beveled_accessors['d']
+                    seams = get_face_seams('d', x, y, z, n)
+                    pos_acc, norm_acc, idx_acc = beveled_accessors[('d', seams)]
                     primitives.append(
                         {
                             'attributes': {'POSITION': pos_acc, 'NORMAL': norm_acc},
@@ -400,7 +477,8 @@ def create_cube_glb(fixture_path, output_glb_path):
                     )
                 if z == last:
                     color = get_facelet_color(x, y, z, 'f')
-                    pos_acc, norm_acc, idx_acc = beveled_accessors['f']
+                    seams = get_face_seams('f', x, y, z, n)
+                    pos_acc, norm_acc, idx_acc = beveled_accessors[('f', seams)]
                     primitives.append(
                         {
                             'attributes': {'POSITION': pos_acc, 'NORMAL': norm_acc},
@@ -410,7 +488,8 @@ def create_cube_glb(fixture_path, output_glb_path):
                     )
                 if z == 0:
                     color = get_facelet_color(x, y, z, 'b')
-                    pos_acc, norm_acc, idx_acc = beveled_accessors['b']
+                    seams = get_face_seams('b', x, y, z, n)
+                    pos_acc, norm_acc, idx_acc = beveled_accessors[('b', seams)]
                     primitives.append(
                         {
                             'attributes': {'POSITION': pos_acc, 'NORMAL': norm_acc},
@@ -420,7 +499,8 @@ def create_cube_glb(fixture_path, output_glb_path):
                     )
                 if x == last:
                     color = get_facelet_color(x, y, z, 'r')
-                    pos_acc, norm_acc, idx_acc = beveled_accessors['r']
+                    seams = get_face_seams('r', x, y, z, n)
+                    pos_acc, norm_acc, idx_acc = beveled_accessors[('r', seams)]
                     primitives.append(
                         {
                             'attributes': {'POSITION': pos_acc, 'NORMAL': norm_acc},
@@ -430,7 +510,8 @@ def create_cube_glb(fixture_path, output_glb_path):
                     )
                 if x == 0:
                     color = get_facelet_color(x, y, z, 'l')
-                    pos_acc, norm_acc, idx_acc = beveled_accessors['l']
+                    seams = get_face_seams('l', x, y, z, n)
+                    pos_acc, norm_acc, idx_acc = beveled_accessors[('l', seams)]
                     primitives.append(
                         {
                             'attributes': {'POSITION': pos_acc, 'NORMAL': norm_acc},
