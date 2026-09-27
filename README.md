@@ -281,12 +281,14 @@ or imported photos and reconstructs its state:
    fixed center, so they stay in capture order. The saved net always shows
    the captured colors, including with Mirror enabled.
 
-   **Upload photos** accepts six images without fixture metadata. It previews
-   their order before reading them, with arrows to rearrange faces;
+   **Upload files** accepts six cropped face images or full camera photos,
+   either selected together or in a ZIP without fixture metadata. It previews
+   their order and framing before reading them, with arrows to rearrange faces
+   and per-image Auto, Cropped face, and Full photo choices;
    `face-u.jpg` through `face-b.jpg` start in capture-slot order. It uses the
    selected cube size and then runs the same six-face color calibration and
-   review as camera captures. **Upload fixture** accepts a saved ZIP or
-   `meta.json` plus its face photos.
+   review as camera captures. A selection with JSON metadata, or a saved ZIP,
+   loads as a fixture with its saved colors.
 2. **Review** — after all 6 faces are captured, a global recalibration
    pass re-clusters all stickers together. If every sticker has high confidence,
    no correction or warning remains, and the assembled cube is valid, the app
@@ -409,7 +411,7 @@ The button stays disabled until the upload server responds and rechecks while
 the fixture dialog is open. Availability uses an empty `GET /ping` response;
 there is no fixture download route.
 The local server accepts only `POST /upload`, never serves files, refuses
-overwrites, and binds only to `127.0.0.1`. **Upload fixture** loads a ZIP
+overwrites, and binds only to `127.0.0.1`. **Upload files** loads a ZIP
 or fixture folder back into the app. The `fixture:server` terminal logs each
 ping or upload request with its status and elapsed time; successful uploads
 include the saved fixture name, without logging the photos or metadata.
