@@ -50,8 +50,9 @@ First-party cookies remember the selected cube size and color profile,
 Mirror, Auto capture, capture sound, and the **2D Net / 3D View** choice.
 Within 3D View, **Stickerless / Stickered** and **Auto-rotate / Pause** are
 remembered too. Dragging the 3D cube gives it a short, slowing spin after
-release. These are display preferences; captured photos and cube states are not
-stored in cookies.
+release. Auto-rotate pauses during a drag and resumes about 1.5 seconds after
+release; dragging does not change the saved setting. These are display
+preferences; captured photos and cube states are not stored in cookies.
 
 ## Use photos or a saved fixture
 
