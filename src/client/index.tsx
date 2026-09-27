@@ -26,6 +26,11 @@ import {
 } from './autoCapture'
 import { oppositeFacePreview } from './capturePresentation'
 import { readyAssemblyAfterCapture } from './captureReviewRouting'
+import {
+  decodeOrbit64State,
+  encodeOrbit64State,
+  looksLikeOrbit64StateToken,
+} from './orbit64'
 import type { ReviewCapture } from './colorReviewPage'
 import { BackdropDialog } from './backdropDialog'
 import { faceSources, pieceKey, sourceIndex } from './netPresentation'
@@ -1977,17 +1982,26 @@ function App() {
       // pasted content via detectNotationFormat, but fall back to it here
       // too in case content ever reaches this handler without going
       // through that path (e.g. a fast paste-and-submit).
-      const effectiveFormat =
-        detectNotationFormat(manualColorInput) ?? notationFormat
-      const newCube =
-        effectiveFormat === 'wrg'
+      const trimmedInput = manualColorInput.trim()
+      const isOrbit64Token = looksLikeOrbit64StateToken(trimmedInput)
+      const decodedToken = isOrbit64Token
+        ? decodeOrbit64State(trimmedInput)
+        : null
+      const effectiveFormat = isOrbit64Token
+        ? 'urf'
+        : (detectNotationFormat(manualColorInput) ?? notationFormat)
+      const newCube = isOrbit64Token
+        ? decodedToken && fromURFFacelets(decodedToken)
+        : effectiveFormat === 'wrg'
           ? fromWRGFacelets(manualColorInput)
           : fromURFFacelets(manualColorInput)
       if (!newCube) {
         alert(
-          effectiveFormat === 'wrg'
-            ? 'Invalid facelets. Must be 6 space-separated blocks of equal, perfect-square length (9 for 3×3, 25 for 5×5, ...) using colors W, O, G, R, B, Y, in U R F D L B order.'
-            : 'Invalid facelets. Must be 6 space-separated blocks of equal, perfect-square length (9 for 3×3, 25 for 5×5, ...) using letters U, R, F, D, L, B (the face each sticker matches when solved), in U R F D L B order.',
+          isOrbit64Token
+            ? 'Invalid Orbit64 state token. Only canonical 2×2–5×5 state tokens are supported.'
+            : effectiveFormat === 'wrg'
+              ? 'Invalid facelets. Must be 6 space-separated blocks of equal, perfect-square length (9 for 3×3, 25 for 5×5, ...) using colors W, O, G, R, B, Y, in U R F D L B order.'
+              : 'Invalid facelets. Must be 6 space-separated blocks of equal, perfect-square length (9 for 3×3, 25 for 5×5, ...) using letters U, R, F, D, L, B (the face each sticker matches when solved), in U R F D L B order.',
         )
         return
       }
@@ -3283,16 +3297,23 @@ function App() {
 
   // Confirmed inline on the button itself (briefly swapping its label)
   // rather than with a blocking alert() the customer has to click away.
-  const [copyStatus, setCopyStatus] = useState<'idle' | 'copied' | 'failed'>(
-    'idle',
-  )
-  const copyToClipboard = async (text: string) => {
+  const [copyStatus, setCopyStatus] = useState<
+    | 'idle'
+    | 'facelets-copied'
+    | 'facelets-failed'
+    | 'token-copied'
+    | 'token-failed'
+  >('idle')
+  const copyToClipboard = async (
+    text: string,
+    target: 'facelets' | 'token',
+  ) => {
     try {
       await navigator.clipboard.writeText(text)
-      setCopyStatus('copied')
+      setCopyStatus(`${target}-copied`)
     } catch (err) {
       console.error('Copy failed:', err)
-      setCopyStatus('failed')
+      setCopyStatus(`${target}-failed`)
     }
     setTimeout(() => setCopyStatus('idle'), 1500)
   }
@@ -3305,6 +3326,11 @@ function App() {
     if (!cube) return 'null'
     return notationFormat === 'wrg' ? toWRGFacelets(cube) : toURFFacelets(cube)
   }
+  const currentOrbit64Token = useMemo(
+    () =>
+      cube && puzzleSize <= 5 ? encodeOrbit64State(toURFFacelets(cube)) : null,
+    [cube, puzzleSize],
+  )
 
   const profilesPageTab = profilesTab(page)
   if (profilesPageTab) {
@@ -3738,7 +3764,7 @@ function App() {
                   aria-pressed={notationFormat === 'urf'}
                   onClick={() => setNotationFormat('urf')}
                 >
-                  Faces (URF / Orbit64)
+                  Faces (URF)
                 </button>
               </div>
               <div class="header-spacer" />
@@ -3756,13 +3782,15 @@ function App() {
               <button
                 type="button"
                 class="btn btn-primary btn-sm"
-                onClick={() => cube && copyToClipboard(getNotationOutput())}
+                onClick={() =>
+                  cube && copyToClipboard(getNotationOutput(), 'facelets')
+                }
                 disabled={!cube}
               >
                 <span aria-live="polite">
-                  {copyStatus === 'copied'
+                  {copyStatus === 'facelets-copied'
                     ? '✓ Copied'
-                    : copyStatus === 'failed'
+                    : copyStatus === 'facelets-failed'
                       ? 'Copy failed'
                       : 'Copy'}
                 </span>
@@ -3774,6 +3802,33 @@ function App() {
               aria-label="Notation"
               value={cube ? getNotationOutput() : ''}
             />
+            {currentOrbit64Token && (
+              <div class="orbit64-token-row">
+                <span>
+                  Orbit64 state token: <code>{currentOrbit64Token}</code>
+                </span>
+                <button
+                  type="button"
+                  class="btn btn-secondary btn-sm"
+                  onClick={() => copyToClipboard(currentOrbit64Token, 'token')}
+                >
+                  <span aria-live="polite">
+                    {copyStatus === 'token-copied'
+                      ? '✓ Copied'
+                      : copyStatus === 'token-failed'
+                        ? 'Copy failed'
+                        : 'Copy token'}
+                  </span>
+                </button>
+              </div>
+            )}
+            {cube && !currentOrbit64Token && (
+              <p class="notation-hint">
+                {puzzleSize > 5
+                  ? 'Orbit64 has no 6×6 or 7×7 facelet mapping yet, so no state token can be exported.'
+                  : 'Orbit64 token unavailable until the facelets form a valid cube state.'}
+              </p>
+            )}
             <p class="notation-hint">
               {notationFormat === 'wrg'
                 ? `6 blocks of ${puzzleSize * puzzleSize} colors (W O G R B Y) in U R F D L B order.`
@@ -4068,14 +4123,17 @@ function App() {
                 <label>
                   {notationFormat === 'wrg'
                     ? `Enter WRG facelets: 6 blocks of ${puzzleSize * puzzleSize} colors (W, O, G, R, B, Y), space-separated, in U R F D L B order`
-                    : `Enter URF facelets: 6 blocks of ${puzzleSize * puzzleSize} letters (U, R, F, D, L, B - the face each sticker's color matches when solved), space-separated, in U R F D L B order`}
+                    : `Enter URF facelets: 6 blocks of ${puzzleSize * puzzleSize} letters (U, R, F, D, L, B - the face each sticker's color matches when solved), space-separated, in U R F D L B order`}{' '}
+                  You can also paste an Orbit64 2×2–5×5 state token.
                 </label>
                 <textarea
                   value={manualColorInput}
                   onInput={(e) => {
                     const value = e.currentTarget.value
                     setManualColorInput(value)
-                    const detected = detectNotationFormat(value)
+                    const detected = looksLikeOrbit64StateToken(value)
+                      ? null
+                      : detectNotationFormat(value)
                     if (detected && detected !== notationFormat)
                       setNotationFormat(detected)
                   }}
