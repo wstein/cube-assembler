@@ -7,8 +7,28 @@ interface PhotoFile {
   size: number
 }
 
+// Archives are expanded first. Metadata selects fixture loading; otherwise
+// the files use the six-photo capture flow.
+export function uploadKind(
+  files: Array<{ name: string }>,
+): 'fixture' | 'photos' {
+  return files.some((file) => /\.json$/i.test(file.name)) ? 'fixture' : 'photos'
+}
+
 export function isNamedFaceCrop(name: string): boolean {
   return FACE_CROP.test(name)
+}
+
+export type PhotoFrameMode = 'auto' | 'cropped' | 'full'
+
+export function photoReadModes(
+  name: string,
+  mode: PhotoFrameMode,
+): Array<'aligned' | 'cropped'> {
+  if (mode === 'cropped' || (mode === 'auto' && isNamedFaceCrop(name)))
+    return ['cropped']
+  if (mode === 'full') return ['aligned']
+  return ['aligned', 'cropped']
 }
 
 // A fixture's six face-*.jpg files have an unambiguous slot order. Other

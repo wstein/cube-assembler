@@ -1,9 +1,22 @@
 import { describe, expect, it } from 'vitest'
-import { orderPhotoUploads, isNamedFaceCrop } from '../src/client/photoUpload'
+import {
+  orderPhotoUploads,
+  isNamedFaceCrop,
+  uploadKind,
+  photoReadModes,
+} from '../src/client/photoUpload'
 
 const image = (name: string) => ({ name, type: 'image/jpeg', size: 10 })
 
 describe('photo uploads', () => {
+  it('routes extracted files with fixture metadata to fixture loading', () => {
+    const photos = Array.from({ length: 6 }, (_, index) =>
+      image(`photo-${index}.jpg`),
+    )
+    expect(uploadKind(photos)).toBe('photos')
+    expect(uploadKind([...photos, { name: 'meta.json' }])).toBe('fixture')
+  })
+
   it('orders six named face crops by capture slot', () => {
     const files = [
       'face-d.jpg',
@@ -53,5 +66,12 @@ describe('photo uploads', () => {
     expect(isNamedFaceCrop('face-u.jpg')).toBe(true)
     expect(isNamedFaceCrop('FACE-R.PNG')).toBe(true)
     expect(isNamedFaceCrop('photo-u.jpg')).toBe(false)
+  })
+
+  it('reads cropped and full-frame photos according to the chosen mode', () => {
+    expect(photoReadModes('face-u.jpg', 'auto')).toEqual(['cropped'])
+    expect(photoReadModes('camera.jpg', 'auto')).toEqual(['aligned', 'cropped'])
+    expect(photoReadModes('camera.jpg', 'cropped')).toEqual(['cropped'])
+    expect(photoReadModes('face-u.jpg', 'full')).toEqual(['aligned'])
   })
 })

@@ -114,6 +114,34 @@ export function zipFixture(fixture: Fixture): Uint8Array {
   )
 }
 
+// The combined upload picker also accepts a zip of photos without metadata.
+// Flatten its one photo folder, leaving validation to the chosen import flow.
+export function unzipUploadFiles(zip: Uint8Array): File[] {
+  return Object.entries(unzipSync(zip))
+    .filter(([path]) => {
+      const name = path.split('/').at(-1) ?? ''
+      return (
+        !path.startsWith('__MACOSX/') &&
+        !path.endsWith('/') &&
+        name !== '.DS_Store' &&
+        !name.startsWith('._')
+      )
+    })
+    .map(([path, data]) => {
+      const name = path.split('/').at(-1)!
+      const lower = name.toLowerCase()
+      return new File([data as BlobPart], name, {
+        type: lower.endsWith('.json')
+          ? 'application/json'
+          : lower.endsWith('.png')
+            ? 'image/png'
+            : lower.endsWith('.webp')
+              ? 'image/webp'
+              : 'image/jpeg',
+      })
+    })
+}
+
 // A fixture zip's files as File objects named as in its directory (so
 // meta.json's `photo` names find them), from the folder holding
 // meta.json. Throws when the zip has no meta.json.
