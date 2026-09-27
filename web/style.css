@@ -603,13 +603,13 @@ h3 {
   background:
     radial-gradient(
       ellipse 28% 7% at 50% 84%,
-      rgba(27, 40, 57, 0.24),
+      rgba(12, 15, 18, 0.32),
       transparent 100%
     ),
-    radial-gradient(ellipse at 50% 42%, #dce5ed 0%, #aebdcc 64%, #8d9eaf 100%);
+    radial-gradient(ellipse at 50% 42%, #747a80 0%, #555b61 64%, #393f45 100%);
   border-radius: var(--radius-md);
   overflow: hidden;
-  box-shadow: inset 0 1px 5px rgba(32, 48, 66, 0.18);
+  box-shadow: inset 0 1px 5px rgba(12, 15, 18, 0.24);
 }
 
 .cube-3d-canvas {
