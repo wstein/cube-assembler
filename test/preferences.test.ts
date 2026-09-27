@@ -1,10 +1,15 @@
 import { describe, expect, it } from 'vitest'
 import {
   AUTO_CAPTURE_COOKIE,
+  COLOR_PROFILE_COOKIE,
+  CUBE_SIZE_COOKIE,
   MIRROR_COOKIE,
   SOUND_COOKIE,
   preferenceCookie,
   readPreference,
+  readSelection,
+  selectionCookie,
+  selectedCubeSize,
 } from '../src/client/preferences'
 
 describe('preference cookies', () => {
@@ -33,7 +38,35 @@ describe('preference cookies', () => {
 
   it('have distinct names', () => {
     expect(
-      new Set([MIRROR_COOKIE, AUTO_CAPTURE_COOKIE, SOUND_COOKIE]).size,
-    ).toBe(3)
+      new Set([
+        MIRROR_COOKIE,
+        AUTO_CAPTURE_COOKIE,
+        SOUND_COOKIE,
+        CUBE_SIZE_COOKIE,
+        COLOR_PROFILE_COOKIE,
+      ]).size,
+    ).toBe(5)
+  })
+
+  it('stores and reads the cube size and color profile selection', () => {
+    expect(selectionCookie(CUBE_SIZE_COOKIE, '6')).toBe(
+      `${CUBE_SIZE_COOKIE}=6; Max-Age=31536000; Path=/; SameSite=Lax`,
+    )
+    expect(selectionCookie(COLOR_PROFILE_COOKIE, 'colors/custom 1')).toBe(
+      `${COLOR_PROFILE_COOKIE}=colors%2Fcustom%201; Max-Age=31536000; Path=/; SameSite=Lax`,
+    )
+    const cookies = `${CUBE_SIZE_COOKIE}=6; ${COLOR_PROFILE_COOKIE}=colors%2Fcustom%201`
+    expect(selectedCubeSize(cookies)).toBe(6)
+    expect(readSelection(cookies, COLOR_PROFILE_COOKIE)).toBe('colors/custom 1')
+  })
+
+  it('ignores malformed or unsupported cube-size cookies', () => {
+    expect(selectedCubeSize('')).toBeNull()
+    expect(selectedCubeSize(`${CUBE_SIZE_COOKIE}=8`)).toBeNull()
+    expect(selectedCubeSize(`${CUBE_SIZE_COOKIE}=02`)).toBeNull()
+    expect(selectedCubeSize(`${CUBE_SIZE_COOKIE}=%GG`)).toBeNull()
+    expect(
+      readSelection(`${COLOR_PROFILE_COOKIE}=%GG`, COLOR_PROFILE_COOKIE),
+    ).toBeNull()
   })
 })
