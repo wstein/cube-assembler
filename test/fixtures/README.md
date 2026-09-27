@@ -56,13 +56,22 @@ need to be debugged later.
 `capture.colorProfile` records the single profile resolved for the complete
 capture: its name, whether Colors was Automatic or manually selected, its
 six RGB values, and any saved-profile color fit score. Automatic previews
-compare the live face with Generic and saved profiles, then recheck after
+compare the live face with built-in and saved profiles, then recheck after
 each captured face; the six-face result is resolved separately.
 `capture.colorCalibration.learnedColors` records the separate
 palette learned from all six photos and used to classify them together.
 `capture.colorReference` records the saved or manual palette used as a
 classification reference; it is absent or null when Automatic used only the
 capture's own colors. Older fixtures without this field replay as before.
+
+The fixture dialog creates a ZIP with `<name>/meta.json` and six face photos.
+Camera captures default to a `cube-NxN-YYYY-MM-DDTHH-MM-SS` name in whole UTC
+seconds. Software-rendered fixtures use `synt-` names and the `synthetic` and
+`software-rendered` tags. The local server logs ping and upload status with
+elapsed time, plus the saved fixture name for successful uploads; it does not
+log photo or metadata contents. The button stays disabled until `GET /ping`
+responds and rechecks while the dialog is open. Production has no upload
+server.
 
 Commit the new directory after reviewing its photos and metadata. JPEGs are
 stored with Git LFS, so run `git lfs pull` if a checkout contains pointer
