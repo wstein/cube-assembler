@@ -62,6 +62,8 @@ metadata, it shows an order and framing preview: rearrange the faces and choose
 Auto, Cropped face, or Full photo for each image. Files named `face-u.jpg`
 through `face-b.jpg` start in capture-slot order. With metadata, it loads the
 saved colors as a fixture. The chosen cube size applies to ordinary photos.
+Full photos use the selected **Detect face** or **Guide grid** mode; cropped
+face images are read directly.
 
 After confirming a cube, **Save as test fixture** downloads its six photos and
 reviewed colors as a ZIP. With `npm run fixture:server` running on the same
