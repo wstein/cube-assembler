@@ -38,10 +38,11 @@ modes use the same color classifier, and neither requires a downloaded model.
 Cube and Colors are separate settings. The Cube menu groups sizes by cube name:
 Generic always offers 2×2 through 7×7, each with a 60% sticker core and 40%
 total gap. Choosing a cube sets the size. Colors can be reused across sizes.
-Sampling setup adjusts the gap around each sticker on a named cube. **New colors**
-copies the current palette into a named profile such as Satin colors, ready to learn
-from its first valid capture; its name can be edited in Sampling setup. Built-in
-cubes and the eight color profiles in `cube-assembler-profiles.json` are read-only;
+The Profiles page adjusts the gap around each sticker on a named cube and
+renames saved profiles. **New colors** copies the current palette into a named
+profile such as Satin colors, ready to learn from its first valid capture.
+Built-in cubes and the eight color profiles in
+`cube-assembler-profiles.json` are read-only;
 capture learning never changes a built-in profile.
 The Profiles page has **Export cubes & colors** and **Import cubes & colors**
 on both tabs. The download, `cube-assembler-profiles.json`, carries cube names,
@@ -72,11 +73,12 @@ faces have backdrop readings, the live preview and next camera capture use a
 rolling median of those readings and the current frame; the preview badge shows
 "median WB" when active. The final six-face pass still recalibrates all faces.
 Older saved backdrop-gap settings are accepted but ignored.
-**New cube** copies the selected cube's size and sticker gap and asks for a
-name. After a valid, confident reviewed camera capture, **Create sticker color
-profile** in the Capture card saves the six-face learned palette under a new
-name, even if Automatic colors matched an existing profile. Later approved
-captures update a manually selected profile gradually when the readings are
+**New cube** copies the selected cube's size and sticker gap, asks for a name,
+then opens the Cubes tab to adjust its sticker area. After a valid, confident
+reviewed camera capture, **Create sticker color profile** in the Capture card
+saves the six-face learned palette under a new name, even if Automatic colors
+matched an existing profile. Later approved captures update a manually
+selected profile gradually when the readings are
 close enough. Automatic colors only selects a profile. After a valid, confident
 reviewed capture, **Update NAME profile** explicitly blends the new colors into
 the detected profile; without that click, Automatic never changes its stored

@@ -924,8 +924,7 @@ textarea {
   }
 
   .capture-modal-content .capture-side > .capture-warning,
-  .capture-modal-content .capture-settings,
-  .capture-modal-content .sampling-setup {
+  .capture-modal-content .capture-settings {
     order: 4;
     margin: 0 var(--spacing-md);
   }
@@ -2046,32 +2045,6 @@ textarea {
   border: 1px solid rgba(255, 255, 255, 0.45);
 }
 
-/* The band around the guide square that the background
-   (white balance) sample skips. Padding (a percentage of the wrapper, set
-   inline) is the band's thickness; the mask cuts the guide square out so
-   only the band is striped. */
-.capture-background-gap {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  aspect-ratio: 1;
-  box-sizing: border-box;
-  transform: translate(-50%, -50%);
-  background: repeating-linear-gradient(
-    45deg,
-    rgba(255, 180, 0, 0.55) 0 6px,
-    rgba(0, 0, 0, 0.25) 6px 12px
-  );
-  -webkit-mask:
-    linear-gradient(#000 0 0) content-box,
-    linear-gradient(#000 0 0);
-  -webkit-mask-composite: xor;
-  mask:
-    linear-gradient(#000 0 0) content-box exclude,
-    linear-gradient(#000 0 0);
-  pointer-events: none;
-}
-
 /* A text-styled button for small inline actions inside a sentence. */
 .link-button {
   padding: 0;
@@ -2218,55 +2191,6 @@ label.capture-size-label {
   flex: 1 1 14rem;
 }
 
-.sampling-setup {
-  display: grid;
-  gap: var(--spacing-sm);
-  padding: var(--spacing-md);
-  margin-bottom: var(--spacing-md);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-  background: var(--color-bg-secondary);
-}
-
-.sampling-slider {
-  display: grid;
-  gap: var(--spacing-xs);
-  font-size: 0.85rem;
-  font-weight: 600;
-}
-
-.sampling-slider span {
-  display: flex;
-  justify-content: space-between;
-}
-
-.sampling-slider output {
-  font-variant-numeric: tabular-nums;
-  color: var(--color-text-secondary);
-}
-
-.sampling-slider input[type="range"] {
-  width: 100%;
-  accent-color: var(--color-accent);
-}
-
-.sampling-setup-hint {
-  margin: 0;
-  font-size: 0.8rem;
-  color: var(--color-text-secondary);
-}
-
-.sampling-setup-actions {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: flex-end;
-  gap: var(--spacing-sm);
-}
-
-.sampling-setup-actions-spacer {
-  flex: 1;
-}
-
 /* Live net of captured faces in the capture dialog (see CaptureNet). */
 .capture-net {
   display: grid;
@@ -2405,7 +2329,6 @@ label.capture-size-label {
   background: color-mix(in srgb, var(--color-success) 15%, transparent);
 }
 
-.capture-options-row,
 .capture-size-row {
   display: flex;
   align-items: center;
@@ -3404,6 +3327,16 @@ label.capture-size-label {
   margin-top: 3px;
   font-size: 0.8rem;
   color: var(--color-text-secondary);
+}
+.cube-review-gap-editor {
+  display: grid;
+  gap: 6px;
+  margin-top: 8px;
+  font-size: 0.8rem;
+}
+.cube-review-gap-editor input[type="range"] {
+  width: 100%;
+  accent-color: var(--color-accent);
 }
 .cube-review-mini {
   width: 60px;
