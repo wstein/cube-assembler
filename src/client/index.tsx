@@ -35,7 +35,12 @@ import type { ReviewCapture } from './colorReviewPage'
 import { BackdropDialog } from './backdropDialog'
 import { faceSources, pieceKey, sourceIndex } from './netPresentation'
 import { ProfilesPage } from './profilesPage'
-import { isNamedFaceCrop, orderPhotoUploads } from './photoUpload'
+import {
+  orderPhotoUploads,
+  photoReadModes,
+  uploadKind,
+  type PhotoFrameMode,
+} from './photoUpload'
 import { repositoryLink } from './repositoryLink'
 import { profilesHash, profilesTab } from './profilesRoute'
 import {
@@ -62,6 +67,7 @@ import {
   captureAndProcessImage,
   extractBackgroundColor,
   hasVisibleCubeFace,
+  hasPlausibleStickerFace,
   runGlobalWhiteBalance,
   redetectFaceColors,
   classifyAcrossFaces,
@@ -85,6 +91,7 @@ import {
   type FaceCaptureResult,
   type RGB,
 } from './imageProcessing'
+import { estimateOuterCellRatio } from './gridAlignment'
 import {
   assembleCubeFromFaces,
   validateFaceColors,
@@ -153,7 +160,7 @@ import { readFixtureColors } from './fixtureFormat'
 import {
   buildFixture,
   summarizeFixture,
-  unzipFixture,
+  unzipUploadFiles,
   zipFixture,
   type Fixture,
   type FixtureSummary,
@@ -1116,6 +1123,7 @@ function App() {
   const [photoUpload, setPhotoUpload] = useState<Array<{
     file: File
     url: string
+    mode: PhotoFrameMode
   }> | null>(null)
   const photoUploadUrls = useRef<string[]>([])
   useEffect(
@@ -2369,30 +2377,11 @@ function App() {
   // rewritten to reflect solveFaceOrientations' answer - see
   // handleConfirmReview), so reloading a fixture faithfully reproduces what
   // solveFaceOrientations would have seen the first time.
-  const handleUploadFixture = async (e: Event) => {
-    const input = e.currentTarget as HTMLInputElement
-    const selected = Array.from(input.files ?? [])
-    if (selected.length === 0) return
-
+  const handleUploadFixture = async (files: File[]) => {
     setLoading(true)
     setCaptureMessage('Loading fixture...')
 
     try {
-      const files: File[] = []
-      for (const file of selected) {
-        if (!file.name.toLowerCase().endsWith('.zip')) {
-          files.push(file)
-          continue
-        }
-        try {
-          files.push(...unzipFixture(new Uint8Array(await file.arrayBuffer())))
-        } catch (err) {
-          setCaptureMessage(
-            `❌ ${file.name} isn't a fixture zip: ${err instanceof Error ? err.message : String(err)}`,
-          )
-          return
-        }
-      }
       const metaFile = files.find((f) => f.name.toLowerCase().endsWith('.json'))
       if (!metaFile) {
         setCaptureMessage(
@@ -2575,7 +2564,6 @@ function App() {
       setShowReviewDialog(true)
     } finally {
       setLoading(false)
-      input.value = ''
     }
   }
 
@@ -2585,14 +2573,14 @@ function App() {
     setPhotoUpload(null)
   }
 
-  const handleSelectPhotos = (e: Event) => {
-    const input = e.currentTarget as HTMLInputElement
+  const handleSelectPhotos = (files: File[]) => {
     try {
-      const files = orderPhotoUploads(Array.from(input.files ?? []))
+      const ordered = orderPhotoUploads(files)
       closePhotoUpload()
-      const selected = files.map((file) => ({
+      const selected = ordered.map((file) => ({
         file,
         url: URL.createObjectURL(file),
+        mode: 'auto' as const,
       }))
       photoUploadUrls.current = selected.map(({ url }) => url)
       setPhotoUpload(selected)
@@ -2600,6 +2588,28 @@ function App() {
     } catch (err) {
       setCaptureMessage(
         `❌ ${err instanceof Error ? err.message : 'Could not select photos.'}`,
+      )
+    }
+  }
+
+  const handleUploadFiles = async (e: Event) => {
+    const input = e.currentTarget as HTMLInputElement
+    const selected = Array.from(input.files ?? [])
+    if (selected.length === 0) return
+    try {
+      const files: File[] = []
+      for (const file of selected) {
+        if (file.name.toLowerCase().endsWith('.zip'))
+          files.push(
+            ...unzipUploadFiles(new Uint8Array(await file.arrayBuffer())),
+          )
+        else files.push(file)
+      }
+      if (uploadKind(files) === 'fixture') await handleUploadFixture(files)
+      else handleSelectPhotos(files)
+    } catch (err) {
+      setCaptureMessage(
+        `❌ Could not open files: ${err instanceof Error ? err.message : String(err)}`,
       )
     } finally {
       input.value = ''
@@ -2616,7 +2626,7 @@ function App() {
         profileStore.activeColorsId === AUTO_COLORS_ID
           ? undefined
           : capturePalette(profileStore)
-      for (const [index, { file, url }] of photoUpload.entries()) {
+      for (const [index, { file, url, mode }] of photoUpload.entries()) {
         const image = new Image()
         await new Promise<void>((resolve, reject) => {
           image.onload = () => resolve()
@@ -2650,7 +2660,8 @@ function App() {
           crop?: FaceCaptureResult['crop']
           sharpness?: number
         }
-        if (isNamedFaceCrop(file.name)) {
+        const modes = photoReadModes(file.name, mode)
+        if (modes[0] === 'cropped') {
           result = await readCrop()
         } else {
           try {
@@ -2667,8 +2678,47 @@ function App() {
               Math.abs(image.naturalWidth - image.naturalHeight) /
                 Math.max(image.naturalWidth, image.naturalHeight) <
               0.08
+            let looksCropped = square
+            if (!looksCropped && modes.length > 1) {
+              const canvas = document.createElement('canvas')
+              const scale = Math.min(
+                1,
+                512 / Math.max(image.naturalWidth, image.naturalHeight),
+              )
+              canvas.width = Math.max(1, Math.round(image.naturalWidth * scale))
+              canvas.height = Math.max(
+                1,
+                Math.round(image.naturalHeight * scale),
+              )
+              const context = canvas.getContext('2d', {
+                willReadFrequently: true,
+              })
+              if (context) {
+                context.drawImage(image, 0, 0, canvas.width, canvas.height)
+                const pixels = context.getImageData(
+                  0,
+                  0,
+                  canvas.width,
+                  canvas.height,
+                )
+                const outerCellRatio = estimateOuterCellRatio(
+                  pixels.data,
+                  canvas.width,
+                  canvas.height,
+                  puzzleSize,
+                )
+                looksCropped = hasPlausibleStickerFace(
+                  pixels.data,
+                  canvas.width,
+                  canvas.height,
+                  puzzleSize,
+                  outerCellRatio,
+                )
+              }
+            }
             if (
-              !square ||
+              modes.length < 2 ||
+              !looksCropped ||
               !(err instanceof Error) ||
               !err.message.startsWith('No aligned face found')
             )
@@ -4188,30 +4238,16 @@ function App() {
             <div class="capture-alternatives">
               <label
                 class={`btn btn-secondary btn-sm ${loading ? 'btn-disabled' : ''}`}
-                title="Select a fixture zip (from Save as test fixture), or a fixture's meta.json together with its 6 face-*.jpg photos"
+                title="Select six photos, a fixture ZIP, or meta.json with its six photos"
               >
-                Upload fixture
+                Upload files
                 <input
                   type="file"
                   accept=".zip,.json,image/*"
                   multiple
                   hidden
                   disabled={loading}
-                  onChange={handleUploadFixture}
-                />
-              </label>
-              <label
-                class={`btn btn-secondary btn-sm ${loading ? 'btn-disabled' : ''}`}
-                title="Choose six face photos without fixture metadata"
-              >
-                Upload photos
-                <input
-                  type="file"
-                  accept="image/*"
-                  multiple
-                  hidden
-                  disabled={loading}
-                  onChange={handleSelectPhotos}
+                  onChange={handleUploadFiles}
                 />
               </label>
               <button
@@ -4235,15 +4271,38 @@ function App() {
                 <p>
                   Check the six photos for the selected {puzzleSize}×
                   {puzzleSize} cube. Use the arrows to change their order before
-                  reading them.
+                  reading them. Auto framing reads named face crops directly and
+                  finds the face in full photos. Choose a framing option below
+                  if Auto reads an image incorrectly.
                 </p>
                 <div class="photo-upload-list">
-                  {photoUpload.map(({ file, url }, index) => (
+                  {photoUpload.map(({ file, url, mode }, index) => (
                     <div class="photo-upload-item" key={url}>
                       <img src={url} alt={`Face ${index + 1}: ${file.name}`} />
                       <span>
                         {index + 1}. {file.name}
                       </span>
+                      <select
+                        aria-label={`Image framing for ${file.name}`}
+                        value={mode}
+                        disabled={loading}
+                        onChange={(e) => {
+                          const nextMode = e.currentTarget
+                            .value as PhotoFrameMode
+                          setPhotoUpload(
+                            (current) =>
+                              current?.map((entry, position) =>
+                                position === index
+                                  ? { ...entry, mode: nextMode }
+                                  : entry,
+                              ) ?? null,
+                          )
+                        }}
+                      >
+                        <option value="auto">Auto framing</option>
+                        <option value="cropped">Cropped face</option>
+                        <option value="full">Full photo</option>
+                      </select>
                       <div class="photo-upload-order">
                         <button
                           type="button"
@@ -5753,7 +5812,7 @@ function App() {
                   tests.
                 </>
               )}{' '}
-              The main-page <strong>Upload fixture</strong> action loads it back
+              The main-page <strong>Upload files</strong> action loads it back
               into the app.
             </p>
             {import.meta.env.DEV &&

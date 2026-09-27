@@ -324,7 +324,7 @@ h3 {
 
 .capture-alternatives {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: var(--spacing-sm);
 }
 
@@ -375,6 +375,11 @@ h3 {
 
 .photo-upload-item span {
   overflow-wrap: anywhere;
+}
+
+.photo-upload-item select {
+  width: 100%;
+  min-width: 0;
 }
 
 .photo-upload-order,

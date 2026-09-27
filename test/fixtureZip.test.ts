@@ -6,6 +6,7 @@ import {
   buildFixture,
   summarizeFixture,
   unzipFixture,
+  unzipUploadFiles,
   zipFixture,
   type FixtureRequest,
 } from '../src/client/fixtureZip'
@@ -119,6 +120,24 @@ describe('fixture zips', () => {
     expect(() => unzipFixture(zipSync({ 'notes.txt': strToU8('hi') }))).toThrow(
       'No meta.json in the zip',
     )
+  })
+
+  it('extracts photo-only zips for the combined upload picker', () => {
+    const zip = zipSync({
+      'photos/face-u.jpg': new Uint8Array([0xff, 0xd8, 0xff]),
+      'photos/face-r.jpg': new Uint8Array([0xff, 0xd8, 0xff]),
+      '__MACOSX/photos/._face-u.jpg': new Uint8Array([1]),
+    })
+    expect(
+      unzipUploadFiles(zip)
+        .map((file) => file.name)
+        .sort(),
+    ).toEqual(['face-r.jpg', 'face-u.jpg'])
+    expect(
+      unzipUploadFiles(zipFixture(buildFixture(request()))).some(
+        (file) => file.name === 'meta.json',
+      ),
+    ).toBe(true)
   })
 
   it('summarizes what a fixture holds', () => {
