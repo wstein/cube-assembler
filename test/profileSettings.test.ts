@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { STICKER_COLORS } from '../src/client/imageProcessing'
 import {
   AUTO_COLORS_ID, EMPTY_SETTINGS, GENERIC_COLORS_ID, GENERIC_STICKER_COLORS, activeColorProfile, activeCube, allCubes, builtinCube,
-  captureColorProfileSnapshot, capturePalette, colorPalette, convertLegacySettings, genericColorProfile, copyColorProfile, copyCubeSetting, cubesForSize, deleteColorProfile, groupCubesByName, mergeSettings, parseProfileSettings,
+  captureColorProfileSnapshot, capturePalette, colorPalette, genericColorProfile, copyColorProfile, copyCubeSetting, cubesForSize, deleteColorProfile, groupCubesByName, mergeSettings, parseProfileSettings,
   renameColorProfile, renameCube, saveColorProfile, saveCube, selectColorProfile, selectCube, setAutoColorMatch, resolvedColorProfileSnapshot,
 } from '../src/client/profileSettings'
 
@@ -125,24 +125,6 @@ describe('separate cube and color settings', () => {
     expect(merged.colors).toHaveLength(1)
   })
 
-  it('converts old combined profiles without changing the old value', () => {
-    const legacy = {
-      profiles: [{
-        id: 'old-cube', name: 'My 3×3', size: 3,
-        sampling: { backgroundGap: 0.2, stickerCore: 0.55 },
-        learnedColors: { W: [240, 240, 240], Y: [240, 220, 10], O: [240, 100, 10], R: [200, 30, 30], G: [20, 180, 50], B: [20, 60, 190] },
-        learnedAt: '2026-09-25T00:00:00.000Z',
-      }],
-      active: { 3: 'old-cube' },
-    }
-    const before = JSON.stringify(legacy)
-    const settings = convertLegacySettings(legacy)
-    expect(settings.cubes).toEqual([{ id: 'old-cube', name: 'My 3×3', size: 3, sampling: { stickerCore: 0.55 } }])
-    expect(settings.activeCubeBySize[3]).toBe('old-cube')
-    expect(settings.colors).toMatchObject([{ id: 'colors-old-cube', name: 'My 3×3 colors', captures: 1 }])
-    expect(settings.activeColorsId).toBe('colors-old-cube')
-    expect(JSON.stringify(legacy)).toBe(before)
-  })
 })
 
 describe('renaming profiles', () => {

@@ -71,8 +71,8 @@ close enough. Automatic colors only selects a profile. After a valid, confident
 reviewed capture, **Update NAME profile** explicitly blends the new colors into
 the detected profile; without that click, Automatic never changes its stored
 RGB values or capture count. A color match does not identify the physical cube.
-Settings can be downloaded and restored as JSON. The v3 storage key preserves
-the previous combined-profile key for older app versions.
+Profiles can be exported and restored as JSON. Browser storage uses
+`cube-assembler-profiles-v1`; earlier storage keys are cleared without importing them.
 
 The update gate uses a mean palette distance of 0.08 and a per-color limit
 of 0.14 in the classifier's OKLab metric, after a valid reviewed camera
@@ -205,7 +205,7 @@ cube-assembler/
 │       ├── orientationWizard.ts   "Choose each side": which face to ask about next
 │       ├── cubeGeometry.ts        Whole-cube rotations and layer turns
 │       ├── profileSettings.ts     Separate cube geometry and color profiles
-│       ├── profileStorage.ts      v3 settings storage and legacy conversion
+│       ├── profileStorage.ts      Profile JSON import, export, and browser storage
 │       ├── colorProfileLearning.ts Quality gate and weighted color learning
 │       ├── capturePresentation.ts Capture dialog wording and layout helpers
 │       ├── fixtureFormat.ts       Reading saved fixtures, old formats included
