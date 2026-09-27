@@ -35,6 +35,7 @@ import type { ReviewCapture } from './colorReviewPage'
 import { BackdropDialog } from './backdropDialog'
 import { faceSources, pieceKey, sourceIndex } from './netPresentation'
 import { ProfilesPage } from './profilesPage'
+import { isNamedFaceCrop, orderPhotoUploads } from './photoUpload'
 import { repositoryLink } from './repositoryLink'
 import { profilesHash, profilesTab } from './profilesRoute'
 import {
@@ -62,6 +63,7 @@ import {
   extractBackgroundColor,
   hasVisibleCubeFace,
   runGlobalWhiteBalance,
+  redetectFaceColors,
   classifyAcrossFaces,
   GLARE_WARNING_STICKERS,
   computeBackgroundGains,
@@ -1111,6 +1113,16 @@ function App() {
   )
   const [loading, setLoading] = useState(false)
   const [captureMessage, setCaptureMessage] = useState('')
+  const [photoUpload, setPhotoUpload] = useState<Array<{
+    file: File
+    url: string
+  }> | null>(null)
+  const photoUploadUrls = useRef<string[]>([])
+  useEffect(
+    () => () =>
+      photoUploadUrls.current.forEach((url) => URL.revokeObjectURL(url)),
+    [],
+  )
   const [turnOverlay, setTurnOverlay] = useState<{
     step: number
     startColors: string[][]
@@ -2564,6 +2576,143 @@ function App() {
     } finally {
       setLoading(false)
       input.value = ''
+    }
+  }
+
+  const closePhotoUpload = () => {
+    photoUploadUrls.current.forEach((url) => URL.revokeObjectURL(url))
+    photoUploadUrls.current = []
+    setPhotoUpload(null)
+  }
+
+  const handleSelectPhotos = (e: Event) => {
+    const input = e.currentTarget as HTMLInputElement
+    try {
+      const files = orderPhotoUploads(Array.from(input.files ?? []))
+      closePhotoUpload()
+      const selected = files.map((file) => ({
+        file,
+        url: URL.createObjectURL(file),
+      }))
+      photoUploadUrls.current = selected.map(({ url }) => url)
+      setPhotoUpload(selected)
+      setCaptureMessage('')
+    } catch (err) {
+      setCaptureMessage(
+        `❌ ${err instanceof Error ? err.message : 'Could not select photos.'}`,
+      )
+    } finally {
+      input.value = ''
+    }
+  }
+
+  const handleUploadPhotos = async () => {
+    if (!photoUpload || loading) return
+    setLoading(true)
+    setCaptureMessage('Reading six photos...')
+    try {
+      const entries: Record<string, FaceCaptureData> = {}
+      const selectedPalette =
+        profileStore.activeColorsId === AUTO_COLORS_ID
+          ? undefined
+          : capturePalette(profileStore)
+      for (const [index, { file, url }] of photoUpload.entries()) {
+        const image = new Image()
+        await new Promise<void>((resolve, reject) => {
+          image.onload = () => resolve()
+          image.onerror = () => reject(new Error(`Could not open ${file.name}`))
+          image.src = url
+        })
+        const readCrop = async () => {
+          const dataUrl = await new Promise<string>((resolve, reject) => {
+            const reader = new FileReader()
+            reader.onload = () => resolve(reader.result as string)
+            reader.onerror = () =>
+              reject(new Error(`Could not read ${file.name}`))
+            reader.readAsDataURL(file)
+          })
+          return {
+            ...(await redetectFaceColors(
+              dataUrl,
+              puzzleSize,
+              NEUTRAL_GAINS,
+              sampling,
+              selectedPalette,
+            )),
+            croppedImage: dataUrl,
+            backgroundColor: null,
+          }
+        }
+        let result: ColorDetectionResult & {
+          croppedImage: string
+          backgroundColor: RGB | null
+          frame?: FaceCaptureResult['frame']
+          crop?: FaceCaptureResult['crop']
+          sharpness?: number
+        }
+        if (isNamedFaceCrop(file.name)) {
+          result = await readCrop()
+        } else {
+          try {
+            result = captureAndProcessImage(
+              image,
+              puzzleSize,
+              NEUTRAL_GAINS,
+              sampling,
+              selectedPalette,
+              'aligned',
+            )
+          } catch (err) {
+            const square =
+              Math.abs(image.naturalWidth - image.naturalHeight) /
+                Math.max(image.naturalWidth, image.naturalHeight) <
+              0.08
+            if (
+              !square ||
+              !(err instanceof Error) ||
+              !err.message.startsWith('No aligned face found')
+            )
+              throw err
+            result = await readCrop()
+          }
+        }
+        if (!validateFaceColors(result.colors, puzzleSize))
+          throw new Error(
+            `${file.name} could not be read as a ${puzzleSize}×${puzzleSize} face.`,
+          )
+        entries[FACE_ORDER[index]] = {
+          colors: result.colors,
+          detectedColors: result.colors,
+          cellColors: result.cellColors,
+          cellConfidences: result.cellConfidences,
+          cellLookalikes: result.cellLookalikes,
+          confidence: result.confidence,
+          croppedImage: result.croppedImage,
+          backgroundColor: result.backgroundColor,
+          frame: result.frame,
+          crop: result.crop,
+          sharpness: result.sharpness,
+          source: 'image-file',
+          timestamp: Date.now() + index,
+        }
+      }
+      setCapturedFaces(entries)
+      setFaceConfidence(
+        Object.fromEntries(
+          FACE_ORDER.map((face) => [face, entries[face].confidence]),
+        ),
+      )
+      setUploadedProtocol(null)
+      setDismissedCaptureWarnings([])
+      closePhotoUpload()
+      await finalizeAllFacesCaptured(entries)
+    } catch (err) {
+      console.error('Photo upload error:', err)
+      setCaptureMessage(
+        `❌ ${err instanceof Error ? err.message : 'Could not read photos.'}`,
+      )
+    } finally {
+      setLoading(false)
     }
   }
 
@@ -4051,6 +4200,20 @@ function App() {
                   onChange={handleUploadFixture}
                 />
               </label>
+              <label
+                class={`btn btn-secondary btn-sm ${loading ? 'btn-disabled' : ''}`}
+                title="Choose six face photos without fixture metadata"
+              >
+                Upload photos
+                <input
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  hidden
+                  disabled={loading}
+                  onChange={handleSelectPhotos}
+                />
+              </label>
               <button
                 type="button"
                 class="btn btn-secondary btn-sm"
@@ -4067,6 +4230,83 @@ function App() {
                 Solved cube
               </button>
             </div>
+            {photoUpload && (
+              <div class="photo-upload-review" aria-label="Photo upload order">
+                <p>
+                  Check the six photos for the selected {puzzleSize}×
+                  {puzzleSize} cube. Use the arrows to change their order before
+                  reading them.
+                </p>
+                <div class="photo-upload-list">
+                  {photoUpload.map(({ file, url }, index) => (
+                    <div class="photo-upload-item" key={url}>
+                      <img src={url} alt={`Face ${index + 1}: ${file.name}`} />
+                      <span>
+                        {index + 1}. {file.name}
+                      </span>
+                      <div class="photo-upload-order">
+                        <button
+                          type="button"
+                          class="btn btn-secondary btn-sm"
+                          aria-label={`Move ${file.name} earlier`}
+                          disabled={index === 0 || loading}
+                          onClick={() =>
+                            setPhotoUpload((current) => {
+                              if (!current) return current
+                              const ordered = [...current]
+                              ;[ordered[index - 1], ordered[index]] = [
+                                ordered[index],
+                                ordered[index - 1],
+                              ]
+                              return ordered
+                            })
+                          }
+                        >
+                          ↑
+                        </button>
+                        <button
+                          type="button"
+                          class="btn btn-secondary btn-sm"
+                          aria-label={`Move ${file.name} later`}
+                          disabled={index === photoUpload.length - 1 || loading}
+                          onClick={() =>
+                            setPhotoUpload((current) => {
+                              if (!current) return current
+                              const ordered = [...current]
+                              ;[ordered[index], ordered[index + 1]] = [
+                                ordered[index + 1],
+                                ordered[index],
+                              ]
+                              return ordered
+                            })
+                          }
+                        >
+                          ↓
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <div class="photo-upload-actions">
+                  <button
+                    type="button"
+                    class="btn btn-secondary btn-sm"
+                    disabled={loading}
+                    onClick={closePhotoUpload}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    class="btn btn-primary btn-sm"
+                    disabled={loading}
+                    onClick={handleUploadPhotos}
+                  >
+                    {loading ? 'Reading photos...' : 'Read six photos'}
+                  </button>
+                </div>
+              </div>
+            )}
             <label
               class="checkbox-option"
               title="Review the fixture from what detection reads now, without the colors that were picked by hand when it was saved"
@@ -4078,9 +4318,9 @@ function App() {
                   setIgnoreFixtureCorrections(e.currentTarget.checked)
                 }
               />
-              Uploads ignore saved corrections
+              Fixture uploads ignore saved corrections
             </label>
-            {/* Fixture-load/bulk-action feedback: the webcam modal has its own
+            {/* File-upload/bulk-action feedback: the webcam modal has its own
                 copy of this same message for the live-capture flow, but that
                 modal isn't open for an upload started from this panel, so
                 without this the message would update invisibly. */}
