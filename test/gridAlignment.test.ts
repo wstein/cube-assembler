@@ -172,6 +172,19 @@ describe('findGridAlignment', () => {
     expect(found).toMatchObject({ x: guide.x, y: guide.y, size: guide.size })
   })
 
+  it("finds no grid on a 2x2 whose outline shows but whose inner seam doesn't", () => {
+    // A real stickerless 2x2 (capture 2026-09-27T00-29-42): the seam
+    // between its orange and pink tiles read lighter than the tiles, so the
+    // seams could not shrink an outline that took in the fingers, and the
+    // outline was captured as the face.
+    const guideSize = 300
+    const width = Math.round(guideSize * 1.4)
+    const guide = { x: (width - guideSize) / 2, y: (width - guideSize) / 2, size: guideSize }
+    const tiles = [[232, 110, 70], [200, 60, 110]]
+    const { data, height } = scene(2, placed(guide, 0.03, 0.04, 0.9), guideSize, { seam: null, sticker: (row, col) => tiles[(row + col) % 2] })
+    expect(alignFace(data, width, height, guide, 2).seams).toBe(false)
+  })
+
   it('keeps the guide on a plain background', () => {
     const width = 420
     const guide = { x: 60, y: 60, size: 300 }
