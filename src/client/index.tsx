@@ -48,6 +48,7 @@ import {
   AUTO_CAPTURE_COOKIE,
   COLOR_PROFILE_COOKIE,
   CUBE_SIZE_COOKIE,
+  FIXTURE_SERVER_COOKIE,
   MIRROR_COOKIE,
   SOUND_COOKIE,
   preferenceCookie,
@@ -173,7 +174,9 @@ import {
 } from './fixtureZip'
 import {
   currentAppCommit,
+  fixtureUploadBase,
   fixtureUploadServerAvailable,
+  pollsFixtureUploadServer,
   uploadFixtureToDevServer,
 } from './fixtureUpload'
 import {
@@ -1164,8 +1167,13 @@ function App() {
     summary: FixtureSummary
     photoUrls: string[]
   } | null>(null)
+  const fixtureUploadUrl = fixtureUploadBase(import.meta.env.DEV)
+  const fixtureServerPolling = pollsFixtureUploadServer(
+    import.meta.env.DEV,
+    readPreference(document.cookie, FIXTURE_SERVER_COOKIE),
+  )
   useEffect(() => {
-    if (!fixtureDownload || !import.meta.env.DEV) return
+    if (!fixtureDownload || !fixtureServerPolling) return
     let active = true
     let checking = false
     const controller = new AbortController()
@@ -1175,6 +1183,7 @@ function App() {
       const reachable = await fixtureUploadServerAvailable(
         fetch,
         controller.signal,
+        fixtureUploadUrl,
       )
       checking = false
       if (active) {
@@ -3350,18 +3359,44 @@ function App() {
   }
 
   const uploadFixture = async () => {
-    if (!fixtureDownload || fixtureUploading || !fixtureServerReachable) return
+    if (!fixtureDownload || fixtureUploading) return
+    // Without background checks (the published app before its first upload)
+    // the click itself looks for the server.
+    if (!fixtureServerReachable && fixtureServerChecked) return
     setFixtureUploading(true)
     setFixtureUploadMessage('')
     try {
-      await uploadFixtureToDevServer(fixtureDownload.fixture)
+      if (
+        !fixtureServerChecked &&
+        !(await fixtureUploadServerAvailable(
+          fetch,
+          undefined,
+          fixtureUploadUrl,
+        ))
+      ) {
+        throw new Error(
+          'No fixture server on 127.0.0.1:7100. Start it with npm run fixture:server.',
+        )
+      }
+      await uploadFixtureToDevServer(
+        fixtureDownload.fixture,
+        fetch,
+        fixtureUploadUrl,
+      )
+      if (!import.meta.env.DEV)
+        document.cookie = preferenceCookie(FIXTURE_SERVER_COOKIE, true)
       setFixtureSaveMessage(`✓ Saved ${fixtureDownload.name} to test/fixtures/`)
       closeFixtureDownload()
     } catch (error) {
       setFixtureUploadMessage(
         `❌ ${error instanceof Error ? error.message : String(error)}`,
       )
-      void fixtureUploadServerAvailable().then(setFixtureServerReachable)
+      if (fixtureServerChecked)
+        void fixtureUploadServerAvailable(
+          fetch,
+          undefined,
+          fixtureUploadUrl,
+        ).then(setFixtureServerReachable)
     } finally {
       setFixtureUploading(false)
     }
@@ -5858,28 +5893,16 @@ function App() {
               ))}
             </dl>
             <p class="fixture-download-hint">
-              {import.meta.env.DEV ? (
-                <>
-                  Upload to <code>test/fixtures/</code> using the localhost
-                  server, or download the ZIP.
-                </>
-              ) : (
-                <>
-                  Unzip it into <code>test/fixtures/</code> to add it to the
-                  tests.
-                </>
-              )}{' '}
-              The main-page <strong>Upload files</strong> action loads it back
-              into the app.
+              Upload it to <code>test/fixtures/</code> while{' '}
+              <code>npm run fixture:server</code> runs on this computer, or
+              download the ZIP and unzip it there. The main-page{' '}
+              <strong>Upload files</strong> action loads it back into the app.
             </p>
-            {import.meta.env.DEV &&
-              fixtureServerChecked &&
-              !fixtureServerReachable && (
-                <p role="status" class="fixture-download-hint">
-                  Upload server offline · run{' '}
-                  <code>npm run fixture:server</code>.
-                </p>
-              )}
+            {fixtureServerChecked && !fixtureServerReachable && (
+              <p role="status" class="fixture-download-hint">
+                Upload server offline · run <code>npm run fixture:server</code>.
+              </p>
+            )}
             {fixtureUploadMessage && (
               <p role="status" class="capture-message error">
                 {fixtureUploadMessage}
@@ -5893,20 +5916,23 @@ function App() {
               >
                 Cancel
               </button>
-              {import.meta.env.DEV && (
-                <button
-                  type="button"
-                  class="btn btn-primary btn-sm"
-                  disabled={!fixtureServerReachable || fixtureUploading}
-                  onClick={uploadFixture}
-                >
-                  {fixtureUploading
-                    ? 'Uploading...'
-                    : fixtureServerChecked
-                      ? 'Upload to localhost'
-                      : 'Checking upload server...'}
-                </button>
-              )}
+              <button
+                type="button"
+                class="btn btn-primary btn-sm"
+                title="Save into test/fixtures/ through npm run fixture:server on this computer"
+                disabled={
+                  fixtureUploading ||
+                  (fixtureServerChecked && !fixtureServerReachable) ||
+                  (fixtureServerPolling && !fixtureServerChecked)
+                }
+                onClick={uploadFixture}
+              >
+                {fixtureUploading
+                  ? 'Uploading...'
+                  : fixtureServerPolling && !fixtureServerChecked
+                    ? 'Checking upload server...'
+                    : 'Upload to localhost'}
+              </button>
               <button
                 type="button"
                 class="btn btn-secondary btn-sm"

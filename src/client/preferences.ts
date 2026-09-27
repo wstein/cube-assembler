@@ -6,6 +6,8 @@ export const AUTO_CAPTURE_COOKIE = 'cube-assembler-auto-capture'
 export const SOUND_COOKIE = 'cube-assembler-capture-sound'
 export const CUBE_SIZE_COOKIE = 'cube-assembler-cube-size'
 export const COLOR_PROFILE_COOKIE = 'cube-assembler-color-profile'
+// Set after an upload from the published app reached the local fixture server.
+export const FIXTURE_SERVER_COOKIE = 'cube-assembler-fixture-server'
 const ONE_YEAR = 365 * 24 * 60 * 60
 const ATTRIBUTES = `Max-Age=${ONE_YEAR}; Path=/; SameSite=Lax`
 

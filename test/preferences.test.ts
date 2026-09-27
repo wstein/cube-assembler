@@ -3,6 +3,7 @@ import {
   AUTO_CAPTURE_COOKIE,
   COLOR_PROFILE_COOKIE,
   CUBE_SIZE_COOKIE,
+  FIXTURE_SERVER_COOKIE,
   MIRROR_COOKIE,
   SOUND_COOKIE,
   preferenceCookie,
@@ -44,8 +45,9 @@ describe('preference cookies', () => {
         SOUND_COOKIE,
         CUBE_SIZE_COOKIE,
         COLOR_PROFILE_COOKIE,
+        FIXTURE_SERVER_COOKIE,
       ]).size,
-    ).toBe(5)
+    ).toBe(6)
   })
 
   it('stores and reads the cube size and color profile selection', () => {

@@ -2,7 +2,9 @@ import { describe, expect, it, vi } from 'vitest'
 import type { Fixture } from '../src/client/fixtureZip'
 import {
   currentAppCommit,
+  fixtureUploadBase,
   fixtureUploadServerAvailable,
+  pollsFixtureUploadServer,
   uploadFixtureToDevServer,
 } from '../src/client/fixtureUpload'
 
@@ -114,5 +116,30 @@ describe('the commit saved with a fixture', () => {
         async () => new Response('{"commit":42}', { status: 200 }),
       ),
     ).toBe('600f6c1')
+  })
+
+  it('talks to the local server directly from the published app', async () => {
+    expect(fixtureUploadBase(true)).toBe('/fixture-upload')
+    const base = fixtureUploadBase(false)
+    expect(base).toBe('http://127.0.0.1:7100')
+    const ping = vi.fn(async () => new Response(null, { status: 204 }))
+    expect(await fixtureUploadServerAvailable(ping, undefined, base)).toBe(true)
+    expect(ping).toHaveBeenCalledWith(
+      'http://127.0.0.1:7100/ping',
+      expect.objectContaining({ method: 'GET' }),
+    )
+    const post = vi.fn(async () => new Response('{}', { status: 201 }))
+    await uploadFixtureToDevServer(fixture, post, base)
+    expect((post.mock.calls[0] as unknown as [string])[0]).toBe(
+      'http://127.0.0.1:7100/upload',
+    )
+  })
+
+  it('only polls from the published app after an upload there worked', () => {
+    // Chrome asks visitors before a public page may reach localhost, so the
+    // published app waits for a click until the server has been used once.
+    expect(pollsFixtureUploadServer(true, false)).toBe(true)
+    expect(pollsFixtureUploadServer(false, false)).toBe(false)
+    expect(pollsFixtureUploadServer(false, true)).toBe(true)
   })
 })

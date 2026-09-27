@@ -1,13 +1,32 @@
 import type { Fixture } from './fixtureZip'
 
-// Vite proxies this path to the separate localhost-only dev server. The
-// production build never shows the upload action or configures the proxy.
+const DEV_PROXY = '/fixture-upload'
+const LOCAL_SERVER = 'http://127.0.0.1:7100'
+
+// Vite proxies the dev path to the separate localhost-only upload server.
+// The published app has no proxy, so it calls that server directly, which
+// allows it through CORS.
+export function fixtureUploadBase(dev: boolean): string {
+  return dev ? DEV_PROXY : LOCAL_SERVER
+}
+
+// Chrome asks before a public page may reach a local address. The published
+// app therefore only checks in the background once an upload there worked;
+// until then it waits for a click.
+export function pollsFixtureUploadServer(
+  dev: boolean,
+  usedBefore: boolean,
+): boolean {
+  return dev || usedBefore
+}
+
 export async function fixtureUploadServerAvailable(
   fetcher: typeof fetch = fetch,
   signal?: AbortSignal,
+  base = DEV_PROXY,
 ): Promise<boolean> {
   try {
-    const response = await fetcher('/fixture-upload/ping', {
+    const response = await fetcher(`${base}/ping`, {
       method: 'GET',
       cache: 'no-store',
       signal,
@@ -21,6 +40,7 @@ export async function fixtureUploadServerAvailable(
 export async function uploadFixtureToDevServer(
   fixture: Fixture,
   fetcher: typeof fetch = fetch,
+  base = DEV_PROXY,
 ): Promise<void> {
   const form = new FormData()
   form.set('name', fixture.name)
@@ -32,7 +52,7 @@ export async function uploadFixtureToDevServer(
         : 'image/jpeg'
     form.append('file', new Blob([bytes as BlobPart], { type }), filename)
   }
-  const response = await fetcher('/fixture-upload/upload', {
+  const response = await fetcher(`${base}/upload`, {
     method: 'POST',
     headers: { 'X-Fixture-Upload': '1' },
     body: form,
