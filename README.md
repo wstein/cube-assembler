@@ -166,7 +166,7 @@ real sticker to the wrong color (`classifyAcrossFaces`).
 | | |
 |---|---|
 | **App** | [Preact](https://preactjs.com), built and served by [Vite](https://vitejs.dev) |
-| **Tests** | [Vitest](https://vitest.dev) |
+| **Tests** | [Vitest](https://vitest.dev), [Playwright](https://playwright.dev) |
 
 ---
 
@@ -186,6 +186,8 @@ npm run fixture:server
 
 # Run tests
 npm test
+npx playwright install chromium  # first browser-test run only
+npm run test:e2e
 
 # Check lint and formatting
 npm run typecheck
@@ -194,6 +196,9 @@ npm run format:check
 ```
 
 `npm run typecheck` checks the strict TypeScript project without emitting files.
+`npm run test:e2e` starts its own Vite server on port 4174 and checks six-photo
+uploads with and without `meta.json` in Chromium. CI installs Chromium and runs
+both test suites.
 `npm run lint` uses type-aware typescript-eslint rules, selected Biome rules for
 buttons and CSS, and ReScript compiler warnings as errors for `.res` files. Biome formats the
 TypeScript, JavaScript, CSS, and JSON files; `npm run format` applies it and
@@ -240,6 +245,9 @@ cube-assembler/
 │
 ├── scripts/
 │   └── fixtureUploadServer.mjs     Localhost-only fixture upload endpoint
+│
+├── e2e/
+│   └── upload.spec.ts              Browser coverage for photo and fixture uploads
 │
 └── test/
     ├── cubeAssembly.test.ts       Face identity/orientation solver (odd + even sizes)
