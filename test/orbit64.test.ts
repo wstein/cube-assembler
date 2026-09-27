@@ -6,7 +6,7 @@ import {
 } from '../src/client/orbit64'
 import examples from './orbit64Vectors.json'
 
-// Published by flix-orbit64 in FORMAT.md and ORBIT64-EXAMPLES.md.
+// Published by flix-orbit64@6aedfc1 in FORMAT.md and ORBIT64-EXAMPLES.md.
 const vectors = [
   ['EJ6kr', 'LFLD BLRD BLBU RFRR UUDU DFFB'],
   [
