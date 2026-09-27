@@ -1,5 +1,25 @@
 import { expect, test } from '@playwright/test'
 
+test('shows the slate backdrop through a transparent WebGL canvas', async ({
+  page,
+}) => {
+  await page.goto('/')
+  await page.getByRole('button', { name: 'Solved cube' }).click()
+  await page.getByRole('button', { name: '3D View' }).click()
+  const backdrop = await page
+    .locator('.cube-3d-canvas-wrap')
+    .evaluate((wrap) => {
+      const canvas = wrap.querySelector('canvas')
+      const gl = canvas?.getContext('webgl2') ?? canvas?.getContext('webgl')
+      return {
+        alpha: gl?.getContextAttributes()?.alpha,
+        background: getComputedStyle(wrap).backgroundImage,
+      }
+    })
+  expect(backdrop.alpha).toBe(true)
+  expect(backdrop.background.match(/radial-gradient/g)).toHaveLength(2)
+})
+
 test('a dragged cube keeps turning briefly after release', async ({ page }) => {
   await page.goto('/')
   await page.getByRole('button', { name: 'Solved cube' }).click()
