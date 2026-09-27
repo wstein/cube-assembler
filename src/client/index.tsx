@@ -29,6 +29,7 @@ import type { ReviewCapture } from './colorReviewPage'
 import { BackdropDialog } from './backdropDialog'
 import { faceSources, pieceKey, sourceIndex } from './netPresentation'
 import { ProfilesPage } from './profilesPage'
+import { repositoryLink } from './repositoryLink'
 import { profilesHash, profilesTab } from './profilesRoute'
 import { holdConfirmedFace, NO_HOLD, type LiveHold } from './liveHold'
 import { scaleBounds, type LiveAnalysisRequest } from './liveAnalysis'
@@ -4052,6 +4053,16 @@ function App() {
           </section>
         </div>
       </main>
+      <footer class="app-footer">
+        <a
+          href={repositoryLink(__APP_COMMIT__).href}
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          {repositoryLink(__APP_COMMIT__).label}
+        </a>
+      </footer>
+
       {/* Webcam Modal */}
       {webcamOpen && (
         <div class="modal open">
