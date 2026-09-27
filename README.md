@@ -362,12 +362,18 @@ formats, toggled with the same switch in both places (see
   for a solved 3×3: `UUUUUUUUU RRRRRRRRR FFFFFFFFF DDDDDDDDD LLLLLLLLL
   BBBBBBBBB`.
 
-The URF facelets can be exchanged with
+The URF facelets and compact state tokens can be exchanged with
 [Orbit64.Net](https://github.com/wstein/flix-orbit64/blob/main/FORMAT.md#spaced-facelet-reference-vectors)
-for 2×2 through 5×5 cubes. Select **Faces (URF / Orbit64)** to copy a capture,
-or paste Orbit64's spaced facelets into **Type colors**. This exchanges facelet
-text; Orbit64's compact state tokens require its Flix codec and are not parsed
-by this browser app. Orbit64 has no facelet mapping for 6×6 or 7×7 yet.
+for 2×2 through 5×5 cubes. Select **Faces (URF)** to copy facelets; the
+notation panel also shows a compact token with its own copy button. Paste
+either form into **Type colors**. The browser codec is checked against Orbit64's
+100 published token/facelet pairs. Orbit64 has no facelet mapping for 6×6 or
+7×7 yet, so token import and export stop at 5×5; move and algorithm tokens are
+different formats and are not accepted.
+
+The browser codec and slot tables are adapted from `flix-orbit64` under
+[Apache-2.0](third_party/flix-orbit64.LICENSE); the 100 cross-project vectors
+are in `test/orbit64Vectors.json`.
 
 Both are client-only formats.
 
