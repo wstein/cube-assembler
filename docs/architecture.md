@@ -24,6 +24,9 @@ flowchart LR
 The dotted path carries the original photos into a fixture alongside the
 reviewed colors; it does not bypass review.
 
+The 3D viewer uses a transparent WebGL canvas; `web/style.css` supplies its
+slate gradient and soft shadow behind the cube.
+
 1. [`index.tsx`](../src/client/index.tsx) owns the camera, capture, review,
    and cube net UI. A raw video frame goes to
    [`liveAnalysis.worker.ts`](../src/client/liveAnalysis.worker.ts), keeping
