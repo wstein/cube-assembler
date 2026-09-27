@@ -73,6 +73,19 @@ test('uploads six cropped photos without metadata and shows six detected faces',
   expect(grids).toEqual(metadata.colorsURFDLB.split(' '))
 })
 
+test('explains Auto framing with readable spacing', async ({ page }) => {
+  await page.goto('/')
+  await page
+    .locator('.capture-alternatives input[type="file"]')
+    .setInputFiles(photos)
+  const hint = await page
+    .getByLabel('Photo upload order')
+    .locator('p')
+    .first()
+    .textContent()
+  expect(hint).toMatch(/face crops directly and finds the face/)
+})
+
 test('uploads the same photos with meta.json and preserves all saved face colors', async ({
   page,
 }) => {

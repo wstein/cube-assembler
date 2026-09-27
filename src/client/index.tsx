@@ -4121,7 +4121,7 @@ function App() {
             <p class="notation-hint">
               {notationFormat === 'wrg'
                 ? `6 blocks of ${puzzleSize * puzzleSize} colors (W O G R B Y) in U R F D L B order.`
-                : `6 blocks of ${puzzleSize * puzzleSize} face letters (U R F D L B) in U R F D L B order; compatible with Orbit64 facelet interchange for 2×2–7×7.`}
+                : `6 blocks of ${puzzleSize * puzzleSize} face letters (U R F D L B) in U R F D L B order.`}
             </p>
             {fixtureSaveMessage && (
               <div
@@ -4371,7 +4371,7 @@ function App() {
                 <p>
                   Check the six photos for the selected {puzzleSize}×
                   {puzzleSize} cube. Use the arrows to change their order before
-                  reading them. Auto framing reads named face crops directly and
+                  reading them. Auto framing reads named face crops directly and{' '}
                   {captureMode === 'cv'
                     ? 'finds the face in full photos'
                     : 'uses Guide grid for full photos'}
