@@ -20,20 +20,24 @@ to the original real-fixture testing discussion. See
 - **#12 Real captures in CI:** real 2×2–5×5 and 7×7 fixtures plus a synthetic
   6×6 are checked in via Git LFS, and `.github/workflows/ci.yml` runs their
   tests.
+- **#5 Evaluate vivid and muted palette anchors:** the eight built-in palettes
+  already cover different surfaces. Replaying Automatic on the 14 committed
+  real captures reads 1,303 of 1,308 stickers correctly in preview (99.6%).
+  Only two errors are orange read as red, both on one 3×3 face; the other
+  three are white logo centers read as blue. All committed fixture pipelines
+  pass after six-face calibration. New broad palette anchors are not justified
+  by this corpus; keep the two orange samples as a focused regression target.
 
 ## Next
 
-1. **#5 Distinguish vivid and muted palettes.** Red/orange confusion remains a
-   likely error source. Compare proposed anchors against the checked-in
-   fixtures before changing classification.
-2. **#10 Detect slipped grid rows.** When the outer grid lines miss the face
+1. **#10 Detect slipped grid rows.** When the outer grid lines miss the face
    edge, ask the user to re-center instead of accepting a shifted row.
-3. **#7 Replay missed live faces.** Four saved 2026-09-25 frames (three
+2. **#7 Replay missed live faces.** Four saved 2026-09-25 frames (three
    `no-grid`, one `no-sticker-pattern`) reproduce the live decision. Use them
    to test a focused detector fix.
-4. **#8–9 Resolve old assembly fixtures.** Recheck the two captures saved
+3. **#8–9 Resolve old assembly fixtures.** Recheck the two captures saved
    with a 90-degree wizard error and the 4×4 capture that did not reassemble.
-5. **Stub the camera in Playwright.** Cover capture, canvas crop, saved photo,
+4. **Stub the camera in Playwright.** Cover capture, canvas crop, saved photo,
    and re-detection together; the existing upload tests do not exercise a
    live camera.
 
