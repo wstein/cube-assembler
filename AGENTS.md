@@ -14,6 +14,7 @@ Cube geometry and sticker colors are independent settings: `profileSettings.ts` 
 - `npm run build` builds the client with Vite.
 - `npm run typecheck` checks strict TypeScript without emitting files.
 - `npm test` runs Vitest once; `npm run test:watch` reruns tests during edits.
+- `npm run test:e2e` runs the Playwright upload flow in Chromium; install its browser once with `npx playwright install chromium`.
 - `npm run lint` runs type-aware typescript-eslint, selected Biome checks, and ReScript compiler warnings as errors.
 - `npm run format:check` checks Biome and ReScript formatting; `npm run format` applies it.
 
@@ -23,7 +24,7 @@ Use two-space indentation, single quotes, and semicolons only when needed in Typ
 
 ## Testing Guidelines
 
-Use test-driven development for behavior changes: write a focused failing test, implement the smallest fix, then refactor with the test passing. Use synthetic cases for edge conditions and saved photos for regressions. Relevant suites include `test/gridAlignment.test.ts`, `test/gridAlignmentRealCrops.test.ts`, `test/liveAnalysis.test.ts`, and `test/autoCapture.test.ts`. Run a targeted suite, for example `npx vitest run test/gridAlignment.test.ts`, then `npm test`. Include no-cube scenes when changing live face detection. Follow `test/fixtures/README.md` before adding capture images.
+Use test-driven development for behavior changes: write a focused failing test, implement the smallest fix, then refactor with the test passing. Use synthetic cases for edge conditions and saved photos for regressions. Relevant suites include `test/gridAlignment.test.ts`, `test/gridAlignmentRealCrops.test.ts`, `test/liveAnalysis.test.ts`, and `test/autoCapture.test.ts`. Browser upload tests live in `e2e/upload.spec.ts`. Run a targeted suite, for example `npx vitest run test/gridAlignment.test.ts`, then `npm test`; run `npm run test:e2e` for upload UI changes. Include no-cube scenes when changing live face detection. Follow `test/fixtures/README.md` before adding capture images.
 
 ## Commit & Pull Request Guidelines
 
