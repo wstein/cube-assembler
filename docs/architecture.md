@@ -40,7 +40,7 @@ reviewed colors; it does not bypass review.
    physical validity.
 4. [`fixtureZip.ts`](../src/client/fixtureZip.ts) exports reviewed photos and
    metadata. [`fixtureFormat.ts`](../src/client/fixtureFormat.ts) reads saved
-   fixtures. The [fixture metadata schema](../public/schemas/fixture-meta.schema.json)
+   fixtures. The [fixture metadata schema](../public/schemas/fixture-meta-v1.schema.json)
    is published with the site. [`scripts/fixtureUploadServer.mjs`](../scripts/fixtureUploadServer.mjs)
    accepts development uploads on localhost and serves no files.
 

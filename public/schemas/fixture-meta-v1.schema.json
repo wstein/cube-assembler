@@ -1,13 +1,13 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://wstein.github.io/cube-assembler/schemas/fixture-meta.schema.json",
-  "title": "CubeAssembler fixture metadata",
+  "$id": "https://wstein.github.io/cube-assembler/schemas/fixture-meta-v1.schema.json",
+  "title": "CubeAssembler fixture metadata v1",
   "description": "The meta.json accompanying six photographed cube faces. Face keys are capture slots, not resolved cube faces. The app also checks that each facelet block has gridSize squared letters.",
   "type": "object",
   "required": ["$schema", "gridSize", "colorsURFDLB", "faces"],
   "properties": {
     "$schema": {
-      "const": "https://wstein.github.io/cube-assembler/schemas/fixture-meta.schema.json"
+      "const": "https://wstein.github.io/cube-assembler/schemas/fixture-meta-v1.schema.json"
     },
     "gridSize": { "type": "integer", "minimum": 2, "maximum": 7 },
     "colorsURFDLB": { "$ref": "#/$defs/facelets" },

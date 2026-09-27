@@ -27,7 +27,7 @@ test/fixtures/<name>/
 ```
 
 New metadata and the checked-in fixtures point `$schema` to the
-[published fixture metadata schema](https://wstein.github.io/cube-assembler/schemas/fixture-meta.schema.json).
+[published fixture metadata schema](https://wstein.github.io/cube-assembler/schemas/fixture-meta-v1.schema.json).
 Editors can use it to check required fields and photo references. The app also
 checks that each facelet block has exactly `gridSize²` stickers. Older fixture
 files without `$schema` remain importable.
