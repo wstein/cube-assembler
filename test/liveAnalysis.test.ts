@@ -145,6 +145,27 @@ describe('analyzeLiveFrame', () => {
     expect(result.detection.gridOffset?.x).toBeGreaterThan(0)
   })
 
+  it('reports a slipped 7x7 grid as needing re-centering', () => {
+    const size = 300
+    const width = Math.round(size * 1.67)
+    const guide = { x: (width - size) / 2, y: (width - size) / 2, size }
+    const face = {
+      x: guide.x + size * 0.25 + size * 0.05,
+      y: guide.y + size * 0.05,
+      size: size * 0.9,
+    }
+    const { data } = scene(7, face, size, { outer: 1.5 }, 1.67)
+    const result = analyzeLiveFrame(
+      data,
+      width,
+      width,
+      request(7, { requireOutline: false }),
+    )
+    expect(result.visible).toBe(false)
+    expect(result.bounds.gridFound).toBe(false)
+    expect(result.bounds.needsRecentering).toBe(true)
+  })
+
   it('reads a tilted face upright', () => {
     const result = analyzeLiveFrame(
       frame(1280, 720, 3, { tilt: 14 }),
