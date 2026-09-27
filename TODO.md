@@ -30,26 +30,29 @@ to the original real-fixture testing discussion. See
 - **#10 Detect slipped large-cube grids:** a seam fit that misses an outer
   face edge is rejected on 6×6 and 7×7, with a re-centering cue. Synthetic
   out-of-reach cases and the committed real-crop replay guard the change.
+- **Lazy-load 3D viewer and Profiles page:** split `CubeView3D` and `ProfilesPage`
+  via `lazy()` and `<Suspense>`, reducing initial scanner bundle from 254.5 kB
+  to 202.9 kB (gzip: 88.9 kB to 74.0 kB, -51.6 kB / -14.9 kB gzip).
+- **#13 Speed up real-capture benchmark:** cached ground truth OKLCH extraction
+  and removed subarray slicing allocations in `test/gridAlignmentRealCrops.test.ts`,
+  reducing benchmark test time from ~48 s to ~31 s (~35% faster).
+- **Interactive layer turns and scramble animation in 3D:** added layer turn
+  simulation (`applyCubeMove`), smooth 60fps layer rotation animation in WebGL
+  geometry, `U/D/L/R/F/B` clockwise and counter-clockwise controls, scramble,
+  and reset.
+- **Three-way outer corner spherical caps in 3D:** refined corner cubie outer
+  chamfer geometry where 3 outer edges meet at the apex with spherical radius
+  $R = r / \sqrt{2}$ matching 45° bevels and unit normals.
 
 ## Next
 
-1. **Lazy-load the 3D viewer and Profiles page.** Measure the initial scanner
-   bundle before and after splitting these routes from it.
-2. **#13 Speed up the real-capture benchmark.** It adds about 35–50 s to
-   `npm test`; profile the slow cases, then cache or optimize without dropping
-   the committed capture coverage.
-3. **#8–9 Resolve old assembly fixtures.** Recheck the two captures saved
+1. **#8–9 Resolve old assembly fixtures.** Recheck the two captures saved
    with a 90-degree wizard error and the 4×4 capture that did not reassemble.
-4. **Stub the camera in Playwright.** Cover capture, canvas crop, saved photo,
+2. **Stub the camera in Playwright.** Cover capture, canvas crop, saved photo,
    and re-detection together; the existing upload tests do not exercise a
    live camera.
 
 ## Later
-
-- Add interactive layer turns and scramble animation to the 3D viewer so a
-  user can inspect individual moves and the resulting state.
-- Round the three-way outer corner apex on 3D pieces after the layer-turn
-  model is settled; keep the cap subtle enough to preserve sticker shapes.
 - **#4 Learn color centroids from confirmed fixtures.** Wait until the corpus
   spans more cubes and lighting conditions, then compare before/after on all
   fixtures.

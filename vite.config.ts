@@ -46,6 +46,9 @@ export default defineConfig({
   },
   server: {
     port: 5173,
+    fs: {
+      allow: ['..', '../..', '.'],
+    },
     proxy: {
       '/fixture-upload': {
         target: 'http://127.0.0.1:7100',

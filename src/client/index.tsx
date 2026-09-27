@@ -35,9 +35,15 @@ import type { ReviewCapture } from './colorReviewPage'
 import { BackdropDialog } from './backdropDialog'
 import { FixtureDownloadDialog } from './fixtureDownloadDialog'
 import { useFixtureDownload } from './useFixtureDownload'
-import { CubeView3D } from './cubeView3D'
 import { faceSources, pieceKey, sourceIndex } from './netPresentation'
-import { ProfilesPage } from './profilesPage'
+import { lazy, Suspense } from 'preact/compat'
+
+const CubeView3D = lazy(() =>
+  import('./cubeView3D').then((m) => ({ default: m.CubeView3D })),
+)
+const ProfilesPage = lazy(() =>
+  import('./profilesPage').then((m) => ({ default: m.ProfilesPage })),
+)
 import {
   orderPhotoUploads,
   photoReadModes,
@@ -3507,19 +3513,27 @@ function App() {
         }
       : null
     return (
-      <ProfilesPage
-        tab={profilesPageTab}
-        settings={profileStore}
-        onChange={applyProfileStore}
-        capture={reviewCapture.faces.length ? reviewCapture : null}
-        photo={reviewPhoto}
-        onClose={() => {
-          location.hash = ''
-        }}
-        onExport={handleDownloadSampling}
-        onImport={handleUploadSampling}
-        fileMessage={samplingFileMessage}
-      />
+      <Suspense
+        fallback={
+          <div class="color-review">
+            <p class="color-review-muted">Loading profiles...</p>
+          </div>
+        }
+      >
+        <ProfilesPage
+          tab={profilesPageTab}
+          settings={profileStore}
+          onChange={applyProfileStore}
+          capture={reviewCapture.faces.length ? reviewCapture : null}
+          photo={reviewPhoto}
+          onClose={() => {
+            location.hash = ''
+          }}
+          onExport={handleDownloadSampling}
+          onImport={handleUploadSampling}
+          fileMessage={samplingFileMessage}
+        />
+      </Suspense>
     )
   }
 
@@ -3647,11 +3661,19 @@ function App() {
             </div>
             {cube ? (
               cubeViewMode === '3d' ? (
-                <CubeView3D
-                  cube={cube}
-                  puzzleSize={puzzleSize}
-                  palette={STICKER_HEX}
-                />
+                <Suspense
+                  fallback={
+                    <div class="cube-3d-container">
+                      <div class="cube-3d-hint">Loading 3D view...</div>
+                    </div>
+                  }
+                >
+                  <CubeView3D
+                    cube={cube}
+                    puzzleSize={puzzleSize}
+                    palette={STICKER_HEX}
+                  />
+                </Suspense>
               ) : (
                 (() => {
                   // parity.highlight (see parity.ts's HighlightGroup) is a
