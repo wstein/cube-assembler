@@ -50,9 +50,9 @@ First-party cookies remember the selected cube size and color profile,
 Mirror, Auto capture, capture sound, and the **2D Net / 3D View** choice.
 Within 3D View, **Stickerless / Stickered** and **Auto-rotate / Pause** are
 remembered too. Dragging the 3D cube gives it a short, slowing spin after
-release. Auto-rotate pauses during a drag and resumes about 1.5 seconds after
-release; dragging does not change the saved setting. These are display
-preferences; captured photos and cube states are not stored in cookies.
+release. Auto-rotate pauses during a drag, face preset, or Tilt / Turn action
+and resumes about 1.5 seconds later. These interactions do not change the
+saved setting. Captured photos and cube states are not stored in cookies.
 
 ## Use photos or a saved fixture
 
@@ -63,7 +63,8 @@ Auto, Cropped face, or Full photo for each image. Files named `face-u.jpg`
 through `face-b.jpg` start in capture-slot order. With metadata, it loads the
 saved colors as a fixture. The chosen cube size applies to ordinary photos.
 Full photos use the selected **Detect face** or **Guide grid** mode; cropped
-face images are read directly.
+face images are read directly. In Guide grid mode, select **Cropped face** for
+an image that is already cropped but does not use a `face-*.jpg` filename.
 
 After confirming a cube, **Save as test fixture** downloads its six photos and
 reviewed colors as a ZIP. With `npm run fixture:server` running on the same
