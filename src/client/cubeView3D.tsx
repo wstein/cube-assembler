@@ -1,8 +1,14 @@
 import { useEffect, useRef, useState } from 'preact/hooks'
 import { createShadowRenderer } from './cubeShadow'
 import {
+  clampZoom,
+  gestureAfterPointerUp,
+  gestureForPointerDown,
+  gestureWhenSwipeTurnsNothing,
   getSwipeLayerTurn,
   pickCubeSurface,
+  twoFingerMotion,
+  type CubeGesture,
   type CubeSurfaceHit,
 } from './cubeGesture'
 import { stepDragInertia } from './dragInertia'
@@ -1152,8 +1158,15 @@ export function CubeView3D({
     x: number
     y: number
     hit: CubeSurfaceHit | null
-    mode: 'pending' | 'camera' | 'turn'
+    mode: CubeGesture
+    pointerType: string
   } | null>(null)
+  // Fingers on the canvas, and where the two tilting fingers were last.
+  const touchesRef = useRef(new Map<number, [number, number]>())
+  const tiltFromRef = useRef<[[number, number], [number, number]] | null>(null)
+  const [coarsePointer] = useState(
+    () => window.matchMedia?.('(pointer: coarse)').matches ?? false,
+  )
   const resumeAutoAtRef = useRef(0)
   const lastPointerRef = useRef({ x: 0, y: 0, time: 0 })
   const inertiaRef = useRef({ yaw: 0, pitch: 0 })
@@ -1544,10 +1557,62 @@ export function CubeView3D({
     }
   }, [cube, puzzleSize, palette, isStickerless])
 
+  const twoTouches = (): [[number, number], [number, number]] | null => {
+    const points = [...touchesRef.current.values()]
+    return points.length >= 2 ? [points[0], points[1]] : null
+  }
+
+  const rotateView = (dx: number, dy: number, timeStamp: number) => {
+    const elapsed = Math.max(timeStamp - lastPointerRef.current.time, 8)
+    lastPointerRef.current = {
+      x: lastPointerRef.current.x + dx,
+      y: lastPointerRef.current.y + dy,
+      time: timeStamp,
+    }
+    const speed = 0.008
+    inertiaRef.current = {
+      yaw: Math.max(-0.006, Math.min(0.006, (dx * speed) / elapsed)),
+      pitch: Math.max(-0.006, Math.min(0.006, (dy * speed) / elapsed)),
+    }
+    setYaw((prev) => prev + dx * speed)
+    setPitch((prev) => {
+      const next = prev + dy * speed
+      const limit = Math.PI / 2 - 0.05
+      return Math.max(-limit, Math.min(limit, next))
+    })
+  }
+
   const handlePointerDown = (e: PointerEvent) => {
+    const touch = e.pointerType === 'touch'
+    if (touch) touchesRef.current.set(e.pointerId, [e.clientX, e.clientY])
+    const touches = touch ? touchesRef.current.size : 1
+    try {
+      ;(e.target as HTMLElement).setPointerCapture?.(e.pointerId)
+    } catch {
+      // Capture is only a convenience; the gesture works without it.
+    }
     isDraggingRef.current = true
     resumeAutoAtRef.current = Number.POSITIVE_INFINITY
     inertiaRef.current = { yaw: 0, pitch: 0 }
+    if (touches > 1) {
+      // A second finger switches to tilting, whatever the first one did.
+      const gesture = gestureRef.current
+      const mode = gestureForPointerDown(
+        'touch',
+        touches,
+        null,
+        gesture?.mode ?? null,
+      )
+      if (gesture) gesture.mode = mode
+      if (mode === 'tilt') {
+        tiltFromRef.current = twoTouches()
+        lastPointerRef.current = {
+          ...lastPointerRef.current,
+          time: e.timeStamp,
+        }
+      }
+      return
+    }
     lastPointerRef.current = { x: e.clientX, y: e.clientY, time: e.timeStamp }
     const rect = canvasRef.current?.getBoundingClientRect()
     const hit =
@@ -1565,16 +1630,30 @@ export function CubeView3D({
       x: e.clientX,
       y: e.clientY,
       hit,
-      mode: hit ? 'pending' : 'camera',
+      mode: gestureForPointerDown(e.pointerType, 1, hit, null),
+      pointerType: e.pointerType,
     }
-    ;(e.target as HTMLElement).setPointerCapture?.(e.pointerId)
   }
 
   const handlePointerMove = (e: PointerEvent) => {
+    if (e.pointerType === 'touch' && touchesRef.current.has(e.pointerId))
+      touchesRef.current.set(e.pointerId, [e.clientX, e.clientY])
     if (!isDraggingRef.current) return
     const gesture = gestureRef.current
-    if (gesture?.mode === 'turn') return
-    if (gesture?.mode === 'pending' && gesture.hit) {
+    if (!gesture) return
+    if (gesture.mode === 'tilt') {
+      const from = tiltFromRef.current
+      const to = twoTouches()
+      if (!from || !to) return
+      tiltFromRef.current = to
+      const motion = twoFingerMotion(from, to)
+      rotateView(motion.dx, motion.dy, e.timeStamp)
+      if (motion.scale !== 1)
+        setZoom((prev) => clampZoom(prev / motion.scale, puzzleSize))
+      return
+    }
+    if (gesture.mode === 'turn' || gesture.mode === 'none') return
+    if (gesture.mode === 'pending' && gesture.hit) {
       const rect = canvasRef.current?.getBoundingClientRect()
       if (!rect) return
       const dx = e.clientX - gesture.x
@@ -1593,32 +1672,40 @@ export function CubeView3D({
         triggerTurn(turn.face, turn.turns, turn.depth)
         return
       }
-      gesture.mode = 'camera'
+      gesture.mode = gestureWhenSwipeTurnsNothing(gesture.pointerType)
+      if (gesture.mode !== 'camera') return
     }
-    const dx = e.clientX - lastPointerRef.current.x
-    const dy = e.clientY - lastPointerRef.current.y
-    const elapsed = Math.max(e.timeStamp - lastPointerRef.current.time, 8)
-    lastPointerRef.current = { x: e.clientX, y: e.clientY, time: e.timeStamp }
-
-    const speed = 0.008
-    inertiaRef.current = {
-      yaw: Math.max(-0.006, Math.min(0.006, (dx * speed) / elapsed)),
-      pitch: Math.max(-0.006, Math.min(0.006, (dy * speed) / elapsed)),
-    }
-    setYaw((prev) => prev + dx * speed)
-    setPitch((prev) => {
-      const next = prev + dy * speed
-      const limit = Math.PI / 2 - 0.05
-      return Math.max(-limit, Math.min(limit, next))
-    })
+    rotateView(
+      e.clientX - lastPointerRef.current.x,
+      e.clientY - lastPointerRef.current.y,
+      e.timeStamp,
+    )
   }
 
   const handlePointerUp = (e: PointerEvent) => {
+    const touch = e.pointerType === 'touch'
+    if (touch) touchesRef.current.delete(e.pointerId)
+    try {
+      ;(e.target as HTMLElement).releasePointerCapture?.(e.pointerId)
+    } catch {
+      // Ignore if pointer capture release fails
+    }
+    const remaining = touch ? touchesRef.current.size : 0
+    const next = gestureAfterPointerUp(
+      remaining,
+      gestureRef.current?.mode ?? null,
+    )
+    if (next !== null) {
+      if (gestureRef.current) gestureRef.current.mode = next
+      tiltFromRef.current = next === 'tilt' ? twoTouches() : null
+      return
+    }
     isDraggingRef.current = false
     if (gestureRef.current?.mode === 'turn') {
       inertiaRef.current = { yaw: 0, pitch: 0 }
     }
     gestureRef.current = null
+    tiltFromRef.current = null
     resumeAutoAtRef.current = performance.now() + AUTO_ROTATE_RESUME_DELAY_MS
     if (
       e.type === 'pointercancel' ||
@@ -1626,21 +1713,12 @@ export function CubeView3D({
     ) {
       inertiaRef.current = { yaw: 0, pitch: 0 }
     }
-    try {
-      ;(e.target as HTMLElement).releasePointerCapture?.(e.pointerId)
-    } catch {
-      // Ignore if pointer capture release fails
-    }
   }
 
   const handleWheel = (e: WheelEvent) => {
     e.preventDefault()
     const zoomDelta = e.deltaY * 0.01
-    setZoom((prev) => {
-      const minZ = 2.0 + puzzleSize * 1.0
-      const maxZ = 8.0 + puzzleSize * 3.0
-      return Math.max(minZ, Math.min(maxZ, prev + zoomDelta))
-    })
+    setZoom((prev) => clampZoom(prev + zoomDelta, puzzleSize))
   }
 
   const limit = Math.PI / 2 - 0.05
@@ -1734,8 +1812,17 @@ export function CubeView3D({
               aria-label="Interactive 3D Rubik's Cube Viewer"
             />
             <div class="cube-3d-hint">
-              Swipe a sticker to turn its layer &bull; Drag the background to
-              rotate &bull; Scroll to zoom
+              {coarsePointer ? (
+                <>
+                  Swipe a sticker to turn its layer &bull; Two fingers to tilt,
+                  pinch to zoom
+                </>
+              ) : (
+                <>
+                  Swipe a sticker to turn its layer &bull; Drag the background
+                  to rotate &bull; Scroll to zoom
+                </>
+              )}
             </div>
           </div>
           <div class="cube-3d-toolbar">

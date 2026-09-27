@@ -214,3 +214,69 @@ for (const control of ['Front (F)', 'Isometric', 'Tilt Up', 'Rotate Left']) {
     await expect(page.getByRole('button', { name: 'Pause' })).toBeVisible()
   })
 }
+
+test('on touch, one finger turns layers and two fingers tilt the cube', async ({
+  page,
+}) => {
+  await page.goto('/')
+  await page
+    .getByRole('combobox', { name: 'Cube' })
+    .selectOption({ label: '5×5' })
+  await page.getByRole('button', { name: 'Solved cube' }).click()
+  await page.getByRole('button', { name: '3D View' }).click()
+  await page.getByRole('button', { name: 'Front (F)' }).click()
+  const notation = page.getByRole('textbox', { name: 'Notation' })
+  const history = page.getByRole('status', { name: 'Move history' })
+  const canvas = page.locator('.cube-3d-canvas')
+  const bounds = await canvas.boundingBox()
+  expect(bounds).not.toBeNull()
+  if (!bounds) return
+  const touch = (type: string, id: number, x: number, y: number) =>
+    canvas.dispatchEvent(type, {
+      pointerId: id,
+      pointerType: 'touch',
+      isPrimary: id === 1,
+      clientX: x,
+      clientY: y,
+      bubbles: true,
+    })
+  const swipe = async (id: number, from: [number, number], dy: number) => {
+    await touch('pointerdown', id, ...from)
+    for (let step = 1; step <= 5; step++)
+      await touch('pointermove', id, from[0], from[1] + (dy * step) / 5)
+    await touch('pointerup', id, from[0], from[1] + dy)
+  }
+  await page.waitForTimeout(300)
+  const still = await canvas.screenshot()
+
+  // One finger on the background neither turns nor tilts.
+  await swipe(1, [bounds.x + 20, bounds.y + 20], 80)
+  await page.waitForTimeout(300)
+  expect((await canvas.screenshot()).equals(still)).toBe(true)
+  await expect(history).toHaveText('Moves: None')
+
+  // One finger on a sticker turns its layer.
+  const solved = await notation.inputValue()
+  const cx = bounds.x + bounds.width / 2
+  const cy = bounds.y + bounds.height / 2
+  await swipe(2, [cx - 38, cy], -70)
+  await expect(history).toHaveText("Moves: 2L'")
+  await expect(notation).not.toHaveValue(solved)
+  const turned = await notation.inputValue()
+  await page.waitForTimeout(600)
+  const afterTurn = await canvas.screenshot()
+
+  // Two fingers moving together tilt the view without turning a layer.
+  await touch('pointerdown', 3, cx - 40, cy)
+  await touch('pointerdown', 4, cx + 40, cy)
+  for (let step = 1; step <= 5; step++) {
+    await touch('pointermove', 3, cx - 40 + step * 12, cy + step * 6)
+    await touch('pointermove', 4, cx + 40 + step * 12, cy + step * 6)
+  }
+  await touch('pointerup', 3, cx + 20, cy + 30)
+  await touch('pointerup', 4, cx + 100, cy + 30)
+  await page.waitForTimeout(300)
+  expect((await canvas.screenshot()).equals(afterTurn)).toBe(false)
+  await expect(history).toHaveText("Moves: 2L'")
+  await expect(notation).toHaveValue(turned)
+})

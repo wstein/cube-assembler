@@ -142,3 +142,56 @@ export function getSwipeLayerTurn(
   const turns = (positive ? -1 : 1) * Math.sign(best.dot)
   return { face, depth, turns }
 }
+
+// What a drag does. Mouse and pen: a sticker swipe turns its layer and the
+// background rotates the view. Touch: one finger only turns layers, and two
+// fingers tilt and zoom, so a thumb resting on the cube never spins it.
+export type CubeGesture = 'pending' | 'turn' | 'camera' | 'tilt' | 'none'
+
+export function gestureForPointerDown(
+  pointerType: string,
+  touches: number,
+  hit: CubeSurfaceHit | null,
+  current: CubeGesture | null,
+): CubeGesture {
+  if (pointerType !== 'touch') return hit ? 'pending' : 'camera'
+  if (touches === 1) return hit ? 'pending' : 'none'
+  if (touches === 2) return 'tilt'
+  return current ?? 'none'
+}
+
+export function gestureWhenSwipeTurnsNothing(pointerType: string): CubeGesture {
+  return pointerType === 'touch' ? 'none' : 'camera'
+}
+
+// Lifting one of two tilting fingers must not start a layer turn with the
+// other.
+export function gestureAfterPointerUp(
+  remaining: number,
+  current: CubeGesture | null,
+): CubeGesture | null {
+  if (remaining === 0) return null
+  return current === 'tilt' ? 'none' : current
+}
+
+type ScreenPoint = [number, number]
+
+export function twoFingerMotion(
+  before: [ScreenPoint, ScreenPoint],
+  after: [ScreenPoint, ScreenPoint],
+): { dx: number; dy: number; scale: number } {
+  const mid = ([a, b]: [ScreenPoint, ScreenPoint]) => [
+    (a[0] + b[0]) / 2,
+    (a[1] + b[1]) / 2,
+  ]
+  const spread = ([a, b]: [ScreenPoint, ScreenPoint]) =>
+    Math.hypot(a[0] - b[0], a[1] - b[1])
+  const [x0, y0] = mid(before)
+  const [x1, y1] = mid(after)
+  const s0 = spread(before)
+  return { dx: x1 - x0, dy: y1 - y0, scale: s0 > 0 ? spread(after) / s0 : 1 }
+}
+
+export function clampZoom(zoom: number, size: number): number {
+  return Math.max(2 + size, Math.min(8 + size * 3, zoom))
+}
