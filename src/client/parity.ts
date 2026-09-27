@@ -41,9 +41,18 @@ export type ParityResult = {
 // ─── Color validation helpers ─────────────────────────────────────────────────
 
 function countColors(cube: CubeIR): Record<FaceColor, number> {
-  const counts: any = { W: 0, O: 0, G: 0, R: 0, B: 0, Y: 0 }
+  const counts: Record<FaceColor, number> = {
+    W: 0,
+    O: 0,
+    G: 0,
+    R: 0,
+    B: 0,
+    Y: 0,
+  }
   for (const face of [cube.u, cube.r, cube.f, cube.d, cube.l, cube.b]) {
-    for (const c of face.data) counts[c]++
+    for (const c of face.data) {
+      if (c in counts) counts[c as FaceColor]++
+    }
   }
   return counts
 }
@@ -132,7 +141,19 @@ const CORNER_SLOTS = [
 ] as const
 
 function getFace(cube: CubeIR, key: string): FaceGrid {
-  return (cube as any)[key]
+  if (
+    !(
+      key === 'u' ||
+      key === 'r' ||
+      key === 'f' ||
+      key === 'd' ||
+      key === 'l' ||
+      key === 'b'
+    )
+  ) {
+    throw new Error(`Unknown cube face: ${key}`)
+  }
+  return cube[key]
 }
 
 // ─── Parity checks ────────────────────────────────────────────────────────────

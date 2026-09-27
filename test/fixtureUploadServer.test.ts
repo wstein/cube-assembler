@@ -47,10 +47,11 @@ describe('local fixture upload server', () => {
 
   async function start(log: (line: string) => void = () => {}) {
     root = await mkdtemp(join(tmpdir(), 'fixture-upload-'))
-    server = createFixtureUploadServer(root, log)
-    server.listen(0, '127.0.0.1')
-    await once(server, 'listening')
-    const address = server.address()
+    const started = createFixtureUploadServer(root, log)
+    server = started
+    started.listen(0, '127.0.0.1')
+    await once(started, 'listening')
+    const address = started.address()
     if (!address || typeof address === 'string')
       throw new Error('Missing server port')
     url = `http://127.0.0.1:${address.port}`

@@ -87,11 +87,13 @@ import {
   type OrientedCandidate,
   type OrientationSolution,
   type FaceKey,
+  type CubeState,
   type GuidedArrangement,
   type GuidedCenterIssue,
 } from './cubeAssembly'
 import {
   AUTO_COLORS_ID,
+  EMPTY_SETTINGS,
   activeCube,
   allCubes,
   activeColorProfile,
@@ -280,7 +282,7 @@ function withoutDeviceIds<T extends { deviceId?: unknown; groupId?: unknown }>(
 // Parity Check
 // ─────────────────────────────────────────────────────────────────────────────
 
-function checkParity(cube: any, size: number): ParityResult {
+function checkParity(cube: CubeState, size: number): ParityResult {
   return runFullParity(toCubeIR(cube, size))
 }
 
@@ -1066,8 +1068,8 @@ const ORIENTATION_CHOICES_PER_PAGE = 2
 
 function App() {
   const [puzzleSize, setPuzzleSize] = useState(3)
-  const [cube, setCube] = useState<any>(null)
-  const [parity, setParity] = useState<any>(null)
+  const [cube, setCube] = useState<CubeState | null>(null)
+  const [parity, setParity] = useState<ParityResult | null>(null)
   // Which highlight group (see parity.ts's HighlightGroup) is
   // currently moused-over in the Cube Net, if any - lets hovering one
   // implicated sticker cross-highlight every other reading that shares
@@ -1633,6 +1635,7 @@ function App() {
       try {
         if ('error' in event.data) throw new Error(event.data.error)
         const { result } = event.data
+        const analysis = result
         // Bounds in the camera frame's pixels; colors and the check come
         // from the worker's single read of the face.
         const bounds = scaleBounds(result.bounds, event.data.scale)
@@ -1734,13 +1737,12 @@ function App() {
               canvas.height = full.height
               canvas.getContext('2d')?.drawImage(full, 0, 0)
               const autoPalette = autoColorProfiles.find(
-                (candidate) =>
-                  candidate.id === event.data.result.colorProfileId,
+                (candidate) => candidate.id === analysis.colorProfileId,
               )?.colors
-              const result = captureAndProcessCanvas(
+              const captureResult = captureAndProcessCanvas(
                 canvas,
                 puzzleSize,
-                event.data.result.gains,
+                analysis.gains,
                 sampling,
                 palette ?? autoPalette,
                 'aligned',
@@ -1754,11 +1756,11 @@ function App() {
               setCaptureMessage('Processing image...')
               void applyFaceCapture(
                 webcamFace,
-                result,
+                captureResult,
                 'camera',
                 track ? withoutDeviceIds(track.getSettings()) : undefined,
                 puzzleSize,
-                previewProfileFor(event.data.result.colorProfileId ?? null),
+                previewProfileFor(analysis.colorProfileId ?? null),
               )
                 .catch((err) =>
                   setCaptureMessage(
@@ -1793,7 +1795,7 @@ function App() {
     }
     worker.addEventListener('message', onResult)
 
-    const intervalId = setInterval(async () => {
+    const captureNextFrame = async () => {
       const video = webcamRef.current
       if (
         inFlight ||
@@ -1834,6 +1836,9 @@ function App() {
       } catch {
         if (inFlight === id) inFlight = null
       }
+    }
+    const intervalId = setInterval(() => {
+      void captureNextFrame()
     }, 200)
 
     return () => {
@@ -2000,7 +2005,7 @@ function App() {
   // Features: Parity Validation (#10)
   // ─────────────────────────────────────────────────────────────────────────
 
-  const updateParityStatus = (cubeState: any, sizeOverride?: number) => {
+  const updateParityStatus = (cubeState: CubeState, sizeOverride?: number) => {
     try {
       const result = checkParity(cubeState, sizeOverride ?? puzzleSize)
       setParity(result)
@@ -2666,7 +2671,7 @@ function App() {
       })
       return
     }
-    handleChooseOrientation(free.alternatives[0])
+    void handleChooseOrientation(free.alternatives[0])
   }
 
   // Whether the current faces followed the guided protocol: a camera
@@ -2852,7 +2857,7 @@ function App() {
   // assembly with the single remaining candidate.
   const handleWizardAnswer = (matched: OrientedCandidate[], face: FaceKey) => {
     if (pickWizardFace(matched) === null) {
-      handleChooseOrientation(matched[0])
+      void handleChooseOrientation(matched[0])
       return
     }
     setOrientationWizard((prev) =>
@@ -3483,7 +3488,7 @@ function App() {
                   const r = Math.floor(index / puzzleSize),
                     c = index % puzzleSize
                   const detected = photo?.detectedColors?.[r]?.[c]
-                  const color = (cube as any)[hoveredNetCell.face][
+                  const color = cube[hoveredNetCell.face as keyof CubeState][
                     hoveredNetCell.index
                   ] as string
                   return {
@@ -3655,21 +3660,19 @@ function App() {
             )}
             {parity && (
               <div class="parity-checks">
-                {Object.entries(parity.checks).map(
-                  ([check, valid]: [string, any]) => (
-                    <div
-                      class={`parity-check ${valid ? 'is-ok' : 'is-failed'}`}
-                      key={check}
-                    >
-                      <span class="parity-check-name">
-                        {PARITY_CHECK_NAMES[check] ?? check}
-                      </span>
-                      <span class="parity-check-result">
-                        {valid ? '✓ ok' : '✗ failed'}
-                      </span>
-                    </div>
-                  ),
-                )}
+                {Object.entries(parity.checks).map(([check, valid]) => (
+                  <div
+                    class={`parity-check ${valid ? 'is-ok' : 'is-failed'}`}
+                    key={check}
+                  >
+                    <span class="parity-check-name">
+                      {PARITY_CHECK_NAMES[check] ?? check}
+                    </span>
+                    <span class="parity-check-result">
+                      {valid ? '✓ ok' : '✗ failed'}
+                    </span>
+                  </div>
+                ))}
               </div>
             )}
           </section>
@@ -3725,7 +3728,7 @@ function App() {
             </div>
             <textarea
               class="notation-output"
-              readonly
+              readOnly
               aria-label="Notation"
               value={cube ? getNotationOutput() : ''}
             />
@@ -3994,12 +3997,14 @@ function App() {
               <div class="color-input-panel">
                 <div class="notation-format-toggle">
                   <button
+                    type="button"
                     class={`wb-btn ${notationFormat === 'wrg' ? 'active' : ''}`}
                     onClick={() => setNotationFormat('wrg')}
                   >
                     WRG Facelets
                   </button>
                   <button
+                    type="button"
                     class={`wb-btn ${notationFormat === 'urf' ? 'active' : ''}`}
                     onClick={() => setNotationFormat('urf')}
                   >
@@ -4034,6 +4039,7 @@ function App() {
                 />
                 <div class="input-actions">
                   <button
+                    type="button"
                     class="btn btn-primary btn-sm"
                     onClick={handleApplyFacelets}
                     disabled={loading}
@@ -4046,7 +4052,6 @@ function App() {
           </section>
         </div>
       </main>
-
       {/* Webcam Modal */}
       {webcamOpen && (
         <div class="modal open">
@@ -4234,6 +4239,7 @@ function App() {
                   </h2>
                 </div>
                 <button
+                  type="button"
                   class="modal-close"
                   aria-label="Close"
                   onClick={() => setWebcamOpen(false)}
@@ -4759,6 +4765,7 @@ function App() {
                   {captureMessage || '—'}
                 </div>
                 <button
+                  type="button"
                   class="btn btn-primary"
                   onClick={handleCapturePhoto}
                   disabled={loading || turnOverlay !== null}
@@ -4827,6 +4834,7 @@ function App() {
                     ))}
                   </div>
                   <button
+                    type="button"
                     class="modal-close"
                     aria-label="Close"
                     onClick={() => setShowReviewDialog(false)}
@@ -4993,6 +5001,7 @@ function App() {
                               ].filter(Boolean)
                               return (
                                 <button
+                                  type="button"
                                   key={`${r}-${c}`}
                                   class={`review-detected-cell ${flagged ? 'review-detected-cell-flagged' : ''} ${corrected ? 'review-detected-cell-corrected' : ''}`}
                                   style={{
@@ -5050,6 +5059,7 @@ function App() {
                     </div>
                     <div class="review-wizard-nav">
                       <button
+                        type="button"
                         class="btn btn-secondary"
                         onClick={() => handleRetakeFace(face)}
                       >
@@ -5057,6 +5067,7 @@ function App() {
                       </button>
                       <div class="review-wizard-nav-spacer" />
                       <button
+                        type="button"
                         class="btn btn-secondary"
                         onClick={() => setReviewStep((s) => Math.max(0, s - 1))}
                         disabled={reviewStep === 0}
@@ -5065,6 +5076,7 @@ function App() {
                       </button>
                       {isLast ? (
                         <button
+                          type="button"
                           class="btn btn-primary btn-review-next"
                           onClick={handleConfirmReview}
                         >
@@ -5072,6 +5084,7 @@ function App() {
                         </button>
                       ) : (
                         <button
+                          type="button"
                           class="btn btn-primary btn-review-next"
                           onClick={() => setReviewStep((s) => s + 1)}
                         >
@@ -5137,6 +5150,7 @@ function App() {
                         : 'Which of these is your cube?'}
                   </h2>
                   <button
+                    type="button"
                     class="modal-close"
                     aria-label="Close"
                     onClick={close}
@@ -5347,6 +5361,7 @@ function App() {
                   <div class="modal-header">
                     <h2>Which orientation matches your cube?</h2>
                     <button
+                      type="button"
                       class="modal-close"
                       aria-label="Close"
                       onClick={() => setOrientationWizard(null)}
@@ -5359,6 +5374,7 @@ function App() {
                       <div key={i} class="orientation-picker-option">
                         <OrientationNetPreview faces={alt.faces} />
                         <button
+                          type="button"
                           class="btn btn-primary btn-sm"
                           onClick={() => handleChooseOrientation(alt)}
                         >
@@ -5409,6 +5425,7 @@ function App() {
                 <div class="modal-header">
                   <h2>Which way is your {FACE_LABELS[askingFace]} face?</h2>
                   <button
+                    type="button"
                     class="modal-close"
                     aria-label="Close"
                     onClick={() => setOrientationWizard(null)}
@@ -5496,6 +5513,7 @@ function App() {
                 <div class="color-palette">
                   {['W', 'Y', 'O', 'R', 'G', 'B'].map((color) => (
                     <button
+                      type="button"
                       key={color}
                       class={`color-btn ${color === current ? 'is-current' : ''}`}
                       style={{ background: STICKER_HEX[color] }}
@@ -5514,6 +5532,7 @@ function App() {
               )
             })()}
             <button
+              type="button"
               class="btn btn-secondary btn-sm"
               onClick={() => setReviewEditingCell(null)}
             >
@@ -5540,6 +5559,7 @@ function App() {
             <div class="modal-header">
               <h2 id="fixture-download-title">Save as test fixture</h2>
               <button
+                type="button"
                 class="modal-close"
                 aria-label="Close"
                 onClick={closeFixtureDownload}

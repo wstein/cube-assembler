@@ -253,7 +253,7 @@ describe('solveFaceOrientations', () => {
     expect(result!.alternatives.length).toBe(4)
     const signatures = new Set(
       result!.alternatives.map((alt) =>
-        ['U', 'R', 'F', 'D', 'L', 'B']
+        (['U', 'R', 'F', 'D', 'L', 'B'] as const)
           .map((f) => alt.faces[f].map((row) => row.join('')).join(''))
           .join('|'),
       ),
@@ -424,7 +424,7 @@ describe('solveFaceOrientations', () => {
       expect(result!.truncated).toBe(false)
       const signatures = new Set(
         result!.alternatives.map((alt) =>
-          ['U', 'R', 'F', 'D', 'L', 'B']
+          (['U', 'R', 'F', 'D', 'L', 'B'] as const)
             .map((f) => alt.faces[f].map((row) => row.join('')).join(''))
             .join('|'),
         ),

@@ -52,5 +52,6 @@ self.onmessage = (event: MessageEvent<LiveFrameMessage>) => {
       error: error instanceof Error ? error.message : String(error),
     }
   }
-  self.postMessage(message, [frame])
+  const worker = self as DedicatedWorkerGlobalScope
+  worker.postMessage(message, [frame])
 }

@@ -194,7 +194,12 @@ export function BackdropDialog({ faces, reference, onClose }: Props) {
       >
         <div class="modal-header">
           <h2 id="backdrop-title">Backdrop adjustment</h2>
-          <button class="modal-close" aria-label="Close" onClick={onClose}>
+          <button
+            type="button"
+            class="modal-close"
+            aria-label="Close"
+            onClick={onClose}
+          >
             ×
           </button>
         </div>
