@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { EMPTY_SETTINGS } from '../src/client/profileSettings'
 import {
-  PROFILE_SETTINGS_KEY, LEGACY_PROFILE_KEY, loadProfileSettings, saveProfileSettings, parseSettingsFile,
+  PROFILE_SETTINGS_KEY, loadProfileSettings, saveProfileSettings, parseSettingsFile, settingsFile,
 } from '../src/client/profileStorage'
 
 function memoryStorage(): Storage {
@@ -17,23 +17,30 @@ function memoryStorage(): Storage {
 }
 
 describe('profile settings storage', () => {
-  it('migrates old localStorage into a new key without changing the old key', () => {
+  it('writes the current profile format to cube-assembler-profiles-v1', () => {
     const storage = memoryStorage()
-    const old = JSON.stringify({ profiles: [{ id: 'old', name: 'Old 3×3', size: 3, sampling: { backgroundGap: 0.2, stickerCore: 0.55 } }], active: { 3: 'old' } })
-    storage.setItem(LEGACY_PROFILE_KEY, old)
-    const loaded = loadProfileSettings(storage)
-    expect(loaded.cubes[0].sampling).toEqual({ stickerCore: 0.55 })
-    expect(storage.getItem(LEGACY_PROFILE_KEY)).toBe(old)
-    expect(storage.getItem(PROFILE_SETTINGS_KEY)).toContain('"version":3')
-    expect(loadProfileSettings(storage)).toEqual(loaded)
+    expect(PROFILE_SETTINGS_KEY).toBe('cube-assembler-profiles-v1')
+    expect(saveProfileSettings(storage, EMPTY_SETTINGS)).toBe(true)
+    expect(JSON.parse(storage.getItem(PROFILE_SETTINGS_KEY)!)).toMatchObject({ version: 3, ...EMPTY_SETTINGS })
+    expect(loadProfileSettings(storage)).toEqual(EMPTY_SETTINGS)
   })
 
-  it('accepts a built-ins-only v3 settings file and rejects unrelated JSON', () => {
-    const file = JSON.stringify({ type: 'cube-assembler-settings', version: 3, ...EMPTY_SETTINGS })
-    expect(parseSettingsFile(JSON.parse(file))).toEqual(EMPTY_SETTINGS)
-    expect(parseSettingsFile({ type: 'other', version: 3, ...EMPTY_SETTINGS })).toBeNull()
+  it('wipes earlier storage keys without migrating them', () => {
     const storage = memoryStorage()
-    expect(saveProfileSettings(storage, EMPTY_SETTINGS)).toBe(true)
+    storage.setItem('cube-assembler-settings-v3', JSON.stringify({ version: 3, ...EMPTY_SETTINGS }))
+    storage.setItem('cube-assembler-profiles', JSON.stringify({ profiles: [{ id: 'old' }] }))
+    storage.setItem('cube-assembler-settings', '{}')
     expect(loadProfileSettings(storage)).toEqual(EMPTY_SETTINGS)
+    expect(storage.getItem(PROFILE_SETTINGS_KEY)).toBeNull()
+    expect(storage.getItem('cube-assembler-settings-v3')).toBeNull()
+    expect(storage.getItem('cube-assembler-profiles')).toBeNull()
+    expect(storage.getItem('cube-assembler-settings')).toBeNull()
+  })
+
+  it('exports and imports only the profiles file type', () => {
+    expect(settingsFile(EMPTY_SETTINGS)).toMatchObject({ type: 'cube-assembler-profiles', version: 3 })
+    expect(parseSettingsFile(settingsFile(EMPTY_SETTINGS))).toEqual(EMPTY_SETTINGS)
+    expect(parseSettingsFile({ type: 'cube-assembler-settings', version: 3, ...EMPTY_SETTINGS })).toBeNull()
+    expect(parseSettingsFile({ type: 'other', version: 3, ...EMPTY_SETTINGS })).toBeNull()
   })
 })

@@ -27,7 +27,7 @@ import {
 } from './cubeAssembly'
 import {
   AUTO_COLORS_ID, GENERIC_COLORS_ID, activeCube, allCubes, activeColorProfile, allColorProfiles, captureColorProfileSnapshot, capturePalette, colorPalette, copyColorProfile, copyCubeSetting,
-  convertLegacySettings, cubeGroupName, deleteCube, deleteColorProfile, genericColorProfile, groupCubesByName, isBuiltinCube, mergeSettings, saveCube, saveColorProfile,
+  cubeGroupName, deleteCube, deleteColorProfile, genericColorProfile, groupCubesByName, isBuiltinCube, mergeSettings, saveCube, saveColorProfile,
   resolvedColorProfileSnapshot, selectCube, selectColorProfile, setAutoColorMatch, type ProfileSettings, type UsedColorProfile,
 } from './profileSettings'
 import { loadProfileSettings, saveProfileSettings, settingsFile, parseSettingsFile } from './profileStorage'
@@ -108,26 +108,9 @@ const CAMERA_CONSTRAINTS: MediaTrackConstraints = {
 declare const __APP_VERSION__: string
 declare const __APP_COMMIT__: string
 
-// v3 cube geometry and colors are stored separately; the old cookie is
-// only a migration source and stays untouched for older app versions.
-const LEGACY_PROFILES_COOKIE = 'cube-assembler-profiles'
-// Per-size sampling settings from before cube profiles existed - migrated
-// into generic profiles the same way.
-const LEGACY_SAMPLING_COOKIE = 'cube-assembler-sampling'
-
-function readCookie(name: string): unknown {
-  try {
-    const cookie = document.cookie.split('; ').find((c) => c.startsWith(`${name}=`))
-    return cookie ? JSON.parse(decodeURIComponent(cookie.slice(name.length + 1))) : null
-  } catch {
-    return null // corrupt cookie - treated as absent
-  }
-}
-
 function loadProfileStore(): ProfileSettings {
-  const legacy = readCookie(LEGACY_PROFILES_COOKIE) ?? readCookie(LEGACY_SAMPLING_COOKIE)
-  try { return loadProfileSettings(localStorage, legacy) }
-  catch { return convertLegacySettings(legacy) }
+  try { return loadProfileSettings(localStorage) }
+  catch { return EMPTY_SETTINGS }
 }
 
 // False when the browser won't store it (storage blocked or full).
@@ -856,7 +839,7 @@ function App() {
   }, [])
   const applyProfileStore = (updated: ProfileSettings) => {
     if (!saveProfileStore(updated)) {
-      setSamplingFileMessage("❌ This browser won't keep settings (storage blocked or full) - download the settings file to save them")
+      setSamplingFileMessage("❌ This browser won't keep profiles (storage blocked or full) - export them to save a copy")
     }
     setProfileStore(updated)
   }

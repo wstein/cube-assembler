@@ -1,10 +1,10 @@
 import {
-  EMPTY_SETTINGS, convertLegacySettings, parseProfileSettings, type ProfileSettings,
+  EMPTY_SETTINGS, parseProfileSettings, type ProfileSettings,
 } from './profileSettings'
 
-export const PROFILE_SETTINGS_KEY = 'cube-assembler-settings-v3'
-export const LEGACY_PROFILE_KEY = 'cube-assembler-profiles'
-export const SETTINGS_FILE_TYPE = 'cube-assembler-settings'
+export const PROFILE_SETTINGS_KEY = 'cube-assembler-profiles-v1'
+export const SETTINGS_FILE_TYPE = 'cube-assembler-profiles'
+const OBSOLETE_KEYS = ['cube-assembler-settings-v3', 'cube-assembler-settings', 'cube-assembler-profiles']
 
 function isV3(value: unknown): value is Record<string, unknown> {
   const raw = value as Record<string, unknown> | null
@@ -18,8 +18,6 @@ export function settingsFile(settings: ProfileSettings): Record<string, unknown>
 export function parseSettingsFile(value: unknown): ProfileSettings | null {
   const raw = value as Record<string, unknown> | null
   if (raw?.type === SETTINGS_FILE_TYPE && isV3(raw)) return parseProfileSettings(raw)
-  if (raw?.type === LEGACY_PROFILE_KEY && Array.isArray(raw.profiles)) return convertLegacySettings(raw)
-  if (raw?.type === 'cube-assembler-sampling' && raw.samplingBySize) return convertLegacySettings(raw.samplingBySize)
   return null
 }
 
@@ -32,25 +30,18 @@ export function saveProfileSettings(storage: Pick<Storage, 'setItem'>, settings:
   }
 }
 
-export function loadProfileSettings(storage: Pick<Storage, 'getItem' | 'setItem'>, legacyCookie: unknown = null): ProfileSettings {
+export function loadProfileSettings(storage: Pick<Storage, 'getItem' | 'removeItem'>): ProfileSettings {
+  for (const key of OBSOLETE_KEYS) {
+    try { storage.removeItem(key) } catch { /* Storage may be blocked. */ }
+  }
   try {
-    const current = storage.getItem(PROFILE_SETTINGS_KEY)
-    if (current) {
-      const data = JSON.parse(current)
+    const stored = storage.getItem(PROFILE_SETTINGS_KEY)
+    if (stored) {
+      const data = JSON.parse(stored)
       if (isV3(data)) return parseProfileSettings(data)
     }
   } catch {
-    // Corrupt or blocked storage falls through to the old format.
+    // Corrupt or blocked storage starts with the built-in profiles.
   }
-  let old: unknown = legacyCookie
-  try {
-    const stored = storage.getItem(LEGACY_PROFILE_KEY)
-    if (stored) old = JSON.parse(stored)
-  } catch {
-    // An old cookie is still usable when localStorage is blocked.
-  }
-  if (old === null) return EMPTY_SETTINGS
-  const migrated = convertLegacySettings(old)
-  saveProfileSettings(storage, migrated)
-  return migrated
+  return EMPTY_SETTINGS
 }
