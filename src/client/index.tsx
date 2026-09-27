@@ -2579,7 +2579,7 @@ function App() {
                     {profileLearningOffer?.updatedProfileName && <span role="status">✓ {profileLearningOffer.updatedProfileName} updated</span>}
                   </>
                 ) : <>
-                  <input aria-label="New sticker color profile name" maxLength={60} placeholder="e.g. GoCube" value={newColorName}
+                  <input aria-label="New sticker color profile name" maxLength={60} placeholder="e.g. Matte" value={newColorName}
                     onInput={(e) => setNewColorName(e.currentTarget.value)}
                     onKeyDown={(e) => { if (e.key === 'Enter') handleCreateColors() }} />
                   <button type="button" class="btn btn-primary btn-sm" disabled={!newColorName.trim()} onClick={handleCreateColors}>Save profile</button>
@@ -2905,7 +2905,7 @@ function App() {
                   <div class="capture-size-row new-cube-form">
                     <label class="capture-size-label" for="new-color-profile-name">Name:</label>
                     <input id="new-color-profile-name" class="cube-profile-name" maxLength={60}
-                      placeholder="e.g. GoCube" value={newColorProfileName}
+                      placeholder="e.g. Matte" value={newColorProfileName}
                       onInput={(e) => setNewColorProfileName(e.currentTarget.value)}
                       onKeyDown={(e) => { if (e.key === 'Enter') handleCreateNamedColors() }} />
                     <button type="button" class="btn btn-primary btn-sm" disabled={!newColorProfileName.trim()}
