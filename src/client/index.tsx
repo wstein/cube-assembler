@@ -187,7 +187,7 @@ import {
   fromURFFacelets,
   detectNotationFormat,
   gridsToWRGFacelets,
-} from '../cube/notation/notationOutput'
+} from '../cube/notation/NotationOutput.gen'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types

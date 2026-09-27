@@ -13,7 +13,7 @@ export default defineConfig({
       // test/imageProcessing.test.ts)
       include: [
         'src/cube/cubeAssembly.ts',
-        'src/cube/notation/notationOutput.ts',
+        'src/cube/notation/NotationOutput.res.mjs',
         'src/client/imageProcessing.ts',
       ],
     },

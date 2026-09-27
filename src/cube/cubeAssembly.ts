@@ -113,7 +113,7 @@ type EdgePos = 'top' | 'right' | 'bottom' | 'left'
 // orientation — i.e. reading the grid row0=top, row(N-1)=bottom, col0=left,
 // col(N-1)=right, exactly as a human looks at that face from outside with
 // U "up" and F "toward them," the standard convention this app's spaced
-// facelet notation (see notationOutput.ts) already assumes.
+// facelet notation (see notation/NotationOutput.res) already assumes.
 const FACE_CORNERS: Record<FaceKey, Record<CornerPos, string>> = {
   U: { TL: 'UBL', TR: 'UBR', BL: 'UFL', BR: 'UFR' },
   F: { TL: 'UFL', TR: 'UFR', BL: 'DFL', BR: 'DFR' },

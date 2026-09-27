@@ -24,7 +24,7 @@ import { describe, it, expect } from 'vitest'
 import { existsSync, readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import jpeg from 'jpeg-js'
-import { wrgFaceletsToGrids } from '../src/cube/notation/notationOutput'
+import { wrgFaceletsToGrids } from '../src/cube/notation/NotationOutput.gen'
 import { readFixtureColors } from '../src/client/fixtureFormat'
 import {
   solveGuidedCapture,

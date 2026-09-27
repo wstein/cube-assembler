@@ -1,6 +1,6 @@
 /**
  * test/cube/notation/notationOutput.test.ts
- * Vitest tests for src/cube/notation/notationOutput.ts - the app's two cube-state
+ * Vitest tests for src/cube/notation/NotationOutput.res - the app's two cube-state
  * input/output formats, both six space-separated N²-letter blocks per
  * face in U R F D L B order:
  *   - "WRG facelets": WOGRBY color letters.
@@ -20,8 +20,8 @@ import {
   detectNotationFormat,
   gridsToWRGFacelets,
   wrgFaceletsToGrids,
-  type CubeState,
-} from '../../../src/cube/notation/notationOutput'
+  type cubeState as CubeState,
+} from '../../../src/cube/notation/NotationOutput.gen'
 
 function solvedCube(size: number): CubeState {
   const face = (color: string) => Array(size * size).fill(color)

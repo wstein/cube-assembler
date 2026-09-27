@@ -48,6 +48,12 @@ dark gray gradient and soft shadow behind the cube.
    accepts uploads on localhost, from the dev server or (through CORS) the
    published app, and serves no files.
 
+Facelet parsing and formatting now live in
+[`NotationOutput.res`](../src/cube/notation/NotationOutput.res). TypeScript
+consumers import its generated genType wrapper; ReScript builds it before the
+TypeScript and Vite steps. Orbit64 and the rest of the cube core remain
+TypeScript in `src/cube/`.
+
 ## Profiles and storage
 
 [`profileSettings.ts`](../src/client/profileSettings.ts) separates cube size

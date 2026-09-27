@@ -5,7 +5,7 @@
 // takes the same zip back.
 
 import { strFromU8, strToU8, unzipSync, zipSync } from 'fflate'
-import { wrgFaceletsToGrids } from '../cube/notation/notationOutput'
+import { wrgFaceletsToGrids } from '../cube/notation/NotationOutput.gen'
 
 export interface FixtureRequest {
   name?: string
