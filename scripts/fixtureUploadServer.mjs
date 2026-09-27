@@ -1,10 +1,12 @@
 import { createServer } from 'node:http'
+import { readFileSync } from 'node:fs'
 import { mkdir, rm, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const FACES = ['u', 'r', 'f', 'd', 'l', 'b']
 const MAX_BYTES = 30 * 1024 * 1024
+const FAVICON = readFileSync(new URL('../public/favicon.svg', import.meta.url))
 // The published app may upload here too. Loopback pages (the Vite dev server,
 // a local preview) are always allowed; any other site is refused.
 export const DEFAULT_ALLOWED_ORIGINS = ['https://wstein.github.io']
@@ -146,6 +148,7 @@ function statusPage(rootDir, allowedOrigins) {
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Fixture upload server</title>
+<link rel="icon" type="image/svg+xml" href="/favicon.svg">
 <style>
   :root { color-scheme: light dark; --bg: #fafaf7; --fg: #1d1d1b; --muted: #5f5f5a; --ok: #1f7a3a; --card: #fff; --line: #e3e3dd; }
   @media (prefers-color-scheme: dark) { :root { --bg: #151514; --fg: #ededea; --muted: #a3a39d; --ok: #5cc27d; --card: #1f1f1d; --line: #33332f; } }
@@ -239,11 +242,21 @@ export function createFixtureUploadServer(
         'Content-Type': 'text/html; charset=utf-8',
         'Cache-Control': 'no-store',
         'Content-Security-Policy':
-          "default-src 'none'; style-src 'unsafe-inline'; frame-ancestors 'none'",
+          "default-src 'none'; style-src 'unsafe-inline'; img-src 'self'; frame-ancestors 'none'",
         'X-Content-Type-Options': 'nosniff',
       })
       res.end(statusPage(rootDir, allowedOrigins))
       return trace(200, 'status page')
+    }
+    if (req.url === '/favicon.svg') {
+      if (req.method !== 'GET') return send(405, 'Method not allowed')
+      res.writeHead(200, {
+        'Content-Type': 'image/svg+xml',
+        'Cache-Control': 'no-store',
+        'X-Content-Type-Options': 'nosniff',
+      })
+      res.end(FAVICON)
+      return trace(200, 'favicon')
     }
     if (req.url === '/ping') {
       if (req.method !== 'GET') return send(405, 'Method not allowed')

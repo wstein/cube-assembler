@@ -223,4 +223,26 @@ describe('local fixture upload server', () => {
     expect(html).not.toContain('secret-name')
     expect((await fetch(`${url}/`, { method: 'POST' })).status).toBe(405)
   })
+
+  it('serves the app favicon on the status page without exposing fixtures', async () => {
+    await start()
+    const page = await fetch(`${url}/`)
+    const html = await page.text()
+    expect(html).toContain(
+      '<link rel="icon" type="image/svg+xml" href="/favicon.svg">',
+    )
+    expect(page.headers.get('content-security-policy')).toContain(
+      "img-src 'self'",
+    )
+    const icon = await fetch(`${url}/favicon.svg`)
+    expect(icon.status).toBe(200)
+    expect(icon.headers.get('content-type')).toBe('image/svg+xml')
+    expect(await icon.text()).toBe(
+      await readFile(join(__dirname, '../public/favicon.svg'), 'utf8'),
+    )
+    expect((await fetch(`${url}/favicon.svg`, { method: 'POST' })).status).toBe(
+      405,
+    )
+    expect((await fetch(`${url}/face-u.jpg`)).status).toBe(404)
+  })
 })
