@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
-  AVERAGE_LIMIT_FRACTION, colorDeletionEffects, colorDifferences, deleteColorProfiles, groupDifferences, groupSimilarProfiles, withinMergeLimit, mergeColorProfiles, mergedColors, unusedColorProfiles, profileDistance, whiteBalancedColors,
+  AVERAGE_LIMIT_FRACTION, colorDeletionEffects, colorDifferences, deleteColorProfiles, groupDifferences, groupSimilarProfiles, withinMergeLimit, mergeColorProfiles, mergedColors, profileDistance, splitColorLevel, unusedColorProfiles, whiteBalancedColors,
 } from '../src/client/colorProfileReview'
 import { AUTO_COLORS_ID, EMPTY_SETTINGS, GENERIC_COLORS_ID, type ColorProfile, type ProfileSettings } from '../src/client/profileSettings'
 import type { RGB } from '../src/client/imageProcessing'
@@ -17,6 +17,15 @@ const PASTEL = { W: rgb(228, 230, 236), Y: rgb(242, 232, 115), O: rgb(244, 142, 
 
 const settings = (colors: ColorProfile[], extra: Partial<ProfileSettings> = {}): ProfileSettings =>
   ({ ...EMPTY_SETTINGS, colors, ...extra })
+
+describe('A/B swatch difference labels', () => {
+  it('calls only ΔE below 3 the same', () => {
+    expect(splitColorLevel(2.9)).toEqual(['ok', 'same'])
+    expect(splitColorLevel(3)).toEqual(['warn', 'slightly different'])
+    expect(splitColorLevel(4.7)).toEqual(['warn', 'slightly different'])
+    expect(splitColorLevel(12)).toEqual(['bad', 'different'])
+  })
+})
 
 describe('whiteBalancedColors', () => {
   it('makes White neutral and keeps the other colors relative to it', () => {

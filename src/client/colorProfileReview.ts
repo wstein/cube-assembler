@@ -12,6 +12,12 @@ const HUED_KEYS = ['Y', 'O', 'R', 'G', 'B']
 // Balanced White: a neutral grey at 90% of full linear brightness.
 const BALANCED_WHITE = 0.9
 
+// Labels for one A/B sticker swatch. Keep this visual threshold separate
+// from the stricter profile merge gate.
+export function splitColorLevel(deltaE: number): ['ok' | 'warn' | 'bad', string] {
+  return deltaE < 3 ? ['ok', 'same'] : deltaE < 12 ? ['warn', 'slightly different'] : ['bad', 'different']
+}
+
 const toLinear = (c: RGB) => [srgbChannelToLinear(c.r), srgbChannelToLinear(c.g), srgbChannelToLinear(c.b)]
 const luminance = ([r, g, b]: number[]) => 0.2126 * r + 0.7152 * g + 0.0722 * b
 

@@ -4,7 +4,7 @@
 import { useMemo, useState } from 'preact/hooks'
 import {
   AVERAGE_LIMIT_FRACTION, colorDeletionEffects, deleteColorProfiles, groupDifferences, groupSimilarProfiles, mergeColorProfiles, mergedColors,
-  unusedColorProfiles,
+  splitColorLevel, unusedColorProfiles,
   whiteBalancedColors,
 } from './colorProfileReview'
 import { DeleteButton, SelectionBar } from './profileDeletion'
@@ -336,11 +336,11 @@ export function ColorReviewTab({ settings, onChange, capture }: Props) {
 
       <section class="card color-review-section" aria-labelledby="review-split">
         <h2 id="review-split">A next to B</h2>
-        <p class="color-review-muted">Left half A, right half B. ΔE is the OKLab distance × 100: under 5 is hard to tell apart, over 12 is a clearly different color.</p>
+        <p class="color-review-muted">Left half A, right half B. ΔE is the OKLab distance × 100: under 3 is the same, 3–12 is slightly different, and 12 or more is different.</p>
         <div class="color-review-splits">
           {ORDER.map((k) => {
             const d = deltaE(colorsA[k], colorsB[k])
-            const [level, word] = d < 5 ? ['ok', 'same'] : d < 12 ? ['warn', 'slightly different'] : ['bad', 'different']
+            const [level, word] = splitColorLevel(d)
             return (
               <div class="color-review-split" key={k}>
                 <div class="color-review-plate">
