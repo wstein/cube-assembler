@@ -74,10 +74,7 @@ describe('photo uploads', () => {
     expect(photoReadModes('camera.jpg', 'cropped')).toEqual(['cropped'])
     expect(photoReadModes('face-u.jpg', 'full')).toEqual(['aligned'])
     expect(photoReadModes('camera.jpg', 'full', 'guide')).toEqual(['fixed'])
-    expect(photoReadModes('camera.jpg', 'auto', 'guide')).toEqual([
-      'fixed',
-      'cropped',
-    ])
+    expect(photoReadModes('camera.jpg', 'auto', 'guide')).toEqual(['fixed'])
     expect(photoReadModes('face-u.jpg', 'auto', 'guide')).toEqual(['cropped'])
   })
 })

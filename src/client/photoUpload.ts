@@ -29,7 +29,7 @@ export function photoReadModes(
   const fullPhotoGeometry = captureMode === 'guide' ? 'fixed' : 'aligned'
   if (mode === 'cropped' || (mode === 'auto' && isNamedFaceCrop(name)))
     return ['cropped']
-  if (mode === 'full') return [fullPhotoGeometry]
+  if (mode === 'full' || captureMode === 'guide') return [fullPhotoGeometry]
   return [fullPhotoGeometry, 'cropped']
 }
 
