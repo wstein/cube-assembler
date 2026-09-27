@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest'
-import { AUTO_CAPTURE_COOKIE, MIRROR_COOKIE, SOUND_COOKIE, preferenceCookie, readPreference } from '../src/client/preferences'
+import {
+  AUTO_CAPTURE_COOKIE,
+  MIRROR_COOKIE,
+  SOUND_COOKIE,
+  preferenceCookie,
+  readPreference,
+} from '../src/client/preferences'
 
 describe('preference cookies', () => {
   it('are off without a cookie', () => {
@@ -17,11 +23,17 @@ describe('preference cookies', () => {
   })
 
   it('store a choice as a first-party cookie for a year', () => {
-    expect(preferenceCookie(MIRROR_COOKIE, true)).toBe(`${MIRROR_COOKIE}=1; Max-Age=31536000; Path=/; SameSite=Lax`)
-    expect(preferenceCookie(SOUND_COOKIE, false)).toBe(`${SOUND_COOKIE}=0; Max-Age=31536000; Path=/; SameSite=Lax`)
+    expect(preferenceCookie(MIRROR_COOKIE, true)).toBe(
+      `${MIRROR_COOKIE}=1; Max-Age=31536000; Path=/; SameSite=Lax`,
+    )
+    expect(preferenceCookie(SOUND_COOKIE, false)).toBe(
+      `${SOUND_COOKIE}=0; Max-Age=31536000; Path=/; SameSite=Lax`,
+    )
   })
 
   it('have distinct names', () => {
-    expect(new Set([MIRROR_COOKIE, AUTO_CAPTURE_COOKIE, SOUND_COOKIE]).size).toBe(3)
+    expect(
+      new Set([MIRROR_COOKIE, AUTO_CAPTURE_COOKIE, SOUND_COOKIE]).size,
+    ).toBe(3)
   })
 })
