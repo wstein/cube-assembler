@@ -1998,7 +1998,7 @@ function App() {
       if (!newCube) {
         alert(
           isOrbit64Token
-            ? 'Invalid Orbit64 state token. Only canonical 2×2–5×5 state tokens are supported.'
+            ? 'Invalid Orbit64 state token. Only canonical 2×2–7×7 state tokens are supported.'
             : effectiveFormat === 'wrg'
               ? 'Invalid facelets. Must be 6 space-separated blocks of equal, perfect-square length (9 for 3×3, 25 for 5×5, ...) using colors W, O, G, R, B, Y, in U R F D L B order.'
               : 'Invalid facelets. Must be 6 space-separated blocks of equal, perfect-square length (9 for 3×3, 25 for 5×5, ...) using letters U, R, F, D, L, B (the face each sticker matches when solved), in U R F D L B order.',
@@ -3328,7 +3328,7 @@ function App() {
   }
   const currentOrbit64Token = useMemo(
     () =>
-      cube && puzzleSize <= 5 ? encodeOrbit64State(toURFFacelets(cube)) : null,
+      cube && puzzleSize <= 7 ? encodeOrbit64State(toURFFacelets(cube)) : null,
     [cube, puzzleSize],
   )
 
@@ -3824,15 +3824,14 @@ function App() {
             )}
             {cube && !currentOrbit64Token && (
               <p class="notation-hint">
-                {puzzleSize > 5
-                  ? 'Orbit64 has no 6×6 or 7×7 facelet mapping yet, so no state token can be exported.'
-                  : 'Orbit64 token unavailable until the facelets form a valid cube state.'}
+                Orbit64 token unavailable until the facelets form a valid cube
+                state.
               </p>
             )}
             <p class="notation-hint">
               {notationFormat === 'wrg'
                 ? `6 blocks of ${puzzleSize * puzzleSize} colors (W O G R B Y) in U R F D L B order.`
-                : `6 blocks of ${puzzleSize * puzzleSize} face letters (U R F D L B) in U R F D L B order; compatible with Orbit64 facelet interchange for 2×2–5×5.`}
+                : `6 blocks of ${puzzleSize * puzzleSize} face letters (U R F D L B) in U R F D L B order; compatible with Orbit64 facelet interchange for 2×2–7×7.`}
             </p>
             {fixtureSaveMessage && (
               <div
@@ -4124,7 +4123,7 @@ function App() {
                   {notationFormat === 'wrg'
                     ? `Enter WRG facelets: 6 blocks of ${puzzleSize * puzzleSize} colors (W, O, G, R, B, Y), space-separated, in U R F D L B order`
                     : `Enter URF facelets: 6 blocks of ${puzzleSize * puzzleSize} letters (U, R, F, D, L, B - the face each sticker's color matches when solved), space-separated, in U R F D L B order`}{' '}
-                  You can also paste an Orbit64 2×2–5×5 state token.
+                  You can also paste an Orbit64 2×2–7×7 state token.
                 </label>
                 <textarea
                   value={manualColorInput}
