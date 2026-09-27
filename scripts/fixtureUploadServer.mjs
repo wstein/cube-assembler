@@ -6,7 +6,9 @@ import { fileURLToPath } from 'node:url'
 
 const FACES = ['u', 'r', 'f', 'd', 'l', 'b']
 const MAX_BYTES = 30 * 1024 * 1024
-const FAVICON = readFileSync(new URL('../public/favicon.svg', import.meta.url))
+const FAVICON = readFileSync(
+  new URL('./fixtureUploadFavicon.svg', import.meta.url),
+)
 // The published app may upload here too. Loopback pages (the Vite dev server,
 // a local preview) are always allowed; any other site is refused.
 export const DEFAULT_ALLOWED_ORIGINS = ['https://wstein.github.io']
