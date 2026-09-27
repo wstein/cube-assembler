@@ -11,18 +11,18 @@ Reader guides live in `docs/`; use `CONTRIBUTING.md` for setup and deployment, a
 ## Build, Test, and Development Commands
 
 - `npm install` installs dependencies.
-- `npm run dev` starts the Vite dev server.
+- `npm run dev` builds ReScript, then runs its watcher alongside Vite.
 - `npm run fixture:server` starts the optional localhost-only fixture upload server for the **Upload to localhost** action in the dev UI and the published app.
-- `npm run build` builds the client with Vite.
-- `npm run typecheck` checks strict TypeScript without emitting files.
-- `npm test` runs Vitest once; `npm run test:watch` reruns tests during edits.
+- `npm run build` builds ReScript before the Vite client.
+- `npm run typecheck` builds ReScript before checking strict TypeScript without emitting files.
+- `npm test` builds ReScript before running Vitest once; `npm run test:watch` reruns tests during edits.
 - `npm run test:e2e` runs the Playwright upload flow in Chromium; install its browser once with `npx playwright install chromium`.
 - `npm run lint` runs type-aware typescript-eslint, selected Biome checks, and ReScript compiler warnings as errors.
 - `npm run format:check` checks Biome and ReScript formatting; `npm run format` applies it.
 
 ## Coding Style & Naming Conventions
 
-Use two-space indentation, single quotes, and semicolons only when needed in TypeScript and TSX. Biome enforces formatting, explicit button types, and basic CSS correctness; `eslint.config.mjs` applies type-aware typescript-eslint rules. ReScript formatting and warning checks are configured for future `.res` files; there are none currently. Name tests `<feature>.test.ts`. Keep geometry, color classification, capture state, and UI presentation in their existing modules rather than mixing them into components.
+Use two-space indentation, single quotes, and semicolons only when needed in TypeScript and TSX. Biome enforces formatting, explicit button types, and basic CSS correctness; `eslint.config.mjs` applies type-aware typescript-eslint rules. ReScript source belongs only in `src/cube/`; expose its public API through `.resi` and `@genType`, and import the generated `.gen.tsx` wrapper from TypeScript. The generated `.res.mjs` and `.gen.tsx` files are ignored and rebuilt before TypeScript, Vite, and Vitest; do not edit or commit them. Other client modules remain TypeScript. Name tests `<feature>.test.ts`. Keep geometry, color classification, capture state, and UI presentation in their existing modules rather than mixing them into components.
 
 ## Testing Guidelines
 
