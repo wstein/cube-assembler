@@ -127,10 +127,12 @@ export function srgbChannelToLinear(c: number): number {
 // Internal Cartesian form - what colorDistance actually computes in.
 // Matrices per Ottosson's OKLab reference (https://bottosson.github.io/posts/oklab/).
 export function rgbToOklab(rgb: RGB): Oklab {
-  const r = srgbChannelToLinear(rgb.r)
-  const g = srgbChannelToLinear(rgb.g)
-  const b = srgbChannelToLinear(rgb.b)
+  return linearRgbToOklab(srgbChannelToLinear(rgb.r), srgbChannelToLinear(rgb.g), srgbChannelToLinear(rgb.b))
+}
 
+// The same from linear-light channels, which may exceed 1 (a color scaled
+// past what sRGB can store, see balancedPaletteDistance).
+export function linearRgbToOklab(r: number, g: number, b: number): Oklab {
   const l_ = Math.cbrt(0.4122214708 * r + 0.5363325363 * g + 0.0514459929 * b)
   const m_ = Math.cbrt(0.2119034982 * r + 0.6806995451 * g + 0.1073969566 * b)
   const s_ = Math.cbrt(0.0883024619 * r + 0.2817188376 * g + 0.6299787005 * b)
@@ -284,7 +286,7 @@ export function linearRange(values: number[]): LinearRange | null {
 const CLUSTER_L_WEIGHT = 0.6
 const CLUSTER_CHROMA_THRESHOLD = 0.07
 
-function clusterOklabDistance(o1: Oklab, o2: Oklab): number {
+export function clusterOklabDistance(o1: Oklab, o2: Oklab): number {
   const chroma1 = Math.sqrt(o1.a * o1.a + o1.b * o1.b)
   const chroma2 = Math.sqrt(o2.a * o2.a + o2.b * o2.b)
   // Either point being low-chroma is enough to make hue unreliable FOR

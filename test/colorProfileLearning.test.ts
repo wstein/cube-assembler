@@ -1,11 +1,15 @@
 import { describe, expect, it } from 'vitest'
-import { paletteDistance, STICKER_COLORS } from '../src/client/imageProcessing'
-import { assessPalette, blendColorProfile, canCreateProfileFromCapture, captureProfileFinding, matchColorProfile, matchPartialColorProfile, profileColorFitPercent, profileToUpdate, resolveAutomaticProfile, shouldBlendColorProfile, summarizePreviewProfiles, updateProfileFromCapture } from '../src/client/colorProfileLearning'
+import { STICKER_COLORS } from '../src/client/imageProcessing'
+import { assessPalette, balancedPaletteDistance, blendColorProfile, canCreateProfileFromCapture, captureProfileFinding, matchColorProfile, matchPartialColorProfile, profileColorFitPercent, profileToUpdate, resolveAutomaticProfile, shouldBlendColorProfile, summarizePreviewProfiles, updateProfileFromCapture } from '../src/client/colorProfileLearning'
 import { genericColorProfile, type ColorProfile } from '../src/client/profileSettings'
+import { mergedColors } from '../src/client/colorProfileReview'
 
 const base: ColorProfile = { id: 'base', name: 'Base', colors: STICKER_COLORS, captures: 4 }
+// Stickers a little different, White unchanged: Automatic compares colors
+// balanced on White (see balancedPaletteDistance), so a shift that also
+// moves White is only a change of light.
 const shifted = Object.fromEntries(Object.entries(STICKER_COLORS).map(([key, color]) =>
-  [key, { ...color, r: Math.max(0, color.r - 5) }])) as typeof STICKER_COLORS
+  [key, key === 'W' ? color : { ...color, r: Math.max(0, color.r - 5) }])) as typeof STICKER_COLORS
 
 describe('color profile learning', () => {
   it('allows a new profile from any strong reviewed camera capture, even one that matched a saved profile', () => {
@@ -29,8 +33,8 @@ describe('color profile learning', () => {
     expect(first.captures).toBe(1)
     const later = blendColorProfile(base, shifted, '2026-09-26T00:00:00.000Z')
     expect(later.captures).toBe(5)
-    expect(later.colors.W.r).toBeLessThan(base.colors.W.r)
-    expect(later.colors.W.r).toBeGreaterThan(shifted.W.r)
+    expect(later.colors.R.r).toBeLessThan(base.colors.R.r)
+    expect(later.colors.R.r).toBeGreaterThan(shifted.R.r)
   })
 
   it('never blends into an existing profile while Automatic colors is selected', () => {
@@ -43,7 +47,7 @@ describe('color profile learning', () => {
     const evidence = { reviewedValid: true, cameraOnly: true, recalibrated: true, confidentFraction: 1, correctedFraction: 0 }
     const updated = updateProfileFromCapture(base, shifted, evidence, '2026-09-26T00:00:00.000Z')
     expect(updated?.captures).toBe(base.captures + 1)
-    expect(updated?.colors.W.r).toBeLessThan(base.colors.W.r)
+    expect(updated?.colors.R.r).toBeLessThan(base.colors.R.r)
     expect(base.captures).toBe(4)
     expect(updateProfileFromCapture(base, shifted, { ...evidence, confidentFraction: 0.7 }, '2026-09-26T00:00:00.000Z')).toBeNull()
   })
@@ -109,7 +113,7 @@ describe('resolving the automatic profile after all six faces', () => {
     [key, { r: 255 - color.r, g: 255 - color.g, b: 255 - color.b }])) as typeof STICKER_COLORS }
   // Between the two plastic profiles, a little nearer plastic2: no clear lead.
   const between = Object.fromEntries(Object.entries(STICKER_COLORS).map(([key, color]) =>
-    [key, { ...color, r: Math.max(0, color.r - 3) }])) as typeof STICKER_COLORS
+    [key, key === 'W' ? color : { ...color, r: Math.max(0, color.r - 3) }])) as typeof STICKER_COLORS
 
   it('takes a clear match as before', () => {
     const result = resolveAutomaticProfile([plastic1, far], shifted, null)
@@ -119,11 +123,11 @@ describe('resolving the automatic profile after all six faces', () => {
 
   it('finds a clear match when only the nearest profile is close enough', () => {
     const altered = (amount: number) => Object.fromEntries(Object.entries(STICKER_COLORS).map(([key, color]) =>
-      [key, { ...color, r: Math.max(0, color.r - amount), g: Math.max(0, color.g - amount), b: Math.max(0, color.b - amount) }])) as typeof STICKER_COLORS
+      [key, key === 'W' ? color : { ...color, r: Math.max(0, color.r - amount), g: Math.max(0, color.g - amount), b: Math.max(0, color.b - amount) }])) as typeof STICKER_COLORS
     const nearestColors = Array.from({ length: 200 }, (_, amount) => altered(amount))
-      .find((colors) => paletteDistance(colors, STICKER_COLORS) > 0.03 && paletteDistance(colors, STICKER_COLORS) < 0.04)!
+      .find((colors) => balancedPaletteDistance(colors, STICKER_COLORS) > 0.03 && balancedPaletteDistance(colors, STICKER_COLORS) < 0.04)!
     const otherColors = Array.from({ length: 200 }, (_, amount) => altered(amount))
-      .find((colors) => paletteDistance(colors, STICKER_COLORS) > 0.045 && paletteDistance(colors, STICKER_COLORS) < 0.06)!
+      .find((colors) => balancedPaletteDistance(colors, STICKER_COLORS) > 0.045 && balancedPaletteDistance(colors, STICKER_COLORS) < 0.06)!
     const nearest = { ...plastic1, colors: nearestColors }
     const other = { ...plastic2, colors: otherColors }
     expect(nearestColors).toBeDefined()
@@ -134,10 +138,10 @@ describe('resolving the automatic profile after all six faces', () => {
 
   it('does not call a narrow threshold crossing a clear lead', () => {
     const altered = (amount: number) => Object.fromEntries(Object.entries(STICKER_COLORS).map(([key, color]) =>
-      [key, { ...color, r: Math.max(0, color.r - amount), g: Math.max(0, color.g - amount), b: Math.max(0, color.b - amount) }])) as typeof STICKER_COLORS
+      [key, key === 'W' ? color : { ...color, r: Math.max(0, color.r - amount), g: Math.max(0, color.g - amount), b: Math.max(0, color.b - amount) }])) as typeof STICKER_COLORS
     const palettes = Array.from({ length: 200 }, (_, amount) => altered(amount))
-    const near = palettes.find((colors) => paletteDistance(colors, STICKER_COLORS) > 0.038 && paletteDistance(colors, STICKER_COLORS) < 0.04)!
-    const other = palettes.find((colors) => paletteDistance(colors, STICKER_COLORS) > 0.04 && paletteDistance(colors, STICKER_COLORS) < 0.043)!
+    const near = palettes.find((colors) => balancedPaletteDistance(colors, STICKER_COLORS) > 0.038 && balancedPaletteDistance(colors, STICKER_COLORS) < 0.04)!
+    const other = palettes.find((colors) => balancedPaletteDistance(colors, STICKER_COLORS) > 0.04 && balancedPaletteDistance(colors, STICKER_COLORS) < 0.043)!
     expect(near).toBeDefined()
     expect(other).toBeDefined()
     expect(matchColorProfile([{ ...plastic1, colors: near }, { ...plastic2, colors: other }], STICKER_COLORS)).toBeNull()
@@ -163,6 +167,22 @@ describe('resolving the automatic profile after all six faces', () => {
     expect(result.profile?.id).toBe('plastic1')
     expect(result.reason).toBe('nearest')
     expect(plastic1.colors).toEqual(STICKER_COLORS)
+  })
+
+  // Capture 2026-09-27T00-50-46's learned colors: bluish White, as captures
+  // are. Merging profiles balances them on their own White (see
+  // mergedColors), so a merged profile of the same stickers has a grey White.
+  const capture = {
+    W: { r: 177, g: 211, b: 255 }, Y: { r: 190, g: 232, b: 86 }, O: { r: 237, g: 105, b: 71 },
+    R: { r: 202, g: 44, b: 73 }, G: { r: 0, g: 166, b: 108 }, B: { r: 3, g: 74, b: 229 },
+  }
+
+  it('matches a merged profile of the same stickers despite its grey White', () => {
+    const merged: ColorProfile = { id: 'merged', name: 'matte', colors: mergedColors([{ colors: capture }]), captures: 4 }
+    expect(merged.colors.W.r).toBe(merged.colors.W.b)
+    const result = resolveAutomaticProfile([merged, far], capture, null)
+    expect(result).toMatchObject({ profile: { id: 'merged' }, reason: 'clear' })
+    expect(result.nearest[0].fit).toBeGreaterThanOrEqual(90)
   })
 
   it('says when no saved profile is close', () => {

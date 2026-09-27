@@ -1,4 +1,4 @@
-import { oklabToRgb, paletteDistance, rgbToOklab, type RGB } from './imageProcessing'
+import { clusterOklabDistance, linearRgbToOklab, oklabToRgb, paletteDistance, rgbToOklab, srgbChannelToLinear, type Oklab, type RGB } from './imageProcessing'
 import { AUTO_COLORS_ID, GENERIC_COLORS_ID, type ColorProfile } from './profileSettings'
 
 const COLOR_KEYS = ['W', 'Y', 'O', 'R', 'G', 'B']
@@ -57,9 +57,33 @@ export function updateProfileFromCapture(profile: ColorProfile, measured: Record
     ? blendColorProfile(profile, measured, updatedAt) : null
 }
 
+// How far a saved profile is from a capture's colors, both balanced on their
+// own White first, as the profiles page compares them: a merged profile has
+// a grey White (see mergedColors) while captures keep the room's tint, so
+// raw colors kept a merged profile of the same stickers from ever matching.
+// The mean over the five colored stickers; White is equal once balanced.
+// Balanced in linear light without clamping: under a bluish White an orange's
+// red runs past full scale, and clipping it would hide real differences.
+export function balancedPaletteDistance(profile: Record<string, RGB>, measured: Record<string, RGB>): number {
+  const p = balancedOklab(profile), q = balancedOklab(measured)
+  const hued = COLOR_KEYS.filter((key) => key !== 'W' && p[key] && q[key])
+  return hued.length ? hued.reduce((sum, key) => sum + clusterOklabDistance(p[key], q[key]), 0) / hued.length : Infinity
+}
+
+// Each color scaled per channel so White becomes a neutral grey at 90%
+// linear brightness (as whiteBalancedColors does), in OKLab.
+function balancedOklab(colors: Record<string, RGB>): Record<string, Oklab> {
+  const linear = (c: RGB) => [srgbChannelToLinear(c.r), srgbChannelToLinear(c.g), srgbChannelToLinear(c.b)]
+  const white = linear(colors.W).map((v) => Math.max(v, 1e-4))
+  return Object.fromEntries(Object.entries(colors).map(([key, color]) => {
+    const [r, g, b] = linear(color).map((v, i) => v / white[i] * 0.9)
+    return [key, linearRgbToOklab(r, g, b)]
+  }))
+}
+
 export function matchColorProfile(profiles: ColorProfile[], measured: Record<string, RGB>): ColorProfile | null {
   const ranked = profiles.filter((profile) => profile.captures > 0)
-    .map((profile) => ({ profile, distance: paletteDistance(profile.colors, measured) }))
+    .map((profile) => ({ profile, distance: balancedPaletteDistance(profile.colors, measured) }))
     .sort((a, b) => a.distance - b.distance)
   const best = ranked[0]
   const second = ranked[1]?.distance ?? Infinity
@@ -92,7 +116,7 @@ export function matchPartialColorProfile(profiles: ColorProfile[], samples: RGB[
 // physical cube has a particular brand. The 0.08 scale is the existing
 // maximum mean distance allowed when updating a saved profile.
 export function profileColorFitPercent(profile: Record<string, RGB>, measured: Record<string, RGB>): number {
-  return Math.round(100 * Math.max(0, Math.min(1, 1 - paletteDistance(profile, measured) / 0.08)))
+  return Math.round(100 * Math.max(0, Math.min(1, 1 - balancedPaletteDistance(profile, measured) / 0.08)))
 }
 
 // Largest mean distance at which a saved profile still counts as close to
@@ -115,7 +139,7 @@ export interface AutomaticResolution {
 // is used even when several saved palettes resemble one another.
 export function resolveAutomaticProfile(profiles: ColorProfile[], measured: Record<string, RGB>, previewId: string | null): AutomaticResolution {
   const ranked = profiles.filter((profile) => profile.captures > 0)
-    .map((profile) => ({ profile, distance: paletteDistance(profile.colors, measured) }))
+    .map((profile) => ({ profile, distance: balancedPaletteDistance(profile.colors, measured) }))
     .sort((a, b) => a.distance - b.distance)
   const nearest = ranked.slice(0, 3).map(({ profile }) => ({ profile, fit: profileColorFitPercent(profile.colors, measured) }))
   const best = ranked[0]
