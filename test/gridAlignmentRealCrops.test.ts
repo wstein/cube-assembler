@@ -209,7 +209,10 @@ function read(
   for (let y = 0; y < size; y++) {
     const sy = Math.min(width - 1, Math.max(0, y0 + y))
     crop.set(
-      data.subarray((sy * width + from) * 4, (sy * width + from) * 4 + copyWidth),
+      data.subarray(
+        (sy * width + from) * 4,
+        (sy * width + from) * 4 + copyWidth,
+      ),
       y * size * 4 + xOffset,
     )
   }

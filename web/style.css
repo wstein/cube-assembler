@@ -734,6 +734,21 @@ h3 {
   border-color: var(--color-accent);
 }
 
+.cube-3d-turn-pair {
+  display: inline-flex;
+}
+
+.cube-3d-turn-pair .cube-3d-btn:first-child {
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+  border-right-width: 0;
+}
+
+.cube-3d-turn-pair .cube-3d-btn:last-child {
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
+}
+
 .cube-3d-unsupported {
   padding: var(--spacing-xl);
   text-align: center;
