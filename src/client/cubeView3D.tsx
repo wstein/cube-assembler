@@ -144,7 +144,7 @@ export function buildCubeMesh(
   ) {
     const s = H - r
     const d = r * 0.4 // corner fillet for internal 4-way intersections
-    const miter = r * 0.45 // outer edge and corner bevel miter
+    const miter = r * 0.9 // outer edge and corner bevel miter (doubled outside fase)
     const hNorm = H + elevation
     const zOuter = hNorm - r * 0.6
     const zSkirt = hNorm - 0.12
