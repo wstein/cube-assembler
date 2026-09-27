@@ -31,6 +31,8 @@ export interface Fixture {
 }
 
 const REQUIRED_FACES = ['u', 'r', 'f', 'd', 'l', 'b']
+const FIXTURE_META_SCHEMA_URL =
+  'https://wstein.github.io/cube-assembler/schemas/fixture-meta.schema.json'
 
 function dataUrlBytes(base64: string): Uint8Array {
   const binary = atob(base64)
@@ -92,6 +94,7 @@ export function buildFixture(
     faces[faceKey] = { photo, ...extra }
   }
   const meta = {
+    $schema: FIXTURE_META_SCHEMA_URL,
     gridSize: request.gridSize,
     colorsURFDLB: request.colorsURFDLB,
     ...(request.detectedURFDLB !== undefined
