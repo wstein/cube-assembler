@@ -345,10 +345,13 @@ function searchUpright(
   const rows = profile(data, width, height, false, guide.x + guide.size * 0.2, guide.x + guide.size * 0.8, turn, lines)
   const layouts = outerRatios(gridSize).map((outer) => ({ outer, edges: cellEdges(gridSize, outer) }))
   // The guide as it is, with its best-fitting outer-cell ratio.
-  let stay = { score: -Infinity, outer: 1 }
+  // It counts as a grid only with its lines on seams, as a moved square
+  // must: a 2x2 outline's edges alone scored enough with no inner seam.
+  let stay = { score: -Infinity, outer: 1, onSeams: false }
   for (const { outer, edges } of layouts) {
-    const score = (axisScore(columns, guide.x, guide.size, gridSize, edges).score + axisScore(rows, guide.y, guide.size, gridSize, edges).score) / 2
-    if (score > stay.score) stay = { score, outer }
+    const x = axisScore(columns, guide.x, guide.size, gridSize, edges), y = axisScore(rows, guide.y, guide.size, gridSize, edges)
+    const score = (x.score + y.score) / 2
+    if (score > stay.score) stay = { score, outer, onSeams: x.onSeams >= MIN_LINES_ON_SEAMS && y.onSeams >= MIN_LINES_ON_SEAMS }
   }
 
   // Offsets stay under half of the narrowest (inner) cell.
@@ -376,7 +379,7 @@ function searchUpright(
   }
 
   if (!best.aligned || best.score < MIN_SEAM_SCORE || best.score - stay.score < MIN_IMPROVEMENT) {
-    const seams = stay.score >= MIN_SEAM_SCORE
+    const seams = stay.score >= MIN_SEAM_SCORE && stay.onSeams
     return { ...guide, score: stay.score, aligned: false, seams, outer: seams ? stay.outer : 1 }
   }
   return { ...best, seams: true }
