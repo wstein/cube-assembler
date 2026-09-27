@@ -72,7 +72,7 @@ describe('local fixture upload server', () => {
     expect(await readdir(root!)).toEqual([])
     const response = await upload(fixtureForm())
     expect(response.status).toBe(201)
-    expect(await readdir(join(root!, 'capture-test'))).toEqual([
+    expect((await readdir(join(root!, 'capture-test'))).sort()).toEqual([
       'face-b.jpg',
       'face-d.jpg',
       'face-f.jpg',
