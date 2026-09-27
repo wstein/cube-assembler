@@ -4,7 +4,11 @@
 // frame), analyzed, and handed back with its result - so the page can
 // capture from exactly the frame the detection judged.
 
-import { analyzeLiveFrame, type LiveAnalysis, type LiveAnalysisRequest } from './liveAnalysis'
+import {
+  analyzeLiveFrame,
+  type LiveAnalysis,
+  type LiveAnalysisRequest,
+} from './liveAnalysis'
 
 export interface LiveFrameMessage {
   id: number
@@ -27,15 +31,26 @@ self.onmessage = (event: MessageEvent<LiveFrameMessage>) => {
   let message: LiveResultMessage
   try {
     const scale = Math.min(1, maxHeight / frame.height)
-    const width = Math.round(frame.width * scale), height = Math.round(frame.height * scale)
-    if (!canvas || canvas.width !== width || canvas.height !== height) canvas = new OffscreenCanvas(width, height)
+    const width = Math.round(frame.width * scale),
+      height = Math.round(frame.height * scale)
+    if (!canvas || canvas.width !== width || canvas.height !== height)
+      canvas = new OffscreenCanvas(width, height)
     const ctx = canvas.getContext('2d', { willReadFrequently: true })
     if (!ctx) throw new Error('No 2D context in the worker')
     ctx.drawImage(frame, 0, 0, width, height)
     const { data } = ctx.getImageData(0, 0, width, height)
-    message = { id, frame, scale, result: analyzeLiveFrame(data, width, height, request) }
+    message = {
+      id,
+      frame,
+      scale,
+      result: analyzeLiveFrame(data, width, height, request),
+    }
   } catch (error) {
-    message = { id, frame, error: error instanceof Error ? error.message : String(error) }
+    message = {
+      id,
+      frame,
+      error: error instanceof Error ? error.message : String(error),
+    }
   }
   self.postMessage(message, [frame])
 }

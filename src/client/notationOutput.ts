@@ -25,10 +25,26 @@ const FACE_ORDER = ['U', 'R', 'F', 'D', 'L', 'B'] as const
 // WCA solved-color <-> face-identity-letter mapping (U=White, R=Red,
 // F=Green, D=Yellow, L=Orange, B=Blue) - the same convention used
 // throughout the rest of this app (see SOLVED_FACE_COLOR in cubeAssembly.ts).
-const COLOR_TO_FACE_LETTER: Record<string, string> = { W: 'U', R: 'R', G: 'F', Y: 'D', O: 'L', B: 'B' }
-const FACE_LETTER_TO_COLOR: Record<string, string> = { U: 'W', R: 'R', F: 'G', D: 'Y', L: 'O', B: 'B' }
+const COLOR_TO_FACE_LETTER: Record<string, string> = {
+  W: 'U',
+  R: 'R',
+  G: 'F',
+  Y: 'D',
+  O: 'L',
+  B: 'B',
+}
+const FACE_LETTER_TO_COLOR: Record<string, string> = {
+  U: 'W',
+  R: 'R',
+  F: 'G',
+  D: 'Y',
+  L: 'O',
+  B: 'B',
+}
 
-function faceMap(cube: CubeState): Record<(typeof FACE_ORDER)[number], string[]> {
+function faceMap(
+  cube: CubeState,
+): Record<(typeof FACE_ORDER)[number], string[]> {
   return { U: cube.u, R: cube.r, F: cube.f, D: cube.d, L: cube.l, B: cube.b }
 }
 
@@ -41,7 +57,10 @@ function faceletsPerFace(totalLength: number): number | null {
   return Number.isInteger(Math.sqrt(perFace)) ? perFace : null
 }
 
-function toBlocks(cube: CubeState, letterFor: (color: string) => string): string {
+function toBlocks(
+  cube: CubeState,
+  letterFor: (color: string) => string,
+): string {
   const faces = faceMap(cube)
   return FACE_ORDER.map((face) => faces[face].map(letterFor).join('')).join(' ')
 }
@@ -50,12 +69,14 @@ function fromBlocks(
   input: string,
   validLetters: Set<string>,
   colorFor: (letter: string) => string,
-  formatLabel: string
+  formatLabel: string,
 ): CubeState | null {
   const facelets = input.trim().replace(/\s+/g, '')
   const perFace = faceletsPerFace(facelets.length)
   if (perFace === null) {
-    console.warn(`Invalid ${formatLabel} facelets string: length ${facelets.length} is not 6 perfect-square blocks`)
+    console.warn(
+      `Invalid ${formatLabel} facelets string: length ${facelets.length} is not 6 perfect-square blocks`,
+    )
     return null
   }
 
@@ -67,7 +88,9 @@ function fromBlocks(
   }
 
   const colors = [...facelets].map(colorFor)
-  const faces = FACE_ORDER.map((_, i) => colors.slice(i * perFace, (i + 1) * perFace))
+  const faces = FACE_ORDER.map((_, i) =>
+    colors.slice(i * perFace, (i + 1) * perFace),
+  )
   const [u, r, f, d, l, b] = faces
   return { u, r, f, d, l, b }
 }
@@ -88,17 +111,28 @@ export function fromWRGFacelets(input: string): CubeState | null {
 // readable line instead of six nested arrays.
 export function gridsToWRGFacelets(grids: Record<string, string[][]>): string {
   const face = (key: string) => grids[key].flat()
-  return toWRGFacelets({ u: face('U'), r: face('R'), f: face('F'), d: face('D'), l: face('L'), b: face('B') })
+  return toWRGFacelets({
+    u: face('U'),
+    r: face('R'),
+    f: face('F'),
+    d: face('D'),
+    l: face('L'),
+    b: face('B'),
+  })
 }
 
-export function wrgFaceletsToGrids(input: string): Record<string, string[][]> | null {
+export function wrgFaceletsToGrids(
+  input: string,
+): Record<string, string[][]> | null {
   const cube = fromWRGFacelets(input)
   if (!cube) return null
   const map = faceMap(cube)
   const n = Math.round(Math.sqrt(map.U.length))
   const grids: Record<string, string[][]> = {}
   for (const key of FACE_ORDER) {
-    grids[key] = Array.from({ length: n }, (_, r) => map[key].slice(r * n, (r + 1) * n))
+    grids[key] = Array.from({ length: n }, (_, r) =>
+      map[key].slice(r * n, (r + 1) * n),
+    )
   }
   return grids
 }
@@ -108,7 +142,12 @@ export function toURFFacelets(cube: CubeState): string {
 }
 
 export function fromURFFacelets(input: string): CubeState | null {
-  return fromBlocks(input.toUpperCase(), URF_LETTERS, (letter) => FACE_LETTER_TO_COLOR[letter], 'URF')
+  return fromBlocks(
+    input.toUpperCase(),
+    URF_LETTERS,
+    (letter) => FACE_LETTER_TO_COLOR[letter],
+    'URF',
+  )
 }
 
 // WRG's alphabet (WOGRBY) and URF's (URFDLB) share two letters (R, B), but

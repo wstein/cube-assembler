@@ -26,8 +26,22 @@ import { join } from 'node:path'
 import jpeg from 'jpeg-js'
 import { wrgFaceletsToGrids } from '../src/client/notationOutput'
 import { readFixtureColors } from '../src/client/fixtureFormat'
-import { solveGuidedCapture, orientationFreeSignature, type FaceKey } from '../src/client/cubeAssembly'
-import { BACKGROUND_WB_METHOD, DEFAULT_SAMPLING, STICKER_MEASUREMENT, classifyAcrossFaces, extractColorsFromImageData, NEUTRAL_GAINS, type ColorDetectionResult, type RGB, type SamplingGeometry } from '../src/client/imageProcessing'
+import {
+  solveGuidedCapture,
+  orientationFreeSignature,
+  type FaceKey,
+} from '../src/client/cubeAssembly'
+import {
+  BACKGROUND_WB_METHOD,
+  DEFAULT_SAMPLING,
+  STICKER_MEASUREMENT,
+  classifyAcrossFaces,
+  extractColorsFromImageData,
+  NEUTRAL_GAINS,
+  type ColorDetectionResult,
+  type RGB,
+  type SamplingGeometry,
+} from '../src/client/imageProcessing'
 
 const FIXTURES_DIR = join(__dirname, 'fixtures')
 const FACE_ORDER = ['u', 'r', 'f', 'd', 'l', 'b']
@@ -48,7 +62,10 @@ interface FixtureMeta {
   colorsURFDLB?: string
   // `readings`: what the browser measured for each sticker (row-major RGB,
   // after the face's gain) - absent on fixtures saved before it was recorded.
-  faces: Record<string, { photo: string; readings?: number[][]; colors?: string[][] }>
+  faces: Record<
+    string,
+    { photo: string; readings?: number[][]; colors?: string[][] }
+  >
   // Free-text labels a human can add by hand to meta.json (e.g. "pastel",
   // "office-lighting") - combined with tags auto-derived from `capture`
   // below so a cluster of failures under one condition is visible from
@@ -96,10 +113,13 @@ interface FixtureMeta {
 // needed for T2's "diagnose, don't just alarm" goal.
 function fixtureTags(meta: FixtureMeta): string[] {
   const tags = new Set(meta.tags ?? [])
-  if (meta.capture?.camera?.label) tags.add(`camera:${meta.capture.camera.label}`)
+  if (meta.capture?.camera?.label)
+    tags.add(`camera:${meta.capture.camera.label}`)
   if (meta.capture?.profile?.name) tags.add(`cube:${meta.capture.profile.name}`)
-  if (meta.capture?.whiteBalance?.mode) tags.add(`wb:${meta.capture.whiteBalance.mode}`)
-  if (meta.capture?.whiteBalance?.lightSource) tags.add(`light:${meta.capture.whiteBalance.lightSource}`)
+  if (meta.capture?.whiteBalance?.mode)
+    tags.add(`wb:${meta.capture.whiteBalance.mode}`)
+  if (meta.capture?.whiteBalance?.lightSource)
+    tags.add(`light:${meta.capture.whiteBalance.lightSource}`)
   return [...tags].sort()
 }
 
@@ -121,7 +141,9 @@ describe('real-capture regression fixtures', () => {
   }
 
   for (const name of fixtureNames) {
-    const meta: FixtureMeta = JSON.parse(readFileSync(join(FIXTURES_DIR, name, 'meta.json'), 'utf8'))
+    const meta: FixtureMeta = JSON.parse(
+      readFileSync(join(FIXTURES_DIR, name, 'meta.json'), 'utf8'),
+    )
     const tags = fixtureTags(meta)
     const tagSuffix = tags.length > 0 ? ` [${tags.join(', ')}]` : ''
     const title = meta.expectedFail
@@ -135,34 +157,66 @@ describe('real-capture regression fixtures', () => {
 
     runTest(title, () => {
       for (const faceKey of FACE_ORDER) {
-        expect(meta.faces[faceKey], `fixture "${name}" is missing face ${faceKey.toUpperCase()}`).toBeDefined()
+        expect(
+          meta.faces[faceKey],
+          `fixture "${name}" is missing face ${faceKey.toUpperCase()}`,
+        ).toBeDefined()
       }
       const expectedColors = readFixtureColors(meta)?.colors ?? null
-      expect(expectedColors, `fixture "${name}": colors missing or malformed`).not.toBeNull()
+      expect(
+        expectedColors,
+        `fixture "${name}": colors missing or malformed`,
+      ).not.toBeNull()
 
       const measured: Record<string, ColorDetectionResult> = {}
 
       for (const faceKey of FACE_ORDER) {
         const faceData = meta.faces[faceKey]
         const photoPath = join(FIXTURES_DIR, name, faceData.photo)
-        const decoded = jpeg.decode(readFileSync(photoPath), { useTArray: true })
+        const decoded = jpeg.decode(readFileSync(photoPath), {
+          useTArray: true,
+        })
         const pixelData = Uint8ClampedArray.from(decoded.data)
         // The recorded background gains, like the app, if made the current
         // way; older ones (relative to face 1, no gap to the cube) swapped
         // red and orange on real captures and aren't replayed.
-        const replayGains = meta.capture?.backgroundWhiteBalanceMethod === BACKGROUND_WB_METHOD
-        const gains = replayGains ? meta.capture!.backgroundWhiteBalance?.[faceKey.toUpperCase()] ?? NEUTRAL_GAINS : NEUTRAL_GAINS
+        const replayGains =
+          meta.capture?.backgroundWhiteBalanceMethod === BACKGROUND_WB_METHOD
+        const gains = replayGains
+          ? (meta.capture!.backgroundWhiteBalance?.[faceKey.toUpperCase()] ??
+            NEUTRAL_GAINS)
+          : NEUTRAL_GAINS
         const sampling = meta.capture?.sampling ?? DEFAULT_SAMPLING
-        const result = extractColorsFromImageData(pixelData, decoded.width, decoded.height, meta.gridSize, gains, sampling)
+        const result = extractColorsFromImageData(
+          pixelData,
+          decoded.width,
+          decoded.height,
+          meta.gridSize,
+          gains,
+          sampling,
+        )
 
         // Readings taken with a different measurement, or with background
         // gains that aren't replayed, can't be compared.
-        if (faceData.readings && meta.capture?.measurement === STICKER_MEASUREMENT && (replayGains || !meta.capture?.backgroundWhiteBalance)) {
-          const drift = Math.max(...result.cellColors.flat().map((rgb, i) => {
-            const [r, g, b] = faceData.readings![i]
-            return Math.max(Math.abs(rgb.r - r), Math.abs(rgb.g - g), Math.abs(rgb.b - b))
-          }))
-          expect(drift, `fixture "${name}", face ${faceKey.toUpperCase()}: sticker readings differ from the browser's by up to ${drift.toFixed(1)} levels`).toBeLessThanOrEqual(MAX_READING_DRIFT)
+        if (
+          faceData.readings &&
+          meta.capture?.measurement === STICKER_MEASUREMENT &&
+          (replayGains || !meta.capture?.backgroundWhiteBalance)
+        ) {
+          const drift = Math.max(
+            ...result.cellColors.flat().map((rgb, i) => {
+              const [r, g, b] = faceData.readings![i]
+              return Math.max(
+                Math.abs(rgb.r - r),
+                Math.abs(rgb.g - g),
+                Math.abs(rgb.b - b),
+              )
+            }),
+          )
+          expect(
+            drift,
+            `fixture "${name}", face ${faceKey.toUpperCase()}: sticker readings differ from the browser's by up to ${drift.toFixed(1)} levels`,
+          ).toBeLessThanOrEqual(MAX_READING_DRIFT)
         }
 
         measured[faceKey] = result
@@ -170,10 +224,16 @@ describe('real-capture regression fixtures', () => {
 
       // The same cross-face step the app runs (runGlobalWhiteBalance).
       const classified = classifyAcrossFaces(measured)
-      expect(classified.applied, `fixture "${name}": the cross-face step found too few samples`).toBe(true)
+      expect(
+        classified.applied,
+        `fixture "${name}": the cross-face step found too few samples`,
+      ).toBe(true)
 
       for (const faceKey of FACE_ORDER) {
-        expect(classified.faces[faceKey].colors, `fixture "${name}", face ${faceKey.toUpperCase()}`).toEqual(expectedColors![faceKey.toUpperCase()])
+        expect(
+          classified.faces[faceKey].colors,
+          `fixture "${name}", face ${faceKey.toUpperCase()}`,
+        ).toEqual(expectedColors![faceKey.toUpperCase()])
       }
     })
   }
@@ -185,8 +245,15 @@ describe('real-capture regression fixtures', () => {
 // than one way.
 describe('guided-capture fixtures reassemble into the approved cube', () => {
   const guided = fixtureNames
-    .map((name) => ({ name, meta: JSON.parse(readFileSync(join(FIXTURES_DIR, name, 'meta.json'), 'utf8')) as FixtureMeta }))
-    .filter(({ meta }) => meta.capture?.protocol && meta.capture.assembledURFDLB)
+    .map((name) => ({
+      name,
+      meta: JSON.parse(
+        readFileSync(join(FIXTURES_DIR, name, 'meta.json'), 'utf8'),
+      ) as FixtureMeta,
+    }))
+    .filter(
+      ({ meta }) => meta.capture?.protocol && meta.capture.assembledURFDLB,
+    )
   if (guided.length === 0) {
     it.skip('no guided-capture fixtures saved yet', () => {})
     return
@@ -194,11 +261,26 @@ describe('guided-capture fixtures reassemble into the approved cube', () => {
   for (const { name, meta } of guided) {
     it(`"${name}"`, () => {
       const slots = readFixtureColors(meta)!.colors
-      const [s1, s2, s3, s4, cap1, cap2] = ['U', 'R', 'F', 'D', 'L', 'B'].map((k) => slots[k])
-      const solution = solveGuidedCapture({ sides: [s1, s2, s3, s4], caps: [cap1, cap2] })!
-      expect(solution.fullyValid, `fixture "${name}": the guided search found no valid cube`).toBe(true)
-      const approved = orientationFreeSignature(wrgFaceletsToGrids(meta.capture!.assembledURFDLB!) as Record<FaceKey, string[][]>)
-      expect(solution.alternatives.map((a) => orientationFreeSignature(a.faces))).toContain(approved)
+      const [s1, s2, s3, s4, cap1, cap2] = ['U', 'R', 'F', 'D', 'L', 'B'].map(
+        (k) => slots[k],
+      )
+      const solution = solveGuidedCapture({
+        sides: [s1, s2, s3, s4],
+        caps: [cap1, cap2],
+      })!
+      expect(
+        solution.fullyValid,
+        `fixture "${name}": the guided search found no valid cube`,
+      ).toBe(true)
+      const approved = orientationFreeSignature(
+        wrgFaceletsToGrids(meta.capture!.assembledURFDLB!) as Record<
+          FaceKey,
+          string[][]
+        >,
+      )
+      expect(
+        solution.alternatives.map((a) => orientationFreeSignature(a.faces)),
+      ).toContain(approved)
     })
   }
 })

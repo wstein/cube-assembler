@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest'
-import { holdConfirmedFace, LIVE_HOLD_FRAMES, NO_HOLD, type LiveHold } from '../src/client/liveHold'
+import {
+  holdConfirmedFace,
+  LIVE_HOLD_FRAMES,
+  NO_HOLD,
+  type LiveHold,
+} from '../src/client/liveHold'
 
 // Runs frames (name, confirmed) and returns what was shown for each.
 function run(frames: Array<[string, boolean]>): string[] {
@@ -13,14 +18,35 @@ function run(frames: Array<[string, boolean]>): string[] {
 
 describe('holdConfirmedFace', () => {
   it(`keeps a confirmed face through ${LIVE_HOLD_FRAMES} weak frames, then lets it go`, () => {
-    expect(run([['a', true], ['b', false], ['c', false], ['d', false]])).toEqual(['a', 'a', 'a', '-'])
+    expect(
+      run([
+        ['a', true],
+        ['b', false],
+        ['c', false],
+        ['d', false],
+      ]),
+    ).toEqual(['a', 'a', 'a', '-'])
   })
 
   it('shows each newly confirmed frame and restarts the hold', () => {
-    expect(run([['a', true], ['b', false], ['c', true], ['d', false], ['e', false], ['f', false]])).toEqual(['a', 'a', 'c', 'c', 'c', '-'])
+    expect(
+      run([
+        ['a', true],
+        ['b', false],
+        ['c', true],
+        ['d', false],
+        ['e', false],
+        ['f', false],
+      ]),
+    ).toEqual(['a', 'a', 'c', 'c', 'c', '-'])
   })
 
   it('never shows a face that was not confirmed first', () => {
-    expect(run([['a', false], ['b', false]])).toEqual(['-', '-'])
+    expect(
+      run([
+        ['a', false],
+        ['b', false],
+      ]),
+    ).toEqual(['-', '-'])
   })
 })

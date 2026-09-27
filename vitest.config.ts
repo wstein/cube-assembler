@@ -1,21 +1,21 @@
-import { defineConfig } from "vitest/config";
+import { defineConfig } from 'vitest/config'
 
 export default defineConfig({
   test: {
-    environment: "node",
+    environment: 'node',
     globals: true,
-    include: ["test/**/*.test.ts", "test/**/*.spec.ts"],
+    include: ['test/**/*.test.ts', 'test/**/*.spec.ts'],
     coverage: {
-      provider: "v8",
-      reporter: ["text", "json", "html"],
+      provider: 'v8',
+      reporter: ['text', 'json', 'html'],
       // The client TS modules with dedicated unit tests
       // (test/cubeAssembly.test.ts, test/notationOutput.test.ts,
       // test/imageProcessing.test.ts)
       include: [
-        "src/client/cubeAssembly.ts",
-        "src/client/notationOutput.ts",
-        "src/client/imageProcessing.ts",
+        'src/client/cubeAssembly.ts',
+        'src/client/notationOutput.ts',
+        'src/client/imageProcessing.ts',
       ],
     },
   },
-});
+})

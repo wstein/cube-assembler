@@ -41,7 +41,7 @@ export type ParityResult = {
 // ─── Color validation helpers ─────────────────────────────────────────────────
 
 function countColors(cube: CubeIR): Record<FaceColor, number> {
-  const counts: any = { W:0, O:0, G:0, R:0, B:0, Y:0 }
+  const counts: any = { W: 0, O: 0, G: 0, R: 0, B: 0, Y: 0 }
   for (const face of [cube.u, cube.r, cube.f, cube.d, cube.l, cube.b]) {
     for (const c of face.data) counts[c]++
   }
@@ -54,23 +54,37 @@ function validateColorBalance(cube: CubeIR): boolean {
   return Object.values(counts).every((c) => c === expected)
 }
 
-const COLOR_NAMES: Record<FaceColor, string> = { W: 'White', O: 'Orange', G: 'Green', R: 'Red', B: 'Blue', Y: 'Yellow' }
+const COLOR_NAMES: Record<FaceColor, string> = {
+  W: 'White',
+  O: 'Orange',
+  G: 'Green',
+  R: 'Red',
+  B: 'Blue',
+  Y: 'Yellow',
+}
 
 // Which colors are off, for an invalid color balance: a sentence for the
 // customer, and every sticker of each over-represented color as one
 // highlight group - one of those is the misread sticker (or one set to the
 // wrong color by hand).
-function colorBalanceReport(cube: CubeIR): { detail: string; highlight: HighlightGroup[] } {
+function colorBalanceReport(cube: CubeIR): {
+  detail: string
+  highlight: HighlightGroup[]
+} {
   const counts = countColors(cube)
   const expected = cube.size ** 2
-  const off = (Object.keys(counts) as FaceColor[]).filter((c) => counts[c] !== expected)
+  const off = (Object.keys(counts) as FaceColor[]).filter(
+    (c) => counts[c] !== expected,
+  )
   const detail = `${off.map((c) => `${COLOR_NAMES[c]} ${counts[c]}`).join(', ')} - each color should appear ${expected} times`
   const highlight = off
     .filter((c) => counts[c] > expected)
     .map((c) => ({
       group: `${COLOR_NAMES[c]} ×${counts[c]}`,
       facelets: (['u', 'r', 'f', 'd', 'l', 'b'] as const).flatMap((face) =>
-        cube[face].data.flatMap((color, index) => (color === c ? [{ face, index }] : []))
+        cube[face].data.flatMap((color, index) =>
+          color === c ? [{ face, index }] : [],
+        ),
       ),
     }))
   return { detail, highlight }
@@ -88,10 +102,14 @@ function colorBalanceReport(cube: CubeIR): { detail: string; highlight: Highligh
 type CornerSlot = 'TL' | 'TR' | 'BL' | 'BR'
 function cornerFaceletIdx(n: number, slot: CornerSlot): number {
   switch (slot) {
-    case 'TL': return 0
-    case 'TR': return n - 1
-    case 'BL': return n * (n - 1)
-    case 'BR': return n * n - 1
+    case 'TL':
+      return 0
+    case 'TR':
+      return n - 1
+    case 'BL':
+      return n * (n - 1)
+    case 'BR':
+      return n * n - 1
   }
 }
 
@@ -103,8 +121,14 @@ function cornerFaceletIdx(n: number, slot: CornerSlot): number {
 // capture that a correct table accepts and the original one rejected with
 // "Unknown corner color triplet" even though colorBalance passed.
 const CORNER_SLOTS = [
-  ['u','BR','r','TL','f','TR'], ['u','TR','b','TL','r','TR'], ['u','TL','l','TL','b','TR'], ['u','BL','f','TL','l','TR'],
-  ['d','TR','f','BR','r','BL'], ['d','BR','r','BR','b','BL'], ['d','BL','b','BR','l','BL'], ['d','TL','l','BR','f','BL'],
+  ['u', 'BR', 'r', 'TL', 'f', 'TR'],
+  ['u', 'TR', 'b', 'TL', 'r', 'TR'],
+  ['u', 'TL', 'l', 'TL', 'b', 'TR'],
+  ['u', 'BL', 'f', 'TL', 'l', 'TR'],
+  ['d', 'TR', 'f', 'BR', 'r', 'BL'],
+  ['d', 'BR', 'r', 'BR', 'b', 'BL'],
+  ['d', 'BL', 'b', 'BR', 'l', 'BL'],
+  ['d', 'TL', 'l', 'BR', 'f', 'BL'],
 ] as const
 
 function getFace(cube: CubeIR, key: string): FaceGrid {
@@ -116,29 +140,66 @@ function getFace(cube: CubeIR, key: string): FaceGrid {
 // The 8 canonical corner color-triples: fixed regardless of N, since every
 // NxN cube has the same 8 corner pieces.
 const SOLVED_CORNERS: Array<[FaceColor, FaceColor, FaceColor]> = [
-  ['W','R','G'],['W','B','R'],['W','O','B'],['W','G','O'],
-  ['Y','G','R'],['Y','R','B'],['Y','B','O'],['Y','O','G'],
+  ['W', 'R', 'G'],
+  ['W', 'B', 'R'],
+  ['W', 'O', 'B'],
+  ['W', 'G', 'O'],
+  ['Y', 'G', 'R'],
+  ['Y', 'R', 'B'],
+  ['Y', 'B', 'O'],
+  ['Y', 'O', 'G'],
 ]
 // Index-parallel with SOLVED_CORNERS - the physical corner each entry
 // represents, for naming a highlight group by piece identity rather than
 // a bare index.
-const CORNER_NAMES = ['UFR','UBR','UBL','UFL','DFR','DBR','DBL','DFL']
+const CORNER_NAMES = ['UFR', 'UBR', 'UBL', 'UFL', 'DFR', 'DBR', 'DBL', 'DFL']
 // The 12 canonical edge color-pairs: fixed regardless of N, since every
 // NxN cube has the same 12 edges (just N-2 independently-permutable
 // "wing" pieces per edge on N>3 - see EDGE_LINES below).
 const SOLVED_EDGES: Array<[FaceColor, FaceColor]> = [
-  ['W','G'],['W','R'],['W','B'],['W','O'],
-  ['Y','G'],['Y','R'],['Y','B'],['Y','O'],
-  ['G','R'],['G','O'],['B','R'],['B','O'],
+  ['W', 'G'],
+  ['W', 'R'],
+  ['W', 'B'],
+  ['W', 'O'],
+  ['Y', 'G'],
+  ['Y', 'R'],
+  ['Y', 'B'],
+  ['Y', 'O'],
+  ['G', 'R'],
+  ['G', 'O'],
+  ['B', 'R'],
+  ['B', 'O'],
 ]
 // Index-parallel with SOLVED_EDGES - same purpose as CORNER_NAMES above.
-const EDGE_NAMES = ['UF','UR','UB','UL','DF','DR','DB','DL','FR','FL','BR','BL']
+const EDGE_NAMES = [
+  'UF',
+  'UR',
+  'UB',
+  'UL',
+  'DF',
+  'DR',
+  'DB',
+  'DL',
+  'FR',
+  'FL',
+  'BR',
+  'BL',
+]
 // UF, UR, UB, UL, DF, DR, DB, DL, FR, FL, BR, BL. Same B-face mirroring
 // mistake as CORNER_SLOTS above hit the BR/BL entries' `b` index.
 const EDGE_FACELETS_3x3 = [
-  ['u',7,'f',1],['u',5,'r',1],['u',1,'b',1],['u',3,'l',1],
-  ['d',1,'f',7],['d',5,'r',7],['d',7,'b',7],['d',3,'l',7],
-  ['f',5,'r',3],['f',3,'l',5],['b',3,'r',5],['b',5,'l',3],
+  ['u', 7, 'f', 1],
+  ['u', 5, 'r', 1],
+  ['u', 1, 'b', 1],
+  ['u', 3, 'l', 1],
+  ['d', 1, 'f', 7],
+  ['d', 5, 'r', 7],
+  ['d', 7, 'b', 7],
+  ['d', 3, 'l', 7],
+  ['f', 5, 'r', 3],
+  ['f', 3, 'l', 5],
+  ['b', 3, 'r', 5],
+  ['b', 5, 'l', 3],
 ] as const
 
 // ─── Wing-edge facelet geometry for N>3 (size-independent) ────────────────────
@@ -163,10 +224,14 @@ const EDGE_FACELETS_3x3 = [
 type EdgeLineType = 'TOP' | 'BOTTOM' | 'LEFT' | 'RIGHT'
 function lineFaceletIdx(n: number, line: EdgeLineType, w: number): number {
   switch (line) {
-    case 'TOP': return w
-    case 'BOTTOM': return n * (n - 1) + w
-    case 'LEFT': return w * n
-    case 'RIGHT': return w * n + (n - 1)
+    case 'TOP':
+      return w
+    case 'BOTTOM':
+      return n * (n - 1) + w
+    case 'LEFT':
+      return w * n
+    case 'RIGHT':
+      return w * n + (n - 1)
   }
 }
 const EDGE_LINES = [
@@ -183,7 +248,12 @@ const EDGE_LINES = [
   ['BR', 'b', 'LEFT', false, 'r', 'RIGHT', false],
   ['BL', 'b', 'RIGHT', false, 'l', 'LEFT', false],
 ] as const
-function edgeLineFaceletIdx(n: number, line: EdgeLineType, reverse: boolean, w: number): number {
+function edgeLineFaceletIdx(
+  n: number,
+  line: EdgeLineType,
+  reverse: boolean,
+  w: number,
+): number {
   return lineFaceletIdx(n, line, reverse ? n - 1 - w : w)
 }
 
@@ -201,7 +271,11 @@ function edgeLineFaceletIdx(n: number, line: EdgeLineType, reverse: boolean, w: 
 // check WEAKER (miss a cross-depth imbalance) than it ideally would be,
 // never cause a false rejection of a valid cube, so it's an acceptable
 // gap rather than something blocking this check from shipping.
-export function validateWingEdges(cube: CubeIR): { valid: boolean; result?: string; highlight?: HighlightGroup[] } {
+export function validateWingEdges(cube: CubeIR): {
+  valid: boolean
+  result?: string
+  highlight?: HighlightGroup[]
+} {
   const n = cube.size
   const counts = new Array(SOLVED_EDGES.length).fill(0)
   // Every wing reading's two facelets, grouped by which canonical pair
@@ -209,18 +283,32 @@ export function validateWingEdges(cube: CubeIR): { valid: boolean; result?: stri
   // point at exactly the wings that might be the misread ones, not just
   // name the pair.
   const faceletsByPair: FaceletRef[][][] = SOLVED_EDGES.map(() => [])
-  for (const [edgeName, faceA, lineA, reverseA, faceB, lineB, reverseB] of EDGE_LINES) {
+  for (const [
+    edgeName,
+    faceA,
+    lineA,
+    reverseA,
+    faceB,
+    lineB,
+    reverseB,
+  ] of EDGE_LINES) {
     for (let w = 1; w <= n - 2; w++) {
       const idxA = edgeLineFaceletIdx(n, lineA as EdgeLineType, reverseA, w)
       const idxB = edgeLineFaceletIdx(n, lineB as EdgeLineType, reverseB, w)
       const c0 = getFace(cube, faceA).data[idxA] as FaceColor
       const c1 = getFace(cube, faceB).data[idxB] as FaceColor
-      const facelets: FaceletRef[] = [{ face: faceA, index: idxA }, { face: faceB, index: idxB }]
+      const facelets: FaceletRef[] = [
+        { face: faceA, index: idxA },
+        { face: faceB, index: idxB },
+      ]
       let found = false
       for (let pi = 0; pi < SOLVED_EDGES.length; pi++) {
         const se = SOLVED_EDGES[pi]
         if ((c0 === se[0] && c1 === se[1]) || (c0 === se[1] && c1 === se[0])) {
-          counts[pi]++; faceletsByPair[pi].push(facelets); found = true; break
+          counts[pi]++
+          faceletsByPair[pi].push(facelets)
+          found = true
+          break
         }
       }
       if (!found) {
@@ -246,8 +334,10 @@ export function validateWingEdges(cube: CubeIR): { valid: boolean; result?: stri
     // exactly what another's is over by) is usually the fastest way for a
     // human to spot which two colors are being confused for each other,
     // without re-deriving this same table by hand from the raw facelets.
-    const offending = SOLVED_EDGES
-      .map((se, i) => ({ pair: se.join('-'), count: counts[i] }))
+    const offending = SOLVED_EDGES.map((se, i) => ({
+      pair: se.join('-'),
+      count: counts[i],
+    }))
       .filter((p) => p.count !== expected)
       .map((p) => `${p.pair} has ${p.count} (expected ${expected})`)
     // A pair with FEWER than expected has nothing to point at - it's
@@ -259,7 +349,12 @@ export function validateWingEdges(cube: CubeIR): { valid: boolean; result?: stri
     // own entry, all sharing the pair name as `group` - a client hovering
     // one can cross-highlight the rest of the same over-represented pool.
     const highlight: HighlightGroup[] = counts.flatMap((c, i) =>
-      c > expected ? faceletsByPair[i].map((facelets) => ({ group: SOLVED_EDGES[i].join('-'), facelets })) : []
+      c > expected
+        ? faceletsByPair[i].map((facelets) => ({
+            group: SOLVED_EDGES[i].join('-'),
+            facelets,
+          }))
+        : [],
     )
     return {
       valid: false,
@@ -276,7 +371,10 @@ function permParity(perm: number[]): boolean {
   for (let i = 0; i < perm.length; i++) {
     if (!visited[i]) {
       let j = i
-      while (!visited[j]) { visited[j] = true; j = perm[j]; }
+      while (!visited[j]) {
+        visited[j] = true
+        j = perm[j]
+      }
       cycles++
     }
   }
@@ -289,7 +387,12 @@ export function runFullParity(cube: CubeIR): ParityResult {
 
   checks.colorBalance = validateColorBalance(cube)
   if (!checks.colorBalance)
-    return { valid: false, result: 'Invalid color balance', checks, ...colorBalanceReport(cube) }
+    return {
+      valid: false,
+      result: 'Invalid color balance',
+      checks,
+      ...colorBalanceReport(cube),
+    }
 
   // Corner analysis — meaningful for every N (see CORNER_SLOTS above).
   const cornerPieces: number[] = []
@@ -308,16 +411,25 @@ export function runFullParity(cube: CubeIR): ParityResult {
       getFace(cube, fb).data[idxB] as FaceColor,
       getFace(cube, fc).data[idxC] as FaceColor,
     ]
-    const facelets: FaceletRef[] = [{ face: fa, index: idxA }, { face: fb, index: idxB }, { face: fc, index: idxC }]
+    const facelets: FaceletRef[] = [
+      { face: fa, index: idxA },
+      { face: fb, index: idxB },
+      { face: fc, index: idxC },
+    ]
     let found = false
     for (let pi = 0; pi < SOLVED_CORNERS.length; pi++) {
       const sc = SOLVED_CORNERS[pi]
       for (let rot = 0; rot < 3; rot++) {
-        if (colors[rot%3]===sc[0] && colors[(rot+1)%3]===sc[1] && colors[(rot+2)%3]===sc[2]) {
+        if (
+          colors[rot % 3] === sc[0] &&
+          colors[(rot + 1) % 3] === sc[1] &&
+          colors[(rot + 2) % 3] === sc[2]
+        ) {
           cornerPieces.push(pi)
           cornerOrients.push(rot)
           cornerFacelets.push(facelets)
-          found = true; break
+          found = true
+          break
         }
       }
       if (found) break
@@ -342,22 +454,27 @@ export function runFullParity(cube: CubeIR): ParityResult {
   }
   const duplicates = [...slotsByPiece].flatMap(([piece, slots]) =>
     slots.length > 1
-      ? slots.map((slot) => ({ group: CORNER_NAMES[piece], facelets: cornerFacelets[slot] }))
-      : []
+      ? slots.map((slot) => ({
+          group: CORNER_NAMES[piece],
+          facelets: cornerFacelets[slot],
+        }))
+      : [],
   )
   if (unknownCorners.length > 0 || duplicates.length > 0) {
     checks.cornerColors = false
     const duplicateNames = [...new Set(duplicates.map((entry) => entry.group))]
     return {
       valid: false,
-      result: unknownCorners.length > 0
-        ? 'Unknown corner color triplet'
-        : 'Duplicate corner piece (two positions read the same physical corner)',
+      result:
+        unknownCorners.length > 0
+          ? 'Unknown corner color triplet'
+          : 'Duplicate corner piece (two positions read the same physical corner)',
       checks,
       highlight: [...unknownCorners, ...duplicates],
-      detail: unknownCorners.length > 0 && duplicateNames.length > 0
-        ? `also duplicate corner pieces: ${duplicateNames.join(', ')}`
-        : undefined,
+      detail:
+        unknownCorners.length > 0 && duplicateNames.length > 0
+          ? `also duplicate corner pieces: ${duplicateNames.join(', ')}`
+          : undefined,
     }
   }
   checks.cornerColors = true
@@ -379,7 +496,10 @@ export function runFullParity(cube: CubeIR): ParityResult {
       valid: false,
       result: `Corner orientation sum ${cornerOrientSum} ≢ 0 (mod 3)`,
       checks,
-      highlight: cornerFacelets.map((facelets, slot) => ({ group: CORNER_NAMES[cornerPieces[slot]], facelets })),
+      highlight: cornerFacelets.map((facelets, slot) => ({
+        group: CORNER_NAMES[cornerPieces[slot]],
+        facelets,
+      })),
     }
 
   if (n === 2) {
@@ -410,9 +530,18 @@ export function runFullParity(cube: CubeIR): ParityResult {
     const wingResult = validateWingEdges(cube)
     checks.wingEdgeColors = wingResult.valid
     if (!wingResult.valid) {
-      return { valid: false, result: wingResult.result!, checks, highlight: wingResult.highlight }
+      return {
+        valid: false,
+        result: wingResult.result!,
+        checks,
+        highlight: wingResult.highlight,
+      }
     }
-    return { valid: true, result: 'Valid (structural + corner + wing-edge count check)', checks }
+    return {
+      valid: true,
+      result: 'Valid (structural + corner + wing-edge count check)',
+      checks,
+    }
   }
 
   // Edge analysis
@@ -422,16 +551,36 @@ export function runFullParity(cube: CubeIR): ParityResult {
   for (const [fa, ia, fb, ib] of EDGE_FACELETS_3x3) {
     const c0 = getFace(cube, fa).data[ia] as FaceColor
     const c1 = getFace(cube, fb).data[ib] as FaceColor
-    const facelets: FaceletRef[] = [{ face: fa, index: ia }, { face: fb, index: ib }]
+    const facelets: FaceletRef[] = [
+      { face: fa, index: ia },
+      { face: fb, index: ib },
+    ]
     let found = false
     for (let pi = 0; pi < SOLVED_EDGES.length; pi++) {
       const se = SOLVED_EDGES[pi]
-      if (c0===se[0] && c1===se[1]) { edgePieces.push(pi); edgeOrients.push(0); edgeFacelets.push(facelets); found=true; break; }
-      if (c0===se[1] && c1===se[0]) { edgePieces.push(pi); edgeOrients.push(1); edgeFacelets.push(facelets); found=true; break; }
+      if (c0 === se[0] && c1 === se[1]) {
+        edgePieces.push(pi)
+        edgeOrients.push(0)
+        edgeFacelets.push(facelets)
+        found = true
+        break
+      }
+      if (c0 === se[1] && c1 === se[0]) {
+        edgePieces.push(pi)
+        edgeOrients.push(1)
+        edgeFacelets.push(facelets)
+        found = true
+        break
+      }
     }
     if (!found) {
       checks.edgeColors = false
-      return { valid: false, result: 'Unknown edge color pair', checks, highlight: [{ group: `${c0}-${c1}`, facelets }] }
+      return {
+        valid: false,
+        result: 'Unknown edge color pair',
+        checks,
+        highlight: [{ group: `${c0}-${c1}`, facelets }],
+      }
     }
   }
   // Same distinctness gap as the corner check above, mirrored for edges.
@@ -445,7 +594,8 @@ export function runFullParity(cube: CubeIR): ParityResult {
         const pieceName = EDGE_NAMES[piece]
         return {
           valid: false,
-          result: 'Duplicate edge piece (two positions read the same physical edge)',
+          result:
+            'Duplicate edge piece (two positions read the same physical edge)',
           checks,
           highlight: [
             { group: pieceName, facelets: edgeFacelets[firstSlot] },
@@ -470,14 +620,21 @@ export function runFullParity(cube: CubeIR): ParityResult {
       valid: false,
       result: `Edge orientation sum ${edgeOrientSum} ≢ 0 (mod 2)`,
       checks,
-      highlight: edgeFacelets.map((facelets, slot) => ({ group: EDGE_NAMES[edgePieces[slot]], facelets })),
+      highlight: edgeFacelets.map((facelets, slot) => ({
+        group: EDGE_NAMES[edgePieces[slot]],
+        facelets,
+      })),
     }
 
   const cpParity = permParity(cornerPieces)
   const epParity = permParity(edgePieces)
   checks.permutationParity = cpParity === epParity
   if (!checks.permutationParity)
-    return { valid: false, result: 'Corner perm parity ≠ edge perm parity', checks }
+    return {
+      valid: false,
+      result: 'Corner perm parity ≠ edge perm parity',
+      checks,
+    }
 
   return { valid: true, result: 'Valid — all parity checks passed', checks }
 }

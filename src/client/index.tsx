@@ -1,4 +1,4 @@
-import { render, h, Fragment } from 'preact'
+import { render, Fragment } from 'preact'
 import { useState, useEffect, useRef, useMemo } from 'preact/hooks'
 // Fonts bundled with the app rather than loaded from Google Fonts, which
 // would send every visitor's IP address to Google.
@@ -12,7 +12,18 @@ import '@fontsource/ibm-plex-mono/400.css'
 import '@fontsource/ibm-plex-mono/500.css'
 import '@fontsource/ibm-plex-mono/600.css'
 import '../../web/style.css'
-import { AUTO_CAPTURE_MIN_CONFIDENCE, AUTO_CAPTURE_STABLE_FRAMES, TURN_CUE_START, nextAutoCaptureProgress, nextTurnCue, turnCueCleared, turnPoseChanged, type AutoCaptureProgress, type TurnCuePose, type TurnCueState } from './autoCapture'
+import {
+  AUTO_CAPTURE_MIN_CONFIDENCE,
+  AUTO_CAPTURE_STABLE_FRAMES,
+  TURN_CUE_START,
+  nextAutoCaptureProgress,
+  nextTurnCue,
+  turnCueCleared,
+  turnPoseChanged,
+  type AutoCaptureProgress,
+  type TurnCuePose,
+  type TurnCueState,
+} from './autoCapture'
 import { oppositeFacePreview } from './capturePresentation'
 import type { ReviewCapture } from './colorReviewPage'
 import { BackdropDialog } from './backdropDialog'
@@ -23,43 +34,134 @@ import { holdConfirmedFace, NO_HOLD, type LiveHold } from './liveHold'
 import { scaleBounds, type LiveAnalysisRequest } from './liveAnalysis'
 import type { LiveFrameMessage, LiveResultMessage } from './liveAnalysis.worker'
 import { runFullParity, type ParityResult } from './parity'
-import { WIZARD_FACE_ORDER, faceContentKey, groupWizardOptions, pickWizardFace, preferredGuidedArrangementIndex } from './orientationWizard'
 import {
-  faceBoundsForMode, captureAndProcessCanvas, captureAndProcessImage, extractBackgroundColor, hasVisibleCubeFace,
-  runGlobalWhiteBalance, classifyAcrossFaces, GLARE_WARNING_STICKERS, computeBackgroundGains, backdropReference, BACKGROUND_WB_METHOD, BACKGROUND_CUBE_GAP, NEUTRAL_GAINS, CROP_JPEG_QUALITY,
-  DEFAULT_SAMPLING, STICKER_MEASUREMENT, stickerSampleRect, colorConfidences, STICKER_COLORS, type SamplingGeometry,
-  rgbToOKLCH, hueCircularRange, hueRangesOverlap, linearRange,
-  type ColorDetectionResult, type FaceCaptureResult, type RGB,
+  WIZARD_FACE_ORDER,
+  faceContentKey,
+  groupWizardOptions,
+  pickWizardFace,
+  preferredGuidedArrangementIndex,
+} from './orientationWizard'
+import {
+  faceBoundsForMode,
+  captureAndProcessCanvas,
+  captureAndProcessImage,
+  extractBackgroundColor,
+  hasVisibleCubeFace,
+  runGlobalWhiteBalance,
+  classifyAcrossFaces,
+  GLARE_WARNING_STICKERS,
+  computeBackgroundGains,
+  backdropReference,
+  BACKGROUND_WB_METHOD,
+  BACKGROUND_CUBE_GAP,
+  NEUTRAL_GAINS,
+  CROP_JPEG_QUALITY,
+  DEFAULT_SAMPLING,
+  STICKER_MEASUREMENT,
+  stickerSampleRect,
+  colorConfidences,
+  STICKER_COLORS,
+  type SamplingGeometry,
+  rgbToOKLCH,
+  hueCircularRange,
+  hueRangesOverlap,
+  linearRange,
+  type ColorDetectionResult,
+  type FaceCaptureResult,
+  type RGB,
 } from './imageProcessing'
 import {
-  assembleCubeFromFaces, validateFaceColors, createSolvedCube, toCubeIR, solveFaceOrientations, solveGuidedCapture,
-  checkGuidedCenters, findRepeatedFaces, findCapturedFaceMatch, findCaptureSlotForOrientedFace, orientationFreeSignature, captureCenterSlots, placeCapturedFace,
-  type OrientedCandidate, type OrientationSolution, type FaceKey, type GuidedArrangement, type GuidedCenterIssue,
+  assembleCubeFromFaces,
+  validateFaceColors,
+  createSolvedCube,
+  toCubeIR,
+  solveFaceOrientations,
+  solveGuidedCapture,
+  checkGuidedCenters,
+  findRepeatedFaces,
+  findCapturedFaceMatch,
+  findCaptureSlotForOrientedFace,
+  orientationFreeSignature,
+  captureCenterSlots,
+  placeCapturedFace,
+  type OrientedCandidate,
+  type OrientationSolution,
+  type FaceKey,
+  type GuidedArrangement,
+  type GuidedCenterIssue,
 } from './cubeAssembly'
 import {
-  AUTO_COLORS_ID, activeCube, allCubes, activeColorProfile, allColorProfiles, builtinColorProfiles, captureColorProfileSnapshot, capturePalette, colorPalette, copyColorProfile, copyCubeSetting,
-  cubeGroupName, deleteCube, deleteColorProfile, groupCubesByName, isBuiltinColorProfile, isBuiltinCube, mergeSettings, saveCube, saveColorProfile,
-  resolvedColorProfileSnapshot, selectCube, selectColorProfile, setAutoColorMatch, type ProfileSettings, type UsedColorProfile,
+  AUTO_COLORS_ID,
+  activeCube,
+  allCubes,
+  activeColorProfile,
+  allColorProfiles,
+  builtinColorProfiles,
+  captureColorProfileSnapshot,
+  capturePalette,
+  colorPalette,
+  copyColorProfile,
+  copyCubeSetting,
+  cubeGroupName,
+  deleteCube,
+  deleteColorProfile,
+  groupCubesByName,
+  isBuiltinColorProfile,
+  isBuiltinCube,
+  mergeSettings,
+  saveCube,
+  saveColorProfile,
+  resolvedColorProfileSnapshot,
+  selectCube,
+  selectColorProfile,
+  setAutoColorMatch,
+  type ProfileSettings,
+  type UsedColorProfile,
 } from './profileSettings'
-import { loadProfileSettings, saveProfileSettings, settingsFile, parseSettingsFile } from './profileStorage'
-import { canCreateProfileFromCapture, captureProfileFinding, matchPartialColorProfile, profileColorFitPercent, profileToUpdate, resolveAutomaticProfile, updateProfileFromCapture, type AutomaticResolution, type PaletteEvidence } from './colorProfileLearning'
+import {
+  loadProfileSettings,
+  saveProfileSettings,
+  settingsFile,
+  parseSettingsFile,
+} from './profileStorage'
+import {
+  canCreateProfileFromCapture,
+  captureProfileFinding,
+  matchPartialColorProfile,
+  profileColorFitPercent,
+  profileToUpdate,
+  resolveAutomaticProfile,
+  updateProfileFromCapture,
+  type AutomaticResolution,
+  type PaletteEvidence,
+} from './colorProfileLearning'
 import { colorsUnderWhite } from './colorProfileReview'
 import { readFixtureColors } from './fixtureFormat'
-import { buildFixture, summarizeFixture, unzipFixture, zipFixture, type Fixture, type FixtureSummary } from './fixtureZip'
-import { currentAppCommit, fixtureUploadServerAvailable, uploadFixtureToDevServer } from './fixtureUpload'
 import {
-  toWRGFacelets, fromWRGFacelets, toURFFacelets, fromURFFacelets, detectNotationFormat, gridsToWRGFacelets,
+  buildFixture,
+  summarizeFixture,
+  unzipFixture,
+  zipFixture,
+  type Fixture,
+  type FixtureSummary,
+} from './fixtureZip'
+import {
+  currentAppCommit,
+  fixtureUploadServerAvailable,
+  uploadFixtureToDevServer,
+} from './fixtureUpload'
+import {
+  toWRGFacelets,
+  fromWRGFacelets,
+  toURFFacelets,
+  fromURFFacelets,
+  detectNotationFormat,
+  gridsToWRGFacelets,
 } from './notationOutput'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
 // ─────────────────────────────────────────────────────────────────────────────
-
-interface CubeState {
-  size: number
-  captured: Record<string, boolean>
-  colors?: Record<string, string[]>
-}
 
 interface PreviewColorProfile {
   id: string
@@ -120,26 +222,36 @@ declare const __APP_VERSION__: string
 declare const __APP_COMMIT__: string
 
 function loadProfileStore(): ProfileSettings {
-  try { return loadProfileSettings(localStorage) }
-  catch { return EMPTY_SETTINGS }
+  try {
+    return loadProfileSettings(localStorage)
+  } catch {
+    return EMPTY_SETTINGS
+  }
 }
 
 // False when the browser won't store it (storage blocked or full).
 function saveProfileStore(store: ProfileSettings): boolean {
-  try { return saveProfileSettings(localStorage, store) }
-  catch { return false }
+  try {
+    return saveProfileSettings(localStorage, store)
+  } catch {
+    return false
+  }
 }
 
 function CubeSelectOptions({ settings }: { settings: ProfileSettings }) {
-  return <>
-    {groupCubesByName(settings).map((group) => (
-      <optgroup label={group.name} key={group.name}>
-        {group.cubes.map((cube) => (
-          <option key={cube.id} value={cube.id}>{cube.size}×{cube.size}</option>
-        ))}
-      </optgroup>
-    ))}
-  </>
+  return (
+    <>
+      {groupCubesByName(settings).map((group) => (
+        <optgroup label={group.name} key={group.name}>
+          {group.cubes.map((cube) => (
+            <option key={cube.id} value={cube.id}>
+              {cube.size}×{cube.size}
+            </option>
+          ))}
+        </optgroup>
+      ))}
+    </>
+  )
 }
 
 interface CameraInfo {
@@ -157,7 +269,9 @@ interface CameraInfo {
 // the cost (see liveAnalysis.test.ts); captures still read full resolution.
 const LIVE_ANALYSIS_HEIGHT = 720
 
-function withoutDeviceIds<T extends { deviceId?: unknown; groupId?: unknown }>(info: T): Omit<T, 'deviceId' | 'groupId'> {
+function withoutDeviceIds<T extends { deviceId?: unknown; groupId?: unknown }>(
+  info: T,
+): Omit<T, 'deviceId' | 'groupId'> {
   const { deviceId: _deviceId, groupId: _groupId, ...rest } = info
   return rest
 }
@@ -178,22 +292,59 @@ const FACE_ORDER = ['U', 'R', 'F', 'D', 'L', 'B']
 // all 6 are in, so the capture slots keep the neutral U..B keys of
 // FACE_ORDER (fixtures, uploads and the review key off them) and only
 // their meaning is a step in this order - slot U is Side 1, R Side 2, ...
-const CAPTURE_STEPS: Array<{ label: string; short: string; instruction: string }> = [
-  { label: 'Side 1', short: '1', instruction: 'Hold the cube upright and show any side.' },
-  { label: 'Side 2', short: '2', instruction: 'Keep the same row on top and turn the whole cube clockwise a quarter turn. Either way works.' },
-  { label: 'Side 3', short: '3', instruction: 'Keep turning clockwise another quarter turn. Other directions still work.' },
-  { label: 'Side 4', short: '4', instruction: 'Turn clockwise one more quarter turn. Any remaining side still works.' },
-  { label: 'Top', short: '5', instruction: 'Tip the cube towards you so its top faces the camera - any angle is fine.' },
-  { label: 'Bottom', short: '6', instruction: 'Bring Side 4 back to the camera, then continue tipping to the opposite face. Top and bottom may be swapped.' },
+const CAPTURE_STEPS: Array<{
+  label: string
+  short: string
+  instruction: string
+}> = [
+  {
+    label: 'Side 1',
+    short: '1',
+    instruction: 'Hold the cube upright and show any side.',
+  },
+  {
+    label: 'Side 2',
+    short: '2',
+    instruction:
+      'Keep the same row on top and turn the whole cube clockwise a quarter turn. Either way works.',
+  },
+  {
+    label: 'Side 3',
+    short: '3',
+    instruction:
+      'Keep turning clockwise another quarter turn. Other directions still work.',
+  },
+  {
+    label: 'Side 4',
+    short: '4',
+    instruction:
+      'Turn clockwise one more quarter turn. Any remaining side still works.',
+  },
+  {
+    label: 'Top',
+    short: '5',
+    instruction:
+      'Tip the cube towards you so its top faces the camera - any angle is fine.',
+  },
+  {
+    label: 'Bottom',
+    short: '6',
+    instruction:
+      'Bring Side 4 back to the camera, then continue tipping to the opposite face. Top and bottom may be swapped.',
+  },
 ]
 const stepOf = (slot: string) => CAPTURE_STEPS[FACE_ORDER.indexOf(slot)]
 
 function captureInstruction(step: number, mirrored: boolean): string {
   if (!mirrored || step === 0) return CAPTURE_STEPS[step].instruction
-  if (step === 4) return 'Tip the cube towards you so its top faces the camera. The mirrored view shows the bottom face.'
-  if (step === 5) return 'Bring Side 4 back to the camera, then continue tipping to the opposite face. The mirrored view shows the top face.'
-  if (step === 1) return 'Keep the same row on top and turn the whole cube counterclockwise in the mirrored view. Either direction works.'
-  if (step === 2) return 'Keep turning counterclockwise in the mirrored view. Other directions still work.'
+  if (step === 4)
+    return 'Tip the cube towards you so its top faces the camera. The mirrored view shows the bottom face.'
+  if (step === 5)
+    return 'Bring Side 4 back to the camera, then continue tipping to the opposite face. The mirrored view shows the top face.'
+  if (step === 1)
+    return 'Keep the same row on top and turn the whole cube counterclockwise in the mirrored view. Either direction works.'
+  if (step === 2)
+    return 'Keep turning counterclockwise in the mirrored view. Other directions still work.'
   return 'Turn counterclockwise in the mirrored view one more quarter turn. Any remaining side still works.'
 }
 
@@ -206,9 +357,12 @@ const GUIDED_PROTOCOL = 'sides-then-top-bottom/v1'
 function describeCenterIssue(issue: GuidedCenterIssue): string {
   const label = (i: number) => CAPTURE_STEPS[i].label
   switch (issue.kind) {
-    case 'same-center': return `${label(issue.photos[0])} and ${label(issue.photos[1])} show the same center - the same face photographed twice?`
-    case 'turned-twice': return `${label(issue.photo)} shows the face opposite ${label(issue.photo - 1)} - the cube was probably turned twice.`
-    case 'not-opposite': return `${label(issue.photos[0])} and ${label(issue.photos[1])} should be opposite faces, but aren't.`
+    case 'same-center':
+      return `${label(issue.photos[0])} and ${label(issue.photos[1])} show the same center - the same face photographed twice?`
+    case 'turned-twice':
+      return `${label(issue.photo)} shows the face opposite ${label(issue.photo - 1)} - the cube was probably turned twice.`
+    case 'not-opposite':
+      return `${label(issue.photos[0])} and ${label(issue.photos[1])} should be opposite faces, but aren't.`
   }
 }
 
@@ -217,24 +371,34 @@ const HELD_WORDS = ['', 'sideways', 'upside down', 'sideways']
 
 // What the search changed to make the photos fit, in words.
 function describeArrangement(a: GuidedArrangement, mirrored = false): string[] {
-  const [topFix, bottomFix] = a.capsSwapped ? [a.capRotations[1], a.capRotations[0]] : a.capRotations
+  const [topFix, bottomFix] = a.capsSwapped
+    ? [a.capRotations[1], a.capRotations[0]]
+    : a.capRotations
   const seenTurn = mirrored ? (a.turn === 'left' ? 'right' : 'left') : a.turn
   return [
     `You turned the cube to the ${seenTurn} between sides${mirrored ? ' in the mirrored view' : ''}.`,
-    ...(a.capsSwapped ? ['Top and bottom were photographed the other way round.'] : []),
+    ...(a.capsSwapped
+      ? ['Top and bottom were photographed the other way round.']
+      : []),
     ...(topFix ? [`The top was held ${HELD_WORDS[topFix]}.`] : []),
     ...(bottomFix ? [`The bottom was held ${HELD_WORDS[bottomFix]}.`] : []),
   ]
 }
-const FACE_DISPLAY_LABEL: Record<string, string> = Object.fromEntries(FACE_ORDER.map((face) => [face, stepOf(face).label]))
+const FACE_DISPLAY_LABEL: Record<string, string> = Object.fromEntries(
+  FACE_ORDER.map((face) => [face, stepOf(face).label]),
+)
 
 // The faces to name in the glare warning, or none if too few stickers are
 // washed out to warn about.
 function glareFacesToWarn(glare: Array<{ face: string }>): string[] {
   if (glare.length < GLARE_WARNING_STICKERS) return []
-  return FACE_ORDER.filter((face) => glare.some((sticker) => sticker.face === face))
+  return FACE_ORDER.filter((face) =>
+    glare.some((sticker) => sticker.face === face),
+  )
 }
-const FACE_SHORT_LABEL: Record<string, string> = Object.fromEntries(FACE_ORDER.map((face) => [face, stepOf(face).short]))
+const FACE_SHORT_LABEL: Record<string, string> = Object.fromEntries(
+  FACE_ORDER.map((face) => [face, stepOf(face).short]),
+)
 
 // How each color is drawn on screen (nets, review, picker) - slightly
 // calmer than pure RGB so the six still read at a glance without glaring.
@@ -251,25 +415,57 @@ const PARITY_CHECK_NAMES: Record<string, string> = {
 }
 
 const STICKER_HEX: Record<string, string> = {
-  W: '#f7f6f1', O: '#ff7a1a', G: '#1e9e57', R: '#cf2a3a', B: '#2459d6', Y: '#f2d21b',
+  W: '#f7f6f1',
+  O: '#ff7a1a',
+  G: '#1e9e57',
+  R: '#cf2a3a',
+  B: '#2459d6',
+  Y: '#f2d21b',
 }
 
 const COLOR_NAME: Record<string, string> = {
-  W: 'White', O: 'Orange', G: 'Green', R: 'Red', B: 'Blue', Y: 'Yellow',
+  W: 'White',
+  O: 'Orange',
+  G: 'Green',
+  R: 'Red',
+  B: 'Blue',
+  Y: 'Yellow',
 }
 
 const CALIBRATION_NOTE = 'Colors double-checked by comparing all 6 sides.'
 
 // Face names shown on the net, keyed by CubeIR face.
-const NET_FACE_NAMES: Record<string, string> = { u: 'Top', l: 'Left', f: 'Front', r: 'Right', b: 'Back', d: 'Bottom' }
+const NET_FACE_NAMES: Record<string, string> = {
+  u: 'Top',
+  l: 'Left',
+  f: 'Front',
+  r: 'Right',
+  b: 'Back',
+  d: 'Bottom',
+}
 
 // The review mark for sticker `index` (row-major) of a captured face: hand
 // corrected, or flagged as unsure (low confidence or close to another color).
-function stickerMark(face: { colors: string[][]; detectedColors?: string[][]; cellConfidences?: number[][]; cellLookalikes?: (string | null)[][] }, index: number): 'corrected' | 'flagged' | null {
-  const n = face.colors.length, r = Math.floor(index / n), c = index % n
+function stickerMark(
+  face: {
+    colors: string[][]
+    detectedColors?: string[][]
+    cellConfidences?: number[][]
+    cellLookalikes?: (string | null)[][]
+  },
+  index: number,
+): 'corrected' | 'flagged' | null {
+  const n = face.colors.length,
+    r = Math.floor(index / n),
+    c = index % n
   const detected = face.detectedColors?.[r]?.[c]
-  if (detected !== undefined && detected !== face.colors[r]?.[c]) return 'corrected'
-  if (confidenceTier(face.cellConfidences?.[r]?.[c] ?? 1) === 'low' || face.cellLookalikes?.[r]?.[c]) return 'flagged'
+  if (detected !== undefined && detected !== face.colors[r]?.[c])
+    return 'corrected'
+  if (
+    confidenceTier(face.cellConfidences?.[r]?.[c] ?? 1) === 'low' ||
+    face.cellLookalikes?.[r]?.[c]
+  )
+    return 'flagged'
   return null
 }
 
@@ -298,23 +494,38 @@ interface ColorStat {
 // hue range overlapping another's flagged every sticker of both colors.
 function computeColorStats(
   capturedFaces: Record<string, { colors: string[][]; cellColors?: RGB[][] }>,
-  puzzleSize: number
+  puzzleSize: number,
 ): Record<string, ColorStat> {
   const counts: Record<string, number> = { W: 0, O: 0, G: 0, R: 0, B: 0, Y: 0 }
-  const oklchByColor: Record<string, { l: number; c: number; h: number }[]> = { W: [], O: [], G: [], R: [], B: [], Y: [] }
+  const oklchByColor: Record<string, { l: number; c: number; h: number }[]> = {
+    W: [],
+    O: [],
+    G: [],
+    R: [],
+    B: [],
+    Y: [],
+  }
   for (const f of FACE_ORDER) {
     const grid = capturedFaces[f]?.colors
     const cellColors = capturedFaces[f]?.cellColors
     if (!grid) continue
-    grid.forEach((row, r) => row.forEach((color, c) => {
-      if (!(color in counts)) return
-      counts[color]++
-      const rgb = cellColors?.[r]?.[c]
-      if (rgb) oklchByColor[color].push(rgbToOKLCH(rgb))
-    }))
+    grid.forEach((row, r) =>
+      row.forEach((color, c) => {
+        if (!(color in counts)) return
+        counts[color]++
+        const rgb = cellColors?.[r]?.[c]
+        if (rgb) oklchByColor[color].push(rgbToOKLCH(rgb))
+      }),
+    )
   }
-  const hueRangeByColor: Record<string, ReturnType<typeof hueCircularRange>> = {}
-  for (const color of COLOR_ORDER) hueRangeByColor[color] = hueCircularRange(oklchByColor[color].map((o) => o.h))
+  const hueRangeByColor: Record<
+    string,
+    ReturnType<typeof hueCircularRange>
+  > = {}
+  for (const color of COLOR_ORDER)
+    hueRangeByColor[color] = hueCircularRange(
+      oklchByColor[color].map((o) => o.h),
+    )
 
   const expected = puzzleSize * puzzleSize
   const stats: Record<string, ColorStat> = {}
@@ -360,7 +571,17 @@ function computeColorStats(
 // net the options below refer to. `auto` dims a face the wizard settled on
 // its own (never asked about), so the net shows at a glance which faces the
 // customer actually chose versus which were inferred from those choices.
-function FaceGrid({ colors, undecided, current, auto }: { colors: string[][]; undecided?: boolean; current?: boolean; auto?: boolean }) {
+function FaceGrid({
+  colors,
+  undecided,
+  current,
+  auto,
+}: {
+  colors: string[][]
+  undecided?: boolean
+  current?: boolean
+  auto?: boolean
+}) {
   // On odd sizes the center sticker never moves when a face is turned, so
   // it's known even while the face's orientation is still undecided.
   const n = colors.length
@@ -374,7 +595,11 @@ function FaceGrid({ colors, undecided, current, auto }: { colors: string[][]; un
         <div
           key={i}
           class="orientation-net-sticker"
-          style={(undecided && i !== centerIndex) || !color ? undefined : { background: STICKER_HEX[color] ?? '#888' }}
+          style={
+            (undecided && i !== centerIndex) || !color
+              ? undefined
+              : { background: STICKER_HEX[color] ?? '#888' }
+          }
         />
       ))}
     </div>
@@ -386,7 +611,16 @@ function FaceGrid({ colors, undecided, current, auto }: { colors: string[][]; un
 // of the two is really the top, is only worked out once all 6 are in).
 // Each slot shows the colors detected for it, or a placeholder; tapping a
 // slot retakes it or jumps to it.
-function CaptureNet({ faces, current, matchingFaces, liveMatchingFace, size, predictedCenters, mirrored, onSelect }: {
+function CaptureNet({
+  faces,
+  current,
+  matchingFaces,
+  liveMatchingFace,
+  size,
+  predictedCenters,
+  mirrored,
+  onSelect,
+}: {
   faces: Record<string, string[][] | undefined>
   current: string
   matchingFaces: Set<string>
@@ -401,7 +635,8 @@ function CaptureNet({ faces, current, matchingFaces, liveMatchingFace, size, pre
     const colors = faces[key]
     const suggested = !colors ? predictedCenters[FACE_ORDER.indexOf(key)] : null
     const preview = suggested ? empty.map((row) => row.slice()) : empty
-    if (suggested) preview[Math.floor(size / 2)][Math.floor(size / 2)] = suggested
+    if (suggested)
+      preview[Math.floor(size / 2)][Math.floor(size / 2)] = suggested
     const shown = colors ?? preview
     return (
       <button
@@ -410,18 +645,28 @@ function CaptureNet({ faces, current, matchingFaces, liveMatchingFace, size, pre
         class={`capture-net-slot${matchingFaces.has(key) ? ' pattern-match' : ''}`}
         style={{ gridArea }}
         data-slot={key}
-        aria-label={`${FACE_DISPLAY_LABEL[key]}: ${colors ? matchingFaces.has(key) ? `captured, pattern looks like ${key === liveMatchingFace ? 'the live face' : 'another captured face'}; tap to retake` : 'captured, tap to retake' : suggested ? `suggested ${COLOR_NAME[suggested]} center, not captured yet` : 'not captured yet'}`}
+        aria-label={`${FACE_DISPLAY_LABEL[key]}: ${colors ? (matchingFaces.has(key) ? `captured, pattern looks like ${key === liveMatchingFace ? 'the live face' : 'another captured face'}; tap to retake` : 'captured, tap to retake') : suggested ? `suggested ${COLOR_NAME[suggested]} center, not captured yet` : 'not captured yet'}`}
         aria-current={key === current ? 'step' : undefined}
         onClick={() => onSelect(key)}
       >
-        <FaceGrid colors={shown} undecided={shown.flat().some((color) => !color)} current={key === current} />
-        <span class="capture-net-label" aria-hidden="true">{FACE_SHORT_LABEL[key]}</span>
+        <FaceGrid
+          colors={shown}
+          undecided={shown.flat().some((color) => !color)}
+          current={key === current}
+        />
+        <span class="capture-net-label" aria-hidden="true">
+          {FACE_SHORT_LABEL[key]}
+        </span>
       </button>
     )
   }
   const [s1, s2, s3, s4, top, bottom] = FACE_ORDER
   return (
-    <div class={`capture-net ${mirrored ? 'mirrored' : ''}`} role="group" aria-label="Captured faces">
+    <div
+      class={`capture-net ${mirrored ? 'mirrored' : ''}`}
+      role="group"
+      aria-label="Captured faces"
+    >
       {slot(s1, '2 / 1')}
       {slot(s2, '2 / 2')}
       {slot(s3, '2 / 3')}
@@ -437,11 +682,30 @@ function CaptureNet({ faces, current, matchingFaces, liveMatchingFace, size, pre
 function TurnHint({ step, mirrored }: { step: number; mirrored: boolean }) {
   if (step === 0) return null
   const kind = step < 4 ? 'turn' : step === 4 ? 'tip-top' : 'tip-bottom'
-  const arrowAngle = kind === 'turn' ? 270 : kind === 'tip-top' ? mirrored ? 0 : 180 : mirrored ? 180 : 0
+  const arrowAngle =
+    kind === 'turn'
+      ? 270
+      : kind === 'tip-top'
+        ? mirrored
+          ? 0
+          : 180
+        : mirrored
+          ? 180
+          : 0
   return (
-    <svg class={`turn-hint ${mirrored ? 'mirrored' : ''}`} viewBox="0 0 64 64" aria-hidden="true">
-      <polygon points="16,24 42,24 52,14 26,14" class="turn-hint-face turn-hint-top" />
-      <polygon points="42,24 52,14 52,40 42,50" class="turn-hint-face turn-hint-side" />
+    <svg
+      class={`turn-hint ${mirrored ? 'mirrored' : ''}`}
+      viewBox="0 0 64 64"
+      aria-hidden="true"
+    >
+      <polygon
+        points="16,24 42,24 52,14 26,14"
+        class="turn-hint-face turn-hint-top"
+      />
+      <polygon
+        points="42,24 52,14 52,40 42,50"
+        class="turn-hint-face turn-hint-side"
+      />
       <rect x="16" y="24" width="26" height="26" class="turn-hint-face" />
       <g transform="translate(16 24) scale(.26)">
         <path
@@ -456,45 +720,112 @@ function TurnHint({ step, mirrored }: { step: number; mirrored: boolean }) {
 
 // A visual cue between successful captures. The turn shown is only an
 // example: the guided solver determines the real face orientation afterward.
-function CaptureTurnOverlay({ step, startColors, viaColors, capturedColors, mirrored, onContinue }: { step: number; startColors: string[][]; viaColors?: string[][]; capturedColors: Array<string[][] | undefined>; mirrored: boolean; onContinue: () => void }) {
+function CaptureTurnOverlay({
+  step,
+  startColors,
+  viaColors,
+  capturedColors,
+  mirrored,
+  onContinue,
+}: {
+  step: number
+  startColors: string[][]
+  viaColors?: string[][]
+  capturedColors: Array<string[][] | undefined>
+  mirrored: boolean
+  onContinue: () => void
+}) {
   const kind = step < 4 ? 'side' : step === 4 ? 'top' : 'bottom'
-  const title = kind === 'side' ? 'Turn to another side' : kind === 'top' ? 'Show a remaining face' : 'Show the last face'
-  const detail = kind === 'side'
-    ? mirrored ? 'Counterclockwise in the mirrored view is suggested; either direction works.' : 'Clockwise is suggested; either direction works.'
-    : kind === 'top'
-      ? mirrored ? 'Tip to the top; the mirror shows the bottom.' : 'Tip the cube up or down.'
-      : mirrored ? 'Move through Side 4; the mirror shows the top.' : 'Move through Side 4 to the opposite face.'
-  const nextFace = kind === 'side' ? 'right' : kind === 'top' ? mirrored ? 'down' : 'up' : 'back'
+  const title =
+    kind === 'side'
+      ? 'Turn to another side'
+      : kind === 'top'
+        ? 'Show a remaining face'
+        : 'Show the last face'
+  const detail =
+    kind === 'side'
+      ? mirrored
+        ? 'Counterclockwise in the mirrored view is suggested; either direction works.'
+        : 'Clockwise is suggested; either direction works.'
+      : kind === 'top'
+        ? mirrored
+          ? 'Tip to the top; the mirror shows the bottom.'
+          : 'Tip the cube up or down.'
+        : mirrored
+          ? 'Move through Side 4; the mirror shows the top.'
+          : 'Move through Side 4 to the opposite face.'
+  const nextFace =
+    kind === 'side'
+      ? 'right'
+      : kind === 'top'
+        ? mirrored
+          ? 'down'
+          : 'up'
+        : 'back'
   const viaFace = mirrored ? 'up' : 'down'
   const size = startColors.length
-  const startStickers = (mirrored ? oppositeFacePreview(startColors, capturedColors) : startColors).flat()
-  const viaStickers = viaColors && (mirrored ? oppositeFacePreview(viaColors, capturedColors) : viaColors).flat()
+  const startStickers = (
+    mirrored ? oppositeFacePreview(startColors, capturedColors) : startColors
+  ).flat()
+  const viaStickers =
+    viaColors &&
+    (mirrored
+      ? oppositeFacePreview(viaColors, capturedColors)
+      : viaColors
+    ).flat()
   const directionArrow = () => (
-    <svg class={`capture-turn-direction capture-turn-direction-${kind}`} viewBox="0 -10 100 100" aria-hidden="true">
-      <path class="capture-turn-arrow-body" d="M41 70 V41 H24 C20 41 18 37 21 34 L45 7 C48 3 52 3 55 7 L79 34 C82 37 80 41 76 41 H59 V70 Q59 74 55 74 H45 Q41 74 41 70 Z" />
+    <svg
+      class={`capture-turn-direction capture-turn-direction-${kind}`}
+      viewBox="0 -10 100 100"
+      aria-hidden="true"
+    >
+      <path
+        class="capture-turn-arrow-body"
+        d="M41 70 V41 H24 C20 41 18 37 21 34 L45 7 C48 3 52 3 55 7 L79 34 C82 37 80 41 76 41 H59 V70 Q59 74 55 74 H45 Q41 74 41 70 Z"
+      />
     </svg>
   )
   const face = (name: string) => (
     <div class={`capture-turn-face capture-turn-${name}`}>
-      <div class="capture-turn-stickers" style={{ gridTemplateColumns: `repeat(${size}, minmax(0, 1fr))` }}>
+      <div
+        class="capture-turn-stickers"
+        style={{ gridTemplateColumns: `repeat(${size}, minmax(0, 1fr))` }}
+      >
         {Array.from({ length: size * size }, (_, i) => (
           <span
             key={i}
-            class={`capture-turn-sticker${name === nextFace || name === 'front' && !startStickers[i] ? ' capture-turn-sticker-next' : ''}`}
-            style={name === 'front'
-              ? startStickers[i] ? { backgroundColor: STICKER_HEX[startStickers[i]] ?? '#888' } : undefined
-              : kind === 'bottom' && name === viaFace && viaStickers && viaStickers[i]
-                ? { backgroundColor: STICKER_HEX[viaStickers[i]] ?? '#888' }
-                : undefined}
+            class={`capture-turn-sticker${name === nextFace || (name === 'front' && !startStickers[i]) ? ' capture-turn-sticker-next' : ''}`}
+            style={
+              name === 'front'
+                ? startStickers[i]
+                  ? { backgroundColor: STICKER_HEX[startStickers[i]] ?? '#888' }
+                  : undefined
+                : kind === 'bottom' &&
+                    name === viaFace &&
+                    viaStickers &&
+                    viaStickers[i]
+                  ? { backgroundColor: STICKER_HEX[viaStickers[i]] ?? '#888' }
+                  : undefined
+            }
           />
         ))}
       </div>
-      {(name === 'front' || name === nextFace || (kind === 'bottom' && name === viaFace)) && directionArrow()}
+      {(name === 'front' ||
+        name === nextFace ||
+        (kind === 'bottom' && name === viaFace)) &&
+        directionArrow()}
     </div>
   )
   return (
-    <div class={`capture-turn-overlay capture-turn-${kind} ${mirrored ? 'mirrored' : ''}`} role="status" aria-label={`${title}. ${detail}`}>
-      <div class={`capture-turn-scene ${mirrored ? 'mirrored' : ''}`} aria-hidden="true">
+    <div
+      class={`capture-turn-overlay capture-turn-${kind} ${mirrored ? 'mirrored' : ''}`}
+      role="status"
+      aria-label={`${title}. ${detail}`}
+    >
+      <div
+        class={`capture-turn-scene ${mirrored ? 'mirrored' : ''}`}
+        aria-hidden="true"
+      >
         <div class="capture-turn-cube">
           {face('front')}
           {face('back')}
@@ -508,7 +839,9 @@ function CaptureTurnOverlay({ step, startColors, viaColors, capturedColors, mirr
         <strong>{title}</strong>
         <span>{detail}</span>
       </div>
-      <button type="button" class="capture-turn-continue" onClick={onContinue}>Continue</button>
+      <button type="button" class="capture-turn-continue" onClick={onContinue}>
+        Continue
+      </button>
     </div>
   )
 }
@@ -522,10 +855,14 @@ function flyInto(target: HTMLElement, from: DOMRect) {
   if (to.width === 0) return
   target.animate(
     [
-      { transform: `translate(${from.left - to.left}px, ${from.top - to.top}px) scale(${from.width / to.width})`, transformOrigin: 'top left', opacity: 0.6 },
+      {
+        transform: `translate(${from.left - to.left}px, ${from.top - to.top}px) scale(${from.width / to.width})`,
+        transformOrigin: 'top left',
+        opacity: 0.6,
+      },
       { transform: 'none', transformOrigin: 'top left', opacity: 1 },
     ],
-    { duration: 500, easing: 'cubic-bezier(0.2, 0.8, 0.2, 1)' }
+    { duration: 500, easing: 'cubic-bezier(0.2, 0.8, 0.2, 1)' },
   )
 }
 
@@ -534,8 +871,12 @@ function flyInto(target: HTMLElement, from: DOMRect) {
 // once the clone has landed, with a callback that removes it - the caller
 // decides when, so the clone can cover the target until the real content
 // has re-rendered underneath. Skipped entirely under prefers-reduced-motion.
-function morphInto(source: HTMLElement, target: HTMLElement): Promise<() => void> {
-  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return Promise.resolve(() => {})
+function morphInto(
+  source: HTMLElement,
+  target: HTMLElement,
+): Promise<() => void> {
+  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches)
+    return Promise.resolve(() => {})
   const from = source.getBoundingClientRect()
   const to = target.getBoundingClientRect()
   const clone = source.cloneNode(true) as HTMLElement
@@ -555,9 +896,15 @@ function morphInto(source: HTMLElement, target: HTMLElement): Promise<() => void
   const anim = clone.animate(
     [
       { transform: 'none' },
-      { transform: `translate(${to.left - from.left}px, ${to.top - from.top}px) scale(${scale})` },
+      {
+        transform: `translate(${to.left - from.left}px, ${to.top - from.top}px) scale(${scale})`,
+      },
     ],
-    { duration: 450, easing: 'cubic-bezier(0.2, 0.8, 0.2, 1)', fill: 'forwards' }
+    {
+      duration: 450,
+      easing: 'cubic-bezier(0.2, 0.8, 0.2, 1)',
+      fill: 'forwards',
+    },
   )
   const remove = () => clone.remove()
   // Browsers freeze animation timelines in background tabs, so `finished`
@@ -565,13 +912,23 @@ function morphInto(source: HTMLElement, target: HTMLElement): Promise<() => void
   // force-finish after a grace period (timers still fire when hidden).
   const fallback = setTimeout(() => anim.finish(), 800)
   return anim.finished.then(
-    () => { clearTimeout(fallback); return remove },
-    () => { clearTimeout(fallback); return remove }
+    () => {
+      clearTimeout(fallback)
+      return remove
+    },
+    () => {
+      clearTimeout(fallback)
+      return remove
+    },
   )
 }
 
 function OrientationNetPreview({
-  faces, undecidedFaces, currentFace, autoFaces, onFaceClick,
+  faces,
+  undecidedFaces,
+  currentFace,
+  autoFaces,
+  onFaceClick,
 }: {
   faces: Record<string, string[][]>
   undecidedFaces?: Set<string>
@@ -587,9 +944,19 @@ function OrientationNetPreview({
       auto={autoFaces?.has(face)}
     />
   )
-  const grid = (face: string) => onFaceClick
-    ? <button type="button" class="orientation-net-face-button" aria-label={`Check colors for ${face} face`} onClick={() => onFaceClick(face)}>{faceGrid(face)}</button>
-    : faceGrid(face)
+  const grid = (face: string) =>
+    onFaceClick ? (
+      <button
+        type="button"
+        class="orientation-net-face-button"
+        aria-label={`Check colors for ${face} face`}
+        onClick={() => onFaceClick(face)}
+      >
+        {faceGrid(face)}
+      </button>
+    ) : (
+      faceGrid(face)
+    )
   return (
     <div class="orientation-net">
       <div class="orientation-net-row">
@@ -628,14 +995,20 @@ const FOCUSABLE_SELECTOR =
 
 // Escape closes the modal; Tab/Shift+Tab cycles focus within it instead of
 // leaking out to (invisible, behind-the-backdrop) page content.
-function handleModalKeyDown(e: KeyboardEvent, container: HTMLElement, onClose: () => void) {
+function handleModalKeyDown(
+  e: KeyboardEvent,
+  container: HTMLElement,
+  onClose: () => void,
+) {
   if (e.key === 'Escape') {
     e.stopPropagation()
     onClose()
     return
   }
   if (e.key !== 'Tab') return
-  const focusable = Array.from(container.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR))
+  const focusable = Array.from(
+    container.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR),
+  )
   if (focusable.length === 0) return
   const first = focusable[0]
   const last = focusable[focusable.length - 1]
@@ -658,7 +1031,11 @@ function handleModalKeyDown(e: KeyboardEvent, container: HTMLElement, onClose: (
 // while the customer is actually using the modal leave it alone.
 // File sizes for the fixture download dialog.
 function formatBytes(bytes: number): string {
-  return bytes < 1024 ? `${bytes} B` : bytes < 1024 * 1024 ? `${Math.round(bytes / 1024)} KB` : `${(bytes / 1024 / 1024).toFixed(1)} MB`
+  return bytes < 1024
+    ? `${bytes} B`
+    : bytes < 1024 * 1024
+      ? `${Math.round(bytes / 1024)} KB`
+      : `${(bytes / 1024 / 1024).toFixed(1)} MB`
 }
 
 function focusModalOnOpen(el: HTMLElement | null) {
@@ -666,10 +1043,21 @@ function focusModalOnOpen(el: HTMLElement | null) {
 }
 
 function storedCaptureSound(): boolean {
-  try { return localStorage.getItem('cube-assembler.capture-sound') !== 'off' } catch { return true }
+  try {
+    return localStorage.getItem('cube-assembler.capture-sound') !== 'off'
+  } catch {
+    return true
+  }
 }
 
-const FACE_LABELS: Record<FaceKey, string> = { U: 'Up', R: 'Right', F: 'Front', D: 'Down', L: 'Left', B: 'Back' }
+const FACE_LABELS: Record<FaceKey, string> = {
+  U: 'Up',
+  R: 'Right',
+  F: 'Front',
+  D: 'Down',
+  L: 'Left',
+  B: 'Back',
+}
 const ORIENTATION_CHOICES_PER_PAGE = 2
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -685,9 +1073,14 @@ function App() {
   // implicated sticker cross-highlight every other reading that shares
   // its same color combination (e.g. all the wings that matched an
   // over-represented pair), not just itself.
-  const [hoveredHighlightGroup, setHoveredHighlightGroup] = useState<string | null>(null)
+  const [hoveredHighlightGroup, setHoveredHighlightGroup] = useState<
+    string | null
+  >(null)
   // The net sticker under the pointer: its face and index.
-  const [hoveredNetCell, setHoveredNetCell] = useState<{ face: string; index: number } | null>(null)
+  const [hoveredNetCell, setHoveredNetCell] = useState<{
+    face: string
+    index: number
+  } | null>(null)
   const [webcamOpen, setWebcamOpen] = useState(false)
   const [captureMode, setCaptureMode] = useState<CaptureMode>('cv')
   const [autoCapture, setAutoCapture] = useState(true)
@@ -701,11 +1094,19 @@ function App() {
   const lastCapturedColors = useRef<string[][] | null>(null)
   const lastCapturedPose = useRef<TurnCuePose | null>(null)
   const [webcamFace, setWebcamFace] = useState('U')
-  const [capturedFaces, setCapturedFaces] = useState<Record<string, FaceCaptureData>>({})
-  const [faceConfidence, setFaceConfidence] = useState<Record<string, number>>({})
+  const [capturedFaces, setCapturedFaces] = useState<
+    Record<string, FaceCaptureData>
+  >({})
+  const [faceConfidence, setFaceConfidence] = useState<Record<string, number>>(
+    {},
+  )
   const [loading, setLoading] = useState(false)
   const [captureMessage, setCaptureMessage] = useState('')
-  const [turnOverlay, setTurnOverlay] = useState<{ step: number; startColors: string[][]; viaColors?: string[][] } | null>(null)
+  const [turnOverlay, setTurnOverlay] = useState<{
+    step: number
+    startColors: string[][]
+    viaColors?: string[][]
+  } | null>(null)
   const [fixtureSaveMessage, setFixtureSaveMessage] = useState('')
   const [fixtureUploadMessage, setFixtureUploadMessage] = useState('')
   const [fixtureUploading, setFixtureUploading] = useState(false)
@@ -728,7 +1129,10 @@ function App() {
     const check = async () => {
       if (checking) return
       checking = true
-      const reachable = await fixtureUploadServerAvailable(fetch, controller.signal)
+      const reachable = await fixtureUploadServerAvailable(
+        fetch,
+        controller.signal,
+      )
       checking = false
       if (active) {
         setFixtureServerReachable(reachable)
@@ -748,10 +1152,13 @@ function App() {
   const [manualColorInput, setManualColorInput] = useState('')
   const [showColorInput, setShowColorInput] = useState(false)
   const [notationFormat, setNotationFormat] = useState<'wrg' | 'urf'>('wrg')
-  const [liveDetection, setLiveDetection] = useState<ColorDetectionResult | null>(null)
+  const [liveDetection, setLiveDetection] =
+    useState<ColorDetectionResult | null>(null)
   const [liveFaceVisible, setLiveFaceVisible] = useState(false)
   const [liveMedianWB, setLiveMedianWB] = useState(false)
-  const [liveAutoColorProfileId, setLiveAutoColorProfileId] = useState<string | null>(null)
+  const [liveAutoColorProfileId, setLiveAutoColorProfileId] = useState<
+    string | null
+  >(null)
   const [liveCapturedFace, setLiveCapturedFace] = useState<string | null>(null)
   const [showReviewDialog, setShowReviewDialog] = useState(false)
   // Non-null only when solveFaceOrientations found genuine ambiguity (see
@@ -764,7 +1171,11 @@ function App() {
   // possibility - shown to the customer rather than silently hidden.
   // `picked` lists the faces the customer answered directly; every other
   // settled face was inferred (see the progress net's dimming).
-  const [orientationWizard, setOrientationWizard] = useState<{ remaining: OrientedCandidate[]; truncated: boolean; picked: FaceKey[] } | null>(null)
+  const [orientationWizard, setOrientationWizard] = useState<{
+    remaining: OrientedCandidate[]
+    truncated: boolean
+    picked: FaceKey[]
+  } | null>(null)
   // True while a picked option is animating into the net - blocks a second
   // pick from landing mid-flight.
   const [wizardMorphing, setWizardMorphing] = useState(false)
@@ -782,50 +1193,87 @@ function App() {
     page?: number
   } | null>(null)
   // Capture-time warnings the customer chose to ignore (see captureWarning).
-  const [dismissedCaptureWarnings, setDismissedCaptureWarnings] = useState<string[]>([])
+  const [dismissedCaptureWarnings, setDismissedCaptureWarnings] = useState<
+    string[]
+  >([])
   // capture.protocol of the last uploaded fixture (see isGuidedCapture).
   const [uploadedProtocol, setUploadedProtocol] = useState<string | null>(null)
   // A problem with the capture shown in the review dialog.
   const [reviewNotice, setReviewNotice] = useState<string | null>(null)
-  const [reviewEditingCell, setReviewEditingCell] = useState<{ face: string; row: number; col: number } | null>(null)
+  const [reviewEditingCell, setReviewEditingCell] = useState<{
+    face: string
+    row: number
+    col: number
+  } | null>(null)
   // Most laptop/webcam feeds are shown mirrored by convention (like a
   // physical mirror), which is what most users expect; default on but
   // let it be turned off for cameras that don't need it (e.g. a rear
   // phone camera fed in via some capture setups).
   const [mirrorPreview, setMirrorPreview] = useState(true)
-  const [profileStore, setProfileStore] = useState<ProfileSettings>(loadProfileStore)
+  const [profileStore, setProfileStore] =
+    useState<ProfileSettings>(loadProfileStore)
   const profile = activeCube(profileStore, puzzleSize)
   const colorProfile = activeColorProfile(profileStore)
   const sampling = profile.sampling
-  const autoColorProfiles = useMemo(() => [...builtinColorProfiles(), ...profileStore.colors], [profileStore.colors])
-  const provisionalColorProfile = useMemo(() => matchPartialColorProfile(
-    autoColorProfiles,
-    FACE_ORDER.flatMap((face) => capturedFaces[face]?.cellColors?.flat() ?? []),
-  ), [autoColorProfiles, capturedFaces])
-  const palette = useMemo(() => profileStore.activeColorsId === AUTO_COLORS_ID
-    ? provisionalColorProfile?.colors : capturePalette(profileStore), [profileStore, provisionalColorProfile])
-  const liveAutoColorProfile = autoColorProfiles.find((candidate) => candidate.id === liveAutoColorProfileId)
+  const autoColorProfiles = useMemo(
+    () => [...builtinColorProfiles(), ...profileStore.colors],
+    [profileStore.colors],
+  )
+  const provisionalColorProfile = useMemo(
+    () =>
+      matchPartialColorProfile(
+        autoColorProfiles,
+        FACE_ORDER.flatMap(
+          (face) => capturedFaces[face]?.cellColors?.flat() ?? [],
+        ),
+      ),
+    [autoColorProfiles, capturedFaces],
+  )
+  const palette = useMemo(
+    () =>
+      profileStore.activeColorsId === AUTO_COLORS_ID
+        ? provisionalColorProfile?.colors
+        : capturePalette(profileStore),
+    [profileStore, provisionalColorProfile],
+  )
+  const liveAutoColorProfile = autoColorProfiles.find(
+    (candidate) => candidate.id === liveAutoColorProfileId,
+  )
   // The profile a capture is read with right now (see the palette passed to
   // captureAndProcessCanvas): Automatic's provisional choice, else the live
   // worker's pick for the first face; the selected profile otherwise.
-  const previewProfileFor = (liveId: string | null): PreviewColorProfile | undefined => {
-    const used = profileStore.activeColorsId === AUTO_COLORS_ID
-      ? provisionalColorProfile ?? autoColorProfiles.find((candidate) => candidate.id === liveId)
-      : colorProfile
-    return used ? { id: used.id, name: used.name, colors: colorPalette(used) } : undefined
+  const previewProfileFor = (
+    liveId: string | null,
+  ): PreviewColorProfile | undefined => {
+    const used =
+      profileStore.activeColorsId === AUTO_COLORS_ID
+        ? (provisionalColorProfile ??
+          autoColorProfiles.find((candidate) => candidate.id === liveId))
+        : colorProfile
+    return used
+      ? { id: used.id, name: used.name, colors: colorPalette(used) }
+      : undefined
   }
   const [samplingSetupOpen, setSamplingSetupOpen] = useState(false)
   // Upload Fixture option: start the review from what detection reads
   // today instead of the colors the fixture was saved with, so a capture
   // can be reviewed afresh without its earlier hand corrections.
-  const [ignoreFixtureCorrections, setIgnoreFixtureCorrections] = useState(false)
+  const [ignoreFixtureCorrections, setIgnoreFixtureCorrections] =
+    useState(false)
   // The 6 colors as learned from this capture's own stickers (null when the
   // cross-face recalibration didn't run) - what the color-fix picker scores
   // each alternative against.
-  const [learnedPalette, setLearnedPalette] = useState<Record<string, RGB> | null>(null)
+  const [learnedPalette, setLearnedPalette] = useState<Record<
+    string,
+    RGB
+  > | null>(null)
   // Learned colors whose cluster mixed two colors (see mixedUpClusters).
   const [mixedUpColors, setMixedUpColors] = useState<string[]>([])
-  const [pendingPalette, setPendingPalette] = useState<{ colors: Record<string, RGB>; confidentFraction: number; recalibrated: boolean } | null>(null)
+  const [pendingPalette, setPendingPalette] = useState<{
+    colors: Record<string, RGB>
+    confidentFraction: number
+    recalibrated: boolean
+  } | null>(null)
   const [profileLearningOffer, setProfileLearningOffer] = useState<{
     colors: Record<string, RGB>
     evidence: PaletteEvidence
@@ -835,11 +1283,19 @@ function App() {
   const [newColorName, setNewColorName] = useState<string | null>(null)
   const [samplingFileMessage, setSamplingFileMessage] = useState('')
   // The cube geometry and colors selected when this capture was taken.
-  const [captureProfile, setCaptureProfile] = useState<{ id?: string; name: string } | null>(null)
-  const [resolvedColorProfile, setResolvedColorProfile] = useState<UsedColorProfile | null>(null)
-  const [resolvedColorReference, setResolvedColorReference] = useState<Record<string, RGB> | null>(null)
+  const [captureProfile, setCaptureProfile] = useState<{
+    id?: string
+    name: string
+  } | null>(null)
+  const [resolvedColorProfile, setResolvedColorProfile] =
+    useState<UsedColorProfile | null>(null)
+  const [resolvedColorReference, setResolvedColorReference] = useState<Record<
+    string,
+    RGB
+  > | null>(null)
   // Why Automatic settled on its six-face profile (or on none).
-  const [automaticResolution, setAutomaticResolution] = useState<AutomaticResolution | null>(null)
+  const [automaticResolution, setAutomaticResolution] =
+    useState<AutomaticResolution | null>(null)
   // Applied for this session even when the browser won't keep it.
   // '#profiles' shows the profiles page instead of the scanner.
   const [page, setPage] = useState(() => location.hash)
@@ -850,7 +1306,9 @@ function App() {
   }, [])
   const applyProfileStore = (updated: ProfileSettings) => {
     if (!saveProfileStore(updated)) {
-      setSamplingFileMessage("❌ This browser won't keep profiles (storage blocked or full) - export them to save a copy")
+      setSamplingFileMessage(
+        "❌ This browser won't keep profiles (storage blocked or full) - export them to save a copy",
+      )
     }
     setProfileStore(updated)
   }
@@ -859,49 +1317,88 @@ function App() {
     applyProfileStore(saveCube(profileStore, { ...profile, sampling: next }))
   }
   const [newCubeName, setNewCubeName] = useState<string | null>(null)
-  const [newColorProfileName, setNewColorProfileName] = useState<string | null>(null)
+  const [newColorProfileName, setNewColorProfileName] = useState<string | null>(
+    null,
+  )
   const handleCreateCube = () => {
     if (!newCubeName?.trim()) return
-    applyProfileStore(saveCube(profileStore, copyCubeSetting(profileStore, profile, newCubeName)))
+    applyProfileStore(
+      saveCube(
+        profileStore,
+        copyCubeSetting(profileStore, profile, newCubeName),
+      ),
+    )
     setNewCubeName(null)
     setSamplingSetupOpen(true)
   }
   const handleCreateNamedColors = () => {
     if (!newColorProfileName?.trim()) return
-    applyProfileStore(saveColorProfile(profileStore, copyColorProfile(profileStore, colorProfile, newColorProfileName)))
+    applyProfileStore(
+      saveColorProfile(
+        profileStore,
+        copyColorProfile(profileStore, colorProfile, newColorProfileName),
+      ),
+    )
     setNewColorProfileName(null)
   }
   const handleCreateColors = () => {
     if (!profileLearningOffer || !newColorName?.trim()) return
     const id = `colors-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
     const saved = saveColorProfile(profileStore, {
-      id, name: newColorName.trim().slice(0, 60), colors: profileLearningOffer.colors,
-      captures: 1, updatedAt: new Date().toISOString(),
+      id,
+      name: newColorName.trim().slice(0, 60),
+      colors: profileLearningOffer.colors,
+      captures: 1,
+      updatedAt: new Date().toISOString(),
     })
-    applyProfileStore(profileStore.activeColorsId === AUTO_COLORS_ID
-      ? setAutoColorMatch(selectColorProfile(saved, AUTO_COLORS_ID), id) : saved)
+    applyProfileStore(
+      profileStore.activeColorsId === AUTO_COLORS_ID
+        ? setAutoColorMatch(selectColorProfile(saved, AUTO_COLORS_ID), id)
+        : saved,
+    )
     setProfileLearningOffer(null)
     setNewColorName(null)
   }
   // The saved profile the Update action would change (see profileToUpdate).
-  const updatableName = profileStore.colors.find((profile) => profile.id === profileLearningOffer?.matchedProfileId)?.name ?? 'detected'
+  const updatableName =
+    profileStore.colors.find(
+      (profile) => profile.id === profileLearningOffer?.matchedProfileId,
+    )?.name ?? 'detected'
   const handleUpdateColors = () => {
     const offer = profileLearningOffer
-    const target = profileStore.colors.find((profile) => profile.id === offer?.matchedProfileId)
+    const target = profileStore.colors.find(
+      (profile) => profile.id === offer?.matchedProfileId,
+    )
     if (!offer || !target) return
-    const updated = updateProfileFromCapture(target, offer.colors, offer.evidence, new Date().toISOString())
+    const updated = updateProfileFromCapture(
+      target,
+      offer.colors,
+      offer.evidence,
+      new Date().toISOString(),
+    )
     if (!updated) return
     // Saving would also select the profile; keep Automatic or the current choice.
-    const saved = { ...saveColorProfile(profileStore, updated), activeColorsId: profileStore.activeColorsId }
-    applyProfileStore(profileStore.activeColorsId === AUTO_COLORS_ID ? setAutoColorMatch(saved, updated.id) : saved)
-    setProfileLearningOffer({ ...offer, matchedProfileId: null, updatedProfileName: updated.name })
+    const saved = {
+      ...saveColorProfile(profileStore, updated),
+      activeColorsId: profileStore.activeColorsId,
+    }
+    applyProfileStore(
+      profileStore.activeColorsId === AUTO_COLORS_ID
+        ? setAutoColorMatch(saved, updated.id)
+        : saved,
+    )
+    setProfileLearningOffer({
+      ...offer,
+      matchedProfileId: null,
+      updatedProfileName: updated.name,
+    })
   }
   // Profiles file: cubes and colors, so a setup tuned in one browser or
   // on one machine can be carried to another.
   const handleDownloadSampling = () => {
     const blob = new Blob(
       [JSON.stringify(settingsFile(profileStore), null, 2)],
-      { type: 'application/json' }
+      { type: 'application/json' },
     )
     const url = URL.createObjectURL(blob)
     const link = document.createElement('a')
@@ -921,22 +1418,31 @@ function App() {
       // Files saved before cube profiles held per-size settings instead.
       const uploaded = parseSettingsFile(data)
       if (!uploaded) {
-        setSamplingFileMessage(`❌ ${file.name} isn't a cube and color profiles file`)
+        setSamplingFileMessage(
+          `❌ ${file.name} isn't a cube and color profiles file`,
+        )
         return
       }
       applyProfileStore(mergeSettings(profileStore, uploaded))
-      setSamplingFileMessage(`✓ Loaded ${uploaded.cubes.length} cubes and ${uploaded.colors.length} color profiles`)
+      setSamplingFileMessage(
+        `✓ Loaded ${uploaded.cubes.length} cubes and ${uploaded.colors.length} color profiles`,
+      )
     } catch {
       setSamplingFileMessage(`❌ ${file.name} isn't valid JSON`)
     }
   }
-  const [globalWhiteBalanceNote, setGlobalWhiteBalanceNote] = useState<string | null>(null)
+  const [globalWhiteBalanceNote, setGlobalWhiteBalanceNote] = useState<
+    string | null
+  >(null)
   // Faces with glare-washed stickers, when enough to warn (see glareStickers).
   const [glareFaces, setGlareFaces] = useState<string[]>([])
   // The per-face background-derived gains actually applied this capture
   // (see computeBackgroundGains) - recorded in saved fixtures, which
   // replay them.
-  const [appliedBackgroundGains, setAppliedBackgroundGains] = useState<Record<string, RGB> | null>(null)
+  const [appliedBackgroundGains, setAppliedBackgroundGains] = useState<Record<
+    string,
+    RGB
+  > | null>(null)
   const [showBackdropDialog, setShowBackdropDialog] = useState(false)
   const [reviewStep, setReviewStep] = useState(0)
   // Captured once per webcam session (device label isn't available until
@@ -951,14 +1457,21 @@ function App() {
   const pendingFlyIn = useRef<{ slot: string; from: DOMRect } | null>(null)
   const sampleCanvasRef = useRef<HTMLCanvasElement | null>(null)
   const liveWorker = useRef<Worker | null>(null)
-  useEffect(() => () => { liveWorker.current?.terminate() }, [])
+  useEffect(
+    () => () => {
+      liveWorker.current?.terminate()
+    },
+    [],
+  )
 
   const armCaptureAudio = (enabled = captureSound) => {
     if (!enabled) return
     try {
       captureAudio.current ??= new AudioContext()
       void captureAudio.current.resume()
-    } catch { /* Audio is optional if the browser has no Web Audio. */ }
+    } catch {
+      /* Audio is optional if the browser has no Web Audio. */
+    }
   }
 
   const signalCapture = () => {
@@ -967,7 +1480,11 @@ function App() {
     flashTimer.current = setTimeout(() => setCaptureFlash(false), 220)
     const audio = captureSound ? captureAudio.current : null
     if (!audio || audio.state !== 'running') return
-    const buffer = audio.createBuffer(1, Math.ceil(audio.sampleRate * 0.07), audio.sampleRate)
+    const buffer = audio.createBuffer(
+      1,
+      Math.ceil(audio.sampleRate * 0.07),
+      audio.sampleRate,
+    )
     const samples = buffer.getChannelData(0)
     for (let i = 0; i < samples.length; i++) samples[i] = Math.random() * 2 - 1
     const click = audio.createBufferSource()
@@ -984,10 +1501,13 @@ function App() {
     click.stop(now + 0.07)
   }
 
-  useEffect(() => () => {
-    if (flashTimer.current) clearTimeout(flashTimer.current)
-    void captureAudio.current?.close()
-  }, [])
+  useEffect(
+    () => () => {
+      if (flashTimer.current) clearTimeout(flashTimer.current)
+      void captureAudio.current?.close()
+    },
+    [],
+  )
 
   const dismissTurnOverlay = () => {
     setTurnOverlay(null)
@@ -1036,7 +1556,9 @@ function App() {
             requested: CAMERA_CONSTRAINTS,
             granted: withoutDeviceIds(track.getSettings()),
             // getCapabilities is missing in Firefox
-            supported: track.getCapabilities ? withoutDeviceIds(track.getCapabilities()) : null,
+            supported: track.getCapabilities
+              ? withoutDeviceIds(track.getCapabilities())
+              : null,
           })
         }
       })
@@ -1053,7 +1575,9 @@ function App() {
     const fly = pendingFlyIn.current
     if (!fly || !capturedFaces[fly.slot]) return
     pendingFlyIn.current = null
-    const target = document.querySelector<HTMLElement>(`.capture-net [data-slot="${fly.slot}"] .orientation-net-face`)
+    const target = document.querySelector<HTMLElement>(
+      `.capture-net [data-slot="${fly.slot}"] .orientation-net-face`,
+    )
     if (target) flyInto(target, fly.from)
   }, [capturedFaces])
 
@@ -1081,20 +1605,31 @@ function App() {
     let progress: AutoCaptureProgress | null = null
     let hold: LiveHold<ColorDetectionResult> = NO_HOLD
     let turnCue: TurnCueState = TURN_CUE_START
-    const capturedBackgrounds = Object.fromEntries(FACE_ORDER.map((face) => [face, capturedFaces[face]?.backgroundColor ?? null]))
+    const capturedBackgrounds = Object.fromEntries(
+      FACE_ORDER.map((face) => [
+        face,
+        capturedFaces[face]?.backgroundColor ?? null,
+      ]),
+    )
 
     // Frames are analyzed in a worker, scaled down to LIVE_ANALYSIS_HEIGHT
     // there (see liveAnalysis.worker.ts), one at a time. The worker hands
     // each full-resolution frame back with its result, so a capture reads
     // the very image the detection judged.
-    const worker = liveWorker.current ??= new Worker(new URL('./liveAnalysis.worker.ts', import.meta.url), { type: 'module' })
+    const worker = (liveWorker.current ??= new Worker(
+      new URL('./liveAnalysis.worker.ts', import.meta.url),
+      { type: 'module' },
+    ))
     let active = true
     let frameId = 0
     let inFlight: number | null = null
 
     const onResult = (event: MessageEvent<LiveResultMessage>) => {
       const full = event.data.frame
-      if (!active || event.data.id !== inFlight) { full.close(); return }
+      if (!active || event.data.id !== inFlight) {
+        full.close()
+        return
+      }
       try {
         if ('error' in event.data) throw new Error(event.data.error)
         const { result } = event.data
@@ -1103,7 +1638,9 @@ function App() {
         const bounds = scaleBounds(result.bounds, event.data.scale)
         const { detection, visible } = result
         setLiveMedianWB(result.backgroundColor !== null)
-        setLiveAutoColorProfileId(result.colorProfileId ?? provisionalColorProfile?.id ?? null)
+        setLiveAutoColorProfileId(
+          result.colorProfileId ?? provisionalColorProfile?.id ?? null,
+        )
         if (lastCapturedColors.current) {
           const pose: TurnCuePose = {
             centerX: bounds.startX + bounds.faceWidth / 2,
@@ -1113,10 +1650,13 @@ function App() {
           }
           turnCue = nextTurnCue(
             turnCue,
-            visible && bounds.gridFound && detection.confidence >= 0.8 ? detection.colors : null,
+            visible && bounds.gridFound && detection.confidence >= 0.8
+              ? detection.colors
+              : null,
             lastCapturedColors.current,
             visible && bounds.gridFound && lastCapturedPose.current !== null
-              ? turnPoseChanged(lastCapturedPose.current, pose) : false
+              ? turnPoseChanged(lastCapturedPose.current, pose)
+              : false,
           )
           if (turnCueCleared(turnCue)) {
             lastCapturedColors.current = null
@@ -1129,34 +1669,63 @@ function App() {
         // Detect face holds a confirmed face through a weak frame or two
         // (display only - see holdConfirmedFace); everything below still
         // judges this frame on its own.
-        const shown = captureMode === 'cv' ? holdConfirmedFace(hold, detection, visible) : { hold, show: detection, visible }
+        const shown =
+          captureMode === 'cv'
+            ? holdConfirmedFace(hold, detection, visible)
+            : { hold, show: detection, visible }
         hold = shown.hold
         setLiveDetection(shown.show)
         setLiveFaceVisible(shown.visible)
-        const matchedSlot = captureMode === 'cv' && visible && detection.confidence >= 0.8
-          ? findCapturedFaceMatch(
-              FACE_ORDER.map((face) => capturedFaces[face] && { colors: capturedFaces[face].colors }),
-              { colors: detection.colors },
-              FACE_ORDER.indexOf(webcamFace)
-            )
-          : null
-        setLiveCapturedFace(matchedSlot === null ? null : FACE_ORDER[matchedSlot])
-        if (captureMode === 'cv' && autoCapture && !autoCaptureInFlight.current) {
-          const counted = visible && bounds.gridFound && detection.confidence >= AUTO_CAPTURE_MIN_CONFIDENCE
-          progress = nextAutoCaptureProgress(progress, counted ? {
-            colors: detection.colors,
-            confidence: detection.confidence,
-            centerX: bounds.startX + bounds.faceWidth / 2,
-            centerY: bounds.startY + bounds.faceHeight / 2,
-            size: bounds.faceWidth,
-            angle: bounds.angle ?? 0,
-          } : null)
+        const matchedSlot =
+          captureMode === 'cv' && visible && detection.confidence >= 0.8
+            ? findCapturedFaceMatch(
+                FACE_ORDER.map(
+                  (face) =>
+                    capturedFaces[face] && {
+                      colors: capturedFaces[face].colors,
+                    },
+                ),
+                { colors: detection.colors },
+                FACE_ORDER.indexOf(webcamFace),
+              )
+            : null
+        setLiveCapturedFace(
+          matchedSlot === null ? null : FACE_ORDER[matchedSlot],
+        )
+        if (
+          captureMode === 'cv' &&
+          autoCapture &&
+          !autoCaptureInFlight.current
+        ) {
+          const counted =
+            visible &&
+            bounds.gridFound &&
+            detection.confidence >= AUTO_CAPTURE_MIN_CONFIDENCE
+          progress = nextAutoCaptureProgress(
+            progress,
+            counted
+              ? {
+                  colors: detection.colors,
+                  confidence: detection.confidence,
+                  centerX: bounds.startX + bounds.faceWidth / 2,
+                  centerY: bounds.startY + bounds.faceHeight / 2,
+                  size: bounds.faceWidth,
+                  angle: bounds.angle ?? 0,
+                }
+              : null,
+          )
           setAutoCaptureFrames(progress?.frames ?? 0)
           setAutoCapturePaused(!counted && progress !== null)
-          if (counted && progress && progress.frames >= AUTO_CAPTURE_STABLE_FRAMES) {
+          if (
+            counted &&
+            progress &&
+            progress.frames >= AUTO_CAPTURE_STABLE_FRAMES
+          ) {
             autoCaptureInFlight.current = true
             progress = null
-            const frame = document.querySelector('.capture-scan-frame')?.getBoundingClientRect()
+            const frame = document
+              .querySelector('.capture-scan-frame')
+              ?.getBoundingClientRect()
             if (frame) pendingFlyIn.current = { slot: webcamFace, from: frame }
             try {
               // Capture exactly the frame whose grid and colors stayed stable:
@@ -1164,19 +1733,47 @@ function App() {
               canvas.width = full.width
               canvas.height = full.height
               canvas.getContext('2d')?.drawImage(full, 0, 0)
-              const autoPalette = autoColorProfiles.find((candidate) => candidate.id === event.data.result.colorProfileId)?.colors
-              const result = captureAndProcessCanvas(canvas, puzzleSize, event.data.result.gains, sampling, palette ?? autoPalette, 'aligned', bounds)
+              const autoPalette = autoColorProfiles.find(
+                (candidate) =>
+                  candidate.id === event.data.result.colorProfileId,
+              )?.colors
+              const result = captureAndProcessCanvas(
+                canvas,
+                puzzleSize,
+                event.data.result.gains,
+                sampling,
+                palette ?? autoPalette,
+                'aligned',
+                bounds,
+              )
               signalCapture()
-              const track = (webcamRef.current?.srcObject as MediaStream | null)?.getVideoTracks()[0]
+              const track = (
+                webcamRef.current?.srcObject as MediaStream | null
+              )?.getVideoTracks()[0]
               setLoading(true)
               setCaptureMessage('Processing image...')
-              void applyFaceCapture(webcamFace, result, 'camera', track ? withoutDeviceIds(track.getSettings()) : undefined, puzzleSize,
-                previewProfileFor(event.data.result.colorProfileId ?? null))
-                .catch((err) => setCaptureMessage(`❌ Error: ${err instanceof Error ? err.message : 'Unknown error'}`))
-                .finally(() => { autoCaptureInFlight.current = false; setLoading(false) })
+              void applyFaceCapture(
+                webcamFace,
+                result,
+                'camera',
+                track ? withoutDeviceIds(track.getSettings()) : undefined,
+                puzzleSize,
+                previewProfileFor(event.data.result.colorProfileId ?? null),
+              )
+                .catch((err) =>
+                  setCaptureMessage(
+                    `❌ Error: ${err instanceof Error ? err.message : 'Unknown error'}`,
+                  ),
+                )
+                .finally(() => {
+                  autoCaptureInFlight.current = false
+                  setLoading(false)
+                })
             } catch (err) {
               autoCaptureInFlight.current = false
-              setCaptureMessage(`❌ Error: ${err instanceof Error ? err.message : 'Unknown error'}`)
+              setCaptureMessage(
+                `❌ Error: ${err instanceof Error ? err.message : 'Unknown error'}`,
+              )
             }
           }
         }
@@ -1198,22 +1795,42 @@ function App() {
 
     const intervalId = setInterval(async () => {
       const video = webcamRef.current
-      if (inFlight || !video || video.videoWidth === 0 || video.videoHeight === 0) return
+      if (
+        inFlight ||
+        !video ||
+        video.videoWidth === 0 ||
+        video.videoHeight === 0
+      )
+        return
       const id = ++frameId
       inFlight = id
       try {
         const frame = await createImageBitmap(video)
-        if (!active || inFlight !== id) { frame.close(); return }
+        if (!active || inFlight !== id) {
+          frame.close()
+          return
+        }
         const request: LiveAnalysisRequest = {
           gridSize: puzzleSize,
           mode: captureMode === 'cv' ? 'aligned' : 'fixed',
           requireOutline: captureMode === 'cv',
           sampling,
           palette,
-          autoProfiles: profileStore.activeColorsId === AUTO_COLORS_ID && !palette ? autoColorProfiles : undefined,
+          autoProfiles:
+            profileStore.activeColorsId === AUTO_COLORS_ID && !palette
+              ? autoColorProfiles
+              : undefined,
           capturedBackgrounds,
         }
-        worker.postMessage({ id, frame, maxHeight: LIVE_ANALYSIS_HEIGHT, request } satisfies LiveFrameMessage, [frame])
+        worker.postMessage(
+          {
+            id,
+            frame,
+            maxHeight: LIVE_ANALYSIS_HEIGHT,
+            request,
+          } satisfies LiveFrameMessage,
+          [frame],
+        )
       } catch {
         if (inFlight === id) inFlight = null
       }
@@ -1225,14 +1842,33 @@ function App() {
       worker.removeEventListener('message', onResult)
       inFlight = null
     }
-  }, [webcamOpen, turnCueShowing, loading, webcamFace, puzzleSize, sampling, palette, autoColorProfiles, profileStore.activeColorsId, provisionalColorProfile, captureMode, autoCapture, captureSound, capturedFaces])
+  }, [
+    webcamOpen,
+    turnCueShowing,
+    loading,
+    webcamFace,
+    puzzleSize,
+    sampling,
+    palette,
+    autoColorProfiles,
+    profileStore.activeColorsId,
+    provisionalColorProfile,
+    captureMode,
+    autoCapture,
+    captureSound,
+    capturedFaces,
+  ])
 
   // Everything below belongs to one cube of one size, so switching sizes
   // starts over - keeping it drew e.g. a 5x5's 25 stickers per face into a
   // 6x6 net. Shared by the main size bar and the capture dialog.
   const changePuzzleSize = (size: number) => {
     if (size === puzzleSize) return true
-    if (Object.keys(capturedFaces).length > 0 && !window.confirm('Changing cube size clears the captured faces. Continue?')) return false
+    if (
+      Object.keys(capturedFaces).length > 0 &&
+      !window.confirm('Changing cube size clears the captured faces. Continue?')
+    )
+      return false
     setPuzzleSize(size)
     setCube(null)
     setParity(null)
@@ -1267,7 +1903,8 @@ function App() {
   const changeCube = (id: string) => {
     const selected = allCubes(profileStore).find((cube) => cube.id === id)
     if (!selected) return false
-    if (selected.size !== puzzleSize && !changePuzzleSize(selected.size)) return false
+    if (selected.size !== puzzleSize && !changePuzzleSize(selected.size))
+      return false
     applyProfileStore(selectCube(profileStore, id))
     return true
   }
@@ -1280,7 +1917,14 @@ function App() {
 
     const solvedFaceGrid = (color: string): string[][] =>
       Array.from({ length: puzzleSize }, () => Array(puzzleSize).fill(color))
-    const solvedColors: Record<string, string> = { U: 'W', R: 'R', F: 'G', D: 'Y', L: 'O', B: 'B' }
+    const solvedColors: Record<string, string> = {
+      U: 'W',
+      R: 'R',
+      F: 'G',
+      D: 'Y',
+      L: 'O',
+      B: 'B',
+    }
 
     const newCapturedFaces: Record<string, FaceCaptureData> = {}
     for (const face of FACE_ORDER) {
@@ -1306,15 +1950,17 @@ function App() {
       // pasted content via detectNotationFormat, but fall back to it here
       // too in case content ever reaches this handler without going
       // through that path (e.g. a fast paste-and-submit).
-      const effectiveFormat = detectNotationFormat(manualColorInput) ?? notationFormat
-      const newCube = effectiveFormat === 'wrg'
-        ? fromWRGFacelets(manualColorInput)
-        : fromURFFacelets(manualColorInput)
+      const effectiveFormat =
+        detectNotationFormat(manualColorInput) ?? notationFormat
+      const newCube =
+        effectiveFormat === 'wrg'
+          ? fromWRGFacelets(manualColorInput)
+          : fromURFFacelets(manualColorInput)
       if (!newCube) {
         alert(
           effectiveFormat === 'wrg'
             ? 'Invalid facelets. Must be 6 space-separated blocks of equal, perfect-square length (9 for 3×3, 25 for 5×5, ...) using colors W, O, G, R, B, Y, in U R F D L B order.'
-            : 'Invalid facelets. Must be 6 space-separated blocks of equal, perfect-square length (9 for 3×3, 25 for 5×5, ...) using letters U, R, F, D, L, B (the face each sticker matches when solved), in U R F D L B order.'
+            : 'Invalid facelets. Must be 6 space-separated blocks of equal, perfect-square length (9 for 3×3, 25 for 5×5, ...) using letters U, R, F, D, L, B (the face each sticker matches when solved), in U R F D L B order.',
         )
         return
       }
@@ -1327,10 +1973,16 @@ function App() {
       setAutomaticResolution(null)
 
       const toGrid = (data: string[]): string[][] =>
-        Array.from({ length: size }, (_, r) => data.slice(r * size, r * size + size))
+        Array.from({ length: size }, (_, r) =>
+          data.slice(r * size, r * size + size),
+        )
       const newCapturedFaces: Record<string, FaceCaptureData> = {}
       for (const [face, data] of Object.entries(newCube)) {
-        newCapturedFaces[face.toUpperCase()] = { colors: toGrid(data), confidence: 1.0, timestamp: Date.now() }
+        newCapturedFaces[face.toUpperCase()] = {
+          colors: toGrid(data),
+          confidence: 1.0,
+          timestamp: Date.now(),
+        }
       }
       setCapturedFaces(newCapturedFaces)
 
@@ -1383,7 +2035,9 @@ function App() {
       setProfileLearningOffer(null)
       setNewColorName(null)
     }
-    const nextFace = startOver ? FACE_ORDER[0] : FACE_ORDER.find((f) => !(f in capturedFaces))!
+    const nextFace = startOver
+      ? FACE_ORDER[0]
+      : FACE_ORDER.find((f) => !(f in capturedFaces))!
     setWebcamFace(nextFace)
     setCaptureMessage('')
     if (startOver) setDismissedCaptureWarnings([])
@@ -1414,15 +2068,21 @@ function App() {
     source: 'camera' | 'image-file',
     cameraSettings?: Partial<MediaTrackSettings>,
     captureSize = puzzleSize,
-    previewColorProfile?: PreviewColorProfile
+    previewColorProfile?: PreviewColorProfile,
   ) => {
     if (!validateFaceColors(result.colors, captureSize)) {
-      setCaptureMessage(`❌ Invalid colors detected. Confidence: ${(result.confidence * 100).toFixed(0)}%`)
+      setCaptureMessage(
+        `❌ Invalid colors detected. Confidence: ${(result.confidence * 100).toFixed(0)}%`,
+      )
       return
     }
 
     const requestedIndex = FACE_ORDER.indexOf(face)
-    const { index: assignedIndex, unexpectedCenter } = placeCapturedFace(FACE_ORDER.map((f) => capturedFaces[f]?.colors), requestedIndex, result.colors)
+    const { index: assignedIndex, unexpectedCenter } = placeCapturedFace(
+      FACE_ORDER.map((f) => capturedFaces[f]?.colors),
+      requestedIndex,
+      result.colors,
+    )
     const assignedFace = FACE_ORDER[assignedIndex]
     if (pendingFlyIn.current) pendingFlyIn.current.slot = assignedFace
 
@@ -1442,36 +2102,57 @@ function App() {
         cameraSettings,
         source,
         ...(previewColorProfile && { previewColorProfile }),
-        outOfOrder: unexpectedCenter || assignedIndex !== requestedIndex || capturedFaces[assignedFace]?.outOfOrder,
+        outOfOrder:
+          unexpectedCenter ||
+          assignedIndex !== requestedIndex ||
+          capturedFaces[assignedFace]?.outOfOrder,
         timestamp: Date.now(),
       },
     }
 
     setCapturedFaces(newCapturedFaces)
     lastCapturedColors.current = source === 'camera' ? result.colors : null
-    lastCapturedPose.current = source === 'camera' && result.crop
-      ? { centerX: result.crop.x + result.crop.width / 2, centerY: result.crop.y + result.crop.height / 2,
-          size: result.crop.width, angle: (result.crop.angle ?? 0) * Math.PI / 180 }
-      : null
+    lastCapturedPose.current =
+      source === 'camera' && result.crop
+        ? {
+            centerX: result.crop.x + result.crop.width / 2,
+            centerY: result.crop.y + result.crop.height / 2,
+            size: result.crop.width,
+            angle: ((result.crop.angle ?? 0) * Math.PI) / 180,
+          }
+        : null
     setFaceConfidence({ ...faceConfidence, [assignedFace]: result.confidence })
-    setCaptureMessage(`✓ ${FACE_DISPLAY_LABEL[assignedFace]} captured (${(result.confidence * 100).toFixed(0)}% confidence)`
-      + (unexpectedCenter ? " - its center isn't the suggested one; check it in the review" : ''))
+    setCaptureMessage(
+      `✓ ${FACE_DISPLAY_LABEL[assignedFace]} captured (${(result.confidence * 100).toFixed(0)}% confidence)` +
+        (unexpectedCenter
+          ? " - its center isn't the suggested one; check it in the review"
+          : ''),
+    )
 
-    const allFacesCaptured = FACE_ORDER.every(f => f in newCapturedFaces)
+    const allFacesCaptured = FACE_ORDER.every((f) => f in newCapturedFaces)
     if (allFacesCaptured) {
       await finalizeAllFacesCaptured(newCapturedFaces)
     } else {
-      const nextFace = FACE_ORDER.find(f => !(f in newCapturedFaces))
+      const nextFace = FACE_ORDER.find((f) => !(f in newCapturedFaces))
       if (nextFace) {
         setWebcamFace(nextFace)
         setCaptureMessage('')
         dismissTurnOverlay()
         // The cue blocks capturing while the cube turns; without the turn it
         // would only be a wait, and the step hint already says what to do.
-        if (source !== 'camera' || window.matchMedia('(prefers-reduced-motion: reduce)').matches
-          || FACE_ORDER.some((f) => newCapturedFaces[f]?.outOfOrder)) return
+        if (
+          source !== 'camera' ||
+          window.matchMedia('(prefers-reduced-motion: reduce)').matches ||
+          FACE_ORDER.some((f) => newCapturedFaces[f]?.outOfOrder)
+        )
+          return
         const step = FACE_ORDER.indexOf(nextFace)
-        setTurnOverlay({ step, startColors: result.colors, viaColors: step === 5 ? newCapturedFaces[FACE_ORDER[3]]?.colors : undefined })
+        setTurnOverlay({
+          step,
+          startColors: result.colors,
+          viaColors:
+            step === 5 ? newCapturedFaces[FACE_ORDER[3]]?.colors : undefined,
+        })
       }
     }
   }
@@ -1482,55 +2163,105 @@ function App() {
   // faces together, see runGlobalWhiteBalance) only makes sense with a
   // complete set, so this is the single place both capture paths converge
   // before opening the review wizard.
-  const finalizeAllFacesCaptured = async (newCapturedFaces: Record<string, FaceCaptureData>) => {
-    setCaptureMessage('✓ All faces captured! Checking white balance across all stickers...')
+  const finalizeAllFacesCaptured = async (
+    newCapturedFaces: Record<string, FaceCaptureData>,
+  ) => {
+    setCaptureMessage(
+      '✓ All faces captured! Checking white balance across all stickers...',
+    )
     setLoading(true)
     setPendingPalette(null)
     setProfileLearningOffer(null)
     const automatic = profileStore.activeColorsId === AUTO_COLORS_ID
-    setResolvedColorProfile(automatic ? null : resolvedColorProfileSnapshot(colorProfile, 'manual'))
+    setResolvedColorProfile(
+      automatic ? null : resolvedColorProfileSnapshot(colorProfile, 'manual'),
+    )
     setAutomaticResolution(null)
     setResolvedColorReference(null)
 
-    const canRecalibrate = FACE_ORDER.every((f) => newCapturedFaces[f].croppedImage)
+    const canRecalibrate = FACE_ORDER.every(
+      (f) => newCapturedFaces[f].croppedImage,
+    )
     if (canRecalibrate) {
       try {
         const images: Record<string, string> = {}
-        for (const f of FACE_ORDER) images[f] = newCapturedFaces[f].croppedImage!
+        for (const f of FACE_ORDER)
+          images[f] = newCapturedFaces[f].croppedImage!
 
         // Each face's backdrop brought to the median of all six (see
         // computeBackgroundGains) before the colors are learned; neutral
         // without enough backdrop readings (e.g. imported photos).
-        const faceGains = computeBackgroundGains(Object.fromEntries(FACE_ORDER.map((f) => [f, newCapturedFaces[f].backgroundColor])))
+        const faceGains = computeBackgroundGains(
+          Object.fromEntries(
+            FACE_ORDER.map((f) => [f, newCapturedFaces[f].backgroundColor]),
+          ),
+        )
         setAppliedBackgroundGains(faceGains)
 
-        let wb = await runGlobalWhiteBalance(images, puzzleSize, faceGains ?? undefined, sampling, automatic ? undefined : palette)
+        let wb = await runGlobalWhiteBalance(
+          images,
+          puzzleSize,
+          faceGains ?? undefined,
+          sampling,
+          automatic ? undefined : palette,
+        )
         // Record the latest preview so the final six-face choice can explain
         // whether it kept or replaced that provisional palette.
-        const latestPreview = FACE_ORDER.map((f) => newCapturedFaces[f]).filter((data) => data?.previewColorProfile)
+        const latestPreview = FACE_ORDER.map((f) => newCapturedFaces[f])
+          .filter((data) => data?.previewColorProfile)
           .sort((a, b) => b.timestamp - a.timestamp)[0]?.previewColorProfile
-        const resolution = automatic && wb.learned ? resolveAutomaticProfile(autoColorProfiles, wb.learned.colors, latestPreview?.id ?? null) : null
+        const resolution =
+          automatic && wb.learned
+            ? resolveAutomaticProfile(
+                autoColorProfiles,
+                wb.learned.colors,
+                latestPreview?.id ?? null,
+              )
+            : null
         setAutomaticResolution(resolution)
         const matched = resolution?.profile ?? null
         const compared = matched ?? (!automatic ? colorProfile : null)
-        const colorFit = compared && wb.learned ? profileColorFitPercent(compared.colors, wb.learned.colors) : undefined
+        const colorFit =
+          compared && wb.learned
+            ? profileColorFitPercent(compared.colors, wb.learned.colors)
+            : undefined
         // Matched on colors balanced on White, so its stickers are read as
         // they look under this capture's White (a merged profile's is grey).
-        const matchedReference = matched && wb.learned ? colorsUnderWhite(matched.colors, wb.learned.colors.W) : null
-        if (matchedReference) wb = classifyAcrossFaces(wb.faces, matchedReference)
-        setResolvedColorReference(matchedReference ?? (automatic ? null : palette ?? null))
-        setResolvedColorProfile(automatic
-          ? matched ? resolvedColorProfileSnapshot(matched, 'automatic', colorFit)
-            : wb.learned ? captureColorProfileSnapshot(wb.learned.colors) : null
-          : resolvedColorProfileSnapshot(colorProfile, 'manual', colorFit))
+        const matchedReference =
+          matched && wb.learned
+            ? colorsUnderWhite(matched.colors, wb.learned.colors.W)
+            : null
+        if (matchedReference)
+          wb = classifyAcrossFaces(wb.faces, matchedReference)
+        setResolvedColorReference(
+          matchedReference ?? (automatic ? null : (palette ?? null)),
+        )
+        setResolvedColorProfile(
+          automatic
+            ? matched
+              ? resolvedColorProfileSnapshot(matched, 'automatic', colorFit)
+              : wb.learned
+                ? captureColorProfileSnapshot(wb.learned.colors)
+                : null
+            : resolvedColorProfileSnapshot(colorProfile, 'manual', colorFit),
+        )
         setLearnedPalette(wb.learned?.colors ?? null)
         setMixedUpColors(wb.learned?.mixedUpColors ?? [])
-        const confidences = FACE_ORDER.flatMap((face) => wb.faces[face]?.cellConfidences?.flat() ?? [])
-        setPendingPalette(wb.learned ? {
-          colors: wb.learned.colors,
-          confidentFraction: confidences.length ? confidences.filter((value) => value >= 0.7).length / confidences.length : 0,
-          recalibrated: wb.applied,
-        } : null)
+        const confidences = FACE_ORDER.flatMap(
+          (face) => wb.faces[face]?.cellConfidences?.flat() ?? [],
+        )
+        setPendingPalette(
+          wb.learned
+            ? {
+                colors: wb.learned.colors,
+                confidentFraction: confidences.length
+                  ? confidences.filter((value) => value >= 0.7).length /
+                    confidences.length
+                  : 0,
+                recalibrated: wb.applied,
+              }
+            : null,
+        )
         setCaptureProfile({ id: profile.id, name: profile.name })
         // Keep calibration provisional until the customer approves the
         // complete cube in the orientation review.
@@ -1538,7 +2269,15 @@ function App() {
           const recalibrated = { ...newCapturedFaces }
           for (const f of FACE_ORDER) {
             const det = wb.faces[f]
-            recalibrated[f] = { ...recalibrated[f], colors: det.colors, detectedColors: det.colors, cellConfidences: det.cellConfidences, cellColors: det.cellColors, cellLookalikes: det.cellLookalikes, confidence: det.confidence }
+            recalibrated[f] = {
+              ...recalibrated[f],
+              colors: det.colors,
+              detectedColors: det.colors,
+              cellConfidences: det.cellConfidences,
+              cellColors: det.cellColors,
+              cellLookalikes: det.cellLookalikes,
+              confidence: det.confidence,
+            }
           }
           setCapturedFaces(recalibrated)
           setGlobalWhiteBalanceNote(CALIBRATION_NOTE)
@@ -1596,27 +2335,42 @@ function App() {
         try {
           files.push(...unzipFixture(new Uint8Array(await file.arrayBuffer())))
         } catch (err) {
-          setCaptureMessage(`❌ ${file.name} isn't a fixture zip: ${err instanceof Error ? err.message : String(err)}`)
+          setCaptureMessage(
+            `❌ ${file.name} isn't a fixture zip: ${err instanceof Error ? err.message : String(err)}`,
+          )
           return
         }
       }
       const metaFile = files.find((f) => f.name.toLowerCase().endsWith('.json'))
       if (!metaFile) {
-        setCaptureMessage("❌ No .json file found - select a fixture zip, or a fixture's meta.json together with its 6 face-*.jpg photos.")
+        setCaptureMessage(
+          "❌ No .json file found - select a fixture zip, or a fixture's meta.json together with its 6 face-*.jpg photos.",
+        )
         return
       }
 
       let meta: {
         gridSize: number
         colorsURFDLB?: string
-        faces: Record<string, { photo: string; capturedAt?: string; background?: RGB | null; previewColorProfile?: PreviewColorProfile } & Record<string, unknown>>
+        faces: Record<
+          string,
+          {
+            photo: string
+            capturedAt?: string
+            background?: RGB | null
+            previewColorProfile?: PreviewColorProfile
+          } & Record<string, unknown>
+        >
         capture?: {
           backgroundWhiteBalance?: Record<string, RGB> | null
           backgroundWhiteBalanceMethod?: string
           sampling?: SamplingGeometry
           profile?: { id?: string; name?: string } | null
           colorProfile?: UsedColorProfile | null
-          colorResolution?: { reason: AutomaticResolution['reason']; nearest?: Array<{ id: string; name: string; fit: number }> } | null
+          colorResolution?: {
+            reason: AutomaticResolution['reason']
+            nearest?: Array<{ id: string; name: string; fit: number }>
+          } | null
           colorReference?: Record<string, RGB> | null
           protocol?: string | null
         }
@@ -1630,7 +2384,9 @@ function App() {
       // Either fixture format (see readFixtureColors).
       const colorGrids = readFixtureColors(meta)?.colors ?? null
       if (!meta.faces || typeof meta.gridSize !== 'number' || !colorGrids) {
-        setCaptureMessage(`❌ ${metaFile.name} doesn't look like a saved fixture (missing gridSize, faces or their colors).`)
+        setCaptureMessage(
+          `❌ ${metaFile.name} doesn't look like a saved fixture (missing gridSize, faces or their colors).`,
+        )
         return
       }
 
@@ -1640,14 +2396,19 @@ function App() {
       for (const [face, faceData] of Object.entries(meta.faces)) {
         const photoFile = photoFiles.find((f) => f.name === faceData.photo)
         const colors = colorGrids[face.toUpperCase()]
-        if (!photoFile || !colors || !validateFaceColors(colors, meta.gridSize)) {
+        if (
+          !photoFile ||
+          !colors ||
+          !validateFaceColors(colors, meta.gridSize)
+        ) {
           missing.push(face.toUpperCase())
           continue
         }
         const dataUrl = await new Promise<string>((resolve, reject) => {
           const reader = new FileReader()
           reader.onload = () => resolve(reader.result as string)
-          reader.onerror = () => reject(new Error(`Could not read ${photoFile.name}`))
+          reader.onerror = () =>
+            reject(new Error(`Could not read ${photoFile.name}`))
           reader.readAsDataURL(photoFile)
         })
         newEntries[face.toUpperCase()] = {
@@ -1655,16 +2416,21 @@ function App() {
           confidence: 1,
           croppedImage: dataUrl,
           source: 'fixture',
-          timestamp: faceData.capturedAt ? Date.parse(faceData.capturedAt) || Date.now() : Date.now(),
+          timestamp: faceData.capturedAt
+            ? Date.parse(faceData.capturedAt) || Date.now()
+            : Date.now(),
           ...(faceData.background && { backgroundColor: faceData.background }),
-          ...(faceData.previewColorProfile?.id && faceData.previewColorProfile.name && faceData.previewColorProfile.colors
-            && { previewColorProfile: faceData.previewColorProfile }),
+          ...(faceData.previewColorProfile?.id &&
+            faceData.previewColorProfile.name &&
+            faceData.previewColorProfile.colors && {
+              previewColorProfile: faceData.previewColorProfile,
+            }),
         }
       }
 
       if (missing.length > 0) {
         setCaptureMessage(
-          `❌ Missing or invalid photo/colors for face${missing.length === 1 ? '' : 's'} ${missing.join(', ')} - make sure all 6 face-*.jpg files named in ${metaFile.name} are selected too.`
+          `❌ Missing or invalid photo/colors for face${missing.length === 1 ? '' : 's'} ${missing.join(', ')} - make sure all 6 face-*.jpg files named in ${metaFile.name} are selected too.`,
         )
         return
       }
@@ -1674,24 +2440,48 @@ function App() {
       setProfileLearningOffer(null)
       setUploadedProtocol(meta.capture?.protocol ?? null)
       const recordedProfile = meta.capture?.profile
-      setCaptureProfile(recordedProfile?.name ? { id: recordedProfile.id, name: recordedProfile.name } : null)
+      setCaptureProfile(
+        recordedProfile?.name
+          ? { id: recordedProfile.id, name: recordedProfile.name }
+          : null,
+      )
       const recordedColors = meta.capture?.colorProfile
-      setResolvedColorProfile(recordedColors?.name && recordedColors.colors ? recordedColors : null)
+      setResolvedColorProfile(
+        recordedColors?.name && recordedColors.colors ? recordedColors : null,
+      )
       // The recorded reason for it, where the fixture has one.
       const recordedResolution = meta.capture?.colorResolution
-      setAutomaticResolution(recordedResolution?.reason ? {
-        profile: null,
-        reason: recordedResolution.reason,
-        nearest: (recordedResolution.nearest ?? []).map(({ id, name, fit }) => ({ profile: { id, name, colors: {}, captures: 0 }, fit })),
-      } : null)
+      setAutomaticResolution(
+        recordedResolution?.reason
+          ? {
+              profile: null,
+              reason: recordedResolution.reason,
+              nearest: (recordedResolution.nearest ?? []).map(
+                ({ id, name, fit }) => ({
+                  profile: { id, name, colors: {}, captures: 0 },
+                  fit,
+                }),
+              ),
+            }
+          : null,
+      )
       setResolvedColorReference(meta.capture?.colorReference ?? null)
-      const images = Object.fromEntries(Object.entries(newEntries).map(([f, d]) => [f, d.croppedImage!]))
+      const images = Object.fromEntries(
+        Object.entries(newEntries).map(([f, d]) => [f, d.croppedImage!]),
+      )
       // Background gains are replayed only if made the current way (see
       // BACKGROUND_WB_METHOD); older ones swapped red and orange.
-      const recordedGains = meta.capture?.backgroundWhiteBalanceMethod === BACKGROUND_WB_METHOD
-        ? meta.capture.backgroundWhiteBalance ?? null
-        : null
-      const wb = await runGlobalWhiteBalance(images, meta.gridSize, recordedGains ?? undefined, meta.capture?.sampling ?? DEFAULT_SAMPLING, meta.capture?.colorReference ?? undefined)
+      const recordedGains =
+        meta.capture?.backgroundWhiteBalanceMethod === BACKGROUND_WB_METHOD
+          ? (meta.capture.backgroundWhiteBalance ?? null)
+          : null
+      const wb = await runGlobalWhiteBalance(
+        images,
+        meta.gridSize,
+        recordedGains ?? undefined,
+        meta.capture?.sampling ?? DEFAULT_SAMPLING,
+        meta.capture?.colorReference ?? undefined,
+      )
       let mismatches = 0
       for (const [f, entry] of Object.entries(newEntries)) {
         const det = wb.faces[f]
@@ -1700,26 +2490,35 @@ function App() {
         entry.cellConfidences = det.cellConfidences
         entry.cellLookalikes = det.cellLookalikes
         entry.confidence = det.confidence
-        entry.colors.forEach((row, r) => row.forEach((color, c) => { if (det.colors[r][c] !== color) mismatches++ }))
-        if (ignoreFixtureCorrections) entry.colors = det.colors.map((row) => [...row])
+        entry.colors.forEach((row, r) =>
+          row.forEach((color, c) => {
+            if (det.colors[r][c] !== color) mismatches++
+          }),
+        )
+        if (ignoreFixtureCorrections)
+          entry.colors = det.colors.map((row) => [...row])
       }
       setAppliedBackgroundGains(recordedGains)
       setGlareFaces(glareFacesToWarn(wb.glare))
-      setGlobalWhiteBalanceNote(wb.applied
-        ? CALIBRATION_NOTE
-        : null)
+      setGlobalWhiteBalanceNote(wb.applied ? CALIBRATION_NOTE : null)
       setLearnedPalette(wb.learned?.colors ?? null)
       setMixedUpColors(wb.learned?.mixedUpColors ?? [])
 
       setPuzzleSize(meta.gridSize)
       setCapturedFaces(newEntries)
-      setFaceConfidence(Object.fromEntries(Object.entries(newEntries).map(([f, d]) => [f, d.confidence])))
+      setFaceConfidence(
+        Object.fromEntries(
+          Object.entries(newEntries).map(([f, d]) => [f, d.confidence]),
+        ),
+      )
       const stickers = `${mismatches} sticker${mismatches === 1 ? '' : 's'}`
-      setCaptureMessage(mismatches === 0
-        ? `✓ Loaded fixture - detection matches all stickers.`
-        : ignoreFixtureCorrections
-        ? `✓ Loaded fixture with detected colors only - dropped the saved choice on ${stickers}.`
-        : `✓ Loaded fixture - detection differs on ${stickers} (marked in the review).`)
+      setCaptureMessage(
+        mismatches === 0
+          ? `✓ Loaded fixture - detection matches all stickers.`
+          : ignoreFixtureCorrections
+            ? `✓ Loaded fixture with detected colors only - dropped the saved choice on ${stickers}.`
+            : `✓ Loaded fixture - detection differs on ${stickers} (marked in the review).`,
+      )
       setReviewStep(0)
       setShowReviewDialog(true)
     } finally {
@@ -1732,7 +2531,12 @@ function App() {
   // Features: Post-Capture Review & Color Fix
   // ─────────────────────────────────────────────────────────────────────────
 
-  const handleFixCellColor = (face: string, row: number, col: number, newColor: string) => {
+  const handleFixCellColor = (
+    face: string,
+    row: number,
+    col: number,
+    newColor: string,
+  ) => {
     setCapturedFaces((prev) => {
       const faceData = prev[face]
       if (!faceData) return prev
@@ -1780,25 +2584,37 @@ function App() {
 
     if (guided) {
       const [s1, s2, s3, s4, cap1, cap2] = FACE_ORDER.map((f) => faceData[f])
-      const solution = solveGuidedCapture({ sides: [s1, s2, s3, s4], caps: [cap1, cap2] })
+      const solution = solveGuidedCapture({
+        sides: [s1, s2, s3, s4],
+        caps: [cap1, cap2],
+      })
       if (solution?.fullyValid) {
         const preferred = preferredGuidedArrangementIndex(solution.arrangements)
         // Keep every guided fit available after "No" even if the broader
         // orientation search was capped before it reached that fit.
         const seen = new Set<string>()
-        const alternatives = [solution.alternatives[preferred], ...solution.alternatives, ...(free?.alternatives ?? [])]
-          .filter((candidate) => {
-            const key = FACE_ORDER.map((face) => faceContentKey(candidate.faces[face as FaceKey])).join('|')
-            if (seen.has(key)) return false
-            seen.add(key)
-            return true
-          })
+        const alternatives = [
+          solution.alternatives[preferred],
+          ...solution.alternatives,
+          ...(free?.alternatives ?? []),
+        ].filter((candidate) => {
+          const key = FACE_ORDER.map((face) =>
+            faceContentKey(candidate.faces[face as FaceKey]),
+          ).join('|')
+          if (seen.has(key)) return false
+          seen.add(key)
+          return true
+        })
         setOrientationApproval({
           candidates: [solution.alternatives[preferred]],
           arrangements: [solution.arrangements[preferred]],
           valid: true,
           suggestedFrom: solution.alternatives.length,
-          fallback: { ...(free ?? solution), alternatives, truncated: Boolean(free?.truncated || solution.truncated) },
+          fallback: {
+            ...(free ?? solution),
+            alternatives,
+            truncated: Boolean(free?.truncated || solution.truncated),
+          },
         })
         return
       }
@@ -1807,7 +2623,12 @@ function App() {
         ? describeCenterIssue(issue)
         : "These photos don't fit together the way they were taken - the cube may have been turned the other way partway through, or tipped over."
       if (free?.fullyValid) {
-        setOrientationApproval({ candidates: free.alternatives, valid: true, note: `${why} They do fit together another way:`, fallback: null })
+        setOrientationApproval({
+          candidates: free.alternatives,
+          valid: true,
+          note: `${why} They do fit together another way:`,
+          fallback: null,
+        })
         return
       }
       const closest = solution ?? free
@@ -1823,7 +2644,9 @@ function App() {
     }
 
     if (!free) {
-      setReviewNotice("⚠️ Couldn't work out how the faces fit together (a duplicate or unreadable center?) - check the colors, or retake a face.")
+      setReviewNotice(
+        "⚠️ Couldn't work out how the faces fit together (a duplicate or unreadable center?) - check the colors, or retake a face.",
+      )
       return
     }
     if (!free.fullyValid) {
@@ -1836,7 +2659,11 @@ function App() {
       return
     }
     if (free.alternatives.length > 1) {
-      setOrientationWizard({ remaining: free.alternatives, truncated: free.truncated, picked: [] })
+      setOrientationWizard({
+        remaining: free.alternatives,
+        truncated: free.truncated,
+        picked: [],
+      })
       return
     }
     handleChooseOrientation(free.alternatives[0])
@@ -1846,20 +2673,28 @@ function App() {
   // capture, or an uploaded fixture that recorded it. Faces mixed with
   // imported photos may not have, so they use the any-order search.
   const isGuidedCapture = () =>
-    (FACE_ORDER.every((f) => capturedFaces[f]?.source === 'camera')
-      && !FACE_ORDER.some((f) => capturedFaces[f]?.outOfOrder)
-      && !checkGuidedCenters(FACE_ORDER.slice(0, 2).map((f) => capturedFaces[f]?.colors)).length)
-    || (FACE_ORDER.every((f) => capturedFaces[f]?.source === 'fixture') && uploadedProtocol === GUIDED_PROTOCOL)
+    (FACE_ORDER.every((f) => capturedFaces[f]?.source === 'camera') &&
+      !FACE_ORDER.some((f) => capturedFaces[f]?.outOfOrder) &&
+      !checkGuidedCenters(
+        FACE_ORDER.slice(0, 2).map((f) => capturedFaces[f]?.colors),
+      ).length) ||
+    (FACE_ORDER.every((f) => capturedFaces[f]?.source === 'fixture') &&
+      uploadedProtocol === GUIDED_PROTOCOL)
 
-  const predictedCenters = captureCenterSlots(FACE_ORDER.map((f) => capturedFaces[f]?.colors))
+  const predictedCenters = captureCenterSlots(
+    FACE_ORDER.map((f) => capturedFaces[f]?.colors),
+  )
   const predictedCenter = predictedCenters[FACE_ORDER.indexOf(webcamFace)]
-  const centerRoutingActive = puzzleSize % 2 === 1
-    && Boolean(capturedFaces[FACE_ORDER[0]] && capturedFaces[FACE_ORDER[1]])
-    && predictedCenters.every(Boolean)
-    && !capturedFaces[webcamFace]
+  const centerRoutingActive =
+    puzzleSize % 2 === 1 &&
+    Boolean(capturedFaces[FACE_ORDER[0]] && capturedFaces[FACE_ORDER[1]]) &&
+    predictedCenters.every(Boolean) &&
+    !capturedFaces[webcamFace]
   const capturedPhotos = FACE_ORDER.map((f) => capturedFaces[f]?.colors)
   const repeatedFaces = findRepeatedFaces(capturedPhotos)
-  const matchingNetFaces = new Set(repeatedFaces.flatMap(([a, b]) => [FACE_ORDER[a], FACE_ORDER[b]]))
+  const matchingNetFaces = new Set(
+    repeatedFaces.flatMap(([a, b]) => [FACE_ORDER[a], FACE_ORDER[b]]),
+  )
   if (liveCapturedFace) matchingNetFaces.add(liveCapturedFace)
 
   // A likely capture mistake visible from odd-size centers while capturing
@@ -1879,12 +2714,20 @@ function App() {
       }
     }
     const mid = Math.floor(puzzleSize / 2)
-    const sure = (i: number) => (capturedFaces[FACE_ORDER[i]]?.cellConfidences?.[mid]?.[mid] ?? 0) >= 0.6
+    const sure = (i: number) =>
+      (capturedFaces[FACE_ORDER[i]]?.cellConfidences?.[mid]?.[mid] ?? 0) >= 0.6
     for (const issue of checkGuidedCenters(capturedPhotos)) {
-      const involved = issue.kind === 'turned-twice' ? [issue.photo - 1, issue.photo] : issue.photos
+      const involved =
+        issue.kind === 'turned-twice'
+          ? [issue.photo - 1, issue.photo]
+          : issue.photos
       const key = JSON.stringify(issue)
       if (involved.every(sure) && !dismissedCaptureWarnings.includes(key)) {
-        return { text: describeCenterIssue(issue), key, retake: Math.max(...involved) }
+        return {
+          text: describeCenterIssue(issue),
+          key,
+          retake: Math.max(...involved),
+        }
       }
     }
     return null
@@ -1893,9 +2736,15 @@ function App() {
   // "No, let me choose each side" is only offered when the photos fit
   // together some other way too; the wizard then starts from every
   // arrangement (see wizardStart).
-  const rejectAlternatives = (approval: NonNullable<typeof orientationApproval>): OrientedCandidate[] => {
-    const rejected = new Set(approval.candidates.map((c) => orientationFreeSignature(c.faces)))
-    return (approval.fallback?.alternatives ?? []).filter((c) => !rejected.has(orientationFreeSignature(c.faces)))
+  const rejectAlternatives = (
+    approval: NonNullable<typeof orientationApproval>,
+  ): OrientedCandidate[] => {
+    const rejected = new Set(
+      approval.candidates.map((c) => orientationFreeSignature(c.faces)),
+    )
+    return (approval.fallback?.alternatives ?? []).filter(
+      (c) => !rejected.has(orientationFreeSignature(c.faces)),
+    )
   }
   const handleRejectOrientation = () => {
     if (!orientationApproval) return
@@ -1907,7 +2756,11 @@ function App() {
     // - a pattern cube whose back face fits either way got it filled in
     // turned 90 degrees, never asked about. If the answers lead back to the
     // suggestion, it was right after all.
-    setOrientationWizard({ remaining: orientationApproval.fallback!.alternatives, truncated: orientationApproval.fallback!.truncated, picked: [] })
+    setOrientationWizard({
+      remaining: orientationApproval.fallback!.alternatives,
+      truncated: orientationApproval.fallback!.truncated,
+      picked: [],
+    })
   }
 
   // Finishes assembly once the orientation wizard has narrowed down to a
@@ -1923,32 +2776,70 @@ function App() {
     updateParityStatus(cubeState)
     if (pendingPalette) {
       let reviewedValid = false
-      try { reviewedValid = checkParity(cubeState, puzzleSize).valid } catch { /* Keep learned colors out of a failed review. */ }
+      try {
+        reviewedValid = checkParity(cubeState, puzzleSize).valid
+      } catch {
+        /* Keep learned colors out of a failed review. */
+      }
       const correctedCells = FACE_ORDER.reduce((count, face) => {
         const captured = capturedFaces[face]
         if (!captured?.detectedColors) return count + puzzleSize * puzzleSize
-        return count + captured.colors.reduce((sum, row, r) => sum + row.filter((color, c) =>
-          color !== captured.detectedColors?.[r]?.[c]).length, 0)
+        return (
+          count +
+          captured.colors.reduce(
+            (sum, row, r) =>
+              sum +
+              row.filter(
+                (color, c) => color !== captured.detectedColors?.[r]?.[c],
+              ).length,
+            0,
+          )
+        )
       }, 0)
       const evidence = {
         reviewedValid,
-        cameraOnly: FACE_ORDER.every((face) => capturedFaces[face]?.source === 'camera'),
+        cameraOnly: FACE_ORDER.every(
+          (face) => capturedFaces[face]?.source === 'camera',
+        ),
         recalibrated: pendingPalette.recalibrated,
         confidentFraction: pendingPalette.confidentFraction,
         correctedFraction: correctedCells / (6 * puzzleSize * puzzleSize),
       }
       const automatic = profileStore.activeColorsId === AUTO_COLORS_ID
-      const matched = automatic && reviewedValid && evidence.cameraOnly && evidence.recalibrated
-        ? autoColorProfiles.find((profile) => profile.id === resolvedColorProfile?.id) ?? null : null
+      const matched =
+        automatic &&
+        reviewedValid &&
+        evidence.cameraOnly &&
+        evidence.recalibrated
+          ? (autoColorProfiles.find(
+              (profile) => profile.id === resolvedColorProfile?.id,
+            ) ?? null)
+          : null
       // The Automatic match or the hand-selected profile is only ever
       // updated through the explicit Update action, never silently.
-      const updatable = profileToUpdate(profileStore.colors,
-        { automatic, resolvedId: resolvedColorProfile?.id ?? null, selectedId: profileStore.activeColorsId },
-        pendingPalette.colors, evidence)
+      const updatable = profileToUpdate(
+        profileStore.colors,
+        {
+          automatic,
+          resolvedId: resolvedColorProfile?.id ?? null,
+          selectedId: profileStore.activeColorsId,
+        },
+        pendingPalette.colors,
+        evidence,
+      )
       const canCreate = canCreateProfileFromCapture(evidence)
-      setProfileLearningOffer(canCreate ? { colors: pendingPalette.colors, evidence, matchedProfileId: updatable?.id ?? null } : null)
+      setProfileLearningOffer(
+        canCreate
+          ? {
+              colors: pendingPalette.colors,
+              evidence,
+              matchedProfileId: updatable?.id ?? null,
+            }
+          : null,
+      )
       setNewColorName(null)
-      if (automatic) applyProfileStore(setAutoColorMatch(profileStore, matched?.id ?? null))
+      if (automatic)
+        applyProfileStore(setAutoColorMatch(profileStore, matched?.id ?? null))
       setPendingPalette(null)
     }
     setShowReviewDialog(false)
@@ -1964,7 +2855,15 @@ function App() {
       handleChooseOrientation(matched[0])
       return
     }
-    setOrientationWizard((prev) => (prev ? { remaining: matched, truncated: prev.truncated, picked: [...prev.picked, face] } : null))
+    setOrientationWizard((prev) =>
+      prev
+        ? {
+            remaining: matched,
+            truncated: prev.truncated,
+            picked: [...prev.picked, face],
+          }
+        : null,
+    )
   }
 
   // Clicking an option face flies it into the framed slot in the progress
@@ -1973,10 +2872,16 @@ function App() {
   // Preact's microtask re-render has already filled the slot - so the slot
   // never flashes back to its hatched placeholder in between. (A timer,
   // not requestAnimationFrame, since rAF doesn't fire in background tabs.)
-  const handleWizardPick = async (optionEl: HTMLElement, candidates: OrientedCandidate[], face: FaceKey) => {
+  const handleWizardPick = async (
+    optionEl: HTMLElement,
+    candidates: OrientedCandidate[],
+    face: FaceKey,
+  ) => {
     if (wizardMorphing) return
     const source = optionEl.querySelector<HTMLElement>('.orientation-net-face')
-    const target = document.querySelector<HTMLElement>('.orientation-picker .orientation-net-face-current')
+    const target = document.querySelector<HTMLElement>(
+      '.orientation-picker .orientation-net-face-current',
+    )
     let removeClone = () => {}
     if (source && target) {
       setWizardMorphing(true)
@@ -2004,9 +2909,12 @@ function App() {
       setFixtureSaveMessage('❌ Capture and confirm all 6 faces first.')
       return
     }
-    const commit = import.meta.env.DEV ? await currentAppCommit(__APP_COMMIT__) : __APP_COMMIT__
+    const commit = import.meta.env.DEV
+      ? await currentAppCommit(__APP_COMMIT__)
+      : __APP_COMMIT__
     try {
-      const faces: Record<string, { photo: string } & Record<string, unknown>> = {}
+      const faces: Record<string, { photo: string } & Record<string, unknown>> =
+        {}
       for (const f of FACE_ORDER) {
         const face = capturedFaces[f]
         faces[f] = {
@@ -2014,14 +2922,23 @@ function App() {
           // What the browser measured for each sticker (row-major, after the
           // face's gain) and detection's confidence in it, 0-100 - lets
           // the fixture test check its own JPEG decode reads the same.
-          readings: face.cellColors?.flat().map(({ r, g, b }) => [r, g, b].map((v) => Math.round(v * 10) / 10)),
-          confidences: face.cellConfidences?.flat().map((c) => Math.round(c * 100)),
+          readings: face.cellColors
+            ?.flat()
+            .map(({ r, g, b }) =>
+              [r, g, b].map((v) => Math.round(v * 10) / 10),
+            ),
+          confidences: face.cellConfidences
+            ?.flat()
+            .map((c) => Math.round(c * 100)),
           source: face.source,
           capturedAt: new Date(face.timestamp).toISOString(),
           background: face.backgroundColor,
           frame: face.frame,
           crop: face.crop,
-          sharpness: face.sharpness !== undefined ? Math.round(face.sharpness * 10) / 10 : undefined,
+          sharpness:
+            face.sharpness !== undefined
+              ? Math.round(face.sharpness * 10) / 10
+              : undefined,
           camera: face.cameraSettings,
           previewColorProfile: face.previewColorProfile,
         }
@@ -2035,17 +2952,25 @@ function App() {
         mirrored: mirrorPreview,
         // Only meaningful when at least one face was shot with it - not for
         // a re-saved uploaded fixture or imported image files.
-        camera: FACE_ORDER.some((f) => capturedFaces[f].source === 'camera') ? cameraInfo : null,
+        camera: FACE_ORDER.some((f) => capturedFaces[f].source === 'camera')
+          ? cameraInfo
+          : null,
         // The cube profile the capture was taken with - same condition as
         // camera, since a re-saved upload wasn't shot with the current one.
-        profile: FACE_ORDER.some((f) => capturedFaces[f].source === 'camera') ? captureProfile : null,
+        profile: FACE_ORDER.some((f) => capturedFaces[f].source === 'camera')
+          ? captureProfile
+          : null,
         // One resolved profile for the complete capture. The actual common
         // palette learned from all six photos is recorded below.
         colorProfile: resolvedColorProfile,
         // Why Automatic chose it: the reason and the nearest saved profiles.
         colorResolution: automaticResolution && {
           reason: automaticResolution.reason,
-          nearest: automaticResolution.nearest.map(({ profile, fit }) => ({ id: profile.id, name: profile.name, fit })),
+          nearest: automaticResolution.nearest.map(({ profile, fit }) => ({
+            id: profile.id,
+            name: profile.name,
+            fit,
+          })),
         },
         // A saved/manual profile acts as the six-face classification prior.
         // Automatic without a clear match uses only this capture's colors.
@@ -2063,7 +2988,9 @@ function App() {
         // reading is recorded per face), then the 6 colors learned from
         // this capture's own stickers (colorCalibration).
         backgroundWhiteBalance: appliedBackgroundGains,
-        backgroundWhiteBalanceMethod: appliedBackgroundGains ? BACKGROUND_WB_METHOD : null,
+        backgroundWhiteBalanceMethod: appliedBackgroundGains
+          ? BACKGROUND_WB_METHOD
+          : null,
         // Face border and sticker gap used to sample every face (see
         // SamplingGeometry) - replayed by the fixture test.
         sampling,
@@ -2073,10 +3000,12 @@ function App() {
         colorCalibration: {
           applied: globalWhiteBalanceNote !== null,
           learnedColors: learnedPalette
-            ? Object.fromEntries(Object.entries(learnedPalette).map(([color, { r, g, b }]) => [
-                color,
-                [r, g, b].map((v) => Math.round(v * 10) / 10),
-              ]))
+            ? Object.fromEntries(
+                Object.entries(learnedPalette).map(([color, { r, g, b }]) => [
+                  color,
+                  [r, g, b].map((v) => Math.round(v * 10) / 10),
+                ]),
+              )
             : null,
         },
         // Per-color detected count/lightness/chroma/hue spread across all 6
@@ -2088,11 +3017,19 @@ function App() {
       }
       const fixture = buildFixture({
         gridSize: puzzleSize,
-        colorsURFDLB: gridsToWRGFacelets(Object.fromEntries(FACE_ORDER.map((f) => [f, capturedFaces[f].colors]))),
+        colorsURFDLB: gridsToWRGFacelets(
+          Object.fromEntries(
+            FACE_ORDER.map((f) => [f, capturedFaces[f].colors]),
+          ),
+        ),
         // What detection said before any hand correction - the diff
         // against colorsURFDLB is exactly what a human had to fix.
         detectedURFDLB: FACE_ORDER.every((f) => capturedFaces[f].detectedColors)
-          ? gridsToWRGFacelets(Object.fromEntries(FACE_ORDER.map((f) => [f, capturedFaces[f].detectedColors!])))
+          ? gridsToWRGFacelets(
+              Object.fromEntries(
+                FACE_ORDER.map((f) => [f, capturedFaces[f].detectedColors!]),
+              ),
+            )
           : undefined,
         faces,
         meta,
@@ -2104,10 +3041,18 @@ function App() {
         name: fixture.name,
         zip: zipFixture(fixture),
         summary,
-        photoUrls: summary.photos.map((p) => URL.createObjectURL(new Blob([p.bytes as BlobPart], { type: p.file.endsWith('.png') ? 'image/png' : 'image/jpeg' }))),
+        photoUrls: summary.photos.map((p) =>
+          URL.createObjectURL(
+            new Blob([p.bytes as BlobPart], {
+              type: p.file.endsWith('.png') ? 'image/png' : 'image/jpeg',
+            }),
+          ),
+        ),
       })
     } catch (err) {
-      setFixtureSaveMessage(`❌ Failed to save fixture: ${err instanceof Error ? err.message : String(err)}`)
+      setFixtureSaveMessage(
+        `❌ Failed to save fixture: ${err instanceof Error ? err.message : String(err)}`,
+      )
     }
   }
 
@@ -2126,7 +3071,9 @@ function App() {
       setFixtureSaveMessage(`✓ Saved ${fixtureDownload.name} to test/fixtures/`)
       closeFixtureDownload()
     } catch (error) {
-      setFixtureUploadMessage(`❌ ${error instanceof Error ? error.message : String(error)}`)
+      setFixtureUploadMessage(
+        `❌ ${error instanceof Error ? error.message : String(error)}`,
+      )
       void fixtureUploadServerAvailable().then(setFixtureServerReachable)
     } finally {
       setFixtureUploading(false)
@@ -2135,19 +3082,25 @@ function App() {
 
   const downloadFixture = () => {
     if (!fixtureDownload) return
-    const url = URL.createObjectURL(new Blob([fixtureDownload.zip as BlobPart], { type: 'application/zip' }))
+    const url = URL.createObjectURL(
+      new Blob([fixtureDownload.zip as BlobPart], { type: 'application/zip' }),
+    )
     const link = document.createElement('a')
     link.href = url
     link.download = `${fixtureDownload.name}.zip`
     link.click()
     setTimeout(() => URL.revokeObjectURL(url), 0)
-    setFixtureSaveMessage(`✓ Downloaded ${fixtureDownload.name}.zip - unzip it into test/fixtures/ to add it to the tests`)
+    setFixtureSaveMessage(
+      `✓ Downloaded ${fixtureDownload.name}.zip - unzip it into test/fixtures/ to add it to the tests`,
+    )
     closeFixtureDownload()
   }
 
   const handleCapturePhoto = async () => {
     if (!webcamRef.current || turnOverlay !== null) return
-    const frame = document.querySelector('.capture-scan-frame')?.getBoundingClientRect()
+    const frame = document
+      .querySelector('.capture-scan-frame')
+      ?.getBoundingClientRect()
     if (frame) pendingFlyIn.current = { slot: webcamFace, from: frame }
 
     try {
@@ -2158,27 +3111,60 @@ function App() {
       canvas.width = video.videoWidth
       canvas.height = video.videoHeight
       const ctx = canvas.getContext('2d')
-      if (!ctx || !canvas.width || !canvas.height) throw new Error('Camera frame unavailable')
+      if (!ctx || !canvas.width || !canvas.height)
+        throw new Error('Camera frame unavailable')
       ctx.drawImage(video, 0, 0)
       const geometry = captureMode === 'cv' ? 'aligned' : 'fixed'
       const bounds = faceBoundsForMode(canvas, puzzleSize, geometry)
       if (captureMode === 'cv') {
-        if (!bounds.gridFound || !hasVisibleCubeFace(canvas, puzzleSize, bounds, true)) {
-          throw new Error('No cube face detected. Show the face clearly or choose Guide grid.')
+        if (
+          !bounds.gridFound ||
+          !hasVisibleCubeFace(canvas, puzzleSize, bounds, true)
+        ) {
+          throw new Error(
+            'No cube face detected. Show the face clearly or choose Guide grid.',
+          )
         }
       }
       const background = extractBackgroundColor(canvas, bounds)
-      const capturedBackgrounds = Object.fromEntries(FACE_ORDER.map((face) => [face, capturedFaces[face]?.backgroundColor ?? null]))
-      const gains = background ? computeBackgroundGains({ ...capturedBackgrounds, current: background })?.current ?? NEUTRAL_GAINS : NEUTRAL_GAINS
-      const result: FaceCaptureResult = captureAndProcessCanvas(canvas, puzzleSize, gains, sampling,
-        palette ?? liveAutoColorProfile?.colors, geometry, bounds)
-      const track = (webcamRef.current.srcObject as MediaStream | null)?.getVideoTracks()[0]
+      const capturedBackgrounds = Object.fromEntries(
+        FACE_ORDER.map((face) => [
+          face,
+          capturedFaces[face]?.backgroundColor ?? null,
+        ]),
+      )
+      const gains = background
+        ? (computeBackgroundGains({
+            ...capturedBackgrounds,
+            current: background,
+          })?.current ?? NEUTRAL_GAINS)
+        : NEUTRAL_GAINS
+      const result: FaceCaptureResult = captureAndProcessCanvas(
+        canvas,
+        puzzleSize,
+        gains,
+        sampling,
+        palette ?? liveAutoColorProfile?.colors,
+        geometry,
+        bounds,
+      )
+      const track = (
+        webcamRef.current.srcObject as MediaStream | null
+      )?.getVideoTracks()[0]
       signalCapture()
-      await applyFaceCapture(webcamFace, result, 'camera', track ? withoutDeviceIds(track.getSettings()) : undefined, result.colors.length,
-        previewProfileFor(liveAutoColorProfileId))
+      await applyFaceCapture(
+        webcamFace,
+        result,
+        'camera',
+        track ? withoutDeviceIds(track.getSettings()) : undefined,
+        result.colors.length,
+        previewProfileFor(liveAutoColorProfileId),
+      )
     } catch (err) {
       console.error('Capture error:', err)
-      setCaptureMessage(`❌ Error: ${err instanceof Error ? err.message : 'Unknown error'}`)
+      setCaptureMessage(
+        `❌ Error: ${err instanceof Error ? err.message : 'Unknown error'}`,
+      )
     } finally {
       setLoading(false)
     }
@@ -2201,15 +3187,30 @@ function App() {
           img.onerror = () => reject(new Error('Could not load image file'))
           img.src = url
         })
-        const result = captureAndProcessImage(img, puzzleSize, NEUTRAL_GAINS, sampling, palette,
-          captureMode === 'cv' ? 'aligned' : 'fixed')
-        await applyFaceCapture(webcamFace, result, 'image-file', undefined, puzzleSize, previewProfileFor(null))
+        const result = captureAndProcessImage(
+          img,
+          puzzleSize,
+          NEUTRAL_GAINS,
+          sampling,
+          palette,
+          captureMode === 'cv' ? 'aligned' : 'fixed',
+        )
+        await applyFaceCapture(
+          webcamFace,
+          result,
+          'image-file',
+          undefined,
+          puzzleSize,
+          previewProfileFor(null),
+        )
       } finally {
         URL.revokeObjectURL(url)
       }
     } catch (err) {
       console.error('Image import error:', err)
-      setCaptureMessage(`❌ Error: ${err instanceof Error ? err.message : 'Unknown error'}`)
+      setCaptureMessage(
+        `❌ Error: ${err instanceof Error ? err.message : 'Unknown error'}`,
+      )
     } finally {
       setLoading(false)
       input.value = ''
@@ -2222,7 +3223,9 @@ function App() {
 
   // Confirmed inline on the button itself (briefly swapping its label)
   // rather than with a blocking alert() the customer has to click away.
-  const [copyStatus, setCopyStatus] = useState<'idle' | 'copied' | 'failed'>('idle')
+  const [copyStatus, setCopyStatus] = useState<'idle' | 'copied' | 'failed'>(
+    'idle',
+  )
   const copyToClipboard = async (text: string) => {
     try {
       await navigator.clipboard.writeText(text)
@@ -2250,32 +3253,82 @@ function App() {
       faces: FACE_ORDER.flatMap((face) => {
         const data = capturedFaces[face]
         return data?.cellColors && data.cellColors.length === data.colors.length
-          ? [{ face, label: FACE_DISPLAY_LABEL[face], colors: data.colors, cellColors: data.cellColors }] : []
+          ? [
+              {
+                face,
+                label: FACE_DISPLAY_LABEL[face],
+                colors: data.colors,
+                cellColors: data.cellColors,
+              },
+            ]
+          : []
       }),
     }
     // The first captured face photo shows the Cubes tab's sticker areas.
-    const photoFace = FACE_ORDER.find((face) => capturedFaces[face]?.croppedImage)
+    const photoFace = FACE_ORDER.find(
+      (face) => capturedFaces[face]?.croppedImage,
+    )
     const reviewPhoto = photoFace
-      ? { size: puzzleSize, src: capturedFaces[photoFace].croppedImage!, label: `${FACE_DISPLAY_LABEL[photoFace]} face` } : null
-    return <ProfilesPage tab={profilesPageTab} settings={profileStore} onChange={applyProfileStore}
-      capture={reviewCapture.faces.length ? reviewCapture : null} photo={reviewPhoto} onClose={() => { location.hash = '' }}
-      onExport={handleDownloadSampling} onImport={handleUploadSampling} fileMessage={samplingFileMessage} />
+      ? {
+          size: puzzleSize,
+          src: capturedFaces[photoFace].croppedImage!,
+          label: `${FACE_DISPLAY_LABEL[photoFace]} face`,
+        }
+      : null
+    return (
+      <ProfilesPage
+        tab={profilesPageTab}
+        settings={profileStore}
+        onChange={applyProfileStore}
+        capture={reviewCapture.faces.length ? reviewCapture : null}
+        photo={reviewPhoto}
+        onClose={() => {
+          location.hash = ''
+        }}
+        onExport={handleDownloadSampling}
+        onImport={handleUploadSampling}
+        fileMessage={samplingFileMessage}
+      />
+    )
   }
 
-  const profileFinding = resolvedColorProfile?.selection === 'automatic'
-    ? captureProfileFinding(FACE_ORDER.map((face) => capturedFaces[face])
-      .sort((a, b) => (a?.timestamp ?? 0) - (b?.timestamp ?? 0)).map((face) => face?.previewColorProfile?.name),
-      resolvedColorProfile.name, automaticResolution?.reason ?? null)
-    : null
+  const profileFinding =
+    resolvedColorProfile?.selection === 'automatic'
+      ? captureProfileFinding(
+          FACE_ORDER.map((face) => capturedFaces[face])
+            .sort((a, b) => (a?.timestamp ?? 0) - (b?.timestamp ?? 0))
+            .map((face) => face?.previewColorProfile?.name),
+          resolvedColorProfile.name,
+          automaticResolution?.reason ?? null,
+        )
+      : null
 
   return (
     <div class="app-layout">
       {/* Header: name, cube geometry and color settings */}
       <header class="app-header">
         <div class="header-content">
-          <svg class="app-logo" width="32" height="32" viewBox="0 0 32 32" aria-hidden="true">
-            <path d="M16 3 28 9.5v13L16 29 4 22.5v-13Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" />
-            <path d="M4 9.5 16 16l12-6.5M16 16v13" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" />
+          <svg
+            class="app-logo"
+            width="32"
+            height="32"
+            viewBox="0 0 32 32"
+            aria-hidden="true"
+          >
+            <path
+              d="M16 3 28 9.5v13L16 29 4 22.5v-13Z"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linejoin="round"
+            />
+            <path
+              d="M4 9.5 16 16l12-6.5M16 16v13"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linejoin="round"
+            />
             <path d="M16 3 28 9.5 16 16 4 9.5Z" fill="var(--color-accent)" />
           </svg>
           <div class="app-title">
@@ -2288,15 +3341,32 @@ function App() {
             class="header-profile"
             aria-label="Cube"
             value={profile.id}
-            onChange={(e) => { if (!changeCube(e.currentTarget.value)) e.currentTarget.value = profile.id }}
+            onChange={(e) => {
+              if (!changeCube(e.currentTarget.value))
+                e.currentTarget.value = profile.id
+            }}
           >
             <CubeSelectOptions settings={profileStore} />
           </select>
-          <select class="header-profile" aria-label="Colors" value={profileStore.activeColorsId}
-            onChange={(e) => applyProfileStore(selectColorProfile(profileStore, e.currentTarget.value))}>
-            {allColorProfiles(profileStore).map((colors) => <option key={colors.id} value={colors.id}>{colors.name}</option>)}
+          <select
+            class="header-profile"
+            aria-label="Colors"
+            value={profileStore.activeColorsId}
+            onChange={(e) =>
+              applyProfileStore(
+                selectColorProfile(profileStore, e.currentTarget.value),
+              )
+            }
+          >
+            {allColorProfiles(profileStore).map((colors) => (
+              <option key={colors.id} value={colors.id}>
+                {colors.name}
+              </option>
+            ))}
           </select>
-          <a class="color-review-link" href="#profiles">Profiles</a>
+          <a class="color-review-link" href="#profiles">
+            Profiles
+          </a>
         </div>
       </header>
 
@@ -2308,9 +3378,15 @@ function App() {
               <h2>Your cube</h2>
               <div role="status">
                 {parity && (
-                  <span class={`verdict ${parity.valid ? 'is-valid' : 'is-invalid'}`}>
-                    {parity.valid ? '✓ Valid cube — every check passed' : parity.result}
-                    {!parity.valid && parity.detail && <span class="status-detail">: {parity.detail}</span>}
+                  <span
+                    class={`verdict ${parity.valid ? 'is-valid' : 'is-invalid'}`}
+                  >
+                    {parity.valid
+                      ? '✓ Valid cube — every check passed'
+                      : parity.result}
+                    {!parity.valid && parity.detail && (
+                      <span class="status-detail">: {parity.detail}</span>
+                    )}
                   </span>
                 )}
               </div>
@@ -2328,132 +3404,272 @@ function App() {
                 </button>
               )}
             </div>
-            {cube ? (() => {
-              // parity.highlight (see parity.ts's HighlightGroup) is a
-              // list of readings, each with its own `group` tag (the color
-              // combination or matched piece name it read as) and the facelets
-              // backing it. Multiple entries can share a `group` - e.g. every
-              // wing that matched an over-represented pair - which is exactly
-              // the set to cross-highlight on hover, since they're the
-              // candidates for "which of these is actually the misread one".
-              const highlightGroups: Array<{ group: string; facelets: { face: string; index: number }[] }> =
-                parity?.highlight ?? []
-              const totalHighlighted = highlightGroups.reduce((n, g) => n + g.facelets.length, 0)
-              const groupAt = (face: string, index: number): string | undefined =>
-                highlightGroups.find((g) => g.facelets.some((f) => f.face === face && f.index === index))?.group
-              // Which photo each net face shows, for its review marks and preview.
-              const rows = (flat: string[]) => Array.from({ length: puzzleSize }, (_, r) => flat.slice(r * puzzleSize, (r + 1) * puzzleSize))
-              const netSources = faceSources(
-                { u: rows(cube.u), r: rows(cube.r), f: rows(cube.f), d: rows(cube.d), l: rows(cube.l), b: rows(cube.b) },
-                Object.fromEntries(FACE_ORDER.filter((f) => capturedFaces[f]).map((f) => [f, capturedFaces[f].colors])),
-              )
-              const hoveredPiece = hoveredNetCell ? pieceKey(puzzleSize, hoveredNetCell.face, hoveredNetCell.index) : null
-              const hoveredInfo = (() => {
-                if (!hoveredNetCell || !hoveredPiece) return null
-                const members = (['u', 'r', 'f', 'd', 'l', 'b'] as const).filter((face) =>
-                  Array.from({ length: puzzleSize * puzzleSize }, (_, i) => i).some((i) => pieceKey(puzzleSize, face, i) === hoveredPiece)).length
-                const source = netSources[hoveredNetCell.face]
-                const photo = source ? capturedFaces[source.slot] : undefined
-                const index = source ? sourceIndex(puzzleSize, source.turns, hoveredNetCell.index) : -1
-                const mark = photo ? stickerMark(photo, index) : null
-                const r = Math.floor(index / puzzleSize), c = index % puzzleSize
-                const detected = photo?.detectedColors?.[r]?.[c]
-                const color = (cube as any)[hoveredNetCell.face][hoveredNetCell.index] as string
-                return {
-                  faceName: NET_FACE_NAMES[hoveredNetCell.face],
-                  pieceName: members === 3 ? 'corner piece' : members === 2 ? 'edge piece' : 'center piece',
-                  photo: photo?.croppedImage,
-                  turns: source?.turns ?? 0,
-                  note: mark === 'corrected' ? `Detected ${COLOR_NAME[detected!] ?? detected}, you changed it to ${COLOR_NAME[color] ?? color}.`
-                    : mark === 'flagged' ? 'Detection was unsure about this sticker.' : null,
-                }
-              })()
-              return (
-                <div class="net-region">
-                  {totalHighlighted > 0 && (
-                    <p class="net-highlight-note">
-                      ⚠ {totalHighlighted} sticker{totalHighlighted === 1 ? '' : 's'} outlined below may be involved in the
-                      problem above. Hover one to see which others share its color reading.
-                    </p>
-                  )}
-                  <div class="cube-net" style={{ '--net-gap': puzzleSize >= 6 ? '1px' : puzzleSize >= 4 ? '2px' : '3px' }}
-                    onMouseLeave={() => { setHoveredNetCell(null); setHoveredHighlightGroup(null) }}>
-                    {(
-                      [
-                        ['U', cube.u, 'net-u'],
-                        ['L', cube.l, 'net-l'],
-                        ['F', cube.f, 'net-f'],
-                        ['R', cube.r, 'net-r'],
-                        ['B', cube.b, 'net-b'],
-                        ['D', cube.d, 'net-d'],
-                      ] as [string, string[], string][]
-                    ).map(([label, data, cls]) => {
-                      // Faces are named by their lowercase CubeIR key ('u','r',...)
-                      // in parity.highlight, matching `cube`'s own keys - `label`
-                      // here is only the uppercase display letter used for the
-                      // net-u/net-l/... CSS class.
-                      const faceKey = label.toLowerCase()
-                      const source = netSources[faceKey]
-                      const photo = source ? capturedFaces[source.slot] : undefined
-                      return (
-                        <div class={`net-face ${cls}`} key={label}>
-                          <div class="net-face-label">{NET_FACE_NAMES[faceKey]}</div>
-                          <div
-                            class="net-face-grid"
-                            style={{ gridTemplateColumns: `repeat(${puzzleSize}, 1fr)` }}
-                          >
-                            {data.map((color, i) => {
-                              const group = groupAt(faceKey, i)
-                              const isHoverRelated = group !== undefined && group === hoveredHighlightGroup
-                              const samePiece = hoveredPiece !== null && pieceKey(puzzleSize, faceKey, i) === hoveredPiece
-                              const mark = photo && source ? stickerMark(photo, sourceIndex(puzzleSize, source.turns, i)) : null
-                              return (
-                                <div
-                                  class={`net-cell ${group !== undefined ? 'net-cell-highlighted' : ''} ${isHoverRelated ? 'net-cell-hover-related' : ''} ${samePiece ? 'net-cell-piece' : ''}`}
-                                  key={i}
-                                  style={{ background: STICKER_HEX[color] || '#888' }}
-                                  onMouseEnter={() => {
-                                    setHoveredNetCell({ face: faceKey, index: i })
-                                    setHoveredHighlightGroup(group ?? null)
-                                  }}
-                                >
-                                  {mark === 'corrected' && <span class="net-cell-mark corrected" aria-hidden="true">✎</span>}
-                                  {mark === 'flagged' && <span class="net-cell-mark flagged" aria-hidden="true" />}
-                                </div>
-                              )
-                            })}
-                          </div>
-                        </div>
+            {cube ? (
+              (() => {
+                // parity.highlight (see parity.ts's HighlightGroup) is a
+                // list of readings, each with its own `group` tag (the color
+                // combination or matched piece name it read as) and the facelets
+                // backing it. Multiple entries can share a `group` - e.g. every
+                // wing that matched an over-represented pair - which is exactly
+                // the set to cross-highlight on hover, since they're the
+                // candidates for "which of these is actually the misread one".
+                const highlightGroups: Array<{
+                  group: string
+                  facelets: { face: string; index: number }[]
+                }> = parity?.highlight ?? []
+                const totalHighlighted = highlightGroups.reduce(
+                  (n, g) => n + g.facelets.length,
+                  0,
+                )
+                const groupAt = (
+                  face: string,
+                  index: number,
+                ): string | undefined =>
+                  highlightGroups.find((g) =>
+                    g.facelets.some(
+                      (f) => f.face === face && f.index === index,
+                    ),
+                  )?.group
+                // Which photo each net face shows, for its review marks and preview.
+                const rows = (flat: string[]) =>
+                  Array.from({ length: puzzleSize }, (_, r) =>
+                    flat.slice(r * puzzleSize, (r + 1) * puzzleSize),
+                  )
+                const netSources = faceSources(
+                  {
+                    u: rows(cube.u),
+                    r: rows(cube.r),
+                    f: rows(cube.f),
+                    d: rows(cube.d),
+                    l: rows(cube.l),
+                    b: rows(cube.b),
+                  },
+                  Object.fromEntries(
+                    FACE_ORDER.filter((f) => capturedFaces[f]).map((f) => [
+                      f,
+                      capturedFaces[f].colors,
+                    ]),
+                  ),
+                )
+                const hoveredPiece = hoveredNetCell
+                  ? pieceKey(
+                      puzzleSize,
+                      hoveredNetCell.face,
+                      hoveredNetCell.index,
+                    )
+                  : null
+                const hoveredInfo = (() => {
+                  if (!hoveredNetCell || !hoveredPiece) return null
+                  const members = (
+                    ['u', 'r', 'f', 'd', 'l', 'b'] as const
+                  ).filter((face) =>
+                    Array.from(
+                      { length: puzzleSize * puzzleSize },
+                      (_, i) => i,
+                    ).some(
+                      (i) => pieceKey(puzzleSize, face, i) === hoveredPiece,
+                    ),
+                  ).length
+                  const source = netSources[hoveredNetCell.face]
+                  const photo = source ? capturedFaces[source.slot] : undefined
+                  const index = source
+                    ? sourceIndex(
+                        puzzleSize,
+                        source.turns,
+                        hoveredNetCell.index,
                       )
-                    })}
-                    <div class="net-info" aria-live="polite">
-                      {hoveredInfo ? (
-                        <>
-                          {hoveredInfo.photo && (
-                            <img class="net-info-photo" src={hoveredInfo.photo} alt={`Photo of the ${hoveredInfo.faceName} face`}
-                              style={{ transform: `rotate(${hoveredInfo.turns * 90}deg)` }} />
-                          )}
-                          <p><strong>{hoveredInfo.faceName}</strong> · {hoveredInfo.pieceName}</p>
-                          {hoveredInfo.note && <p class="net-info-note">{hoveredInfo.note}</p>}
-                        </>
-                      ) : (
-                        <p class="net-info-hint">Point at a sticker to see its whole piece and the photo it came from.</p>
-                      )}
+                    : -1
+                  const mark = photo ? stickerMark(photo, index) : null
+                  const r = Math.floor(index / puzzleSize),
+                    c = index % puzzleSize
+                  const detected = photo?.detectedColors?.[r]?.[c]
+                  const color = (cube as any)[hoveredNetCell.face][
+                    hoveredNetCell.index
+                  ] as string
+                  return {
+                    faceName: NET_FACE_NAMES[hoveredNetCell.face],
+                    pieceName:
+                      members === 3
+                        ? 'corner piece'
+                        : members === 2
+                          ? 'edge piece'
+                          : 'center piece',
+                    photo: photo?.croppedImage,
+                    turns: source?.turns ?? 0,
+                    note:
+                      mark === 'corrected'
+                        ? `Detected ${COLOR_NAME[detected!] ?? detected}, you changed it to ${COLOR_NAME[color] ?? color}.`
+                        : mark === 'flagged'
+                          ? 'Detection was unsure about this sticker.'
+                          : null,
+                  }
+                })()
+                return (
+                  <div class="net-region">
+                    {totalHighlighted > 0 && (
+                      <p class="net-highlight-note">
+                        ⚠ {totalHighlighted} sticker
+                        {totalHighlighted === 1 ? '' : 's'} outlined below may
+                        be involved in the problem above. Hover one to see which
+                        others share its color reading.
+                      </p>
+                    )}
+                    <div
+                      class="cube-net"
+                      style={{
+                        '--net-gap':
+                          puzzleSize >= 6
+                            ? '1px'
+                            : puzzleSize >= 4
+                              ? '2px'
+                              : '3px',
+                      }}
+                      onMouseLeave={() => {
+                        setHoveredNetCell(null)
+                        setHoveredHighlightGroup(null)
+                      }}
+                    >
+                      {(
+                        [
+                          ['U', cube.u, 'net-u'],
+                          ['L', cube.l, 'net-l'],
+                          ['F', cube.f, 'net-f'],
+                          ['R', cube.r, 'net-r'],
+                          ['B', cube.b, 'net-b'],
+                          ['D', cube.d, 'net-d'],
+                        ] as [string, string[], string][]
+                      ).map(([label, data, cls]) => {
+                        // Faces are named by their lowercase CubeIR key ('u','r',...)
+                        // in parity.highlight, matching `cube`'s own keys - `label`
+                        // here is only the uppercase display letter used for the
+                        // net-u/net-l/... CSS class.
+                        const faceKey = label.toLowerCase()
+                        const source = netSources[faceKey]
+                        const photo = source
+                          ? capturedFaces[source.slot]
+                          : undefined
+                        return (
+                          <div class={`net-face ${cls}`} key={label}>
+                            <div class="net-face-label">
+                              {NET_FACE_NAMES[faceKey]}
+                            </div>
+                            <div
+                              class="net-face-grid"
+                              style={{
+                                gridTemplateColumns: `repeat(${puzzleSize}, 1fr)`,
+                              }}
+                            >
+                              {data.map((color, i) => {
+                                const group = groupAt(faceKey, i)
+                                const isHoverRelated =
+                                  group !== undefined &&
+                                  group === hoveredHighlightGroup
+                                const samePiece =
+                                  hoveredPiece !== null &&
+                                  pieceKey(puzzleSize, faceKey, i) ===
+                                    hoveredPiece
+                                const mark =
+                                  photo && source
+                                    ? stickerMark(
+                                        photo,
+                                        sourceIndex(
+                                          puzzleSize,
+                                          source.turns,
+                                          i,
+                                        ),
+                                      )
+                                    : null
+                                return (
+                                  <div
+                                    class={`net-cell ${group !== undefined ? 'net-cell-highlighted' : ''} ${isHoverRelated ? 'net-cell-hover-related' : ''} ${samePiece ? 'net-cell-piece' : ''}`}
+                                    key={i}
+                                    style={{
+                                      background: STICKER_HEX[color] || '#888',
+                                    }}
+                                    onMouseEnter={() => {
+                                      setHoveredNetCell({
+                                        face: faceKey,
+                                        index: i,
+                                      })
+                                      setHoveredHighlightGroup(group ?? null)
+                                    }}
+                                  >
+                                    {mark === 'corrected' && (
+                                      <span
+                                        class="net-cell-mark corrected"
+                                        aria-hidden="true"
+                                      >
+                                        ✎
+                                      </span>
+                                    )}
+                                    {mark === 'flagged' && (
+                                      <span
+                                        class="net-cell-mark flagged"
+                                        aria-hidden="true"
+                                      />
+                                    )}
+                                  </div>
+                                )
+                              })}
+                            </div>
+                          </div>
+                        )
+                      })}
+                      <div class="net-info" aria-live="polite">
+                        {hoveredInfo ? (
+                          <>
+                            {hoveredInfo.photo && (
+                              <img
+                                class="net-info-photo"
+                                src={hoveredInfo.photo}
+                                alt={`Photo of the ${hoveredInfo.faceName} face`}
+                                style={{
+                                  transform: `rotate(${hoveredInfo.turns * 90}deg)`,
+                                }}
+                              />
+                            )}
+                            <p>
+                              <strong>{hoveredInfo.faceName}</strong> ·{' '}
+                              {hoveredInfo.pieceName}
+                            </p>
+                            {hoveredInfo.note && (
+                              <p class="net-info-note">{hoveredInfo.note}</p>
+                            )}
+                          </>
+                        ) : (
+                          <p class="net-info-hint">
+                            Point at a sticker to see its whole piece and the
+                            photo it came from.
+                          </p>
+                        )}
+                      </div>
                     </div>
                   </div>
-                </div>
-              )
-            })() : (
-              <p class="empty-state">No cube yet — capture the faces, upload a fixture or type the colors.</p>
+                )
+              })()
+            ) : (
+              <p class="empty-state">
+                No cube yet — capture the faces, upload a fixture or type the
+                colors.
+              </p>
             )}
             {parity && (
               <div class="parity-checks">
-                {Object.entries(parity.checks).map(([check, valid]: [string, any]) => (
-                  <div class={`parity-check ${valid ? 'is-ok' : 'is-failed'}`} key={check}>
-                    <span class="parity-check-name">{PARITY_CHECK_NAMES[check] ?? check}</span>
-                    <span class="parity-check-result">{valid ? '✓ ok' : '✗ failed'}</span>
-                  </div>
-                ))}
+                {Object.entries(parity.checks).map(
+                  ([check, valid]: [string, any]) => (
+                    <div
+                      class={`parity-check ${valid ? 'is-ok' : 'is-failed'}`}
+                      key={check}
+                    >
+                      <span class="parity-check-name">
+                        {PARITY_CHECK_NAMES[check] ?? check}
+                      </span>
+                      <span class="parity-check-result">
+                        {valid ? '✓ ok' : '✗ failed'}
+                      </span>
+                    </div>
+                  ),
+                )}
               </div>
             )}
           </section>
@@ -2463,10 +3679,20 @@ function App() {
             <div class="card-header">
               <h2>Notation</h2>
               <div class="segmented" role="group" aria-label="Notation format">
-                <button type="button" class={notationFormat === 'wrg' ? 'active' : ''} aria-pressed={notationFormat === 'wrg'} onClick={() => setNotationFormat('wrg')}>
+                <button
+                  type="button"
+                  class={notationFormat === 'wrg' ? 'active' : ''}
+                  aria-pressed={notationFormat === 'wrg'}
+                  onClick={() => setNotationFormat('wrg')}
+                >
                   Colors (WRG)
                 </button>
-                <button type="button" class={notationFormat === 'urf' ? 'active' : ''} aria-pressed={notationFormat === 'urf'} onClick={() => setNotationFormat('urf')}>
+                <button
+                  type="button"
+                  class={notationFormat === 'urf' ? 'active' : ''}
+                  aria-pressed={notationFormat === 'urf'}
+                  onClick={() => setNotationFormat('urf')}
+                >
                   Faces (URF)
                 </button>
               </div>
@@ -2482,20 +3708,37 @@ function App() {
                   Save as test fixture
                 </button>
               )}
-              <button type="button" class="btn btn-primary btn-sm" onClick={() => cube && copyToClipboard(getNotationOutput())} disabled={!cube}>
+              <button
+                type="button"
+                class="btn btn-primary btn-sm"
+                onClick={() => cube && copyToClipboard(getNotationOutput())}
+                disabled={!cube}
+              >
                 <span aria-live="polite">
-                  {copyStatus === 'copied' ? '✓ Copied' : copyStatus === 'failed' ? 'Copy failed' : 'Copy'}
+                  {copyStatus === 'copied'
+                    ? '✓ Copied'
+                    : copyStatus === 'failed'
+                      ? 'Copy failed'
+                      : 'Copy'}
                 </span>
               </button>
             </div>
-            <textarea class="notation-output" readonly aria-label="Notation" value={cube ? getNotationOutput() : ''} />
+            <textarea
+              class="notation-output"
+              readonly
+              aria-label="Notation"
+              value={cube ? getNotationOutput() : ''}
+            />
             <p class="notation-hint">
               {notationFormat === 'wrg'
                 ? `6 blocks of ${puzzleSize * puzzleSize} colors (W O G R B Y) in U R F D L B order.`
                 : `6 blocks of ${puzzleSize * puzzleSize} face letters (U R F D L B) in U R F D L B order.`}
             </p>
             {fixtureSaveMessage && (
-              <div role="status" class={`capture-message ${fixtureSaveMessage.includes('✓') ? 'success' : fixtureSaveMessage.includes('❌') ? 'error' : ''}`}>
+              <div
+                role="status"
+                class={`capture-message ${fixtureSaveMessage.includes('✓') ? 'success' : fixtureSaveMessage.includes('❌') ? 'error' : ''}`}
+              >
                 {fixtureSaveMessage}
               </div>
             )}
@@ -2507,27 +3750,69 @@ function App() {
           <section class="card capture-card">
             <h2>Capture</h2>
             <div class="capture-card-actions">
-              {FACE_ORDER.some((f) => f in capturedFaces) && !FACE_ORDER.every((f) => f in capturedFaces) && (
-                <button type="button" class="btn btn-secondary btn-lg" onClick={() => handleOpenCapture(true)}>
-                  <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true">
-                    <path d="M16.5 9a6.5 6.5 0 1 0-1.4 5.1M16.5 4.5V9H12" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" />
-                  </svg>
-                  Capture again
-                </button>
-              )}
-              <button type="button" class="btn btn-primary btn-lg" onClick={() => handleOpenCapture()}>
-                <svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true">
-                  <path d="M2.5 6.5A1.5 1.5 0 0 1 4 5h2.2l1.3-2h5l1.3 2H16a1.5 1.5 0 0 1 1.5 1.5V15A1.5 1.5 0 0 1 16 16.5H4A1.5 1.5 0 0 1 2.5 15Z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" />
-                  <circle cx="10" cy="10.5" r="3" fill="none" stroke="currentColor" stroke-width="1.6" />
+              {FACE_ORDER.some((f) => f in capturedFaces) &&
+                !FACE_ORDER.every((f) => f in capturedFaces) && (
+                  <button
+                    type="button"
+                    class="btn btn-secondary btn-lg"
+                    onClick={() => handleOpenCapture(true)}
+                  >
+                    <svg
+                      width="20"
+                      height="20"
+                      viewBox="0 0 20 20"
+                      fill="none"
+                      aria-hidden="true"
+                    >
+                      <path
+                        d="M16.5 9a6.5 6.5 0 1 0-1.4 5.1M16.5 4.5V9H12"
+                        stroke="currentColor"
+                        stroke-width="1.7"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                      />
+                    </svg>
+                    Capture again
+                  </button>
+                )}
+              <button
+                type="button"
+                class="btn btn-primary btn-lg"
+                onClick={() => handleOpenCapture()}
+              >
+                <svg
+                  width="20"
+                  height="20"
+                  viewBox="0 0 20 20"
+                  aria-hidden="true"
+                >
+                  <path
+                    d="M2.5 6.5A1.5 1.5 0 0 1 4 5h2.2l1.3-2h5l1.3 2H16a1.5 1.5 0 0 1 1.5 1.5V15A1.5 1.5 0 0 1 16 16.5H4A1.5 1.5 0 0 1 2.5 15Z"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.6"
+                    stroke-linejoin="round"
+                  />
+                  <circle
+                    cx="10"
+                    cy="10.5"
+                    r="3"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.6"
+                  />
                 </svg>
                 {FACE_ORDER.every((f) => f in capturedFaces)
                   ? 'Capture again'
                   : FACE_ORDER.some((f) => f in capturedFaces)
-                  ? `Continue (${FACE_ORDER.filter((f) => f in capturedFaces).length}/${FACE_ORDER.length})`
-                  : 'Capture faces'}
+                    ? `Continue (${FACE_ORDER.filter((f) => f in capturedFaces).length}/${FACE_ORDER.length})`
+                    : 'Capture faces'}
               </button>
             </div>
-            <p class="card-hint">Four sides while turning the cube, then top and bottom — about a minute.</p>
+            <p class="card-hint">
+              Four sides while turning the cube, then top and bottom — about a
+              minute.
+            </p>
             <div class="face-status-row">
               <div class="face-status-dots">
                 {FACE_ORDER.map((face) => (
@@ -2546,47 +3831,108 @@ function App() {
                   : `${FACE_ORDER.filter((f) => f in capturedFaces).length} of 6 captured`}
               </span>
             </div>
-            {captureProfile && FACE_ORDER.every((f) => capturedFaces[f]?.croppedImage) && (
-              <span class="capture-profile-used">
-                Cube: {captureProfile.name}
-                {cube && resolvedColorProfile && <>
-                  {' · '}Colors: {resolvedColorProfile.name}
-                  {resolvedColorProfile.selection === 'automatic' && ' (Automatic)'}
-                  {resolvedColorProfile.colorFitPercent !== undefined && ` · ${resolvedColorProfile.colorFitPercent}% color fit`}
-                  {(profileFinding || !learnedPalette || appliedBackgroundGains) && <span class="capture-profile-used-detail">
-                    {profileFinding}
-                    {!learnedPalette && `${profileFinding ? ' · ' : ''}Six-face calibration unavailable`}
-                    {appliedBackgroundGains && <>{profileFinding || !learnedPalette ? ' · ' : ''}<button type="button" class="color-review-link" onClick={() => setShowBackdropDialog(true)}>Compare backdrop adjustment</button></>}
-                  </span>}
-                </>}
-              </span>
-            )}
-            {cube && FACE_ORDER.every((face) => capturedFaces[face]?.croppedImage) && !showReviewDialog && (
-              <div class="profile-suggestion">
-                {newColorName === null ? (
-                  <>
-                    <button type="button" class="btn btn-secondary btn-sm" disabled={!profileLearningOffer}
-                      title={profileLearningOffer ? 'Save this capture’s learned sticker colors under a new name' : 'Requires a valid, confident reviewed camera capture'}
-                      onClick={() => setNewColorName('')}>
-                      ＋ Create sticker color profile
-                    </button>
-                    {profileLearningOffer?.matchedProfileId && (
-                      <button type="button" class="btn btn-secondary btn-sm" onClick={handleUpdateColors}
-                        title={`Update the ${updatableName} profile from this reviewed capture`}>
-                        Update {updatableName} profile
+            {captureProfile &&
+              FACE_ORDER.every((f) => capturedFaces[f]?.croppedImage) && (
+                <span class="capture-profile-used">
+                  Cube: {captureProfile.name}
+                  {cube && resolvedColorProfile && (
+                    <>
+                      {' · '}Colors: {resolvedColorProfile.name}
+                      {resolvedColorProfile.selection === 'automatic' &&
+                        ' (Automatic)'}
+                      {resolvedColorProfile.colorFitPercent !== undefined &&
+                        ` · ${resolvedColorProfile.colorFitPercent}% color fit`}
+                      {(profileFinding ||
+                        !learnedPalette ||
+                        appliedBackgroundGains) && (
+                        <span class="capture-profile-used-detail">
+                          {profileFinding}
+                          {!learnedPalette &&
+                            `${profileFinding ? ' · ' : ''}Six-face calibration unavailable`}
+                          {appliedBackgroundGains && (
+                            <>
+                              {profileFinding || !learnedPalette ? ' · ' : ''}
+                              <button
+                                type="button"
+                                class="color-review-link"
+                                onClick={() => setShowBackdropDialog(true)}
+                              >
+                                Compare backdrop adjustment
+                              </button>
+                            </>
+                          )}
+                        </span>
+                      )}
+                    </>
+                  )}
+                </span>
+              )}
+            {cube &&
+              FACE_ORDER.every((face) => capturedFaces[face]?.croppedImage) &&
+              !showReviewDialog && (
+                <div class="profile-suggestion">
+                  {newColorName === null ? (
+                    <>
+                      <button
+                        type="button"
+                        class="btn btn-secondary btn-sm"
+                        disabled={!profileLearningOffer}
+                        title={
+                          profileLearningOffer
+                            ? 'Save this capture’s learned sticker colors under a new name'
+                            : 'Requires a valid, confident reviewed camera capture'
+                        }
+                        onClick={() => setNewColorName('')}
+                      >
+                        ＋ Create sticker color profile
                       </button>
-                    )}
-                    {profileLearningOffer?.updatedProfileName && <span role="status">✓ {profileLearningOffer.updatedProfileName} updated</span>}
-                  </>
-                ) : <>
-                  <input aria-label="New sticker color profile name" maxLength={60} placeholder="e.g. Matte" value={newColorName}
-                    onInput={(e) => setNewColorName(e.currentTarget.value)}
-                    onKeyDown={(e) => { if (e.key === 'Enter') handleCreateColors() }} />
-                  <button type="button" class="btn btn-primary btn-sm" disabled={!newColorName.trim()} onClick={handleCreateColors}>Save profile</button>
-                  <button type="button" class="btn btn-secondary btn-sm" onClick={() => setNewColorName(null)}>Cancel</button>
-                </>}
-              </div>
-            )}
+                      {profileLearningOffer?.matchedProfileId && (
+                        <button
+                          type="button"
+                          class="btn btn-secondary btn-sm"
+                          onClick={handleUpdateColors}
+                          title={`Update the ${updatableName} profile from this reviewed capture`}
+                        >
+                          Update {updatableName} profile
+                        </button>
+                      )}
+                      {profileLearningOffer?.updatedProfileName && (
+                        <span role="status">
+                          ✓ {profileLearningOffer.updatedProfileName} updated
+                        </span>
+                      )}
+                    </>
+                  ) : (
+                    <>
+                      <input
+                        aria-label="New sticker color profile name"
+                        maxLength={60}
+                        placeholder="e.g. Matte"
+                        value={newColorName}
+                        onInput={(e) => setNewColorName(e.currentTarget.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') handleCreateColors()
+                        }}
+                      />
+                      <button
+                        type="button"
+                        class="btn btn-primary btn-sm"
+                        disabled={!newColorName.trim()}
+                        onClick={handleCreateColors}
+                      >
+                        Save profile
+                      </button>
+                      <button
+                        type="button"
+                        class="btn btn-secondary btn-sm"
+                        onClick={() => setNewColorName(null)}
+                      >
+                        Cancel
+                      </button>
+                    </>
+                  )}
+                </div>
+              )}
             <div class="card-divider" />
             <div class="capture-alternatives">
               <label
@@ -2603,10 +3949,19 @@ function App() {
                   onChange={handleUploadFixture}
                 />
               </label>
-              <button type="button" class="btn btn-secondary btn-sm" aria-expanded={showColorInput} onClick={() => setShowColorInput(!showColorInput)}>
+              <button
+                type="button"
+                class="btn btn-secondary btn-sm"
+                aria-expanded={showColorInput}
+                onClick={() => setShowColorInput(!showColorInput)}
+              >
                 {showColorInput ? 'Close' : 'Type colors'}
               </button>
-              <button type="button" class="btn btn-secondary btn-sm" onClick={handleApplySolved}>
+              <button
+                type="button"
+                class="btn btn-secondary btn-sm"
+                onClick={handleApplySolved}
+              >
                 Solved cube
               </button>
             </div>
@@ -2617,7 +3972,9 @@ function App() {
               <input
                 type="checkbox"
                 checked={ignoreFixtureCorrections}
-                onChange={(e) => setIgnoreFixtureCorrections(e.currentTarget.checked)}
+                onChange={(e) =>
+                  setIgnoreFixtureCorrections(e.currentTarget.checked)
+                }
               />
               Uploads ignore saved corrections
             </label>
@@ -2626,7 +3983,10 @@ function App() {
                 modal isn't open for an upload started from this panel, so
                 without this the message would update invisibly. */}
             {captureMessage && !webcamOpen && (
-              <div role="status" class={`capture-message ${captureMessage.includes('✓') ? 'success' : captureMessage.includes('❌') ? 'error' : ''}`}>
+              <div
+                role="status"
+                class={`capture-message ${captureMessage.includes('✓') ? 'success' : captureMessage.includes('❌') ? 'error' : ''}`}
+              >
                 {captureMessage}
               </div>
             )}
@@ -2657,11 +4017,18 @@ function App() {
                     const value = e.currentTarget.value
                     setManualColorInput(value)
                     const detected = detectNotationFormat(value)
-                    if (detected && detected !== notationFormat) setNotationFormat(detected)
+                    if (detected && detected !== notationFormat)
+                      setNotationFormat(detected)
                   }}
-                  placeholder={notationFormat === 'wrg'
-                    ? Array(6).fill('W'.repeat(puzzleSize * puzzleSize)).join(' ')
-                    : ['U', 'R', 'F', 'D', 'L', 'B'].map((l) => l.repeat(puzzleSize * puzzleSize)).join(' ')}
+                  placeholder={
+                    notationFormat === 'wrg'
+                      ? Array(6)
+                          .fill('W'.repeat(puzzleSize * puzzleSize))
+                          .join(' ')
+                      : ['U', 'R', 'F', 'D', 'L', 'B']
+                          .map((l) => l.repeat(puzzleSize * puzzleSize))
+                          .join(' ')
+                  }
                   rows={6}
                   style={{ width: '100%', marginTop: '0.5rem' }}
                 />
@@ -2677,7 +4044,6 @@ function App() {
               </div>
             )}
           </section>
-
         </div>
       </main>
 
@@ -2691,7 +4057,9 @@ function App() {
             aria-labelledby="capture-title"
             tabIndex={-1}
             ref={focusModalOnOpen}
-            onKeyDown={(e) => handleModalKeyDown(e, e.currentTarget, () => setWebcamOpen(false))}
+            onKeyDown={(e) =>
+              handleModalKeyDown(e, e.currentTarget, () => setWebcamOpen(false))
+            }
           >
             {/* Live view on the left, everything about the current step on the
                 right - so on a laptop nothing needs a scroll. */}
@@ -2711,35 +4079,61 @@ function App() {
                   // color it reads as.
                   <div
                     class={`capture-grid-overlay ${mirrorPreview ? 'mirrored' : ''}`}
-                    style={liveDetection.gridOffset && {
-                      '--grid-x': liveDetection.gridOffset.x,
-                      '--grid-y': liveDetection.gridOffset.y,
-                      '--grid-scale': liveDetection.gridOffset.scale,
-                      '--grid-angle': liveDetection.gridOffset.angle,
-                    }}
+                    style={
+                      liveDetection.gridOffset && {
+                        '--grid-x': liveDetection.gridOffset.x,
+                        '--grid-y': liveDetection.gridOffset.y,
+                        '--grid-scale': liveDetection.gridOffset.scale,
+                        '--grid-angle': liveDetection.gridOffset.angle,
+                      }
+                    }
                   >
                     {liveDetection.colors.map((row, r) =>
                       row.map((color, c) => {
                         const n = liveDetection.colors.length
                         const outer = liveDetection.outerCellRatio ?? 1
-                        const cell = stickerSampleRect(r, c, n, 100, 100, { ...sampling, stickerCore: 1 }, outer)
-                        const zone = stickerSampleRect(r, c, n, 100, 100, sampling, outer)
+                        const cell = stickerSampleRect(
+                          r,
+                          c,
+                          n,
+                          100,
+                          100,
+                          { ...sampling, stickerCore: 1 },
+                          outer,
+                        )
+                        const zone = stickerSampleRect(
+                          r,
+                          c,
+                          n,
+                          100,
+                          100,
+                          sampling,
+                          outer,
+                        )
                         return (
                           <Fragment key={`${r}-${c}`}>
                             <div
                               class="capture-grid-cell"
-                              style={{ left: `${cell.x}%`, top: `${cell.y}%`, width: `${cell.width}%`, height: `${cell.height}%` }}
+                              style={{
+                                left: `${cell.x}%`,
+                                top: `${cell.y}%`,
+                                width: `${cell.width}%`,
+                                height: `${cell.height}%`,
+                              }}
                             />
                             <div
                               class="capture-sample-zone"
                               style={{
-                                left: `${zone.x}%`, top: `${zone.y}%`, width: `${zone.width}%`, height: `${zone.height}%`,
+                                left: `${zone.x}%`,
+                                top: `${zone.y}%`,
+                                width: `${zone.width}%`,
+                                height: `${zone.height}%`,
                                 borderColor: STICKER_HEX[color] ?? '#888',
                               }}
                             />
                           </Fragment>
                         )
-                      })
+                      }),
                     )}
                   </div>
                 )}
@@ -2756,55 +4150,159 @@ function App() {
                 )}
                 {/* Guide mode frames the exact sample square. Detect face shows
                     the wider seam search area; its moving grid marks the crop. */}
-                <div class={`capture-scan-frame ${captureMode === 'cv' ? 'cv-search-frame' : ''} ${liveCapturedFace ? 'pattern-match' : ''} ${autoCapture && autoCaptureFrames > 0 ? 'capture-holding' : ''} ${captureFlash ? 'capture-flashed' : ''}`}>
-                  <span class="capture-scan-label">{captureMode === 'cv' ? 'Show one face in this area' : 'Fit face in this square'}</span>
-                  {captureMode === 'cv' && autoCapture && autoCaptureFrames > 0 && (
-                    <svg class={`capture-progress-ring ${autoCapturePaused ? 'paused' : ''}`} viewBox="0 0 40 40" aria-hidden="true">
-                      <circle class="capture-progress-track" cx="20" cy="20" r="16" />
-                      <circle class="capture-progress-fill" cx="20" cy="20" r="16" style={{ strokeDashoffset: `${100.53 * (1 - autoCaptureFrames / AUTO_CAPTURE_STABLE_FRAMES)}` }} />
-                    </svg>
-                  )}
+                <div
+                  class={`capture-scan-frame ${captureMode === 'cv' ? 'cv-search-frame' : ''} ${liveCapturedFace ? 'pattern-match' : ''} ${autoCapture && autoCaptureFrames > 0 ? 'capture-holding' : ''} ${captureFlash ? 'capture-flashed' : ''}`}
+                >
+                  <span class="capture-scan-label">
+                    {captureMode === 'cv'
+                      ? 'Show one face in this area'
+                      : 'Fit face in this square'}
+                  </span>
+                  {captureMode === 'cv' &&
+                    autoCapture &&
+                    autoCaptureFrames > 0 && (
+                      <svg
+                        class={`capture-progress-ring ${autoCapturePaused ? 'paused' : ''}`}
+                        viewBox="0 0 40 40"
+                        aria-hidden="true"
+                      >
+                        <circle
+                          class="capture-progress-track"
+                          cx="20"
+                          cy="20"
+                          r="16"
+                        />
+                        <circle
+                          class="capture-progress-fill"
+                          cx="20"
+                          cy="20"
+                          r="16"
+                          style={{
+                            strokeDashoffset: `${100.53 * (1 - autoCaptureFrames / AUTO_CAPTURE_STABLE_FRAMES)}`,
+                          }}
+                        />
+                      </svg>
+                    )}
                 </div>
-                {captureFlash && <div class="capture-flash" aria-hidden="true" />}
+                {captureFlash && (
+                  <div class="capture-flash" aria-hidden="true" />
+                )}
                 {turnOverlay && (
-                  <CaptureTurnOverlay step={turnOverlay.step} startColors={turnOverlay.startColors} viaColors={turnOverlay.viaColors} capturedColors={Object.values(capturedFaces).map((face) => face.colors)} mirrored={mirrorPreview} onContinue={continueTurnOverlay} />
+                  <CaptureTurnOverlay
+                    step={turnOverlay.step}
+                    startColors={turnOverlay.startColors}
+                    viaColors={turnOverlay.viaColors}
+                    capturedColors={Object.values(capturedFaces).map(
+                      (face) => face.colors,
+                    )}
+                    mirrored={mirrorPreview}
+                    onContinue={continueTurnOverlay}
+                  />
                 )}
               </div>
-              <span class={`capture-live-badge ${liveCapturedFace ? 'pattern-match' : ''}`} role="status">
+              <span
+                class={`capture-live-badge ${liveCapturedFace ? 'pattern-match' : ''}`}
+                role="status"
+              >
                 <span class="capture-live-dot" />
-                Live · {liveCapturedFace ? `Looks like ${FACE_DISPLAY_LABEL[liveCapturedFace]} · capture allowed` : liveDetection
-                  ? (liveFaceVisible ? `${(liveDetection.confidence * 100).toFixed(0)}% color match` : captureMode === 'cv' ? 'Align face in view' : 'Align face in guide')
-                  : '—'}
-                {profileStore.activeColorsId === AUTO_COLORS_ID && liveAutoColorProfile && ` · ${liveAutoColorProfile.name}`}
+                Live ·{' '}
+                {liveCapturedFace
+                  ? `Looks like ${FACE_DISPLAY_LABEL[liveCapturedFace]} · capture allowed`
+                  : liveDetection
+                    ? liveFaceVisible
+                      ? `${(liveDetection.confidence * 100).toFixed(0)}% color match`
+                      : captureMode === 'cv'
+                        ? 'Align face in view'
+                        : 'Align face in guide'
+                    : '—'}
+                {profileStore.activeColorsId === AUTO_COLORS_ID &&
+                  liveAutoColorProfile &&
+                  ` · ${liveAutoColorProfile.name}`}
                 {liveMedianWB && ' · median WB'}
               </span>
             </div>
             <div class="capture-side">
               <div class="capture-side-header">
                 <div class="capture-side-title">
-                  <span class="capture-step-kicker">Step {FACE_ORDER.indexOf(webcamFace) + 1} of {FACE_ORDER.length}</span>
-                  <h2 id="capture-title">{FACE_DISPLAY_LABEL[webcamFace]}{FACE_ORDER.indexOf(webcamFace) < 4 ? ' of 4' : ''}</h2>
+                  <span class="capture-step-kicker">
+                    Step {FACE_ORDER.indexOf(webcamFace) + 1} of{' '}
+                    {FACE_ORDER.length}
+                  </span>
+                  <h2 id="capture-title">
+                    {FACE_DISPLAY_LABEL[webcamFace]}
+                    {FACE_ORDER.indexOf(webcamFace) < 4 ? ' of 4' : ''}
+                  </h2>
                 </div>
-                <button class="modal-close" aria-label="Close" onClick={() => setWebcamOpen(false)}>×</button>
+                <button
+                  class="modal-close"
+                  aria-label="Close"
+                  onClick={() => setWebcamOpen(false)}
+                >
+                  ×
+                </button>
               </div>
-              <div class="capture-mode-switch" role="group" aria-label="Face detection mode">
-                <button type="button" class={captureMode === 'cv' ? 'active' : ''} aria-pressed={captureMode === 'cv'} onClick={() => { setCaptureMode('cv'); setLiveDetection(null); setLiveFaceVisible(false) }}>Detect face</button>
-                <button type="button" class={captureMode === 'guide' ? 'active' : ''} aria-pressed={captureMode === 'guide'} onClick={() => { setCaptureMode('guide'); setLiveDetection(null); setLiveFaceVisible(false) }}>Guide grid</button>
+              <div
+                class="capture-mode-switch"
+                role="group"
+                aria-label="Face detection mode"
+              >
+                <button
+                  type="button"
+                  class={captureMode === 'cv' ? 'active' : ''}
+                  aria-pressed={captureMode === 'cv'}
+                  onClick={() => {
+                    setCaptureMode('cv')
+                    setLiveDetection(null)
+                    setLiveFaceVisible(false)
+                  }}
+                >
+                  Detect face
+                </button>
+                <button
+                  type="button"
+                  class={captureMode === 'guide' ? 'active' : ''}
+                  aria-pressed={captureMode === 'guide'}
+                  onClick={() => {
+                    setCaptureMode('guide')
+                    setLiveDetection(null)
+                    setLiveFaceVisible(false)
+                  }}
+                >
+                  Guide grid
+                </button>
               </div>
               <p class="capture-hint-text" aria-live="polite">
-                {!centerRoutingActive && <TurnHint step={FACE_ORDER.indexOf(webcamFace)} mirrored={mirrorPreview} />}
-                {centerRoutingActive ? 'Show any uncaptured face. Its center color will place it in the capture net.' : captureInstruction(FACE_ORDER.indexOf(webcamFace), mirrorPreview)}
+                {!centerRoutingActive && (
+                  <TurnHint
+                    step={FACE_ORDER.indexOf(webcamFace)}
+                    mirrored={mirrorPreview}
+                  />
+                )}
+                {centerRoutingActive
+                  ? 'Show any uncaptured face. Its center color will place it in the capture net.'
+                  : captureInstruction(
+                      FACE_ORDER.indexOf(webcamFace),
+                      mirrorPreview,
+                    )}
                 {predictedCenter && (
                   <span class="capture-expected-center">
-                    Suggested center: <span class="capture-expected-swatch" style={{ background: STICKER_HEX[predictedCenter] }} />
+                    Suggested center:{' '}
+                    <span
+                      class="capture-expected-swatch"
+                      style={{ background: STICKER_HEX[predictedCenter] }}
+                    />
                     <strong>{COLOR_NAME[predictedCenter]}</strong>
                   </span>
                 )}
               </p>
               <div class="capture-progress">
-                <span class="capture-progress-label">Captured so far · tap one to retake</span>
+                <span class="capture-progress-label">
+                  Captured so far · tap one to retake
+                </span>
                 <CaptureNet
-                  faces={Object.fromEntries(FACE_ORDER.map((f) => [f, capturedFaces[f]?.colors]))}
+                  faces={Object.fromEntries(
+                    FACE_ORDER.map((f) => [f, capturedFaces[f]?.colors]),
+                  )}
                   current={webcamFace}
                   matchingFaces={matchingNetFaces}
                   liveMatchingFace={liveCapturedFace}
@@ -2825,8 +4323,8 @@ function App() {
                   background, which can include the cube held up to the camera. */}
               {cameraInfo?.granted.backgroundBlur === true && (
                 <p class="capture-warning" role="note">
-                  ⚠ Your camera's background blur (Portrait) is on and can blur the cube. Turn it off in Control
-                  Center → Video Effects.
+                  ⚠ Your camera's background blur (Portrait) is on and can blur
+                  the cube. Turn it off in Control Center → Video Effects.
                 </p>
               )}
               {captureWarning && (
@@ -2847,7 +4345,12 @@ function App() {
                   <button
                     type="button"
                     class="link-button"
-                    onClick={() => setDismissedCaptureWarnings((keys) => [...keys, captureWarning.key])}
+                    onClick={() =>
+                      setDismissedCaptureWarnings((keys) => [
+                        ...keys,
+                        captureWarning.key,
+                      ])
+                    }
                   >
                     Ignore
                   </button>
@@ -2858,23 +4361,37 @@ function App() {
                   screens), so the live view and Capture button stay in reach. */}
               <details
                 class="capture-settings"
-                open={FACE_ORDER.every((f) => !capturedFaces[f]) && !window.matchMedia('(max-width: 600px)').matches}
+                open={
+                  FACE_ORDER.every((f) => !capturedFaces[f]) &&
+                  !window.matchMedia('(max-width: 600px)').matches
+                }
               >
                 <summary>
                   Cube & camera settings
                   <span class="capture-settings-summary">
-                    {' '}{puzzleSize}×{puzzleSize} · {profile.name} · Sticker colors: {profileStore.activeColorsId === AUTO_COLORS_ID ? `Automatic · preview: ${provisionalColorProfile?.name ?? liveAutoColorProfile?.name ?? 'camera hues'}` : colorProfile.name}
+                    {' '}
+                    {puzzleSize}×{puzzleSize} · {profile.name} · Sticker colors:{' '}
+                    {profileStore.activeColorsId === AUTO_COLORS_ID
+                      ? `Automatic · preview: ${provisionalColorProfile?.name ?? liveAutoColorProfile?.name ?? 'camera hues'}`
+                      : colorProfile.name}
                     {mirrorPreview ? ' · mirrored' : ''}
                   </span>
                 </summary>
                 <div class="capture-size-row">
-                  <label class="capture-size-label" for="cube-profile">Cube:</label>
-                  <span class="capture-size-label">{cubeGroupName(profile)}</span>
+                  <label class="capture-size-label" for="cube-profile">
+                    Cube:
+                  </label>
+                  <span class="capture-size-label">
+                    {cubeGroupName(profile)}
+                  </span>
                   <select
                     id="cube-profile"
                     class="cube-profile-select"
                     value={profile.id}
-                    onChange={(e) => { if (!changeCube(e.currentTarget.value)) e.currentTarget.value = profile.id }}
+                    onChange={(e) => {
+                      if (!changeCube(e.currentTarget.value))
+                        e.currentTarget.value = profile.id
+                    }}
                   >
                     <CubeSelectOptions settings={profileStore} />
                   </select>
@@ -2882,39 +4399,98 @@ function App() {
                     type="button"
                     class="btn btn-secondary btn-sm"
                     aria-expanded={newCubeName !== null}
-                    onClick={() => setNewCubeName(newCubeName === null ? `${profile.name} copy` : null)}
+                    onClick={() =>
+                      setNewCubeName(
+                        newCubeName === null ? `${profile.name} copy` : null,
+                      )
+                    }
                   >
                     ＋ New cube
                   </button>
-                  <a class="color-review-link" href={profilesHash('cubes')} onClick={() => setWebcamOpen(false)}>Manage profiles…</a>
+                  <a
+                    class="color-review-link"
+                    href={profilesHash('cubes')}
+                    onClick={() => setWebcamOpen(false)}
+                  >
+                    Manage profiles…
+                  </a>
                 </div>
                 <div class="capture-size-row">
-                  <label class="capture-size-label" for="color-profile">Colors:</label>
-                  <select id="color-profile" class="cube-profile-select" value={profileStore.activeColorsId}
-                    onChange={(e) => applyProfileStore(selectColorProfile(profileStore, e.currentTarget.value))}>
-                    {allColorProfiles(profileStore).map((colors) => <option key={colors.id} value={colors.id}>{colors.name}</option>)}
+                  <label class="capture-size-label" for="color-profile">
+                    Colors:
+                  </label>
+                  <select
+                    id="color-profile"
+                    class="cube-profile-select"
+                    value={profileStore.activeColorsId}
+                    onChange={(e) =>
+                      applyProfileStore(
+                        selectColorProfile(profileStore, e.currentTarget.value),
+                      )
+                    }
+                  >
+                    {allColorProfiles(profileStore).map((colors) => (
+                      <option key={colors.id} value={colors.id}>
+                        {colors.name}
+                      </option>
+                    ))}
                   </select>
-                  <button type="button" class="btn btn-secondary btn-sm"
+                  <button
+                    type="button"
+                    class="btn btn-secondary btn-sm"
                     aria-expanded={newColorProfileName !== null}
-                    onClick={() => setNewColorProfileName(newColorProfileName === null ? '' : null)}>
+                    onClick={() =>
+                      setNewColorProfileName(
+                        newColorProfileName === null ? '' : null,
+                      )
+                    }
+                  >
                     ＋ New colors
                   </button>
-                  <a class="color-review-link" href={profilesHash('colors')} onClick={() => setWebcamOpen(false)}>Manage profiles…</a>
+                  <a
+                    class="color-review-link"
+                    href={profilesHash('colors')}
+                    onClick={() => setWebcamOpen(false)}
+                  >
+                    Manage profiles…
+                  </a>
                 </div>
                 {newColorProfileName !== null && (
                   <div class="capture-size-row new-cube-form">
-                    <label class="capture-size-label" for="new-color-profile-name">Name:</label>
-                    <input id="new-color-profile-name" class="cube-profile-name" maxLength={60}
-                      placeholder="e.g. Matte" value={newColorProfileName}
-                      onInput={(e) => setNewColorProfileName(e.currentTarget.value)}
-                      onKeyDown={(e) => { if (e.key === 'Enter') handleCreateNamedColors() }} />
-                    <button type="button" class="btn btn-primary btn-sm" disabled={!newColorProfileName.trim()}
-                      onClick={handleCreateNamedColors}>Add colors</button>
+                    <label
+                      class="capture-size-label"
+                      for="new-color-profile-name"
+                    >
+                      Name:
+                    </label>
+                    <input
+                      id="new-color-profile-name"
+                      class="cube-profile-name"
+                      maxLength={60}
+                      placeholder="e.g. Matte"
+                      value={newColorProfileName}
+                      onInput={(e) =>
+                        setNewColorProfileName(e.currentTarget.value)
+                      }
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') handleCreateNamedColors()
+                      }}
+                    />
+                    <button
+                      type="button"
+                      class="btn btn-primary btn-sm"
+                      disabled={!newColorProfileName.trim()}
+                      onClick={handleCreateNamedColors}
+                    >
+                      Add colors
+                    </button>
                   </div>
                 )}
                 {newCubeName !== null && (
                   <div class="capture-size-row new-cube-form">
-                    <label class="capture-size-label" for="new-cube-name">Name:</label>
+                    <label class="capture-size-label" for="new-cube-name">
+                      Name:
+                    </label>
                     <input
                       id="new-cube-name"
                       class="cube-profile-name"
@@ -2922,7 +4498,12 @@ function App() {
                       value={newCubeName}
                       onInput={(e) => setNewCubeName(e.currentTarget.value)}
                     />
-                    <button type="button" class="btn btn-primary btn-sm" disabled={!newCubeName.trim()} onClick={handleCreateCube}>
+                    <button
+                      type="button"
+                      class="btn btn-primary btn-sm"
+                      disabled={!newCubeName.trim()}
+                      onClick={handleCreateCube}
+                    >
                       Add cube
                     </button>
                   </div>
@@ -2932,7 +4513,9 @@ function App() {
                     <input
                       type="checkbox"
                       checked={mirrorPreview}
-                      onChange={(e) => setMirrorPreview(e.currentTarget.checked)}
+                      onChange={(e) =>
+                        setMirrorPreview(e.currentTarget.checked)
+                      }
                     />
                     Mirror
                   </label>
@@ -2947,7 +4530,12 @@ function App() {
                 </div>
                 <label class="capture-import">
                   Or use a photo file for this step
-                  <input type="file" accept="image/*" onChange={handleImportImage} disabled={loading || turnOverlay !== null} />
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleImportImage}
+                    disabled={loading || turnOverlay !== null}
+                  />
                 </label>
               </details>
               {/* Below the live view, so adjusting it never pushes the video off
@@ -2964,13 +4552,19 @@ function App() {
                       disabled={isBuiltinCube(profile.id)}
                       onChange={(e) => {
                         const name = e.currentTarget.value.trim()
-                        if (name) applyProfileStore(saveCube(profileStore, { ...profile, name }))
+                        if (name)
+                          applyProfileStore(
+                            saveCube(profileStore, { ...profile, name }),
+                          )
                       }}
                     />
                   </label>
                   <label class="sampling-slider">
                     <span>
-                      Gap around each sticker <output>{Math.round((1 - sampling.stickerCore) * 100)}%</output>
+                      Gap around each sticker{' '}
+                      <output>
+                        {Math.round((1 - sampling.stickerCore) * 100)}%
+                      </output>
                     </span>
                     <input
                       type="range"
@@ -2979,29 +4573,59 @@ function App() {
                       step={5}
                       value={Math.round((1 - sampling.stickerCore) * 100)}
                       disabled={isBuiltinCube(profile.id)}
-                      onInput={(e) => updateSampling({ ...sampling, stickerCore: 1 - Number(e.currentTarget.value) / 100 })}
+                      onInput={(e) =>
+                        updateSampling({
+                          ...sampling,
+                          stickerCore: 1 - Number(e.currentTarget.value) / 100,
+                        })
+                      }
                     />
                   </label>
-                  {isBuiltinCube(profile.id) && <p class="sampling-setup-hint">To change this gap, choose New cube and save a named copy.</p>}
+                  {isBuiltinCube(profile.id) && (
+                    <p class="sampling-setup-hint">
+                      To change this gap, choose New cube and save a named copy.
+                    </p>
+                  )}
                   <label class="sampling-slider">
                     <span>Color profile name</span>
-                    <input type="text" class="cube-profile-name" maxLength={60}
+                    <input
+                      type="text"
+                      class="cube-profile-name"
+                      maxLength={60}
                       key={profileStore.activeColorsId}
-                      defaultValue={profileStore.activeColorsId === AUTO_COLORS_ID ? 'Automatic colors' : colorProfile.name}
-                      disabled={isBuiltinColorProfile(profileStore.activeColorsId)}
+                      defaultValue={
+                        profileStore.activeColorsId === AUTO_COLORS_ID
+                          ? 'Automatic colors'
+                          : colorProfile.name
+                      }
+                      disabled={isBuiltinColorProfile(
+                        profileStore.activeColorsId,
+                      )}
                       onBlur={(e) => {
                         const name = e.currentTarget.value.trim()
                         if (!name) e.currentTarget.value = colorProfile.name
-                        else if (name !== colorProfile.name) applyProfileStore(saveColorProfile(profileStore, { ...colorProfile, name }))
+                        else if (name !== colorProfile.name)
+                          applyProfileStore(
+                            saveColorProfile(profileStore, {
+                              ...colorProfile,
+                              name,
+                            }),
+                          )
                       }}
-                      onKeyDown={(e) => { if (e.key === 'Enter') e.currentTarget.blur() }} />
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') e.currentTarget.blur()
+                      }}
+                    />
                   </label>
                   <p class="sampling-setup-hint">
                     {profileStore.activeColorsId === AUTO_COLORS_ID ? (
                       'Automatic compares the live face with saved colors, then rechecks using all captured faces after each capture. Final colors are calibrated from all six faces.'
                     ) : colorProfile.updatedAt ? (
                       <>
-                        Colors learned from {colorProfile.captures} {colorProfile.captures === 1 ? 'capture' : 'captures'}, last updated {new Date(colorProfile.updatedAt).toLocaleString()}.
+                        Colors learned from {colorProfile.captures}{' '}
+                        {colorProfile.captures === 1 ? 'capture' : 'captures'},
+                        last updated{' '}
+                        {new Date(colorProfile.updatedAt).toLocaleString()}.
                       </>
                     ) : !isBuiltinColorProfile(profileStore.activeColorsId) ? (
                       'This named profile will learn from its first valid, reviewed capture.'
@@ -3009,23 +4633,46 @@ function App() {
                       'Built-in colors are read-only. A reviewed capture can be saved as new colors.'
                     )}
                   </p>
-                  {profileStore.colors.some((saved) => saved.id === profileStore.activeColorsId) && (
-                    <button type="button" class="link-button"
-                      onClick={() => applyProfileStore(deleteColorProfile(profileStore, colorProfile.id))}>
+                  {profileStore.colors.some(
+                    (saved) => saved.id === profileStore.activeColorsId,
+                  ) && (
+                    <button
+                      type="button"
+                      class="link-button"
+                      onClick={() =>
+                        applyProfileStore(
+                          deleteColorProfile(profileStore, colorProfile.id),
+                        )
+                      }
+                    >
                       Delete this color profile
                     </button>
                   )}
                   <p class="sampling-setup-hint">
-                    Hold a face in the square. Each small box should sit fully inside its sticker, and its outline
-                    should show that sticker's color. The outer 25% band is left out when balancing colors.
+                    Hold a face in the square. Each small box should sit fully
+                    inside its sticker, and its outline should show that
+                    sticker's color. The outer 25% band is left out when
+                    balancing colors.
                   </p>
                   <div class="sampling-setup-actions">
-                    <button type="button" class="btn btn-secondary btn-sm" onClick={handleDownloadSampling}>
+                    <button
+                      type="button"
+                      class="btn btn-secondary btn-sm"
+                      onClick={handleDownloadSampling}
+                    >
                       ↓ Export cubes &amp; colors
                     </button>
-                    <label class="btn btn-secondary btn-sm" title="Load a cube and color profiles file downloaded earlier">
+                    <label
+                      class="btn btn-secondary btn-sm"
+                      title="Load a cube and color profiles file downloaded earlier"
+                    >
                       ↑ Import cubes &amp; colors
-                      <input type="file" accept=".json,application/json" hidden onChange={handleUploadSampling} />
+                      <input
+                        type="file"
+                        accept=".json,application/json"
+                        hidden
+                        onChange={handleUploadSampling}
+                      />
                     </label>
                     <div class="sampling-setup-actions-spacer" />
                     {!isBuiltinCube(profile.id) && (
@@ -3033,22 +4680,36 @@ function App() {
                         type="button"
                         class="btn btn-secondary btn-sm"
                         title="Forget this cube's settings"
-                        onClick={() => applyProfileStore(deleteCube(profileStore, profile.id))}
+                        onClick={() =>
+                          applyProfileStore(
+                            deleteCube(profileStore, profile.id),
+                          )
+                        }
                       >
                         Delete cube
                       </button>
                     )}
                     {!isBuiltinCube(profile.id) && (
-                      <button type="button" class="btn btn-secondary btn-sm" onClick={() => updateSampling(DEFAULT_SAMPLING)}>
+                      <button
+                        type="button"
+                        class="btn btn-secondary btn-sm"
+                        onClick={() => updateSampling(DEFAULT_SAMPLING)}
+                      >
                         Reset cube gap
                       </button>
                     )}
-                    <button type="button" class="btn btn-primary btn-sm" onClick={() => setSamplingSetupOpen(false)}>
+                    <button
+                      type="button"
+                      class="btn btn-primary btn-sm"
+                      onClick={() => setSamplingSetupOpen(false)}
+                    >
                       Done
                     </button>
                   </div>
                   {samplingFileMessage && (
-                    <p role="status" class="sampling-setup-hint">{samplingFileMessage}</p>
+                    <p role="status" class="sampling-setup-hint">
+                      {samplingFileMessage}
+                    </p>
                   )}
                 </div>
               )}
@@ -3056,15 +4717,39 @@ function App() {
                 {captureMode === 'cv' && (
                   <div class="capture-feedback-settings">
                     <label class="auto-capture-toggle">
-                      <input type="checkbox" checked={autoCapture} onChange={(e) => setAutoCapture(e.currentTarget.checked)} />
-                      <span>{autoCapture ? `Auto capture · matching frames ${autoCaptureFrames}/${AUTO_CAPTURE_STABLE_FRAMES}${autoCapturePaused ? ' · paused' : ''}` : 'Auto capture'}</span>
+                      <input
+                        type="checkbox"
+                        checked={autoCapture}
+                        onChange={(e) =>
+                          setAutoCapture(e.currentTarget.checked)
+                        }
+                      />
+                      <span>
+                        {autoCapture
+                          ? `Auto capture · matching frames ${autoCaptureFrames}/${AUTO_CAPTURE_STABLE_FRAMES}${autoCapturePaused ? ' · paused' : ''}`
+                          : 'Auto capture'}
+                      </span>
                     </label>
-                    <button type="button" class="capture-sound-toggle" aria-pressed={captureSound} onClick={() => {
-                      const enabled = !captureSound
-                      setCaptureSound(enabled)
-                      try { localStorage.setItem('cube-assembler.capture-sound', enabled ? 'on' : 'off') } catch { /* Storage is optional. */ }
-                      armCaptureAudio(enabled)
-                    }}>{captureSound ? '🔊 Sound on' : '🔇 Sound off'}</button>
+                    <button
+                      type="button"
+                      class="capture-sound-toggle"
+                      aria-pressed={captureSound}
+                      onClick={() => {
+                        const enabled = !captureSound
+                        setCaptureSound(enabled)
+                        try {
+                          localStorage.setItem(
+                            'cube-assembler.capture-sound',
+                            enabled ? 'on' : 'off',
+                          )
+                        } catch {
+                          /* Storage is optional. */
+                        }
+                        armCaptureAudio(enabled)
+                      }}
+                    >
+                      {captureSound ? '🔊 Sound on' : '🔇 Sound off'}
+                    </button>
                   </div>
                 )}
                 <div
@@ -3078,7 +4763,11 @@ function App() {
                   onClick={handleCapturePhoto}
                   disabled={loading || turnOverlay !== null}
                 >
-                  {loading ? '⏳ Processing...' : autoCapture && captureMode === 'cv' ? 'Capture now' : `Capture ${FACE_DISPLAY_LABEL[webcamFace].toLowerCase()}`}
+                  {loading
+                    ? '⏳ Processing...'
+                    : autoCapture && captureMode === 'cv'
+                      ? 'Capture now'
+                      : `Capture ${FACE_DISPLAY_LABEL[webcamFace].toLowerCase()}`}
                 </button>
               </div>
             </div>
@@ -3091,348 +4780,618 @@ function App() {
           a separate interactive grid on the right — not overlaid on the
           photo, so there's always a clear, unobstructed original to check
           the detection against. */}
-      {showReviewDialog && (() => {
-        const face = FACE_ORDER[reviewStep]
-        const data = capturedFaces[face]
-        const isLast = reviewStep === FACE_ORDER.length - 1
+      {showReviewDialog &&
+        (() => {
+          const face = FACE_ORDER[reviewStep]
+          const data = capturedFaces[face]
+          const isLast = reviewStep === FACE_ORDER.length - 1
 
-        return (
-          <div class="modal open">
-            <div
-              class="modal-content review-modal-content"
-              role="dialog"
-              aria-modal="true"
-              aria-labelledby="review-title"
-              tabIndex={-1}
-              ref={focusModalOnOpen}
-              onKeyDown={(e) => handleModalKeyDown(e, e.currentTarget, () => setShowReviewDialog(false))}
-            >
-              <div class="review-header">
-                <div class="capture-side-title">
-                  <span class="capture-step-kicker">Check colors · {reviewStep + 1} of {FACE_ORDER.length}</span>
-                  <h2 id="review-title">{FACE_DISPLAY_LABEL[face]}</h2>
-                </div>
-                <div class="review-progress-dots" role="group" aria-label="Faces">
-                  {FACE_ORDER.map((f, i) => (
-                    <button
-                      type="button"
-                      key={f}
-                      class={`progress-dot ${i < reviewStep ? 'done' : ''} ${i === reviewStep ? 'current' : ''}`}
-                      aria-current={i === reviewStep ? 'step' : undefined}
-                      aria-label={FACE_DISPLAY_LABEL[f]}
-                      onClick={() => setReviewStep(i)}
-                    >
-                      {FACE_SHORT_LABEL[f]}
-                    </button>
-                  ))}
-                </div>
-                <button class="modal-close" aria-label="Close" onClick={() => setShowReviewDialog(false)}>×</button>
-              </div>
-              {captureProfile && (
-                <p class="capture-profile-used review-profile-used">
-                  Cube: <strong>{captureProfile.name}</strong>
-                </p>
-              )}
-              {globalWhiteBalanceNote && (
-                <div class="global-wb-note">✓ {globalWhiteBalanceNote}</div>
-              )}
-              {reviewNotice && <div class="capture-warning" role="alert">{reviewNotice}</div>}
-              {glareFaces.length > 0 && (
-                <div class="capture-warning" role="status">
-                  ⚠ Glare washed out some stickers on {glareFaces.map((f) => FACE_DISPLAY_LABEL[f]).join(', ')}. Check their
-                  colors, or tilt the cube away from the light and retake.
-                </div>
-              )}
-              {mixedUpColors.length > 0 && (
-                <div class="capture-warning" role="status">
-                  ⚠ {mixedUpColors.map((c) => COLOR_NAME[c] ?? c).join(' and ')} came out mixed with another color, so
-                  two colors may be swapped. Check those stickers, or retake in more even light.
-                </div>
-              )}
-              {(() => {
-                // Detection always assigns every color exactly N² stickers, so
-                // an imbalance here means a sticker was set to the wrong color
-                // by hand - worth fixing before assembling.
-                const counts: Record<string, number> = {}
-                for (const f of FACE_ORDER) for (const row of capturedFaces[f]?.colors ?? []) for (const c of row) counts[c] = (counts[c] ?? 0) + 1
-                const expected = puzzleSize * puzzleSize
-                const off = COLOR_ORDER.filter((c) => (counts[c] ?? 0) !== expected)
-                if (off.length === 0 || !FACE_ORDER.every((f) => capturedFaces[f])) return null
-                return (
-                  <div class="capture-warning" role="status">
-                    ⚠ {off.map((c) => `${COLOR_NAME[c]} ${counts[c] ?? 0}`).join(', ')} - each color should appear{' '}
-                    {expected} times. A sticker was probably set to the wrong color.
+          return (
+            <div class="modal open">
+              <div
+                class="modal-content review-modal-content"
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="review-title"
+                tabIndex={-1}
+                ref={focusModalOnOpen}
+                onKeyDown={(e) =>
+                  handleModalKeyDown(e, e.currentTarget, () =>
+                    setShowReviewDialog(false),
+                  )
+                }
+              >
+                <div class="review-header">
+                  <div class="capture-side-title">
+                    <span class="capture-step-kicker">
+                      Check colors · {reviewStep + 1} of {FACE_ORDER.length}
+                    </span>
+                    <h2 id="review-title">{FACE_DISPLAY_LABEL[face]}</h2>
                   </div>
-                )
-              })()}
-              {data && (
-                <>
-                  <div class="review-wizard-panes">
-                    <div class="review-pane">
-                      <div class="review-pane-label">Photo</div>
-                      <div class="review-face-image-wrapper">
-                        {data.croppedImage && (
-                          <img
-                            src={data.croppedImage}
-                            class="review-face-image"
-                            alt={`Captured photo of ${FACE_DISPLAY_LABEL[face]}`}
-                          />
-                        )}
-                      </div>
-                    </div>
-                    <div class="review-pane">
-                      {(() => {
-                        // A cell is worth a second look for either of two
-                        // independent reasons: the classifier itself was
-                        // unsure (low confidence), or the sticker sits
-                        // close to the boundary with another color (see
-                        // cellLookalikes) - flag both the same way so a
-                        // human correcting one ambiguous sticker doesn't
-                        // have to first work out which signal triggered it.
-                        let flaggedCount = 0
-                        let correctedCount = 0
-                        for (let r = 0; r < data.colors.length; r++) {
-                          for (let c = 0; c < data.colors[r].length; c++) {
-                            const detected = data.detectedColors?.[r]?.[c]
-                            const corrected = detected !== undefined && detected !== data.colors[r][c]
-                            const lowConfidence = confidenceTier(data.cellConfidences?.[r]?.[c] ?? 1) === 'low'
-                            const lookalike = data.cellLookalikes?.[r]?.[c]
-                            if (corrected) correctedCount++
-                            else if (lowConfidence || lookalike) flaggedCount++
-                          }
-                        }
-                        return (
-                          <div class="review-pane-label">
-                            <span>Colors found</span>
-                            {flaggedCount > 0 && (
-                              <span class="review-flagged-count">⚠ {flaggedCount} to double-check</span>
-                            )}
-                            {correctedCount > 0 && (
-                              <span class="review-corrected-count">✎ {correctedCount} changed by you</span>
-                            )}
-                          </div>
-                        )
-                      })()}
-                      <div
-                        class="review-detected-grid"
-                        style={{
-                          gridTemplateColumns: `repeat(${data.colors.length}, 1fr)`,
-                          gridTemplateRows: `repeat(${data.colors.length}, 1fr)`,
-                          '--grid-n': String(data.colors.length),
-                        }}
+                  <div
+                    class="review-progress-dots"
+                    role="group"
+                    aria-label="Faces"
+                  >
+                    {FACE_ORDER.map((f, i) => (
+                      <button
+                        type="button"
+                        key={f}
+                        class={`progress-dot ${i < reviewStep ? 'done' : ''} ${i === reviewStep ? 'current' : ''}`}
+                        aria-current={i === reviewStep ? 'step' : undefined}
+                        aria-label={FACE_DISPLAY_LABEL[f]}
+                        onClick={() => setReviewStep(i)}
                       >
-                        {data.colors.map((row, r) =>
-                          row.map((color, c) => {
-                            // The final color stays the human choice; the badge only
-                            // records what automatic detection had said instead. A
-                            // human-set sticker is settled: detection's confidence and
-                            // lookalike were about the color it saw, not this one.
-                            const detected = data.detectedColors?.[r]?.[c]
-                            const corrected = detected !== undefined && detected !== color
-                            const confidence = corrected ? undefined : data.cellConfidences?.[r]?.[c]
-                            const tier = confidenceTier(confidence ?? 1)
-                            const lookalike = corrected ? null : data.cellLookalikes?.[r]?.[c] ?? null
-                            const flagged = tier === 'low' || lookalike !== null
-                            const name = COLOR_NAME[color] ?? color
-                            const sure = confidence !== undefined ? `, ${Math.round(confidence * 100)}% sure` : ''
-                            const notes = [
-                              corrected ? `We saw ${COLOR_NAME[detected] ?? detected}, you picked ${name}.` : null,
-                              tier === 'low' ? 'Not sure about this one.' : null,
-                              lookalike ? `It looks a lot like ${COLOR_NAME[lookalike] ?? lookalike}.` : null,
-                            ].filter(Boolean)
-                            return (
-                              <button
-                                key={`${r}-${c}`}
-                                class={`review-detected-cell ${flagged ? 'review-detected-cell-flagged' : ''} ${corrected ? 'review-detected-cell-corrected' : ''}`}
-                                style={{ background: STICKER_HEX[color] || '#888' }}
-                                onClick={() => setReviewEditingCell({ face, row: r, col: c })}
-                                title={[`Row ${r + 1}, column ${c + 1}: ${name}${sure}.`, ...notes, 'Tap to change.'].join(' ')}
-                              >
-                                {confidence !== undefined && (
-                                  <span class="review-detected-confidence">{Math.round(confidence * 100)}%</span>
-                                )}
-                                {/* Cells on bigger grids are too small for the badge next
-                                    to the percentage - the amber ring alone marks them. */}
-                                {flagged && data.colors.length <= 4 && (
-                                  <span class="review-detected-cell-flag" aria-hidden="true">!</span>
-                                )}
-                                {corrected && (
-                                  <span
-                                    class="review-detected-cell-was"
-                                    style={{ background: STICKER_HEX[detected] || '#888' }}
-                                    aria-hidden="true"
-                                  >
-                                    {detected}
-                                  </span>
-                                )}
-                              </button>
-                            )
-                          })
-                        )}
-                      </div>
-                      <div class="review-pane-hint">Tap a sticker to fix it</div>
+                        {FACE_SHORT_LABEL[f]}
+                      </button>
+                    ))}
+                  </div>
+                  <button
+                    class="modal-close"
+                    aria-label="Close"
+                    onClick={() => setShowReviewDialog(false)}
+                  >
+                    ×
+                  </button>
+                </div>
+                {captureProfile && (
+                  <p class="capture-profile-used review-profile-used">
+                    Cube: <strong>{captureProfile.name}</strong>
+                  </p>
+                )}
+                {globalWhiteBalanceNote && (
+                  <div class="global-wb-note">✓ {globalWhiteBalanceNote}</div>
+                )}
+                {reviewNotice && (
+                  <div class="capture-warning" role="alert">
+                    {reviewNotice}
+                  </div>
+                )}
+                {glareFaces.length > 0 && (
+                  <div class="capture-warning" role="status">
+                    ⚠ Glare washed out some stickers on{' '}
+                    {glareFaces.map((f) => FACE_DISPLAY_LABEL[f]).join(', ')}.
+                    Check their colors, or tilt the cube away from the light and
+                    retake.
+                  </div>
+                )}
+                {mixedUpColors.length > 0 && (
+                  <div class="capture-warning" role="status">
+                    ⚠{' '}
+                    {mixedUpColors.map((c) => COLOR_NAME[c] ?? c).join(' and ')}{' '}
+                    came out mixed with another color, so two colors may be
+                    swapped. Check those stickers, or retake in more even light.
+                  </div>
+                )}
+                {(() => {
+                  // Detection always assigns every color exactly N² stickers, so
+                  // an imbalance here means a sticker was set to the wrong color
+                  // by hand - worth fixing before assembling.
+                  const counts: Record<string, number> = {}
+                  for (const f of FACE_ORDER)
+                    for (const row of capturedFaces[f]?.colors ?? [])
+                      for (const c of row) counts[c] = (counts[c] ?? 0) + 1
+                  const expected = puzzleSize * puzzleSize
+                  const off = COLOR_ORDER.filter(
+                    (c) => (counts[c] ?? 0) !== expected,
+                  )
+                  if (
+                    off.length === 0 ||
+                    !FACE_ORDER.every((f) => capturedFaces[f])
+                  )
+                    return null
+                  return (
+                    <div class="capture-warning" role="status">
+                      ⚠{' '}
+                      {off
+                        .map((c) => `${COLOR_NAME[c]} ${counts[c] ?? 0}`)
+                        .join(', ')}{' '}
+                      - each color should appear {expected} times. A sticker was
+                      probably set to the wrong color.
                     </div>
-                  </div>
-                  <div class="review-wizard-nav">
-                    <button class="btn btn-secondary" onClick={() => handleRetakeFace(face)}>
-                      Retake {FACE_DISPLAY_LABEL[face].toLowerCase()}
-                    </button>
-                    <div class="review-wizard-nav-spacer" />
-                    <button
-                      class="btn btn-secondary"
-                      onClick={() => setReviewStep((s) => Math.max(0, s - 1))}
-                      disabled={reviewStep === 0}
-                    >
-                      Previous
-                    </button>
-                    {isLast ? (
-                      <button class="btn btn-primary btn-review-next" onClick={handleConfirmReview}>
-                        Looks right — put the cube together
+                  )
+                })()}
+                {data && (
+                  <>
+                    <div class="review-wizard-panes">
+                      <div class="review-pane">
+                        <div class="review-pane-label">Photo</div>
+                        <div class="review-face-image-wrapper">
+                          {data.croppedImage && (
+                            <img
+                              src={data.croppedImage}
+                              class="review-face-image"
+                              alt={`Captured photo of ${FACE_DISPLAY_LABEL[face]}`}
+                            />
+                          )}
+                        </div>
+                      </div>
+                      <div class="review-pane">
+                        {(() => {
+                          // A cell is worth a second look for either of two
+                          // independent reasons: the classifier itself was
+                          // unsure (low confidence), or the sticker sits
+                          // close to the boundary with another color (see
+                          // cellLookalikes) - flag both the same way so a
+                          // human correcting one ambiguous sticker doesn't
+                          // have to first work out which signal triggered it.
+                          let flaggedCount = 0
+                          let correctedCount = 0
+                          for (let r = 0; r < data.colors.length; r++) {
+                            for (let c = 0; c < data.colors[r].length; c++) {
+                              const detected = data.detectedColors?.[r]?.[c]
+                              const corrected =
+                                detected !== undefined &&
+                                detected !== data.colors[r][c]
+                              const lowConfidence =
+                                confidenceTier(
+                                  data.cellConfidences?.[r]?.[c] ?? 1,
+                                ) === 'low'
+                              const lookalike = data.cellLookalikes?.[r]?.[c]
+                              if (corrected) correctedCount++
+                              else if (lowConfidence || lookalike)
+                                flaggedCount++
+                            }
+                          }
+                          return (
+                            <div class="review-pane-label">
+                              <span>Colors found</span>
+                              {flaggedCount > 0 && (
+                                <span class="review-flagged-count">
+                                  ⚠ {flaggedCount} to double-check
+                                </span>
+                              )}
+                              {correctedCount > 0 && (
+                                <span class="review-corrected-count">
+                                  ✎ {correctedCount} changed by you
+                                </span>
+                              )}
+                            </div>
+                          )
+                        })()}
+                        <div
+                          class="review-detected-grid"
+                          style={{
+                            gridTemplateColumns: `repeat(${data.colors.length}, 1fr)`,
+                            gridTemplateRows: `repeat(${data.colors.length}, 1fr)`,
+                            '--grid-n': String(data.colors.length),
+                          }}
+                        >
+                          {data.colors.map((row, r) =>
+                            row.map((color, c) => {
+                              // The final color stays the human choice; the badge only
+                              // records what automatic detection had said instead. A
+                              // human-set sticker is settled: detection's confidence and
+                              // lookalike were about the color it saw, not this one.
+                              const detected = data.detectedColors?.[r]?.[c]
+                              const corrected =
+                                detected !== undefined && detected !== color
+                              const confidence = corrected
+                                ? undefined
+                                : data.cellConfidences?.[r]?.[c]
+                              const tier = confidenceTier(confidence ?? 1)
+                              const lookalike = corrected
+                                ? null
+                                : (data.cellLookalikes?.[r]?.[c] ?? null)
+                              const flagged =
+                                tier === 'low' || lookalike !== null
+                              const name = COLOR_NAME[color] ?? color
+                              const sure =
+                                confidence !== undefined
+                                  ? `, ${Math.round(confidence * 100)}% sure`
+                                  : ''
+                              const notes = [
+                                corrected
+                                  ? `We saw ${COLOR_NAME[detected] ?? detected}, you picked ${name}.`
+                                  : null,
+                                tier === 'low'
+                                  ? 'Not sure about this one.'
+                                  : null,
+                                lookalike
+                                  ? `It looks a lot like ${COLOR_NAME[lookalike] ?? lookalike}.`
+                                  : null,
+                              ].filter(Boolean)
+                              return (
+                                <button
+                                  key={`${r}-${c}`}
+                                  class={`review-detected-cell ${flagged ? 'review-detected-cell-flagged' : ''} ${corrected ? 'review-detected-cell-corrected' : ''}`}
+                                  style={{
+                                    background: STICKER_HEX[color] || '#888',
+                                  }}
+                                  onClick={() =>
+                                    setReviewEditingCell({
+                                      face,
+                                      row: r,
+                                      col: c,
+                                    })
+                                  }
+                                  title={[
+                                    `Row ${r + 1}, column ${c + 1}: ${name}${sure}.`,
+                                    ...notes,
+                                    'Tap to change.',
+                                  ].join(' ')}
+                                >
+                                  {confidence !== undefined && (
+                                    <span class="review-detected-confidence">
+                                      {Math.round(confidence * 100)}%
+                                    </span>
+                                  )}
+                                  {/* Cells on bigger grids are too small for the badge next
+                                    to the percentage - the amber ring alone marks them. */}
+                                  {flagged && data.colors.length <= 4 && (
+                                    <span
+                                      class="review-detected-cell-flag"
+                                      aria-hidden="true"
+                                    >
+                                      !
+                                    </span>
+                                  )}
+                                  {corrected && (
+                                    <span
+                                      class="review-detected-cell-was"
+                                      style={{
+                                        background:
+                                          STICKER_HEX[detected] || '#888',
+                                      }}
+                                      aria-hidden="true"
+                                    >
+                                      {detected}
+                                    </span>
+                                  )}
+                                </button>
+                              )
+                            }),
+                          )}
+                        </div>
+                        <div class="review-pane-hint">
+                          Tap a sticker to fix it
+                        </div>
+                      </div>
+                    </div>
+                    <div class="review-wizard-nav">
+                      <button
+                        class="btn btn-secondary"
+                        onClick={() => handleRetakeFace(face)}
+                      >
+                        Retake {FACE_DISPLAY_LABEL[face].toLowerCase()}
                       </button>
-                    ) : (
-                      <button class="btn btn-primary btn-review-next" onClick={() => setReviewStep((s) => s + 1)}>
-                        Looks right — next side
+                      <div class="review-wizard-nav-spacer" />
+                      <button
+                        class="btn btn-secondary"
+                        onClick={() => setReviewStep((s) => Math.max(0, s - 1))}
+                        disabled={reviewStep === 0}
+                      >
+                        Previous
                       </button>
-                    )}
-                  </div>
-                </>
-              )}
+                      {isLast ? (
+                        <button
+                          class="btn btn-primary btn-review-next"
+                          onClick={handleConfirmReview}
+                        >
+                          Looks right — put the cube together
+                        </button>
+                      ) : (
+                        <button
+                          class="btn btn-primary btn-review-next"
+                          onClick={() => setReviewStep((s) => s + 1)}
+                        >
+                          Looks right — next side
+                        </button>
+                      )}
+                    </div>
+                  </>
+                )}
+              </div>
             </div>
-          </div>
-        )
-      })()}
+          )
+        })()}
 
       {/* Orientation wizard - see orientationWizard/pickWizardFace/groupWizardOptions */}
       {/* Approval of how the captured faces fit together (see
           handleConfirmReview): one arrangement to confirm, a few to pick
           from, or a closest match that isn't a valid cube. */}
-      {orientationApproval && !orientationWizard && (() => {
-        const { candidates, arrangements, valid, note, suggestedFrom } = orientationApproval
-        const close = () => setOrientationApproval(null)
-        const checkFace = (candidate: OrientedCandidate, face: string) => {
-          const slot = findCaptureSlotForOrientedFace(
-            FACE_ORDER.map((key) => capturedFaces[key]?.colors), candidate.faces[face as FaceKey]
+      {orientationApproval &&
+        !orientationWizard &&
+        (() => {
+          const { candidates, arrangements, valid, note, suggestedFrom } =
+            orientationApproval
+          const close = () => setOrientationApproval(null)
+          const checkFace = (candidate: OrientedCandidate, face: string) => {
+            const slot = findCaptureSlotForOrientedFace(
+              FACE_ORDER.map((key) => capturedFaces[key]?.colors),
+              candidate.faces[face as FaceKey],
+            )
+            if (slot === null) return
+            setOrientationApproval(null)
+            setReviewStep(slot)
+            setReviewEditingCell(null)
+            setReviewNotice(null)
+            setShowReviewDialog(true)
+          }
+          const single = candidates.length === 1
+          const page = Math.min(
+            orientationApproval.page ?? 0,
+            Math.floor((candidates.length - 1) / ORIENTATION_CHOICES_PER_PAGE),
           )
-          if (slot === null) return
-          setOrientationApproval(null)
-          setReviewStep(slot)
-          setReviewEditingCell(null)
-          setReviewNotice(null)
-          setShowReviewDialog(true)
-        }
-        const single = candidates.length === 1
-        const page = Math.min(orientationApproval.page ?? 0, Math.floor((candidates.length - 1) / ORIENTATION_CHOICES_PER_PAGE))
-        const first = page * ORIENTATION_CHOICES_PER_PAGE
-        const shown = candidates.map((candidate, i) => ({ candidate, i })).slice(first, first + ORIENTATION_CHOICES_PER_PAGE)
-        return (
-          <div class="modal open">
-            <div
-              class="modal-content orientation-approval"
-              role="dialog"
-              aria-modal="true"
-              aria-labelledby="orientation-approval-title"
-              tabIndex={-1}
-              ref={focusModalOnOpen}
-              onKeyDown={(e) => handleModalKeyDown(e, e.currentTarget, close)}
-            >
-              <div class="modal-header">
-                <h2 id="orientation-approval-title">
-                  {!valid ? 'These faces don\'t make a valid cube' : single ? 'Does this match your cube?' : 'Which of these is your cube?'}
-                </h2>
-                <button class="modal-close" aria-label="Close" onClick={close}>×</button>
-              </div>
-              {note && <p class={valid ? 'orientation-approval-note' : 'capture-warning'}>{note}</p>}
-              <p class="orientation-approval-note">Tap any face to check its colors or retake that photo.</p>
-              {!note && single && valid && (
+          const first = page * ORIENTATION_CHOICES_PER_PAGE
+          const shown = candidates
+            .map((candidate, i) => ({ candidate, i }))
+            .slice(first, first + ORIENTATION_CHOICES_PER_PAGE)
+          return (
+            <div class="modal open">
+              <div
+                class="modal-content orientation-approval"
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="orientation-approval-title"
+                tabIndex={-1}
+                ref={focusModalOnOpen}
+                onKeyDown={(e) => handleModalKeyDown(e, e.currentTarget, close)}
+              >
+                <div class="modal-header">
+                  <h2 id="orientation-approval-title">
+                    {!valid
+                      ? "These faces don't make a valid cube"
+                      : single
+                        ? 'Does this match your cube?'
+                        : 'Which of these is your cube?'}
+                  </h2>
+                  <button
+                    class="modal-close"
+                    aria-label="Close"
+                    onClick={close}
+                  >
+                    ×
+                  </button>
+                </div>
+                {note && (
+                  <p
+                    class={
+                      valid ? 'orientation-approval-note' : 'capture-warning'
+                    }
+                  >
+                    {note}
+                  </p>
+                )}
                 <p class="orientation-approval-note">
-                  {suggestedFrom && suggestedFrom > 1
-                    ? 'This is the likely fit if you followed the turning guide. If it looks wrong, choose each side.'
-                    : 'The photos fit together one way.'}
-                  {puzzleSize % 2 === 1 && ' Hold your cube with white on top and green in front to compare.'}
+                  Tap any face to check its colors or retake that photo.
                 </p>
-              )}
-              {!single && valid && (
-                <p class="orientation-approval-note">
-                  The photos fit your cube in {candidates.length} different ways. Compare two at a time.
-                </p>
-              )}
-              {single ? (
-                <div class="approval-single">
-                  <div class="approval-net">
-                    <OrientationNetPreview faces={candidates[0].faces} onFaceClick={(face) => checkFace(candidates[0], face)} />
-                  </div>
-                  {arrangements?.[0] && (
-                    <div class="approval-changes">
-                      <span class="approval-changes-title">How the photos were put together</span>
-                      <ul class="approval-checklist">
-                        {describeArrangement(arrangements[0], mirrorPreview).map((line) => (
-                          <li key={line}>
-                            <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true">
-                              <circle cx="9" cy="9" r="8" fill="var(--color-accent-soft)" />
-                              <path d="m5.5 9.2 2.3 2.3 4.7-4.8" fill="none" stroke="var(--color-accent)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
-                            </svg>
-                            {line}
-                          </li>
-                        ))}
-                      </ul>
+                {!note && single && valid && (
+                  <p class="orientation-approval-note">
+                    {suggestedFrom && suggestedFrom > 1
+                      ? 'This is the likely fit if you followed the turning guide. If it looks wrong, choose each side.'
+                      : 'The photos fit together one way.'}
+                    {puzzleSize % 2 === 1 &&
+                      ' Hold your cube with white on top and green in front to compare.'}
+                  </p>
+                )}
+                {!single && valid && (
+                  <p class="orientation-approval-note">
+                    The photos fit your cube in {candidates.length} different
+                    ways. Compare two at a time.
+                  </p>
+                )}
+                {single ? (
+                  <div class="approval-single">
+                    <div class="approval-net">
+                      <OrientationNetPreview
+                        faces={candidates[0].faces}
+                        onFaceClick={(face) => checkFace(candidates[0], face)}
+                      />
                     </div>
+                    {arrangements?.[0] && (
+                      <div class="approval-changes">
+                        <span class="approval-changes-title">
+                          How the photos were put together
+                        </span>
+                        <ul class="approval-checklist">
+                          {describeArrangement(
+                            arrangements[0],
+                            mirrorPreview,
+                          ).map((line) => (
+                            <li key={line}>
+                              <svg
+                                width="18"
+                                height="18"
+                                viewBox="0 0 18 18"
+                                aria-hidden="true"
+                              >
+                                <circle
+                                  cx="9"
+                                  cy="9"
+                                  r="8"
+                                  fill="var(--color-accent-soft)"
+                                />
+                                <path
+                                  d="m5.5 9.2 2.3 2.3 4.7-4.8"
+                                  fill="none"
+                                  stroke="var(--color-accent)"
+                                  stroke-width="1.8"
+                                  stroke-linecap="round"
+                                  stroke-linejoin="round"
+                                />
+                              </svg>
+                              {line}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <>
+                    <div class="orientation-approval-options">
+                      {shown.map(({ candidate, i }) => (
+                        <div key={i} class="orientation-approval-option">
+                          <OrientationNetPreview
+                            faces={candidate.faces}
+                            onFaceClick={(face) => checkFace(candidate, face)}
+                          />
+                          {arrangements?.[i] && (
+                            <ul class="orientation-approval-changes">
+                              {describeArrangement(
+                                arrangements[i],
+                                mirrorPreview,
+                              ).map((line) => (
+                                <li key={line}>{line}</li>
+                              ))}
+                            </ul>
+                          )}
+                          <button
+                            type="button"
+                            class="btn btn-primary btn-sm"
+                            onClick={() => handleChooseOrientation(candidate)}
+                          >
+                            {valid ? 'This one' : 'Use it anyway'}
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                    {candidates.length > ORIENTATION_CHOICES_PER_PAGE && (
+                      <div class="orientation-choice-pages">
+                        <button
+                          type="button"
+                          class="btn btn-secondary btn-sm"
+                          disabled={page === 0}
+                          onClick={() =>
+                            setOrientationApproval(
+                              (prev) => prev && { ...prev, page: page - 1 },
+                            )
+                          }
+                        >
+                          Previous two
+                        </button>
+                        <span>
+                          Options {first + 1}–
+                          {Math.min(
+                            first + ORIENTATION_CHOICES_PER_PAGE,
+                            candidates.length,
+                          )}{' '}
+                          of {candidates.length}
+                        </span>
+                        <button
+                          type="button"
+                          class="btn btn-secondary btn-sm"
+                          disabled={
+                            first + ORIENTATION_CHOICES_PER_PAGE >=
+                            candidates.length
+                          }
+                          onClick={() =>
+                            setOrientationApproval(
+                              (prev) => prev && { ...prev, page: page + 1 },
+                            )
+                          }
+                        >
+                          Next two
+                        </button>
+                      </div>
+                    )}
+                  </>
+                )}
+                <div class="orientation-approval-actions">
+                  <button
+                    type="button"
+                    class="btn btn-secondary"
+                    onClick={close}
+                  >
+                    Back to the colors
+                  </button>
+                  <div class="header-spacer" />
+                  {rejectAlternatives(orientationApproval).length > 0 && (
+                    <button
+                      type="button"
+                      class="btn btn-secondary"
+                      onClick={handleRejectOrientation}
+                    >
+                      {single
+                        ? 'No, let me choose each side'
+                        : 'None of these - let me choose each side'}
+                    </button>
+                  )}
+                  {single && (
+                    <button
+                      type="button"
+                      class="btn btn-primary btn-review-next"
+                      onClick={() => handleChooseOrientation(candidates[0])}
+                    >
+                      {valid ? 'Yes, this is my cube' : 'Use it anyway'}
+                    </button>
                   )}
                 </div>
-              ) : (
-              <>
-              <div class="orientation-approval-options">
-                {shown.map(({ candidate, i }) => (
-                  <div key={i} class="orientation-approval-option">
-                    <OrientationNetPreview faces={candidate.faces} onFaceClick={(face) => checkFace(candidate, face)} />
-                    {arrangements?.[i] && (
-                      <ul class="orientation-approval-changes">
-                        {describeArrangement(arrangements[i], mirrorPreview).map((line) => <li key={line}>{line}</li>)}
-                      </ul>
-                    )}
-                    <button type="button" class="btn btn-primary btn-sm" onClick={() => handleChooseOrientation(candidate)}>
-                      {valid ? 'This one' : 'Use it anyway'}
-                    </button>
-                  </div>
-                ))}
-              </div>
-              {candidates.length > ORIENTATION_CHOICES_PER_PAGE && (
-                <div class="orientation-choice-pages">
-                  <button type="button" class="btn btn-secondary btn-sm" disabled={page === 0}
-                    onClick={() => setOrientationApproval((prev) => prev && { ...prev, page: page - 1 })}>Previous two</button>
-                  <span>Options {first + 1}–{Math.min(first + ORIENTATION_CHOICES_PER_PAGE, candidates.length)} of {candidates.length}</span>
-                  <button type="button" class="btn btn-secondary btn-sm" disabled={first + ORIENTATION_CHOICES_PER_PAGE >= candidates.length}
-                    onClick={() => setOrientationApproval((prev) => prev && { ...prev, page: page + 1 })}>Next two</button>
-                </div>
-              )}
-              </>
-              )}
-              <div class="orientation-approval-actions">
-                <button type="button" class="btn btn-secondary" onClick={close}>
-                  Back to the colors
-                </button>
-                <div class="header-spacer" />
-                {rejectAlternatives(orientationApproval).length > 0 && (
-                  <button type="button" class="btn btn-secondary" onClick={handleRejectOrientation}>
-                    {single ? 'No, let me choose each side' : 'None of these - let me choose each side'}
-                  </button>
-                )}
-                {single && (
-                  <button type="button" class="btn btn-primary btn-review-next" onClick={() => handleChooseOrientation(candidates[0])}>
-                    {valid ? 'Yes, this is my cube' : 'Use it anyway'}
-                  </button>
-                )}
               </div>
             </div>
-          </div>
-        )
-      })()}
+          )
+        })()}
 
-      {orientationWizard && (() => {
-        const { remaining, truncated, picked } = orientationWizard
-        const askingFace = pickWizardFace(remaining)
-        // This is normally reached only after a face choice has settled
-        // every candidate. Keep the recovery screen to one option too.
-        if (!askingFace) {
+      {orientationWizard &&
+        (() => {
+          const { remaining, truncated, picked } = orientationWizard
+          const askingFace = pickWizardFace(remaining)
+          // This is normally reached only after a face choice has settled
+          // every candidate. Keep the recovery screen to one option too.
+          if (!askingFace) {
+            return (
+              <div class="modal open">
+                <div
+                  class="modal-content orientation-picker"
+                  role="dialog"
+                  aria-modal="true"
+                  tabIndex={-1}
+                  ref={focusModalOnOpen}
+                  onKeyDown={(e) =>
+                    handleModalKeyDown(e, e.currentTarget, () =>
+                      setOrientationWizard(null),
+                    )
+                  }
+                >
+                  <div class="modal-header">
+                    <h2>Which orientation matches your cube?</h2>
+                    <button
+                      class="modal-close"
+                      aria-label="Close"
+                      onClick={() => setOrientationWizard(null)}
+                    >
+                      ×
+                    </button>
+                  </div>
+                  <div class="orientation-picker-grid">
+                    {remaining.slice(0, 1).map((alt, i) => (
+                      <div key={i} class="orientation-picker-option">
+                        <OrientationNetPreview faces={alt.faces} />
+                        <button
+                          class="btn btn-primary btn-sm"
+                          onClick={() => handleChooseOrientation(alt)}
+                        >
+                          Use this one
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )
+          }
+
+          const progressFaces: Record<string, string[][]> = {}
+          const undecidedFaces = new Set<string>()
+          const autoFaces = new Set<string>()
+          for (const f of WIZARD_FACE_ORDER) {
+            const distinct = new Set(
+              remaining.map((c) => faceContentKey(c.faces[f])),
+            )
+            progressFaces[f] = remaining[0].faces[f]
+            if (distinct.size > 1) undecidedFaces.add(f)
+            else if (!picked.includes(f)) autoFaces.add(f)
+          }
+          const decidedCount = WIZARD_FACE_ORDER.length - undecidedFaces.size
+          // Every option for this face at once, at most four in a row (two on
+          // a phone), so they can be compared side by side.
+          const options = groupWizardOptions(remaining, askingFace)
+          const columns = {
+            '--wizard-columns': Math.min(4, options.length),
+            '--wizard-columns-narrow': Math.min(2, options.length),
+          }
+
           return (
             <div class="modal open">
               <div
@@ -3441,92 +5400,72 @@ function App() {
                 aria-modal="true"
                 tabIndex={-1}
                 ref={focusModalOnOpen}
-                onKeyDown={(e) => handleModalKeyDown(e, e.currentTarget, () => setOrientationWizard(null))}
+                onKeyDown={(e) =>
+                  handleModalKeyDown(e, e.currentTarget, () =>
+                    setOrientationWizard(null),
+                  )
+                }
               >
                 <div class="modal-header">
-                  <h2>Which orientation matches your cube?</h2>
-                  <button class="modal-close" aria-label="Close" onClick={() => setOrientationWizard(null)}>×</button>
+                  <h2>Which way is your {FACE_LABELS[askingFace]} face?</h2>
+                  <button
+                    class="modal-close"
+                    aria-label="Close"
+                    onClick={() => setOrientationWizard(null)}
+                  >
+                    ×
+                  </button>
                 </div>
-                <div class="orientation-picker-grid">
-                  {remaining.slice(0, 1).map((alt, i) => (
-                    <div key={i} class="orientation-picker-option">
-                      <OrientationNetPreview faces={alt.faces} />
-                      <button class="btn btn-primary btn-sm" onClick={() => handleChooseOrientation(alt)}>
-                        Use this one
-                      </button>
-                    </div>
+                <p class="orientation-picker-note">
+                  {decidedCount}/6 set · {remaining.length} left — match the
+                  framed face.
+                </p>
+                {truncated && (
+                  <p class="orientation-picker-note orientation-picker-truncated-note">
+                    ⚠️ More matches exist than shown — if none fit, retake the
+                    photos.
+                  </p>
+                )}
+                <OrientationNetPreview
+                  faces={progressFaces}
+                  undecidedFaces={undecidedFaces}
+                  currentFace={askingFace}
+                  autoFaces={autoFaces}
+                />
+                <div
+                  class="orientation-picker-grid orientation-wizard-options"
+                  style={columns}
+                >
+                  {options.map((opt, i) => (
+                    <button
+                      key={i}
+                      type="button"
+                      class="orientation-picker-option orientation-wizard-option"
+                      aria-label={`Option ${i + 1} of ${options.length} for the ${FACE_LABELS[askingFace]} face`}
+                      disabled={wizardMorphing}
+                      onClick={(e) =>
+                        handleWizardPick(
+                          e.currentTarget,
+                          opt.candidates,
+                          askingFace,
+                        )
+                      }
+                    >
+                      <FaceGrid colors={opt.grid} />
+                    </button>
                   ))}
                 </div>
               </div>
             </div>
           )
-        }
-
-        const progressFaces: Record<string, string[][]> = {}
-        const undecidedFaces = new Set<string>()
-        const autoFaces = new Set<string>()
-        for (const f of WIZARD_FACE_ORDER) {
-          const distinct = new Set(remaining.map((c) => faceContentKey(c.faces[f])))
-          progressFaces[f] = remaining[0].faces[f]
-          if (distinct.size > 1) undecidedFaces.add(f)
-          else if (!picked.includes(f)) autoFaces.add(f)
-        }
-        const decidedCount = WIZARD_FACE_ORDER.length - undecidedFaces.size
-        // Every option for this face at once, at most four in a row (two on
-        // a phone), so they can be compared side by side.
-        const options = groupWizardOptions(remaining, askingFace)
-        const columns = { '--wizard-columns': Math.min(4, options.length), '--wizard-columns-narrow': Math.min(2, options.length) }
-
-        return (
-          <div class="modal open">
-            <div
-              class="modal-content orientation-picker"
-              role="dialog"
-              aria-modal="true"
-              tabIndex={-1}
-              ref={focusModalOnOpen}
-              onKeyDown={(e) => handleModalKeyDown(e, e.currentTarget, () => setOrientationWizard(null))}
-            >
-              <div class="modal-header">
-                <h2>Which way is your {FACE_LABELS[askingFace]} face?</h2>
-                <button class="modal-close" aria-label="Close" onClick={() => setOrientationWizard(null)}>×</button>
-              </div>
-              <p class="orientation-picker-note">
-                {decidedCount}/6 set · {remaining.length} left — match the framed face.
-              </p>
-              {truncated && (
-                <p class="orientation-picker-note orientation-picker-truncated-note">
-                  ⚠️ More matches exist than shown — if none fit, retake the photos.
-                </p>
-              )}
-              <OrientationNetPreview
-                faces={progressFaces}
-                undecidedFaces={undecidedFaces}
-                currentFace={askingFace}
-                autoFaces={autoFaces}
-              />
-              <div class="orientation-picker-grid orientation-wizard-options" style={columns}>
-                {options.map((opt, i) => (
-                  <button
-                    key={i}
-                    type="button"
-                    class="orientation-picker-option orientation-wizard-option"
-                    aria-label={`Option ${i + 1} of ${options.length} for the ${FACE_LABELS[askingFace]} face`}
-                    disabled={wizardMorphing}
-                    onClick={(e) => handleWizardPick(e.currentTarget, opt.candidates, askingFace)}
-                  >
-                    <FaceGrid colors={opt.grid} />
-                  </button>
-                ))}
-              </div>
-            </div>
-          </div>
-        )
-      })()}
+        })()}
 
       {/* Color-fix palette popup */}
       {reviewEditingCell && (
-        <div class="modal open color-picker-modal" onClick={() => setReviewEditingCell(null)}>
+        <div
+          class="modal open color-picker-modal"
+          onClick={() => setReviewEditingCell(null)}
+        >
           <div
             class="modal-content color-picker-content"
             role="dialog"
@@ -3534,7 +5473,11 @@ function App() {
             tabIndex={-1}
             ref={focusModalOnOpen}
             onClick={(e) => e.stopPropagation()}
-            onKeyDown={(e) => handleModalKeyDown(e, e.currentTarget, () => setReviewEditingCell(null))}
+            onKeyDown={(e) =>
+              handleModalKeyDown(e, e.currentTarget, () =>
+                setReviewEditingCell(null),
+              )
+            }
           >
             <h3>Fix color</h3>
             {(() => {
@@ -3542,7 +5485,12 @@ function App() {
               // so the likely alternatives stand out.
               const { face, row, col } = reviewEditingCell
               const rgb = capturedFaces[face]?.cellColors?.[row]?.[col]
-              const scores = rgb ? colorConfidences(rgb, learnedPalette ?? palette ?? STICKER_COLORS) : null
+              const scores = rgb
+                ? colorConfidences(
+                    rgb,
+                    learnedPalette ?? palette ?? STICKER_COLORS,
+                  )
+                : null
               const current = capturedFaces[face]?.colors[row]?.[col]
               return (
                 <div class="color-palette">
@@ -3555,13 +5503,20 @@ function App() {
                       onClick={() => handleFixCellColor(face, row, col, color)}
                     >
                       <span class="color-btn-name">{COLOR_NAME[color]}</span>
-                      {scores && <span class="color-btn-confidence">{Math.round((scores[color] ?? 0) * 100)}%</span>}
+                      {scores && (
+                        <span class="color-btn-confidence">
+                          {Math.round((scores[color] ?? 0) * 100)}%
+                        </span>
+                      )}
                     </button>
                   ))}
                 </div>
               )
             })()}
-            <button class="btn btn-secondary btn-sm" onClick={() => setReviewEditingCell(null)}>
+            <button
+              class="btn btn-secondary btn-sm"
+              onClick={() => setReviewEditingCell(null)}
+            >
               Cancel
             </button>
           </div>
@@ -3578,21 +5533,35 @@ function App() {
             aria-labelledby="fixture-download-title"
             tabIndex={-1}
             ref={focusModalOnOpen}
-            onKeyDown={(e) => handleModalKeyDown(e, e.currentTarget, closeFixtureDownload)}
+            onKeyDown={(e) =>
+              handleModalKeyDown(e, e.currentTarget, closeFixtureDownload)
+            }
           >
             <div class="modal-header">
               <h2 id="fixture-download-title">Save as test fixture</h2>
-              <button class="modal-close" aria-label="Close" onClick={closeFixtureDownload}>×</button>
+              <button
+                class="modal-close"
+                aria-label="Close"
+                onClick={closeFixtureDownload}
+              >
+                ×
+              </button>
             </div>
             <p class="fixture-download-file">
-              <code>{fixtureDownload.name}.zip</code> · {formatBytes(fixtureDownload.zip.length)}
+              <code>{fixtureDownload.name}.zip</code> ·{' '}
+              {formatBytes(fixtureDownload.zip.length)}
             </p>
             <ul class="fixture-download-photos" aria-label="Photos in the zip">
               {fixtureDownload.summary.photos.map((photo, i) => (
                 <li key={photo.face}>
-                  <img src={fixtureDownload.photoUrls[i]} alt={`${FACE_DISPLAY_LABEL[photo.face.toUpperCase()]} photo`} />
+                  <img
+                    src={fixtureDownload.photoUrls[i]}
+                    alt={`${FACE_DISPLAY_LABEL[photo.face.toUpperCase()]} photo`}
+                  />
                   <span>{FACE_DISPLAY_LABEL[photo.face.toUpperCase()]}</span>
-                  <span class="fixture-download-meta">{photo.file} · {formatBytes(photo.bytes.length)}</span>
+                  <span class="fixture-download-meta">
+                    {photo.file} · {formatBytes(photo.bytes.length)}
+                  </span>
                 </li>
               ))}
             </ul>
@@ -3605,33 +5574,86 @@ function App() {
               ))}
             </dl>
             <p class="fixture-download-hint">
-              {import.meta.env.DEV ? <>Upload to <code>test/fixtures/</code> using the localhost server, or download the ZIP.</> : <>Unzip it into <code>test/fixtures/</code> to add it to the tests.</>}
-              {' '}The main-page <strong>Upload fixture</strong> action loads it back into the app.
+              {import.meta.env.DEV ? (
+                <>
+                  Upload to <code>test/fixtures/</code> using the localhost
+                  server, or download the ZIP.
+                </>
+              ) : (
+                <>
+                  Unzip it into <code>test/fixtures/</code> to add it to the
+                  tests.
+                </>
+              )}{' '}
+              The main-page <strong>Upload fixture</strong> action loads it back
+              into the app.
             </p>
-            {import.meta.env.DEV && fixtureServerChecked && !fixtureServerReachable && (
-              <p role="status" class="fixture-download-hint">Upload server offline · run <code>npm run fixture:server</code>.</p>
+            {import.meta.env.DEV &&
+              fixtureServerChecked &&
+              !fixtureServerReachable && (
+                <p role="status" class="fixture-download-hint">
+                  Upload server offline · run{' '}
+                  <code>npm run fixture:server</code>.
+                </p>
+              )}
+            {fixtureUploadMessage && (
+              <p role="status" class="capture-message error">
+                {fixtureUploadMessage}
+              </p>
             )}
-            {fixtureUploadMessage && <p role="status" class="capture-message error">{fixtureUploadMessage}</p>}
             <div class="input-actions">
-              <button type="button" class="btn btn-secondary btn-sm" onClick={closeFixtureDownload}>Cancel</button>
+              <button
+                type="button"
+                class="btn btn-secondary btn-sm"
+                onClick={closeFixtureDownload}
+              >
+                Cancel
+              </button>
               {import.meta.env.DEV && (
-                <button type="button" class="btn btn-primary btn-sm" disabled={!fixtureServerReachable || fixtureUploading} onClick={uploadFixture}>
-                  {fixtureUploading ? 'Uploading...' : fixtureServerChecked ? 'Upload to localhost' : 'Checking upload server...'}
+                <button
+                  type="button"
+                  class="btn btn-primary btn-sm"
+                  disabled={!fixtureServerReachable || fixtureUploading}
+                  onClick={uploadFixture}
+                >
+                  {fixtureUploading
+                    ? 'Uploading...'
+                    : fixtureServerChecked
+                      ? 'Upload to localhost'
+                      : 'Checking upload server...'}
                 </button>
               )}
-              <button type="button" class="btn btn-secondary btn-sm" onClick={downloadFixture}>Download zip</button>
+              <button
+                type="button"
+                class="btn btn-secondary btn-sm"
+                onClick={downloadFixture}
+              >
+                Download zip
+              </button>
             </div>
           </div>
         </div>
       )}
       {showBackdropDialog && appliedBackgroundGains && (
         <BackdropDialog
-          faces={FACE_ORDER.filter((f) => capturedFaces[f]?.croppedImage).map((f) => ({
-            face: f, label: FACE_DISPLAY_LABEL[f], photo: capturedFaces[f].croppedImage!,
-            gains: appliedBackgroundGains[f] ?? NEUTRAL_GAINS, background: capturedFaces[f].backgroundColor ?? null,
-            stickers: capturedFaces[f].cellColors,
-          }))}
-          reference={backdropReference(Object.fromEntries(FACE_ORDER.map((f) => [f, capturedFaces[f]?.backgroundColor ?? null])))}
+          faces={FACE_ORDER.filter((f) => capturedFaces[f]?.croppedImage).map(
+            (f) => ({
+              face: f,
+              label: FACE_DISPLAY_LABEL[f],
+              photo: capturedFaces[f].croppedImage!,
+              gains: appliedBackgroundGains[f] ?? NEUTRAL_GAINS,
+              background: capturedFaces[f].backgroundColor ?? null,
+              stickers: capturedFaces[f].cellColors,
+            }),
+          )}
+          reference={backdropReference(
+            Object.fromEntries(
+              FACE_ORDER.map((f) => [
+                f,
+                capturedFaces[f]?.backgroundColor ?? null,
+              ]),
+            ),
+          )}
           onClose={() => setShowBackdropDialog(false)}
         />
       )}

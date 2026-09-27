@@ -14,11 +14,25 @@ export interface TurnCuePose {
 
 // A same-colored side can still be a new side. Only a substantial change
 // counts; small framing jitter while holding the old face does not.
-export function turnPoseChanged(anchor: TurnCuePose, current: TurnCuePose): boolean {
-  const angle = Math.abs(Math.atan2(Math.sin(current.angle - anchor.angle), Math.cos(current.angle - anchor.angle)))
-  return Math.hypot(current.centerX - anchor.centerX, current.centerY - anchor.centerY) > anchor.size * 0.12
-    || Math.abs(current.size - anchor.size) > anchor.size * 0.15
-    || angle > Math.PI / 9
+export function turnPoseChanged(
+  anchor: TurnCuePose,
+  current: TurnCuePose,
+): boolean {
+  const angle = Math.abs(
+    Math.atan2(
+      Math.sin(current.angle - anchor.angle),
+      Math.cos(current.angle - anchor.angle),
+    ),
+  )
+  return (
+    Math.hypot(
+      current.centerX - anchor.centerX,
+      current.centerY - anchor.centerY,
+    ) >
+      anchor.size * 0.12 ||
+    Math.abs(current.size - anchor.size) > anchor.size * 0.15 ||
+    angle > Math.PI / 9
+  )
 }
 
 // The turn cue stays up while the captured pattern is still in view. It
@@ -39,15 +53,26 @@ export interface TurnCueState {
 
 export const TURN_CUE_START: TurnCueState = { departed: 0, missing: 0 }
 
-export function nextTurnCue(state: TurnCueState, visibleColors: string[][] | null, lastCapturedColors: string[][], poseChanged = false): TurnCueState {
+export function nextTurnCue(
+  state: TurnCueState,
+  visibleColors: string[][] | null,
+  lastCapturedColors: string[][],
+  poseChanged = false,
+): TurnCueState {
   if (!visibleColors) return { ...state, missing: state.missing + 1 }
-  const stillLastFace = findCapturedFaceMatch([{ colors: lastCapturedColors }], { colors: visibleColors }) !== null
+  const stillLastFace =
+    findCapturedFaceMatch([{ colors: lastCapturedColors }], {
+      colors: visibleColors,
+    }) !== null
   if (stillLastFace && !poseChanged) return TURN_CUE_START
   return { departed: state.departed + 1, missing: 0 }
 }
 
 export function turnCueCleared(state: TurnCueState): boolean {
-  return state.departed >= TURN_CUE_CLEAR_FRAMES || state.missing >= TURN_CUE_ABSENT_FRAMES
+  return (
+    state.departed >= TURN_CUE_CLEAR_FRAMES ||
+    state.missing >= TURN_CUE_ABSENT_FRAMES
+  )
 }
 
 export interface AutoCaptureSample {
@@ -78,12 +103,17 @@ function colorDifference(a: string[][], b: string[][]): number {
 
 export function nextAutoCaptureProgress(
   previous: AutoCaptureProgress | null,
-  sample: AutoCaptureSample | null
+  sample: AutoCaptureSample | null,
 ): AutoCaptureProgress | null {
-  if (!sample || sample.confidence < AUTO_CAPTURE_MIN_CONFIDENCE) return previous
+  if (!sample || sample.confidence < AUTO_CAPTURE_MIN_CONFIDENCE)
+    return previous
   const cells = sample.colors.length ** 2
   if (!previous) return { first: sample, frames: 1 }
   const first = previous.first
-  const stable = colorDifference(sample.colors, first.colors) <= Math.max(1, Math.floor(cells * 0.04))
-  return stable ? { first, frames: previous.frames + 1 } : { first: sample, frames: 1 }
+  const stable =
+    colorDifference(sample.colors, first.colors) <=
+    Math.max(1, Math.floor(cells * 0.04))
+  return stable
+    ? { first, frames: previous.frames + 1 }
+    : { first: sample, frames: 1 }
 }

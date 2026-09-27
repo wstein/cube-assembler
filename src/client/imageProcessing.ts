@@ -1,6 +1,13 @@
 // Image processing utilities for cube face detection and color extraction
 
-import { ALIGNMENT_MAX_OFFSET, alignFace, cellEdges, estimateOuterCellRatio, faceCornersIfBetter, type GridAlignment } from './gridAlignment'
+import {
+  ALIGNMENT_MAX_OFFSET,
+  alignFace,
+  cellEdges,
+  estimateOuterCellRatio,
+  faceCornersIfBetter,
+  type GridAlignment,
+} from './gridAlignment'
 import { warpQuadToSquare } from './perspective'
 
 export interface ColorDetectionResult {
@@ -44,7 +51,9 @@ export interface SamplingGeometry {
   stickerCore: number
 }
 
-export const DEFAULT_SAMPLING: SamplingGeometry = { stickerCore: SAMPLE_CORE_FRACTION }
+export const DEFAULT_SAMPLING: SamplingGeometry = {
+  stickerCore: SAMPLE_CORE_FRACTION,
+}
 
 // A sticker cell's sampled rectangle within a face of the given size -
 // shared by the detector and the UI overlay so both draw the same zones.
@@ -56,7 +65,7 @@ export function stickerSampleRect(
   faceWidth: number,
   faceHeight: number,
   sampling: SamplingGeometry = DEFAULT_SAMPLING,
-  outerCellRatio = 1
+  outerCellRatio = 1,
 ): { x: number; y: number; width: number; height: number } {
   const inset = (1 - sampling.stickerCore) / 2
   if (outerCellRatio === 1) {
@@ -84,11 +93,11 @@ export function stickerSampleRect(
 // Standard cube sticker colors (WCA compliant)
 export const STICKER_COLORS: Record<string, RGB> = {
   W: { r: 255, g: 255, b: 255 }, // White
-  Y: { r: 255, g: 255, b: 0 },   // Yellow
-  O: { r: 255, g: 127, b: 0 },   // Orange
-  R: { r: 255, g: 0, b: 0 },     // Red
-  G: { r: 0, g: 128, b: 0 },     // Green
-  B: { r: 0, g: 0, b: 255 },     // Blue
+  Y: { r: 255, g: 255, b: 0 }, // Yellow
+  O: { r: 255, g: 127, b: 0 }, // Orange
+  R: { r: 255, g: 0, b: 0 }, // Red
+  G: { r: 0, g: 128, b: 0 }, // Green
+  B: { r: 0, g: 0, b: 255 }, // Blue
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -127,7 +136,11 @@ export function srgbChannelToLinear(c: number): number {
 // Internal Cartesian form - what colorDistance actually computes in.
 // Matrices per Ottosson's OKLab reference (https://bottosson.github.io/posts/oklab/).
 export function rgbToOklab(rgb: RGB): Oklab {
-  return linearRgbToOklab(srgbChannelToLinear(rgb.r), srgbChannelToLinear(rgb.g), srgbChannelToLinear(rgb.b))
+  return linearRgbToOklab(
+    srgbChannelToLinear(rgb.r),
+    srgbChannelToLinear(rgb.g),
+    srgbChannelToLinear(rgb.b),
+  )
 }
 
 // The same from linear-light channels, which may exceed 1 (a color scaled
@@ -138,15 +151,18 @@ export function linearRgbToOklab(r: number, g: number, b: number): Oklab {
   const s_ = Math.cbrt(0.0883024619 * r + 0.2817188376 * g + 0.6299787005 * b)
 
   return {
-    l: 0.2104542553 * l_ + 0.7936177850 * m_ - 0.0040720468 * s_,
-    a: 1.9779984951 * l_ - 2.4285922050 * m_ + 0.4505937099 * s_,
-    b: 0.0259040371 * l_ + 0.7827717662 * m_ - 0.8086757660 * s_,
+    l: 0.2104542553 * l_ + 0.793617785 * m_ - 0.0040720468 * s_,
+    a: 1.9779984951 * l_ - 2.428592205 * m_ + 0.4505937099 * s_,
+    b: 0.0259040371 * l_ + 0.7827717662 * m_ - 0.808675766 * s_,
   }
 }
 
 export function linearChannelToSrgb(v: number): number {
   const clamped = Math.max(0, Math.min(1, v))
-  const encoded = clamped <= 0.0031308 ? clamped * 12.92 : 1.055 * Math.pow(clamped, 1 / 2.4) - 0.055
+  const encoded =
+    clamped <= 0.0031308
+      ? clamped * 12.92
+      : 1.055 * Math.pow(clamped, 1 / 2.4) - 0.055
   return Math.max(0, Math.min(255, Math.round(encoded * 255)))
 }
 
@@ -158,16 +174,22 @@ export function linearChannelToSrgb(v: number): number {
 export function oklabToRgb(lab: Oklab): RGB {
   const l_ = lab.l + 0.3963377774 * lab.a + 0.2158037573 * lab.b
   const m_ = lab.l - 0.1055613458 * lab.a - 0.0638541728 * lab.b
-  const s_ = lab.l - 0.0894841775 * lab.a - 1.2914855480 * lab.b
+  const s_ = lab.l - 0.0894841775 * lab.a - 1.291485548 * lab.b
 
   const l = l_ * l_ * l_
   const m = m_ * m_ * m_
   const s = s_ * s_ * s_
 
   return {
-    r: linearChannelToSrgb(4.0767416621 * l - 3.3077115913 * m + 0.2309699292 * s),
-    g: linearChannelToSrgb(-1.2684380046 * l + 2.6097574011 * m - 0.3413193965 * s),
-    b: linearChannelToSrgb(-0.0041960863 * l - 0.7034186147 * m + 1.7076147010 * s),
+    r: linearChannelToSrgb(
+      4.0767416621 * l - 3.3077115913 * m + 0.2309699292 * s,
+    ),
+    g: linearChannelToSrgb(
+      -1.2684380046 * l + 2.6097574011 * m - 0.3413193965 * s,
+    ),
+    b: linearChannelToSrgb(
+      -0.0041960863 * l - 0.7034186147 * m + 1.707614701 * s,
+    ),
   }
 }
 
@@ -199,7 +221,10 @@ export function hueCircularRange(hues: number[]): HueRange | null {
   for (let i = 0; i < sorted.length; i++) {
     const prev = i === 0 ? sorted[sorted.length - 1] - 360 : sorted[i - 1]
     const gap = sorted[i] - prev
-    if (gap > largestGap) { largestGap = gap; gapStartIdx = i === 0 ? sorted.length - 1 : i - 1 }
+    if (gap > largestGap) {
+      largestGap = gap
+      gapStartIdx = i === 0 ? sorted.length - 1 : i - 1
+    }
   }
   const min = sorted[(gapStartIdx + 1) % sorted.length]
   const max = sorted[gapStartIdx]
@@ -219,7 +244,7 @@ export function hueCircularRange(hues: number[]): HueRange | null {
 export function hueRangesOverlap(a: HueRange, b: HueRange): boolean {
   const STEPS = 720
   const inArc = (deg: number, r: HueRange) => {
-    const rel = ((deg - r.min) % 360 + 360) % 360
+    const rel = (((deg - r.min) % 360) + 360) % 360
     return rel <= r.span + 1e-9
   }
   for (let i = 0; i < STEPS; i++) {
@@ -329,23 +354,42 @@ const CONFIDENCE_DISTANCE_SCALE = 0.4
 // close in hue and where exactly varies by cube and lighting, so those two
 // stay the least reliable until a palette has been learned.
 const NEUTRAL_CHROMA = 0.04
-const TYPICAL_HUE: Record<string, number> = { R: 22, O: 45, Y: 105, G: 150, B: 255 }
+const TYPICAL_HUE: Record<string, number> = {
+  R: 22,
+  O: 45,
+  Y: 105,
+  G: 150,
+  B: 255,
+}
 
-export function classifySticker(rgb: RGB, palette?: Record<string, RGB>): { color: string; confidence: number } {
+export function classifySticker(
+  rgb: RGB,
+  palette?: Record<string, RGB>,
+): { color: string; confidence: number } {
   if (palette) {
     let color = 'W'
     let distance = Infinity
     for (const [name, centroid] of Object.entries(palette)) {
       const d = clusterDistance(rgb, centroid)
-      if (d < distance) { distance = d; color = name }
+      if (d < distance) {
+        distance = d
+        color = name
+      }
     }
-    return { color, confidence: Math.max(0, 1 - distance / CONFIDENCE_DISTANCE_SCALE) }
+    return {
+      color,
+      confidence: Math.max(0, 1 - distance / CONFIDENCE_DISTANCE_SCALE),
+    }
   }
   const { c, h } = rgbToOKLCH(rgb)
   // Confidence fades to 0.5 as chroma approaches the neutral limit.
-  if (c < NEUTRAL_CHROMA) return { color: 'W', confidence: 1 - (c / NEUTRAL_CHROMA) * 0.5 }
+  if (c < NEUTRAL_CHROMA)
+    return { color: 'W', confidence: 1 - (c / NEUTRAL_CHROMA) * 0.5 }
   const byHue = Object.entries(TYPICAL_HUE)
-    .map(([name, center]) => ({ name, d: Math.min(Math.abs(h - center), 360 - Math.abs(h - center)) }))
+    .map(([name, center]) => ({
+      name,
+      d: Math.min(Math.abs(h - center), 360 - Math.abs(h - center)),
+    }))
     .sort((a, b) => a.d - b.d)
   // 1 at a typical hue, 0 halfway to the next one; less sure near neutral.
   const hueConfidence = (byHue[1].d - byHue[0].d) / (byHue[1].d + byHue[0].d)
@@ -382,7 +426,8 @@ export const NEUTRAL_GAINS: RGB = { r: 1, g: 1, b: 1 }
 // decoded, scaled and encoded again (see computeBackgroundGains).
 export function applyGains(rgb: RGB, gains: RGB): RGB {
   const round = (v: number) => Math.max(0, Math.min(255, Math.round(v)))
-  if (gains.r === 1 && gains.g === 1 && gains.b === 1) return { r: round(rgb.r), g: round(rgb.g), b: round(rgb.b) }
+  if (gains.r === 1 && gains.g === 1 && gains.b === 1)
+    return { r: round(rgb.r), g: round(rgb.g), b: round(rgb.b) }
   return {
     r: linearChannelToSrgb(srgbChannelToLinear(rgb.r) * gains.r),
     g: linearChannelToSrgb(srgbChannelToLinear(rgb.g) * gains.g),
@@ -398,11 +443,20 @@ export function removeGains(rgb: RGB, gains: RGB): RGB {
 
 // A photo's pixels (RGBA) adjusted like its stickers are, for showing what
 // the backdrop white balance did to a face.
-export function applyGainsToPixels(data: Uint8ClampedArray, gains: RGB): Uint8ClampedArray {
+export function applyGainsToPixels(
+  data: Uint8ClampedArray,
+  gains: RGB,
+): Uint8ClampedArray {
   const out = new Uint8ClampedArray(data.length)
   for (let i = 0; i < data.length; i += 4) {
-    const { r, g, b } = applyGains({ r: data[i], g: data[i + 1], b: data[i + 2] }, gains)
-    out[i] = r; out[i + 1] = g; out[i + 2] = b; out[i + 3] = data[i + 3]
+    const { r, g, b } = applyGains(
+      { r: data[i], g: data[i + 1], b: data[i + 2] },
+      gains,
+    )
+    out[i] = r
+    out[i + 1] = g
+    out[i + 2] = b
+    out[i + 3] = data[i + 3]
   }
   return out
 }
@@ -448,13 +502,23 @@ export function hungarianAssignment(cost: number[][]): number[] {
       for (let j = 1; j <= n; j++) {
         if (!used[j]) {
           const cur = cost[i0 - 1][j - 1] - u[i0] - v[j]
-          if (cur < minv[j]) { minv[j] = cur; way[j] = j0 }
-          if (minv[j] < delta) { delta = minv[j]; j1 = j }
+          if (cur < minv[j]) {
+            minv[j] = cur
+            way[j] = j0
+          }
+          if (minv[j] < delta) {
+            delta = minv[j]
+            j1 = j
+          }
         }
       }
       for (let j = 0; j <= n; j++) {
-        if (used[j]) { u[p[j]] += delta; v[j] -= delta }
-        else { minv[j] -= delta }
+        if (used[j]) {
+          u[p[j]] += delta
+          v[j] -= delta
+        } else {
+          minv[j] -= delta
+        }
       }
       j0 = j1
     } while (p[j0] !== 0)
@@ -501,7 +565,11 @@ export function hungarianAssignment(cost: number[][]): number[] {
 // the table when a cheaper global arrangement exists.
 // `pinned[i]`, when set, is the cluster point i must take regardless of
 // cost (see clearStickerColors); the rest share the slots left over.
-function balancedAssign(points: RGB[], centroids: RGB[], pinned: Array<number | null> = []): number[] {
+function balancedAssign(
+  points: RGB[],
+  centroids: RGB[],
+  pinned: Array<number | null> = [],
+): number[] {
   const k = centroids.length
   const n = points.length
   const capacity = Math.ceil(n / k)
@@ -519,17 +587,22 @@ function balancedAssign(points: RGB[], centroids: RGB[], pinned: Array<number | 
   const totalSlots = slotCluster.length
 
   const cost: number[][] = free.map((pi) => {
-    const distances = centroids.map((centroid) => clusterDistance(points[pi], centroid))
+    const distances = centroids.map((centroid) =>
+      clusterDistance(points[pi], centroid),
+    )
     return slotCluster.map((ci) => distances[ci])
   })
   // Dummy rows (real points don't reach this far into `cost`) cost
   // nothing to place anywhere, so the solver always "spends" them on
   // whichever leftover slots are cheapest to leave empty rather than
   // distorting a real point's assignment.
-  for (let pi = free.length; pi < totalSlots; pi++) cost.push(new Array(totalSlots).fill(0))
+  for (let pi = free.length; pi < totalSlots; pi++)
+    cost.push(new Array(totalSlots).fill(0))
 
   const slotAssignment = hungarianAssignment(cost)
-  free.forEach((pi, j) => { result[pi] = slotCluster[slotAssignment[j]] })
+  free.forEach((pi, j) => {
+    result[pi] = slotCluster[slotAssignment[j]]
+  })
   return result
 }
 
@@ -555,8 +628,12 @@ function kMeansCluster(points: RGB[], k: number, iterations = 20): RGB[] {
     let farthestMinDist = -1
     for (const p of points) {
       let minDist = Infinity
-      for (const c of centroids) minDist = Math.min(minDist, clusterDistance(p, c))
-      if (minDist > farthestMinDist) { farthestMinDist = minDist; farthest = p }
+      for (const c of centroids)
+        minDist = Math.min(minDist, clusterDistance(p, c))
+      if (minDist > farthestMinDist) {
+        farthestMinDist = minDist
+        farthest = p
+      }
     }
     centroids.push(farthest)
   }
@@ -569,16 +646,29 @@ function kMeansCluster(points: RGB[], k: number, iterations = 20): RGB[] {
     // assignment step used - an RGB-space mean isn't the point that
     // minimizes total OKLab distance to the cluster's members, since
     // OKLab is a nonlinear (cube-root) remapping of RGB.
-    const sums = Array.from({ length: k }, () => ({ l: 0, a: 0, b: 0, count: 0 }))
+    const sums = Array.from({ length: k }, () => ({
+      l: 0,
+      a: 0,
+      b: 0,
+      count: 0,
+    }))
     points.forEach((p, pi) => {
       const c = assignment[pi]
       const lab = rgbToOklab(p)
-      sums[c].l += lab.l; sums[c].a += lab.a; sums[c].b += lab.b; sums[c].count++
+      sums[c].l += lab.l
+      sums[c].a += lab.a
+      sums[c].b += lab.b
+      sums[c].count++
     })
-    centroids = centroids.map((c, i) =>
-      sums[i].count > 0
-        ? oklabToRgb({ l: sums[i].l / sums[i].count, a: sums[i].a / sums[i].count, b: sums[i].b / sums[i].count })
-        : c // keep empty clusters where they were rather than collapsing to NaN
+    centroids = centroids.map(
+      (c, i) =>
+        sums[i].count > 0
+          ? oklabToRgb({
+              l: sums[i].l / sums[i].count,
+              a: sums[i].a / sums[i].count,
+              b: sums[i].b / sums[i].count,
+            })
+          : c, // keep empty clusters where they were rather than collapsing to NaN
     )
   }
 
@@ -598,7 +688,11 @@ function oklabMean(points: RGB[]): RGB {
 // and the rest with the second: those that gain most from the first go
 // there. Exact, and far cheaper than balancedAssign for two clusters.
 function splitInTwo(points: RGB[], centroids: RGB[], size: number): number[] {
-  const gain = points.map((p) => clusterDistance(p, centroids[1]) ** 2 - clusterDistance(p, centroids[0]) ** 2)
+  const gain = points.map(
+    (p) =>
+      clusterDistance(p, centroids[1]) ** 2 -
+      clusterDistance(p, centroids[0]) ** 2,
+  )
   const order = points.map((_, i) => i).sort((i, j) => gain[j] - gain[i])
   const split = new Array(points.length).fill(1)
   for (const i of order.slice(0, size)) split[i] = 0
@@ -613,20 +707,35 @@ function splitInTwo(points: RGB[], centroids: RGB[], size: number): number[] {
 // (each sticker, or the six centers) ended there. So each pair of
 // clusters is split again from its two most different members, and the
 // split is kept when it lowers the total error.
-function splitMixedPairs(points: RGB[], centroids: RGB[], iterations: number): RGB[] {
+function splitMixedPairs(
+  points: RGB[],
+  centroids: RGB[],
+  iterations: number,
+): RGB[] {
   const best = [...centroids]
   let assignment = balancedAssign(points, best)
   for (let x = 0; x < best.length; x++) {
     for (let y = x + 1; y < best.length; y++) {
-      const members = points.filter((_, pi) => assignment[pi] === x || assignment[pi] === y)
+      const members = points.filter(
+        (_, pi) => assignment[pi] === x || assignment[pi] === y,
+      )
       if (members.length < 2) continue
-      const before = points.reduce((sum, p, pi) => (assignment[pi] === x || assignment[pi] === y ? sum + clusterDistance(p, best[assignment[pi]]) ** 2 : sum), 0)
+      const before = points.reduce(
+        (sum, p, pi) =>
+          assignment[pi] === x || assignment[pi] === y
+            ? sum + clusterDistance(p, best[assignment[pi]]) ** 2
+            : sum,
+        0,
+      )
       let seeds: RGB[] = [members[0], members[1]]
       let farthest = -1
       for (const p of members) {
         for (const q of members) {
           const d = clusterDistance(p, q)
-          if (d > farthest) { farthest = d; seeds = [p, q] }
+          if (d > farthest) {
+            farthest = d
+            seeds = [p, q]
+          }
         }
       }
       const size = assignment.filter((ci) => ci === x).length
@@ -639,7 +748,10 @@ function splitMixedPairs(points: RGB[], centroids: RGB[], iterations: number): R
         split = splitInTwo(members, seeds, size)
       }
       // Only these members move, so comparing their error decides it.
-      const after = members.reduce((sum, p, mi) => sum + clusterDistance(p, seeds[split[mi]]) ** 2, 0)
+      const after = members.reduce(
+        (sum, p, mi) => sum + clusterDistance(p, seeds[split[mi]]) ** 2,
+        0,
+      )
       if (after < before - 1e-9) {
         best[x] = seeds[0]
         best[y] = seeds[1]
@@ -663,12 +775,16 @@ function bestPermutationMatch(centroids: RGB[], canonical: RGB[]): number[] {
   function permute(arr: number[], l: number) {
     if (l === arr.length) {
       let cost = 0
-      for (let i = 0; i < k; i++) cost += clusterDistance(centroids[i], canonical[arr[i]]) ** 2
-      if (cost < bestCost) { bestCost = cost; bestAssignment = [...arr] }
+      for (let i = 0; i < k; i++)
+        cost += clusterDistance(centroids[i], canonical[arr[i]]) ** 2
+      if (cost < bestCost) {
+        bestCost = cost
+        bestAssignment = [...arr]
+      }
       return
     }
     for (let i = l; i < arr.length; i++) {
-      [arr[l], arr[i]] = [arr[i], arr[l]]
+      ;[arr[l], arr[i]] = [arr[i], arr[l]]
       permute(arr, l + 1)
       ;[arr[l], arr[i]] = [arr[i], arr[l]]
     }
@@ -728,7 +844,11 @@ const CENTROID_SHRINKAGE_PRIOR = 3
 // fully either at any finite sampleCount, deliberately, since a
 // canonical anchor isn't perfectly correct either (see e.g. the R/O gap
 // being narrower in real captures than in the idealized WCA swatches).
-function shrinkTowardCanonical(learned: RGB, canonical: RGB, sampleCount: number): RGB {
+function shrinkTowardCanonical(
+  learned: RGB,
+  canonical: RGB,
+  sampleCount: number,
+): RGB {
   const weight = sampleCount / (sampleCount + CENTROID_SHRINKAGE_PRIOR)
   const learnedLab = rgbToOklab(learned)
   const canonicalLab = rgbToOklab(canonical)
@@ -756,7 +876,10 @@ const CLEAR_STICKER_RATIO = 0.5
 // Hue alone can't decide it - whites carry blue's hue at chroma 0.1 and a
 // pinkish orange sits on red's hue - so the whole OKLab color must be
 // clearly nearest one reference color.
-export function clearStickerColors(points: RGB[], referencePalette: Record<string, RGB>): Array<string | null> {
+export function clearStickerColors(
+  points: RGB[],
+  referencePalette: Record<string, RGB>,
+): Array<string | null> {
   const references = Object.entries(referencePalette)
   return points.map((point) => {
     const lab = rgbToOklab(point)
@@ -764,7 +887,9 @@ export function clearStickerColors(points: RGB[], referencePalette: Record<strin
     const ranked = references
       .map(([color, rgb]) => ({ color, distance: clusterDistance(point, rgb) }))
       .sort((x, y) => x.distance - y.distance)
-    return ranked[0].distance <= CLEAR_STICKER_RATIO * ranked[1].distance ? ranked[0].color : null
+    return ranked[0].distance <= CLEAR_STICKER_RATIO * ranked[1].distance
+      ? ranked[0].color
+      : null
   })
 }
 
@@ -784,7 +909,11 @@ export const GLARE_WARNING_STICKERS = 4
 // clearStickerColors). Compared within the capture, not against the
 // palette, so a palette a little off doesn't count as glare; shadows are
 // darker and don't count either. White can't be washed out.
-export function glareStickers(points: RGB[], labels: string[], palette: Record<string, RGB>): number[] {
+export function glareStickers(
+  points: RGB[],
+  labels: string[],
+  palette: Record<string, RGB>,
+): number[] {
   const clear = clearStickerColors(points, palette)
   const labs = points.map(rgbToOklab)
   const glare: number[] = []
@@ -799,8 +928,14 @@ export function glareStickers(points: RGB[], labels: string[], palette: Record<s
     for (const i of members) {
       if (clear[i] === color || labs[i].l < l + GLARE_MIN_LIGHTER) continue
       const chroma = Math.hypot(labs[i].a, labs[i].b)
-      const shift = Math.abs(Math.atan2(labs[i].b, labs[i].a) - Math.atan2(b, a)) * 180 / Math.PI
-      if (chroma <= GLARE_MAX_CHROMA_FRACTION * Math.hypot(a, b) || Math.min(shift, 360 - shift) >= GLARE_MIN_HUE_SHIFT) glare.push(i)
+      const shift =
+        (Math.abs(Math.atan2(labs[i].b, labs[i].a) - Math.atan2(b, a)) * 180) /
+        Math.PI
+      if (
+        chroma <= GLARE_MAX_CHROMA_FRACTION * Math.hypot(a, b) ||
+        Math.min(shift, 360 - shift) >= GLARE_MIN_HUE_SHIFT
+      )
+        glare.push(i)
     }
   }
   return glare
@@ -817,10 +952,17 @@ const MIXED_CLUSTER_DRIFT = 0.07
 // the red/blue mix was purple - while the final assignment, pulled toward
 // the reference colors, hands it only one; its learned color can't be
 // trusted even when every sticker came out right.
-export function mixedUpClusters(points: RGB[], centroids: RGB[], assignment: number[]): number[] {
+export function mixedUpClusters(
+  points: RGB[],
+  centroids: RGB[],
+  assignment: number[],
+): number[] {
   return centroids.flatMap((centroid, ci) => {
     const members = points.filter((_, pi) => assignment[pi] === ci)
-    return members.length > 0 && clusterDistance(centroid, oklabMean(members)) > MIXED_CLUSTER_DRIFT ? [ci] : []
+    return members.length > 0 &&
+      clusterDistance(centroid, oklabMean(members)) > MIXED_CLUSTER_DRIFT
+      ? [ci]
+      : []
   })
 }
 
@@ -849,7 +991,11 @@ export function mixedUpClusters(points: RGB[], centroids: RGB[], assignment: num
 // mismatch to poison, and no gain to overshoot — each cluster centroid IS
 // the learned color, so a sparse cluster just means a less-precise learned
 // color, not a runaway correction applied to everything.
-export function learnStickerColors(samples: StickerSample[], referencePalette: Record<string, RGB> = STICKER_COLORS, clearLabels: Array<string | null> = []): LearnedColors | null {
+export function learnStickerColors(
+  samples: StickerSample[],
+  referencePalette: Record<string, RGB> = STICKER_COLORS,
+  clearLabels: Array<string | null> = [],
+): LearnedColors | null {
   const points = samples.map((s) => s.rgb)
   const K = 6
   if (points.length < K) return null
@@ -872,7 +1018,9 @@ export function learnStickerColors(samples: StickerSample[], referencePalette: R
   // anything else with it - see shrinkTowardCanonical. A well-populated
   // cluster (e.g. 16 samples on a 4x4) barely moves; a thin one (e.g. 4
   // samples on a 2x2) leans on the far more stable canonical estimate.
-  const shrunkCentroids = centroids.map((c, i) => shrinkTowardCanonical(c, canonicalList[permutation[i]], clusterCounts[i]))
+  const shrunkCentroids = centroids.map((c, i) =>
+    shrinkTowardCanonical(c, canonicalList[permutation[i]], clusterCounts[i]),
+  )
 
   // DEFINITIVE balanced-assignment pass, against the shrunk centroids -
   // this is what actually gets used as each sticker's color, not an
@@ -883,8 +1031,17 @@ export function learnStickerColors(samples: StickerSample[], referencePalette: R
   // the shrinkage weight).
   // Stickers that clearly show one color keep it; only the rest are
   // balanced (see clearStickerColors).
-  const clusterOf = (name: string | null) => (name == null ? null : permutation.findIndex((canonicalIdx) => canonicalKeys[canonicalIdx] === name))
-  const pointAssignment = balancedAssign(points, shrunkCentroids, points.map((_, i) => clusterOf(clearLabels[i] ?? null)))
+  const clusterOf = (name: string | null) =>
+    name == null
+      ? null
+      : permutation.findIndex(
+          (canonicalIdx) => canonicalKeys[canonicalIdx] === name,
+        )
+  const pointAssignment = balancedAssign(
+    points,
+    shrunkCentroids,
+    points.map((_, i) => clusterOf(clearLabels[i] ?? null)),
+  )
 
   const colors: Record<string, RGB> = {}
   const clusterSizes: Record<string, number> = {}
@@ -894,7 +1051,9 @@ export function learnStickerColors(samples: StickerSample[], referencePalette: R
     clusterSizes[name] = clusterCounts[i]
   }
 
-  const labelsBySampleIndex = pointAssignment.map((clusterIdx) => canonicalKeys[permutation[clusterIdx]])
+  const labelsBySampleIndex = pointAssignment.map(
+    (clusterIdx) => canonicalKeys[permutation[clusterIdx]],
+  )
 
   // A sample's distance to the centroid it was assigned to is a biased
   // confidence signal: the centroid IS the mean of its members, so any
@@ -936,9 +1095,18 @@ export function learnStickerColors(samples: StickerSample[], referencePalette: R
     return clusterDistance(point, shrunkCentroids[clusterIdx])
   })
 
-  const mixedUpColors = mixedUpClusters(points, centroids, pointAssignment).map((ci) => canonicalKeys[permutation[ci]])
+  const mixedUpColors = mixedUpClusters(points, centroids, pointAssignment).map(
+    (ci) => canonicalKeys[permutation[ci]],
+  )
 
-  return { colors, clusterSizes, labelsBySampleIndex, leaveOneOutDistances, clearLabels: points.map((_, i) => clearLabels[i] ?? null), mixedUpColors }
+  return {
+    colors,
+    clusterSizes,
+    labelsBySampleIndex,
+    leaveOneOutDistances,
+    clearLabels: points.map((_, i) => clearLabels[i] ?? null),
+    mixedUpColors,
+  }
 }
 
 export interface FaceBounds {
@@ -970,13 +1138,19 @@ const SAMPLE_FACE_FRACTION = 0.6
 // Cube face is assumed centered in frame, matching the fixed guide square
 // shown to the user during capture (see capture-grid-overlay in index.tsx).
 // `fraction` defaults to the sticker guide square itself.
-export function computeFaceBounds(canvas: HTMLCanvasElement, fraction = SAMPLE_FACE_FRACTION): FaceBounds {
+export function computeFaceBounds(
+  canvas: HTMLCanvasElement,
+  fraction = SAMPLE_FACE_FRACTION,
+): FaceBounds {
   return guideBounds(canvas.width, canvas.height, fraction)
 }
 
 // computeFaceBounds for a frame of the given size.
-export function guideBounds(width: number, height: number, fraction = SAMPLE_FACE_FRACTION): FaceBounds {
-
+export function guideBounds(
+  width: number,
+  height: number,
+  fraction = SAMPLE_FACE_FRACTION,
+): FaceBounds {
   const centerX = width / 2
   const centerY = height / 2
   const faceSize = Math.min(width, height) * fraction
@@ -1009,20 +1183,44 @@ export function guideBounds(width: number, height: number, fraction = SAMPLE_FAC
 // camera is still sampled cell by cell. Falls back to the guide itself when
 // no convincing grid shows. Exported so one live frame is aligned once for
 // both extractCubeFaceColors and hasVisibleCubeFace.
-export function alignedFaceBounds(canvas: HTMLCanvasElement, gridSize: number): FaceBounds {
+export function alignedFaceBounds(
+  canvas: HTMLCanvasElement,
+  gridSize: number,
+): FaceBounds {
   const guide = computeFaceBounds(canvas)
   const ctx = canvas.getContext('2d')
-  if (!ctx || guide.faceWidth !== guide.faceHeight) return { ...guide, gridFound: false }
+  if (!ctx || guide.faceWidth !== guide.faceHeight)
+    return { ...guide, gridFound: false }
   const area = alignmentArea(guide, canvas.width, canvas.height)
-  const region = ctx.getImageData(area.x0, area.y0, area.x1 - area.x0, area.y1 - area.y0)
-  return alignedBoundsInArea(region.data, region.width, region.height, guide, area, gridSize, canvas.width, canvas.height)
+  const region = ctx.getImageData(
+    area.x0,
+    area.y0,
+    area.x1 - area.x0,
+    area.y1 - area.y0,
+  )
+  return alignedBoundsInArea(
+    region.data,
+    region.width,
+    region.height,
+    guide,
+    area,
+    gridSize,
+    canvas.width,
+    canvas.height,
+  )
 }
 
 // The part of a width x height frame searched around `guide`: room for
 // the largest offset plus the largest face (1.12x the guide), and for the
 // corners of a tilted one.
-export function alignmentArea(guide: FaceBounds, width: number, height: number): { x0: number; y0: number; x1: number; y1: number } {
-  const margin = Math.ceil(guide.faceWidth * (ALIGNMENT_MAX_OFFSET + 0.06 + 0.2))
+export function alignmentArea(
+  guide: FaceBounds,
+  width: number,
+  height: number,
+): { x0: number; y0: number; x1: number; y1: number } {
+  const margin = Math.ceil(
+    guide.faceWidth * (ALIGNMENT_MAX_OFFSET + 0.06 + 0.2),
+  )
   return {
     x0: Math.max(0, guide.startX - margin),
     y0: Math.max(0, guide.startY - margin),
@@ -1032,36 +1230,88 @@ export function alignmentArea(guide: FaceBounds, width: number, height: number):
 }
 
 // alignFace on `data`, the alignmentArea's pixels.
-export function alignFaceInArea(data: Uint8ClampedArray, width: number, height: number, guide: FaceBounds, area: { x0: number; y0: number }, gridSize: number): GridAlignment {
-  return alignFace(data, width, height, { x: guide.startX - area.x0, y: guide.startY - area.y0, size: guide.faceWidth }, gridSize)
+export function alignFaceInArea(
+  data: Uint8ClampedArray,
+  width: number,
+  height: number,
+  guide: FaceBounds,
+  area: { x0: number; y0: number },
+  gridSize: number,
+): GridAlignment {
+  return alignFace(
+    data,
+    width,
+    height,
+    {
+      x: guide.startX - area.x0,
+      y: guide.startY - area.y0,
+      size: guide.faceWidth,
+    },
+    gridSize,
+  )
 }
 
 // The frame bounds an alignment (found in `area`) leads to.
-export function boundsFromAlignment(found: GridAlignment, guide: FaceBounds, area: { x0: number; y0: number }, width: number, height: number, corners?: [number, number][] | null): FaceBounds {
+export function boundsFromAlignment(
+  found: GridAlignment,
+  guide: FaceBounds,
+  area: { x0: number; y0: number },
+  width: number,
+  height: number,
+  corners?: [number, number][] | null,
+): FaceBounds {
   const angle = found.angle
   if (!found.aligned && !angle) return { ...guide, gridFound: found.seams }
   const size = Math.round(found.size)
   // Keep the square's center on the canvas; a tilted square is read through
   // a rotation, which clamps nothing else.
-  const centerX = Math.min(width - size / 2, Math.max(size / 2, area.x0 + found.center[0]))
-  const centerY = Math.min(height - size / 2, Math.max(size / 2, area.y0 + found.center[1]))
+  const centerX = Math.min(
+    width - size / 2,
+    Math.max(size / 2, area.x0 + found.center[0]),
+  )
+  const centerY = Math.min(
+    height - size / 2,
+    Math.max(size / 2, area.y0 + found.center[1]),
+  )
   return {
     startX: Math.round(centerX - size / 2),
     startY: Math.round(centerY - size / 2),
     faceWidth: size,
     faceHeight: size,
     ...(angle && { angle }),
-    ...(corners && { corners: corners.map(([x, y]) => [area.x0 + x, area.y0 + y] as [number, number]) }),
+    ...(corners && {
+      corners: corners.map(
+        ([x, y]) => [area.x0 + x, area.y0 + y] as [number, number],
+      ),
+    }),
     gridFound: found.seams,
   }
 }
 
 // The face in the alignment area: its aligned square, and its corners when
 // it is seen at an angle and straightening helps (see faceCornersIfBetter).
-export function alignedBoundsInArea(region: Uint8ClampedArray, regionWidth: number, regionHeight: number, guide: FaceBounds,
-  area: { x0: number; y0: number }, gridSize: number, width: number, height: number): FaceBounds {
-  const found = alignFaceInArea(region, regionWidth, regionHeight, guide, area, gridSize)
-  const corners = found.seams && found.aligned ? faceCornersIfBetter(region, regionWidth, regionHeight, found, gridSize) : null
+export function alignedBoundsInArea(
+  region: Uint8ClampedArray,
+  regionWidth: number,
+  regionHeight: number,
+  guide: FaceBounds,
+  area: { x0: number; y0: number },
+  gridSize: number,
+  width: number,
+  height: number,
+): FaceBounds {
+  const found = alignFaceInArea(
+    region,
+    regionWidth,
+    regionHeight,
+    guide,
+    area,
+    gridSize,
+  )
+  const corners =
+    found.seams && found.aligned
+      ? faceCornersIfBetter(region, regionWidth, regionHeight, found, gridSize)
+      : null
   return boundsFromAlignment(found, guide, area, width, height, corners)
 }
 
@@ -1069,13 +1319,22 @@ export type FaceGeometryMode = 'aligned' | 'fixed'
 
 // Shared by the live overlay and both capture sources. A manual guide always
 // samples its drawn square; the default scanner searches nearby grid seams.
-export function faceBoundsForMode(canvas: HTMLCanvasElement, gridSize: number, mode: FaceGeometryMode): FaceBounds {
-  return mode === 'fixed' ? computeFaceBounds(canvas) : alignedFaceBounds(canvas, gridSize)
+export function faceBoundsForMode(
+  canvas: HTMLCanvasElement,
+  gridSize: number,
+  mode: FaceGeometryMode,
+): FaceBounds {
+  return mode === 'fixed'
+    ? computeFaceBounds(canvas)
+    : alignedFaceBounds(canvas, gridSize)
 }
 
 // Draws the square of `bounds` from `canvas` onto a new canvas of its size,
 // turned upright when it is tilted.
-function drawFaceSquare(canvas: HTMLCanvasElement, bounds: FaceBounds): HTMLCanvasElement {
+function drawFaceSquare(
+  canvas: HTMLCanvasElement,
+  bounds: FaceBounds,
+): HTMLCanvasElement {
   const out = document.createElement('canvas')
   out.width = bounds.faceWidth
   out.height = bounds.faceHeight
@@ -1085,28 +1344,60 @@ function drawFaceSquare(canvas: HTMLCanvasElement, bounds: FaceBounds): HTMLCanv
   }
   if (bounds.corners) {
     // Straightened through the corners, from the pixels around them.
-    const xs = bounds.corners.map(([x]) => x), ys = bounds.corners.map(([, y]) => y)
-    const x0 = Math.max(0, Math.floor(Math.min(...xs)) - 1), y0 = Math.max(0, Math.floor(Math.min(...ys)) - 1)
-    const x1 = Math.min(canvas.width, Math.ceil(Math.max(...xs)) + 1), y1 = Math.min(canvas.height, Math.ceil(Math.max(...ys)) + 1)
-    const source = canvas.getContext('2d')?.getImageData(x0, y0, x1 - x0, y1 - y0)
+    const xs = bounds.corners.map(([x]) => x),
+      ys = bounds.corners.map(([, y]) => y)
+    const x0 = Math.max(0, Math.floor(Math.min(...xs)) - 1),
+      y0 = Math.max(0, Math.floor(Math.min(...ys)) - 1)
+    const x1 = Math.min(canvas.width, Math.ceil(Math.max(...xs)) + 1),
+      y1 = Math.min(canvas.height, Math.ceil(Math.max(...ys)) + 1)
+    const source = canvas
+      .getContext('2d')
+      ?.getImageData(x0, y0, x1 - x0, y1 - y0)
     if (!source) throw new Error('Could not get canvas context')
-    const pixels = warpQuadToSquare(source.data, source.width, source.height, bounds.corners.map(([x, y]) => [x - x0, y - y0]), bounds.faceWidth)
-    ctx.putImageData(new ImageData(pixels as Uint8ClampedArray<ArrayBuffer>, bounds.faceWidth, bounds.faceWidth), 0, 0)
+    const pixels = warpQuadToSquare(
+      source.data,
+      source.width,
+      source.height,
+      bounds.corners.map(([x, y]) => [x - x0, y - y0]),
+      bounds.faceWidth,
+    )
+    ctx.putImageData(
+      new ImageData(
+        pixels as Uint8ClampedArray<ArrayBuffer>,
+        bounds.faceWidth,
+        bounds.faceWidth,
+      ),
+      0,
+      0,
+    )
   } else if (bounds.angle) {
     ctx.translate(bounds.faceWidth / 2, bounds.faceHeight / 2)
     ctx.rotate(-bounds.angle)
-    ctx.drawImage(canvas, -(bounds.startX + bounds.faceWidth / 2), -(bounds.startY + bounds.faceHeight / 2))
+    ctx.drawImage(
+      canvas,
+      -(bounds.startX + bounds.faceWidth / 2),
+      -(bounds.startY + bounds.faceHeight / 2),
+    )
   } else {
     ctx.drawImage(
       canvas,
-      bounds.startX, bounds.startY, bounds.faceWidth, bounds.faceHeight,
-      0, 0, bounds.faceWidth, bounds.faceHeight
+      bounds.startX,
+      bounds.startY,
+      bounds.faceWidth,
+      bounds.faceHeight,
+      0,
+      0,
+      bounds.faceWidth,
+      bounds.faceHeight,
     )
   }
   return out
 }
 
-function readFaceRegion(canvas: HTMLCanvasElement, bounds: FaceBounds): FaceRegion {
+function readFaceRegion(
+  canvas: HTMLCanvasElement,
+  bounds: FaceBounds,
+): FaceRegion {
   const drawn = Boolean(bounds.angle || bounds.corners)
   const source = drawn ? drawFaceSquare(canvas, bounds) : canvas
   const ctx = source.getContext('2d')
@@ -1117,10 +1408,14 @@ function readFaceRegion(canvas: HTMLCanvasElement, bounds: FaceBounds): FaceRegi
     ...bounds,
     imageData: drawn
       ? ctx.getImageData(0, 0, bounds.faceWidth, bounds.faceHeight)
-      : ctx.getImageData(bounds.startX, bounds.startY, bounds.faceWidth, bounds.faceHeight),
+      : ctx.getImageData(
+          bounds.startX,
+          bounds.startY,
+          bounds.faceWidth,
+          bounds.faceHeight,
+        ),
   }
 }
-
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Background-based cross-face correction
@@ -1158,24 +1453,44 @@ const BACKGROUND_STRIDE = 2
 // Only meaningful on a live, uncropped canvas - a stored croppedImage (see
 // cropFaceRegionToDataUrl) has no background left - so it's captured once
 // at capture time (captureAndProcessCanvas / captureAndProcessImage).
-export function extractBackgroundColor(canvas: HTMLCanvasElement, face: FaceBounds = computeFaceBounds(canvas)): RGB | null {
+export function extractBackgroundColor(
+  canvas: HTMLCanvasElement,
+  face: FaceBounds = computeFaceBounds(canvas),
+): RGB | null {
   const ctx = canvas.getContext('2d')
   if (!ctx) return null
   const { width, height } = canvas
   if (width < 40 || height < 40) return null
-  return extractBackgroundColorFromPixels(ctx.getImageData(0, 0, width, height).data, width, height, face)
+  return extractBackgroundColorFromPixels(
+    ctx.getImageData(0, 0, width, height).data,
+    width,
+    height,
+    face,
+  )
 }
 
 // The live worker already owns the raw frame pixels, so it can take the
 // same backdrop reading without creating another canvas or copying a frame.
-export function extractBackgroundColorFromPixels(data: Uint8ClampedArray, width: number, height: number, face: FaceBounds): RGB | null {
+export function extractBackgroundColorFromPixels(
+  data: Uint8ClampedArray,
+  width: number,
+  height: number,
+  face: FaceBounds,
+): RGB | null {
   if (width < 40 || height < 40) return null
 
   const gap = BACKGROUND_CUBE_GAP
   const turn = face.angle ?? 0
-  const half = (face.faceWidth / 2) * (Math.abs(Math.cos(turn)) + Math.abs(Math.sin(turn))) + gap * face.faceWidth
-  const cx = face.startX + face.faceWidth / 2, cy = face.startY + face.faceHeight / 2
-  const left = cx - half, right = cx + half, top = cy - half, bottom = cy + half
+  const half =
+    (face.faceWidth / 2) *
+      (Math.abs(Math.cos(turn)) + Math.abs(Math.sin(turn))) +
+    gap * face.faceWidth
+  const cx = face.startX + face.faceWidth / 2,
+    cy = face.startY + face.faceHeight / 2
+  const left = cx - half,
+    right = cx + half,
+    top = cy - half,
+    bottom = cy + half
 
   const pixels: RGB[] = []
   for (let y = 0; y < height; y += BACKGROUND_STRIDE) {
@@ -1187,10 +1502,20 @@ export function extractBackgroundColorFromPixels(data: Uint8ClampedArray, width:
     }
   }
   // Too little backdrop left (the cube fills the frame) to stand for it.
-  if (pixels.length < 0.05 * (width / BACKGROUND_STRIDE) * (height / BACKGROUND_STRIDE)) return null
+  if (
+    pixels.length <
+    0.05 * (width / BACKGROUND_STRIDE) * (height / BACKGROUND_STRIDE)
+  )
+    return null
 
   const mean = trimmedMeanColor(pixels)
-  if (!mean || !Number.isFinite(mean.r) || !Number.isFinite(mean.g) || !Number.isFinite(mean.b)) return null
+  if (
+    !mean ||
+    !Number.isFinite(mean.r) ||
+    !Number.isFinite(mean.g) ||
+    !Number.isFinite(mean.b)
+  )
+    return null
   const luminance = 0.2126 * mean.r + 0.7152 * mean.g + 0.0722 * mean.b
   if (luminance < 5) return null // too dark to be a reliable reference
   return mean
@@ -1223,7 +1548,9 @@ const MAX_BACKGROUND_GAIN = 1.3 ** 2.2
 // failure mode on a live capture.
 export function limitBackgroundGain(gains: RGB): RGB {
   const clampGain = (g: number) =>
-    Number.isFinite(g) ? Math.max(1 / MAX_BACKGROUND_GAIN, Math.min(MAX_BACKGROUND_GAIN, g)) : 1
+    Number.isFinite(g)
+      ? Math.max(1 / MAX_BACKGROUND_GAIN, Math.min(MAX_BACKGROUND_GAIN, g))
+      : 1
   return { r: clampGain(gains.r), g: clampGain(gains.g), b: clampGain(gains.b) }
 }
 
@@ -1245,31 +1572,62 @@ const median = (values: number[]) => {
 // small. On the saved fixtures' backdrop readings it misread 15 stickers
 // against 17 without gains and 19 relative to face 1. A face without a
 // backdrop reading stays neutral; null with fewer than 3 readings.
-const linearRgb = (bg: RGB) => ({ r: srgbChannelToLinear(bg.r), g: srgbChannelToLinear(bg.g), b: srgbChannelToLinear(bg.b) })
+const linearRgb = (bg: RGB) => ({
+  r: srgbChannelToLinear(bg.r),
+  g: srgbChannelToLinear(bg.g),
+  b: srgbChannelToLinear(bg.b),
+})
 
 // The median backdrop in linear light, or null with fewer than 3 readings.
-function linearBackdropReference(backgrounds: Record<string, RGB | null | undefined>): RGB | null {
-  const lin = Object.values(backgrounds).filter((bg): bg is RGB => !!bg).map(linearRgb)
+function linearBackdropReference(
+  backgrounds: Record<string, RGB | null | undefined>,
+): RGB | null {
+  const lin = Object.values(backgrounds)
+    .filter((bg): bg is RGB => !!bg)
+    .map(linearRgb)
   if (lin.length < 3) return null
-  return { r: median(lin.map((bg) => bg.r)), g: median(lin.map((bg) => bg.g)), b: median(lin.map((bg) => bg.b)) }
+  return {
+    r: median(lin.map((bg) => bg.r)),
+    g: median(lin.map((bg) => bg.g)),
+    b: median(lin.map((bg) => bg.b)),
+  }
 }
 
 // The backdrop every face is brought to (see computeBackgroundGains), in sRGB.
-export function backdropReference(backgrounds: Record<string, RGB | null | undefined>): RGB | null {
+export function backdropReference(
+  backgrounds: Record<string, RGB | null | undefined>,
+): RGB | null {
   const reference = linearBackdropReference(backgrounds)
-  return reference && { r: linearChannelToSrgb(reference.r), g: linearChannelToSrgb(reference.g), b: linearChannelToSrgb(reference.b) }
+  return (
+    reference && {
+      r: linearChannelToSrgb(reference.r),
+      g: linearChannelToSrgb(reference.g),
+      b: linearChannelToSrgb(reference.b),
+    }
+  )
 }
 
-export function computeBackgroundGains(backgrounds: Record<string, RGB | null | undefined>): Record<string, RGB> | null {
+export function computeBackgroundGains(
+  backgrounds: Record<string, RGB | null | undefined>,
+): Record<string, RGB> | null {
   // Ratios of linear light, like the gains are applied (see applyGains).
   const reference = linearBackdropReference(backgrounds)
   if (!reference) return null
   const floor = srgbChannelToLinear(1)
-  return Object.fromEntries(Object.entries(backgrounds).map(([face, bg]) => {
-    if (!bg) return [face, NEUTRAL_GAINS]
-    const l = linearRgb(bg)
-    return [face, limitBackgroundGain({ r: reference.r / Math.max(floor, l.r), g: reference.g / Math.max(floor, l.g), b: reference.b / Math.max(floor, l.b) })]
-  }))
+  return Object.fromEntries(
+    Object.entries(backgrounds).map(([face, bg]) => {
+      if (!bg) return [face, NEUTRAL_GAINS]
+      const l = linearRgb(bg)
+      return [
+        face,
+        limitBackgroundGain({
+          r: reference.r / Math.max(floor, l.r),
+          g: reference.g / Math.max(floor, l.g),
+          b: reference.b / Math.max(floor, l.b),
+        }),
+      ]
+    }),
+  )
 }
 
 // Crops just the analyzed face region out of a captured frame, for showing
@@ -1278,7 +1636,10 @@ export function computeBackgroundGains(backgrounds: Record<string, RGB | null | 
 // high-frequency live-preview path that doesn't need an image, only text.
 export const CROP_JPEG_QUALITY = 1
 
-export function cropFaceRegionToDataUrl(canvas: HTMLCanvasElement, bounds: FaceBounds = computeFaceBounds(canvas)): string {
+export function cropFaceRegionToDataUrl(
+  canvas: HTMLCanvasElement,
+  bounds: FaceBounds = computeFaceBounds(canvas),
+): string {
   const out = drawFaceSquare(canvas, bounds)
   // Quality 1 is the only setting at which Chrome keeps full-resolution
   // color (4:4:4); anything below stores chroma at half resolution (4:2:0),
@@ -1308,18 +1669,34 @@ const OUTLIER_TRIM_FRACTION = 0.15
 // DOM-free), matching how this file's other small numeric helpers are
 // tested rather than only indirectly through the canvas-touching
 // functions that call them.
-export function trimmedMeanColor(pixels: RGB[], trimFraction = OUTLIER_TRIM_FRACTION): RGB | null {
+export function trimmedMeanColor(
+  pixels: RGB[],
+  trimFraction = OUTLIER_TRIM_FRACTION,
+): RGB | null {
   if (pixels.length === 0) return null
   const byLuminance = [...pixels].sort(
-    (a, b) => (0.2126 * a.r + 0.7152 * a.g + 0.0722 * a.b) - (0.2126 * b.r + 0.7152 * b.g + 0.0722 * b.b)
+    (a, b) =>
+      0.2126 * a.r +
+      0.7152 * a.g +
+      0.0722 * a.b -
+      (0.2126 * b.r + 0.7152 * b.g + 0.0722 * b.b),
   )
   const trimCount = Math.floor(pixels.length * trimFraction)
   // Only trim when there's enough left afterward - never let trimming
   // itself produce an empty (or asymmetric/degenerate) result on a very
   // small sample.
-  const kept = trimCount * 2 < pixels.length ? byLuminance.slice(trimCount, pixels.length - trimCount) : byLuminance
-  let sumR = 0, sumG = 0, sumB = 0
-  for (const p of kept) { sumR += p.r; sumG += p.g; sumB += p.b }
+  const kept =
+    trimCount * 2 < pixels.length
+      ? byLuminance.slice(trimCount, pixels.length - trimCount)
+      : byLuminance
+  let sumR = 0,
+    sumG = 0,
+    sumB = 0
+  for (const p of kept) {
+    sumR += p.r
+    sumG += p.g
+    sumB += p.b
+  }
   return { r: sumR / kept.length, g: sumG / kept.length, b: sumB / kept.length }
 }
 
@@ -1349,7 +1726,9 @@ export function stickerColor(pixels: RGB[]): RGB | null {
   const plain = trimmedMeanColor(pixels)
   if (!plain || rgbToOKLCH(plain).c < STICKER_WHITE_CHROMA) return plain
   const spread = (c: RGB) => Math.max(c.r, c.g, c.b) - Math.min(c.r, c.g, c.b)
-  const colorful = [...pixels].sort((a, b) => spread(b) - spread(a)).slice(0, Math.ceil(pixels.length * STICKER_CORE_SATURATED_FRACTION))
+  const colorful = [...pixels]
+    .sort((a, b) => spread(b) - spread(a))
+    .slice(0, Math.ceil(pixels.length * STICKER_CORE_SATURATED_FRACTION))
   return {
     r: colorful.reduce((sum, c) => sum + c.r, 0) / colorful.length,
     g: colorful.reduce((sum, c) => sum + c.g, 0) / colorful.length,
@@ -1380,7 +1759,10 @@ export function centerStickerColor(pixels: RGB[]): RGB | null {
   let groups: number[] = []
   for (let iteration = 0; iteration < 8; iteration++) {
     groups = lab.map((c) => {
-      const d = seeds.map((seed) => (c.l - seed.l) ** 2 + (c.a - seed.a) ** 2 + (c.b - seed.b) ** 2)
+      const d = seeds.map(
+        (seed) =>
+          (c.l - seed.l) ** 2 + (c.a - seed.a) ** 2 + (c.b - seed.b) ** 2,
+      )
       return d[0] <= d[1] ? 0 : 1
     })
     seeds = [0, 1].map((g) => {
@@ -1393,7 +1775,8 @@ export function centerStickerColor(pixels: RGB[]): RGB | null {
       }
     })
   }
-  const larger = groups.filter((g) => g === 0).length >= groups.length / 2 ? 0 : 1
+  const larger =
+    groups.filter((g) => g === 0).length >= groups.length / 2 ? 0 : 1
   return stickerColor(sample.filter((_, i) => groups[i] === larger))
 }
 
@@ -1413,10 +1796,15 @@ export function extractColorsFromImageData(
   gridSize = 3,
   gains: RGB = NEUTRAL_GAINS,
   sampling: SamplingGeometry = DEFAULT_SAMPLING,
-  palette?: Record<string, RGB>
+  palette?: Record<string, RGB>,
 ): ColorDetectionResult {
   // Big cubes' perimeter cubies are wider; sample the layout this face shows.
-  const outerCellRatio = estimateOuterCellRatio(data, faceWidth, faceHeight, gridSize)
+  const outerCellRatio = estimateOuterCellRatio(
+    data,
+    faceWidth,
+    faceHeight,
+    gridSize,
+  )
   const colors: string[][] = []
   const cellConfidences: number[][] = []
   const cellColors: RGB[][] = []
@@ -1433,7 +1821,15 @@ export function extractColorsFromImageData(
       // plastic bezel, and slight grid misalignment are most likely to
       // contaminate the average, so those pixels are excluded rather than
       // averaged in.
-      const rect = stickerSampleRect(row, col, gridSize, faceWidth, faceHeight, sampling, outerCellRatio)
+      const rect = stickerSampleRect(
+        row,
+        col,
+        gridSize,
+        faceWidth,
+        faceHeight,
+        sampling,
+        outerCellRatio,
+      )
       const cellStartX = Math.round(rect.x)
       const cellStartY = Math.round(rect.y)
       const cellW = Math.round(rect.width)
@@ -1455,12 +1851,35 @@ export function extractColorsFromImageData(
         const avgColor: RGB = applyGains(measured, gains)
         rowRGB.push(avgColor)
         let judged = avgColor
-        if (gridSize % 2 === 1 && gridSize >= 3 && row === (gridSize - 1) / 2 && col === row) {
-          const logoSafe = centerStickerColor(samplePixels(data, faceWidth, faceHeight,
-            stickerSampleRect(row, col, gridSize, faceWidth, faceHeight, { ...sampling, stickerCore: Math.max(sampling.stickerCore, CENTER_CORE) }, outerCellRatio)))
+        if (
+          gridSize % 2 === 1 &&
+          gridSize >= 3 &&
+          row === (gridSize - 1) / 2 &&
+          col === row
+        ) {
+          const logoSafe = centerStickerColor(
+            samplePixels(
+              data,
+              faceWidth,
+              faceHeight,
+              stickerSampleRect(
+                row,
+                col,
+                gridSize,
+                faceWidth,
+                faceHeight,
+                {
+                  ...sampling,
+                  stickerCore: Math.max(sampling.stickerCore, CENTER_CORE),
+                },
+                outerCellRatio,
+              ),
+            ),
+          )
           if (logoSafe) centerColor = judged = applyGains(logoSafe, gains)
         }
-        const { color: stickerColor, confidence: cellConfidence } = classifySticker(judged, palette)
+        const { color: stickerColor, confidence: cellConfidence } =
+          classifySticker(judged, palette)
         rowColors.push(stickerColor)
         rowConfidences.push(cellConfidence)
         totalConfidence += cellConfidence
@@ -1477,13 +1896,26 @@ export function extractColorsFromImageData(
 
   const confidence = Math.min(1, totalConfidence / (gridSize * gridSize))
 
-  return { colors, confidence, cellConfidences, cellColors, ...(outerCellRatio !== 1 && { outerCellRatio }), ...(centerColor && { centerColor }) }
+  return {
+    colors,
+    confidence,
+    cellConfidences,
+    cellColors,
+    ...(outerCellRatio !== 1 && { outerCellRatio }),
+    ...(centerColor && { centerColor }),
+  }
 }
 
 // The pixels of `rect` (clipped to the face).
-function samplePixels(data: Uint8ClampedArray, faceWidth: number, faceHeight: number, rect: { x: number; y: number; width: number; height: number }): RGB[] {
+function samplePixels(
+  data: Uint8ClampedArray,
+  faceWidth: number,
+  faceHeight: number,
+  rect: { x: number; y: number; width: number; height: number },
+): RGB[] {
   const pixels: RGB[] = []
-  const x0 = Math.round(rect.x), y0 = Math.round(rect.y)
+  const x0 = Math.round(rect.x),
+    y0 = Math.round(rect.y)
   for (let y = y0; y < y0 + Math.round(rect.height); y++) {
     for (let x = x0; x < x0 + Math.round(rect.width); x++) {
       if (x >= 0 && x < faceWidth && y >= 0 && y < faceHeight) {
@@ -1498,25 +1930,49 @@ function samplePixels(data: Uint8ClampedArray, faceWidth: number, faceHeight: nu
 // A cropped face can be one solid color, so seams are optional when the
 // uncropped camera frame shows the cube's outer silhouette instead.
 // `outerCellRatio` widens the outer rows and columns (see cellEdges).
-export function hasCoherentStickerInteriors(data: Uint8ClampedArray, width: number, height: number, gridSize: number, outerCellRatio = 1): boolean {
-  if (gridSize < 2 || width < gridSize * 8 || height < gridSize * 8) return false
+export function hasCoherentStickerInteriors(
+  data: Uint8ClampedArray,
+  width: number,
+  height: number,
+  gridSize: number,
+  outerCellRatio = 1,
+): boolean {
+  if (gridSize < 2 || width < gridSize * 8 || height < gridSize * 8)
+    return false
   const edges = cellEdges(gridSize, outerCellRatio)
   let coherentCells = 0
   for (let row = 0; row < gridSize; row++) {
     for (let col = 0; col < gridSize; col++) {
       const samples: number[][] = []
-      const cellW = (edges[col + 1] - edges[col]) * width, cellH = (edges[row + 1] - edges[row]) * height
-      const centerX = (edges[col] + edges[col + 1]) / 2 * width, centerY = (edges[row] + edges[row + 1]) / 2 * height
+      const cellW = (edges[col + 1] - edges[col]) * width,
+        cellH = (edges[row + 1] - edges[row]) * height
+      const centerX = ((edges[col] + edges[col + 1]) / 2) * width,
+        centerY = ((edges[row] + edges[row + 1]) / 2) * height
       for (let dy = -2; dy <= 2; dy++) {
         for (let dx = -2; dx <= 2; dx++) {
           const x = Math.round(centerX + dx * 0.1 * cellW)
           const y = Math.round(centerY + dy * 0.1 * cellH)
-          const index = (Math.min(height - 1, y) * width + Math.min(width - 1, x)) * 4
+          const index =
+            (Math.min(height - 1, y) * width + Math.min(width - 1, x)) * 4
           samples.push([data[index], data[index + 1], data[index + 2]])
         }
       }
-      const mean = [0, 1, 2].map((channel) => samples.reduce((sum, sample) => sum + sample[channel], 0) / samples.length)
-      const deviation = samples.reduce((sum, sample) => sum + sample.reduce((diff, value, channel) => diff + Math.abs(value - mean[channel]), 0) / 3, 0) / samples.length
+      const mean = [0, 1, 2].map(
+        (channel) =>
+          samples.reduce((sum, sample) => sum + sample[channel], 0) /
+          samples.length,
+      )
+      const deviation =
+        samples.reduce(
+          (sum, sample) =>
+            sum +
+            sample.reduce(
+              (diff, value, channel) => diff + Math.abs(value - mean[channel]),
+              0,
+            ) /
+              3,
+          0,
+        ) / samples.length
       if (deviation <= 35) coherentCells++
     }
   }
@@ -1528,28 +1984,51 @@ export function hasCoherentStickerInteriors(data: Uint8ClampedArray, width: numb
 // boundary. Room edges can occasionally imitate seams, so Detect face also
 // requires the outer face boundary in the full camera frame.
 // `outerCellRatio` widens the outer rows and columns (see cellEdges).
-export function hasPlausibleStickerFace(data: Uint8ClampedArray, width: number, height: number, gridSize: number, outerCellRatio = 1): boolean {
-  if (!hasCoherentStickerInteriors(data, width, height, gridSize, outerCellRatio)) return false
+export function hasPlausibleStickerFace(
+  data: Uint8ClampedArray,
+  width: number,
+  height: number,
+  gridSize: number,
+  outerCellRatio = 1,
+): boolean {
+  if (
+    !hasCoherentStickerInteriors(data, width, height, gridSize, outerCellRatio)
+  )
+    return false
   const edges = cellEdges(gridSize, outerCellRatio)
-  const xs = edges.map((edge) => edge * width), ys = edges.map((edge) => edge * height)
+  const xs = edges.map((edge) => edge * width),
+    ys = edges.map((edge) => edge * height)
   // Size of the narrower cell on either side of grid line i.
-  const narrower = (lines: number[], i: number) => Math.min(lines[i] - lines[i - 1], lines[i + 1] - lines[i])
+  const narrower = (lines: number[], i: number) =>
+    Math.min(lines[i] - lines[i - 1], lines[i + 1] - lines[i])
   const luminance = (x: number, y: number) => {
-    const index = (Math.min(height - 1, Math.max(0, Math.round(y))) * width + Math.min(width - 1, Math.max(0, Math.round(x)))) * 4
-    return 0.2126 * data[index] + 0.7152 * data[index + 1] + 0.0722 * data[index + 2]
+    const index =
+      (Math.min(height - 1, Math.max(0, Math.round(y))) * width +
+        Math.min(width - 1, Math.max(0, Math.round(x)))) *
+      4
+    return (
+      0.2126 * data[index] + 0.7152 * data[index + 1] + 0.0722 * data[index + 2]
+    )
   }
-  const segmentHasSeam = (vertical: boolean, boundary: number, segment: number) => {
-    const acrossLines = vertical ? xs : ys, alongLines = vertical ? ys : xs
+  const segmentHasSeam = (
+    vertical: boolean,
+    boundary: number,
+    segment: number,
+  ) => {
+    const acrossLines = vertical ? xs : ys,
+      alongLines = vertical ? ys : xs
     const across = narrower(acrossLines, boundary)
     const along = alongLines[segment + 1] - alongLines[segment]
     const edge = acrossLines[boundary]
     const center = (alongLines[segment] + alongLines[segment + 1]) / 2
-    let near = 0, far = 0
+    let near = 0,
+      far = 0
     for (let i = -2; i <= 2; i++) {
       const offset = i * along * 0.07
-      const at = (distance: number) => vertical
-        ? luminance(edge + distance, center + offset)
-        : luminance(center + offset, edge + distance)
+      const at = (distance: number) =>
+        vertical
+          ? luminance(edge + distance, center + offset)
+          : luminance(center + offset, edge + distance)
       near += at(-across * 0.38)
       far += at(across * 0.38)
     }
@@ -1596,48 +2075,80 @@ export function hasPlausibleStickerFace(data: Uint8ClampedArray, width: number, 
     for (let col = 1; col < gridSize; col++) {
       const x = xs[col]
       const y = ys[row]
-      const cellW = narrower(xs, col), cellH = narrower(ys, row)
+      const cellW = narrower(xs, col),
+        cellH = narrower(ys, row)
       const neighbors = [
         colorAt(x - cellW * 0.45, y - cellH * 0.45),
         colorAt(x + cellW * 0.45, y - cellH * 0.45),
         colorAt(x - cellW * 0.45, y + cellH * 0.45),
         colorAt(x + cellW * 0.45, y + cellH * 0.45),
       ]
-      const stickerLuminance = neighbors.reduce((sum, [r, g, b]) => sum + 0.2126 * r + 0.7152 * g + 0.0722 * b, 0) / 4
+      const stickerLuminance =
+        neighbors.reduce(
+          (sum, [r, g, b]) => sum + 0.2126 * r + 0.7152 * g + 0.0722 * b,
+          0,
+        ) / 4
       let cornerContrast = 0
       let darkestCorner = Infinity
       for (let dy = -2; dy <= 2; dy++) {
         for (let dx = -2; dx <= 2; dx++) {
           const corner = colorAt(x + dx * cellW * 0.06, y + dy * cellH * 0.06)
-          cornerContrast = Math.max(cornerContrast, Math.min(...neighbors.map((neighbor) => colorDistance(corner, neighbor))))
-          darkestCorner = Math.min(darkestCorner, luminance(x + dx * cellW * 0.06, y + dy * cellH * 0.06))
+          cornerContrast = Math.max(
+            cornerContrast,
+            Math.min(
+              ...neighbors.map((neighbor) => colorDistance(corner, neighbor)),
+            ),
+          )
+          darkestCorner = Math.min(
+            darkestCorner,
+            luminance(x + dx * cellW * 0.06, y + dy * cellH * 0.06),
+          )
         }
       }
-      if (cornerContrast >= 25 && darkestCorner < stickerLuminance) visibleIntersections++
+      if (cornerContrast >= 25 && darkestCorner < stickerLuminance)
+        visibleIntersections++
     }
   }
   return visibleIntersections >= Math.ceil((gridSize - 1) ** 2 * 0.5)
 }
 
-export function hasVisibleCubeFace(canvas: HTMLCanvasElement, gridSize: number, bounds: FaceBounds = alignedFaceBounds(canvas, gridSize), requireOutline = false): boolean {
+export function hasVisibleCubeFace(
+  canvas: HTMLCanvasElement,
+  gridSize: number,
+  bounds: FaceBounds = alignedFaceBounds(canvas, gridSize),
+  requireOutline = false,
+): boolean {
   const { imageData, faceWidth, faceHeight } = readFaceRegion(canvas, bounds)
-  return faceVisibility(imageData.data, faceWidth, faceHeight, gridSize, () => {
-    const ctx = canvas.getContext('2d')
-    if (!ctx) return false
-    const angle = bounds.angle ?? 0
-    const cos = Math.abs(Math.cos(angle)), sin = Math.abs(Math.sin(angle))
-    const cx = bounds.startX + faceWidth / 2, cy = bounds.startY + faceHeight / 2
-    const margin = Math.ceil(Math.min(faceWidth, faceHeight) * 0.08) + 1
-    const halfX = (cos * faceWidth + sin * faceHeight) / 2 + margin
-    const halfY = (sin * faceWidth + cos * faceHeight) / 2 + margin
-    const x0 = Math.max(0, Math.floor(cx - halfX)), y0 = Math.max(0, Math.floor(cy - halfY))
-    const x1 = Math.min(canvas.width, Math.ceil(cx + halfX)), y1 = Math.min(canvas.height, Math.ceil(cy + halfY))
-    if (x1 <= x0 || y1 <= y0) return false
-    const region = ctx.getImageData(x0, y0, x1 - x0, y1 - y0)
-    return outlineVisible(region.data, x1 - x0, y1 - y0, {
-      ...bounds, startX: bounds.startX - x0, startY: bounds.startY - y0,
-    })
-  }, requireOutline).visible
+  return faceVisibility(
+    imageData.data,
+    faceWidth,
+    faceHeight,
+    gridSize,
+    () => {
+      const ctx = canvas.getContext('2d')
+      if (!ctx) return false
+      const angle = bounds.angle ?? 0
+      const cos = Math.abs(Math.cos(angle)),
+        sin = Math.abs(Math.sin(angle))
+      const cx = bounds.startX + faceWidth / 2,
+        cy = bounds.startY + faceHeight / 2
+      const margin = Math.ceil(Math.min(faceWidth, faceHeight) * 0.08) + 1
+      const halfX = (cos * faceWidth + sin * faceHeight) / 2 + margin
+      const halfY = (sin * faceWidth + cos * faceHeight) / 2 + margin
+      const x0 = Math.max(0, Math.floor(cx - halfX)),
+        y0 = Math.max(0, Math.floor(cy - halfY))
+      const x1 = Math.min(canvas.width, Math.ceil(cx + halfX)),
+        y1 = Math.min(canvas.height, Math.ceil(cy + halfY))
+      if (x1 <= x0 || y1 <= y0) return false
+      const region = ctx.getImageData(x0, y0, x1 - x0, y1 - y0)
+      return outlineVisible(region.data, x1 - x0, y1 - y0, {
+        ...bounds,
+        startX: bounds.startX - x0,
+        startY: bounds.startY - y0,
+      })
+    },
+    requireOutline,
+  ).visible
 }
 
 // The live cube check on the read square `data`, step by step: coherent
@@ -1645,20 +2156,45 @@ export function hasVisibleCubeFace(canvas: HTMLCanvasElement, gridSize: number, 
 // face requires the outer outline even when room lines mimic sticker seams;
 // Guide grid keeps the more permissive manual check.
 export function faceVisibility(
-  data: Uint8ClampedArray, faceWidth: number, faceHeight: number, gridSize: number, outline: () => boolean, requireOutline = false
-): { visible: boolean; coherent: boolean; plausible?: boolean; outline?: boolean } {
+  data: Uint8ClampedArray,
+  faceWidth: number,
+  faceHeight: number,
+  gridSize: number,
+  outline: () => boolean,
+  requireOutline = false,
+): {
+  visible: boolean
+  coherent: boolean
+  plausible?: boolean
+  outline?: boolean
+} {
   // Judge the face in the layout it is sampled in (see extractColorsFromImageData).
   const outer = estimateOuterCellRatio(data, faceWidth, faceHeight, gridSize)
-  if (!hasCoherentStickerInteriors(data, faceWidth, faceHeight, gridSize, outer)) return { visible: false, coherent: false }
-  const plausible = hasPlausibleStickerFace(data, faceWidth, faceHeight, gridSize, outer)
-  if (plausible && !requireOutline) return { visible: true, coherent: true, plausible: true }
+  if (
+    !hasCoherentStickerInteriors(data, faceWidth, faceHeight, gridSize, outer)
+  )
+    return { visible: false, coherent: false }
+  const plausible = hasPlausibleStickerFace(
+    data,
+    faceWidth,
+    faceHeight,
+    gridSize,
+    outer,
+  )
+  if (plausible && !requireOutline)
+    return { visible: true, coherent: true, plausible: true }
   const edge = outline()
   return { visible: edge, coherent: true, plausible, outline: edge }
 }
 
 // Whether the square of `bounds` stands out from its surroundings along at
 // least 3 of its sides, in the full width x height `frame`.
-export function outlineVisible(frame: Uint8ClampedArray, width: number, height: number, bounds: FaceBounds): boolean {
+export function outlineVisible(
+  frame: Uint8ClampedArray,
+  width: number,
+  height: number,
+  bounds: FaceBounds,
+): boolean {
   const { faceWidth, faceHeight } = bounds
   const colorAt = (x: number, y: number) => {
     const px = Math.min(width - 1, Math.max(0, Math.round(x)))
@@ -1666,28 +2202,41 @@ export function outlineVisible(frame: Uint8ClampedArray, width: number, height: 
     const index = (py * width + px) * 4
     return [frame[index], frame[index + 1], frame[index + 2]]
   }
-  const contrast = (a: number[], b: number[]) => (Math.abs(a[0] - b[0]) + Math.abs(a[1] - b[1]) + Math.abs(a[2] - b[2])) / 3
+  const contrast = (a: number[], b: number[]) =>
+    (Math.abs(a[0] - b[0]) + Math.abs(a[1] - b[1]) + Math.abs(a[2] - b[2])) / 3
   const inset = Math.min(faceWidth, faceHeight) * 0.06
   // The outline of the square that was read - aligned, maybe tilted - in
   // its own frame: (u, v) from its center, turned with it.
-  const cx = bounds.startX + faceWidth / 2, cy = bounds.startY + faceHeight / 2
-  const cos = Math.cos(bounds.angle ?? 0), sin = Math.sin(bounds.angle ?? 0)
-  const at = (u: number, v: number) => colorAt(cx + cos * u - sin * v, cy + sin * u + cos * v)
-  const halfW = faceWidth / 2, halfH = faceHeight / 2
+  const cx = bounds.startX + faceWidth / 2,
+    cy = bounds.startY + faceHeight / 2
+  const cos = Math.cos(bounds.angle ?? 0),
+    sin = Math.sin(bounds.angle ?? 0)
+  const at = (u: number, v: number) =>
+    colorAt(cx + cos * u - sin * v, cy + sin * u + cos * v)
+  const halfW = faceWidth / 2,
+    halfH = faceHeight / 2
   let visibleSides = 0
   for (let side = 0; side < 4; side++) {
     let contrasted = 0
     for (let i = 1; i <= 9; i++) {
       const u = (i / 10 - 0.5) * faceWidth
       const v = (i / 10 - 0.5) * faceHeight
-      const inside = side === 0 ? at(-halfW + inset, v)
-        : side === 1 ? at(halfW - inset, v)
-        : side === 2 ? at(u, -halfH + inset)
-        : at(u, halfH - inset)
-      const outside = side === 0 ? at(-halfW - inset, v)
-        : side === 1 ? at(halfW + inset, v)
-        : side === 2 ? at(u, -halfH - inset)
-        : at(u, halfH + inset)
+      const inside =
+        side === 0
+          ? at(-halfW + inset, v)
+          : side === 1
+            ? at(halfW - inset, v)
+            : side === 2
+              ? at(u, -halfH + inset)
+              : at(u, halfH - inset)
+      const outside =
+        side === 0
+          ? at(-halfW - inset, v)
+          : side === 1
+            ? at(halfW + inset, v)
+            : side === 2
+              ? at(u, -halfH - inset)
+              : at(u, halfH + inset)
       if (contrast(inside, outside) >= 25) contrasted++
     }
     if (contrasted >= 6) visibleSides++
@@ -1701,22 +2250,50 @@ export function extractCubeFaceColors(
   gains: RGB = NEUTRAL_GAINS,
   sampling: SamplingGeometry = DEFAULT_SAMPLING,
   palette?: Record<string, RGB>,
-  bounds: FaceBounds = alignedFaceBounds(canvas, gridSize)
+  bounds: FaceBounds = alignedFaceBounds(canvas, gridSize),
 ): ColorDetectionResult {
   const { imageData, faceWidth, faceHeight } = readFaceRegion(canvas, bounds)
-  const result = extractColorsFromImageData(imageData.data, faceWidth, faceHeight, gridSize, gains, sampling, palette)
+  const result = extractColorsFromImageData(
+    imageData.data,
+    faceWidth,
+    faceHeight,
+    gridSize,
+    gains,
+    sampling,
+    palette,
+  )
   return withGridOffset(result, bounds, computeFaceBounds(canvas))
 }
 
 // `result` with where its square sat relative to the guide (gridOffset), when
 // it was moved off the guide - what the live overlay is drawn from.
-export function withGridOffset(result: ColorDetectionResult, bounds: FaceBounds, guide: FaceBounds): ColorDetectionResult {
-  if (bounds.startX === guide.startX && bounds.startY === guide.startY && bounds.faceWidth === guide.faceWidth && !bounds.angle) return result
+export function withGridOffset(
+  result: ColorDetectionResult,
+  bounds: FaceBounds,
+  guide: FaceBounds,
+): ColorDetectionResult {
+  if (
+    bounds.startX === guide.startX &&
+    bounds.startY === guide.startY &&
+    bounds.faceWidth === guide.faceWidth &&
+    !bounds.angle
+  )
+    return result
   return {
     ...result,
     gridOffset: {
-      x: (bounds.startX + bounds.faceWidth / 2 - guide.startX - guide.faceWidth / 2) / guide.faceWidth,
-      y: (bounds.startY + bounds.faceHeight / 2 - guide.startY - guide.faceHeight / 2) / guide.faceHeight,
+      x:
+        (bounds.startX +
+          bounds.faceWidth / 2 -
+          guide.startX -
+          guide.faceWidth / 2) /
+        guide.faceWidth,
+      y:
+        (bounds.startY +
+          bounds.faceHeight / 2 -
+          guide.startY -
+          guide.faceHeight / 2) /
+        guide.faceHeight,
       scale: bounds.faceWidth / guide.faceWidth,
       angle: ((bounds.angle ?? 0) * 180) / Math.PI,
     },
@@ -1736,7 +2313,14 @@ export interface FaceCaptureResult extends ColorDetectionResult {
   frame: { width: number; height: number }
   // `angle`: degrees the crop was turned upright by, about its center.
   // `corners`: where it was straightened from, for a face seen at an angle.
-  crop: { x: number; y: number; width: number; height: number; angle?: number; corners?: number[][] }
+  crop: {
+    x: number
+    y: number
+    width: number
+    height: number
+    angle?: number
+    corners?: number[][]
+  }
   // measureSharpness of the cropped face region.
   sharpness: number
 }
@@ -1747,11 +2331,16 @@ export interface FaceCaptureResult extends ColorDetectionResult {
 // comparable between photos of similar content and size, e.g. the 6 faces
 // of one capture or recaptures of the same cube; saved with fixtures so an
 // out-of-focus face can be spotted.
-export function measureSharpness(data: Uint8ClampedArray, width: number, height: number): number {
+export function measureSharpness(
+  data: Uint8ClampedArray,
+  width: number,
+  height: number,
+): number {
   if (width < 3 || height < 3) return 0
   const luma = new Float32Array(width * height)
   for (let i = 0; i < width * height; i++) {
-    luma[i] = 0.2126 * data[i * 4] + 0.7152 * data[i * 4 + 1] + 0.0722 * data[i * 4 + 2]
+    luma[i] =
+      0.2126 * data[i * 4] + 0.7152 * data[i * 4 + 1] + 0.0722 * data[i * 4 + 2]
   }
   let sum = 0
   let sumSq = 0
@@ -1759,7 +2348,12 @@ export function measureSharpness(data: Uint8ClampedArray, width: number, height:
   for (let y = 1; y < height - 1; y++) {
     for (let x = 1; x < width - 1; x++) {
       const i = y * width + x
-      const laplacian = luma[i - 1] + luma[i + 1] + luma[i - width] + luma[i + width] - 4 * luma[i]
+      const laplacian =
+        luma[i - 1] +
+        luma[i + 1] +
+        luma[i - width] +
+        luma[i + width] -
+        4 * luma[i]
       sum += laplacian
       sumSq += laplacian * laplacian
       count++
@@ -1769,12 +2363,29 @@ export function measureSharpness(data: Uint8ClampedArray, width: number, height:
   return sumSq / count - mean * mean
 }
 
-function describeCrop(canvas: HTMLCanvasElement, bounds: FaceBounds): Pick<FaceCaptureResult, 'frame' | 'crop' | 'sharpness'> {
-  const { imageData, startX, startY, faceWidth, faceHeight } = readFaceRegion(canvas, bounds)
+function describeCrop(
+  canvas: HTMLCanvasElement,
+  bounds: FaceBounds,
+): Pick<FaceCaptureResult, 'frame' | 'crop' | 'sharpness'> {
+  const { imageData, startX, startY, faceWidth, faceHeight } = readFaceRegion(
+    canvas,
+    bounds,
+  )
   return {
     frame: { width: canvas.width, height: canvas.height },
-    crop: { x: startX, y: startY, width: faceWidth, height: faceHeight, ...(bounds.angle && { angle: (bounds.angle * 180) / Math.PI }),
-      ...(bounds.corners && { corners: bounds.corners.map(([x, y]) => [Math.round(x * 10) / 10, Math.round(y * 10) / 10]) }) },
+    crop: {
+      x: startX,
+      y: startY,
+      width: faceWidth,
+      height: faceHeight,
+      ...(bounds.angle && { angle: (bounds.angle * 180) / Math.PI }),
+      ...(bounds.corners && {
+        corners: bounds.corners.map(([x, y]) => [
+          Math.round(x * 10) / 10,
+          Math.round(y * 10) / 10,
+        ]),
+      }),
+    },
     sharpness: measureSharpness(imageData.data, faceWidth, faceHeight),
   }
 }
@@ -1785,7 +2396,7 @@ export function captureAndProcessFace(
   gains: RGB = NEUTRAL_GAINS,
   sampling: SamplingGeometry = DEFAULT_SAMPLING,
   palette?: Record<string, RGB>,
-  geometry: FaceGeometryMode = 'aligned'
+  geometry: FaceGeometryMode = 'aligned',
 ): FaceCaptureResult {
   const canvas = document.createElement('canvas')
   canvas.width = video.videoWidth
@@ -1797,7 +2408,14 @@ export function captureAndProcessFace(
   }
 
   ctx.drawImage(video, 0, 0)
-  return captureAndProcessCanvas(canvas, gridSize, gains, sampling, palette, geometry)
+  return captureAndProcessCanvas(
+    canvas,
+    gridSize,
+    gains,
+    sampling,
+    palette,
+    geometry,
+  )
 }
 
 // Use the already checked live frame for automatic capture. Reading the video
@@ -1809,7 +2427,7 @@ export function captureAndProcessCanvas(
   sampling: SamplingGeometry = DEFAULT_SAMPLING,
   palette?: Record<string, RGB>,
   geometry: FaceGeometryMode = 'aligned',
-  checkedBounds?: FaceBounds
+  checkedBounds?: FaceBounds,
 ): FaceCaptureResult {
   // croppedImage is always the raw, un-gained frame — it's the source of
   // truth photo, re-analyzed independently by the post-capture global
@@ -1821,9 +2439,19 @@ export function captureAndProcessCanvas(
   // One aligned square for the colors, the saved photo and its crop record,
   // so everything later re-analyzed from the photo sees the same face.
   const bounds = checkedBounds ?? faceBoundsForMode(canvas, gridSize, geometry)
-  if (geometry === 'aligned' && !bounds.gridFound) throw new Error('No aligned face found. Show a face in the camera view or choose Guide grid.')
+  if (geometry === 'aligned' && !bounds.gridFound)
+    throw new Error(
+      'No aligned face found. Show a face in the camera view or choose Guide grid.',
+    )
   return {
-    ...extractCubeFaceColors(canvas, gridSize, gains, sampling, palette, bounds),
+    ...extractCubeFaceColors(
+      canvas,
+      gridSize,
+      gains,
+      sampling,
+      palette,
+      bounds,
+    ),
     croppedImage: cropFaceRegionToDataUrl(canvas, bounds),
     backgroundColor: extractBackgroundColor(canvas, bounds),
     ...describeCrop(canvas, bounds),
@@ -1836,7 +2464,7 @@ export function captureAndProcessImage(
   gains: RGB = NEUTRAL_GAINS,
   sampling: SamplingGeometry = DEFAULT_SAMPLING,
   palette?: Record<string, RGB>,
-  geometry: FaceGeometryMode = 'aligned'
+  geometry: FaceGeometryMode = 'aligned',
 ): FaceCaptureResult {
   const canvas = document.createElement('canvas')
   canvas.width = img.naturalWidth
@@ -1851,9 +2479,19 @@ export function captureAndProcessImage(
   // One aligned square for the colors, the saved photo and its crop record,
   // so everything later re-analyzed from the photo sees the same face.
   const bounds = faceBoundsForMode(canvas, gridSize, geometry)
-  if (geometry === 'aligned' && !bounds.gridFound) throw new Error('No aligned face found in the image. Choose another image or Guide grid.')
+  if (geometry === 'aligned' && !bounds.gridFound)
+    throw new Error(
+      'No aligned face found in the image. Choose another image or Guide grid.',
+    )
   return {
-    ...extractCubeFaceColors(canvas, gridSize, gains, sampling, palette, bounds),
+    ...extractCubeFaceColors(
+      canvas,
+      gridSize,
+      gains,
+      sampling,
+      palette,
+      bounds,
+    ),
     croppedImage: cropFaceRegionToDataUrl(canvas, bounds),
     backgroundColor: extractBackgroundColor(canvas, bounds),
     ...describeCrop(canvas, bounds),
@@ -1881,7 +2519,7 @@ export async function redetectFaceColors(
   gridSize: number,
   gains: RGB,
   sampling: SamplingGeometry = DEFAULT_SAMPLING,
-  palette?: Record<string, RGB>
+  palette?: Record<string, RGB>,
 ): Promise<ColorDetectionResult> {
   const img = await loadImageFromDataUrl(croppedImageDataUrl)
   const canvas = document.createElement('canvas')
@@ -1911,7 +2549,14 @@ export async function redetectFaceColors(
 
   // The stored photo was cropped to the aligned square at capture time -
   // sample exactly the guide here instead of aligning it a second time.
-  return extractCubeFaceColors(padded, gridSize, gains, sampling, palette, computeFaceBounds(padded))
+  return extractCubeFaceColors(
+    padded,
+    gridSize,
+    gains,
+    sampling,
+    palette,
+    computeFaceBounds(padded),
+  )
 }
 
 export interface LearnedColorClassificationResult {
@@ -1945,22 +2590,33 @@ export interface LearnedColorClassificationResult {
 // cellConfidences - for showing a human how plausible each alternative is
 // when fixing a sticker. `palette` is the learned colors when the
 // cross-face recalibration ran, the canonical ones otherwise.
-export function colorConfidences(rgb: RGB, palette: Record<string, RGB> = STICKER_COLORS): Record<string, number> {
+export function colorConfidences(
+  rgb: RGB,
+  palette: Record<string, RGB> = STICKER_COLORS,
+): Record<string, number> {
   return Object.fromEntries(
     Object.entries(palette).map(([color, centroid]) => [
       color,
-      Math.max(0, 1 - clusterDistance(rgb, centroid) / CONFIDENCE_DISTANCE_SCALE),
-    ])
+      Math.max(
+        0,
+        1 - clusterDistance(rgb, centroid) / CONFIDENCE_DISTANCE_SCALE,
+      ),
+    ]),
   )
 }
 
 // How different two 6-color palettes are: the mean distance between their
 // same-named colors, in the clustering metric. Used to tell which saved
 // cube profile a capture's learned colors most resemble.
-export function paletteDistance(a: Record<string, RGB>, b: Record<string, RGB>): number {
+export function paletteDistance(
+  a: Record<string, RGB>,
+  b: Record<string, RGB>,
+): number {
   const keys = Object.keys(a).filter((k) => b[k])
   if (keys.length === 0) return Infinity
-  return keys.reduce((sum, k) => sum + clusterDistance(a[k], b[k]), 0) / keys.length
+  return (
+    keys.reduce((sum, k) => sum + clusterDistance(a[k], b[k]), 0) / keys.length
+  )
 }
 
 // How far along the way from its own learned color to the nearest other
@@ -1971,7 +2627,11 @@ export const LOOKALIKE_RATIO = 0.6
 
 // The nearest learned color other than `label`, and how close `rgb` is to
 // the boundary with it (see LOOKALIKE_RATIO).
-export function nearestOtherColor(rgb: RGB, label: string, colors: Record<string, RGB>): { color: string; ratio: number } | null {
+export function nearestOtherColor(
+  rgb: RGB,
+  label: string,
+  colors: Record<string, RGB>,
+): { color: string; ratio: number } | null {
   const own = colors[label]
   if (!own) return null
   const ownDistance = clusterDistance(rgb, own)
@@ -1981,7 +2641,9 @@ export function nearestOtherColor(rgb: RGB, label: string, colors: Record<string
     const distance = clusterDistance(rgb, centroid)
     if (!best || distance < best.distance) best = { color, distance }
   }
-  return best ? { color: best.color, ratio: ownDistance / Math.max(best.distance, 1e-9) } : null
+  return best
+    ? { color: best.color, ratio: ownDistance / Math.max(best.distance, 1e-9) }
+    : null
 }
 
 export async function runGlobalWhiteBalance(
@@ -1989,12 +2651,20 @@ export async function runGlobalWhiteBalance(
   gridSize: number,
   faceGains?: Record<string, RGB>,
   sampling: SamplingGeometry = DEFAULT_SAMPLING,
-  referencePalette?: Record<string, RGB>
+  referencePalette?: Record<string, RGB>,
 ): Promise<LearnedColorClassificationResult> {
   const baselineFaces: Record<string, ColorDetectionResult> = {}
   for (const [face, dataUrl] of Object.entries(faceCroppedImages)) {
-    const gains = faceGains?.[face] ? limitBackgroundGain(faceGains[face]) : NEUTRAL_GAINS
-    baselineFaces[face] = await redetectFaceColors(dataUrl, gridSize, gains, sampling, referencePalette)
+    const gains = faceGains?.[face]
+      ? limitBackgroundGain(faceGains[face])
+      : NEUTRAL_GAINS
+    baselineFaces[face] = await redetectFaceColors(
+      dataUrl,
+      gridSize,
+      gains,
+      sampling,
+      referencePalette,
+    )
   }
 
   return classifyAcrossFaces(baselineFaces, referencePalette)
@@ -2009,16 +2679,25 @@ export async function runGlobalWhiteBalance(
 // per color. A center misread past its logo was otherwise one sticker too
 // many for its color, and the balance pushed the least typical real sticker
 // of that color out (a blue read 19% "white").
-export function classifyAcrossFaces(baselineFaces: Record<string, ColorDetectionResult>, referencePalette?: Record<string, RGB>): LearnedColorClassificationResult {
+export function classifyAcrossFaces(
+  baselineFaces: Record<string, ColorDetectionResult>,
+  referencePalette?: Record<string, RGB>,
+): LearnedColorClassificationResult {
   const gridSize = Object.values(baselineFaces)[0]?.colors.length ?? 0
   const middle = (gridSize - 1) / 2
-  const fixedCenters = gridSize >= 3 && gridSize % 2 === 1 && Object.keys(baselineFaces).length === 6
+  const fixedCenters =
+    gridSize >= 3 &&
+    gridSize % 2 === 1 &&
+    Object.keys(baselineFaces).length === 6
   const samples: StickerSample[] = []
   const sampleLocations: Array<{ face: string; row: number; col: number }> = []
   for (const [face, det] of Object.entries(baselineFaces)) {
     for (let r = 0; r < det.colors.length; r++) {
       for (let c = 0; c < det.colors[r].length; c++) {
-        samples.push({ rgb: det.cellColors[r][c], colorGuess: det.colors[r][c] })
+        samples.push({
+          rgb: det.cellColors[r][c],
+          colorGuess: det.colors[r][c],
+        })
         sampleLocations.push({ face, row: r, col: c })
       }
     }
@@ -2028,10 +2707,20 @@ export function classifyAcrossFaces(baselineFaces: Record<string, ColorDetection
   // put real yellows nearer orange. Never where a logo can sit - a blue
   // logo on a 4x4's white center read as a clear blue.
   const logoBand = (index: number) => Math.abs(index - middle) < 1
-  const clear = referencePalette ? clearStickerColors(samples.map((s) => s.rgb), referencePalette) : []
-  const clearLabels = samples.map((_, i) => (logoBand(sampleLocations[i].row) && logoBand(sampleLocations[i].col) ? null : clear[i] ?? null))
+  const clear = referencePalette
+    ? clearStickerColors(
+        samples.map((s) => s.rgb),
+        referencePalette,
+      )
+    : []
+  const clearLabels = samples.map((_, i) =>
+    logoBand(sampleLocations[i].row) && logoBand(sampleLocations[i].col)
+      ? null
+      : (clear[i] ?? null),
+  )
   const learned = learnStickerColors(samples, referencePalette, clearLabels)
-  if (!learned) return { learned: null, applied: false, faces: baselineFaces, glare: [] }
+  if (!learned)
+    return { learned: null, applied: false, faces: baselineFaces, glare: [] }
 
   // Every sticker's final color/confidence comes directly from
   // learnStickerColors()'s own balanced assignment (labelsBySampleIndex),
@@ -2052,17 +2741,22 @@ export function classifyAcrossFaces(baselineFaces: Record<string, ColorDetection
   }
 
   const faceTotals: Record<string, { sum: number; count: number }> = {}
-  for (const face of Object.keys(baselineFaces)) faceTotals[face] = { sum: 0, count: 0 }
+  for (const face of Object.keys(baselineFaces))
+    faceTotals[face] = { sum: 0, count: 0 }
 
   samples.forEach((_, i) => {
     const { face, row, col } = sampleLocations[i]
     const label = learned.labelsBySampleIndex[i]
-    const cellConfidence = Math.max(0, 1 - learned.leaveOneOutDistances[i] / CONFIDENCE_DISTANCE_SCALE)
+    const cellConfidence = Math.max(
+      0,
+      1 - learned.leaveOneOutDistances[i] / CONFIDENCE_DISTANCE_SCALE,
+    )
 
     reclassifiedFaces[face].colors[row][col] = label
     reclassifiedFaces[face].cellConfidences[row][col] = cellConfidence
     const nearest = nearestOtherColor(samples[i].rgb, label, learned.colors)
-    reclassifiedFaces[face].cellLookalikes![row][col] = nearest && nearest.ratio >= LOOKALIKE_RATIO ? nearest.color : null
+    reclassifiedFaces[face].cellLookalikes![row][col] =
+      nearest && nearest.ratio >= LOOKALIKE_RATIO ? nearest.color : null
     faceTotals[face].sum += cellConfidence
     faceTotals[face].count++
   })
@@ -2070,33 +2764,78 @@ export function classifyAcrossFaces(baselineFaces: Record<string, ColorDetection
   if (fixedCenters) {
     const names = Object.keys(learned.colors)
     const centroids = names.map((name) => learned.colors[name])
-    const label = (face: string, row: number, col: number, color: string, rgb: RGB, distance: number) => {
+    const label = (
+      face: string,
+      row: number,
+      col: number,
+      color: string,
+      rgb: RGB,
+      distance: number,
+    ) => {
       const before = reclassifiedFaces[face].cellConfidences[row][col]
-      const cellConfidence = Math.max(0, 1 - distance / CONFIDENCE_DISTANCE_SCALE)
+      const cellConfidence = Math.max(
+        0,
+        1 - distance / CONFIDENCE_DISTANCE_SCALE,
+      )
       reclassifiedFaces[face].colors[row][col] = color
       reclassifiedFaces[face].cellConfidences[row][col] = cellConfidence
       const nearest = nearestOtherColor(rgb, color, learned.colors)
-      reclassifiedFaces[face].cellLookalikes![row][col] = nearest && nearest.ratio >= LOOKALIKE_RATIO ? nearest.color : null
+      reclassifiedFaces[face].cellLookalikes![row][col] =
+        nearest && nearest.ratio >= LOOKALIKE_RATIO ? nearest.color : null
       faceTotals[face].sum += cellConfidence - before
     }
     // Centers: each color exactly once.
     const faces = Object.keys(baselineFaces)
-    const evidence = faces.map((face) => baselineFaces[face].centerColor ?? baselineFaces[face].cellColors[middle][middle])
-    const cost = evidence.map((rgb) => centroids.map((centroid) => clusterDistance(rgb, centroid)))
+    const evidence = faces.map(
+      (face) =>
+        baselineFaces[face].centerColor ??
+        baselineFaces[face].cellColors[middle][middle],
+    )
+    const cost = evidence.map((rgb) =>
+      centroids.map((centroid) => clusterDistance(rgb, centroid)),
+    )
     const assignment = hungarianAssignment(cost)
-    faces.forEach((face, i) => label(face, middle, middle, names[assignment[i]], evidence[i], cost[i][assignment[i]]))
+    faces.forEach((face, i) =>
+      label(
+        face,
+        middle,
+        middle,
+        names[assignment[i]],
+        evidence[i],
+        cost[i][assignment[i]],
+      ),
+    )
     // Everything else: balanced without the centers. Unchanged labels keep
     // their leave-one-out confidence.
-    const others = samples.map((_, i) => i).filter((i) => !(sampleLocations[i].row === middle && sampleLocations[i].col === middle))
-    const rebalanced = balancedAssign(others.map((i) => samples[i].rgb), centroids, others.map((i) => {
-      const clear = learned.clearLabels[i]
-      return clear == null ? null : names.indexOf(clear)
-    }))
+    const others = samples
+      .map((_, i) => i)
+      .filter(
+        (i) =>
+          !(
+            sampleLocations[i].row === middle &&
+            sampleLocations[i].col === middle
+          ),
+      )
+    const rebalanced = balancedAssign(
+      others.map((i) => samples[i].rgb),
+      centroids,
+      others.map((i) => {
+        const clear = learned.clearLabels[i]
+        return clear == null ? null : names.indexOf(clear)
+      }),
+    )
     others.forEach((i, j) => {
       const color = names[rebalanced[j]]
       if (color === learned.labelsBySampleIndex[i]) return
       const { face, row, col } = sampleLocations[i]
-      label(face, row, col, color, samples[i].rgb, clusterDistance(samples[i].rgb, centroids[rebalanced[j]]))
+      label(
+        face,
+        row,
+        col,
+        color,
+        samples[i].rgb,
+        clusterDistance(samples[i].rgb, centroids[rebalanced[j]]),
+      )
     })
   }
 
@@ -2104,8 +2843,14 @@ export function classifyAcrossFaces(baselineFaces: Record<string, ColorDetection
     reclassifiedFaces[face].confidence = count > 0 ? sum / count : 0
   }
 
-  const labels = sampleLocations.map(({ face, row, col }) => reclassifiedFaces[face].colors[row][col])
-  const glare = glareStickers(samples.map((s) => s.rgb), labels, referencePalette ?? learned.colors).map((i) => sampleLocations[i])
+  const labels = sampleLocations.map(
+    ({ face, row, col }) => reclassifiedFaces[face].colors[row][col],
+  )
+  const glare = glareStickers(
+    samples.map((s) => s.rgb),
+    labels,
+    referencePalette ?? learned.colors,
+  ).map((i) => sampleLocations[i])
 
   return { learned, applied: true, faces: reclassifiedFaces, glare }
 }

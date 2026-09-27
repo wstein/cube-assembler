@@ -3,7 +3,11 @@ import { existsSync, readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import jpeg from 'jpeg-js'
 import { extractColorsFromImageData } from '../src/client/imageProcessing'
-import { ALIGNMENT_MAX_OFFSET, alignFace, type FaceSquare } from '../src/client/gridAlignment'
+import {
+  ALIGNMENT_MAX_OFFSET,
+  alignFace,
+  type FaceSquare,
+} from '../src/client/gridAlignment'
 
 // Real capture crops (gitignored, like test/fixtures.test.ts) held off the
 // guide: each crop is the face, pasted at an offset or scale into a grey
@@ -12,26 +16,38 @@ import { ALIGNMENT_MAX_OFFSET, alignFace, type FaceSquare } from '../src/client/
 
 const root = join(__dirname, 'fixtures')
 const captures = existsSync(root)
-  ? readdirSync(root).filter((name) => name.startsWith('capture-') && existsSync(join(root, name, 'meta.json')))
+  ? readdirSync(root).filter(
+      (name) =>
+        name.startsWith('capture-') &&
+        existsSync(join(root, name, 'meta.json')),
+    )
   : []
 
-interface Face { data: Uint8ClampedArray; size: number; gridSize: number }
+interface Face {
+  data: Uint8ClampedArray
+  size: number
+  gridSize: number
+}
 
 function loadFaces(): Face[] {
   const faces: Face[] = []
   for (const name of captures) {
-    const meta = JSON.parse(readFileSync(join(root, name, 'meta.json'), 'utf8')) as { gridSize: number; faces: Record<string, { photo: string }> }
+    const meta = JSON.parse(
+      readFileSync(join(root, name, 'meta.json'), 'utf8'),
+    ) as { gridSize: number; faces: Record<string, { photo: string }> }
     for (const face of ['u', 'r', 'f', 'd', 'l', 'b']) {
-      const image = jpeg.decode(readFileSync(join(root, name, meta.faces[face].photo)))
+      const image = jpeg.decode(
+        readFileSync(join(root, name, meta.faces[face].photo)),
+      )
       // At most the guide of a 720p camera (432 px), nearest-neighbour,
       // which keeps this test in seconds.
       const source = Math.min(image.width, image.height)
       const size = Math.min(source, 432)
       const data = new Uint8ClampedArray(size * size * 4)
       for (let y = 0; y < size; y++) {
-        const sy = Math.floor(y * source / size)
+        const sy = Math.floor((y * source) / size)
         for (let x = 0; x < size; x++) {
-          const from = (sy * image.width + Math.floor(x * source / size)) * 4
+          const from = (sy * image.width + Math.floor((x * source) / size)) * 4
           data[(y * size + x) * 4] = image.data[from]
           data[(y * size + x) * 4 + 1] = image.data[from + 1]
           data[(y * size + x) * 4 + 2] = image.data[from + 2]
@@ -49,7 +65,11 @@ function loadFaces(): Face[] {
 function frame(face: Face, dx: number, dy: number, scale: number, tilt = 0) {
   if (tilt) return tiltedFrame(face, dx, dy, scale, tilt)
   const width = Math.round(face.size * 1.4)
-  const guide: FaceSquare = { x: Math.round((width - face.size) / 2), y: Math.round((width - face.size) / 2), size: face.size }
+  const guide: FaceSquare = {
+    x: Math.round((width - face.size) / 2),
+    y: Math.round((width - face.size) / 2),
+    size: face.size,
+  }
   const data = new Uint8ClampedArray(width * width * 4).fill(128)
   const drawn = Math.round(face.size * scale)
   const x0 = Math.round(guide.x + (face.size - drawn) / 2 + dx * face.size)
@@ -62,27 +82,45 @@ function frame(face: Face, dx: number, dy: number, scale: number, tilt = 0) {
     const sourceRow = Math.floor(y / scale) * face.size
     for (let x = 0; x < drawn; x++) {
       const source = (sourceRow + Math.floor(x / scale)) * 4
-      row[x * 4] = face.data[source]; row[x * 4 + 1] = face.data[source + 1]; row[x * 4 + 2] = face.data[source + 2]; row[x * 4 + 3] = 255
+      row[x * 4] = face.data[source]
+      row[x * 4 + 1] = face.data[source + 1]
+      row[x * 4 + 2] = face.data[source + 2]
+      row[x * 4 + 3] = 255
     }
-    const from = Math.max(0, -x0), to = Math.min(drawn, width - x0)
+    const from = Math.max(0, -x0),
+      to = Math.min(drawn, width - x0)
     data.set(row.subarray(from * 4, to * 4), (ty * width + x0 + from) * 4)
   }
   return { data, width, guide }
 }
 
 // Nearest-neighbour: each frame pixel looks up the untilted face.
-function tiltedFrame(face: Face, dx: number, dy: number, scale: number, tilt: number) {
+function tiltedFrame(
+  face: Face,
+  dx: number,
+  dy: number,
+  scale: number,
+  tilt: number,
+) {
   const width = Math.round(face.size * 1.4)
-  const guide: FaceSquare = { x: Math.round((width - face.size) / 2), y: Math.round((width - face.size) / 2), size: face.size }
+  const guide: FaceSquare = {
+    x: Math.round((width - face.size) / 2),
+    y: Math.round((width - face.size) / 2),
+    size: face.size,
+  }
   const data = new Uint8ClampedArray(width * width * 4).fill(128)
   const size = face.size * scale
-  const cx = guide.x + face.size / 2 + dx * face.size, cy = guide.y + face.size / 2 + dy * face.size
-  const turn = (tilt * Math.PI) / 180, cos = Math.cos(turn), sin = Math.sin(turn)
+  const cx = guide.x + face.size / 2 + dx * face.size,
+    cy = guide.y + face.size / 2 + dy * face.size
+  const turn = (tilt * Math.PI) / 180,
+    cos = Math.cos(turn),
+    sin = Math.sin(turn)
   for (let y = 0; y < width; y++) {
     for (let x = 0; x < width; x++) {
       const u = (cos * (x - cx) + sin * (y - cy)) / scale + face.size / 2
       const v = (-sin * (x - cx) + cos * (y - cy)) / scale + face.size / 2
-      if (u < 0 || v < 0 || u >= face.size || v >= face.size || size <= 0) continue
+      if (u < 0 || v < 0 || u >= face.size || v >= face.size || size <= 0)
+        continue
       const source = (Math.floor(v) * face.size + Math.floor(u)) * 4
       data.set(face.data.subarray(source, source + 4), (y * width + x) * 4)
     }
@@ -91,31 +129,59 @@ function tiltedFrame(face: Face, dx: number, dy: number, scale: number, tilt: nu
 }
 
 // The square turned upright by `angle` (radians) about its center.
-function readTilted(data: Uint8ClampedArray, width: number, square: FaceSquare, angle: number, gridSize: number): string[][] {
+function readTilted(
+  data: Uint8ClampedArray,
+  width: number,
+  square: FaceSquare,
+  angle: number,
+  gridSize: number,
+): string[][] {
   const size = Math.round(square.size)
-  const cx = square.x + square.size / 2, cy = square.y + square.size / 2
-  const cos = Math.cos(angle), sin = Math.sin(angle)
+  const cx = square.x + square.size / 2,
+    cy = square.y + square.size / 2
+  const cos = Math.cos(angle),
+    sin = Math.sin(angle)
   const crop = new Uint8ClampedArray(size * size * 4)
   for (let y = 0; y < size; y++) {
     for (let x = 0; x < size; x++) {
-      const u = x - size / 2, v = y - size / 2
-      const sx = Math.min(width - 1, Math.max(0, Math.round(cx + cos * u - sin * v)))
-      const sy = Math.min(width - 1, Math.max(0, Math.round(cy + sin * u + cos * v)))
-      crop.set(data.subarray((sy * width + sx) * 4, (sy * width + sx) * 4 + 4), (y * size + x) * 4)
+      const u = x - size / 2,
+        v = y - size / 2
+      const sx = Math.min(
+        width - 1,
+        Math.max(0, Math.round(cx + cos * u - sin * v)),
+      )
+      const sy = Math.min(
+        width - 1,
+        Math.max(0, Math.round(cy + sin * u + cos * v)),
+      )
+      crop.set(
+        data.subarray((sy * width + sx) * 4, (sy * width + sx) * 4 + 4),
+        (y * size + x) * 4,
+      )
     }
   }
   return extractColorsFromImageData(crop, size, size, gridSize).colors
 }
 
-function read(data: Uint8ClampedArray, width: number, square: FaceSquare, gridSize: number): string[][] {
+function read(
+  data: Uint8ClampedArray,
+  width: number,
+  square: FaceSquare,
+  gridSize: number,
+): string[][] {
   const size = Math.round(square.size)
-  const x0 = Math.round(square.x), y0 = Math.round(square.y)
+  const x0 = Math.round(square.x),
+    y0 = Math.round(square.y)
   // The search keeps the square inside the frame, so whole rows copy.
   const crop = new Uint8ClampedArray(size * size * 4)
   for (let y = 0; y < size; y++) {
     const sy = Math.min(width - 1, Math.max(0, y0 + y))
-    const from = Math.max(0, x0), to = Math.min(width, x0 + size)
-    crop.set(data.subarray((sy * width + from) * 4, (sy * width + to) * 4), (y * size + from - x0) * 4)
+    const from = Math.max(0, x0),
+      to = Math.min(width, x0 + size)
+    crop.set(
+      data.subarray((sy * width + from) * 4, (sy * width + to) * 4),
+      (y * size + from - x0) * 4,
+    )
   }
   return extractColorsFromImageData(crop, size, size, gridSize).colors
 }
@@ -138,15 +204,29 @@ describe('grid alignment on real capture crops', () => {
 
   it('reads off-center and undersized faces like centered ones', () => {
     const faces = loadFaces()
-    const misread: Record<string, Record<number, { guide: number; aligned: number; total: number }>> = {}
+    const misread: Record<
+      string,
+      Record<number, { guide: number; aligned: number; total: number }>
+    > = {}
     for (const face of faces) {
-      const truth = extractColorsFromImageData(face.data, face.size, face.size, face.gridSize).colors
+      const truth = extractColorsFromImageData(
+        face.data,
+        face.size,
+        face.size,
+        face.gridSize,
+      ).colors
       for (const [label, dx, dy, scale, tilt] of CASES) {
         const { data, width, guide } = frame(face, dx, dy, scale, tilt)
         const found = alignFace(data, width, width, guide, face.gridSize)
         const byGuide = read(data, width, guide, face.gridSize)
-        const byAlignment = found.angle ? readTilted(data, width, found, found.angle, face.gridSize) : read(data, width, found, face.gridSize)
-        const entry = ((misread[label] ??= {})[face.gridSize] ??= { guide: 0, aligned: 0, total: 0 })
+        const byAlignment = found.angle
+          ? readTilted(data, width, found, found.angle, face.gridSize)
+          : read(data, width, found, face.gridSize)
+        const entry = ((misread[label] ??= {})[face.gridSize] ??= {
+          guide: 0,
+          aligned: 0,
+          total: 0,
+        })
         for (let r = 0; r < face.gridSize; r++) {
           for (let c = 0; c < face.gridSize; c++) {
             if (byGuide[r][c] !== truth[r][c]) entry.guide++
@@ -156,9 +236,18 @@ describe('grid alignment on real capture crops', () => {
         }
       }
     }
-    const rate = (n: number, total: number) => `${(100 * n / total).toFixed(0)}%`
+    const rate = (n: number, total: number) =>
+      `${((100 * n) / total).toFixed(0)}%`
     for (const [label, sizes] of Object.entries(misread)) {
-      console.log(label.padEnd(18), Object.entries(sizes).map(([n, e]) => `${n}x${n} ${rate(e.guide, e.total)} -> ${rate(e.aligned, e.total)}`).join('   '))
+      console.log(
+        label.padEnd(18),
+        Object.entries(sizes)
+          .map(
+            ([n, e]) =>
+              `${n}x${n} ${rate(e.guide, e.total)} -> ${rate(e.aligned, e.total)}`,
+          )
+          .join('   '),
+      )
     }
     // Inside the search range (offset plus the size change stays under half
     // a cell), alignment must never read worse than the guide beyond noise.
@@ -168,11 +257,18 @@ describe('grid alignment on real capture crops', () => {
     // only applies within 60% of the range.
     for (const [label, dx, dy, scale] of CASES) {
       for (const [n, entry] of Object.entries(misread[label])) {
-        const reach = Math.max(Math.abs(dx), Math.abs(dy)) + Math.abs(1 - scale) / 2
+        const reach =
+          Math.max(Math.abs(dx), Math.abs(dy)) + Math.abs(1 - scale) / 2
         const range = Math.min(ALIGNMENT_MAX_OFFSET, 0.45 / Number(n))
         if (reach > range) continue
-        expect(entry.aligned, `${label}, ${n}x${n}`).toBeLessThanOrEqual(entry.guide + Math.ceil(entry.total * 0.01))
-        if (reach <= range * 0.6) expect(entry.aligned / entry.total, `${label}, ${n}x${n}`).toBeLessThanOrEqual(0.05)
+        expect(entry.aligned, `${label}, ${n}x${n}`).toBeLessThanOrEqual(
+          entry.guide + Math.ceil(entry.total * 0.01),
+        )
+        if (reach <= range * 0.6)
+          expect(
+            entry.aligned / entry.total,
+            `${label}, ${n}x${n}`,
+          ).toBeLessThanOrEqual(0.05)
       }
     }
   })
@@ -188,19 +284,35 @@ describe('faces inside a clear shell held by fingers', () => {
     const meta = JSON.parse(readFileSync(join(dir, 'meta.json'), 'utf8'))
     const image = jpeg.decode(readFileSync(join(dir, meta.faces[slot].photo)))
     const size = Math.min(image.width, image.height)
-    const W = Math.round(size * 1.3), off = Math.round((W - size) / 2)
+    const W = Math.round(size * 1.3),
+      off = Math.round((W - size) / 2)
     const frame = new Uint8ClampedArray(W * W * 4).fill(128)
     for (let y = 0; y < size; y++) {
       for (let x = 0; x < size; x++) {
         const from = (y * image.width + x) * 4
-        frame.set([image.data[from], image.data[from + 1], image.data[from + 2], 255], ((y + off) * W + x + off) * 4)
+        frame.set(
+          [image.data[from], image.data[from + 1], image.data[from + 2], 255],
+          ((y + off) * W + x + off) * 4,
+        )
       }
     }
     const guide = Math.round(size * 0.75)
-    return alignFace(frame, W, W, { x: (W - guide) / 2, y: (W - guide) / 2, size: guide }, 3).size / size
+    return (
+      alignFace(
+        frame,
+        W,
+        W,
+        { x: (W - guide) / 2, y: (W - guide) / 2, size: guide },
+        3,
+      ).size / size
+    )
   }
-  const solved = 'capture-2026-09-26T22-49-08-238Z', scrambled = 'capture-2026-09-26T22-13-21-276Z'
-  if (!existsSync(join(root, solved, 'meta.json')) || !existsSync(join(root, scrambled, 'meta.json'))) {
+  const solved = 'capture-2026-09-26T22-49-08-238Z',
+    scrambled = 'capture-2026-09-26T22-13-21-276Z'
+  if (
+    !existsSync(join(root, solved, 'meta.json')) ||
+    !existsSync(join(root, scrambled, 'meta.json'))
+  ) {
     it.skip('requires the saved captures', () => {})
     return
   }
@@ -212,6 +324,7 @@ describe('faces inside a clear shell held by fingers', () => {
 
   it('keeps faces that were cropped right', () => {
     expect(read(solved, 'u')).toBeGreaterThan(0.92)
-    for (const slot of ['u', 'r', 'f', 'd', 'b', 'l']) expect(read(scrambled, slot), slot).toBeGreaterThan(0.92)
+    for (const slot of ['u', 'r', 'f', 'd', 'b', 'l'])
+      expect(read(scrambled, slot), slot).toBeGreaterThan(0.92)
   })
 })

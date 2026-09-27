@@ -8,10 +8,23 @@
  * Run: npx vitest run test/cubeGeometry.test.ts
  */
 import { describe, it, expect } from 'vitest'
-import { rotateCube, turnFace, allOrientations, solvedCubeFaces, type Faces } from '../src/client/cubeGeometry'
+import {
+  rotateCube,
+  turnFace,
+  allOrientations,
+  solvedCubeFaces,
+  type Faces,
+} from '../src/client/cubeGeometry'
 import { solveFaceOrientations, type FaceKey } from '../src/client/cubeAssembly'
 
-const WCA: Record<FaceKey, string> = { U: 'W', R: 'R', F: 'G', D: 'Y', L: 'O', B: 'B' }
+const WCA: Record<FaceKey, string> = {
+  U: 'W',
+  R: 'R',
+  F: 'G',
+  D: 'Y',
+  L: 'O',
+  B: 'B',
+}
 const FACES: FaceKey[] = ['U', 'R', 'F', 'D', 'L', 'B']
 
 // Small deterministic PRNG so failures reproduce.

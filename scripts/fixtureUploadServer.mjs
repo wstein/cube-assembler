@@ -14,12 +14,20 @@ class UploadError extends Error {
 }
 
 function reply(res, status, message) {
-  res.writeHead(status, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' })
-  res.end(JSON.stringify(status === 201 ? { ok: true, name: message } : { error: message }))
+  res.writeHead(status, {
+    'Content-Type': 'application/json',
+    'Cache-Control': 'no-store',
+  })
+  res.end(
+    JSON.stringify(
+      status === 201 ? { ok: true, name: message } : { error: message },
+    ),
+  )
 }
 
 async function readBody(req) {
-  if (Number(req.headers['content-length']) > MAX_BYTES) throw new UploadError(413, 'Upload too large')
+  if (Number(req.headers['content-length']) > MAX_BYTES)
+    throw new UploadError(413, 'Upload too large')
   const chunks = []
   let size = 0
   for await (const chunk of req) {
@@ -31,17 +39,28 @@ async function readBody(req) {
 }
 
 function validFacelets(text, n) {
-  return typeof text === 'string' && text.split(/\s+/).length === 6 &&
-    text.split(/\s+/).every((face) => face.length === n * n && /^[WOGRBY]+$/.test(face))
+  return (
+    typeof text === 'string' &&
+    text.split(/\s+/).length === 6 &&
+    text
+      .split(/\s+/)
+      .every((face) => face.length === n * n && /^[WOGRBY]+$/.test(face))
+  )
 }
 
 function validateParts(form) {
   const name = form.get('name')
-  if (typeof name !== 'string' || !/^[a-zA-Z0-9][a-zA-Z0-9_-]{0,79}$/.test(name)) {
+  if (
+    typeof name !== 'string' ||
+    !/^[a-zA-Z0-9][a-zA-Z0-9_-]{0,79}$/.test(name)
+  ) {
     throw new UploadError(400, 'Invalid fixture name')
   }
   const entries = [...form.entries()]
-  if (entries.length !== 8 || entries.some(([key]) => key !== 'name' && key !== 'file')) {
+  if (
+    entries.length !== 8 ||
+    entries.some(([key]) => key !== 'name' && key !== 'file')
+  ) {
     throw new UploadError(400, 'Expected a name and seven files')
   }
   const files = form.getAll('file')
@@ -63,24 +82,41 @@ async function validateFixture(byName) {
     throw new UploadError(400, 'Invalid meta.json')
   }
   const n = meta?.gridSize
-  if (!Number.isInteger(n) || n < 2 || n > 7 || !validFacelets(meta.colorsURFDLB, n)) {
+  if (
+    !Number.isInteger(n) ||
+    n < 2 ||
+    n > 7 ||
+    !validFacelets(meta.colorsURFDLB, n)
+  ) {
     throw new UploadError(400, 'Invalid fixture metadata')
   }
   const expected = new Set(['meta.json'])
   for (const face of FACES) {
     const filename = meta.faces?.[face]?.photo
-    if (typeof filename !== 'string' || !new RegExp(`^face-${face}\\.(jpg|png)$`).test(filename)) {
+    if (
+      typeof filename !== 'string' ||
+      !new RegExp(`^face-${face}\\.(jpg|png)$`).test(filename)
+    ) {
       throw new UploadError(400, 'Invalid photo reference')
     }
     expected.add(filename)
     const file = byName.get(filename)
     if (!file) throw new UploadError(400, 'Missing face photo')
     const bytes = new Uint8Array(await file.arrayBuffer())
-    const jpeg = filename.endsWith('.jpg') && bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff
-    const png = filename.endsWith('.png') && [137, 80, 78, 71, 13, 10, 26, 10].every((byte, i) => bytes[i] === byte)
+    const jpeg =
+      filename.endsWith('.jpg') &&
+      bytes[0] === 0xff &&
+      bytes[1] === 0xd8 &&
+      bytes[2] === 0xff
+    const png =
+      filename.endsWith('.png') &&
+      [137, 80, 78, 71, 13, 10, 26, 10].every((byte, i) => bytes[i] === byte)
     if (!jpeg && !png) throw new UploadError(400, 'Invalid face photo')
   }
-  if (expected.size !== byName.size || [...byName.keys()].some((filename) => !expected.has(filename))) {
+  if (
+    expected.size !== byName.size ||
+    [...byName.keys()].some((filename) => !expected.has(filename))
+  ) {
     throw new UploadError(400, 'Unexpected file')
   }
 }
@@ -88,8 +124,14 @@ async function validateFixture(byName) {
 export function createFixtureUploadServer(rootDir, log = console.log) {
   return createServer(async (req, res) => {
     const started = performance.now()
-    const path = (req.url ?? '').split('?')[0].replace(/[\x00-\x1f\x7f]/g, '?').slice(0, 120)
-    const trace = (status, detail) => log(`[fixture] ${req.method ?? '?'} ${path} ${status} ${detail} ${Math.round(performance.now() - started)}ms`)
+    const path = (req.url ?? '')
+      .split('?')[0]
+      .replace(/[\x00-\x1f\x7f]/g, '?')
+      .slice(0, 120)
+    const trace = (status, detail) =>
+      log(
+        `[fixture] ${req.method ?? '?'} ${path} ${status} ${detail} ${Math.round(performance.now() - started)}ms`,
+      )
     const send = (status, message) => {
       reply(res, status, message)
       trace(status, message)
@@ -102,14 +144,17 @@ export function createFixtureUploadServer(rootDir, log = console.log) {
     }
     if (req.url !== '/upload') return send(404, 'Not found')
     if (req.method !== 'POST') return send(405, 'Method not allowed')
-    if (req.headers['x-fixture-upload'] !== '1') return send(403, 'Upload header required')
+    if (req.headers['x-fixture-upload'] !== '1')
+      return send(403, 'Upload header required')
     if (!req.headers['content-type']?.startsWith('multipart/form-data;')) {
       return send(415, 'Multipart form required')
     }
     try {
       const body = await readBody(req)
       const request = new Request('http://localhost/upload', {
-        method: 'POST', headers: { 'Content-Type': req.headers['content-type'] }, body,
+        method: 'POST',
+        headers: { 'Content-Type': req.headers['content-type'] },
+        body,
       })
       const { name, byName } = validateParts(await request.formData())
       await validateFixture(byName)
@@ -118,12 +163,17 @@ export function createFixtureUploadServer(rootDir, log = console.log) {
       try {
         await mkdir(folder)
       } catch (error) {
-        if (error.code === 'EEXIST') throw new UploadError(409, 'Fixture already exists')
+        if (error.code === 'EEXIST')
+          throw new UploadError(409, 'Fixture already exists')
         throw error
       }
       try {
         for (const [filename, file] of byName) {
-          await writeFile(join(folder, filename), Buffer.from(await file.arrayBuffer()), { flag: 'wx' })
+          await writeFile(
+            join(folder, filename),
+            Buffer.from(await file.arrayBuffer()),
+            { flag: 'wx' },
+          )
         }
       } catch (error) {
         await rm(folder, { recursive: true, force: true })
@@ -132,15 +182,23 @@ export function createFixtureUploadServer(rootDir, log = console.log) {
       reply(res, 201, name)
       trace(201, `saved ${name} (7 files)`)
     } catch (error) {
-      send(error instanceof UploadError ? error.status : 400,
-        error instanceof UploadError ? error.message : 'Invalid upload')
+      send(
+        error instanceof UploadError ? error.status : 400,
+        error instanceof UploadError ? error.message : 'Invalid upload',
+      )
     }
   })
 }
 
 if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
   const port = 7100
-  createFixtureUploadServer(join(process.cwd(), 'test', 'fixtures')).listen(port, '127.0.0.1', () => {
-    process.stdout.write(`Fixture upload only: http://127.0.0.1:${port}/upload\n`)
-  })
+  createFixtureUploadServer(join(process.cwd(), 'test', 'fixtures')).listen(
+    port,
+    '127.0.0.1',
+    () => {
+      process.stdout.write(
+        `Fixture upload only: http://127.0.0.1:${port}/upload\n`,
+      )
+    },
+  )
 }

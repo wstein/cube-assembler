@@ -7,7 +7,10 @@
  */
 import { describe, it, expect } from 'vitest'
 import type { CubeIR } from '../src/client/cubeAssembly'
-import { runFullParity as checkParity, validateWingEdges } from '../src/client/parity'
+import {
+  runFullParity as checkParity,
+  validateWingEdges,
+} from '../src/client/parity'
 
 type FaceGrid = CubeIR['u']
 
@@ -29,7 +32,10 @@ function solvedCube(n = 3): CubeIR {
 
 describe('parity: 3x3 corner/edge facelet-index tables', () => {
   it('accepts a solved cube', () => {
-    expect(checkParity(solvedCube())).toMatchObject({ valid: true, result: 'Valid — all parity checks passed' })
+    expect(checkParity(solvedCube())).toMatchObject({
+      valid: true,
+      result: 'Valid — all parity checks passed',
+    })
   })
 
   it('accepts a real scrambled capture (the reported false-positive case)', () => {
@@ -37,14 +43,17 @@ describe('parity: 3x3 corner/edge facelet-index tables', () => {
     // with "Unknown corner color triplet" by the original (buggy) table,
     // despite colorBalance and centerCores both passing.
     const cube = cubeFromFacelets(
-      'ROGYWBWYG ROROROYWY GBYBGWGBO YWBWYGORB WROYORWRO WGBYBGRGB'
+      'ROGYWBWYG ROROROYWY GBYBGWGBO YWBWYGORB WROYORWRO WGBYBGRGB',
     )
-    expect(checkParity(cube)).toMatchObject({ valid: true, result: 'Valid — all parity checks passed' })
+    expect(checkParity(cube)).toMatchObject({
+      valid: true,
+      result: 'Valid — all parity checks passed',
+    })
   })
 
   it('rejects a cube with a genuinely broken corner (negative control)', () => {
     const cube = cubeFromFacelets(
-      'ROGYWBWYG ROROROYWY GBYBGWGBO YWBWYGORB WROYORWRO WGBYBGRGB'
+      'ROGYWBWYG ROROROYWY GBYBGWGBO YWBWYGORB WROYORWRO WGBYBGRGB',
     )
     // Swap two stickers that belong to the same UFR corner slot (u[8]
     // and r[0]) - still uses only colors already present, so this alone
@@ -64,8 +73,16 @@ describe('parity: 3x3 corner/edge facelet-index tables', () => {
     expect(result.result).toBe('Unknown corner color triplet')
     expect(result.highlight).toHaveLength(2)
     expect(result.highlight?.map((entry) => entry.facelets)).toEqual([
-      [{ face: 'u', index: 8 }, { face: 'r', index: 0 }, { face: 'f', index: 2 }],
-      [{ face: 'u', index: 0 }, { face: 'l', index: 0 }, { face: 'b', index: 2 }],
+      [
+        { face: 'u', index: 8 },
+        { face: 'r', index: 0 },
+        { face: 'f', index: 2 },
+      ],
+      [
+        { face: 'u', index: 0 },
+        { face: 'l', index: 0 },
+        { face: 'b', index: 2 },
+      ],
     ])
   })
 
@@ -77,10 +94,19 @@ describe('parity: 3x3 corner/edge facelet-index tables', () => {
     cube.b.data[2] = 'O'
 
     const result = checkParity(cube)
-    expect(result.result).toBe('Duplicate corner piece (two positions read the same physical corner)')
+    expect(result.result).toBe(
+      'Duplicate corner piece (two positions read the same physical corner)',
+    )
     expect(result.highlight).toHaveLength(4)
-    expect(result.highlight?.map((entry) => entry.group)).toEqual(['UBR', 'UBR', 'UFL', 'UFL'])
-    expect(result.highlight?.flatMap((entry) => entry.facelets)).toHaveLength(12)
+    expect(result.highlight?.map((entry) => entry.group)).toEqual([
+      'UBR',
+      'UBR',
+      'UFL',
+      'UFL',
+    ])
+    expect(result.highlight?.flatMap((entry) => entry.facelets)).toHaveLength(
+      12,
+    )
   })
 
   it('reports duplicated corners alongside impossible corners on a 5x5', () => {
@@ -95,9 +121,15 @@ describe('parity: 3x3 corner/edge facelet-index tables', () => {
     expect(result.result).toBe('Unknown corner color triplet')
     expect(result.detail).toContain('duplicate corner')
     expect(result.highlight?.map((entry) => entry.group)).toEqual([
-      'R-G-Y', 'UBR', 'UBR', 'UFL', 'UFL',
+      'R-G-Y',
+      'UBR',
+      'UBR',
+      'UFL',
+      'UFL',
     ])
-    expect(result.highlight?.flatMap((entry) => entry.facelets)).toHaveLength(15)
+    expect(result.highlight?.flatMap((entry) => entry.facelets)).toHaveLength(
+      15,
+    )
   })
 
   it('rejects a cube with a genuinely broken edge (negative control)', () => {
@@ -121,15 +153,24 @@ describe('parity: 3x3 corner/edge facelet-index tables', () => {
     cube.r.data[0] = cube.r.data[1] = cube.r.data[2] = 'G'
     cube.b.data[0] = cube.b.data[1] = cube.b.data[2] = 'R'
     cube.l.data[0] = cube.l.data[1] = cube.l.data[2] = 'B'
-    expect(checkParity(cube)).toMatchObject({ valid: true, result: 'Valid — all parity checks passed' })
+    expect(checkParity(cube)).toMatchObject({
+      valid: true,
+      result: 'Valid — all parity checks passed',
+    })
   })
 })
 
 describe('parity: non-3x3 sizes (no center-block uniformity check)', () => {
   it('accepts a solved 2x2, and 4x4-7x7', () => {
-    expect(checkParity(solvedCube(2))).toMatchObject({ valid: true, result: 'Valid — all parity checks passed' })
+    expect(checkParity(solvedCube(2))).toMatchObject({
+      valid: true,
+      result: 'Valid — all parity checks passed',
+    })
     for (const n of [4, 5, 6, 7]) {
-      expect(checkParity(solvedCube(n))).toMatchObject({ valid: true, result: 'Valid (structural + corner + wing-edge count check)' })
+      expect(checkParity(solvedCube(n))).toMatchObject({
+        valid: true,
+        result: 'Valid (structural + corner + wing-edge count check)',
+      })
     }
   })
 
@@ -142,9 +183,12 @@ describe('parity: non-3x3 sizes (no center-block uniformity check)', () => {
     // rejected this valid capture with "Center cores not uniform" even
     // though colorBalance passed.
     const cube = cubeFromFacelets(
-      'YOOWWRRYWYRRRRRG YBGORBBBWBBBOOOO GGGOOGYYGRYBRYRW BGWBROOYRYOYBOOB GBGWBOGBRGGWWYWY GGGRYWWOYWWBYWWR'
+      'YOOWWRRYWYRRRRRG YBGORBBBWBBBOOOO GGGOOGYYGRYBRYRW BGWBROOYRYOYBOOB GBGWBOGBRGGWWYWY GGGRYWWOYWWBYWWR',
     )
-    expect(checkParity(cube)).toMatchObject({ valid: true, result: 'Valid (structural + corner + wing-edge count check)' })
+    expect(checkParity(cube)).toMatchObject({
+      valid: true,
+      result: 'Valid (structural + corner + wing-edge count check)',
+    })
   })
 
   it('accepts the same real 4x4 capture under wing-edge counting (the reported direction-bug false-positive)', () => {
@@ -159,7 +203,7 @@ describe('parity: non-3x3 sizes (no center-block uniformity check)', () => {
     // this capture's wing-edge counts only balance under the corrected
     // table (see EDGE_LINES's reverse flags above).
     const cube = cubeFromFacelets(
-      'YOOWWRRYWYRRRRRG YBGORBBBWBBBOOOO GGGOOGYYGRYBRYRW BGWBROOYRYOYBOOB GBGWBOGBRGGWWYWY GGGRYWWOYWWBYWWR'
+      'YOOWWRRYWYRRRRRG YBGORBBBWBBBOOOO GGGOOGYYGRYBRYRW BGWBROOYRYOYBOOB GBGWBOGBRGGWWYWY GGGRYWWOYWWBYWWR',
     )
     expect(validateWingEdges(cube)).toEqual({ valid: true })
   })
@@ -170,12 +214,19 @@ describe('parity: non-3x3 sizes (no center-block uniformity check)', () => {
     const result = checkParity(cube)
     expect(result.valid).toBe(false)
     expect(result.result).toBe('Invalid color balance')
-    expect(result.detail).toBe('White 3, Red 5 - each color should appear 4 times')
+    expect(result.detail).toBe(
+      'White 3, Red 5 - each color should appear 4 times',
+    )
     // Every Red sticker is a candidate for the misread one - the 4 on R plus the one on U.
-    expect(result.highlight).toEqual([{
-      group: 'Red ×5',
-      facelets: [{ face: 'u', index: 0 }, ...[0, 1, 2, 3].map((index) => ({ face: 'r', index }))],
-    }])
+    expect(result.highlight).toEqual([
+      {
+        group: 'Red ×5',
+        facelets: [
+          { face: 'u', index: 0 },
+          ...[0, 1, 2, 3].map((index) => ({ face: 'r', index })),
+        ],
+      },
+    ])
   })
 
   it('rejects a 2x2 with a genuinely broken corner triplet', () => {
@@ -209,7 +260,7 @@ describe('parity: non-3x3 sizes (no center-block uniformity check)', () => {
     // the two colors being confused (each short exactly where the other
     // is over), without re-deriving the count table themselves.
     expect(result.result).toBe(
-      'Wing edge color-pair counts unbalanced: W-G has 1 (expected 2), W-R has 3 (expected 2), Y-G has 3 (expected 2), Y-R has 1 (expected 2)'
+      'Wing edge color-pair counts unbalanced: W-G has 1 (expected 2), W-R has 3 (expected 2), Y-G has 3 (expected 2), Y-R has 1 (expected 2)',
     )
     // Highlight must include the two stickers that were actually swapped -
     // the real culprits - but can't narrow any further than that: W-R and
@@ -223,11 +274,16 @@ describe('parity: non-3x3 sizes (no center-block uniformity check)', () => {
     // highlight the rest of the same pool on hover.
     const allFacelets = result.highlight!.flatMap((g) => g.facelets)
     expect(allFacelets).toEqual(
-      expect.arrayContaining([{ face: 'u', index: 13 }, { face: 'd', index: 7 }])
+      expect.arrayContaining([
+        { face: 'u', index: 13 },
+        { face: 'd', index: 7 },
+      ]),
     )
     expect(allFacelets.length).toBe(12)
     expect(result.highlight!.length).toBe(6)
-    expect(new Set(result.highlight!.map((g) => g.group))).toEqual(new Set(['W-R', 'Y-G']))
+    expect(new Set(result.highlight!.map((g) => g.group))).toEqual(
+      new Set(['W-R', 'Y-G']),
+    )
   })
 
   it('rejects a 4x4 with a genuinely impossible wing-edge color pair', () => {
@@ -241,7 +297,9 @@ describe('parity: non-3x3 sizes (no center-block uniformity check)', () => {
     expect(result.valid).toBe(false)
     // Names the actual bad pair and where it was read from, not just that
     // "some" wing was wrong.
-    expect(result.result).toMatch(/^Unknown wing edge color pair "G-G" at edge UF/)
+    expect(result.result).toMatch(
+      /^Unknown wing edge color pair "G-G" at edge UF/,
+    )
   })
 
   it('accepts solved cubes of every wing-bearing size via validateWingEdges directly', () => {

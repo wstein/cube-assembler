@@ -15,7 +15,14 @@
 import { describe, it, expect } from 'vitest'
 import { solveFaceOrientations } from '../src/client/cubeAssembly'
 
-const SOLVED_COLOR: Record<string, string> = { U: 'W', R: 'R', F: 'G', D: 'Y', L: 'O', B: 'B' }
+const SOLVED_COLOR: Record<string, string> = {
+  U: 'W',
+  R: 'R',
+  F: 'G',
+  D: 'Y',
+  L: 'O',
+  B: 'B',
+}
 
 function solvedFaces(size: number): Record<string, string[][]> {
   const out: Record<string, string[][]> = {}
@@ -47,7 +54,10 @@ function rotateGrid(grid: string[][], turns: number): string[][] {
 function uTurnedFaces(size: number): Record<string, string[][]> {
   const solved = solvedFaces(size)
   const turned: Record<string, string[][]> = Object.fromEntries(
-    Object.entries(solved).map(([face, grid]) => [face, grid.map((row) => row.slice())])
+    Object.entries(solved).map(([face, grid]) => [
+      face,
+      grid.map((row) => row.slice()),
+    ]),
   )
   turned.F[0] = solved.L[0].slice()
   turned.R[0] = solved.F[0].slice()
@@ -61,7 +71,7 @@ function uTurnedFaces(size: number): Record<string, string[][]> {
 // solver raw capture-order data with no identity or rotation info attached.
 function captureWithRotations(
   faces: Record<string, string[][]>,
-  rotationByFace: Record<string, number>
+  rotationByFace: Record<string, number>,
 ): Record<string, string[][]> {
   const captured: Record<string, string[][]> = {}
   let slot = 1
@@ -73,23 +83,36 @@ function captureWithRotations(
 }
 
 describe('solveFaceOrientations', () => {
-  it.each([3, 5, 7])('resolves a solved %ix%i cube with zero rotation and full validity', (size) => {
-    const result = solveFaceOrientations(solvedFaces(size))
-    expect(result).not.toBeNull()
-    expect(result!.cornerScore).toBe(8)
-    expect(result!.edgeScore).toBe(12)
-    expect(result!.fullyValid).toBe(true)
-    expect(Object.values(result!.rotations).every((r) => r === 0)).toBe(true)
-  })
+  it.each([3, 5, 7])(
+    'resolves a solved %ix%i cube with zero rotation and full validity',
+    (size) => {
+      const result = solveFaceOrientations(solvedFaces(size))
+      expect(result).not.toBeNull()
+      expect(result!.cornerScore).toBe(8)
+      expect(result!.edgeScore).toBe(12)
+      expect(result!.fullyValid).toBe(true)
+      expect(Object.values(result!.rotations).every((r) => r === 0)).toBe(true)
+    },
+  )
 
-  it.each([3, 5, 7])('recovers a real one-move scramble (%ix%i, U turn) at full validity', (size) => {
-    const captured = captureWithRotations(uTurnedFaces(size), { U: 2, R: 1, F: 3, D: 0, L: 1, B: 2 })
-    const result = solveFaceOrientations(captured)
-    expect(result).not.toBeNull()
-    expect(result!.cornerScore).toBe(8)
-    expect(result!.edgeScore).toBe(12)
-    expect(result!.fullyValid).toBe(true)
-  })
+  it.each([3, 5, 7])(
+    'recovers a real one-move scramble (%ix%i, U turn) at full validity',
+    (size) => {
+      const captured = captureWithRotations(uTurnedFaces(size), {
+        U: 2,
+        R: 1,
+        F: 3,
+        D: 0,
+        L: 1,
+        B: 2,
+      })
+      const result = solveFaceOrientations(captured)
+      expect(result).not.toBeNull()
+      expect(result!.cornerScore).toBe(8)
+      expect(result!.edgeScore).toBe(12)
+      expect(result!.fullyValid).toBe(true)
+    },
+  )
 
   it('rejects a decoy rotation that scores a false 8/8 corners + 12/12 edges by duplicating pieces (permutation-parity regression)', () => {
     // Regression case for a real user-reported bug: cornerColors and
@@ -107,12 +130,17 @@ describe('solveFaceOrientations', () => {
     // physically impossible. A genuinely valid rotation of this same
     // capture DOES exist (U:1,R:3,F:0,D:1,L:3,B:0) and must be what the
     // solver picks.
-    const raw = 'RWWRWWRWW RRRRRRYYY GGGGGGGGG YYOYYOYYO WWWOOOOOO BBBBBBBBB'.split(' ')
+    const raw =
+      'RWWRWWRWW RRRRRRYYY GGGGGGGGG YYOYYOYYO WWWOOOOOO BBBBBBBBB'.split(' ')
     const faceOrder = ['U', 'R', 'F', 'D', 'L', 'B']
     const capturedFaces: Record<string, string[][]> = {}
     faceOrder.forEach((key, i) => {
       const flat = raw[i].split('')
-      capturedFaces[key] = [flat.slice(0, 3), flat.slice(3, 6), flat.slice(6, 9)]
+      capturedFaces[key] = [
+        flat.slice(0, 3),
+        flat.slice(3, 6),
+        flat.slice(6, 9),
+      ]
     })
 
     const result = solveFaceOrientations(capturedFaces)
@@ -153,7 +181,14 @@ describe('solveFaceOrientations', () => {
     // tie uniformly; the solved-cube case is genuinely just 4 identical-
     // outcome relabelings, so seeing all 4 costs the customer nothing but
     // one harmless extra click.
-    const captured = captureWithRotations(solvedFaces(2), { U: 0, R: 0, F: 0, D: 0, L: 0, B: 0 })
+    const captured = captureWithRotations(solvedFaces(2), {
+      U: 0,
+      R: 0,
+      F: 0,
+      D: 0,
+      L: 0,
+      B: 0,
+    })
     const result = solveFaceOrientations(captured)
     expect(result).not.toBeNull()
     expect(result!.fullyValid).toBe(true)
@@ -165,8 +200,12 @@ describe('solveFaceOrientations', () => {
     // Capture slots deliberately do not match U R F D L B order.
     const solved = solvedFaces(3)
     const captured = {
-      slotA: solved.B, slotB: solved.U, slotC: solved.D,
-      slotD: solved.F, slotE: solved.L, slotF: solved.R,
+      slotA: solved.B,
+      slotB: solved.U,
+      slotC: solved.D,
+      slotD: solved.F,
+      slotE: solved.L,
+      slotF: solved.R,
     }
     const result = solveFaceOrientations(captured)
     expect(result).not.toBeNull()
@@ -214,31 +253,43 @@ describe('solveFaceOrientations', () => {
     expect(result!.alternatives.length).toBe(4)
     const signatures = new Set(
       result!.alternatives.map((alt) =>
-        ['U', 'R', 'F', 'D', 'L', 'B'].map((f) => alt.faces[f].map((row) => row.join('')).join('')).join('|')
-      )
+        ['U', 'R', 'F', 'D', 'L', 'B']
+          .map((f) => alt.faces[f].map((row) => row.join('')).join(''))
+          .join('|'),
+      ),
     )
     expect(signatures.size).toBe(4) // genuinely distinct content, not duplicates
   })
 
   describe('even sizes (no fixed center reference - identity searched jointly with rotation)', () => {
-    it.each([2, 4, 6])('resolves a solved %ix%i cube, shuffled and pre-rotated, to full validity', (size) => {
-      // Even sizes have no center to key off, so - unlike the odd-size
-      // "identifies each face" test above - there's no fixed expected
-      // U/R/F/D/L/B identity to assert against; a valid result is any
-      // fully-corner-and-edge-valid labeling.
-      const captured = captureWithRotations(solvedFaces(size), { U: 3, R: 1, F: 2, D: 0, L: 3, B: 1 })
-      const result = solveFaceOrientations(captured)
-      expect(result).not.toBeNull()
-      expect(result!.cornerScore).toBe(8)
-      // A 2x2 has no edge pieces at all - every piece is a corner - so
-      // edgeScore is NaN there, not a real (and inevitably misleading)
-      // count; only 4x4/6x6 actually have edges to score.
-      if (size === 2) {
-        expect(Number.isNaN(result!.edgeScore)).toBe(true)
-      } else {
-        expect(result!.edgeScore).toBe(12)
-      }
-    })
+    it.each([2, 4, 6])(
+      'resolves a solved %ix%i cube, shuffled and pre-rotated, to full validity',
+      (size) => {
+        // Even sizes have no center to key off, so - unlike the odd-size
+        // "identifies each face" test above - there's no fixed expected
+        // U/R/F/D/L/B identity to assert against; a valid result is any
+        // fully-corner-and-edge-valid labeling.
+        const captured = captureWithRotations(solvedFaces(size), {
+          U: 3,
+          R: 1,
+          F: 2,
+          D: 0,
+          L: 3,
+          B: 1,
+        })
+        const result = solveFaceOrientations(captured)
+        expect(result).not.toBeNull()
+        expect(result!.cornerScore).toBe(8)
+        // A 2x2 has no edge pieces at all - every piece is a corner - so
+        // edgeScore is NaN there, not a real (and inevitably misleading)
+        // count; only 4x4/6x6 actually have edges to score.
+        if (size === 2) {
+          expect(Number.isNaN(result!.edgeScore)).toBe(true)
+        } else {
+          expect(result!.edgeScore).toBe(12)
+        }
+      },
+    )
 
     it('resolves a real one-move scramble (4x4, U turn), shuffled and pre-rotated, to full validity', () => {
       // This is the regression case for the reported bug: a real capture
@@ -247,7 +298,14 @@ describe('solveFaceOrientations', () => {
       // showing two opposite-face colors at once (e.g. Orange+Red, which
       // can never physically occur on the same cubie), which is exactly
       // what capture-order-as-identity with no rotation solving produced.
-      const captured = captureWithRotations(uTurnedFaces(4), { U: 2, R: 1, F: 3, D: 0, L: 1, B: 2 })
+      const captured = captureWithRotations(uTurnedFaces(4), {
+        U: 2,
+        R: 1,
+        F: 3,
+        D: 0,
+        L: 1,
+        B: 2,
+      })
       const result = solveFaceOrientations(captured)
       expect(result).not.toBeNull()
       expect(result!.cornerScore).toBe(8)
@@ -276,7 +334,14 @@ describe('solveFaceOrientations', () => {
         L: toGrid('GOYWRYRYBGOBRGGG', 4),
         B: toGrid('GGBYYWBBWYGOBOBG', 4),
       }
-      const captured = captureWithRotations(faces, { U: 2, R: 0, F: 1, D: 3, L: 2, B: 0 })
+      const captured = captureWithRotations(faces, {
+        U: 2,
+        R: 0,
+        F: 1,
+        D: 3,
+        L: 2,
+        B: 0,
+      })
       const result = solveFaceOrientations(captured)
       expect(result).not.toBeNull()
       expect(result!.cornerScore).toBe(8)
@@ -359,8 +424,10 @@ describe('solveFaceOrientations', () => {
       expect(result!.truncated).toBe(false)
       const signatures = new Set(
         result!.alternatives.map((alt) =>
-          ['U', 'R', 'F', 'D', 'L', 'B'].map((f) => alt.faces[f].map((row) => row.join('')).join('')).join('|')
-        )
+          ['U', 'R', 'F', 'D', 'L', 'B']
+            .map((f) => alt.faces[f].map((row) => row.join('')).join(''))
+            .join('|'),
+        ),
       )
       expect(signatures.size).toBe(36) // genuinely distinct content, not duplicates
       // R/F/L/B range over all 4 rotations while D is stuck at only 2 -
@@ -376,11 +443,20 @@ describe('solveFaceOrientations', () => {
       expect(rotationValues('L').size).toBe(4)
       expect(rotationValues('B').size).toBe(4)
       expect(rotationValues('D').size).toBe(2)
-      expect(result!.alternatives.every((alt) => alt.rotations.U === 0)).toBe(true)
+      expect(result!.alternatives.every((alt) => alt.rotations.U === 0)).toBe(
+        true,
+      )
     })
 
     it('completes a 4x4 search within a reasonable time budget', () => {
-      const captured = captureWithRotations(solvedFaces(4), { U: 1, R: 2, F: 3, D: 0, L: 1, B: 2 })
+      const captured = captureWithRotations(solvedFaces(4), {
+        U: 1,
+        R: 2,
+        F: 3,
+        D: 0,
+        L: 1,
+        B: 2,
+      })
       const start = performance.now()
       solveFaceOrientations(captured)
       expect(performance.now() - start).toBeLessThan(3000)
@@ -388,7 +464,8 @@ describe('solveFaceOrientations', () => {
 
     it('returns null when fewer or more than 6 faces are captured', () => {
       const six = solvedFaces(4)
-      const { U, ...five } = six
+      const five = { ...six }
+      delete five.U
       expect(solveFaceOrientations(five)).toBeNull()
       expect(solveFaceOrientations({ ...six, extra: six.U })).toBeNull()
     })

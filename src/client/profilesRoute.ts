@@ -3,7 +3,8 @@
 export type ProfilesTab = 'colors' | 'cubes'
 
 export function profilesTab(hash: string): ProfilesTab | null {
-  if (hash === '#profiles' || hash === '#profiles/colors' || hash === '#colors') return 'colors'
+  if (hash === '#profiles' || hash === '#profiles/colors' || hash === '#colors')
+    return 'colors'
   if (hash === '#profiles/cubes') return 'cubes'
   return null
 }
