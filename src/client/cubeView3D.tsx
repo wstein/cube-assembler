@@ -8,6 +8,7 @@ import {
   getSwipeLayerTurn,
   pickCubeSurface,
   twoFingerMotion,
+  wheelGesture,
   type CubeGesture,
   type CubeSurfaceHit,
 } from './cubeGesture'
@@ -1717,7 +1718,14 @@ export function CubeView3D({
 
   const handleWheel = (e: WheelEvent) => {
     e.preventDefault()
-    const zoomDelta = e.deltaY * 0.01
+    if (wheelGesture(e) === 'tilt') {
+      // Touchpads already coast their swipes, so add no inertia of our own.
+      rotateView(-e.deltaX, -e.deltaY, e.timeStamp)
+      pauseAutoRotation()
+      return
+    }
+    // Pinch steps are small; mouse wheel notches are about 100.
+    const zoomDelta = e.deltaY * (e.ctrlKey ? 0.05 : 0.01)
     setZoom((prev) => clampZoom(prev + zoomDelta, puzzleSize))
   }
 
@@ -1820,7 +1828,7 @@ export function CubeView3D({
               ) : (
                 <>
                   Swipe a sticker to turn its layer &bull; Drag the background
-                  to rotate &bull; Scroll to zoom
+                  or swipe two fingers to rotate &bull; Pinch or scroll to zoom
                 </>
               )}
             </div>

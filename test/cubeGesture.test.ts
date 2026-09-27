@@ -7,6 +7,7 @@ import {
   gestureWhenSwipeTurnsNothing,
   pickCubeSurface,
   twoFingerMotion,
+  wheelGesture,
 } from '../src/client/cubeGesture'
 
 const camera = { width: 600, height: 600, zoom: 12, pitch: 0, yaw: 0, size: 5 }
@@ -83,5 +84,31 @@ describe('touch gestures', () => {
     expect(clampZoom(1, 3)).toBe(5)
     expect(clampZoom(100, 3)).toBe(17)
     expect(clampZoom(9, 3)).toBe(9)
+  })
+})
+
+describe('wheel and touchpad', () => {
+  const wheel = (deltaX: number, deltaY: number, extra = {}) => ({
+    deltaX,
+    deltaY,
+    deltaMode: 0,
+    ctrlKey: false,
+    ...extra,
+  })
+
+  it('zooms with a pinch, which browsers send as a wheel with Ctrl', () => {
+    expect(wheelGesture(wheel(0, -3.5, { ctrlKey: true }))).toBe('zoom')
+  })
+
+  it('tilts with a two-finger touchpad swipe', () => {
+    expect(wheelGesture(wheel(4.2, -1.5))).toBe('tilt')
+    expect(wheelGesture(wheel(0, 7.25))).toBe('tilt')
+    expect(wheelGesture(wheel(12, 0))).toBe('tilt')
+  })
+
+  it('keeps zooming with a mouse wheel', () => {
+    expect(wheelGesture(wheel(0, 100))).toBe('zoom')
+    expect(wheelGesture(wheel(0, -120))).toBe('zoom')
+    expect(wheelGesture(wheel(0, 3, { deltaMode: 1 }))).toBe('zoom')
   })
 })

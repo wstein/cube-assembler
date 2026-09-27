@@ -280,3 +280,28 @@ test('on touch, one finger turns layers and two fingers tilt the cube', async ({
   await expect(history).toHaveText("Moves: 2L'")
   await expect(notation).toHaveValue(turned)
 })
+
+test('a two-finger touchpad swipe tilts the cube instead of zooming', async ({
+  page,
+}) => {
+  await page.goto('/')
+  await page.getByRole('button', { name: 'Solved cube' }).click()
+  await page.getByRole('button', { name: '3D View' }).click()
+  await page.getByRole('button', { name: 'Front (F)' }).click()
+  const canvas = page.locator('.cube-3d-canvas')
+  const bounds = await canvas.boundingBox()
+  expect(bounds).not.toBeNull()
+  if (!bounds) return
+  await page.mouse.move(bounds.x + bounds.width / 2, bounds.y + 30)
+  await page.waitForTimeout(300)
+  const front = await canvas.screenshot()
+  // Fractional, sideways deltas are what touchpads send for a swipe.
+  for (let i = 0; i < 6; i++) await page.mouse.wheel(7.5, 0)
+  await page.waitForTimeout(300)
+  const swiped = await canvas.screenshot()
+  expect(swiped.equals(front)).toBe(false)
+  // The Front preset still points the same way, so the swipe turned the view.
+  await page.getByRole('button', { name: 'Front (F)' }).click()
+  await page.waitForTimeout(300)
+  expect((await canvas.screenshot()).equals(front)).toBe(true)
+})

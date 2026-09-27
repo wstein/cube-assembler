@@ -195,3 +195,20 @@ export function twoFingerMotion(
 export function clampZoom(zoom: number, size: number): number {
   return Math.max(2 + size, Math.min(8 + size * 3, zoom))
 }
+
+// Touchpads send two-finger swipes as wheel events and pinches as wheel
+// events with Ctrl held. A swipe tilts the cube like two fingers on a touch
+// screen; a pinch or a mouse wheel zooms. Mouse wheels step in whole lines or
+// in large whole-pixel notches without sideways movement.
+export function wheelGesture(e: {
+  deltaX: number
+  deltaY: number
+  deltaMode: number
+  ctrlKey: boolean
+}): 'zoom' | 'tilt' {
+  if (e.ctrlKey) return 'zoom'
+  if (e.deltaMode !== 0) return 'zoom'
+  const notch =
+    e.deltaX === 0 && Number.isInteger(e.deltaY) && Math.abs(e.deltaY) >= 50
+  return notch ? 'zoom' : 'tilt'
+}
