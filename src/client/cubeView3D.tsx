@@ -63,56 +63,28 @@ export function buildCubeMesh(
   cube: CubeState,
   n: number,
   palette: Record<string, string> = DEFAULT_STICKER_HEX,
+  stickerless = true,
 ): MeshData {
   const last = n - 1
-  const h = 0.465 // half size of cubie plastic body
-  const s = 0.415 // half size of sticker quad
-  const eps = 0.006 // offset for sticker quad along face normal
-
   const posList: number[] = []
   const normList: number[] = []
   const colList: number[] = []
   const idxList: number[] = []
 
-  const darkPlastic: [number, number, number] = [0.12, 0.12, 0.13]
+  const darkPlastic: [number, number, number] = [0.11, 0.11, 0.12]
 
-  function addQuad(
+  function addTri(
     p0: [number, number, number],
     p1: [number, number, number],
     p2: [number, number, number],
-    p3: [number, number, number],
-    norm: [number, number, number],
+    n0: [number, number, number],
+    n1: [number, number, number],
+    n2: [number, number, number],
     col: [number, number, number],
   ) {
     const base = posList.length / 3
-    posList.push(
-      p0[0],
-      p0[1],
-      p0[2],
-      p1[0],
-      p1[1],
-      p1[2],
-      p2[0],
-      p2[1],
-      p2[2],
-      p3[0],
-      p3[1],
-      p3[2],
-    )
-    normList.push(
-      norm[0],
-      norm[1],
-      norm[2],
-      norm[0],
-      norm[1],
-      norm[2],
-      norm[0],
-      norm[1],
-      norm[2],
-      norm[0],
-      norm[1],
-      norm[2],
-    )
+    posList.push(p0[0], p0[1], p0[2], p1[0], p1[1], p1[2], p2[0], p2[1], p2[2])
+    normList.push(n0[0], n0[1], n0[2], n1[0], n1[1], n1[2], n2[0], n2[1], n2[2])
     colList.push(
       col[0],
       col[1],
@@ -123,11 +95,149 @@ export function buildCubeMesh(
       col[0],
       col[1],
       col[2],
-      col[0],
-      col[1],
-      col[2],
     )
-    idxList.push(base, base + 1, base + 2, base, base + 2, base + 3)
+    idxList.push(base, base + 1, base + 2)
+  }
+
+  function addQuad(
+    p0: [number, number, number],
+    p1: [number, number, number],
+    p2: [number, number, number],
+    p3: [number, number, number],
+    norm: [number, number, number],
+    col: [number, number, number],
+  ) {
+    addTri(p0, p1, p2, norm, norm, norm, col)
+    addTri(p0, p2, p3, norm, norm, norm, col)
+  }
+
+  // Generate a rounded, beveled face with smoothed normals
+  function addBeveledFace(
+    cx: number,
+    cy: number,
+    cz: number,
+    uAxis: [number, number, number],
+    vAxis: [number, number, number],
+    nAxis: [number, number, number],
+    H: number,
+    r: number,
+    col: [number, number, number],
+    elevation = 0,
+  ) {
+    const s = H - r
+    const Ho = H
+    const d = r * 0.35 // corner rounding inset
+    const hNorm = H + elevation
+
+    function pt(u: number, v: number, n: number): [number, number, number] {
+      return [
+        cx + u * uAxis[0] + v * vAxis[0] + n * nAxis[0],
+        cy + u * uAxis[1] + v * vAxis[1] + n * nAxis[1],
+        cz + u * uAxis[2] + v * vAxis[2] + n * nAxis[2],
+      ]
+    }
+
+    function norm(
+      nu: number,
+      nv: number,
+      nn: number,
+    ): [number, number, number] {
+      const len = Math.hypot(nu, nv, nn) || 1
+      return [
+        (nu * uAxis[0] + nv * vAxis[0] + nn * nAxis[0]) / len,
+        (nu * uAxis[1] + nv * vAxis[1] + nn * nAxis[1]) / len,
+        (nu * uAxis[2] + nv * vAxis[2] + nn * nAxis[2]) / len,
+      ]
+    }
+
+    // Inner 4 vertices of flat face
+    const c0 = pt(-s, -s, hNorm),
+      nc0 = norm(0, 0, 1)
+    const c1 = pt(s, -s, hNorm),
+      nc1 = norm(0, 0, 1)
+    const c2 = pt(s, s, hNorm),
+      nc2 = norm(0, 0, 1)
+    const c3 = pt(-s, s, hNorm),
+      nc3 = norm(0, 0, 1)
+
+    // Bevel outer vertices
+    const zOuter = hNorm - r * 0.7
+    const eTop0 = pt(-s, Ho, zOuter),
+      neTop0 = norm(0, 0.7, 0.7)
+    const eTop1 = pt(s, Ho, zOuter),
+      neTop1 = norm(0, 0.7, 0.7)
+
+    const eBot0 = pt(-s, -Ho, zOuter),
+      neBot0 = norm(0, -0.7, 0.7)
+    const eBot1 = pt(s, -Ho, zOuter),
+      neBot1 = norm(0, -0.7, 0.7)
+
+    const eRt0 = pt(Ho, -s, zOuter),
+      neRt0 = norm(0.7, 0, 0.7)
+    const eRt1 = pt(Ho, s, zOuter),
+      neRt1 = norm(0.7, 0, 0.7)
+
+    const eLt0 = pt(-Ho, -s, zOuter),
+      neLt0 = norm(-0.7, 0, 0.7)
+    const eLt1 = pt(-Ho, s, zOuter),
+      neLt1 = norm(-0.7, 0, 0.7)
+
+    // 4 rounded corners
+    const crnTR = pt(Ho - d, Ho - d, zOuter),
+      ncrnTR = norm(0.6, 0.6, 0.5)
+    const crnTL = pt(-(Ho - d), Ho - d, zOuter),
+      ncrnTL = norm(-0.6, 0.6, 0.5)
+    const crnBL = pt(-(Ho - d), -(Ho - d), zOuter),
+      ncrnBL = norm(-0.6, -0.6, 0.5)
+    const crnBR = pt(Ho - d, -(Ho - d), zOuter),
+      ncrnBR = norm(0.6, -0.6, 0.5)
+
+    // 1. Center flat region
+    addTri(c0, c1, c2, nc0, nc1, nc2, col)
+    addTri(c0, c2, c3, nc0, nc2, nc3, col)
+
+    // 2. Beveled edges
+    addTri(c3, c2, eTop1, nc3, nc2, neTop1, col)
+    addTri(c3, eTop1, eTop0, nc3, neTop1, neTop0, col)
+
+    addTri(eBot0, eBot1, c1, neBot0, neBot1, nc1, col)
+    addTri(eBot0, c1, c0, neBot0, nc1, nc0, col)
+
+    addTri(c1, eRt0, eRt1, nc1, neRt0, neRt1, col)
+    addTri(c1, eRt1, c2, nc1, neRt1, nc2, col)
+
+    addTri(eLt0, c0, c3, neLt0, nc0, nc3, col)
+    addTri(eLt0, c3, eLt1, neLt0, nc3, neLt1, col)
+
+    // 3. Rounded corner transitions
+    addTri(c2, eRt1, crnTR, nc2, neRt1, ncrnTR, col)
+    addTri(c2, crnTR, eTop1, nc2, ncrnTR, neTop1, col)
+
+    addTri(c3, eTop0, crnTL, nc3, neTop0, ncrnTL, col)
+    addTri(c3, crnTL, eLt1, nc3, ncrnTL, neLt1, col)
+
+    addTri(c0, eLt0, crnBL, nc0, neLt0, ncrnBL, col)
+    addTri(c0, crnBL, eBot0, nc0, ncrnBL, neBot0, col)
+
+    addTri(c1, eBot1, crnBR, nc1, neBot1, ncrnBR, col)
+    addTri(c1, crnBR, eRt0, nc1, ncrnBR, neRt0, col)
+  }
+
+  // Face coordinate axes: [uAxis, vAxis, nAxis] with u x v = n
+  const FACE_AXES: Record<
+    string,
+    {
+      u: [number, number, number]
+      v: [number, number, number]
+      n: [number, number, number]
+    }
+  > = {
+    u: { u: [1, 0, 0], v: [0, 0, -1], n: [0, 1, 0] },
+    d: { u: [1, 0, 0], v: [0, 0, 1], n: [0, -1, 0] },
+    f: { u: [1, 0, 0], v: [0, 1, 0], n: [0, 0, 1] },
+    b: { u: [-1, 0, 0], v: [0, 1, 0], n: [0, 0, -1] },
+    r: { u: [0, 0, -1], v: [0, 1, 0], n: [1, 0, 0] },
+    l: { u: [0, 0, 1], v: [0, 1, 0], n: [-1, 0, 0] },
   }
 
   for (let z = 0; z < n; z++) {
@@ -149,146 +259,240 @@ export function buildCubeMesh(
         const cy = y - last / 2
         const cz = z - last / 2
 
-        // 1. Cubie black plastic body (6 sides)
-        // +Y
-        addQuad(
-          [cx - h, cy + h, cz - h],
-          [cx + h, cy + h, cz - h],
-          [cx + h, cy + h, cz + h],
-          [cx - h, cy + h, cz + h],
-          [0, 1, 0],
-          darkPlastic,
-        )
-        // -Y
-        addQuad(
-          [cx - h, cy - h, cz + h],
-          [cx + h, cy - h, cz + h],
-          [cx + h, cy - h, cz - h],
-          [cx - h, cy - h, cz - h],
-          [0, -1, 0],
-          darkPlastic,
-        )
-        // +Z
-        addQuad(
-          [cx - h, cy - h, cz + h],
-          [cx + h, cy - h, cz + h],
-          [cx + h, cy + h, cz + h],
-          [cx - h, cy + h, cz + h],
-          [0, 0, 1],
-          darkPlastic,
-        )
-        // -Z
-        addQuad(
-          [cx - h, cy + h, cz - h],
-          [cx + h, cy + h, cz - h],
-          [cx + h, cy - h, cz - h],
-          [cx - h, cy - h, cz - h],
-          [0, 0, -1],
-          darkPlastic,
-        )
-        // +X
-        addQuad(
-          [cx + h, cy - h, cz - h],
-          [cx + h, cy + h, cz - h],
-          [cx + h, cy + h, cz + h],
-          [cx + h, cy - h, cz + h],
-          [1, 0, 0],
-          darkPlastic,
-        )
-        // -X
-        addQuad(
-          [cx - h, cy - h, cz + h],
-          [cx - h, cy + h, cz + h],
-          [cx - h, cy + h, cz - h],
-          [cx - h, cy - h, cz - h],
-          [-1, 0, 0],
-          darkPlastic,
-        )
-
-        // 2. Sticker facets on exterior faces
-        if (y === last) {
-          const colorKey = getFaceletColor(cube, n, 'u', x, y, z)
-          const rgb = hexToRgb(
-            palette[colorKey] ?? DEFAULT_STICKER_HEX[colorKey] ?? '#888',
-          )
+        if (stickerless) {
+          // In stickerless mode:
+          // 1. Dark interior mechanism backing
+          const hCore = 0.44
+          // Box faces for internal core
           addQuad(
-            [cx - s, cy + h + eps, cz - s],
-            [cx + s, cy + h + eps, cz - s],
-            [cx + s, cy + h + eps, cz + s],
-            [cx - s, cy + h + eps, cz + s],
+            [cx - hCore, cy + hCore, cz - hCore],
+            [cx + hCore, cy + hCore, cz - hCore],
+            [cx + hCore, cy + hCore, cz + hCore],
+            [cx - hCore, cy + hCore, cz + hCore],
             [0, 1, 0],
-            rgb,
-          )
-        }
-        if (y === 0) {
-          const colorKey = getFaceletColor(cube, n, 'd', x, y, z)
-          const rgb = hexToRgb(
-            palette[colorKey] ?? DEFAULT_STICKER_HEX[colorKey] ?? '#888',
+            darkPlastic,
           )
           addQuad(
-            [cx - s, cy - h - eps, cz + s],
-            [cx + s, cy - h - eps, cz + s],
-            [cx + s, cy - h - eps, cz - s],
-            [cx - s, cy - h - eps, cz - s],
+            [cx - hCore, cy - hCore, cz + hCore],
+            [cx + hCore, cy - hCore, cz + hCore],
+            [cx + hCore, cy - hCore, cz - hCore],
+            [cx - hCore, cy - hCore, cz - hCore],
             [0, -1, 0],
-            rgb,
-          )
-        }
-        if (z === last) {
-          const colorKey = getFaceletColor(cube, n, 'f', x, y, z)
-          const rgb = hexToRgb(
-            palette[colorKey] ?? DEFAULT_STICKER_HEX[colorKey] ?? '#888',
+            darkPlastic,
           )
           addQuad(
-            [cx - s, cy - s, cz + h + eps],
-            [cx + s, cy - s, cz + h + eps],
-            [cx + s, cy + s, cz + h + eps],
-            [cx - s, cy + s, cz + h + eps],
+            [cx - hCore, cy - hCore, cz + hCore],
+            [cx + hCore, cy - hCore, cz + hCore],
+            [cx + hCore, cy + hCore, cz + hCore],
+            [cx - hCore, cy + hCore, cz + hCore],
             [0, 0, 1],
-            rgb,
-          )
-        }
-        if (z === 0) {
-          const colorKey = getFaceletColor(cube, n, 'b', x, y, z)
-          const rgb = hexToRgb(
-            palette[colorKey] ?? DEFAULT_STICKER_HEX[colorKey] ?? '#888',
+            darkPlastic,
           )
           addQuad(
-            [cx - s, cy + s, cz - h - eps],
-            [cx + s, cy + s, cz - h - eps],
-            [cx + s, cy - s, cz - h - eps],
-            [cx - s, cy - s, cz - h - eps],
+            [cx - hCore, cy + hCore, cz - hCore],
+            [cx + hCore, cy + hCore, cz - hCore],
+            [cx + hCore, cy - hCore, cz - hCore],
+            [cx - hCore, cy - hCore, cz - hCore],
             [0, 0, -1],
-            rgb,
-          )
-        }
-        if (x === last) {
-          const colorKey = getFaceletColor(cube, n, 'r', x, y, z)
-          const rgb = hexToRgb(
-            palette[colorKey] ?? DEFAULT_STICKER_HEX[colorKey] ?? '#888',
+            darkPlastic,
           )
           addQuad(
-            [cx + h + eps, cy - s, cz - s],
-            [cx + h + eps, cy + s, cz - s],
-            [cx + h + eps, cy + s, cz + s],
-            [cx + h + eps, cy - s, cz + s],
+            [cx + hCore, cy - hCore, cz - hCore],
+            [cx + hCore, cy + hCore, cz - hCore],
+            [cx + hCore, cy + hCore, cz + hCore],
+            [cx + hCore, cy - hCore, cz + hCore],
             [1, 0, 0],
-            rgb,
-          )
-        }
-        if (x === 0) {
-          const colorKey = getFaceletColor(cube, n, 'l', x, y, z)
-          const rgb = hexToRgb(
-            palette[colorKey] ?? DEFAULT_STICKER_HEX[colorKey] ?? '#888',
+            darkPlastic,
           )
           addQuad(
-            [cx - h - eps, cy - s, cz + s],
-            [cx - h - eps, cy + s, cz + s],
-            [cx - h - eps, cy + s, cz - s],
-            [cx - h - eps, cy - s, cz - s],
+            [cx - hCore, cy - hCore, cz + hCore],
+            [cx - hCore, cy + hCore, cz + hCore],
+            [cx - hCore, cy + hCore, cz - hCore],
+            [cx - hCore, cy - hCore, cz - hCore],
             [-1, 0, 0],
-            rgb,
+            darkPlastic,
           )
+
+          // 2. Each exterior face has a rounded beveled colored plastic cap
+          const H = 0.475
+          const r = 0.045
+          if (y === last) {
+            const colorKey = getFaceletColor(cube, n, 'u', x, y, z)
+            const rgb = hexToRgb(
+              palette[colorKey] ?? DEFAULT_STICKER_HEX[colorKey] ?? '#888',
+            )
+            const a = FACE_AXES.u
+            addBeveledFace(cx, cy, cz, a.u, a.v, a.n, H, r, rgb)
+          }
+          if (y === 0) {
+            const colorKey = getFaceletColor(cube, n, 'd', x, y, z)
+            const rgb = hexToRgb(
+              palette[colorKey] ?? DEFAULT_STICKER_HEX[colorKey] ?? '#888',
+            )
+            const a = FACE_AXES.d
+            addBeveledFace(cx, cy, cz, a.u, a.v, a.n, H, r, rgb)
+          }
+          if (z === last) {
+            const colorKey = getFaceletColor(cube, n, 'f', x, y, z)
+            const rgb = hexToRgb(
+              palette[colorKey] ?? DEFAULT_STICKER_HEX[colorKey] ?? '#888',
+            )
+            const a = FACE_AXES.f
+            addBeveledFace(cx, cy, cz, a.u, a.v, a.n, H, r, rgb)
+          }
+          if (z === 0) {
+            const colorKey = getFaceletColor(cube, n, 'b', x, y, z)
+            const rgb = hexToRgb(
+              palette[colorKey] ?? DEFAULT_STICKER_HEX[colorKey] ?? '#888',
+            )
+            const a = FACE_AXES.b
+            addBeveledFace(cx, cy, cz, a.u, a.v, a.n, H, r, rgb)
+          }
+          if (x === last) {
+            const colorKey = getFaceletColor(cube, n, 'r', x, y, z)
+            const rgb = hexToRgb(
+              palette[colorKey] ?? DEFAULT_STICKER_HEX[colorKey] ?? '#888',
+            )
+            const a = FACE_AXES.r
+            addBeveledFace(cx, cy, cz, a.u, a.v, a.n, H, r, rgb)
+          }
+          if (x === 0) {
+            const colorKey = getFaceletColor(cube, n, 'l', x, y, z)
+            const rgb = hexToRgb(
+              palette[colorKey] ?? DEFAULT_STICKER_HEX[colorKey] ?? '#888',
+            )
+            const a = FACE_AXES.l
+            addBeveledFace(cx, cy, cz, a.u, a.v, a.n, H, r, rgb)
+          }
+        } else {
+          // Stickered mode:
+          // 1. Black beveled plastic cubie body
+          const HBody = 0.468
+          const rBody = 0.04
+          for (const key of ['u', 'd', 'f', 'b', 'r', 'l'] as const) {
+            const a = FACE_AXES[key]
+            addBeveledFace(cx, cy, cz, a.u, a.v, a.n, HBody, rBody, darkPlastic)
+          }
+
+          // 2. Rounded sticker tiles on exterior faces
+          const HStk = 0.42
+          const rStk = 0.035
+          const eps = 0.006
+
+          if (y === last) {
+            const colorKey = getFaceletColor(cube, n, 'u', x, y, z)
+            const rgb = hexToRgb(
+              palette[colorKey] ?? DEFAULT_STICKER_HEX[colorKey] ?? '#888',
+            )
+            const a = FACE_AXES.u
+            addBeveledFace(
+              cx,
+              cy,
+              cz,
+              a.u,
+              a.v,
+              a.n,
+              HStk,
+              rStk,
+              rgb,
+              HBody - HStk + eps,
+            )
+          }
+          if (y === 0) {
+            const colorKey = getFaceletColor(cube, n, 'd', x, y, z)
+            const rgb = hexToRgb(
+              palette[colorKey] ?? DEFAULT_STICKER_HEX[colorKey] ?? '#888',
+            )
+            const a = FACE_AXES.d
+            addBeveledFace(
+              cx,
+              cy,
+              cz,
+              a.u,
+              a.v,
+              a.n,
+              HStk,
+              rStk,
+              rgb,
+              HBody - HStk + eps,
+            )
+          }
+          if (z === last) {
+            const colorKey = getFaceletColor(cube, n, 'f', x, y, z)
+            const rgb = hexToRgb(
+              palette[colorKey] ?? DEFAULT_STICKER_HEX[colorKey] ?? '#888',
+            )
+            const a = FACE_AXES.f
+            addBeveledFace(
+              cx,
+              cy,
+              cz,
+              a.u,
+              a.v,
+              a.n,
+              HStk,
+              rStk,
+              rgb,
+              HBody - HStk + eps,
+            )
+          }
+          if (z === 0) {
+            const colorKey = getFaceletColor(cube, n, 'b', x, y, z)
+            const rgb = hexToRgb(
+              palette[colorKey] ?? DEFAULT_STICKER_HEX[colorKey] ?? '#888',
+            )
+            const a = FACE_AXES.b
+            addBeveledFace(
+              cx,
+              cy,
+              cz,
+              a.u,
+              a.v,
+              a.n,
+              HStk,
+              rStk,
+              rgb,
+              HBody - HStk + eps,
+            )
+          }
+          if (x === last) {
+            const colorKey = getFaceletColor(cube, n, 'r', x, y, z)
+            const rgb = hexToRgb(
+              palette[colorKey] ?? DEFAULT_STICKER_HEX[colorKey] ?? '#888',
+            )
+            const a = FACE_AXES.r
+            addBeveledFace(
+              cx,
+              cy,
+              cz,
+              a.u,
+              a.v,
+              a.n,
+              HStk,
+              rStk,
+              rgb,
+              HBody - HStk + eps,
+            )
+          }
+          if (x === 0) {
+            const colorKey = getFaceletColor(cube, n, 'l', x, y, z)
+            const rgb = hexToRgb(
+              palette[colorKey] ?? DEFAULT_STICKER_HEX[colorKey] ?? '#888',
+            )
+            const a = FACE_AXES.l
+            addBeveledFace(
+              cx,
+              cy,
+              cz,
+              a.u,
+              a.v,
+              a.n,
+              HStk,
+              rStk,
+              rgb,
+              HBody - HStk + eps,
+            )
+          }
         }
       }
     }
@@ -605,6 +809,7 @@ export interface CubeView3DProps {
   cube: CubeState
   puzzleSize: number
   palette?: Record<string, string>
+  stickerless?: boolean
   onClose?: () => void
 }
 
@@ -612,6 +817,7 @@ export function CubeView3D({
   cube,
   puzzleSize,
   palette = DEFAULT_STICKER_HEX,
+  stickerless = true,
 }: CubeView3DProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
   const [pitch, setPitch] = useState<number>(0.42) // ~24 deg
@@ -619,6 +825,7 @@ export function CubeView3D({
   const [zoom, setZoom] = useState<number>(puzzleSize * 2.8)
   const [isRotating, setIsRotating] = useState<boolean>(false)
   const [isSupported, setIsSupported] = useState<boolean>(true)
+  const [isStickerless, setIsStickerless] = useState<boolean>(stickerless)
 
   const isDraggingRef = useRef(false)
   const lastPointerRef = useRef({ x: 0, y: 0 })
@@ -664,7 +871,7 @@ export function CubeView3D({
     gl.clearColor(0.08, 0.08, 0.1, 1.0)
 
     // Build geometry
-    const mesh = buildCubeMesh(cube, puzzleSize, palette)
+    const mesh = buildCubeMesh(cube, puzzleSize, palette, isStickerless)
 
     const posBuf = gl.createBuffer()
     gl.bindBuffer(gl.ARRAY_BUFFER, posBuf)
@@ -776,7 +983,7 @@ export function CubeView3D({
       gl.deleteBuffer(idxBuf)
       gl.deleteProgram(program)
     }
-  }, [cube, puzzleSize, palette])
+  }, [cube, puzzleSize, palette, isStickerless])
 
   const handlePointerDown = (e: PointerEvent) => {
     isDraggingRef.current = true
@@ -1006,6 +1213,14 @@ export function CubeView3D({
             </div>
 
             <div class="cube-3d-actions">
+              <button
+                type="button"
+                class="cube-3d-btn"
+                onClick={() => setIsStickerless((v) => !v)}
+                title="Toggle between stickerless and stickered appearance"
+              >
+                {isStickerless ? 'Stickerless' : 'Stickered'}
+              </button>
               <button
                 type="button"
                 class={`cube-3d-btn ${isRotating ? 'cube-3d-btn-active' : ''}`}

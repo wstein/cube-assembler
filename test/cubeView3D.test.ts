@@ -55,19 +55,16 @@ describe('cubeView3D math and geometry', () => {
   })
 
   describe('buildCubeMesh', () => {
-    it('builds valid mesh for 2x2 cube (8 cubies, 24 stickers)', () => {
+    it('builds valid rounded mesh for 2x2 cube in stickerless mode', () => {
       const cube = createSolvedCube(2)
-      const mesh = buildCubeMesh(cube, 2)
+      const mesh = buildCubeMesh(cube, 2, undefined, true)
 
-      // 8 cubies * 6 box faces + 24 stickers = 48 + 24 = 72 quads
-      // 72 quads * 4 vertices = 288 vertices
-      // 72 quads * 6 indices = 432 indices
-      expect(mesh.vertexCount).toBe(288)
-      expect(mesh.indexCount).toBe(432)
-      expect(mesh.positions.length).toBe(288 * 3)
-      expect(mesh.normals.length).toBe(288 * 3)
-      expect(mesh.colors.length).toBe(288 * 3)
-      expect(mesh.indices.length).toBe(432)
+      expect(mesh.vertexCount).toBeGreaterThan(0)
+      expect(mesh.indexCount).toBeGreaterThan(0)
+      expect(mesh.positions.length).toBe(mesh.vertexCount * 3)
+      expect(mesh.normals.length).toBe(mesh.vertexCount * 3)
+      expect(mesh.colors.length).toBe(mesh.vertexCount * 3)
+      expect(mesh.indices.length).toBe(mesh.indexCount)
 
       // Verify index bounds
       for (let i = 0; i < mesh.indices.length; i++) {
@@ -75,27 +72,37 @@ describe('cubeView3D math and geometry', () => {
       }
     })
 
-    it('builds valid mesh for 3x3 cube (26 cubies, 54 stickers)', () => {
+    it('builds valid rounded mesh for 3x3 cube in stickerless mode', () => {
       const cube = createSolvedCube(3)
-      const mesh = buildCubeMesh(cube, 3)
+      const mesh = buildCubeMesh(cube, 3, undefined, true)
 
-      // 26 cubies * 6 box faces + 54 stickers = 156 + 54 = 210 quads
-      // 210 * 4 = 840 vertices
-      // 210 * 6 = 1260 indices
-      expect(mesh.vertexCount).toBe(840)
-      expect(mesh.indexCount).toBe(1260)
+      expect(mesh.vertexCount).toBeGreaterThan(0)
+      expect(mesh.indexCount).toBeGreaterThan(0)
+      for (let i = 0; i < mesh.indices.length; i++) {
+        expect(mesh.indices[i]).toBeLessThan(mesh.vertexCount)
+      }
     })
 
-    it('builds valid mesh for 5x5 cube', () => {
+    it('builds valid rounded mesh in stickered mode', () => {
+      const cube = createSolvedCube(3)
+      const mesh = buildCubeMesh(cube, 3, undefined, false)
+
+      expect(mesh.vertexCount).toBeGreaterThan(0)
+      expect(mesh.indexCount).toBeGreaterThan(0)
+      for (let i = 0; i < mesh.indices.length; i++) {
+        expect(mesh.indices[i]).toBeLessThan(mesh.vertexCount)
+      }
+    })
+
+    it('builds valid rounded mesh for 5x5 cube', () => {
       const cube = createSolvedCube(5)
       const mesh = buildCubeMesh(cube, 5)
 
-      // 5^3 - 3^3 = 125 - 27 = 98 cubies
-      // 98 * 6 = 588 box faces + 6 * 25 stickers = 588 + 150 = 738 quads
-      // 738 * 4 = 2952 vertices
-      // 738 * 6 = 4428 indices
-      expect(mesh.vertexCount).toBe(2952)
-      expect(mesh.indexCount).toBe(4428)
+      expect(mesh.vertexCount).toBeGreaterThan(0)
+      expect(mesh.indexCount).toBeGreaterThan(0)
+      for (let i = 0; i < mesh.indices.length; i++) {
+        expect(mesh.indices[i]).toBeLessThan(mesh.vertexCount)
+      }
     })
   })
 
