@@ -441,8 +441,8 @@ export function buildCubeMesh(
           }
         } else {
           // Stickered mode:
-          // 1. Black beveled plastic cubie body
-          const HBody = 0.468
+          // 1. Black beveled plastic cubie body with reduced gap (0.010)
+          const HBody = 0.495
           const rBody = 0.04
           for (const key of ['u', 'd', 'f', 'b', 'r', 'l'] as const) {
             const a = FACE_AXES[key]
@@ -463,9 +463,9 @@ export function buildCubeMesh(
           }
 
           // 2. Rounded sticker tiles on exterior faces
-          const HStk = 0.42
+          const HStk = 0.445
           const rStk = 0.035
-          const eps = 0.006
+          const eps = 0.005
 
           if (y === last) {
             const colorKey = getFaceletColor(cube, n, 'u', x, y, z)
