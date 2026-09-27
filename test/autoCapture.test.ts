@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { AUTO_CAPTURE_STABLE_FRAMES, SIZE_VOTE_AGREE, TURN_CUE_ABSENT_FRAMES, TURN_CUE_CLEAR_FRAMES, TURN_CUE_START, agreedSize, nextAutoCaptureProgress, nextSizeVotes, nextTurnCue, sizeDetectionActive, turnCueCleared, turnPoseChanged, type AutoCaptureSample } from '../src/client/autoCapture'
+import { AUTO_CAPTURE_STABLE_FRAMES, TURN_CUE_ABSENT_FRAMES, TURN_CUE_CLEAR_FRAMES, TURN_CUE_START, nextAutoCaptureProgress, nextTurnCue, turnCueCleared, turnPoseChanged, type AutoCaptureSample } from '../src/client/autoCapture'
 
 const sample = (color = 'R', x = 100, confidence = 0.9): AutoCaptureSample => ({
   colors: Array.from({ length: 3 }, () => Array(3).fill(color)),
@@ -97,52 +97,5 @@ describe('turn cue dismissal', () => {
     expect(turnPoseChanged(anchor, { ...anchor, centerX: 150 })).toBe(true)
     expect(turnPoseChanged(anchor, { ...anchor, angle: Math.PI / 4 })).toBe(true)
     expect(turnCueCleared(run(Array(TURN_CUE_CLEAR_FRAMES).fill(face), face, true))).toBe(true)
-  })
-})
-
-describe('first-face cube size vote', () => {
-  const vote = (estimates: Array<number | null>) => estimates.reduce<Array<number | null>>((votes, estimate) => nextSizeVotes(votes, estimate), [])
-
-  it('takes five matching detections even across missing frames', () => {
-    expect(SIZE_VOTE_AGREE).toBe(5)
-    expect(agreedSize(vote([4, null, 4, 4, null, 4, 4]))).toBe(4)
-    expect(agreedSize(vote([4, null, 4, 4, null, 4, 5]))).toBeNull()
-    expect(agreedSize(vote([4, ...Array(20).fill(null), 4, 4, 4, 4]))).toBe(4)
-  })
-
-  it(`agrees after ${SIZE_VOTE_AGREE} detections of the same size`, () => {
-    expect(agreedSize(vote(Array(SIZE_VOTE_AGREE - 1).fill(4)))).toBeNull()
-    expect(agreedSize(vote(Array(SIZE_VOTE_AGREE).fill(4)))).toBe(4)
-    expect(agreedSize(vote([null, 4, 4, null, 4, 4, 4]))).toBe(4)
-  })
-
-  it('restarts the count when a different size is detected', () => {
-    expect(agreedSize(vote([4, 4, 4, 4, 5, 5, 5, 5]))).toBeNull()
-    expect(agreedSize(vote([4, 4, 4, 4, 5, 5, 5, 5, 5]))).toBe(5)
-    expect(agreedSize(vote([4, 4, 4, 5, 4, 4, 4, 4]))).toBeNull()
-  })
-
-  it('holds the count unchanged during detection gaps', () => {
-    const votes = vote([4, 4, 4, ...Array(20).fill(null)])
-    expect(votes).toEqual([4, 4, 4])
-    expect(agreedSize(votes)).toBeNull()
-  })
-})
-
-describe('Auto cube size', () => {
-  const state = { autoSize: true, detectedSize: null, facesCaptured: 0, detectFace: true }
-
-  it('detects the size in Auto until one is agreed, before the first face', () => {
-    expect(sizeDetectionActive(state)).toBe(true)
-    expect(sizeDetectionActive({ ...state, detectedSize: 4 })).toBe(false)
-    expect(sizeDetectionActive({ ...state, facesCaptured: 1 })).toBe(false)
-  })
-
-  it('never overrides a size picked from the list', () => {
-    expect(sizeDetectionActive({ ...state, autoSize: false })).toBe(false)
-  })
-
-  it('needs Detect face - Guide grid has no face outline to measure', () => {
-    expect(sizeDetectionActive({ ...state, detectFace: false })).toBe(false)
   })
 })
