@@ -1,105 +1,60 @@
 # TODO
 
-Backlog from the "testing against real fixtures / improving detection from
-real cubes" design discussion. Numbering matches that discussion's ratings;
-1 and 2 are already shipped.
+Open scanner and fixture work, ordered by current priority. Item numbers refer
+to the original real-fixture testing discussion. See
+[`docs/architecture.md`](docs/architecture.md) for the current implementation.
 
 ## Done
 
-1. **Fixture tagging + known-hard (xfail) fixtures** — `meta.json` supports
-   `tags` and `expectedFail`; test titles in `test/fixtures.test.ts` surface
-   both so failure patterns (e.g. one lighting condition) are visible
-   directly in `npm test` output, and a known limitation runs via
-   `it.fails` so a real fix can't go unnoticed. See
-   `test/fixtures/README.md`.
-2. **Flag low-confidence/hue-overlap cells in the review wizard** — the
-   "Detected" grid (`src/client/index.tsx`) now highlights any cell that's
-   either low-confidence or whose color's hue range overlaps another
-   color's this capture, with a per-cell badge and a flagged-count summary
-   next to the pane label. Turns every future capture's corrections into
-   better-targeted training signal.
-
-
-### Scanner (branch `feat/grid-alignment`)
-
-- **Detect face finds the face itself** instead of trusting the guide:
-  offset, size, tilt (up to 35 degrees) and the wider perimeter cubies of
-  big cubes, from seams scored by each pixel's strongest channel.
-- **Odd cubes' centers**: read past their logo, and assigned one of each
-  color across the six sides.
-- **"Choose each side"** starts from every arrangement, so a face that fits
-  either way is asked about instead of filled in.
-- **The live preview runs in a worker** at 720p; a confirmed face is held
-  through two weak live frames.
-- **Removed what the app no longer used**: automatic cube-size detection,
-  the server-side assembly worker, the scramble/algorithm/parse endpoints,
-  the ReScript library, preact-router and the server's broken static page.
-- **No server any more**: the parity check runs in the browser
-  (`src/client/parity.ts`), and fixtures download and upload as zip files
-  (`src/client/fixtureZip.ts`), so the GitHub Pages demo does everything.
+- **#1 Fixture tags and known-hard cases:** `meta.json` supports `tags` and
+  `expectedFail`; `test/fixtures.test.ts` surfaces them in test results.
+- **#2 Review uncertain cells:** the Detected grid flags low-confidence cells
+  and colors whose hue ranges overlap.
+- **#3 Contributed fixtures:** the published app saves a fixture ZIP or uploads
+  to the contributor's localhost server. `CONTRIBUTING.md` links ZIP submission
+  to the bug-report form, and both it and the form warn that photos become
+  public. Maintainers review each fixture before committing it.
+- **#11 Browser upload coverage:** Playwright checks six-photo uploads with and
+  without metadata in `e2e/upload.spec.ts`. A stubbed live-camera capture test
+  is still open below.
+- **#12 Real captures in CI:** real 2×2–5×5 and 7×7 fixtures plus a synthetic
+  6×6 are checked in via Git LFS, and `.github/workflows/ci.yml` runs their
+  tests.
 
 ## Next
 
-3. **A way for other people to send fixtures.** Anyone can now download a
-   fixture zip from the Pages demo, but there's no agreed channel (e.g. an
-   issue template to attach it to) or consent note for their photos, and
-   each zip still needs a human look before it joins `test/fixtures/`.
+1. **#14 Diagnose legacy fixture failures.** For the local captures ending
+   `17-33-06`, `17-37-13`, `19-14-39`, `20-10-05`, `20-55-24`, and `21-08-47`,
+   find the first failing pipeline stage. Fix the reading or mark a verified
+   limitation with `expectedFail`.
+2. **#5 Distinguish vivid and muted palettes.** Red/orange confusion remains a
+   likely error source. Compare proposed anchors against the checked-in
+   fixtures before changing classification.
+3. **#10 Detect slipped grid rows.** When the outer grid lines miss the face
+   edge, ask the user to re-center instead of accepting a shifted row.
+4. **#7 Replay missed live faces.** Four saved 2026-09-25 frames (three
+   `no-grid`, one `no-sticker-pattern`) reproduce the live decision. Use them
+   to test a focused detector fix.
+5. **#8–9 Resolve old assembly fixtures.** Recheck the two captures saved
+   with a 90-degree wizard error and the 4×4 capture that did not reassemble.
+6. **Stub the camera in Playwright.** Cover capture, canvas crop, saved photo,
+   and re-detection together; the existing upload tests do not exercise a
+   live camera.
 
-4. **Learned per-color centroids from the fixture corpus.** Offline script:
-   average (in OKLab) every human-confirmed sample of each color across all
-   fixtures, use that instead of (or alongside) the fixed WCA-vivid
-   canonical anchors in `imageProcessing.ts`. Validate strictly against
-   `test/fixtures.test.ts` before/after - do this once #1/#2 have had a
-   chance to grow the fixture set a bit, otherwise there's not enough
-   signal to learn from.
+## Later
 
-5. **Palette-type detection (vivid vs. pastel/muted).** Root cause of the
-   white-patch (C1) regression found earlier: one fixed canonical anchor
-   set can't represent both a standard WCA cube and a pastel/muted one.
-   Estimate overall chroma range from the capture and pick/blend anchor
-   sets accordingly. Do this after #4 and after a few more pastel-cube
-   fixtures exist to validate against - don't repeat the C1 mistake of
-   shipping a correction with nothing real to check it against.
-
-6. **Small learned classifier (logistic regression / shallow NN) trained on
-   the corpus.** Only worth attempting once the fixture corpus is large and
-   diverse enough (rough rule of thumb: tens of real captures across
-   multiple lighting/camera conditions) - with fewer, it will overfit to
-   whatever happened to be captured. Revisit later, not now.
-
-## Next (scanner)
-
-7. **Find out why the first saved missed faces fail.** Four frames saved on
-   2026-09-25 (three `no-grid`, one `no-sticker-pattern`, all 3x3); the
-   replay reproduces the live decision, so a fix can be checked on exactly
-   these frames.
-
-8. **Correct two fixtures saved with the old wizard bug.** Their approved
-   cube has one face turned 90 degrees, so their reassembly tests fail:
-   `capture-2026-09-25T11-38-36` (3x3, back face - confirmed by the user)
-   and `capture-2026-09-25T11-42-40` (7x7, right face - found by the guided
-   search, not yet confirmed).
-
-9. **`capture-2026-09-25T11-00-11` (4x4) doesn't reassemble** into its
-   approved cube; it failed before the center changes too.
-
-10. **Ask to re-center when the grid snaps a row.** Beyond half a cell of
-    offset (about 6% on a 7x7) the grid can slip one row and read worse
-    than the guide (35% -> 45% misread at 8% off). The outer grid lines then
-    miss the face's edge, which could keep the face from being accepted and
-    show "Center the cube in the square". Never fall back to the guide.
-
-11. **A browser test of the capture path** (Playwright, e.g. `npm run
-    test:e2e`): canvas crop, saved photo and re-detection together, which
-    the unit tests only cover piece by piece.
-
-12. **Real captures in CI.** They are gitignored, so the benchmark and
-    fixture tests skip there; a small committed subset (the owner's call:
-    size, privacy) or the licensed vision fixtures could cover it.
-
-13. **Speed up or opt out of the real-capture benchmark** - about 35 s of
-    `npm test`.
-
-14. **The long-standing fixture failures** (`17-33-06`, `17-37-13`, `19-14-39`,
-    `20-10-05`, `20-55-24`, `21-08-47`): readings off by a few levels
-    from the browser's, or single misreads - unchanged by this branch.
+- **#13 Speed up the local real-capture benchmark.** It can add about 35 s to
+  `npm test`; measure the slow cases before changing its scope.
+- **#4 Learn color centroids from confirmed fixtures.** Wait until the corpus
+  spans more cubes and lighting conditions, then compare before/after on all
+  fixtures.
+- **#6 Evaluate a small learned classifier.** Only revisit when the corpus
+  contains tens of diverse real captures; a smaller set would overfit.
+- Split the large `src/client/index.tsx` upload, fixture, and capture flows
+  into separate components and hooks, one tested move at a time.
+- Load the 3D viewer and Profiles page only when opened; measure the main
+  bundle size before and after.
+- Add a production-build Playwright test for localhost upload and CORS.
+- Configure Vitest to flag slow tests before GitHub's 5-second timeout.
+- Remove Git LFS download from Pages once its build is confirmed independent
+  of fixture photos.
