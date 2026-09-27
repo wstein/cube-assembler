@@ -4,9 +4,12 @@ import Ajv2020 from 'ajv/dist/2020.js'
 import { describe, expect, it } from 'vitest'
 
 const schemaUrl =
-  'https://wstein.github.io/cube-assembler/schemas/fixture-meta.schema.json'
+  'https://wstein.github.io/cube-assembler/schemas/fixture-meta-v1.schema.json'
 const fixtureRoot = join(__dirname, 'fixtures')
-const schemaFile = join(__dirname, '../public/schemas/fixture-meta.schema.json')
+const schemaFile = join(
+  __dirname,
+  '../public/schemas/fixture-meta-v1.schema.json',
+)
 
 describe('published fixture metadata schema', () => {
   it('validates every saved fixture and matches its published URL', () => {

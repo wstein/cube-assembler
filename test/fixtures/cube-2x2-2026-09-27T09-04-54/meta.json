@@ -1,5 +1,5 @@
 {
-  "$schema": "https://wstein.github.io/cube-assembler/schemas/fixture-meta.schema.json",
+  "$schema": "https://wstein.github.io/cube-assembler/schemas/fixture-meta-v1.schema.json",
   "gridSize": 2,
   "colorsURFDLB": "ROOR WWWW ORRO YYYY GBBG BGGB",
   "detectedURFDLB": "ROOR WWWW ORRO YYYY GBBG BGGB",

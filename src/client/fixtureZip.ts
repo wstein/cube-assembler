@@ -32,7 +32,7 @@ export interface Fixture {
 
 const REQUIRED_FACES = ['u', 'r', 'f', 'd', 'l', 'b']
 const FIXTURE_META_SCHEMA_URL =
-  'https://wstein.github.io/cube-assembler/schemas/fixture-meta.schema.json'
+  'https://wstein.github.io/cube-assembler/schemas/fixture-meta-v1.schema.json'
 
 function dataUrlBytes(base64: string): Uint8Array {
   const binary = atob(base64)
