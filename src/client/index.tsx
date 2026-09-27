@@ -31,6 +31,7 @@ import { faceSources, pieceKey, sourceIndex } from './netPresentation'
 import { ProfilesPage } from './profilesPage'
 import { repositoryLink } from './repositoryLink'
 import { profilesHash, profilesTab } from './profilesRoute'
+import { mirrorCookie, readMirrorPreference } from './preferences'
 import { holdConfirmedFace, NO_HOLD, type LiveHold } from './liveHold'
 import { scaleBounds, type LiveAnalysisRequest } from './liveAnalysis'
 import type { LiveFrameMessage, LiveResultMessage } from './liveAnalysis.worker'
@@ -1212,7 +1213,12 @@ function App() {
   // physical mirror), which is what most users expect; default on but
   // let it be turned off for cameras that don't need it (e.g. a rear
   // phone camera fed in via some capture setups).
-  const [mirrorPreview, setMirrorPreview] = useState(true)
+  // Off by default; the viewer's choice is kept in a cookie (see preferences.ts).
+  const [mirrorPreview, setMirrorPreview] = useState(() => readMirrorPreference(document.cookie))
+  const changeMirrorPreview = (mirrored: boolean) => {
+    setMirrorPreview(mirrored)
+    document.cookie = mirrorCookie(mirrored)
+  }
   const [profileStore, setProfileStore] =
     useState<ProfileSettings>(loadProfileStore)
   const profile = activeCube(profileStore, puzzleSize)
@@ -4214,27 +4220,35 @@ function App() {
                     onContinue={continueTurnOverlay}
                   />
                 )}
+                <span
+                  class={`capture-live-badge ${liveCapturedFace ? 'pattern-match' : ''}`}
+                  role="status"
+                >
+                  <span class="capture-live-dot" />
+                  Live ·{' '}
+                  {liveCapturedFace
+                    ? `Looks like ${FACE_DISPLAY_LABEL[liveCapturedFace]} · capture allowed`
+                    : liveDetection
+                      ? liveFaceVisible
+                        ? `${(liveDetection.confidence * 100).toFixed(0)}% color match`
+                        : captureMode === 'cv'
+                          ? 'Align face in view'
+                          : 'Align face in guide'
+                      : '—'}
+                  {profileStore.activeColorsId === AUTO_COLORS_ID &&
+                    liveAutoColorProfile &&
+                    ` · ${liveAutoColorProfile.name}`}
+                  {liveMedianWB && ' · median WB'}
+                </span>
               </div>
-              <span
-                class={`capture-live-badge ${liveCapturedFace ? 'pattern-match' : ''}`}
-                role="status"
-              >
-                <span class="capture-live-dot" />
-                Live ·{' '}
-                {liveCapturedFace
-                  ? `Looks like ${FACE_DISPLAY_LABEL[liveCapturedFace]} · capture allowed`
-                  : liveDetection
-                    ? liveFaceVisible
-                      ? `${(liveDetection.confidence * 100).toFixed(0)}% color match`
-                      : captureMode === 'cv'
-                        ? 'Align face in view'
-                        : 'Align face in guide'
-                    : '—'}
-                {profileStore.activeColorsId === AUTO_COLORS_ID &&
-                  liveAutoColorProfile &&
-                  ` · ${liveAutoColorProfile.name}`}
-                {liveMedianWB && ' · median WB'}
-              </span>
+              <label class="mirror-toggle">
+                <input
+                  type="checkbox"
+                  checked={mirrorPreview}
+                  onChange={(e) => changeMirrorPreview(e.currentTarget.checked)}
+                />
+                Mirror
+              </label>
             </div>
             <div class="capture-side">
               <div class="capture-side-header">
@@ -4525,16 +4539,6 @@ function App() {
                   </div>
                 )}
                 <div class="capture-options-row">
-                  <label class="mirror-toggle">
-                    <input
-                      type="checkbox"
-                      checked={mirrorPreview}
-                      onChange={(e) =>
-                        setMirrorPreview(e.currentTarget.checked)
-                      }
-                    />
-                    Mirror
-                  </label>
                   <button
                     type="button"
                     class={`btn btn-secondary btn-sm ${samplingSetupOpen ? 'active' : ''}`}
