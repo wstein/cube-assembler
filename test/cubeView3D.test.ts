@@ -131,6 +131,30 @@ describe('cubeView3D math and geometry', () => {
       }
     })
 
+    it('generates spherical corner cap apex normals on outer corner cubies', () => {
+      const cube = createSolvedCube(3)
+      const mesh = buildCubeMesh(cube, 3, undefined, true)
+
+      let foundCornerApexNormal = false
+      for (let i = 0; i < mesh.vertexCount; i++) {
+        const nx = mesh.normals[i * 3]
+        const ny = mesh.normals[i * 3 + 1]
+        const nz = mesh.normals[i * 3 + 2]
+        const len = Math.hypot(nx, ny, nz)
+        expect(len).toBeCloseTo(1.0, 3)
+
+        // Check for presence of normalized (1, 1, 1) corner normal
+        if (
+          Math.abs(Math.abs(nx) - 0.57735) < 0.01 &&
+          Math.abs(Math.abs(ny) - 0.57735) < 0.01 &&
+          Math.abs(Math.abs(nz) - 0.57735) < 0.01
+        ) {
+          foundCornerApexNormal = true
+        }
+      }
+      expect(foundCornerApexNormal).toBe(true)
+    })
+
     it('builds valid rounded mesh in stickered mode', () => {
       const cube = createSolvedCube(3)
       const mesh = buildCubeMesh(cube, 3, undefined, false)
