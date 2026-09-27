@@ -48,6 +48,7 @@ import {
   AUTO_CAPTURE_COOKIE,
   COLOR_PROFILE_COOKIE,
   CUBE_SIZE_COOKIE,
+  CUBE_VIEW_COOKIE,
   FIXTURE_SERVER_COOKIE,
   MIRROR_COOKIE,
   SOUND_COOKIE,
@@ -55,6 +56,7 @@ import {
   readPreference,
   readSelection,
   selectedCubeSize,
+  selectedCubeView,
   selectionCookie,
 } from './preferences'
 import { holdConfirmedFace, NO_HOLD, type LiveHold } from './liveHold'
@@ -1095,7 +1097,9 @@ function App() {
     () => selectedCubeSize(document.cookie) ?? 3,
   )
   const [cube, setCube] = useState<CubeState | null>(null)
-  const [cubeViewMode, setCubeViewMode] = useState<'net' | '3d'>('net')
+  const [cubeViewMode, setCubeViewMode] = useState<'net' | '3d'>(
+    () => selectedCubeView(document.cookie) ?? 'net',
+  )
   const [parity, setParity] = useState<ParityResult | null>(null)
   // Which highlight group (see parity.ts's HighlightGroup) is
   // currently moused-over in the Cube Net, if any - lets hovering one
@@ -1277,6 +1281,9 @@ function App() {
   useEffect(() => {
     document.cookie = selectionCookie(CUBE_SIZE_COOKIE, String(puzzleSize))
   }, [puzzleSize])
+  useEffect(() => {
+    document.cookie = selectionCookie(CUBE_VIEW_COOKIE, cubeViewMode)
+  }, [cubeViewMode])
   useEffect(() => {
     document.cookie = selectionCookie(
       COLOR_PROFILE_COOKIE,
