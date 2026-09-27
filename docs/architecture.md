@@ -42,7 +42,8 @@ reviewed colors; it does not bypass review.
    metadata. [`fixtureFormat.ts`](../src/client/fixtureFormat.ts) reads saved
    fixtures. The [fixture metadata schema](../public/schemas/fixture-meta-v1.schema.json)
    is published with the site. [`scripts/fixtureUploadServer.mjs`](../scripts/fixtureUploadServer.mjs)
-   accepts development uploads on localhost and serves no files.
+   accepts uploads on localhost, from the dev server or (through CORS) the
+   published app, and serves no files.
 
 ## Profiles and storage
 

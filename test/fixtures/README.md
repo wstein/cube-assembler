@@ -10,9 +10,12 @@ caught, instead of only living in a bug report.
 In the app, capture and review a cube as normal, correcting any wrong
 stickers via the review wizard's "tap a sticker to fix" flow. Once you've
 confirmed the cube, use **Save as test fixture**. Download `<name>.zip` and
-unzip it into `test/fixtures/`, or run `npm run fixture:server` alongside
-`npm run dev` and choose **Upload to localhost** in the preview. The button
-enables only while the upload server responds to `GET /ping`. Both paths create
+unzip it into `test/fixtures/`, or run `npm run fixture:server` and choose
+**Upload to localhost** in the preview. This works from `npm run dev` and from
+the published app. In development the button enables only while the upload
+server responds to `GET /ping`. The published app checks on the first click,
+because Chrome may ask before a public site reaches localhost, and checks in
+the background once an upload has worked there. Both paths create
 `test/fixtures/<name>/` with the six cropped photos and corrected color grid.
 New ZIPs and upload-server folders default to
 `cube-<size>x<size>-YYYY-MM-DDTHH-MM-SS` using whole UTC seconds. Existing
@@ -36,8 +39,12 @@ The optional server listens on `127.0.0.1:7100` and accepts one multipart
 `POST /upload` with a `name` field and seven `file` parts (one `meta.json`
 and six face photos). It requires `X-Fixture-Upload: 1`, rejects duplicates,
 and has no download route. `GET /ping` returns an empty 204 response without
-serving files. The Vite dev server proxies the browser's upload
-to it; the production site has no local-save button or upload server.
+serving files, and `GET /` shows a status page that never lists fixtures. The
+Vite dev server proxies the browser's upload to it. The published app calls
+`http://127.0.0.1:7100` directly; the server answers CORS requests only from
+localhost pages and `https://wstein.github.io`, and refuses uploads from any
+other site. `FIXTURE_UPLOAD_ORIGINS=https://a.example,https://b.example`
+replaces the non-local sites.
 
 `colorsURFDLB` holds the human-verified colors of all 6 faces as one line,
 in U R F D L B order with each face row-major as photographed (the app's

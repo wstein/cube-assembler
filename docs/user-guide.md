@@ -54,8 +54,9 @@ through `face-b.jpg` start in capture-slot order. With metadata, it loads the
 saved colors as a fixture. The chosen cube size applies to ordinary photos.
 
 After confirming a cube, **Save as test fixture** downloads its six photos and
-reviewed colors as a ZIP. Local developers can also send it to the optional
-upload-only server. See the [fixture guide](../test/fixtures/README.md).
+reviewed colors as a ZIP. With `npm run fixture:server` running on the same
+computer, **Upload to localhost** saves it straight into `test/fixtures/`, from
+the dev server or the published app. See the [fixture guide](../test/fixtures/README.md).
 
 ## Enter or copy facelets
 
