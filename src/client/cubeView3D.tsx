@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'preact/hooks'
+import { stepDragInertia } from './dragInertia'
 import {
   AUTO_ROTATE_COOKIE,
   STICKERLESS_COOKIE,
@@ -848,7 +849,9 @@ export function CubeView3D({
   }, [isStickerless])
 
   const isDraggingRef = useRef(false)
-  const lastPointerRef = useRef({ x: 0, y: 0 })
+  const lastPointerRef = useRef({ x: 0, y: 0, time: 0 })
+  const inertiaRef = useRef({ yaw: 0, pitch: 0 })
+  const lastFrameTimeRef = useRef<number | null>(null)
   const animFrameRef = useRef<number | null>(null)
 
   // Keep state accessible to render loop
@@ -862,6 +865,7 @@ export function CubeView3D({
 
   // Reset to isometric view
   const resetView = () => {
+    inertiaRef.current = { yaw: 0, pitch: 0 }
     setPitch(0.42)
     setYaw(-0.62)
     setZoom(puzzleSize * 2.8)
@@ -869,6 +873,7 @@ export function CubeView3D({
 
   // Preset face views
   const setPreset = (targetPitch: number, targetYaw: number) => {
+    inertiaRef.current = { yaw: 0, pitch: 0 }
     setPitch(targetPitch)
     setYaw(targetYaw)
   }
@@ -937,7 +942,26 @@ export function CubeView3D({
     gl.uniform3f(uLight1, 1.5, 2.5, 2.0)
     gl.uniform3f(uLight2, -2.0, -1.0, -2.0)
 
-    const render = () => {
+    const render = (time: number) => {
+      const elapsed = Math.min(time - (lastFrameTimeRef.current ?? time), 50)
+      lastFrameTimeRef.current = time
+      if (!isDraggingRef.current && !stateRef.current.isRotating) {
+        const yawStep = stepDragInertia(inertiaRef.current.yaw, elapsed)
+        const pitchStep = stepDragInertia(inertiaRef.current.pitch, elapsed)
+        inertiaRef.current = {
+          yaw: yawStep.velocity,
+          pitch: pitchStep.velocity,
+        }
+        if (yawStep.delta) setYaw((prev) => prev + yawStep.delta)
+        if (pitchStep.delta) {
+          setPitch((prev) =>
+            Math.max(
+              -Math.PI / 2 + 0.05,
+              Math.min(Math.PI / 2 - 0.05, prev + pitchStep.delta),
+            ),
+          )
+        }
+      }
       if (stateRef.current.isRotating) {
         setYaw((prev) => prev + 0.008)
       }
@@ -1013,6 +1037,7 @@ export function CubeView3D({
     animFrameRef.current = requestAnimationFrame(render)
 
     return () => {
+      lastFrameTimeRef.current = null
       if (animFrameRef.current !== null) {
         cancelAnimationFrame(animFrameRef.current)
       }
@@ -1026,7 +1051,8 @@ export function CubeView3D({
 
   const handlePointerDown = (e: PointerEvent) => {
     isDraggingRef.current = true
-    lastPointerRef.current = { x: e.clientX, y: e.clientY }
+    inertiaRef.current = { yaw: 0, pitch: 0 }
+    lastPointerRef.current = { x: e.clientX, y: e.clientY, time: e.timeStamp }
     ;(e.target as HTMLElement).setPointerCapture?.(e.pointerId)
   }
 
@@ -1034,9 +1060,14 @@ export function CubeView3D({
     if (!isDraggingRef.current) return
     const dx = e.clientX - lastPointerRef.current.x
     const dy = e.clientY - lastPointerRef.current.y
-    lastPointerRef.current = { x: e.clientX, y: e.clientY }
+    const elapsed = Math.max(e.timeStamp - lastPointerRef.current.time, 8)
+    lastPointerRef.current = { x: e.clientX, y: e.clientY, time: e.timeStamp }
 
     const speed = 0.008
+    inertiaRef.current = {
+      yaw: Math.max(-0.006, Math.min(0.006, (dx * speed) / elapsed)),
+      pitch: Math.max(-0.006, Math.min(0.006, (dy * speed) / elapsed)),
+    }
     setYaw((prev) => prev + dx * speed)
     setPitch((prev) => {
       const next = prev + dy * speed
@@ -1047,6 +1078,12 @@ export function CubeView3D({
 
   const handlePointerUp = (e: PointerEvent) => {
     isDraggingRef.current = false
+    if (
+      e.type === 'pointercancel' ||
+      e.timeStamp - lastPointerRef.current.time > 120
+    ) {
+      inertiaRef.current = { yaw: 0, pitch: 0 }
+    }
     try {
       ;(e.target as HTMLElement).releasePointerCapture?.(e.pointerId)
     } catch {
@@ -1263,7 +1300,10 @@ export function CubeView3D({
               <button
                 type="button"
                 class={`cube-3d-btn ${isRotating ? 'cube-3d-btn-active' : ''}`}
-                onClick={() => setIsRotating((v) => !v)}
+                onClick={() => {
+                  inertiaRef.current = { yaw: 0, pitch: 0 }
+                  setIsRotating((v) => !v)
+                }}
               >
                 {isRotating ? 'Pause' : 'Auto-rotate'}
               </button>
