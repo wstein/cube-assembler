@@ -70,6 +70,11 @@ export function getFaceletColor(
   }
 }
 
+// Compute default camera zoom: sublinear scaling so larger cubes (5x5, 6x6, 7x7) scale less and stay prominent
+export function getDefaultZoom(puzzleSize: number): number {
+  return 3.0 + puzzleSize * 1.8
+}
+
 export function getFaceSeams(
   face: 'u' | 'd' | 'f' | 'b' | 'r' | 'l',
   x: number,
@@ -156,8 +161,8 @@ export function buildCubeMesh(
     const s = H - r
     const miter = r * 0.9 // outer edge and corner bevel miter (doubled outside fase)
     const hNorm = H + elevation
-    const zOuter = hNorm - r * 0.6
-    const zSkirt = hNorm - 0.12
+    const zOuter = hNorm - r * 0.65
+    const zSkirt = hNorm - 0.14
     const { top: seamTop, bot: seamBot, rt: seamRt, lt: seamLt } = seams
 
     function pt(u: number, v: number, n: number): [number, number, number] {
@@ -493,7 +498,7 @@ export function buildCubeMesh(
         if (stickerless) {
           // Solid colored plastic speedcube: rounded edges, rounded corners, no black lines
           const H = 0.495
-          const r = 0.04
+          const r = 0.058
           if (y === last) {
             const colorKey = getFaceletColor(cube, n, 'u', x, y, z)
             const rgb = hexToRgb(
@@ -552,9 +557,9 @@ export function buildCubeMesh(
           // Stickered mode:
           // Draw black beveled body and sticker tile only on exterior faces
           const HBody = 0.495
-          const rBody = 0.04
-          const HStk = 0.445
-          const rStk = 0.035
+          const rBody = 0.058
+          const HStk = 0.43
+          const rStk = 0.045
           const eps = 0.005
 
           const addFaceWithSticker = (
@@ -934,7 +939,7 @@ export function CubeView3D({
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
   const [pitch, setPitch] = useState<number>(0.42) // ~24 deg
   const [yaw, setYaw] = useState<number>(-0.62) // ~-35 deg
-  const [zoom, setZoom] = useState<number>(puzzleSize * 2.8)
+  const [zoom, setZoom] = useState<number>(getDefaultZoom(puzzleSize))
   const [isRotating, setIsRotating] = useState<boolean>(() =>
     readPreference(document.cookie, AUTO_ROTATE_COOKIE),
   )
@@ -963,7 +968,7 @@ export function CubeView3D({
 
   // Auto-scale zoom when puzzleSize changes
   useEffect(() => {
-    setZoom(puzzleSize * 2.8)
+    setZoom(getDefaultZoom(puzzleSize))
   }, [puzzleSize])
 
   const pauseAutoRotation = () => {
@@ -976,7 +981,7 @@ export function CubeView3D({
     pauseAutoRotation()
     setPitch(0.42)
     setYaw(-0.62)
-    setZoom(puzzleSize * 2.8)
+    setZoom(getDefaultZoom(puzzleSize))
   }
 
   // Preset face views
@@ -1234,8 +1239,8 @@ export function CubeView3D({
     e.preventDefault()
     const zoomDelta = e.deltaY * 0.01
     setZoom((prev) => {
-      const minZ = puzzleSize * 1.5
-      const maxZ = puzzleSize * 6.0
+      const minZ = 2.0 + puzzleSize * 1.0
+      const maxZ = 8.0 + puzzleSize * 3.0
       return Math.max(minZ, Math.min(maxZ, prev + zoomDelta))
     })
   }

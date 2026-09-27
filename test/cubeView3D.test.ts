@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { createSolvedCube } from '../src/client/cubeAssembly'
 import {
   buildCubeMesh,
+  getDefaultZoom,
   getFaceletColor,
   getFaceSeams,
   hexToRgb,
@@ -373,5 +374,23 @@ describe('cubeView3D math and geometry', () => {
           }
           expect(leaks.slice(0, 5)).toEqual([])
         })
+  })
+
+  describe('getDefaultZoom', () => {
+    it('scales sublinearly so larger cubes scale less and stay prominent', () => {
+      // 3x3 baseline
+      expect(getDefaultZoom(3)).toBeCloseTo(8.4)
+      // 2x2
+      expect(getDefaultZoom(2)).toBeCloseTo(6.6)
+      // 5x5: scales less than linear 5 * 2.8 = 14.0
+      expect(getDefaultZoom(5)).toBeLessThan(5 * 2.8)
+      expect(getDefaultZoom(5)).toBeCloseTo(12.0)
+      // 6x6: scales less than linear 6 * 2.8 = 16.8
+      expect(getDefaultZoom(6)).toBeLessThan(6 * 2.8)
+      expect(getDefaultZoom(6)).toBeCloseTo(13.8)
+      // 7x7: scales less than linear 7 * 2.8 = 19.6
+      expect(getDefaultZoom(7)).toBeLessThan(7 * 2.8)
+      expect(getDefaultZoom(7)).toBeCloseTo(15.6)
+    })
   })
 })

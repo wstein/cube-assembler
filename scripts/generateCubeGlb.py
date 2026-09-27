@@ -38,12 +38,12 @@ def get_face_seams(face, x, y, z, n):
     return (True, True, True, True)
 
 
-def make_beveled_face(u_axis, v_axis, n_axis, H=0.495, r=0.040, seams=(True, True, True, True)):
+def make_beveled_face(u_axis, v_axis, n_axis, H=0.495, r=0.058, seams=(True, True, True, True)):
     s = H - r
     d = r * 0.4
     miter = r * 0.90
-    z_outer = H - r * 0.6
-    z_skirt = H - 0.12
+    z_outer = H - r * 0.65
+    z_skirt = H - 0.14
     seam_top, seam_bot, seam_rt, seam_lt = seams
 
     def pt(u, v, n):
