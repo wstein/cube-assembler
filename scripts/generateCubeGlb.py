@@ -3,12 +3,13 @@
 Generate a procedural PBR multi-cubie glTF/GLB model from a cube-assembler fixture.
 
 Each visible cubie is an independent node in the glTF scene graph with:
-- Dark matte plastic body geometry (beveled / seam gap)
-- Colored sticker facets matching the fixture's calibrated colors
-- Standard glTF 2.0 PBR materials (metallicRoughness)
+- Rounded corners and beveled edges matching realistic stickerless speedcubes
+- Calibrated PBR materials with smooth surface sheen and accurate fixture colors
+- Dark interior mechanism core visible through the realistic seam grooves
 """
 
 import json
+import math
 import os
 import struct
 import sys
@@ -20,23 +21,81 @@ def srgb_to_linear(c):
     return v / 12.92 if v <= 0.04045 else ((v + 0.055) / 1.055) ** 2.4
 
 
-def facelet_position(n, face, index):
-    r = index // n
-    c = index % n
-    last = n - 1
-    if face == 'u':
-        return (c, last, r)
-    if face == 'd':
-        return (c, 0, last - r)
-    if face == 'f':
-        return (c, last - r, last)
-    if face == 'b':
-        return (last - c, last - r, 0)
-    if face == 'r':
-        return (last, last - r, last - c)
-    if face == 'l':
-        return (0, last - r, c)
-    raise ValueError(f'Unknown face {face}')
+def make_beveled_face(u_axis, v_axis, n_axis, H=0.475, r=0.045):
+    s = H - r
+    d = r * 0.35
+    z_outer = H - r * 0.7
+
+    def pt(u, v, n):
+        return [
+            round(u * u_axis[0] + v * v_axis[0] + n * n_axis[0], 5),
+            round(u * u_axis[1] + v * v_axis[1] + n * n_axis[1], 5),
+            round(u * u_axis[2] + v * v_axis[2] + n * n_axis[2], 5),
+        ]
+
+    def norm(nu, nv, nn):
+        l = math.hypot(nu, nv, nn) or 1.0
+        return [
+            round((nu * u_axis[0] + nv * v_axis[0] + nn * n_axis[0]) / l, 5),
+            round((nu * u_axis[1] + nv * v_axis[1] + nn * n_axis[1]) / l, 5),
+            round((nu * u_axis[2] + nv * v_axis[2] + nn * n_axis[2]) / l, 5),
+        ]
+
+    c0, nc0 = pt(-s, -s, H), norm(0, 0, 1)
+    c1, nc1 = pt(s, -s, H), norm(0, 0, 1)
+    c2, nc2 = pt(s, s, H), norm(0, 0, 1)
+    c3, nc3 = pt(-s, s, H), norm(0, 0, 1)
+
+    e_top0, ne_top0 = pt(-s, H, z_outer), norm(0, 0.7, 0.7)
+    e_top1, ne_top1 = pt(s, H, z_outer), norm(0, 0.7, 0.7)
+
+    e_bot0, ne_bot0 = pt(-s, -H, z_outer), norm(0, -0.7, 0.7)
+    e_bot1, ne_bot1 = pt(s, -H, z_outer), norm(0, -0.7, 0.7)
+
+    e_rt0, ne_rt0 = pt(H, -s, z_outer), norm(0.7, 0, 0.7)
+    e_rt1, ne_rt1 = pt(H, s, z_outer), norm(0.7, 0, 0.7)
+
+    e_lt0, ne_lt0 = pt(-H, -s, z_outer), norm(-0.7, 0, 0.7)
+    e_lt1, ne_lt1 = pt(-H, s, z_outer), norm(-0.7, 0, 0.7)
+
+    crn_tr, ncrn_tr = pt(H - d, H - d, z_outer), norm(0.6, 0.6, 0.5)
+    crn_tl, ncrn_tl = pt(-(H - d), H - d, z_outer), norm(-0.6, 0.6, 0.5)
+    crn_bl, ncrn_bl = pt(-(H - d), -(H - d), z_outer), norm(-0.6, -0.6, 0.5)
+    crn_br, ncrn_br = pt(H - d, -(H - d), z_outer), norm(0.6, -0.6, 0.5)
+
+    verts = [
+        c0, c1, c2, c3,
+        e_top0, e_top1, e_bot0, e_bot1,
+        e_rt0, e_rt1, e_lt0, e_lt1,
+        crn_tr, crn_tl, crn_bl, crn_br,
+    ]
+    norms = [
+        nc0, nc1, nc2, nc3,
+        ne_top0, ne_top1, ne_bot0, ne_bot1,
+        ne_rt0, ne_rt1, ne_lt0, ne_lt1,
+        ncrn_tr, ncrn_tl, ncrn_bl, ncrn_br,
+    ]
+    indices = [
+        # Center quad
+        0, 1, 2,  0, 2, 3,
+        # Top bevel
+        3, 2, 5,  3, 5, 4,
+        # Bottom bevel
+        6, 7, 1,  6, 1, 0,
+        # Right bevel
+        1, 8, 9,  1, 9, 2,
+        # Left bevel
+        10, 0, 3,  10, 3, 11,
+        # Top-Right corner
+        2, 9, 12,  2, 12, 5,
+        # Top-Left corner
+        3, 4, 13,  3, 13, 11,
+        # Bottom-Left corner
+        0, 10, 14,  0, 14, 6,
+        # Bottom-Right corner
+        1, 7, 15,  1, 15, 8,
+    ]
+    return verts, norms, indices
 
 
 def create_cube_glb(fixture_path, output_glb_path):
@@ -57,61 +116,49 @@ def create_cube_glb(fixture_path, output_glb_path):
     learned = meta.get('capture', {}).get('colorCalibration', {}).get('learnedColors')
     if not learned:
         learned = {
-            'W': [209, 213, 201],
-            'Y': [187, 212, 36],
-            'O': [239, 83, 33],
-            'R': [198, 32, 44],
-            'G': [10, 165, 56],
-            'B': [4, 67, 135],
+            'W': [215, 218, 205],
+            'Y': [195, 215, 38],
+            'O': [239, 85, 34],
+            'R': [200, 32, 45],
+            'G': [12, 168, 58],
+            'B': [5, 70, 140],
         }
 
-    # Color index mapping: 0 = BlackPlastic, 1..6 = W, Y, O, R, G, B
+    # Color index mapping: 0 = BlackPlastic (internal core), 1..6 = W, Y, O, R, G, B
     color_keys = ['W', 'Y', 'O', 'R', 'G', 'B']
     mat_index = {c: i + 1 for i, c in enumerate(color_keys)}
 
-    # Build materials
+    # Build PBR materials
     materials = [
         {
-            'name': 'Plastic_Black',
+            'name': 'Plastic_Core_Black',
             'pbrMetallicRoughness': {
-                'baseColorFactor': [0.03, 0.03, 0.03, 1.0],
-                'roughnessFactor': 0.6,
+                'baseColorFactor': [0.08, 0.08, 0.09, 1.0],
+                'roughnessFactor': 0.7,
                 'metallicFactor': 0.0,
             },
         }
     ]
     for c in color_keys:
         rgb = learned[c]
-        lin_rgb = [srgb_to_linear(v) for v in rgb]
+        lin_rgb = [round(srgb_to_linear(v), 4) for v in rgb]
         materials.append(
             {
-                'name': f'Plastic_{c}',
+                'name': f'Plastic_Stickerless_{c}',
                 'pbrMetallicRoughness': {
                     'baseColorFactor': [lin_rgb[0], lin_rgb[1], lin_rgb[2], 1.0],
-                    'roughnessFactor': 0.28,
+                    'roughnessFactor': 0.22,
                     'metallicFactor': 0.0,
                 },
             }
         )
 
-    # Geometry constants
-    h = 0.47  # Half width of cubie body (cubie size 0.94, leaving 0.06 seam gap)
-    s = 0.42  # Half width of sticker quad (leaving 0.05 plastic border around sticker)
-    eps = 0.005  # Sticker raised offset to avoid z-fighting
-
-    # Vertex buffers for:
-    # 1. Cubie black box (24 vertices, 36 indices)
-    # 2. Six sticker quads (+Y, -Y, +Z, -Z, +X, -X; each 4 vertices, 6 indices)
+    # Geometry buffers
     positions_data = bytearray()
     normals_data = bytearray()
     indices_data = bytearray()
 
-    accessors = []
-    buffer_views = []
-
     def add_geom(vertices, normals, indices):
-        # Align to 4 bytes
-        nonlocal positions_data, normals_data, indices_data
         pos_offset = len(positions_data)
         norm_offset = len(normals_data)
         idx_offset = len(indices_data)
@@ -138,63 +185,58 @@ def create_cube_glb(fixture_path, output_glb_path):
             'max_pos': max_pos,
         }
 
-    # 1. Unit box (6 faces)
-    box_verts = []
-    box_norms = []
-    box_indices = []
+    # 1. Internal dark mechanism core box (size 0.88, half-width 0.44)
+    hc = 0.44
+    core_verts = []
+    core_norms = []
+    core_indices = []
 
-    faces_def = [
+    core_faces = [
         # +Y
-        ([[-h, h, -h], [h, h, -h], [h, h, h], [-h, h, h]], [0, 1, 0]),
+        ([[-hc, hc, hc], [hc, hc, hc], [hc, hc, -hc], [-hc, hc, -hc]], [0, 1, 0]),
         # -Y
-        ([[-h, -h, h], [h, -h, h], [h, -h, -h], [-h, -h, -h]], [0, -1, 0]),
+        ([[-hc, -hc, -hc], [hc, -hc, -hc], [hc, -hc, hc], [-hc, -hc, hc]], [0, -1, 0]),
         # +Z
-        ([[-h, -h, h], [h, -h, h], [h, h, h], [-h, h, h]], [0, 0, 1]),
+        ([[-hc, -hc, hc], [hc, -hc, hc], [hc, hc, hc], [-hc, hc, hc]], [0, 0, 1]),
         # -Z
-        ([[-h, h, -h], [h, h, -h], [h, -h, -h], [-h, -h, -h]], [0, 0, -1]),
+        ([[hc, -hc, -hc], [-hc, -hc, -hc], [-hc, hc, -hc], [hc, hc, -hc]], [0, 0, -1]),
         # +X
-        ([[h, -h, -h], [h, h, -h], [h, h, h], [h, -h, h]], [1, 0, 0]),
+        ([[hc, -hc, hc], [hc, -hc, -hc], [hc, hc, -hc], [hc, hc, hc]], [1, 0, 0]),
         # -X
-        ([[-h, -h, h], [-h, h, h], [-h, h, -h], [-h, -h, -h]], [-1, 0, 0]),
+        ([[-hc, -hc, -hc], [-hc, -hc, hc], [-hc, hc, hc], [-hc, hc, -hc]], [-1, 0, 0]),
     ]
-
-    for face_verts, norm in faces_def:
-        base_idx = len(box_verts)
-        box_verts.extend(face_verts)
-        box_norms.extend([norm] * 4)
-        box_indices.extend(
+    for f_verts, norm in core_faces:
+        base_idx = len(core_verts)
+        core_verts.extend(f_verts)
+        core_norms.extend([norm] * 4)
+        core_indices.extend(
             [base_idx, base_idx + 1, base_idx + 2, base_idx, base_idx + 2, base_idx + 3]
         )
 
-    box_geom = add_geom(box_verts, box_norms, box_indices)
+    core_geom = add_geom(core_verts, core_norms, core_indices)
 
-    # 2. Sticker quads for each of the 6 faces
-    # Order: U (+Y), D (-Y), F (+Z), B (-Z), R (+X), L (-X)
-    sticker_geoms = {}
-    sticker_faces_def = {
-        'u': ([[-s, h + eps, -s], [s, h + eps, -s], [s, h + eps, s], [-s, h + eps, s]], [0, 1, 0]),
-        'd': ([[-s, -h - eps, s], [s, -h - eps, s], [s, -h - eps, -s], [-s, -h - eps, -s]], [0, -1, 0]),
-        'f': ([[-s, -s, h + eps], [s, -s, h + eps], [s, s, h + eps], [-s, s, h + eps]], [0, 0, 1]),
-        'b': ([[-s, s, -h - eps], [s, s, -h - eps], [s, -s, -h - eps], [-s, -s, -h - eps]], [0, 0, -1]),
-        'r': ([[h + eps, -s, -s], [h + eps, s, -s], [h + eps, s, s], [h + eps, -s, s]], [1, 0, 0]),
-        'l': ([[-h - eps, -s, s], [-h - eps, s, s], [-h - eps, s, -s], [-h - eps, -s, -s]], [-1, 0, 0]),
+    # 2. Rounded beveled face caps for each of the 6 faces
+    # Right-handed coordinate frames (u x v = n)
+    face_axes_def = {
+        'u': ([1, 0, 0], [0, 0, -1], [0, 1, 0]),
+        'd': ([1, 0, 0], [0, 0, 1], [0, -1, 0]),
+        'f': ([1, 0, 0], [0, 1, 0], [0, 0, 1]),
+        'b': ([-1, 0, 0], [0, 1, 0], [0, 0, -1]),
+        'r': ([0, 0, -1], [0, 1, 0], [1, 0, 0]),
+        'l': ([0, 0, 1], [0, 1, 0], [-1, 0, 0]),
     }
 
-    for f_key, (f_verts, f_norm) in sticker_faces_def.items():
-        s_verts = f_verts
-        s_norms = [f_norm] * 4
-        s_indices = [0, 1, 2, 0, 2, 3]
-        sticker_geoms[f_key] = add_geom(s_verts, s_norms, s_indices)
+    beveled_geoms = {}
+    for f_key, (u_ax, v_ax, n_ax) in face_axes_def.items():
+        v, n_vecs, idx = make_beveled_face(u_ax, v_ax, n_ax, H=0.475, r=0.045)
+        beveled_geoms[f_key] = add_geom(v, n_vecs, idx)
 
-    # Now assemble binary buffer:
-    # positions, then normals, then indices
-    # Ensure 4-byte alignment
+    # Align binary chunks to 4 bytes
     def pad4(b, pad_byte=b'\x00'):
         rem = len(b) % 4
         if rem != 0:
             b.extend(pad_byte * (4 - rem))
 
-    pos_start = 0
     pad4(positions_data)
     pos_len = len(positions_data)
 
@@ -210,63 +252,57 @@ def create_cube_glb(fixture_path, output_glb_path):
     pad4(combined_bin)
 
     buffer_views = [
-        # 0: Positions
         {
             'buffer': 0,
-            'byteOffset': pos_start,
+            'byteOffset': 0,
             'byteLength': pos_len,
-            'target': 34962,  # ARRAY_BUFFER
+            'target': 34962,
         },
-        # 1: Normals
         {
             'buffer': 0,
             'byteOffset': norm_start,
             'byteLength': norm_len,
-            'target': 34962,  # ARRAY_BUFFER
+            'target': 34962,
         },
-        # 2: Indices
         {
             'buffer': 0,
             'byteOffset': idx_start,
             'byteLength': idx_len,
-            'target': 34963,  # ELEMENT_ARRAY_BUFFER
+            'target': 34963,
         },
     ]
 
-    # Accessors for Box:
-    # Accessor 0: Box pos
-    # Accessor 1: Box norm
-    # Accessor 2: Box indices
+    # Accessors for Core Box:
     accessors = [
         {
             'bufferView': 0,
-            'byteOffset': box_geom['pos_offset'],
-            'componentType': 5126,  # FLOAT
-            'count': box_geom['v_count'],
+            'byteOffset': core_geom['pos_offset'],
+            'componentType': 5126,
+            'count': core_geom['v_count'],
             'type': 'VEC3',
-            'min': box_geom['min_pos'],
-            'max': box_geom['max_pos'],
+            'min': core_geom['min_pos'],
+            'max': core_geom['max_pos'],
         },
         {
             'bufferView': 1,
-            'byteOffset': box_geom['norm_offset'],
-            'componentType': 5126,  # FLOAT
-            'count': box_geom['v_count'],
+            'byteOffset': core_geom['norm_offset'],
+            'componentType': 5126,
+            'count': core_geom['v_count'],
             'type': 'VEC3',
         },
         {
             'bufferView': 2,
-            'byteOffset': box_geom['idx_offset'],
-            'componentType': 5123,  # UNSIGNED_SHORT
-            'count': box_geom['i_count'],
+            'byteOffset': core_geom['idx_offset'],
+            'componentType': 5123,
+            'count': core_geom['i_count'],
             'type': 'SCALAR',
         },
     ]
 
-    # Accessors for Stickers:
-    sticker_accessors = {}
+    # Accessors for Beveled Face Caps:
+    beveled_accessors = {}
     for f_key in ['u', 'd', 'f', 'b', 'r', 'l']:
-        g = sticker_geoms[f_key]
+        g = beveled_geoms[f_key]
         pos_acc = len(accessors)
         accessors.append(
             {
@@ -299,15 +335,13 @@ def create_cube_glb(fixture_path, output_glb_path):
                 'type': 'SCALAR',
             }
         )
-        sticker_accessors[f_key] = (pos_acc, norm_acc, idx_acc)
+        beveled_accessors[f_key] = (pos_acc, norm_acc, idx_acc)
 
-    # Now create nodes & meshes for all visible cubies
     nodes = []
     meshes = []
     scene_nodes = []
 
-    # Helper to get sticker color for facelet
-    def get_sticker(x, y, z, face):
+    def get_facelet_color(x, y, z, face):
         if face == 'u':
             return u[z * n + x]
         if face == 'd':
@@ -339,14 +373,14 @@ def create_cube_glb(fixture_path, output_glb_path):
                     {
                         'attributes': {'POSITION': 0, 'NORMAL': 1},
                         'indices': 2,
-                        'material': 0,  # Black plastic
+                        'material': 0,  # Dark interior core
                     }
                 ]
 
-                # Check exterior faces
+                # Exterior rounded caps
                 if y == last:
-                    color = get_sticker(x, y, z, 'u')
-                    pos_acc, norm_acc, idx_acc = sticker_accessors['u']
+                    color = get_facelet_color(x, y, z, 'u')
+                    pos_acc, norm_acc, idx_acc = beveled_accessors['u']
                     primitives.append(
                         {
                             'attributes': {'POSITION': pos_acc, 'NORMAL': norm_acc},
@@ -355,8 +389,8 @@ def create_cube_glb(fixture_path, output_glb_path):
                         }
                     )
                 if y == 0:
-                    color = get_sticker(x, y, z, 'd')
-                    pos_acc, norm_acc, idx_acc = sticker_accessors['d']
+                    color = get_facelet_color(x, y, z, 'd')
+                    pos_acc, norm_acc, idx_acc = beveled_accessors['d']
                     primitives.append(
                         {
                             'attributes': {'POSITION': pos_acc, 'NORMAL': norm_acc},
@@ -365,8 +399,8 @@ def create_cube_glb(fixture_path, output_glb_path):
                         }
                     )
                 if z == last:
-                    color = get_sticker(x, y, z, 'f')
-                    pos_acc, norm_acc, idx_acc = sticker_accessors['f']
+                    color = get_facelet_color(x, y, z, 'f')
+                    pos_acc, norm_acc, idx_acc = beveled_accessors['f']
                     primitives.append(
                         {
                             'attributes': {'POSITION': pos_acc, 'NORMAL': norm_acc},
@@ -375,8 +409,8 @@ def create_cube_glb(fixture_path, output_glb_path):
                         }
                     )
                 if z == 0:
-                    color = get_sticker(x, y, z, 'b')
-                    pos_acc, norm_acc, idx_acc = sticker_accessors['b']
+                    color = get_facelet_color(x, y, z, 'b')
+                    pos_acc, norm_acc, idx_acc = beveled_accessors['b']
                     primitives.append(
                         {
                             'attributes': {'POSITION': pos_acc, 'NORMAL': norm_acc},
@@ -385,8 +419,8 @@ def create_cube_glb(fixture_path, output_glb_path):
                         }
                     )
                 if x == last:
-                    color = get_sticker(x, y, z, 'r')
-                    pos_acc, norm_acc, idx_acc = sticker_accessors['r']
+                    color = get_facelet_color(x, y, z, 'r')
+                    pos_acc, norm_acc, idx_acc = beveled_accessors['r']
                     primitives.append(
                         {
                             'attributes': {'POSITION': pos_acc, 'NORMAL': norm_acc},
@@ -395,8 +429,8 @@ def create_cube_glb(fixture_path, output_glb_path):
                         }
                     )
                 if x == 0:
-                    color = get_sticker(x, y, z, 'l')
-                    pos_acc, norm_acc, idx_acc = sticker_accessors['l']
+                    color = get_facelet_color(x, y, z, 'l')
+                    pos_acc, norm_acc, idx_acc = beveled_accessors['l']
                     primitives.append(
                         {
                             'attributes': {'POSITION': pos_acc, 'NORMAL': norm_acc},
@@ -408,7 +442,6 @@ def create_cube_glb(fixture_path, output_glb_path):
                 mesh_idx = len(meshes)
                 meshes.append({'name': f'mesh_cubie_{x}_{y}_{z}', 'primitives': primitives})
 
-                # Position translation centered at 0
                 cx = (x - last / 2.0) * 1.0
                 cy = (y - last / 2.0) * 1.0
                 cz = (z - last / 2.0) * 1.0
@@ -423,14 +456,14 @@ def create_cube_glb(fixture_path, output_glb_path):
                 )
                 scene_nodes.append(node_idx)
 
-    # Construct complete glTF JSON
+    # glTF JSON
     gltf_dict = {
         'asset': {
             'version': '2.0',
-            'generator': f'cube-assembler-glb-generator ({n}x{n})',
+            'generator': f'cube-assembler-stickerless-glb ({n}x{n})',
         },
         'scene': 0,
-        'scenes': [{'name': f'Cube {n}x{n}', 'nodes': scene_nodes}],
+        'scenes': [{'name': f'Speedcube {n}x{n}', 'nodes': scene_nodes}],
         'nodes': nodes,
         'meshes': meshes,
         'materials': materials,
@@ -439,21 +472,17 @@ def create_cube_glb(fixture_path, output_glb_path):
         'buffers': [{'byteLength': len(combined_bin)}],
     }
 
-    # Encode JSON to UTF-8
     json_bytes = json.dumps(gltf_dict, separators=(',', ':')).encode('utf-8')
-    # Pad JSON chunk to 4 bytes with spaces (0x20)
     json_pad = (4 - (len(json_bytes) % 4)) % 4
     json_chunk_data = json_bytes + b' ' * json_pad
-    json_chunk_header = struct.pack('<II', len(json_chunk_data), 0x4E4F534A)  # 'JSON'
+    json_chunk_header = struct.pack('<II', len(json_chunk_data), 0x4E4F534A)
 
-    # Bin chunk
     bin_pad = (4 - (len(combined_bin) % 4)) % 4
     bin_chunk_data = combined_bin + b'\x00' * bin_pad
-    bin_chunk_header = struct.pack('<II', len(bin_chunk_data), 0x004E4942)  # 'BIN\0'
+    bin_chunk_header = struct.pack('<II', len(bin_chunk_data), 0x004E4942)
 
-    # GLB Header
     total_len = 12 + 8 + len(json_chunk_data) + 8 + len(bin_chunk_data)
-    glb_header = struct.pack('<III', 0x46546C67, 2, total_len)  # 'glTF', version 2
+    glb_header = struct.pack('<III', 0x46546C67, 2, total_len)
 
     os.makedirs(os.path.dirname(os.path.abspath(output_glb_path)), exist_ok=True)
     with open(output_glb_path, 'wb') as f:
@@ -464,7 +493,7 @@ def create_cube_glb(fixture_path, output_glb_path):
         f.write(bin_chunk_data)
 
     print(
-        f'Created GLB: {output_glb_path} (size: {os.path.getsize(output_glb_path)} bytes, nodes: {len(nodes)})'
+        f'Generated {output_glb_path}: size={os.path.getsize(output_glb_path)} bytes, nodes={len(nodes)}'
     )
 
 
@@ -476,6 +505,5 @@ if __name__ == '__main__':
     for fix_dir, out_name in fixtures:
         if os.path.exists(fix_dir):
             create_cube_glb(fix_dir, out_name)
-            # Also save to scratch artifact directory
             art_dir = '/Users/werner/.gemini/antigravity-ide/brain/299cd6a7-d4bb-48ee-a72a-939254337a3b/scratch/'
             create_cube_glb(fix_dir, os.path.join(art_dir, out_name))
