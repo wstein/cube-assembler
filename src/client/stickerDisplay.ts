@@ -1,3 +1,8 @@
+import {
+  colorOrder,
+  confidenceTier as confidenceTierRes,
+} from '../core/capture/CaptureSteps.gen'
+
 // How each color is drawn on screen (nets, review, picker) - slightly
 // calmer than pure RGB so the six still read at a glance without glaring.
 // Display only: detection never compares against these.
@@ -21,7 +26,7 @@ export const COLOR_NAME: Record<string, string> = {
 }
 
 export function confidenceTier(c: number): 'high' | 'medium' | 'low' {
-  return c >= 0.8 ? 'high' : c >= 0.5 ? 'medium' : 'low'
+  return confidenceTierRes(c)
 }
 
-export const COLOR_ORDER = ['W', 'O', 'G', 'R', 'B', 'Y']
+export const COLOR_ORDER: string[] = colorOrder
