@@ -1,6 +1,14 @@
 import { describe, expect, it } from 'vitest'
 import {
+  CUBE_PRESS_MS,
+  WIDE_PRESS_MS,
+  blockLayer,
   clampZoom,
+  facePlanePoint,
+  layerIndex,
+  pressLevel,
+  swipeMoveAxis,
+  wholeCubeLayer,
   gestureAfterPointerUp,
   gestureForPointerDown,
   gestureWhenSwipeTurnsNothing,
@@ -280,5 +288,88 @@ describe('wheel and touchpad', () => {
     expect(wheelGesture(wheel(0, 100))).toBe('zoom')
     expect(wheelGesture(wheel(0, -120))).toBe('zoom')
     expect(wheelGesture(wheel(0, 3, { deltaMode: 1 }))).toBe('zoom')
+  })
+})
+
+describe('held sticker drags', () => {
+  const front = {
+    width: 600,
+    height: 600,
+    zoom: 12,
+    pitch: 0,
+    yaw: 0,
+    size: 5,
+  }
+
+  it('holds a sticker 300 ms for a block and 600 ms for the whole cube', () => {
+    const keys = { shiftKey: false, altKey: false }
+    expect(pressLevel(0, keys)).toBe('layer')
+    expect(pressLevel(WIDE_PRESS_MS - 1, keys)).toBe('layer')
+    expect(pressLevel(WIDE_PRESS_MS, keys)).toBe('block')
+    expect(pressLevel(CUBE_PRESS_MS, keys)).toBe('cube')
+  })
+
+  it('takes Shift for a block and Alt for the whole cube at once', () => {
+    expect(pressLevel(0, { shiftKey: true, altKey: false })).toBe('block')
+    expect(pressLevel(0, { shiftKey: false, altKey: true })).toBe('cube')
+    expect(pressLevel(0, { shiftKey: true, altKey: true })).toBe('cube')
+  })
+
+  it('follows the finger across the face plane, past its edge too', () => {
+    const hit = pickCubeSurface(300, 300, front)!
+    const center = facePlanePoint(300, 300, front, hit)!
+    expect(center[0]).toBeCloseTo(0, 6)
+    expect(center[2]).toBeCloseTo(2.5, 6)
+    const right = facePlanePoint(590, 300, front, hit)!
+    expect(right[0]).toBeGreaterThan(2.5)
+    expect(right[2]).toBeCloseTo(2.5, 6)
+    expect(layerIndex(right[0], 5)).toBe(4)
+    expect(layerIndex(-0.4, 5)).toBe(2)
+    expect(layerIndex(-0.6, 5)).toBe(1)
+  })
+
+  it('selects layers along the way a swipe travels', () => {
+    const hit = pickCubeSurface(300, 300, front)!
+    expect(swipeMoveAxis(hit, 60, 0, front)).toBe(0)
+    expect(swipeMoveAxis(hit, 0, -60, front)).toBe(1)
+    expect(swipeMoveAxis(hit, 5, 0, front)).toBeNull()
+    expect(swipeMoveAxis(hit, 40, 40, front)).toBeNull()
+  })
+
+  it('names a block from the face it reaches, or the nearer one', () => {
+    expect(blockLayer(0, 3, 4, 5)).toMatchObject({
+      face: 'R',
+      depth: 2,
+      width: 2,
+      axis: 0,
+      sign: -1,
+    })
+    expect(blockLayer(0, 1, 0, 5)).toMatchObject({
+      face: 'L',
+      depth: 2,
+      width: 2,
+      sign: 1,
+    })
+    expect(blockLayer(1, 1, 2, 5)).toMatchObject({
+      face: 'D',
+      depth: 3,
+      width: 2,
+    })
+    expect(blockLayer(2, 2, 3, 5)).toMatchObject({
+      face: 'F',
+      depth: 3,
+      width: 2,
+    })
+    expect(blockLayer(0, 2, 2, 5)).toMatchObject({ depth: 3, width: 1 })
+  })
+
+  it('turns the whole cube about the swipe axis, named from R, U or F', () => {
+    const hit = pickCubeSurface(240, 300, front)!
+    const layer = pickSwipeLayer(hit, 0, -80, front)!
+    expect(layer.face).toBe('L')
+    const cube = wholeCubeLayer(layer.axis, 5)
+    expect(cube).toEqual({ face: 'R', depth: 5, width: 5, axis: 0, sign: -1 })
+    // Swiping up on the front turns the cube like R: an x rotation.
+    expect(swipeLayerAngle(hit, cube, 0, -80, front)).toBeGreaterThan(0)
   })
 })

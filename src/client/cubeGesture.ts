@@ -187,6 +187,109 @@ export function swipeLayerAngle(
   return layer.sign * 0.1 * swipe.along[swipe.axes.indexOf(layer.axis)]
 }
 
+// Holding a sticker before dragging turns more than its layer: a block of
+// layers after WIDE_PRESS_MS, the whole cube after CUBE_PRESS_MS. Shift and
+// Alt pick the same at once. A finger that moves PRESS_SLOP_PX first is
+// swiping, not holding.
+export const WIDE_PRESS_MS = 300
+export const CUBE_PRESS_MS = 600
+export const PRESS_SLOP_PX = 10
+
+export type PressLevel = 'layer' | 'block' | 'cube'
+
+export function pressLevel(
+  heldMs: number,
+  keys: { shiftKey: boolean; altKey: boolean },
+): PressLevel {
+  if (keys.altKey || heldMs >= CUBE_PRESS_MS) return 'cube'
+  if (keys.shiftKey || heldMs >= WIDE_PRESS_MS) return 'block'
+  return 'layer'
+}
+
+// Where the pointer is on the plane of the face `hit` is on, even beyond the
+// face's edges, so picking layers can run off the cube.
+export function facePlanePoint(
+  x: number,
+  y: number,
+  camera: CubeGestureCamera,
+  hit: CubeSurfaceHit,
+): Vec | null {
+  const { width, height, zoom, pitch, yaw } = camera
+  if (width <= 0 || height <= 0) return null
+  const tangent = Math.tan(Math.PI / 8)
+  const ray: Vec = [
+    ((2 * x) / width - 1) * tangent * (width / height),
+    (1 - (2 * y) / height) * tangent,
+    -1,
+  ]
+  const unrotate = (v: Vec) => rotateY(rotateX(v, -pitch), -yaw)
+  const origin = unrotate([0, 0, zoom])
+  const direction = unrotate(ray)
+  const axis = hit.normalAxis
+  if (Math.abs(direction[axis]) < 1e-8) return null
+  const distance = (hit.point[axis] - origin[axis]) / direction[axis]
+  if (distance <= 0) return null
+  return [
+    origin[0] + distance * direction[0],
+    origin[1] + distance * direction[1],
+    origin[2] + distance * direction[2],
+  ]
+}
+
+// The layer a coordinate along an axis falls in, 0 at the negative side.
+export function layerIndex(coordinate: number, size: number): number {
+  return Math.max(
+    0,
+    Math.min(size - 1, Math.round(coordinate + (size - 1) / 2)),
+  )
+}
+
+// The in-plane axis a clear swipe travels along: the layers it crosses are
+// the ones it picks. The layer a swipe would turn rotates about the other.
+export function swipeMoveAxis(
+  hit: CubeSurfaceHit,
+  dx: number,
+  dy: number,
+  camera: CubeGestureCamera,
+): Axis | null {
+  const layer = pickSwipeLayer(hit, dx, dy, camera)
+  if (!layer) return null
+  return ([0, 1, 2] as const).find(
+    (axis) => axis !== hit.normalAxis && axis !== layer.axis,
+  )!
+}
+
+const AXIS_FACES: Record<Axis, [FaceKey, FaceKey]> = {
+  0: ['R', 'L'],
+  1: ['U', 'D'],
+  2: ['F', 'B'],
+}
+
+// The layers between two indexes along an axis, named from the face the
+// block reaches, else from the nearer face.
+export function blockLayer(
+  axis: Axis,
+  from: number,
+  to: number,
+  size: number,
+): SwipeLayer {
+  const low = Math.min(from, to)
+  const high = Math.max(from, to)
+  const positive = high === size - 1 || (low !== 0 && low + high >= size - 1)
+  return {
+    face: AXIS_FACES[axis][positive ? 0 : 1],
+    depth: positive ? size - low : high + 1,
+    width: high - low + 1,
+    axis,
+    sign: positive ? -1 : 1,
+  }
+}
+
+// Every layer about an axis: an x, y or z rotation of the whole cube.
+export function wholeCubeLayer(axis: Axis, size: number): SwipeLayer {
+  return blockLayer(axis, 0, size - 1, size)
+}
+
 // A released drag settles on whole quarter turns. Each further quarter
 // counts once the drag passes TURN_COMMIT_FRACTION of it, so a short slow
 // drag springs back. A flick carries on for FLICK_MS at its speed, but at
