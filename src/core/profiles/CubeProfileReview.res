@@ -181,3 +181,26 @@ let unusedCubes = (settings: profileSettings) =>
     settings.activeCubeBySize->Dict.get(Int.toString(cube.size)) != Some(cube.id)
   )
   ->Array.map(cube => cube.id)
+
+type square = {x: float, y: float, w: float, h: float}
+
+// The sampled square of every cell, as fractions of the face: `core` of
+// the cell, centered; outer rows and columns `outer` times as wide.
+let sampledSquares = (size, core, outer) => {
+  let edges = StickerGeometry.cellEdges(size, outer)
+  let edge = i => edges->Array.getUnsafe(i)
+  let squares = []
+  for row in 0 to size - 1 {
+    for col in 0 to size - 1 {
+      let w = (edge(col + 1) -. edge(col)) *. core
+      let h = (edge(row + 1) -. edge(row)) *. core
+      squares->Array.push({
+        x: (edge(col) +. edge(col + 1)) /. 2.0 -. w /. 2.0,
+        y: (edge(row) +. edge(row + 1)) /. 2.0 -. h /. 2.0,
+        w,
+        h,
+      })
+    }
+  }
+  squares
+}

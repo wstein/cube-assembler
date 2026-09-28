@@ -415,3 +415,27 @@ let tryOnProfiles = (faces: array<reviewFace>, balanced, colorsA, colorsB) =>
       changes,
     })
   }
+
+// The hue wheel comparing two profiles: a color's point, by hue around and
+// chroma out to `maxChroma` at the rim, in a 320-unit square.
+let wheelCenter = 160.0
+let wheelRadius = 120.0
+let wheelMaxChroma = 0.33
+
+let wheelPoint = c => {
+  let {c: chroma, h} = rgbToOKLCH(c)
+  let r = Math.min(1.0, chroma /. wheelMaxChroma) *. wheelRadius
+  let t = h *. Math.Constants.pi /. 180.0
+  (wheelCenter +. r *. Math.cos(t), wheelCenter -. r *. Math.sin(t))
+}
+
+@send external toFixed: (float, int) => string = "toFixed"
+
+// A profile's colored stickers joined around the wheel, as SVG points.
+let wheelOutline = (colors: Dict.t<rgb>) =>
+  ["R", "O", "Y", "G", "B"]
+  ->Array.map(key => {
+    let (x, y) = wheelPoint(colors->Dict.getUnsafe(key))
+    `${x->toFixed(1)},${y->toFixed(1)}`
+  })
+  ->Array.join(" ")

@@ -19,3 +19,6 @@ let deleteCubes: (ProfileSettings.profileSettings, array<string>) => ProfileSett
 @genType let cubeDeletionEffects: (ProfileSettings.profileSettings, array<string>) => array<string>
 @genType let cubesSameAsGeneric: ProfileSettings.profileSettings => array<string>
 @genType let unusedCubes: ProfileSettings.profileSettings => array<string>
+
+@genType type square = {x: float, y: float, w: float, h: float}
+@genType let sampledSquares: (int, float, float) => array<square>

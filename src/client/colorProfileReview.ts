@@ -25,6 +25,10 @@ export {
   splitColorLevel,
   tryOnProfiles,
   unusedColorProfiles,
+  wheelCenter as WHEEL_CENTER,
+  wheelOutline,
+  wheelPoint,
+  wheelRadius as WHEEL_RADIUS,
   withinMergeLimit,
 } from '../core/profiles/ColorProfileReview.gen'
 

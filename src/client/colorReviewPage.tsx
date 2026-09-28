@@ -15,6 +15,10 @@ import {
   splitColorLevel,
   tryOnProfiles,
   unusedColorProfiles,
+  wheelOutline,
+  wheelPoint,
+  WHEEL_CENTER,
+  WHEEL_RADIUS,
   whiteBalancedColors,
   CLOSE_DISTANCE as CLOSE,
   type ReviewFace,
@@ -258,25 +262,11 @@ export function ColorReviewTab({ settings, onChange, capture }: Props) {
   }
 
   const wheel = () => {
-    const cx = 160,
-      cy = 160,
-      R = 120,
-      maxC = 0.33
-    const point = (c: RGB) => {
-      const { c: chroma, h } = rgbToOKLCH(c),
-        r = Math.min(1, chroma / maxC) * R,
-        t = (h * Math.PI) / 180
-      return [cx + r * Math.cos(t), cy - r * Math.sin(t)]
-    }
-    const ring = ['R', 'O', 'Y', 'G', 'B']
-    const outline = (colors: Record<string, RGB>) =>
-      ring
-        .map((k) =>
-          point(colors[k])
-            .map((v) => v.toFixed(1))
-            .join(','),
-        )
-        .join(' ')
+    const cx = WHEEL_CENTER,
+      cy = WHEEL_CENTER,
+      R = WHEEL_RADIUS
+    const point = wheelPoint
+    const outline = wheelOutline
     return (
       <svg
         viewBox="0 0 320 320"

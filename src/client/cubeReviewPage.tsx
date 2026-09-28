@@ -9,6 +9,7 @@ import {
   duplicateCubeGroups,
   mergeCubes,
   replaceCubes,
+  sampledSquares as sampledSquaresOf,
   unusedCubes,
 } from './cubeProfileReview'
 import { DeleteButton, SelectionBar } from './profileDeletion'
@@ -43,23 +44,8 @@ const GENERIC_CORE = builtinCube(3).sampling.stickerCore
 const pct = (v: number) => `${Math.round(v * 100)}%`
 
 // The sampled square of every cell: `core` of the cell, centered.
-function sampledSquares(size: number, core: number, outer = 1) {
-  const edges = cellEdges(size, outer)
-  const squares: Array<{ x: number; y: number; w: number; h: number }> = []
-  for (let row = 0; row < size; row++) {
-    for (let col = 0; col < size; col++) {
-      const w = (edges[col + 1] - edges[col]) * core,
-        h = (edges[row + 1] - edges[row]) * core
-      squares.push({
-        x: (edges[col] + edges[col + 1]) / 2 - w / 2,
-        y: (edges[row] + edges[row + 1]) / 2 - h / 2,
-        w,
-        h,
-      })
-    }
-  }
-  return squares
-}
+const sampledSquares = (size: number, core: number, outer = 1) =>
+  sampledSquaresOf(size, core, outer)
 
 function MiniGrid({
   size,

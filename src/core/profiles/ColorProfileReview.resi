@@ -73,3 +73,8 @@ let tryOnProfiles: (
   Dict.t<StickerGeometry.rgb>,
   Dict.t<StickerGeometry.rgb>,
 ) => Null.t<tryOn>
+
+@genType let wheelCenter: float
+@genType let wheelRadius: float
+@genType let wheelPoint: StickerGeometry.rgb => (float, float)
+@genType let wheelOutline: Dict.t<StickerGeometry.rgb> => string

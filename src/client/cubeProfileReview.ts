@@ -8,5 +8,6 @@ export {
   duplicateCubeGroups,
   mergeCubes,
   replaceCubes,
+  sampledSquares,
   unusedCubes,
 } from '../core/profiles/CubeProfileReview.gen'
