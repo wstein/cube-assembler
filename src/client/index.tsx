@@ -36,6 +36,7 @@ import { BackdropDialog } from './backdropDialog'
 import { FixtureDownloadDialog } from './fixtureDownloadDialog'
 import { useFixtureDownload } from './useFixtureDownload'
 import { useCameraStream, withoutDeviceIds } from './useCameraStream'
+import { useCaptureFeedback } from './useCaptureFeedback'
 import {
   captureCameraPhoto,
   importCapturePhoto,
@@ -1093,12 +1094,14 @@ function App() {
   )
   const [autoCaptureFrames, setAutoCaptureFrames] = useState(0)
   const [autoCapturePaused, setAutoCapturePaused] = useState(false)
-  const [captureFlash, setCaptureFlash] = useState(false)
   const [captureSound, setCaptureSound] = useState(() =>
     readPreference(document.cookie, SOUND_COOKIE),
   )
-  const captureAudio = useRef<AudioContext | null>(null)
-  const flashTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const {
+    flash: captureFlash,
+    armAudio: armCaptureAudio,
+    signalCapture,
+  } = useCaptureFeedback(captureSound)
   const autoCaptureInFlight = useRef(false)
   const lastCapturedColors = useRef<string[][] | null>(null)
   const lastCapturedPose = useRef<TurnCuePose | null>(null)
@@ -1470,51 +1473,6 @@ function App() {
   useEffect(
     () => () => {
       liveWorker.current?.terminate()
-    },
-    [],
-  )
-
-  const armCaptureAudio = (enabled = captureSound) => {
-    if (!enabled) return
-    try {
-      captureAudio.current ??= new AudioContext()
-      void captureAudio.current.resume()
-    } catch {
-      /* Audio is optional if the browser has no Web Audio. */
-    }
-  }
-
-  const signalCapture = () => {
-    setCaptureFlash(true)
-    if (flashTimer.current) clearTimeout(flashTimer.current)
-    flashTimer.current = setTimeout(() => setCaptureFlash(false), 220)
-    const audio = captureSound ? captureAudio.current : null
-    if (!audio || audio.state !== 'running') return
-    const buffer = audio.createBuffer(
-      1,
-      Math.ceil(audio.sampleRate * 0.07),
-      audio.sampleRate,
-    )
-    const samples = buffer.getChannelData(0)
-    for (let i = 0; i < samples.length; i++) samples[i] = Math.random() * 2 - 1
-    const click = audio.createBufferSource()
-    click.buffer = buffer
-    const filter = audio.createBiquadFilter()
-    filter.type = 'highpass'
-    filter.frequency.value = 700
-    const volume = audio.createGain()
-    const now = audio.currentTime
-    volume.gain.setValueAtTime(0.13, now)
-    volume.gain.exponentialRampToValueAtTime(0.001, now + 0.07)
-    click.connect(filter).connect(volume).connect(audio.destination)
-    click.start(now)
-    click.stop(now + 0.07)
-  }
-
-  useEffect(
-    () => () => {
-      if (flashTimer.current) clearTimeout(flashTimer.current)
-      void captureAudio.current?.close()
     },
     [],
   )
