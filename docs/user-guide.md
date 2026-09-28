@@ -50,7 +50,10 @@ First-party cookies remember the selected cube size and color profile,
 Mirror, Auto capture, capture sound, and the **2D Net / 3D View** choice.
 Within 3D View, **Stickerless / Stickered** and **Auto-rotate / Pause** are
 remembered too. Swipe a sticker in the 3D view to turn its row or column,
-including inner slices on larger cubes. With a mouse, drag the background to
+including inner slices on larger cubes. The layer follows your finger: let
+go early and it springs back, keep dragging for two or three quarter turns,
+or drag back to turn the other way. A quick flick finishes one turn, and a
+turn that reverses the previous one removes it from the move list. With a mouse, drag the background to
 rotate the view; it keeps turning briefly after release. On a touch screen,
 one finger only turns layers; two fingers tilt the cube or pinch to zoom.
 Each two-finger gesture does one or the other, decided by how it starts. On

@@ -48,6 +48,59 @@ test('move history and Undo survive a view switch, then Reset clears them', asyn
   await expect(undo).toBeDisabled()
 })
 
+test('a sticker drag turns the layer live and settles on whole turns', async ({
+  page,
+}) => {
+  await page.goto('/')
+  await page
+    .getByRole('combobox', { name: 'Cube' })
+    .selectOption({ label: '5×5' })
+  await page.getByRole('button', { name: 'Solved cube' }).click()
+  const notation = page.getByRole('textbox', { name: 'Notation' })
+  const solved = await notation.inputValue()
+  await page.getByRole('button', { name: '3D View' }).click()
+  await page.getByRole('button', { name: 'Front (F)' }).click()
+  const history = page.getByRole('status', { name: 'Move history' })
+  const canvas = page.locator('.cube-3d-canvas')
+  const bounds = await canvas.boundingBox()
+  expect(bounds).not.toBeNull()
+  if (!bounds) return
+  const x = bounds.x + bounds.width / 2 - 38
+  const cy = bounds.y + bounds.height / 2
+  // Facing the front of a 5x5, a quarter turn of a column is a drag of
+  // about half the canvas height.
+  const quarter = bounds.height / 2
+  const drag = async (from: number, to: number) => {
+    await page.mouse.move(x, from)
+    await page.mouse.down()
+    await page.mouse.move(x, to, { steps: 12 })
+    // Holding still before lifting throws nothing.
+    await page.waitForTimeout(150)
+  }
+  await page.waitForTimeout(300)
+  const still = await canvas.screenshot()
+
+  // The layer follows a short drag and springs back when released.
+  await drag(cy, cy - 0.2 * quarter)
+  expect((await canvas.screenshot()).equals(still)).toBe(false)
+  await page.mouse.up()
+  await page.waitForTimeout(400)
+  await expect(history).toHaveText('Moves: None')
+  expect((await canvas.screenshot()).equals(still)).toBe(true)
+
+  // Dragging on past the first quarter turn turns the layer twice.
+  await drag(cy + 0.55 * quarter, cy - 0.95 * quarter)
+  await page.mouse.up()
+  await expect(history).toHaveText('Moves: 2L2')
+  await expect(notation).not.toHaveValue(solved)
+
+  // Dragging it back undoes the turn.
+  await drag(cy - 0.55 * quarter, cy + 0.95 * quarter)
+  await page.mouse.up()
+  await expect(history).toHaveText('Moves: None')
+  await expect(notation).toHaveValue(solved)
+})
+
 test('scramble records completed turns that can be undone', async ({
   page,
 }) => {
@@ -151,7 +204,6 @@ for (const size of [2, 5]) {
   test(`${size}x${size} turning cut keeps solid rounded plastic`, async ({
     page,
   }) => {
-    await page.clock.install()
     await page.goto('/')
     await page
       .getByRole('combobox', { name: 'Cube' })
@@ -164,13 +216,24 @@ for (const size of [2, 5]) {
       ;(hint as HTMLElement).style.visibility = 'hidden'
     })
     await page.getByRole('button', { name: 'Front (F)' }).click()
-    await page.clock.pauseAt((await page.evaluate(() => Date.now())) + 1000)
-    await swipeFrontFace(page)
-    await page.clock.runFor(96)
+    const bounds = await canvas.boundingBox()
+    expect(bounds).not.toBeNull()
+    if (!bounds) return
+    // Hold the column 40% of a quarter turn into the drag. Facing the
+    // front, the sticker moves half the cube width per radian, seen from the
+    // default camera distance to the face.
+    const half = size / 2
+    const focal = bounds.height / (2 * Math.tan(Math.PI / 8))
+    const quarter = ((Math.PI / 2) * focal * half) / (3 + size * 1.8 - half)
+    const x = bounds.x + bounds.width / 2 - 38
+    const y = bounds.y + bounds.height / 2
+    await page.mouse.move(x, y)
+    await page.mouse.down()
+    await page.mouse.move(x, y - 0.4 * quarter, { steps: 5 })
     await expect(canvas).toHaveScreenshot(`cube-${size}x${size}-mid-turn.png`, {
-      animations: 'allow',
       maxDiffPixelRatio: 0.03,
     })
+    await page.mouse.up()
   })
 }
 

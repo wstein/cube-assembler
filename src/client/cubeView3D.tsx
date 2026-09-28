@@ -5,14 +5,18 @@ import {
   gestureAfterPointerUp,
   gestureForPointerDown,
   gestureWhenSwipeTurnsNothing,
-  getSwipeLayerTurn,
   pickCubeSurface,
+  pickSwipeLayer,
+  releasedQuarterTurns,
+  swipeLayerAngle,
   twoFingerLock,
   twoFingerMotion,
   wheelGesture,
   type CubeGesture,
   type TwoFingerLock,
   type CubeSurfaceHit,
+  type CubeGestureCamera,
+  type SwipeLayer,
 } from './cubeGesture'
 import { stepDragInertia } from './dragInertia'
 import { magneticEase, playTurnClick, turnClickGain } from './turnFeel'
@@ -1254,6 +1258,7 @@ export function CubeView3D({
     setMoves([])
     turnQueueRef.current = []
     currentTurnRef.current = null
+    dragTurnRef.current = null
     setIsScrambling(false)
     setIsTurning(false)
     forceUpdateMeshRef.current = true
@@ -1264,6 +1269,7 @@ export function CubeView3D({
       face: FaceKey
       depth?: number
       turns: number
+      from?: number
       duration?: number
       undo?: boolean
     }>
@@ -1272,9 +1278,19 @@ export function CubeView3D({
     face: FaceKey
     depth?: number
     turns: number
+    // A released drag settles from where the finger left the layer.
+    from?: number
     startTime: number
     duration: number
     undo?: boolean
+  } | null>(null)
+  // The layer a sticker drag is turning, following the finger until release.
+  const dragTurnRef = useRef<{
+    layer: SwipeLayer
+    angle: number
+    velocity: number
+    time: number
+    drawn: number | null
   } | null>(null)
   const forceUpdateMeshRef = useRef(false)
 
@@ -1369,6 +1385,7 @@ export function CubeView3D({
   const resetCube = () => {
     turnQueueRef.current = []
     currentTurnRef.current = null
+    dragTurnRef.current = null
     setIsScrambling(false)
     setIsTurning(false)
     currentCubeRef.current = cube
@@ -1502,8 +1519,9 @@ export function CubeView3D({
         const turnElapsed = time - anim.startTime
         const progress = Math.min(1, Math.max(0, turnElapsed / anim.duration))
         const ease = magneticEase(progress)
+        const from = anim.from ?? 0
         const targetAngle = anim.turns * (Math.PI / 2)
-        const currentAngle = ease * targetAngle
+        const currentAngle = from + ease * (targetAngle - from)
 
         const turnMesh = buildCubeMesh(
           currentCubeRef.current,
@@ -1518,34 +1536,37 @@ export function CubeView3D({
         gl.bufferSubData(gl.ARRAY_BUFFER, 0, turnMesh.normals)
 
         if (progress >= 1) {
-          playTurnClick(
-            turnClickGain(
-              anim.duration,
-              readPreference(document.cookie, SOUND_COOKIE),
-            ),
-          )
-          const nextCube = applyCubeLayerMove(
-            currentCubeRef.current,
-            puzzleSize,
-            anim.face,
-            anim.depth ?? 1,
-            anim.turns,
-          )
-          currentCubeRef.current = nextCube
-          setCurrentCube(nextCube)
-          const nextMoves = anim.undo
-            ? movesRef.current.slice(0, -1)
-            : recordTurn(movesRef.current, {
-                face: anim.face,
-                depth: anim.depth ?? 1,
-                turns: anim.turns,
-              })
-          movesRef.current = nextMoves
-          setMoves(nextMoves)
-          onTurnStateChangeRef.current?.(nextCube, nextMoves)
+          // A drag released short of a quarter turn springs back silently.
+          if (anim.turns !== 0) {
+            playTurnClick(
+              turnClickGain(
+                anim.duration,
+                readPreference(document.cookie, SOUND_COOKIE),
+              ),
+            )
+            const nextCube = applyCubeLayerMove(
+              currentCubeRef.current,
+              puzzleSize,
+              anim.face,
+              anim.depth ?? 1,
+              anim.turns,
+            )
+            currentCubeRef.current = nextCube
+            setCurrentCube(nextCube)
+            const nextMoves = anim.undo
+              ? movesRef.current.slice(0, -1)
+              : recordTurn(movesRef.current, {
+                  face: anim.face,
+                  depth: anim.depth ?? 1,
+                  turns: anim.turns,
+                })
+            movesRef.current = nextMoves
+            setMoves(nextMoves)
+            onTurnStateChangeRef.current?.(nextCube, nextMoves)
+          }
 
           const finalMesh = buildCubeMesh(
-            nextCube,
+            currentCubeRef.current,
             puzzleSize,
             palette,
             isStickerless,
@@ -1563,6 +1584,7 @@ export function CubeView3D({
               face: next.face,
               depth: next.depth,
               turns: next.turns,
+              from: next.from,
               startTime: time,
               duration: next.duration ?? 90,
               undo: next.undo,
@@ -1573,12 +1595,34 @@ export function CubeView3D({
             setIsTurning(false)
           }
         }
+      } else if (dragTurnRef.current) {
+        // Queued turns wait until the finger lets go of the layer.
+        const drag = dragTurnRef.current
+        if (drag.drawn !== drag.angle) {
+          drag.drawn = drag.angle
+          const dragMesh = buildCubeMesh(
+            currentCubeRef.current,
+            puzzleSize,
+            palette,
+            isStickerless,
+            {
+              face: drag.layer.face,
+              depth: drag.layer.depth,
+              angle: drag.angle,
+            },
+          )
+          gl.bindBuffer(gl.ARRAY_BUFFER, posBuf)
+          gl.bufferSubData(gl.ARRAY_BUFFER, 0, dragMesh.positions)
+          gl.bindBuffer(gl.ARRAY_BUFFER, normBuf)
+          gl.bufferSubData(gl.ARRAY_BUFFER, 0, dragMesh.normals)
+        }
       } else if (turnQueueRef.current.length > 0) {
         const next = turnQueueRef.current.shift()!
         currentTurnRef.current = {
           face: next.face,
           depth: next.depth,
           turns: next.turns,
+          from: next.from,
           startTime: time,
           duration: next.duration ?? 160,
           undo: next.undo,
@@ -1751,6 +1795,32 @@ export function CubeView3D({
     })
   }
 
+  const gestureCamera = (rect: DOMRect): CubeGestureCamera => ({
+    width: rect.width,
+    height: rect.height,
+    zoom: stateRef.current.zoom,
+    pitch: stateRef.current.pitch,
+    yaw: stateRef.current.yaw,
+    size: puzzleSize,
+  })
+
+  // Hands a released drag to the turn animation, which settles the layer on
+  // whole quarter turns from where the finger left it.
+  const settleDrag = (turns: number) => {
+    const drag = dragTurnRef.current
+    if (!drag) return
+    dragTurnRef.current = null
+    const quarter = Math.PI / 2
+    const distance = Math.abs(turns * quarter - drag.angle) / quarter
+    turnQueueRef.current.unshift({
+      face: drag.layer.face,
+      depth: drag.layer.depth,
+      turns,
+      from: drag.angle,
+      duration: Math.max(120, Math.min(240, 160 * distance)),
+    })
+  }
+
   const handlePointerDown = (e: PointerEvent) => {
     const touch = e.pointerType === 'touch'
     if (touch) touchesRef.current.set(e.pointerId, [e.clientX, e.clientY])
@@ -1774,6 +1844,8 @@ export function CubeView3D({
       )
       if (gesture) gesture.mode = mode
       if (mode === 'tilt') {
+        // A second finger lets go of a dragged layer.
+        settleDrag(0)
         startTilt()
         lastPointerRef.current = {
           ...lastPointerRef.current,
@@ -1785,15 +1857,15 @@ export function CubeView3D({
     lastPointerRef.current = { x: e.clientX, y: e.clientY, time: e.timeStamp }
     const rect = canvasRef.current?.getBoundingClientRect()
     const hit =
-      rect && !currentTurnRef.current && turnQueueRef.current.length === 0
-        ? pickCubeSurface(e.clientX - rect.left, e.clientY - rect.top, {
-            width: rect.width,
-            height: rect.height,
-            zoom: stateRef.current.zoom,
-            pitch: stateRef.current.pitch,
-            yaw: stateRef.current.yaw,
-            size: puzzleSize,
-          })
+      rect &&
+      !currentTurnRef.current &&
+      !dragTurnRef.current &&
+      turnQueueRef.current.length === 0
+        ? pickCubeSurface(
+            e.clientX - rect.left,
+            e.clientY - rect.top,
+            gestureCamera(rect),
+          )
         : null
     gestureRef.current = {
       x: e.clientX,
@@ -1832,24 +1904,43 @@ export function CubeView3D({
         setZoom((prev) => clampZoom(prev / motion.scale, puzzleSize))
       return
     }
-    if (gesture.mode === 'turn' || gesture.mode === 'none') return
+    if (gesture.mode === 'none') return
+    if (gesture.mode === 'turn') {
+      const drag = dragTurnRef.current
+      const rect = canvasRef.current?.getBoundingClientRect()
+      if (!drag || !gesture.hit || !rect) return
+      const angle = swipeLayerAngle(
+        gesture.hit,
+        drag.layer,
+        e.clientX - gesture.x,
+        e.clientY - gesture.y,
+        gestureCamera(rect),
+      )
+      drag.velocity =
+        (angle - drag.angle) / Math.max(e.timeStamp - drag.time, 8)
+      drag.angle = angle
+      drag.time = e.timeStamp
+      return
+    }
     if (gesture.mode === 'pending' && gesture.hit) {
       const rect = canvasRef.current?.getBoundingClientRect()
       if (!rect) return
       const dx = e.clientX - gesture.x
       const dy = e.clientY - gesture.y
       if (Math.hypot(dx, dy) < 18) return
-      const turn = getSwipeLayerTurn(gesture.hit, dx, dy, {
-        width: rect.width,
-        height: rect.height,
-        zoom: stateRef.current.zoom,
-        pitch: stateRef.current.pitch,
-        yaw: stateRef.current.yaw,
-        size: puzzleSize,
-      })
-      if (turn) {
+      const camera = gestureCamera(rect)
+      const layer = pickSwipeLayer(gesture.hit, dx, dy, camera)
+      if (layer) {
+        // The layer follows the finger from here until release.
         gesture.mode = 'turn'
-        triggerTurn(turn.face, turn.turns, turn.depth)
+        dragTurnRef.current = {
+          layer,
+          angle: swipeLayerAngle(gesture.hit, layer, dx, dy, camera),
+          velocity: 0,
+          time: e.timeStamp,
+          drawn: null,
+        }
+        setIsTurning(true)
         return
       }
       gesture.mode = gestureWhenSwipeTurnsNothing(gesture.pointerType)
@@ -1884,6 +1975,16 @@ export function CubeView3D({
     isDraggingRef.current = false
     if (gestureRef.current?.mode === 'turn') {
       inertiaRef.current = { yaw: 0, pitch: 0 }
+      const drag = dragTurnRef.current
+      if (drag) {
+        // A finger that stopped before lifting throws nothing.
+        const velocity = e.timeStamp - drag.time > 100 ? 0 : drag.velocity
+        settleDrag(
+          e.type === 'pointercancel'
+            ? 0
+            : releasedQuarterTurns(drag.angle, velocity),
+        )
+      }
     }
     gestureRef.current = null
     tiltFromRef.current = null
