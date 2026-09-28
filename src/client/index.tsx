@@ -89,7 +89,6 @@ import {
   stickerSampleRect,
   colorConfidences,
   STICKER_COLORS,
-  type SamplingGeometry,
   rgbToOKLCH,
   hueCircularRange,
   hueRangesOverlap,
@@ -161,7 +160,7 @@ import {
   type PaletteEvidence,
 } from './colorProfileLearning'
 import { colorsUnderWhite } from './colorProfileReview'
-import { readFixtureColors } from './fixtureFormat'
+import { readFixtureUpload } from './readFixtureUpload'
 import {
   buildFixture,
   summarizeFixture,
@@ -1662,99 +1661,12 @@ function App() {
     setCaptureMessage('Loading fixture...')
 
     try {
-      const metaFile = files.find((f) => f.name.toLowerCase().endsWith('.json'))
-      if (!metaFile) {
-        setCaptureMessage(
-          "❌ No .json file found - select a fixture zip, or a fixture's meta.json together with its 6 face-*.jpg photos.",
-        )
+      const loaded = await readFixtureUpload(files)
+      if (!loaded.ok) {
+        setCaptureMessage(loaded.message)
         return
       }
-
-      let meta: {
-        gridSize: number
-        colorsURFDLB?: string
-        faces: Record<
-          string,
-          {
-            photo: string
-            capturedAt?: string
-            background?: RGB | null
-            previewColorProfile?: PreviewColorProfile
-          } & Record<string, unknown>
-        >
-        capture?: {
-          backgroundWhiteBalance?: Record<string, RGB> | null
-          backgroundWhiteBalanceMethod?: string
-          sampling?: SamplingGeometry
-          profile?: { id?: string; name?: string } | null
-          colorProfile?: UsedColorProfile | null
-          colorResolution?: {
-            reason: AutomaticResolution['reason']
-            nearest?: Array<{ id: string; name: string; fit: number }>
-          } | null
-          colorReference?: Record<string, RGB> | null
-          protocol?: string | null
-        }
-      }
-      try {
-        meta = JSON.parse(await metaFile.text())
-      } catch {
-        setCaptureMessage(`❌ ${metaFile.name} is not valid JSON.`)
-        return
-      }
-      // Either fixture format (see readFixtureColors).
-      const colorGrids = readFixtureColors(meta)?.colors ?? null
-      if (!meta.faces || typeof meta.gridSize !== 'number' || !colorGrids) {
-        setCaptureMessage(
-          `❌ ${metaFile.name} doesn't look like a saved fixture (missing gridSize, faces or their colors).`,
-        )
-        return
-      }
-
-      const photoFiles = files.filter((f) => f !== metaFile)
-      const newEntries: Record<string, FaceCaptureData> = {}
-      const missing: string[] = []
-      for (const [face, faceData] of Object.entries(meta.faces)) {
-        const photoFile = photoFiles.find((f) => f.name === faceData.photo)
-        const colors = colorGrids[face.toUpperCase()]
-        if (
-          !photoFile ||
-          !colors ||
-          !validateFaceColors(colors, meta.gridSize)
-        ) {
-          missing.push(face.toUpperCase())
-          continue
-        }
-        const dataUrl = await new Promise<string>((resolve, reject) => {
-          const reader = new FileReader()
-          reader.onload = () => resolve(reader.result as string)
-          reader.onerror = () =>
-            reject(new Error(`Could not read ${photoFile.name}`))
-          reader.readAsDataURL(photoFile)
-        })
-        newEntries[face.toUpperCase()] = {
-          colors,
-          confidence: 1,
-          croppedImage: dataUrl,
-          source: 'fixture',
-          timestamp: faceData.capturedAt
-            ? Date.parse(faceData.capturedAt) || Date.now()
-            : Date.now(),
-          ...(faceData.background && { backgroundColor: faceData.background }),
-          ...(faceData.previewColorProfile?.id &&
-            faceData.previewColorProfile.name &&
-            faceData.previewColorProfile.colors && {
-              previewColorProfile: faceData.previewColorProfile,
-            }),
-        }
-      }
-
-      if (missing.length > 0) {
-        setCaptureMessage(
-          `❌ Missing or invalid photo/colors for face${missing.length === 1 ? '' : 's'} ${missing.join(', ')} - make sure all 6 face-*.jpg files named in ${metaFile.name} are selected too.`,
-        )
-        return
-      }
+      const { meta, entries: newEntries } = loaded
 
       setCaptureMessage('Detecting colors from the fixture photos...')
       setPendingPalette(null)
