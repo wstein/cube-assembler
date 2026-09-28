@@ -1,14 +1,10 @@
-const REPOSITORY_URL = 'https://github.com/wstein/cube-assembler'
+// The footer's link to the repository at the built commit: typed entry
+// point for src/core/app/AppLinks.res.
+import { repositoryLink as repositoryLinkRes } from '../core/app/AppLinks.gen'
 
 export function repositoryLink(commit: string): {
   href: string
   label: string
 } {
-  const hash = /^[0-9a-f]{7,40}(?=-dirty$|$)/i.exec(commit)?.[0]
-  if (!hash) return { href: REPOSITORY_URL, label: 'GitHub' }
-  const dirty = commit.endsWith('-dirty') ? '-dirty' : ''
-  return {
-    href: `${REPOSITORY_URL}/tree/${hash}`,
-    label: `GitHub · ${hash.slice(0, 7)}${dirty}`,
-  }
+  return repositoryLinkRes(commit)
 }

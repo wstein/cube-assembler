@@ -1,10 +1,13 @@
-// Detect face's live display holds a confirmed face through a weak frame
-// or two - motion blur, a finger passing - instead of flickering between
-// the colors and "Align face in view". Display only: capturing, automatic
-// capture still judges every frame on its own, and a
-// held face never lends its bounds to a new frame.
+// Detect face's live display holds a confirmed face through a weak frame or
+// two instead of flickering: typed entry point for
+// src/core/capture/LiveHold.res.
+import {
+  holdConfirmedFace as holdConfirmedFaceRes,
+  liveHoldFrames,
+  noHold,
+} from '../core/capture/LiveHold.gen'
 
-export const LIVE_HOLD_FRAMES = 2
+export const LIVE_HOLD_FRAMES = liveHoldFrames
 
 export interface LiveHold<T> {
   // The last confirmed frame's result, while it may still be shown.
@@ -13,24 +16,15 @@ export interface LiveHold<T> {
   weak: number
 }
 
-export const NO_HOLD: LiveHold<never> = { shown: null, weak: 0 }
+export const NO_HOLD: LiveHold<never> = noHold()
 
 // What to show for `frame`: itself when `confirmed`, otherwise the last
-// confirmed result for up to LIVE_HOLD_FRAMES weak frames, then `frame`
-// as not found.
+// confirmed result for up to LIVE_HOLD_FRAMES weak frames, then `frame` as
+// not found.
 export function holdConfirmedFace<T>(
   hold: LiveHold<T>,
   frame: T,
   confirmed: boolean,
 ): { hold: LiveHold<T>; show: T; visible: boolean } {
-  if (confirmed)
-    return { hold: { shown: frame, weak: 0 }, show: frame, visible: true }
-  if (hold.shown !== null && hold.weak < LIVE_HOLD_FRAMES) {
-    return {
-      hold: { shown: hold.shown, weak: hold.weak + 1 },
-      show: hold.shown,
-      visible: true,
-    }
-  }
-  return { hold: NO_HOLD, show: frame, visible: false }
+  return holdConfirmedFaceRes(hold, frame, confirmed)
 }
