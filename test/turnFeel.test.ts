@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest'
-import { magneticEase, turnClickGain } from '../src/client/turnFeel'
+import {
+  DEFAULT_TURN_MS,
+  magneticEase,
+  scrambleDuration,
+  settleDuration,
+  turnClickGain,
+  turnEase,
+} from '../src/client/turnFeel'
 
 describe('turn feel', () => {
   it('starts at rest and ends exactly on the quarter turn', () => {
@@ -26,5 +33,30 @@ describe('turn feel', () => {
     expect(turnClickGain(160, true)).toBeGreaterThan(0)
     expect(turnClickGain(85, true)).toBeGreaterThan(0)
     expect(turnClickGain(85, true)).toBeLessThan(turnClickGain(160, true))
+  })
+})
+
+describe('turn speed and overshoot settings', () => {
+  it('eases without overshoot when the magnetic snap is off', () => {
+    let previous = 0
+    for (let i = 1; i <= 100; i++) {
+      const value = turnEase(i / 100, false)
+      expect(value).toBeGreaterThanOrEqual(previous)
+      expect(value).toBeLessThanOrEqual(1)
+      previous = value
+    }
+    expect(turnEase(0, false)).toBe(0)
+    expect(turnEase(1, false)).toBe(1)
+    expect(turnEase(0.82, true)).toBe(magneticEase(0.82))
+  })
+
+  it('scales settling and scrambles with the turn speed', () => {
+    expect(DEFAULT_TURN_MS).toBe(160)
+    expect(settleDuration(0.1, DEFAULT_TURN_MS)).toBe(120)
+    expect(settleDuration(1, DEFAULT_TURN_MS)).toBe(160)
+    expect(settleDuration(3, DEFAULT_TURN_MS)).toBe(240)
+    expect(settleDuration(1, 320)).toBe(320)
+    expect(scrambleDuration(DEFAULT_TURN_MS)).toBe(85)
+    expect(scrambleDuration(320)).toBe(170)
   })
 })

@@ -12,6 +12,29 @@ export function magneticEase(progress: number): number {
   return 1 + (SNAP + 1) * x * x * x + SNAP * x * x
 }
 
+// A plain ease-out for those who turn the magnetic snap off.
+export function smoothEase(progress: number): number {
+  const t = Math.min(1, Math.max(0, progress))
+  return 1 - (1 - t) ** 3
+}
+
+export function turnEase(progress: number, overshoot: boolean): number {
+  return overshoot ? magneticEase(progress) : smoothEase(progress)
+}
+
+// A quarter turn's animation at the default speed. A released drag settles
+// in proportion to how far it has left, between three quarters and one and
+// a half of that; scrambles run at about half of it.
+export const DEFAULT_TURN_MS = 160
+
+export function settleDuration(quarters: number, turnMs: number): number {
+  return Math.max(0.75 * turnMs, Math.min(1.5 * turnMs, turnMs * quarters))
+}
+
+export function scrambleDuration(turnMs: number): number {
+  return Math.round((turnMs * 85) / DEFAULT_TURN_MS)
+}
+
 // Scrambles turn every 85 ms; full-volume clicks would rattle.
 export function turnClickGain(durationMs: number, soundOn: boolean): number {
   if (!soundOn) return 0

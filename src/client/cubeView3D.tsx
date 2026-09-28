@@ -29,13 +29,20 @@ import {
   type SwipeLayer,
 } from './cubeGesture'
 import { stepDragInertia } from './dragInertia'
-import { magneticEase, playTurnClick, turnClickGain } from './turnFeel'
+import {
+  playTurnClick,
+  scrambleDuration,
+  settleDuration,
+  turnClickGain,
+  turnEase,
+} from './turnFeel'
 import {
   AUTO_ROTATE_COOKIE,
   STICKERLESS_COOKIE,
   preferenceCookie,
   readHoldTimings,
   readPreference,
+  readTurnFeel,
   turnSoundOn,
 } from './preferences'
 import type { CubeState, FaceKey } from '../cube/cubeAssembly'
@@ -1354,6 +1361,8 @@ export function CubeView3D({
     from?: number
     startTime: number
     duration: number
+    // Whether it snaps a little past like a magnetic cube.
+    overshoot: boolean
     undo?: boolean
   } | null>(null)
   // The layer a sticker drag is turning, following the finger until release.
@@ -1456,7 +1465,7 @@ export function CubeView3D({
       depth,
       width,
       turns,
-      duration: 160,
+      duration: readTurnFeel(document.cookie).turnMs,
       undo,
     })
     setIsTurning(true)
@@ -1472,7 +1481,8 @@ export function CubeView3D({
       setIsScrambling(true)
       setIsTurning(true)
       const moves = generateScrambleMoves(puzzleSize)
-      turnQueueRef.current = moves.map((m) => ({ ...m, duration: 85 }))
+      const duration = scrambleDuration(readTurnFeel(document.cookie).turnMs)
+      turnQueueRef.current = moves.map((m) => ({ ...m, duration }))
     }
   }
 
@@ -1613,7 +1623,7 @@ export function CubeView3D({
         const anim = currentTurnRef.current
         const turnElapsed = time - anim.startTime
         const progress = Math.min(1, Math.max(0, turnElapsed / anim.duration))
-        const ease = magneticEase(progress)
+        const ease = turnEase(progress, anim.overshoot)
         const from = anim.from ?? 0
         const targetAngle = anim.turns * (Math.PI / 2)
         const currentAngle = from + ease * (targetAngle - from)
@@ -1687,6 +1697,7 @@ export function CubeView3D({
               from: next.from,
               startTime: time,
               duration: next.duration ?? 90,
+              overshoot: readTurnFeel(document.cookie).overshoot,
               undo: next.undo,
             }
           } else {
@@ -1731,6 +1742,7 @@ export function CubeView3D({
           from: next.from,
           startTime: time,
           duration: next.duration ?? 160,
+          overshoot: readTurnFeel(document.cookie).overshoot,
           undo: next.undo,
         }
       }
@@ -2051,7 +2063,7 @@ export function CubeView3D({
       width: drag.layer.width,
       turns,
       from: drag.angle,
-      duration: Math.max(120, Math.min(240, 160 * distance)),
+      duration: settleDuration(distance, readTurnFeel(document.cookie).turnMs),
     })
   }
 

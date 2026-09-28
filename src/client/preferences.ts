@@ -2,6 +2,7 @@
 // made in the app; profile definitions remain in local storage.
 import type { CaptureMode } from './capturePhoto'
 import { DEFAULT_HOLD_TIMINGS, type HoldTimings } from './cubeGesture'
+import { DEFAULT_TURN_MS } from './turnFeel'
 
 export const MIRROR_COOKIE = 'cube-assembler-mirror'
 export const AUTO_CAPTURE_COOKIE = 'cube-assembler-auto-capture'
@@ -13,6 +14,9 @@ export const STICKERLESS_COOKIE = 'cube-assembler-stickerless'
 export const AUTO_ROTATE_COOKIE = 'cube-assembler-auto-rotate'
 // The 3D view's turn click; until set it follows the capture sound.
 export const TURN_SOUND_COOKIE = 'cube-assembler-turn-sound'
+// How long a quarter turn takes, and whether it snaps past like a magnet.
+export const TURN_MS_COOKIE = 'cube-assembler-turn-ms'
+export const TURN_OVERSHOOT_COOKIE = 'cube-assembler-turn-overshoot'
 export const NOTATION_COOKIE = 'cube-assembler-notation'
 export const CAPTURE_MODE_COOKIE = 'cube-assembler-capture-mode'
 // How long a sticker is held before a drag turns a block or the whole cube.
@@ -133,6 +137,8 @@ export const SETTING_COOKIES = [
   NOTATION_COOKIE,
   CAPTURE_MODE_COOKIE,
   TURN_SOUND_COOKIE,
+  TURN_MS_COOKIE,
+  TURN_OVERSHOOT_COOKIE,
 ]
 
 export function selectedNotationFormat(cookies: string): 'wrg' | 'urf' {
@@ -154,4 +160,16 @@ export function turnSoundOn(cookies: string): boolean {
     TURN_SOUND_COOKIE,
     readPreference(cookies, SOUND_COOKIE),
   )
+}
+
+export const TURN_MS_RANGE = { min: 60, max: 400, fallback: DEFAULT_TURN_MS }
+
+export function readTurnFeel(cookies: string): {
+  turnMs: number
+  overshoot: boolean
+} {
+  return {
+    turnMs: readNumber(cookies, TURN_MS_COOKIE, TURN_MS_RANGE),
+    overshoot: readPreference(cookies, TURN_OVERSHOOT_COOKIE, true),
+  }
 }

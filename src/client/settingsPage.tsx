@@ -12,6 +12,9 @@ import {
   MIRROR_COOKIE,
   SETTING_COOKIES,
   SOUND_COOKIE,
+  TURN_MS_COOKIE,
+  TURN_MS_RANGE,
+  TURN_OVERSHOOT_COOKIE,
   TURN_SOUND_COOKIE,
   WIDE_PRESS_COOKIE,
   clearedCookie,
@@ -22,6 +25,8 @@ import {
   selectedCaptureMode,
   selectedNotationFormat,
   selectionCookie,
+  numberCookie,
+  readTurnFeel,
   turnSoundOn,
 } from './preferences'
 import { ChoiceSetting, SliderSetting, ToggleSetting } from './settingControls'
@@ -130,6 +135,22 @@ export function SettingsPage({ onClose }: Props) {
           hint="A soft click when a layer snaps into place."
           checked={turnSoundOn(cookies)}
           onChange={(on) => write(preferenceCookie(TURN_SOUND_COOKIE, on))}
+        />
+        <SliderSetting
+          label="Turn speed"
+          hint="How long a quarter turn takes; scrambles run at about half."
+          min={TURN_MS_RANGE.min}
+          max={TURN_MS_RANGE.max}
+          step={10}
+          value={readTurnFeel(cookies).turnMs}
+          unit=" ms"
+          onChange={(ms) => write(numberCookie(TURN_MS_COOKIE, ms))}
+        />
+        <ToggleSetting
+          label="Magnetic snap"
+          hint="Layers snap a little past the quarter turn and settle back."
+          checked={readTurnFeel(cookies).overshoot}
+          onChange={(on) => write(preferenceCookie(TURN_OVERSHOOT_COOKIE, on))}
         />
       </Section>
 

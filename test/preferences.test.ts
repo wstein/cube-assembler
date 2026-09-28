@@ -17,6 +17,9 @@ import {
   selectedCubeView,
   CAPTURE_MODE_COOKIE,
   CUBE_PRESS_COOKIE,
+  TURN_MS_COOKIE,
+  TURN_OVERSHOOT_COOKIE,
+  readTurnFeel,
   TURN_SOUND_COOKIE,
   turnSoundOn,
   NOTATION_COOKIE,
@@ -189,5 +192,18 @@ describe('turn sound', () => {
     expect(turnSoundOn(`${SOUND_COOKIE}=1; ${TURN_SOUND_COOKIE}=0`)).toBe(false)
     expect(turnSoundOn(`${SOUND_COOKIE}=0; ${TURN_SOUND_COOKIE}=1`)).toBe(true)
     expect(SETTING_COOKIES).toContain(TURN_SOUND_COOKIE)
+  })
+})
+
+describe('turn feel cookies', () => {
+  it('reads the turn speed and overshoot, 160 ms with overshoot by default', () => {
+    expect(readTurnFeel('')).toEqual({ turnMs: 160, overshoot: true })
+    expect(
+      readTurnFeel(`${TURN_MS_COOKIE}=300; ${TURN_OVERSHOOT_COOKIE}=0`),
+    ).toEqual({ turnMs: 300, overshoot: false })
+    expect(readTurnFeel(`${TURN_MS_COOKIE}=5`).turnMs).toBe(60)
+    expect(SETTING_COOKIES).toEqual(
+      expect.arrayContaining([TURN_MS_COOKIE, TURN_OVERSHOOT_COOKIE]),
+    )
   })
 })
