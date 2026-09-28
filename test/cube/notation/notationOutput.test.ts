@@ -110,6 +110,13 @@ describe('fromWRGFacelets', () => {
     ).toBeNull() // uneven blocks
     expect(fromWRGFacelets('')).toBeNull()
   })
+
+  it('rejects six single facelets: no cube is smaller than 2x2', () => {
+    expect(fromWRGFacelets('WWW WWW')).toBeNull()
+    expect(fromWRGFacelets('W R G Y O B')).toBeNull()
+    expect(fromURFFacelets('U R F D L B')).toBeNull()
+    expect(wrgFaceletsToGrids('W R G Y O B')).toBeNull()
+  })
 })
 
 describe('toURFFacelets', () => {

@@ -15,7 +15,9 @@ let faceletsPerFace = total => {
   } else {
     let perFace = total / 6
     let size = perFace->Int.toFloat->Math.sqrt->Int.fromFloat
-    if size * size == perFace {
+
+    // The smallest cube is 2x2: six single facelets are no cube.
+    if size >= 2 && size * size == perFace {
       Some(perFace)
     } else {
       None
@@ -30,7 +32,7 @@ let parse = (input, valid, translate, label) => {
     Console.warn(
       `Invalid ${label} facelets string: length ${Int.toString(
           String.length(compact),
-        )} is not 6 perfect-square blocks`,
+        )} is not 6 perfect-square blocks of at least 2x2`,
     )
     Null.null
   | Some(perFace) =>
