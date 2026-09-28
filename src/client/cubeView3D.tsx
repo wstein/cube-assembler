@@ -196,6 +196,23 @@ export function formatCubeTurn({ face, depth, turns }: CubeTurn): string {
   return `${depth > 1 ? depth : ''}${face}${Math.abs(turns) === 2 ? '2' : turns < 0 ? "'" : ''}`
 }
 
+// Adds a finished turn to the history as its shortest form. A turn that
+// reverses the last one, like swiping a layer back, undoes it instead.
+export function recordTurn(moves: CubeTurn[], turn: CubeTurn): CubeTurn[] {
+  const quarter = ((turn.turns % 4) + 4) % 4
+  if (quarter === 0) return moves
+  const turns = quarter === 3 ? -1 : quarter
+  const last = moves.at(-1)
+  if (
+    last &&
+    last.face === turn.face &&
+    last.depth === turn.depth &&
+    (last.turns + turns) % 4 === 0
+  )
+    return moves.slice(0, -1)
+  return [...moves, { face: turn.face, depth: turn.depth, turns }]
+}
+
 const SCRAMBLE_FACES: FaceKey[] = ['U', 'D', 'L', 'R', 'F', 'B']
 const SCRAMBLE_LENGTHS = [11, 20, 40, 60, 80, 100]
 
@@ -1518,14 +1535,11 @@ export function CubeView3D({
           setCurrentCube(nextCube)
           const nextMoves = anim.undo
             ? movesRef.current.slice(0, -1)
-            : [
-                ...movesRef.current,
-                {
-                  face: anim.face,
-                  depth: anim.depth ?? 1,
-                  turns: anim.turns,
-                },
-              ]
+            : recordTurn(movesRef.current, {
+                face: anim.face,
+                depth: anim.depth ?? 1,
+                turns: anim.turns,
+              })
           movesRef.current = nextMoves
           setMoves(nextMoves)
           onTurnStateChangeRef.current?.(nextCube, nextMoves)
