@@ -30,6 +30,9 @@ export const SWIPE_COMMIT_COOKIE = 'cube-assembler-swipe-commit-percent'
 export const SWIPE_FLICK_COOKIE = 'cube-assembler-swipe-flick-ms'
 // How many matching live frames auto capture waits for.
 export const AUTO_CAPTURE_FRAMES_COOKIE = 'cube-assembler-auto-capture-frames'
+// How long scrambles are, and whether they turn inner layers.
+export const SCRAMBLE_LENGTH_COOKIE = 'cube-assembler-scramble-length'
+export const SCRAMBLE_INNER_COOKIE = 'cube-assembler-scramble-inner'
 export const NOTATION_COOKIE = 'cube-assembler-notation'
 export const CAPTURE_MODE_COOKIE = 'cube-assembler-capture-mode'
 // How long a sticker is held before a drag turns a block or the whole cube.
@@ -156,6 +159,8 @@ export const SETTING_COOKIES = [
   SWIPE_COMMIT_COOKIE,
   SWIPE_FLICK_COOKIE,
   AUTO_CAPTURE_FRAMES_COOKIE,
+  SCRAMBLE_LENGTH_COOKIE,
+  SCRAMBLE_INNER_COOKIE,
 ]
 
 export function selectedNotationFormat(cookies: string): 'wrg' | 'urf' {
@@ -223,4 +228,23 @@ export function readAutoCaptureFrames(cookies: string): number {
     AUTO_CAPTURE_FRAMES_COOKIE,
     AUTO_CAPTURE_FRAMES_RANGE,
   )
+}
+
+export type ScrambleLength = 'short' | 'normal' | 'long'
+
+export interface ScrambleOptions {
+  length: ScrambleLength
+  innerLayers: boolean
+}
+
+export function readScrambleOptions(cookies: string): ScrambleOptions {
+  return {
+    length: readChoice(
+      cookies,
+      SCRAMBLE_LENGTH_COOKIE,
+      ['short', 'normal', 'long'] as const,
+      'normal',
+    ),
+    innerLayers: readPreference(cookies, SCRAMBLE_INNER_COOKIE, true),
+  }
 }

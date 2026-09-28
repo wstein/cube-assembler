@@ -12,6 +12,8 @@ import {
   CUBE_PRESS_COOKIE,
   HOLD_TIMING_LIMITS,
   MIRROR_COOKIE,
+  SCRAMBLE_INNER_COOKIE,
+  SCRAMBLE_LENGTH_COOKIE,
   SETTING_COOKIES,
   SWIPE_COMMIT_COOKIE,
   SWIPE_FLICK_COOKIE,
@@ -33,6 +35,7 @@ import {
   selectionCookie,
   numberCookie,
   readAutoCaptureFrames,
+  readScrambleOptions,
   readSwipeTuning,
   readTurnFeel,
   turnSoundOn,
@@ -250,6 +253,28 @@ export function SettingsPage({ onClose }: Props) {
           Reset to {DEFAULT_HOLD_TIMINGS.blockMs} and{' '}
           {DEFAULT_HOLD_TIMINGS.cubeMs} ms
         </button>
+      </Section>
+
+      <Section id="settings-scramble" title="Scramble">
+        <ChoiceSetting
+          label="Scramble length"
+          hint="Normal is 20 moves on a 3×3, more on larger cubes."
+          value={readScrambleOptions(cookies).length}
+          options={[
+            { value: 'short', label: 'Short (half)' },
+            { value: 'normal', label: 'Normal' },
+            { value: 'long', label: 'Long (one and a half)' },
+          ]}
+          onChange={(length) =>
+            write(selectionCookie(SCRAMBLE_LENGTH_COOKIE, length))
+          }
+        />
+        <ToggleSetting
+          label="Turn inner layers"
+          hint="On 4×4 and larger cubes; off scrambles only the outer faces."
+          checked={readScrambleOptions(cookies).innerLayers}
+          onChange={(on) => write(preferenceCookie(SCRAMBLE_INNER_COOKIE, on))}
+        />
       </Section>
 
       <Section id="settings-notation" title="Notation">

@@ -672,6 +672,15 @@ describe('cubeView3D math and geometry', () => {
       }
     })
 
+    it('scrambles shorter, longer or outer layers only when asked', () => {
+      expect(generateScrambleMoves(3, { length: 'short' })).toHaveLength(10)
+      expect(generateScrambleMoves(3, { length: 'long' })).toHaveLength(30)
+      expect(generateScrambleMoves(5, { length: 'long' })).toHaveLength(90)
+      const outer = generateScrambleMoves(6, { innerLayers: false })
+      expect(outer).toHaveLength(80)
+      expect(outer.every((move) => move.depth === 1)).toBe(true)
+    })
+
     it('scales scramble length and layer depths to the cube size', () => {
       const lengths = [11, 20, 40, 60, 80, 100]
       for (let size = 2; size <= 7; size++) {

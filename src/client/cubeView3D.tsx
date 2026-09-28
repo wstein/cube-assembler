@@ -43,9 +43,12 @@ import {
   preferenceCookie,
   readHoldTimings,
   readPreference,
+  readScrambleOptions,
   readSwipeTuning,
   readTurnFeel,
   turnSoundOn,
+  type ScrambleLength,
+  type ScrambleOptions,
 } from './preferences'
 import type { CubeState, FaceKey } from '../cube/cubeAssembly'
 import {
@@ -296,10 +299,24 @@ function turnAxis(face: FaceKey): 'x' | 'y' | 'z' {
       : 'z'
 }
 
-export function generateScrambleMoves(size: number): CubeTurn[] {
-  const length = SCRAMBLE_LENGTHS[size - 2] ?? 20
+const SCRAMBLE_SCALE: Record<ScrambleLength, number> = {
+  short: 0.5,
+  normal: 1,
+  long: 1.5,
+}
+
+export function generateScrambleMoves(
+  size: number,
+  {
+    length: scale = 'normal',
+    innerLayers = true,
+  }: Partial<ScrambleOptions> = {},
+): CubeTurn[] {
+  const length = Math.round(
+    (SCRAMBLE_LENGTHS[size - 2] ?? 20) * SCRAMBLE_SCALE[scale],
+  )
   // Odd cubes keep the exact middle slice fixed during a scramble.
-  const maxDepth = Math.floor(size / 2)
+  const maxDepth = innerLayers ? Math.floor(size / 2) : 1
   const moves: CubeTurn[] = []
   let lastAxis: 'x' | 'y' | 'z' | null = null
   for (let i = 0; i < length; i++) {
@@ -308,7 +325,7 @@ export function generateScrambleMoves(size: number): CubeTurn[] {
     lastAxis = turnAxis(face)
     const turns = [1, -1, 2][Math.floor(Math.random() * 3)]
     const depth =
-      i === 0 && size >= 4 ? 2 : 1 + Math.floor(Math.random() * maxDepth)
+      i === 0 && maxDepth >= 2 ? 2 : 1 + Math.floor(Math.random() * maxDepth)
     moves.push({ face, depth, turns })
   }
   return moves
@@ -1484,7 +1501,10 @@ export function CubeView3D({
     } else {
       setIsScrambling(true)
       setIsTurning(true)
-      const moves = generateScrambleMoves(puzzleSize)
+      const moves = generateScrambleMoves(
+        puzzleSize,
+        readScrambleOptions(document.cookie),
+      )
       const duration = scrambleDuration(readTurnFeel(document.cookie).turnMs)
       turnQueueRef.current = moves.map((m) => ({ ...m, duration }))
     }

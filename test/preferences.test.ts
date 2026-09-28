@@ -18,6 +18,9 @@ import {
   CAPTURE_MODE_COOKIE,
   AUTO_CAPTURE_FRAMES_COOKIE,
   CUBE_PRESS_COOKIE,
+  SCRAMBLE_INNER_COOKIE,
+  SCRAMBLE_LENGTH_COOKIE,
+  readScrambleOptions,
   readAutoCaptureFrames,
   SWIPE_COMMIT_COOKIE,
   SWIPE_FLICK_COOKIE,
@@ -246,5 +249,22 @@ describe('auto capture steadiness', () => {
     expect(readAutoCaptureFrames(`${AUTO_CAPTURE_FRAMES_COOKIE}=1`)).toBe(2)
     expect(readAutoCaptureFrames(`${AUTO_CAPTURE_FRAMES_COOKIE}=50`)).toBe(12)
     expect(SETTING_COOKIES).toContain(AUTO_CAPTURE_FRAMES_COOKIE)
+  })
+})
+
+describe('scramble settings', () => {
+  it('scrambles at normal length with inner layers by default', () => {
+    expect(readScrambleOptions('')).toEqual({
+      length: 'normal',
+      innerLayers: true,
+    })
+    expect(
+      readScrambleOptions(
+        `${SCRAMBLE_LENGTH_COOKIE}=short; ${SCRAMBLE_INNER_COOKIE}=0`,
+      ),
+    ).toEqual({ length: 'short', innerLayers: false })
+    expect(SETTING_COOKIES).toEqual(
+      expect.arrayContaining([SCRAMBLE_LENGTH_COOKIE, SCRAMBLE_INNER_COOKIE]),
+    )
   })
 })
