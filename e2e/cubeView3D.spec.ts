@@ -981,6 +981,21 @@ test.describe('wide sticker drags', () => {
       await expect(history(page)).toHaveText(`Moves: ${move}`)
     })
 
+  test('a quick second swipe turns its layer too', async ({ page }) => {
+    const { x, y, column, quarter } = await setUp(page)
+    for (const startY of [y - column, y + column]) {
+      await page.mouse.move(x, startY)
+      await page.mouse.down()
+      for (let step = 1; step <= 10; step++) {
+        await page.mouse.move(x - 0.09 * quarter * step, startY)
+        await page.waitForTimeout(16)
+      }
+      await page.waitForTimeout(100)
+      await page.mouse.up()
+    }
+    await expect(history(page)).toHaveText("Moves: 2U 2D'")
+  })
+
   test('a swipe from the middle of a sticker still turns one layer', async ({
     page,
   }) => {

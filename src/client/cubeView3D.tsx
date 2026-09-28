@@ -158,6 +158,36 @@ export function CubeView3D({
   const dragTurnRef = useRef<DragTurn | null>(null)
   const forceUpdateMeshRef = useRef(false)
 
+  // Records a finished turn. A drag released short of a quarter turn
+  // springs back silently.
+  const applyTurn = (anim: ActiveTurn) => {
+    const turned = finishTurn(
+      currentCubeRef.current,
+      puzzleSize,
+      movesRef.current,
+      anim,
+    )
+    if (!turned) return
+    playTurnClick(turnClickGain(anim.duration, turnSoundOn(document.cookie)))
+    currentCubeRef.current = turned.cube
+    setCurrentCube(turned.cube)
+    movesRef.current = turned.moves
+    setMoves(turned.moves)
+    onTurnStateChangeRef.current?.(turned.cube, turned.moves)
+  }
+
+  // A press while the last turn settles finishes it at once, so swipes in
+  // quick succession each turn their layer instead of rotating the view.
+  const finishSettlingTurn = () => {
+    const anim = currentTurnRef.current
+    if (!anim || turnQueueRef.current.length > 0) return
+    currentTurnRef.current = null
+    applyTurn(anim)
+    forceUpdateMeshRef.current = true
+    setIsScrambling(false)
+    setIsTurning(false)
+  }
+
   useEffect(() => {
     document.cookie = preferenceCookie(AUTO_ROTATE_COOKIE, isRotating)
   }, [isRotating])
@@ -392,23 +422,7 @@ export function CubeView3D({
         gl.bufferSubData(gl.ARRAY_BUFFER, 0, turnMesh.normals)
 
         if (finished) {
-          // A drag released short of a quarter turn springs back silently.
-          const turned = finishTurn(
-            currentCubeRef.current,
-            puzzleSize,
-            movesRef.current,
-            anim,
-          )
-          if (turned) {
-            playTurnClick(
-              turnClickGain(anim.duration, turnSoundOn(document.cookie)),
-            )
-            currentCubeRef.current = turned.cube
-            setCurrentCube(turned.cube)
-            movesRef.current = turned.moves
-            setMoves(turned.moves)
-            onTurnStateChangeRef.current?.(turned.cube, turned.moves)
-          }
+          applyTurn(anim)
 
           const finalMesh = buildCubeMesh(
             currentCubeRef.current,
@@ -807,6 +821,7 @@ export function CubeView3D({
       return
     }
     lastPointerRef.current = { x: e.clientX, y: e.clientY, time: e.timeStamp }
+    finishSettlingTurn()
     const rect = canvasRef.current?.getBoundingClientRect()
     const hit =
       rect &&
