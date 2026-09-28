@@ -38,7 +38,6 @@ import {
 } from './captureReviewRouting'
 import {
   decodeOrbit64State,
-  encodeOrbit64State,
   looksLikeOrbit64StateToken,
 } from '../cube/notation/orbit64'
 import type { ReviewCapture } from './colorReviewPage'
@@ -54,6 +53,7 @@ import {
   type CaptureMode,
 } from './capturePhoto'
 import { CubeNetView } from './cubeNetView'
+import { NotationCard } from './notationCard'
 import { lazy, Suspense } from 'preact/compat'
 
 const CubeView3D = lazy(() =>
@@ -171,7 +171,6 @@ import { currentAppCommit } from './fixtureUpload'
 import {
   toWRGFacelets,
   fromWRGFacelets,
-  toURFFacelets,
   fromURFFacelets,
   detectNotationFormat,
   gridsToWRGFacelets,
@@ -2193,53 +2192,12 @@ function App() {
   }
 
   // ─────────────────────────────────────────────────────────────────────────
-  // Features: Copy to Clipboard (#11)
-  // ─────────────────────────────────────────────────────────────────────────
-
-  // Confirmed inline on the button itself (briefly swapping its label)
-  // rather than with a blocking alert() the customer has to click away.
-  const [copyStatus, setCopyStatus] = useState<
-    | 'idle'
-    | 'facelets-copied'
-    | 'facelets-failed'
-    | 'token-copied'
-    | 'token-failed'
-  >('idle')
-  const copyToClipboard = async (
-    text: string,
-    target: 'facelets' | 'token',
-  ) => {
-    try {
-      await navigator.clipboard.writeText(text)
-      setCopyStatus(`${target}-copied`)
-    } catch (err) {
-      console.error('Copy failed:', err)
-      setCopyStatus(`${target}-failed`)
-    }
-    setTimeout(() => setCopyStatus('idle'), 1500)
-  }
-
-  // ─────────────────────────────────────────────────────────────────────────
   // Render
   // ─────────────────────────────────────────────────────────────────────────
 
   const displayedCube =
     cube && turnedCube?.source === cube ? turnedCube.value : cube
   const visibleCube = displayedCube ?? createSolvedCube(puzzleSize)
-  const getNotationOutput = () => {
-    if (!displayedCube) return 'null'
-    return notationFormat === 'wrg'
-      ? toWRGFacelets(displayedCube)
-      : toURFFacelets(displayedCube)
-  }
-  const currentOrbit64Token = useMemo(
-    () =>
-      displayedCube && puzzleSize <= 7
-        ? encodeOrbit64State(toURFFacelets(displayedCube))
-        : null,
-    [displayedCube, puzzleSize],
-  )
-
   const profilesPageTab = profilesTab(page)
   if (profilesPageTab) {
     // The last capture's faces that kept their measured sticker colors.
@@ -2476,103 +2434,15 @@ function App() {
             )}
           </section>
 
-          {/* Notation of the current cube, to copy or save as a fixture */}
-          <section class="card notation-card">
-            <div class="card-header">
-              <h2>Notation</h2>
-              <div class="segmented" role="group" aria-label="Notation format">
-                <button
-                  type="button"
-                  class={notationFormat === 'wrg' ? 'active' : ''}
-                  aria-pressed={notationFormat === 'wrg'}
-                  onClick={() => setNotationFormat('wrg')}
-                >
-                  Colors (WRG)
-                </button>
-                <button
-                  type="button"
-                  class={notationFormat === 'urf' ? 'active' : ''}
-                  aria-pressed={notationFormat === 'urf'}
-                  onClick={() => setNotationFormat('urf')}
-                >
-                  Faces (URF)
-                </button>
-              </div>
-              <div class="header-spacer" />
-              {cube && (
-                <button
-                  type="button"
-                  class="btn btn-secondary btn-sm"
-                  onClick={handleSaveFixture}
-                  disabled={loading}
-                  title="Download this capture's photos + reviewed colors as a zip - unzipped into test/fixtures/ it becomes a regression test"
-                >
-                  Save as test fixture
-                </button>
-              )}
-              <button
-                type="button"
-                class="btn btn-primary btn-sm"
-                onClick={() =>
-                  cube && copyToClipboard(getNotationOutput(), 'facelets')
-                }
-                disabled={!cube}
-              >
-                <span aria-live="polite">
-                  {copyStatus === 'facelets-copied'
-                    ? '✓ Copied'
-                    : copyStatus === 'facelets-failed'
-                      ? 'Copy failed'
-                      : 'Copy'}
-                </span>
-              </button>
-            </div>
-            <textarea
-              class="notation-output"
-              readOnly
-              aria-label="Notation"
-              value={cube ? getNotationOutput() : ''}
-            />
-            {currentOrbit64Token && (
-              <div class="orbit64-token-row">
-                <span>
-                  Orbit64 state token: <code>{currentOrbit64Token}</code>
-                </span>
-                <button
-                  type="button"
-                  class="btn btn-secondary btn-sm"
-                  onClick={() => copyToClipboard(currentOrbit64Token, 'token')}
-                >
-                  <span aria-live="polite">
-                    {copyStatus === 'token-copied'
-                      ? '✓ Copied'
-                      : copyStatus === 'token-failed'
-                        ? 'Copy failed'
-                        : 'Copy token'}
-                  </span>
-                </button>
-              </div>
-            )}
-            {cube && !currentOrbit64Token && (
-              <p class="notation-hint">
-                Orbit64 token unavailable until the facelets form a valid cube
-                state.
-              </p>
-            )}
-            <p class="notation-hint">
-              {notationFormat === 'wrg'
-                ? `6 blocks of ${puzzleSize * puzzleSize} colors (W O G R B Y) in U R F D L B order.`
-                : `6 blocks of ${puzzleSize * puzzleSize} face letters (U R F D L B) in U R F D L B order.`}
-            </p>
-            {fixtureSaveMessage && (
-              <div
-                role="status"
-                class={`capture-message ${fixtureSaveMessage.includes('✓') ? 'success' : fixtureSaveMessage.includes('❌') ? 'error' : ''}`}
-              >
-                {fixtureSaveMessage}
-              </div>
-            )}
-          </section>
+          <NotationCard
+            cube={displayedCube}
+            size={puzzleSize}
+            format={notationFormat}
+            loading={loading}
+            fixtureSaveMessage={fixtureSaveMessage}
+            onFormatChange={setNotationFormat}
+            onSaveFixture={handleSaveFixture}
+          />
         </div>
 
         <div class="side-column">
