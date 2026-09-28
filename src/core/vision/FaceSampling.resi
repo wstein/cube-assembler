@@ -47,6 +47,7 @@ let alignedBoundsInArea: (
   float,
 ) => faceBounds
 
+@genType let cropJpegQuality: float
 @genType let backgroundCubeGap: float
 @genType let outlierTrimFraction: float
 @genType let trimmedMeanColor: (array<StickerGeometry.rgb>, float) => Null.t<StickerGeometry.rgb>

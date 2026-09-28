@@ -7,6 +7,7 @@ import {
   type faceBounds,
   guideBounds as guideBoundsRes,
   sampleFaceFraction,
+  cropJpegQuality,
   trimmedMeanColor as trimmedMeanColorRes,
   outlierTrimFraction,
 } from '../core/vision/FaceSampling.gen'
@@ -24,6 +25,7 @@ export {
   centerCore as CENTER_CORE,
   centerStickerColor,
   computeBackgroundGains,
+  cropJpegQuality as CROP_JPEG_QUALITY,
   extractBackgroundColorFromPixels,
   limitBackgroundGain,
   stickerColor,
@@ -214,8 +216,6 @@ export function extractBackgroundColor(
 // the user what was actually sampled (e.g. in a post-capture review step) —
 // independent of extractCubeFaceColors, so it costs nothing on the
 // high-frequency live-preview path that doesn't need an image, only text.
-export const CROP_JPEG_QUALITY = 1
-
 export function cropFaceRegionToDataUrl(
   canvas: HTMLCanvasElement,
   bounds: FaceBounds = computeFaceBounds(canvas),
@@ -228,7 +228,7 @@ export function cropFaceRegionToDataUrl(
   // 1. This image is the source of truth that recalibration and saved
   // fixtures re-analyze, so it's worth the ~4x size (~200 KB for a 648px
   // crop from 1080p).
-  return out.toDataURL('image/jpeg', CROP_JPEG_QUALITY)
+  return out.toDataURL('image/jpeg', cropJpegQuality)
 }
 
 // Averages pixel colors after discarding the brightest/darkest tails by

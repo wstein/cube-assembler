@@ -148,6 +148,10 @@ let alignedBoundsInArea = (
   )
 }
 
+// JPEG quality of a saved face crop: 1 is the only setting at which Chrome
+// keeps full-resolution color (4:4:4), which decoders then agree on.
+let cropJpegQuality = 1.0
+
 // Band around the detected cube that's always left out of the background
 // sample, as a fraction of the face's side on each side: the cube's own
 // body (its other sides show at any angle) and the fingers holding it sit
