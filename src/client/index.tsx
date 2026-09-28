@@ -76,7 +76,6 @@ import {
   DEFAULT_SAMPLING,
   STICKER_COLORS,
   type ColorDetectionResult,
-  type RGB,
 } from './imageProcessing'
 import {
   assembleCubeFromFaces,
@@ -98,13 +97,11 @@ import {
   selectCube,
   selectColorProfile,
   setAutoColorMatch,
-  type UsedColorProfile,
 } from './profileSettings'
 import {
   canCreateProfileFromCapture,
   captureProfileFinding,
   profileToUpdate,
-  type AutomaticResolution,
 } from './colorProfileLearning'
 import { readFixtureUpload } from './readFixtureUpload'
 import { unzipUploadFiles } from './fixtureZip'
@@ -125,6 +122,7 @@ import {
 import { flyInto } from './flyAnimation'
 import { focusModalOnOpen, handleModalKeyDown } from './modalFocus'
 import { useProfileStore } from './useProfileStore'
+import { useCaptureCalibration } from './useCaptureCalibration'
 import {
   captureEvidence,
   captureWarning,
@@ -148,7 +146,6 @@ import {
   canSaveCaptureFixture,
   fixtureDownloadFor,
   fixtureLoadedMessage,
-  recordedAutomaticResolution,
 } from './captureFixture'
 import { useOrientationReview } from './useOrientationReview'
 
@@ -159,8 +156,6 @@ import { useOrientationReview } from './useOrientationReview'
 // Injected at build time by vite.config.ts's `define`.
 declare const __APP_VERSION__: string
 declare const __APP_COMMIT__: string
-
-const CALIBRATION_NOTE = 'Colors double-checked by comparing all 6 sides.'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // App Component
@@ -339,34 +334,27 @@ function App() {
   // can be reviewed afresh without its earlier hand corrections.
   const [ignoreFixtureCorrections, setIgnoreFixtureCorrections] =
     useState(false)
-  // The 6 colors as learned from this capture's own stickers (null when the
-  // cross-face recalibration didn't run) - what the color-fix picker scores
-  // each alternative against.
-  const [learnedPalette, setLearnedPalette] = useState<Record<
-    string,
-    RGB
-  > | null>(null)
-  // Learned colors whose cluster mixed two colors (see mixedUpClusters).
-  const [mixedUpColors, setMixedUpColors] = useState<string[]>([])
-  const [pendingPalette, setPendingPalette] = useState<{
-    colors: Record<string, RGB>
-    confidentFraction: number
-    recalibrated: boolean
-  } | null>(null)
-  // The cube geometry and colors selected when this capture was taken.
-  const [captureProfile, setCaptureProfile] = useState<{
-    id?: string
-    name: string
-  } | null>(null)
-  const [resolvedColorProfile, setResolvedColorProfile] =
-    useState<UsedColorProfile | null>(null)
-  const [resolvedColorReference, setResolvedColorReference] = useState<Record<
-    string,
-    RGB
-  > | null>(null)
-  // Why Automatic settled on its six-face profile (or on none).
-  const [automaticResolution, setAutomaticResolution] =
-    useState<AutomaticResolution | null>(null)
+  const {
+    learnedPalette,
+    mixedUpColors,
+    pendingPalette,
+    setPendingPalette,
+    captureProfile,
+    resolvedColorProfile,
+    resolvedColorReference,
+    automaticResolution,
+    globalWhiteBalanceNote,
+    glareFaces,
+    appliedBackgroundGains,
+    setAppliedBackgroundGains,
+    forgetResolvedProfile,
+    clearCalibration,
+    startCapture,
+    startRecalibration,
+    applyRecalibration,
+    failRecalibration,
+    applyFixtureCalibration,
+  } = useCaptureCalibration()
   // Applied for this session even when the browser won't keep it.
   // '#profiles' shows the profiles page instead of the scanner.
   const [page, setPage] = useState(() => location.hash)
@@ -375,18 +363,6 @@ function App() {
     window.addEventListener('hashchange', onHash)
     return () => window.removeEventListener('hashchange', onHash)
   }, [])
-  const [globalWhiteBalanceNote, setGlobalWhiteBalanceNote] = useState<
-    string | null
-  >(null)
-  // Faces with glare-washed stickers, when enough to warn (see glareStickers).
-  const [glareFaces, setGlareFaces] = useState<string[]>([])
-  // The per-face background-derived gains actually applied this capture
-  // (see computeBackgroundGains) - recorded in saved fixtures, which
-  // replay them.
-  const [appliedBackgroundGains, setAppliedBackgroundGains] = useState<Record<
-    string,
-    RGB
-  > | null>(null)
   const [showBackdropDialog, setShowBackdropDialog] = useState(false)
   const [reviewStep, setReviewStep] = useState(0)
   const [reviewRouting, setReviewRouting] = useState<{
@@ -447,16 +423,8 @@ function App() {
     setReviewStep(0)
     setReviewEditingCell(null)
     clearOrientationReview()
-    setGlobalWhiteBalanceNote(null)
-    setGlareFaces([])
-    setAppliedBackgroundGains(null)
-    setLearnedPalette(null)
-    setMixedUpColors([])
-    setPendingPalette(null)
+    clearCalibration()
     setProfileLearningOffer(null)
-    setCaptureProfile(null)
-    setResolvedColorProfile(null)
-    setAutomaticResolution(null)
     setCaptureMessage('')
     setFixtureSaveMessage('')
     return true
@@ -474,8 +442,7 @@ function App() {
   const handleApplySolved = async () => {
     const solved = createSolvedCube(puzzleSize)
     setCube(solved)
-    setResolvedColorProfile(null)
-    setAutomaticResolution(null)
+    forgetResolvedProfile()
 
     setCapturedFaces(solvedCaptureFaces(puzzleSize))
     updateParityStatus(solved)
@@ -504,8 +471,7 @@ function App() {
       const size = Math.sqrt(newCube.u.length)
       setPuzzleSize(size)
       setCube(newCube)
-      setResolvedColorProfile(null)
-      setAutomaticResolution(null)
+      forgetResolvedProfile()
 
       setCapturedFaces(cubeCaptureFaces(newCube, size))
 
@@ -543,8 +509,6 @@ function App() {
     if (startOver) {
       setCapturedFaces({})
       setFaceConfidence({})
-      setResolvedColorProfile(null)
-      setAutomaticResolution(null)
       setProfileLearningOffer(null)
       setNewColorName(null)
     }
@@ -554,10 +518,7 @@ function App() {
     setWebcamFace(nextFace)
     setCaptureMessage('')
     if (startOver) setDismissedCaptureWarnings([])
-    setGlobalWhiteBalanceNote(null)
-    setGlareFaces([])
-    setAppliedBackgroundGains(null)
-    setResolvedColorReference(null)
+    startCapture(startOver)
     setWebcamOpen(true)
   }
 
@@ -690,14 +651,11 @@ function App() {
       '✓ All faces captured! Checking white balance across all stickers...',
     )
     setLoading(true)
-    setPendingPalette(null)
     setProfileLearningOffer(null)
     const automatic = automaticColors
-    setResolvedColorProfile(
+    startRecalibration(
       automatic ? null : resolvedColorProfileSnapshot(colorProfile, 'manual'),
     )
-    setAutomaticResolution(null)
-    setResolvedColorReference(null)
 
     const canRecalibrate = FACE_ORDER.every(
       (f) => newCapturedFaces[f].croppedImage,
@@ -720,32 +678,18 @@ function App() {
           },
           faceGains,
         )
-        setAutomaticResolution(result.resolution)
-        setResolvedColorReference(result.reference)
-        setResolvedColorProfile(result.resolvedProfile)
-        setLearnedPalette(result.learnedPalette)
+        applyRecalibration(result, profile)
         finalMixedUp = result.mixedUp
-        setMixedUpColors(finalMixedUp)
-        setPendingPalette(result.pendingPalette)
-        setCaptureProfile({ id: profile.id, name: profile.name })
+        finalGlare = result.glare
         // Keep calibration provisional until the customer approves the
         // complete cube in the orientation review.
         if (result.applied) {
           finalFaces = result.finalFaces
           setCapturedFaces(result.finalFaces)
-          setGlobalWhiteBalanceNote(CALIBRATION_NOTE)
-        } else {
-          setGlobalWhiteBalanceNote(null)
         }
-        finalGlare = result.glare
-        setGlareFaces(finalGlare)
       } catch (err) {
         console.error('Global white balance error:', err)
-        setGlobalWhiteBalanceNote(null)
-        setGlareFaces([])
-        setLearnedPalette(null)
-        setMixedUpColors([])
-        setPendingPalette(null)
+        failRecalibration()
       }
     }
 
@@ -787,24 +731,8 @@ function App() {
       const { meta, entries: newEntries } = loaded
 
       setCaptureMessage('Detecting colors from the fixture photos...')
-      setPendingPalette(null)
       setProfileLearningOffer(null)
       setUploadedProtocol(meta.capture?.protocol ?? null)
-      const recordedProfile = meta.capture?.profile
-      setCaptureProfile(
-        recordedProfile?.name
-          ? { id: recordedProfile.id, name: recordedProfile.name }
-          : null,
-      )
-      const recordedColors = meta.capture?.colorProfile
-      setResolvedColorProfile(
-        recordedColors?.name && recordedColors.colors ? recordedColors : null,
-      )
-      // The recorded reason for it, where the fixture has one.
-      setAutomaticResolution(
-        recordedAutomaticResolution(meta.capture?.colorResolution),
-      )
-      setResolvedColorReference(meta.capture?.colorReference ?? null)
       const images = Object.fromEntries(
         Object.entries(newEntries).map(([f, d]) => [f, d.croppedImage!]),
       )
@@ -826,11 +754,7 @@ function App() {
         wb.faces,
         ignoreFixtureCorrections,
       )
-      setAppliedBackgroundGains(recordedGains)
-      setGlareFaces(glareFacesToWarn(wb.glare))
-      setGlobalWhiteBalanceNote(wb.applied ? CALIBRATION_NOTE : null)
-      setLearnedPalette(wb.learned?.colors ?? null)
-      setMixedUpColors(wb.learned?.mixedUpColors ?? [])
+      applyFixtureCalibration(meta.capture, wb, recordedGains)
 
       setPuzzleSize(meta.gridSize)
       setCapturedFaces(newEntries)
