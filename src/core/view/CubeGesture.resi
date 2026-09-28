@@ -43,6 +43,7 @@ type pressLevel =
 @genType let blockLayer: (int, int, int, int) => swipeLayer
 @genType let wholeCubeLayer: (int, int) => swipeLayer
 @genType let standardWideLayer: (swipeLayer, int) => swipeLayer
+@genType let selectWideBlock: (surfaceHit, float, float, camera) => Null.t<swipeLayer>
 
 @genType let turnCommitFraction: float
 @genType let flickMs: float

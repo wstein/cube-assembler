@@ -886,6 +886,22 @@ test.describe('held sticker drags', () => {
     page.getByRole('status', { name: 'Move history' })
   const badge = (page: Page) => page.locator('.cube-3d-press-mode')
 
+  test('a bent swipe turns the selected four upper layers on a 5x5', async ({
+    page,
+  }) => {
+    const { x, y, column, quarter } = await setUp(page)
+    const startX = x + 38
+    const startY = y + column
+    await page.mouse.move(startX, startY)
+    await page.mouse.down()
+    await page.mouse.move(startX, startY - 0.85 * column, { steps: 10 })
+    await page.mouse.move(startX + 1.1 * quarter, startY - 0.85 * column, {
+      steps: 20,
+    })
+    await page.mouse.up()
+    await expect(history(page)).toContainText('4Uw')
+  })
+
   test('a 300 ms hold turns a standard wide move directly', async ({
     page,
   }) => {

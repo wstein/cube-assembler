@@ -15,6 +15,7 @@ import {
   twoFingerLock,
   pickCubeSurface,
   pickSwipeLayer,
+  selectWideBlock,
   releasedQuarterTurns,
   swipeLayerAngle,
   twoFingerMotion,
@@ -138,6 +139,33 @@ describe('live sticker drag', () => {
     expect(releasedQuarterTurns(-0.1 * quarter, -0.01)).toBe(-1)
     expect(releasedQuarterTurns(0, 1)).toBe(1)
     expect(releasedQuarterTurns(1.1 * quarter, -1)).toBe(1)
+  })
+})
+
+describe('two-direction wide drag', () => {
+  it('selects 4Uw from the fourth U row of a 5x5 after moving up a cell', () => {
+    const hit = pickCubeSurface(300, 380, camera)!
+    expect(selectWideBlock(hit, 0, -60, camera)).toMatchObject({
+      face: 'U',
+      depth: 4,
+      width: 4,
+      axis: 1,
+    })
+  })
+
+  it('does not select a wide block before moving three quarters of a cell', () => {
+    const hit = pickCubeSurface(300, 380, camera)!
+    expect(selectWideBlock(hit, 0, -30, camera)).toBeNull()
+  })
+
+  it('selects the opposite edge when the first segment moves down', () => {
+    const hit = pickCubeSurface(300, 380, camera)!
+    expect(selectWideBlock(hit, 0, 60, camera)).toMatchObject({
+      face: 'D',
+      depth: 2,
+      width: 2,
+      axis: 1,
+    })
   })
 })
 

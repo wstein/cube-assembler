@@ -22,6 +22,7 @@ export {
   pressLevel,
   pressSlopPx as PRESS_SLOP_PX,
   standardWideLayer,
+  selectWideBlock,
   swipeLayerAngle,
   twoFingerLock,
   twoFingerMotion,

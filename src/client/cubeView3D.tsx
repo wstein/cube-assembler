@@ -13,6 +13,7 @@ import {
   pressLevel,
   releasedQuarterTurns,
   standardWideLayer,
+  selectWideBlock,
   swipeLayerAngle,
   wholeCubeLayer,
   twoFingerLock,
@@ -894,12 +895,59 @@ export function CubeView3D({
       const hit = gesture.turnHit ?? gesture.hit
       const [fromX, fromY] = gesture.turnFrom ?? [gesture.x, gesture.y]
       if (!drag || !hit || !rect) return
+      const camera = gestureCamera(rect)
+      if (gesture.level === 'layer' && !gesture.wideTurned) {
+        const bend = gesture.wideBend
+        if (bend) {
+          const bendDx = e.clientX - bend.at[0]
+          const bendDy = e.clientY - bend.at[1]
+          const next = pickSwipeLayer(
+            hit,
+            bendDx,
+            bendDy,
+            camera,
+            gesture.tuning.startPx,
+          )
+          if (next?.axis === bend.layer.axis) {
+            startDragTurn(gesture, bend.layer, bend.at, hit, e, camera)
+            gesture.wideBend = undefined
+            gesture.wideTurned = true
+            if (dragTurnRef.current) dragTurnRef.current.highlight = true
+            setPressMode('wide')
+            return
+          }
+          // Follow the first leg until it bends. Once it starts turning,
+          // keep this point fixed so the second leg has a stable origin.
+          if (Math.hypot(bendDx, bendDy) <= 6) {
+            const stillSelected = selectWideBlock(
+              hit,
+              e.clientX - gesture.x,
+              e.clientY - gesture.y,
+              camera,
+            )
+            if (stillSelected?.axis === bend.layer.axis)
+              bend.at = [e.clientX, e.clientY]
+          }
+        } else {
+          const selected = selectWideBlock(
+            hit,
+            e.clientX - gesture.x,
+            e.clientY - gesture.y,
+            camera,
+          )
+          if (selected && selected.axis !== drag.layer.axis)
+            gesture.wideBend = {
+              layer: selected,
+              at: [e.clientX, e.clientY],
+            }
+        }
+      }
       const angle = swipeLayerAngle(
         hit,
         drag.layer,
         e.clientX - fromX,
         e.clientY - fromY,
-        gestureCamera(rect),
+        camera,
       )
       drag.velocity =
         (angle - drag.angle) / Math.max(e.timeStamp - drag.time, 8)

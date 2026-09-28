@@ -247,6 +247,40 @@ let standardWideLayer = (layer: swipeLayer, size) => {
   {...layer, depth: width, width}
 }
 
+// The first leg of a bent gesture selects all layers from the touched one
+// toward an edge. It must travel most of one sticker along a cube axis;
+// the second, perpendicular leg then turns that block.
+let selectWideBlock = (hit: surfaceHit, dx, dy, camera: camera) => {
+  let axes = inPlaneAxes(hit.normalAxis)
+  let (sx, sy) = project(hit.point, camera)
+  let (px, py, pz) = hit.point
+  let candidate = ref(None)
+  axes->Array.forEach(axis => {
+    let step = switch axis {
+    | 0 => (px +. 1.0, py, pz)
+    | 1 => (px, py +. 1.0, pz)
+    | _ => (px, py, pz +. 1.0)
+    }
+    let (ex, ey) = project(step, camera)
+    let vx = ex -. sx
+    let vy = ey -. sy
+    let length = Math.hypot(vx, vy)
+    if length > 1e-6 {
+      let along = (dx *. vx +. dy *. vy) /. length
+      let across = Math.abs(dx *. vy -. dy *. vx) /. length
+      if Math.abs(along) >= 0.75 *. length && across <= 0.35 *. length {
+        let from = Float.toInt(layerIndex(get(hit.point, axis), camera.size))
+        let edge = along > 0.0 ? Float.toInt(camera.size) - 1 : 0
+        let block = blockLayer(axis, from, edge, Float.toInt(camera.size))
+        if block.width->Option.getOr(1) > 1 {
+          candidate := Some(block)
+        }
+      }
+    }
+  })
+  Null.fromOption(candidate.contents)
+}
+
 // A released drag settles on whole quarter turns. Each further quarter
 // counts once the drag passes turnCommitFraction of it, so a short slow
 // drag springs back. A flick carries on for flickMs at its speed, but at
