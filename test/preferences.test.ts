@@ -17,6 +17,10 @@ import {
   selectedCubeView,
   CAPTURE_MODE_COOKIE,
   CUBE_PRESS_COOKIE,
+  SWIPE_COMMIT_COOKIE,
+  SWIPE_FLICK_COOKIE,
+  SWIPE_START_COOKIE,
+  readSwipeTuning,
   TURN_MS_COOKIE,
   TURN_OVERSHOOT_COOKIE,
   readTurnFeel,
@@ -204,6 +208,31 @@ describe('turn feel cookies', () => {
     expect(readTurnFeel(`${TURN_MS_COOKIE}=5`).turnMs).toBe(60)
     expect(SETTING_COOKIES).toEqual(
       expect.arrayContaining([TURN_MS_COOKIE, TURN_OVERSHOOT_COOKIE]),
+    )
+  })
+})
+
+describe('swipe sensitivity cookies', () => {
+  it('reads the swipe start, commit and flick, with the defaults unset', () => {
+    expect(readSwipeTuning('')).toEqual({
+      startPx: 18,
+      commitFraction: 0.35,
+      flickMs: 120,
+    })
+    expect(
+      readSwipeTuning(
+        `${SWIPE_START_COOKIE}=30; ${SWIPE_COMMIT_COOKIE}=50; ${SWIPE_FLICK_COOKIE}=0`,
+      ),
+    ).toEqual({ startPx: 30, commitFraction: 0.5, flickMs: 0 })
+    expect(readSwipeTuning(`${SWIPE_COMMIT_COOKIE}=99`).commitFraction).toBe(
+      0.6,
+    )
+    expect(SETTING_COOKIES).toEqual(
+      expect.arrayContaining([
+        SWIPE_START_COOKIE,
+        SWIPE_COMMIT_COOKIE,
+        SWIPE_FLICK_COOKIE,
+      ]),
     )
   })
 })

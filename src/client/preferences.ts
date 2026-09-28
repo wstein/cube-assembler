@@ -1,7 +1,12 @@
 // Viewer preferences kept in first-party cookies. These hold only choices
 // made in the app; profile definitions remain in local storage.
 import type { CaptureMode } from './capturePhoto'
-import { DEFAULT_HOLD_TIMINGS, type HoldTimings } from './cubeGesture'
+import {
+  DEFAULT_HOLD_TIMINGS,
+  DEFAULT_SWIPE_TUNING,
+  type HoldTimings,
+  type SwipeTuning,
+} from './cubeGesture'
 import { DEFAULT_TURN_MS } from './turnFeel'
 
 export const MIRROR_COOKIE = 'cube-assembler-mirror'
@@ -17,6 +22,11 @@ export const TURN_SOUND_COOKIE = 'cube-assembler-turn-sound'
 // How long a quarter turn takes, and whether it snaps past like a magnet.
 export const TURN_MS_COOKIE = 'cube-assembler-turn-ms'
 export const TURN_OVERSHOOT_COOKIE = 'cube-assembler-turn-overshoot'
+// How far a swipe moves before it turns, how far a turn must get to count,
+// and how far a flick carries on (percent of a quarter turn, milliseconds).
+export const SWIPE_START_COOKIE = 'cube-assembler-swipe-start-px'
+export const SWIPE_COMMIT_COOKIE = 'cube-assembler-swipe-commit-percent'
+export const SWIPE_FLICK_COOKIE = 'cube-assembler-swipe-flick-ms'
 export const NOTATION_COOKIE = 'cube-assembler-notation'
 export const CAPTURE_MODE_COOKIE = 'cube-assembler-capture-mode'
 // How long a sticker is held before a drag turns a block or the whole cube.
@@ -139,6 +149,9 @@ export const SETTING_COOKIES = [
   TURN_SOUND_COOKIE,
   TURN_MS_COOKIE,
   TURN_OVERSHOOT_COOKIE,
+  SWIPE_START_COOKIE,
+  SWIPE_COMMIT_COOKIE,
+  SWIPE_FLICK_COOKIE,
 ]
 
 export function selectedNotationFormat(cookies: string): 'wrg' | 'urf' {
@@ -171,5 +184,25 @@ export function readTurnFeel(cookies: string): {
   return {
     turnMs: readNumber(cookies, TURN_MS_COOKIE, TURN_MS_RANGE),
     overshoot: readPreference(cookies, TURN_OVERSHOOT_COOKIE, true),
+  }
+}
+
+export const SWIPE_RANGES = {
+  startPx: { min: 8, max: 40, fallback: DEFAULT_SWIPE_TUNING.startPx },
+  commitPercent: {
+    min: 15,
+    max: 60,
+    fallback: Math.round(DEFAULT_SWIPE_TUNING.commitFraction * 100),
+  },
+  flickMs: { min: 0, max: 240, fallback: DEFAULT_SWIPE_TUNING.flickMs },
+}
+
+export function readSwipeTuning(cookies: string): SwipeTuning {
+  return {
+    startPx: readNumber(cookies, SWIPE_START_COOKIE, SWIPE_RANGES.startPx),
+    commitFraction:
+      readNumber(cookies, SWIPE_COMMIT_COOKIE, SWIPE_RANGES.commitPercent) /
+      100,
+    flickMs: readNumber(cookies, SWIPE_FLICK_COOKIE, SWIPE_RANGES.flickMs),
   }
 }

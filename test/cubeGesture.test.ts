@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   CUBE_PRESS_MS,
+  DEFAULT_SWIPE_TUNING,
   WIDE_PRESS_MS,
   blockLayer,
   clampZoom,
@@ -382,5 +383,28 @@ describe('held sticker drags', () => {
     expect(cube).toEqual({ face: 'R', depth: 5, width: 5, axis: 0, sign: -1 })
     // Swiping up on the front turns the cube like R: an x rotation.
     expect(swipeLayerAngle(hit, cube, 0, -80, front)).toBeGreaterThan(0)
+  })
+})
+
+describe('swipe sensitivity settings', () => {
+  const quarter = Math.PI / 2
+  it('starts a turn after the set distance', () => {
+    const hit = pickCubeSurface(300, 300, camera)!
+    expect(pickSwipeLayer(hit, 20, 0, camera)).not.toBeNull()
+    expect(pickSwipeLayer(hit, 20, 0, camera, 30)).toBeNull()
+    expect(pickSwipeLayer(hit, 10, 0, camera, 8)).not.toBeNull()
+  })
+
+  it('commits and flicks as set', () => {
+    expect(releasedQuarterTurns(0.4 * quarter, 0, 0.5, 0)).toBe(0)
+    expect(releasedQuarterTurns(0.2 * quarter, 0, 0.15, 0)).toBe(1)
+    // A flick of 0 ms never carries on.
+    expect(releasedQuarterTurns(0.1 * quarter, 1, 0.35, 0)).toBe(0)
+    expect(releasedQuarterTurns(0.1 * quarter, 0.01, 0.35, 240)).toBe(1)
+    expect(DEFAULT_SWIPE_TUNING).toEqual({
+      startPx: 18,
+      commitFraction: 0.35,
+      flickMs: 120,
+    })
   })
 })

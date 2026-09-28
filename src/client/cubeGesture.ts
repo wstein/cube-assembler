@@ -135,13 +135,18 @@ export interface SwipeLayer {
   sign: 1 | -1
 }
 
+// A swipe turns a layer once it has moved SWIPE_START_PX (by default; the
+// settings page can change it) and clearly along one of the face's axes.
+export const SWIPE_START_PX = 18
+
 export function pickSwipeLayer(
   hit: CubeSurfaceHit,
   dx: number,
   dy: number,
   camera: CubeGestureCamera,
+  startPx = SWIPE_START_PX,
 ): SwipeLayer | null {
-  if (Math.hypot(dx, dy) < 18) return null
+  if (Math.hypot(dx, dy) < startPx) return null
   const swipe = swipeAlong(hit, dx, dy, camera)
   if (!swipe) return null
   const [first, second] = swipe.along.map(Math.abs)
@@ -265,8 +270,9 @@ export function swipeMoveAxis(
   dx: number,
   dy: number,
   camera: CubeGestureCamera,
+  startPx = SWIPE_START_PX,
 ): Axis | null {
-  const layer = pickSwipeLayer(hit, dx, dy, camera)
+  const layer = pickSwipeLayer(hit, dx, dy, camera, startPx)
   if (!layer) return null
   return ([0, 1, 2] as const).find(
     (axis) => axis !== hit.normalAxis && axis !== layer.axis,
@@ -311,14 +317,32 @@ export function wholeCubeLayer(axis: Axis, size: number): SwipeLayer {
 export const TURN_COMMIT_FRACTION = 0.35
 export const FLICK_MS = 120
 
-export function releasedQuarterTurns(angle: number, velocity: number): number {
+// The three can be changed on the settings page.
+export interface SwipeTuning {
+  startPx: number
+  commitFraction: number
+  flickMs: number
+}
+
+export const DEFAULT_SWIPE_TUNING: SwipeTuning = {
+  startPx: SWIPE_START_PX,
+  commitFraction: TURN_COMMIT_FRACTION,
+  flickMs: FLICK_MS,
+}
+
+export function releasedQuarterTurns(
+  angle: number,
+  velocity: number,
+  commitFraction = TURN_COMMIT_FRACTION,
+  flickMs = FLICK_MS,
+): number {
   const quarter = Math.PI / 2
   const flick = Math.max(
     -quarter / 2,
-    Math.min(quarter / 2, velocity * FLICK_MS),
+    Math.min(quarter / 2, velocity * flickMs),
   )
   const quarters = (angle + flick) / quarter
-  const turns = Math.floor(Math.abs(quarters) + 1 - TURN_COMMIT_FRACTION)
+  const turns = Math.floor(Math.abs(quarters) + 1 - commitFraction)
   return turns === 0 ? 0 : Math.sign(quarters) * turns
 }
 

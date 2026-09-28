@@ -11,6 +11,10 @@ import {
   HOLD_TIMING_LIMITS,
   MIRROR_COOKIE,
   SETTING_COOKIES,
+  SWIPE_COMMIT_COOKIE,
+  SWIPE_FLICK_COOKIE,
+  SWIPE_RANGES,
+  SWIPE_START_COOKIE,
   SOUND_COOKIE,
   TURN_MS_COOKIE,
   TURN_MS_RANGE,
@@ -26,6 +30,7 @@ import {
   selectedNotationFormat,
   selectionCookie,
   numberCookie,
+  readSwipeTuning,
   readTurnFeel,
   turnSoundOn,
 } from './preferences'
@@ -151,6 +156,45 @@ export function SettingsPage({ onClose }: Props) {
           hint="Layers snap a little past the quarter turn and settle back."
           checked={readTurnFeel(cookies).overshoot}
           onChange={(on) => write(preferenceCookie(TURN_OVERSHOOT_COOKIE, on))}
+        />
+      </Section>
+
+      <Section
+        id="settings-swipe"
+        title="Swiping"
+        hint="How eagerly a swipe on a sticker turns its layer."
+      >
+        <SliderSetting
+          label="Start turning after"
+          hint="Shorter reacts sooner; longer ignores small slips."
+          min={SWIPE_RANGES.startPx.min}
+          max={SWIPE_RANGES.startPx.max}
+          step={1}
+          value={readSwipeTuning(cookies).startPx}
+          unit=" px"
+          onChange={(px) => write(numberCookie(SWIPE_START_COOKIE, px))}
+        />
+        <SliderSetting
+          label="Count a turn from"
+          hint="How far into a quarter turn a released layer keeps turning."
+          min={SWIPE_RANGES.commitPercent.min}
+          max={SWIPE_RANGES.commitPercent.max}
+          step={5}
+          value={Math.round(readSwipeTuning(cookies).commitFraction * 100)}
+          unit=" %"
+          onChange={(percent) =>
+            write(numberCookie(SWIPE_COMMIT_COOKIE, percent))
+          }
+        />
+        <SliderSetting
+          label="Flick strength"
+          hint="How far a quick swipe carries on; 0 turns flicks off."
+          min={SWIPE_RANGES.flickMs.min}
+          max={SWIPE_RANGES.flickMs.max}
+          step={20}
+          value={readSwipeTuning(cookies).flickMs}
+          unit=" ms"
+          onChange={(ms) => write(numberCookie(SWIPE_FLICK_COOKIE, ms))}
         />
       </Section>
 

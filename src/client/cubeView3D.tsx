@@ -27,6 +27,7 @@ import {
   type GestureAxis,
   type PressLevel,
   type SwipeLayer,
+  type SwipeTuning,
 } from './cubeGesture'
 import { stepDragInertia } from './dragInertia'
 import {
@@ -42,6 +43,7 @@ import {
   preferenceCookie,
   readHoldTimings,
   readPreference,
+  readSwipeTuning,
   readTurnFeel,
   turnSoundOn,
 } from './preferences'
@@ -1398,6 +1400,8 @@ export function CubeView3D({
     // A block being picked: the layers from `from` to `to` along `axis`,
     // and where the finger was when it last moved across them.
     block?: { axis: GestureAxis; from: number; to: number; anchor: Point }
+    // How eager swipes are, as set on the settings page.
+    tuning: SwipeTuning
     // Where the turn's angle is measured from once dragging turns layers.
     turnHit?: CubeSurfaceHit
     turnFrom?: Point
@@ -2006,6 +2010,7 @@ export function CubeView3D({
         e.clientX - gesture.x,
         e.clientY - gesture.y,
         camera,
+        gesture.tuning.startPx,
       )
       if (axis === null) return
       const start = layerIndex(hit.point[axis], puzzleSize)
@@ -2020,6 +2025,7 @@ export function CubeView3D({
           e.clientX - block.anchor[0],
           e.clientY - block.anchor[1],
           camera,
+          gesture.tuning.startPx,
         )
         if (move?.axis === block.axis) {
           startDragTurn(
@@ -2123,6 +2129,7 @@ export function CubeView3D({
       mode: gestureForPointerDown(e.pointerType, 1, hit, null),
       pointerType: e.pointerType,
       level,
+      tuning: readSwipeTuning(document.cookie),
     }
     gestureRef.current = gesture
     if (gesture.mode !== 'pending') return
@@ -2191,8 +2198,14 @@ export function CubeView3D({
         pickBlock(gesture, gesture.hit, e, rect, camera)
         return
       }
-      if (distance < 18) return
-      const layer = pickSwipeLayer(gesture.hit, dx, dy, camera)
+      if (distance < gesture.tuning.startPx) return
+      const layer = pickSwipeLayer(
+        gesture.hit,
+        dx,
+        dy,
+        camera,
+        gesture.tuning.startPx,
+      )
       if (layer) {
         startDragTurn(
           gesture,
@@ -2240,7 +2253,8 @@ export function CubeView3D({
     setPressMode(null)
     // A block picked but never turned springs back.
     if (gestureRef.current?.mode === 'pending') settleDrag(0)
-    if (gestureRef.current?.mode === 'turn') {
+    const gesture = gestureRef.current
+    if (gesture?.mode === 'turn') {
       inertiaRef.current = { yaw: 0, pitch: 0 }
       const drag = dragTurnRef.current
       if (drag) {
@@ -2249,7 +2263,12 @@ export function CubeView3D({
         settleDrag(
           e.type === 'pointercancel'
             ? 0
-            : releasedQuarterTurns(drag.angle, velocity),
+            : releasedQuarterTurns(
+                drag.angle,
+                velocity,
+                gesture.tuning.commitFraction,
+                gesture.tuning.flickMs,
+              ),
         )
       }
     }
