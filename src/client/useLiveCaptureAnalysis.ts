@@ -1,17 +1,6 @@
 import { useEffect, useRef } from 'preact/hooks'
-import {
-  AUTO_CAPTURE_MIN_CONFIDENCE,
-  TURN_CUE_START,
-  nextAutoCaptureProgress,
-  nextTurnCue,
-  turnCueCleared,
-  turnPoseChanged,
-  type AutoCaptureProgress,
-  type TurnCuePose,
-  type TurnCueState,
-} from './autoCapture'
-import { findCapturedFaceMatch } from '../cube/cubeAssembly'
-import { holdConfirmedFace, NO_HOLD, type LiveHold } from './liveHold'
+import { liveFrameStep, startState } from '../core/capture/LiveCapture.gen'
+import type { TurnCuePose } from './autoCapture'
 import { scaleBounds, type LiveAnalysisRequest } from './liveAnalysis'
 import type { LiveFrameMessage, LiveResultMessage } from './liveAnalysis.worker'
 import {
@@ -139,9 +128,7 @@ export function useLiveCaptureAnalysis(options: LiveCaptureOptions) {
 
     canvasRef.current ??= document.createElement('canvas')
     const canvas = canvasRef.current
-    let progress: AutoCaptureProgress | null = null
-    let hold: LiveHold<ColorDetectionResult> = NO_HOLD
-    let turnCue: TurnCueState = TURN_CUE_START
+    let state = startState()
     const capturedBackgrounds = Object.fromEntries(
       faceOrder.map((key) => [
         key,
@@ -166,117 +153,89 @@ export function useLiveCaptureAnalysis(options: LiveCaptureOptions) {
         if ('error' in event.data) throw new Error(event.data.error)
         const { result } = event.data
         const bounds = scaleBounds(result.bounds, event.data.scale)
-        const { detection, visible } = result
-        setLiveNeedsRecentering(bounds.needsRecentering === true)
-        setLiveMedianWB(result.backgroundColor !== null)
-        setLiveAutoColorProfileId(result.colorProfileId ?? provisionalProfileId)
-        if (lastCapturedColors.current) {
-          const pose: TurnCuePose = {
-            centerX: bounds.startX + bounds.faceWidth / 2,
-            centerY: bounds.startY + bounds.faceHeight / 2,
-            size: bounds.faceWidth,
-            angle: bounds.angle ?? 0,
-          }
-          turnCue = nextTurnCue(
-            turnCue,
-            visible && bounds.gridFound && detection.confidence >= 0.8
-              ? detection.colors
-              : null,
-            lastCapturedColors.current,
-            visible && bounds.gridFound && lastCapturedPose.current !== null
-              ? turnPoseChanged(lastCapturedPose.current, pose)
-              : false,
-          )
-          if (turnCueCleared(turnCue)) {
-            lastCapturedColors.current = null
-            lastCapturedPose.current = null
-            if (turnCueShowing) actions.current.onTurnCueCleared()
-          }
-          return
-        }
-        if (turnCueShowing) return
-        const shown =
-          mode === 'cv'
-            ? holdConfirmedFace(hold, detection, visible)
-            : { hold, show: detection, visible }
-        hold = shown.hold
-        setLiveDetection(shown.show)
-        setLiveFaceVisible(shown.visible)
-        const matchedSlot =
-          mode === 'cv' && visible && detection.confidence >= 0.8
-            ? findCapturedFaceMatch(
-                faceOrder.map(
-                  (key) =>
-                    capturedFaces[key] && { colors: capturedFaces[key].colors },
-                ),
-                { colors: detection.colors },
-                faceOrder.indexOf(face),
-              )
-            : null
-        setLiveCapturedFace(
-          matchedSlot === null ? null : faceOrder[matchedSlot],
+        const step = liveFrameStep(
+          state,
+          {
+            bounds,
+            detection: result.detection,
+            visible: result.visible,
+            backgroundFound: result.backgroundColor !== null,
+            colorProfileId: result.colorProfileId,
+          },
+          {
+            detectFace: mode === 'cv',
+            autoCapture,
+            captureBusy: autoCaptureInFlight.current,
+            stableFrames,
+            turnCueShowing,
+            provisionalProfileId,
+            lastCapturedColors: lastCapturedColors.current,
+            lastCapturedPose: lastCapturedPose.current,
+            capturedColors: faceOrder.map((key) => capturedFaces[key]?.colors),
+            faceIndex: faceOrder.indexOf(face),
+          },
         )
-        if (mode === 'cv' && autoCapture && !autoCaptureInFlight.current) {
-          const counted =
-            visible &&
-            bounds.gridFound &&
-            detection.confidence >= AUTO_CAPTURE_MIN_CONFIDENCE
-          progress = nextAutoCaptureProgress(
-            progress,
-            counted
-              ? {
-                  colors: detection.colors,
-                  confidence: detection.confidence,
-                  centerX: bounds.startX + bounds.faceWidth / 2,
-                  centerY: bounds.startY + bounds.faceHeight / 2,
-                  size: bounds.faceWidth,
-                  angle: bounds.angle ?? 0,
-                }
-              : null,
+        state = step.state
+        setLiveNeedsRecentering(step.needsRecentering)
+        setLiveMedianWB(step.medianWhiteBalance)
+        setLiveAutoColorProfileId(step.autoColorProfileId)
+        if (step.turnCueCleared) {
+          lastCapturedColors.current = null
+          lastCapturedPose.current = null
+          if (turnCueShowing) actions.current.onTurnCueCleared()
+        }
+        if (step.view) {
+          setLiveDetection(step.view.detection)
+          setLiveFaceVisible(step.view.visible)
+          setLiveCapturedFace(
+            step.view.matchedSlot === null
+              ? null
+              : faceOrder[step.view.matchedSlot],
           )
-          setAutoCaptureFrames(progress?.frames ?? 0)
-          setAutoCapturePaused(!counted && progress !== null)
-          if (counted && progress && progress.frames >= stableFrames) {
-            autoCaptureInFlight.current = true
-            progress = null
-            const frame = document
-              .querySelector('.capture-scan-frame')
-              ?.getBoundingClientRect()
-            if (frame) pendingFlyIn.current = { slot: face, from: frame }
-            try {
-              // Read the frame whose grid was checked, at its full resolution.
-              canvas.width = full.width
-              canvas.height = full.height
-              canvas.getContext('2d')?.drawImage(full, 0, 0)
-              const autoPalette = autoProfiles.find(
-                (candidate) => candidate.id === result.colorProfileId,
-              )?.colors
-              const captured = captureAndProcessCanvas(
-                canvas,
-                size,
-                result.gains,
-                sampling,
-                palette ?? autoPalette,
-                'aligned',
-                bounds,
+        }
+        if (step.autoCaptureView) {
+          setAutoCaptureFrames(step.autoCaptureView.frames)
+          setAutoCapturePaused(step.autoCaptureView.paused)
+        }
+        if (step.capture) {
+          autoCaptureInFlight.current = true
+          const frame = document
+            .querySelector('.capture-scan-frame')
+            ?.getBoundingClientRect()
+          if (frame) pendingFlyIn.current = { slot: face, from: frame }
+          try {
+            // Read the frame whose grid was checked, at its full resolution.
+            canvas.width = full.width
+            canvas.height = full.height
+            canvas.getContext('2d')?.drawImage(full, 0, 0)
+            const autoPalette = autoProfiles.find(
+              (candidate) => candidate.id === result.colorProfileId,
+            )?.colors
+            const captured = captureAndProcessCanvas(
+              canvas,
+              size,
+              result.gains,
+              sampling,
+              palette ?? autoPalette,
+              'aligned',
+              bounds,
+            )
+            actions.current.onCaptureSignal()
+            void actions.current
+              .onAutoCapture(captured, result.colorProfileId ?? null)
+              .catch((error) =>
+                setCaptureMessage(
+                  `❌ Error: ${error instanceof Error ? error.message : 'Unknown error'}`,
+                ),
               )
-              actions.current.onCaptureSignal()
-              void actions.current
-                .onAutoCapture(captured, result.colorProfileId ?? null)
-                .catch((error) =>
-                  setCaptureMessage(
-                    `❌ Error: ${error instanceof Error ? error.message : 'Unknown error'}`,
-                  ),
-                )
-                .finally(() => {
-                  autoCaptureInFlight.current = false
-                })
-            } catch (error) {
-              autoCaptureInFlight.current = false
-              setCaptureMessage(
-                `❌ Error: ${error instanceof Error ? error.message : 'Unknown error'}`,
-              )
-            }
+              .finally(() => {
+                autoCaptureInFlight.current = false
+              })
+          } catch (error) {
+            autoCaptureInFlight.current = false
+            setCaptureMessage(
+              `❌ Error: ${error instanceof Error ? error.message : 'Unknown error'}`,
+            )
           }
         }
       } catch {
@@ -284,7 +243,7 @@ export function useLiveCaptureAnalysis(options: LiveCaptureOptions) {
         setLiveFaceVisible(false)
         setLiveMedianWB(false)
         setLiveCapturedFace(null)
-        setAutoCapturePaused(progress !== null)
+        setAutoCapturePaused(state.progress !== null)
       } finally {
         full.close()
         inFlight = null
