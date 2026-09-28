@@ -959,20 +959,38 @@ test.describe('wide sticker drags', () => {
     page.getByRole('status', { name: 'Move history' })
   const badge = (page: Page) => page.locator('.cube-3d-press-mode')
 
-  test('a bent swipe turns the selected four upper layers on a 5x5', async ({
+  // Starting on the seam between the third and fourth U rows and swiping
+  // left: leaning up turns 4Uw, leaning down 3Dw'.
+  for (const [lean, move] of [
+    [-1, '4Uw'],
+    [1, "3Dw'"],
+  ] as const)
+    test(`a seam swipe leaning ${lean < 0 ? 'up' : 'down'} turns ${move} on a 5x5`, async ({
+      page,
+    }) => {
+      const { x, y, column, quarter } = await setUp(page)
+      const startY = y + 0.5 * column
+      await page.mouse.move(x, startY)
+      await page.mouse.down()
+      await page.mouse.move(x - 1.1 * quarter, startY + lean * 0.1 * quarter, {
+        steps: 20,
+      })
+      await expect(badge(page)).toHaveText(/Wide turn/)
+      await page.waitForTimeout(150)
+      await page.mouse.up()
+      await expect(history(page)).toHaveText(`Moves: ${move}`)
+    })
+
+  test('a swipe from the middle of a sticker still turns one layer', async ({
     page,
   }) => {
-    const { x, y, column, quarter } = await setUp(page)
-    const startX = x + 38
-    const startY = y + column
-    await page.mouse.move(startX, startY)
+    const { x, y, quarter } = await setUp(page)
+    await page.mouse.move(x, y)
     await page.mouse.down()
-    await page.mouse.move(startX, startY - 0.85 * column, { steps: 10 })
-    await page.mouse.move(startX + 1.1 * quarter, startY - 0.85 * column, {
-      steps: 20,
-    })
+    await page.mouse.move(x - 1.1 * quarter, y - 0.1 * quarter, { steps: 20 })
+    await page.waitForTimeout(150)
     await page.mouse.up()
-    await expect(history(page)).toContainText('4Uw')
+    await expect(history(page)).toHaveText('Moves: 3U')
   })
 
   test('Shift turns a standard wide move at once', async ({ page }) => {
@@ -987,11 +1005,12 @@ test.describe('wide sticker drags', () => {
     await expect(history(page)).toHaveText("Moves: Lw'")
   })
 
-  test('a bent touch swipe turns a wide layer', async ({ page }) => {
+  test('a seam swipe on a touch screen turns a wide layer', async ({
+    page,
+  }) => {
     const { x, y, column, quarter } = await setUp(page)
     const canvas = page.locator('.cube-3d-canvas')
-    const startX = x + 38
-    const startY = y + column
+    const startY = y + 0.5 * column
     const touch = (type: string, clientX: number, clientY: number) =>
       canvas.dispatchEvent(type, {
         pointerId: 7,
@@ -1001,18 +1020,17 @@ test.describe('wide sticker drags', () => {
         clientY,
         bubbles: true,
       })
-    await touch('pointerdown', startX, startY)
-    for (let step = 1; step <= 10; step++)
-      await touch('pointermove', startX, startY - (0.85 * column * step) / 10)
+    await touch('pointerdown', x, startY)
     for (let step = 1; step <= 20; step++)
       await touch(
         'pointermove',
-        startX + (1.1 * quarter * step) / 20,
-        startY - 0.85 * column,
+        x - (1.1 * quarter * step) / 20,
+        startY - (0.1 * quarter * step) / 20,
       )
     await expect(badge(page)).toHaveText(/Wide turn/)
-    await touch('pointerup', startX + 1.1 * quarter, startY - 0.85 * column)
-    await expect(history(page)).toContainText('4Uw')
+    await page.waitForTimeout(150)
+    await touch('pointerup', x - 1.1 * quarter, startY - 0.1 * quarter)
+    await expect(history(page)).toHaveText('Moves: 4Uw')
   })
 
   for (const sound of [true, false])

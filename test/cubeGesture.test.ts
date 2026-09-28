@@ -14,7 +14,8 @@ import {
   twoFingerLock,
   pickCubeSurface,
   pickSwipeLayer,
-  selectWideBlock,
+  seamWideLayer,
+  screenPoint,
   releasedQuarterTurns,
   swipeLayerAngle,
   twoFingerMotion,
@@ -141,30 +142,80 @@ describe('live sticker drag', () => {
   })
 })
 
-describe('two-direction wide drag', () => {
-  it('selects 4Uw from the fourth U row of a 5x5 after moving up a cell', () => {
-    const hit = pickCubeSurface(300, 380, camera)!
-    expect(selectWideBlock(hit, 0, -60, camera)).toMatchObject({
-      face: 'U',
-      depth: 4,
-      width: 4,
-      axis: 1,
-    })
+describe('seam swipes', () => {
+  // Facing the front of a 5x5: U rows run from y = 2.5 at the top down to
+  // y = -2.5, one unit each; the third and fourth U rows meet at y = -0.5.
+  const at = (y: number) => {
+    const [sx, sy] = screenPoint([0.3, y, 2.5], camera)
+    return pickCubeSurface(sx, sy, camera)!
+  }
+  const seam = (y: number, dx: number, dy: number) => {
+    const hit = at(y)
+    return seamWideLayer(
+      hit,
+      pickSwipeLayer(hit, dx, dy, camera)!,
+      dx,
+      dy,
+      camera,
+    )
+  }
+
+  it('turns 4Uw from the U3/U4 seam, swiping left and slightly up', () => {
+    const hit = at(-0.5)
+    const layer = seamWideLayer(
+      hit,
+      pickSwipeLayer(hit, -40, -5, camera)!,
+      -40,
+      -5,
+      camera,
+    )
+    expect(layer).toMatchObject({ face: 'U', depth: 4, width: 4, axis: 1 })
+    // Left turns the front of U toward L: U's clockwise direction.
+    expect(swipeLayerAngle(hit, layer!, -40, -5, camera)).toBeGreaterThan(0)
   })
 
-  it('does not select a wide block before moving three quarters of a cell', () => {
-    const hit = pickCubeSurface(300, 380, camera)!
-    expect(selectWideBlock(hit, 0, -30, camera)).toBeNull()
+  it("turns 3Dw' from the same seam, swiping left and slightly down", () => {
+    const hit = at(-0.5)
+    const layer = seamWideLayer(
+      hit,
+      pickSwipeLayer(hit, -40, 5, camera)!,
+      -40,
+      5,
+      camera,
+    )
+    expect(layer).toMatchObject({ face: 'D', depth: 3, width: 3, axis: 1 })
+    expect(swipeLayerAngle(hit, layer!, -40, 5, camera)).toBeLessThan(0)
   })
 
-  it('selects the opposite edge when the first segment moves down', () => {
-    const hit = pickCubeSurface(300, 380, camera)!
-    expect(selectWideBlock(hit, 0, 60, camera)).toMatchObject({
-      face: 'D',
-      depth: 2,
-      width: 2,
-      axis: 1,
-    })
+  it('accepts a start a little off the seam', () => {
+    expect(seam(-0.38, -40, -5)).toMatchObject({ face: 'U', depth: 4 })
+    expect(seam(-0.62, -40, 5)).toMatchObject({ face: 'D', depth: 3 })
+  })
+
+  it('turns one layer from the middle of a sticker', () => {
+    expect(seam(0, -40, -5)).toBeNull()
+    expect(seam(-1, -40, 5)).toBeNull()
+  })
+
+  it('turns one layer when the swipe runs straight along the seam', () => {
+    expect(seam(-0.5, -40, 0)).toBeNull()
+  })
+
+  it('never turns the whole cube or starts from its edge', () => {
+    // From the U1/U2 seam downward would take all five layers.
+    expect(seam(1.5, -40, 5)).toBeNull()
+    expect(seam(1.5, -40, -5)).toMatchObject({ face: 'U', depth: 2, width: 2 })
+    // The top edge of the face is no seam.
+    expect(seam(2.45, -40, -5)).toBeNull()
+  })
+
+  it('works the same on columns', () => {
+    // Swiping up on the R3/R4 seam (x = -0.5), leaning toward R.
+    const [sx, sy] = screenPoint([-0.5, 0.3, 2.5], camera)
+    const hit = pickCubeSurface(sx, sy, camera)!
+    expect(
+      seamWideLayer(hit, pickSwipeLayer(hit, 5, -40, camera)!, 5, -40, camera),
+    ).toMatchObject({ face: 'R', depth: 4, width: 4, axis: 0 })
   })
 })
 

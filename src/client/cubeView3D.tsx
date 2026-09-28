@@ -11,7 +11,7 @@ import {
   pressLevel,
   releasedQuarterTurns,
   standardWideLayer,
-  selectWideBlock,
+  seamWideLayer,
   swipeLayerAngle,
   wholeCubeLayer,
   twoFingerLock,
@@ -876,52 +876,6 @@ export function CubeView3D({
       const [fromX, fromY] = gesture.turnFrom ?? [gesture.x, gesture.y]
       if (!drag || !hit || !rect) return
       const camera = gestureCamera(rect)
-      if (gesture.level === 'layer' && !gesture.wideTurned) {
-        const bend = gesture.wideBend
-        if (bend) {
-          const bendDx = e.clientX - bend.at[0]
-          const bendDy = e.clientY - bend.at[1]
-          const next = pickSwipeLayer(
-            hit,
-            bendDx,
-            bendDy,
-            camera,
-            gesture.tuning.startPx,
-          )
-          if (next?.axis === bend.layer.axis) {
-            startDragTurn(gesture, bend.layer, bend.at, hit, e, camera)
-            gesture.wideBend = undefined
-            gesture.wideTurned = true
-            if (dragTurnRef.current) dragTurnRef.current.highlight = true
-            announceWideTurn()
-            return
-          }
-          // Follow the first leg until it bends. Once it starts turning,
-          // keep this point fixed so the second leg has a stable origin.
-          if (Math.hypot(bendDx, bendDy) <= 6) {
-            const stillSelected = selectWideBlock(
-              hit,
-              e.clientX - gesture.x,
-              e.clientY - gesture.y,
-              camera,
-            )
-            if (stillSelected?.axis === bend.layer.axis)
-              bend.at = [e.clientX, e.clientY]
-          }
-        } else {
-          const selected = selectWideBlock(
-            hit,
-            e.clientX - gesture.x,
-            e.clientY - gesture.y,
-            camera,
-          )
-          if (selected && selected.axis !== drag.layer.axis)
-            gesture.wideBend = {
-              layer: selected,
-              at: [e.clientX, e.clientY],
-            }
-        }
-      }
       const angle = swipeLayerAngle(
         hit,
         drag.layer,
@@ -951,11 +905,23 @@ export function CubeView3D({
         gesture.tuning.startPx,
       )
       if (layer) {
+        // Starting on a seam and leaning to one side turns a wide block.
+        const seamBlock =
+          gesture.level === 'layer'
+            ? seamWideLayer(gesture.hit, layer, dx, dy, camera)
+            : null
+        const turned =
+          seamBlock ??
+          (gesture.level === 'wide'
+            ? standardWideLayer(layer, puzzleSize)
+            : layer)
+        if (seamBlock) {
+          gesture.level = 'wide'
+          announceWideTurn()
+        }
         startDragTurn(
           gesture,
-          gesture.level === 'wide'
-            ? standardWideLayer(layer, puzzleSize)
-            : layer,
+          turned,
           [gesture.x, gesture.y],
           gesture.hit,
           e,

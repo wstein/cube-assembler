@@ -241,38 +241,55 @@ let standardWideLayer = (layer: swipeLayer, size) => {
   {...layer, depth: width, width}
 }
 
-// The first leg of a bent gesture selects all layers from the touched one
-// toward an edge. It must travel most of one sticker along a cube axis;
-// the second, perpendicular leg then turns that block.
-let selectWideBlock = (hit: surfaceHit, dx, dy, camera: camera) => {
-  let axes = inPlaneAxes(hit.normalAxis)
-  let (sx, sy) = project(hit.point, camera)
-  let (px, py, pz) = hit.point
-  let candidate = ref(None)
-  axes->Array.forEach(axis => {
-    let step = switch axis {
-    | 0 => (px +. 1.0, py, pz)
-    | 1 => (px, py +. 1.0, pz)
-    | _ => (px, py, pz +. 1.0)
+// A swipe that starts on the seam between two layers and leans slightly
+// toward one side turns a wide block: both layers at the seam and every
+// layer on that side, named from the face it reaches. On a 5x5, swiping
+// along the U3/U4 seam and leaning toward U turns 4Uw, leaning toward D
+// 3Dw. A start in the middle of a sticker, a swipe straight along the
+// seam, or a block that would take the whole cube turns one layer.
+let seamTolerance = 0.15
+let seamLean = 0.05
+
+let seamWideLayer = (hit: surfaceHit, layer: swipeLayer, dx, dy, camera: camera) => {
+  let position = get(hit.point, layer.axis) +. camera.size /. 2.0
+  let seam = Math.round(position)
+  if seam < 1.0 || seam > camera.size -. 1.0 || Math.abs(position -. seam) > seamTolerance {
+    Null.null
+  } else {
+    // The swipe on screen as motion along the layer axis (the lean) and
+    // across it (the turn), in stickers.
+    let (sx, sy) = project(hit.point, camera)
+    let screenStep = axis => {
+      let unit = switch axis {
+      | 0 => (1.0, 0.0, 0.0)
+      | 1 => (0.0, 1.0, 0.0)
+      | _ => (0.0, 0.0, 1.0)
+      }
+      let (ex, ey) = project(along(hit.point, 1.0, unit), camera)
+      (ex -. sx, ey -. sy)
     }
-    let (ex, ey) = project(step, camera)
-    let vx = ex -. sx
-    let vy = ey -. sy
-    let length = Math.hypot(vx, vy)
-    if length > 1e-6 {
-      let along = (dx *. vx +. dy *. vy) /. length
-      let across = Math.abs(dx *. vy -. dy *. vx) /. length
-      if Math.abs(along) >= 0.75 *. length && across <= 0.35 *. length {
-        let from = Float.toInt(layerIndex(get(hit.point, axis), camera.size))
-        let edge = along > 0.0 ? Float.toInt(camera.size) - 1 : 0
-        let block = blockLayer(axis, from, edge, Float.toInt(camera.size))
-        if block.width->Option.getOr(1) > 1 {
-          candidate := Some(block)
-        }
+    let across = inPlaneAxes(hit.normalAxis)->Array.find(axis => axis != layer.axis)
+    switch across {
+    | None => Null.null
+    | Some(across) =>
+      let (ux, uy) = screenStep(layer.axis)
+      let (vx, vy) = screenStep(across)
+      let det = ux *. vy -. uy *. vx
+      let lean = Math.abs(det) < 1e-9 ? 0.0 : (dx *. vy -. dy *. vx) /. det
+      let turn = Math.abs(det) < 1e-9 ? 0.0 : (ux *. dy -. uy *. dx) /. det
+      let size = Float.toInt(camera.size)
+      let upper = Float.toInt(seam)
+      if Math.abs(lean) < seamLean *. Math.hypot(lean, turn) {
+        Null.null
+      } else {
+        let block =
+          lean > 0.0
+            ? blockLayer(layer.axis, upper - 1, size - 1, size)
+            : blockLayer(layer.axis, 0, upper, size)
+        block.width->Option.getOr(1) >= size ? Null.null : Null.make(block)
       }
     }
-  })
-  Null.fromOption(candidate.contents)
+  }
 }
 
 // A released drag settles on whole quarter turns. Each further quarter

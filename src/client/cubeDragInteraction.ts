@@ -33,9 +33,6 @@ export interface CubePointerGesture {
   // Where the turn's angle is measured from once dragging turns layers.
   turnHit?: CubeSurfaceHit
   turnFrom?: Point
-  // First leg of a bent wide turn, before its perpendicular turning leg.
-  wideBend?: { layer: SwipeLayer; at: Point }
-  wideTurned?: boolean
 }
 
 interface DragInteractionOptions {

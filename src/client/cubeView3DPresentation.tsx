@@ -110,17 +110,18 @@ export function CubeView3DPresentation({
               <div class="cube-3d-hint">
                 {coarsePointer ? (
                   <>
-                    Swipe a sticker to turn its layer; move toward an edge then
-                    across for a wide turn &bull; Two fingers on the cube turn
-                    it, beside it rotate the view &bull; Pinch to zoom
+                    Swipe a sticker to turn its layer; start between two layers
+                    and lean toward a side for a wide turn &bull; Two fingers on
+                    the cube turn it, beside it rotate the view &bull; Pinch to
+                    zoom
                   </>
                 ) : (
                   <>
-                    Swipe a sticker to turn its layer; move toward an edge then
-                    across for a wide turn, or use Shift &bull; Two fingers on
-                    the cube turn the whole cube &bull; Drag the background or
-                    swipe two fingers beside the cube to rotate the view &bull;
-                    Pinch or scroll to zoom
+                    Swipe a sticker to turn its layer; start between two layers
+                    and lean toward a side for a wide turn, or use Shift &bull;
+                    Two fingers on the cube turn the whole cube &bull; Drag the
+                    background or swipe two fingers beside the cube to rotate
+                    the view &bull; Pinch or scroll to zoom
                   </>
                 )}
               </div>
