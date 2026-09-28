@@ -64,6 +64,8 @@ import {
   AUTO_ROTATE_RADIANS_PER_MS,
   AUTO_ROTATE_RESUME_DELAY_MS,
   DEFAULT_STICKER_HEX,
+  ISOMETRIC_PITCH,
+  ISOMETRIC_YAW,
   applyCubeLayerMove,
   generateScrambleMoves,
   getDefaultZoom,
@@ -97,8 +99,8 @@ export function CubeView3D({
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
   const [currentCube, setCurrentCube] = useState<CubeState>(initialCube)
   const [moves, setMoves] = useState<CubeTurn[]>(initialMoves)
-  const [pitch, setPitch] = useState<number>(0.42) // ~24 deg
-  const [yaw, setYaw] = useState<number>(-0.62) // ~-35 deg
+  const [pitch, setPitch] = useState<number>(ISOMETRIC_PITCH)
+  const [yaw, setYaw] = useState<number>(ISOMETRIC_YAW)
   const [zoom, setZoom] = useState<number>(getDefaultZoom(puzzleSize))
   const [isRotating, setIsRotating] = useState<boolean>(() =>
     readPreference(document.cookie, AUTO_ROTATE_COOKIE),

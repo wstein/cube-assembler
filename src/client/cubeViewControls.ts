@@ -1,5 +1,9 @@
 import { clampZoom, wheelGesture } from './cubeGesture'
-import { getDefaultZoom } from './cubeView3DState'
+import {
+  getDefaultZoom,
+  ISOMETRIC_PITCH,
+  ISOMETRIC_YAW,
+} from './cubeView3DState'
 
 type SetNumber = (value: number | ((previous: number) => number)) => void
 
@@ -23,8 +27,8 @@ export function createCubeViewControls({
   // The isometric view, from the front corner or the opposite back one.
   const resetView = (back = false) => {
     pauseAutoRotation()
-    setPitch(back ? -0.42 : 0.42)
-    setYaw(-0.62 + (back ? Math.PI : 0))
+    setPitch(back ? -ISOMETRIC_PITCH : ISOMETRIC_PITCH)
+    setYaw(ISOMETRIC_YAW + (back ? Math.PI : 0))
     setZoom(getDefaultZoom(puzzleSize))
   }
 

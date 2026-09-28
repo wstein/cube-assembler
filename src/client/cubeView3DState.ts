@@ -14,6 +14,8 @@ export const DEFAULT_STICKER_HEX: Record<string, string> = {
 
 export const AUTO_ROTATE_RESUME_DELAY_MS = 1500
 export const AUTO_ROTATE_RADIANS_PER_MS = 0.008 / (1000 / 60)
+export const ISOMETRIC_PITCH = 0.52
+export const ISOMETRIC_YAW = -0.74
 
 export function hexToRgb(hex: string): [number, number, number] {
   const clean = hex.replace('#', '')
