@@ -7,6 +7,8 @@
 @get_index external getAt: (Uint8ClampedArray.t, float) => float = ""
 @new external make: int => Uint8ClampedArray.t = "Uint8ClampedArray"
 @get external length: Uint8ClampedArray.t => int = "length"
+@send external subarray: (Uint8ClampedArray.t, int, int) => Uint8ClampedArray.t = "subarray"
+@send external setFrom: (Uint8ClampedArray.t, Uint8ClampedArray.t, int) => unit = "set"
 
 // A float stored into a clamped array rounds and clamps like the browser.
 @set_index external setFloat: (Uint8ClampedArray.t, int, float) => unit = ""
