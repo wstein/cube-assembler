@@ -7,6 +7,9 @@ import {
   gestureWhenSwipeTurnsNothing,
   twoFingerLock,
   pickCubeSurface,
+  pickSwipeLayer,
+  releasedQuarterTurns,
+  swipeLayerAngle,
   twoFingerMotion,
   wheelGesture,
 } from '../src/client/cubeGesture'
@@ -34,6 +37,85 @@ describe('cube sticker drag', () => {
     const turn = getSwipeLayerTurn(hit!, 80, 0, camera)
     expect(turn).toMatchObject({ face: 'U', depth: 3, turns: -1 })
     expect(getSwipeLayerTurn(hit!, 1, 1, camera)).toBeNull()
+  })
+})
+
+describe('live sticker drag', () => {
+  const quarter = Math.PI / 2
+
+  it('turns the layer as far as the finger moved the sticker', () => {
+    const hit = pickCubeSurface(300, 300, camera)!
+    const layer = pickSwipeLayer(hit, 80, 0, camera)
+    expect(layer).toMatchObject({ face: 'U', depth: 3 })
+    // Facing the front, the sticker moves across the face by half the cube
+    // width per radian, seen from the camera distance to the face.
+    const focal = camera.height / (2 * Math.tan(Math.PI / 8))
+    const radiansPerPixel = (camera.zoom - 2.5) / (focal * 2.5)
+    expect(swipeLayerAngle(hit, layer!, 80, 0, camera)).toBeCloseTo(
+      -80 * radiansPerPixel,
+      6,
+    )
+  })
+
+  it('keeps following the finger past a quarter turn and back past the start', () => {
+    const hit = pickCubeSurface(300, 300, camera)!
+    const layer = pickSwipeLayer(hit, 80, 0, camera)!
+    const angle = (dx: number) => swipeLayerAngle(hit, layer, dx, 0, camera)
+    expect(angle(800)).toBeCloseTo(10 * angle(80), 9)
+    expect(Math.abs(angle(800))).toBeGreaterThan(2 * quarter)
+    expect(angle(-40)).toBeCloseTo(-angle(40), 9)
+    // Only the chosen layer's direction counts once it is picked.
+    expect(swipeLayerAngle(hit, layer, 80, 30, camera)).toBeCloseTo(
+      angle(80),
+      9,
+    )
+  })
+
+  it('agrees with the turn direction a quick swipe picks', () => {
+    const iso = {
+      width: 600,
+      height: 600,
+      zoom: 8.4,
+      pitch: 0.42,
+      yaw: -0.62,
+      size: 3,
+    }
+    for (const [x, y, dx, dy] of [
+      [200, 450, 30, 0],
+      [200, 450, 0, 30],
+      [450, 300, 30, 0],
+      [450, 300, 0, 30],
+      [350, 150, 0, 30],
+      [350, 150, 30, 0],
+    ]) {
+      const hit = pickCubeSurface(x, y, iso)!
+      const layer = pickSwipeLayer(hit, dx, dy, iso)!
+      const turn = getSwipeLayerTurn(hit, dx, dy, iso)!
+      expect(Math.sign(swipeLayerAngle(hit, layer, dx, dy, iso))).toBe(
+        turn.turns,
+      )
+    }
+  })
+
+  it('springs back from a short slow drag and commits past the threshold', () => {
+    expect(releasedQuarterTurns(0.2 * quarter, 0)).toBe(0)
+    expect(releasedQuarterTurns(-0.3 * quarter, 0)).toBe(0)
+    expect(releasedQuarterTurns(0.4 * quarter, 0)).toBe(1)
+    expect(releasedQuarterTurns(-0.5 * quarter, 0)).toBe(-1)
+  })
+
+  it('counts every further quarter turn the drag passes', () => {
+    expect(releasedQuarterTurns(1.3 * quarter, 0)).toBe(1)
+    expect(releasedQuarterTurns(1.4 * quarter, 0)).toBe(2)
+    expect(releasedQuarterTurns(2.9 * quarter, 0)).toBe(3)
+    expect(releasedQuarterTurns(-2.3 * quarter, 0)).toBe(-2)
+  })
+
+  it('lets a quick flick finish one more turn but not several', () => {
+    expect(releasedQuarterTurns(0.1 * quarter, 0.01)).toBe(1)
+    expect(releasedQuarterTurns(-0.1 * quarter, -0.01)).toBe(-1)
+    expect(releasedQuarterTurns(0, 1)).toBe(1)
+    expect(releasedQuarterTurns(1.1 * quarter, -1)).toBe(1)
   })
 })
 

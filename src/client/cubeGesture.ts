@@ -89,16 +89,16 @@ function tangent(axis: Axis, [x, y, z]: Vec): Vec {
   return [-y, x, 0]
 }
 
-export function getSwipeLayerTurn(
+// How far a swipe moved the touched point along the face for each of the
+// two layers it can turn, in tenths of a radian. The layers rotate about the
+// face's two in-plane axes; each moves the point across the other axis, and
+// its motion into the face would only skew the projection.
+function swipeAlong(
   hit: CubeSurfaceHit,
   dx: number,
   dy: number,
   camera: CubeGestureCamera,
-): { face: FaceKey; depth: number; turns: number } | null {
-  if (Math.hypot(dx, dy) < 18) return null
-  // The two layers a swipe can turn rotate about the face's two in-plane
-  // axes. Each moves the touched point along the face, across the other
-  // axis; its motion into the face would only skew the projection.
+): { axes: Axis[]; along: [number, number] } | null {
   const axes = ([0, 1, 2] as const).filter((axis) => axis !== hit.normalAxis)
   const a = project(hit.point, camera)
   const screen = axes.map((axis) => {
@@ -114,24 +114,44 @@ export function getSwipeLayerTurn(
     )
     return [b[0] - a[0], b[1] - a[1]]
   })
-  // Express the swipe in those two on-screen directions: how far it moved
-  // the point along the face for each layer.
+  // Express the swipe in those two on-screen directions.
   const [[ux, uy], [vx, vy]] = screen
   const det = ux * vy - uy * vx
   if (Math.abs(det) < 1e-9) return null
-  const along = [(dx * vy - dy * vx) / det, (ux * dy - uy * dx) / det]
-  const [first, second] = along.map(Math.abs)
+  return {
+    axes,
+    along: [(dx * vy - dy * vx) / det, (ux * dy - uy * dx) / det],
+  }
+}
+
+export interface SwipeLayer {
+  face: FaceKey
+  depth: number
+  axis: Axis
+  // Turns the rotation about +axis into the face's clockwise turns.
+  sign: 1 | -1
+}
+
+export function pickSwipeLayer(
+  hit: CubeSurfaceHit,
+  dx: number,
+  dy: number,
+  camera: CubeGestureCamera,
+): SwipeLayer | null {
+  if (Math.hypot(dx, dy) < 18) return null
+  const swipe = swipeAlong(hit, dx, dy, camera)
+  if (!swipe) return null
+  const [first, second] = swipe.along.map(Math.abs)
   // A diagonal swipe across the face is ambiguous.
   if (Math.min(first, second) > 0.75 * Math.max(first, second)) return null
-  const pick = first >= second ? 0 : 1
-  const best = { axis: axes[pick], dot: along[pick] }
-  const positive = hit.point[best.axis] >= 0
+  const axis = swipe.axes[first >= second ? 0 : 1]
+  const positive = hit.point[axis] >= 0
   const face: FaceKey =
-    best.axis === 0
+    axis === 0
       ? positive
         ? 'R'
         : 'L'
-      : best.axis === 1
+      : axis === 1
         ? positive
           ? 'U'
           : 'D'
@@ -142,12 +162,57 @@ export function getSwipeLayerTurn(
     0,
     Math.min(
       camera.size - 1,
-      Math.round(hit.point[best.axis] + (camera.size - 1) / 2),
+      Math.round(hit.point[axis] + (camera.size - 1) / 2),
     ),
   )
   const depth = positive ? camera.size - index : index + 1
-  const turns = (positive ? -1 : 1) * Math.sign(best.dot)
-  return { face, depth, turns }
+  return { face, depth, axis, sign: positive ? -1 : 1 }
+}
+
+// The picked layer's angle in its face's clockwise radians, so the touched
+// sticker follows the finger. A turn about an in-plane axis moves the point
+// along the face by half the cube width per radian, so a tenth of that
+// distance is a tenth of a radian.
+export function swipeLayerAngle(
+  hit: CubeSurfaceHit,
+  layer: SwipeLayer,
+  dx: number,
+  dy: number,
+  camera: CubeGestureCamera,
+): number {
+  const swipe = swipeAlong(hit, dx, dy, camera)
+  if (!swipe) return 0
+  return layer.sign * 0.1 * swipe.along[swipe.axes.indexOf(layer.axis)]
+}
+
+export function getSwipeLayerTurn(
+  hit: CubeSurfaceHit,
+  dx: number,
+  dy: number,
+  camera: CubeGestureCamera,
+): { face: FaceKey; depth: number; turns: number } | null {
+  const layer = pickSwipeLayer(hit, dx, dy, camera)
+  if (!layer) return null
+  const turns = Math.sign(swipeLayerAngle(hit, layer, dx, dy, camera))
+  return { face: layer.face, depth: layer.depth, turns }
+}
+
+// A released drag settles on whole quarter turns. Each further quarter
+// counts once the drag passes TURN_COMMIT_FRACTION of it, so a short slow
+// drag springs back. A flick carries on for FLICK_MS at its speed, but at
+// most half a quarter, so it finishes one more turn and never spins on.
+export const TURN_COMMIT_FRACTION = 0.35
+export const FLICK_MS = 120
+
+export function releasedQuarterTurns(angle: number, velocity: number): number {
+  const quarter = Math.PI / 2
+  const flick = Math.max(
+    -quarter / 2,
+    Math.min(quarter / 2, velocity * FLICK_MS),
+  )
+  const quarters = (angle + flick) / quarter
+  const turns = Math.floor(Math.abs(quarters) + 1 - TURN_COMMIT_FRACTION)
+  return turns === 0 ? 0 : Math.sign(quarters) * turns
 }
 
 // What a drag does. Mouse and pen: a sticker swipe turns its layer and the
