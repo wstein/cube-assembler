@@ -1,31 +1,47 @@
-import { expect, test } from '@playwright/test'
+import { expect, test, type Page } from '@playwright/test'
+
+async function swipeFrontFace(page: Page) {
+  const bounds = await page.locator('.cube-3d-canvas').boundingBox()
+  expect(bounds).not.toBeNull()
+  if (!bounds) return
+  const x = bounds.x + bounds.width / 2 - 38
+  const y = bounds.y + bounds.height / 2
+  await page.mouse.move(x, y)
+  await page.mouse.down()
+  await page.mouse.move(x, y - 70, { steps: 5 })
+  await page.mouse.up()
+}
 
 test('move history and Undo survive a view switch, then Reset clears them', async ({
   page,
 }) => {
   await page.goto('/')
+  await page
+    .getByRole('combobox', { name: 'Cube' })
+    .selectOption({ label: '5×5' })
   await page.getByRole('button', { name: 'Solved cube' }).click()
   const notation = page.getByRole('textbox', { name: 'Notation' })
   const solved = await notation.inputValue()
   await page.getByRole('button', { name: '3D View' }).click()
+  await page.getByRole('button', { name: 'Front (F)' }).click()
   const undo = page.getByRole('button', { name: 'Undo', exact: true })
   const history = page.getByRole('status', { name: 'Move history' })
   await expect(undo).toBeDisabled()
 
-  await page.getByTitle('Turn R clockwise').click()
-  await expect(history).toHaveText('Moves: R')
-  const afterR = await notation.inputValue()
-  expect(afterR).not.toBe(solved)
-  await page.getByTitle('Turn U counter-clockwise').click()
-  await expect(history).toHaveText("Moves: R U'")
-  await expect(notation).not.toHaveValue(afterR)
+  await swipeFrontFace(page)
+  await expect(history).toHaveText("Moves: 2L'")
+  const afterFirst = await notation.inputValue()
+  expect(afterFirst).not.toBe(solved)
+  await swipeFrontFace(page)
+  await expect(history).toHaveText("Moves: 2L' 2L'")
+  await expect(notation).not.toHaveValue(afterFirst)
 
   await page.getByRole('button', { name: '2D Net' }).click()
   await page.getByRole('button', { name: '3D View' }).click()
-  await expect(history).toHaveText("Moves: R U'")
+  await expect(history).toHaveText("Moves: 2L' 2L'")
   await undo.click()
-  await expect(notation).toHaveValue(afterR)
-  await expect(history).toHaveText('Moves: R')
+  await expect(notation).toHaveValue(afterFirst)
+  await expect(history).toHaveText("Moves: 2L'")
   await page.getByRole('button', { name: 'Reset', exact: true }).click()
   await expect(notation).toHaveValue(solved)
   await expect(history).toHaveText('Moves: None')
@@ -49,23 +65,16 @@ test('scramble records completed turns that can be undone', async ({
     .toBe(20)
 })
 
-test('layer turns update the facelet notation across views and reset', async ({
+test('keeps scramble and history controls without layer turn buttons', async ({
   page,
 }) => {
   await page.goto('/')
   await page.getByRole('button', { name: 'Solved cube' }).click()
-  const notation = page.getByRole('textbox', { name: 'Notation' })
-  const solved = await notation.inputValue()
   await page.getByRole('button', { name: '3D View' }).click()
-  await page.getByTitle('Turn U clockwise').click()
-  await expect(notation).not.toHaveValue(solved)
-
-  const turned = await notation.inputValue()
-  await page.getByRole('button', { name: '2D Net' }).click()
-  await expect(notation).toHaveValue(turned)
-  await page.getByRole('button', { name: '3D View' }).click()
-  await page.getByRole('button', { name: 'Reset', exact: true }).click()
-  await expect(notation).toHaveValue(solved)
+  await expect(page.getByText('Layer Turns:')).toHaveCount(0)
+  await expect(page.getByTitle('Turn U clockwise')).toHaveCount(0)
+  await expect(page.getByRole('button', { name: 'Scramble' })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Undo' })).toBeVisible()
 })
 
 test('swiping a sticker turns its inner slice on a 5x5 cube', async ({

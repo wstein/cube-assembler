@@ -2105,28 +2105,8 @@ export function CubeView3D({
             </div>
 
             <div class="cube-3d-section">
-              <span class="cube-3d-label">Layer Turns:</span>
+              <span class="cube-3d-label">Cube:</span>
               <div class="cube-3d-presets">
-                {(['U', 'D', 'L', 'R', 'F', 'B'] as FaceKey[]).map((f) => (
-                  <div key={f} class="cube-3d-turn-pair">
-                    <button
-                      type="button"
-                      class="cube-3d-btn"
-                      onClick={() => triggerTurn(f, 1)}
-                      title={`Turn ${f} clockwise`}
-                    >
-                      {f}
-                    </button>
-                    <button
-                      type="button"
-                      class="cube-3d-btn"
-                      onClick={() => triggerTurn(f, -1)}
-                      title={`Turn ${f} counter-clockwise`}
-                    >
-                      {f}'
-                    </button>
-                  </div>
-                ))}
                 <button
                   type="button"
                   class={`cube-3d-btn ${isScrambling ? 'cube-3d-btn-active' : ''}`}
