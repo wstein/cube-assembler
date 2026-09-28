@@ -1,5 +1,5 @@
 import { readFileSync } from 'node:fs'
-import { resolve } from 'node:path'
+import { basename, resolve } from 'node:path'
 import { expect, test, type Page } from '@playwright/test'
 
 const fixture = resolve('test/fixtures/cube-3x3-2026-09-27T09-00-11')
@@ -175,4 +175,49 @@ test('opens sticker review from a face in the orientation approval', async ({
     .getByRole('button', { name: 'Check colors for U face' })
     .click()
   await expect(review).toBeVisible()
+})
+
+test('asks about an ambiguous face after reviewing six photos', async ({
+  page,
+}) => {
+  const ambiguousFacelets = [
+    'GWGOWOBYB',
+    'OGRWRYOGR',
+    'YGYOGOYGY',
+    'GWGRYRBYB',
+    'OBRWOYOBR',
+    'WRWBBBWRW',
+  ].join(' ')
+  const ambiguousMeta = {
+    ...JSON.parse(readFileSync(resolve(fixture, 'meta.json'), 'utf8')),
+    colorsURFDLB: ambiguousFacelets,
+  }
+  await page.goto('/')
+  await page.locator('.capture-alternatives input[type="file"]').setInputFiles([
+    ...photos.map((photo) => ({
+      name: basename(photo),
+      mimeType: 'image/jpeg',
+      buffer: readFileSync(photo),
+    })),
+    {
+      name: 'meta.json',
+      mimeType: 'application/json',
+      buffer: Buffer.from(JSON.stringify(ambiguousMeta)),
+    },
+  ])
+  const review = page.locator('.review-modal-content')
+  await expect(review).toBeVisible()
+  for (let side = 0; side < 5; side++)
+    await review
+      .getByRole('button', { name: 'Looks right — next side' })
+      .click()
+  await review
+    .getByRole('button', { name: 'Looks right — put the cube together' })
+    .click()
+
+  const wizard = page.locator('.orientation-picker')
+  await expect(wizard).toBeVisible({ timeout: 5_000 })
+  await expect(
+    wizard.getByRole('button', { name: /Option 1 of/ }),
+  ).toBeVisible()
 })

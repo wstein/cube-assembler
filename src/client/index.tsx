@@ -17,6 +17,10 @@ import { CaptureLiveView } from './captureLiveView'
 import { CaptureDialog } from './captureDialog'
 import { CaptureReviewDialog } from './captureReviewDialog'
 import { OrientationApprovalDialog } from './orientationApprovalDialog'
+import {
+  OrientationWizardDialog,
+  type OrientationWizardState,
+} from './orientationWizardDialog'
 import { CaptureColorPicker } from './captureColorPicker'
 import {
   captureBackgroundGains,
@@ -24,8 +28,6 @@ import {
 } from './captureFinalization'
 import { CaptureSettings, CubeSelectOptions } from './captureSettings'
 import type { FaceCaptureData, PreviewColorProfile } from './captureTypes'
-import { FaceGrid } from './captureNet'
-import { OrientationNetPreview, FACE_LABELS } from './orientationPresentation'
 import {
   planCaptureReview,
   readyAssemblyAfterCapture,
@@ -83,12 +85,7 @@ import {
   selectionCookie,
 } from './preferences'
 import { runFullParity, type ParityResult } from '../cube/parity'
-import {
-  WIZARD_FACE_ORDER,
-  faceContentKey,
-  groupWizardOptions,
-  pickWizardFace,
-} from '../cube/orientationWizard'
+import { pickWizardFace } from '../cube/orientationWizard'
 import {
   runGlobalWhiteBalance,
   GLARE_WARNING_STICKERS,
@@ -701,11 +698,8 @@ function App() {
   // possibility - shown to the customer rather than silently hidden.
   // `picked` lists the faces the customer answered directly; every other
   // settled face was inferred (see the progress net's dimming).
-  const [orientationWizard, setOrientationWizard] = useState<{
-    remaining: OrientedCandidate[]
-    truncated: boolean
-    picked: FaceKey[]
-  } | null>(null)
+  const [orientationWizard, setOrientationWizard] =
+    useState<OrientationWizardState | null>(null)
   // True while a picked option is animating into the net - blocks a second
   // pick from landing mid-flight.
   const [wizardMorphing, setWizardMorphing] = useState(false)
@@ -3406,149 +3400,22 @@ function App() {
         />
       )}
 
-      {orientationWizard &&
-        (() => {
-          const { remaining, truncated, picked } = orientationWizard
-          const askingFace = pickWizardFace(remaining)
-          // This is normally reached only after a face choice has settled
-          // every candidate. Keep the recovery screen to one option too.
-          if (!askingFace) {
-            return (
-              <div class="modal open">
-                <div
-                  class="modal-content orientation-picker"
-                  role="dialog"
-                  aria-modal="true"
-                  tabIndex={-1}
-                  ref={focusModalOnOpen}
-                  onKeyDown={(e) =>
-                    handleModalKeyDown(e, e.currentTarget, () =>
-                      setOrientationWizard(null),
-                    )
-                  }
-                >
-                  <div class="modal-header">
-                    <h2>Which orientation matches your cube?</h2>
-                    <button
-                      type="button"
-                      class="modal-close"
-                      aria-label="Close"
-                      onClick={() => setOrientationWizard(null)}
-                    >
-                      ×
-                    </button>
-                  </div>
-                  <div class="orientation-picker-grid">
-                    {remaining.slice(0, 1).map((alt, i) => (
-                      <div key={i} class="orientation-picker-option">
-                        <OrientationNetPreview
-                          faces={alt.faces}
-                          stickerColors={STICKER_HEX}
-                        />
-                        <button
-                          type="button"
-                          class="btn btn-primary btn-sm"
-                          onClick={() => handleChooseOrientation(alt)}
-                        >
-                          Use this one
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
+      {orientationWizard && (
+        <OrientationWizardDialog
+          wizard={orientationWizard}
+          stickerColors={STICKER_HEX}
+          morphing={wizardMorphing}
+          focusDialog={focusModalOnOpen}
+          onDialogKeyDown={(event) =>
+            handleModalKeyDown(event, event.currentTarget, () =>
+              setOrientationWizard(null),
             )
           }
-
-          const progressFaces: Record<string, string[][]> = {}
-          const undecidedFaces = new Set<string>()
-          const autoFaces = new Set<string>()
-          for (const f of WIZARD_FACE_ORDER) {
-            const distinct = new Set(
-              remaining.map((c) => faceContentKey(c.faces[f])),
-            )
-            progressFaces[f] = remaining[0].faces[f]
-            if (distinct.size > 1) undecidedFaces.add(f)
-            else if (!picked.includes(f)) autoFaces.add(f)
-          }
-          const decidedCount = WIZARD_FACE_ORDER.length - undecidedFaces.size
-          // Every option for this face at once, at most four in a row (two on
-          // a phone), so they can be compared side by side.
-          const options = groupWizardOptions(remaining, askingFace)
-          const columns = {
-            '--wizard-columns': Math.min(4, options.length),
-            '--wizard-columns-narrow': Math.min(2, options.length),
-          }
-
-          return (
-            <div class="modal open">
-              <div
-                class="modal-content orientation-picker"
-                role="dialog"
-                aria-modal="true"
-                tabIndex={-1}
-                ref={focusModalOnOpen}
-                onKeyDown={(e) =>
-                  handleModalKeyDown(e, e.currentTarget, () =>
-                    setOrientationWizard(null),
-                  )
-                }
-              >
-                <div class="modal-header">
-                  <h2>Which way is your {FACE_LABELS[askingFace]} face?</h2>
-                  <button
-                    type="button"
-                    class="modal-close"
-                    aria-label="Close"
-                    onClick={() => setOrientationWizard(null)}
-                  >
-                    ×
-                  </button>
-                </div>
-                <p class="orientation-picker-note">
-                  {decidedCount}/6 set · {remaining.length} left — match the
-                  framed face.
-                </p>
-                {truncated && (
-                  <p class="orientation-picker-note orientation-picker-truncated-note">
-                    ⚠️ More matches exist than shown — if none fit, retake the
-                    photos.
-                  </p>
-                )}
-                <OrientationNetPreview
-                  faces={progressFaces}
-                  stickerColors={STICKER_HEX}
-                  undecidedFaces={undecidedFaces}
-                  currentFace={askingFace}
-                  autoFaces={autoFaces}
-                />
-                <div
-                  class="orientation-picker-grid orientation-wizard-options"
-                  style={columns}
-                >
-                  {options.map((opt, i) => (
-                    <button
-                      key={i}
-                      type="button"
-                      class="orientation-picker-option orientation-wizard-option"
-                      aria-label={`Option ${i + 1} of ${options.length} for the ${FACE_LABELS[askingFace]} face`}
-                      disabled={wizardMorphing}
-                      onClick={(e) =>
-                        handleWizardPick(
-                          e.currentTarget,
-                          opt.candidates,
-                          askingFace,
-                        )
-                      }
-                    >
-                      <FaceGrid colors={opt.grid} stickerColors={STICKER_HEX} />
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </div>
-          )
-        })()}
+          onClose={() => setOrientationWizard(null)}
+          onChoose={handleChooseOrientation}
+          onPick={handleWizardPick}
+        />
+      )}
 
       {reviewEditingCell && (
         <CaptureColorPicker
