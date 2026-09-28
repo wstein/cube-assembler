@@ -14,6 +14,7 @@ import '@fontsource/ibm-plex-mono/600.css'
 import '../../web/style.css'
 import { AUTO_CAPTURE_STABLE_FRAMES, type TurnCuePose } from './autoCapture'
 import { CaptureTurnOverlay, TurnHint } from './captureTurnCue'
+import { CaptureNet, FaceGrid } from './captureNet'
 import { readyAssemblyAfterCapture } from './captureReviewRouting'
 import {
   decodeOrbit64State,
@@ -541,133 +542,6 @@ function computeColorStats(
   return stats
 }
 
-// Renders one candidate orientation as a classic unfolded cube net (cross
-// layout: U above F, D below F, L/F/R/B in a row) so the customer can
-// visually compare candidates against their physical cube and pick which
-// one matches - used when solveFaceOrientations reports genuine
-// orientation ambiguity (see its `alternatives` field).
-// Named distinctly from the pre-existing main-window "Cube Net" display
-// (.cube-net/.net-face/... below) - this is a small, per-alternative
-// preview inside the orientation picker, not that view, and sharing its
-// class names once caused this component's flex-based CSS to silently
-// override the main net's grid-based cross layout (same selector, later
-// in the stylesheet wins the cascade).
-// Single face's grid of stickers, standalone (used both inside the net
-// layout below and on its own for the orientation wizard's per-option
-// choices, where only one face at a time needs showing). `undecided`
-// renders a neutral placeholder instead of real colors - used for faces
-// the orientation wizard hasn't pinned down yet, so the customer isn't
-// shown a specific guess as if it were settled. `current` frames the face
-// the wizard is asking about right now, so it's obvious which slot in the
-// net the options below refer to. `auto` dims a face the wizard settled on
-// its own (never asked about), so the net shows at a glance which faces the
-// customer actually chose versus which were inferred from those choices.
-function FaceGrid({
-  colors,
-  undecided,
-  current,
-  auto,
-}: {
-  colors: string[][]
-  undecided?: boolean
-  current?: boolean
-  auto?: boolean
-}) {
-  // On odd sizes the center sticker never moves when a face is turned, so
-  // it's known even while the face's orientation is still undecided.
-  const n = colors.length
-  const centerIndex = n % 2 === 1 ? (n * n - 1) / 2 : -1
-  return (
-    <div
-      class={`orientation-net-face${undecided ? ' orientation-net-face-undecided' : ''}${current ? ' orientation-net-face-current' : ''}${auto ? ' orientation-net-face-auto' : ''}`}
-      style={{ gridTemplateColumns: `repeat(${colors.length}, 1fr)` }}
-    >
-      {colors.flat().map((color, i) => (
-        <div
-          key={i}
-          class="orientation-net-sticker"
-          style={
-            (undecided && i !== centerIndex) || !color
-              ? undefined
-              : { background: STICKER_HEX[color] ?? '#888' }
-          }
-        />
-      ))}
-    </div>
-  )
-}
-
-// Live net in the capture dialog: the 4 sides in the order taken, with Top
-// (5) above and Bottom (6) below Side 2 (which way the cube was turned, and which
-// of the two is really the top, is only worked out once all 6 are in).
-// Each slot shows the colors detected for it, or a placeholder; tapping a
-// slot retakes it or jumps to it.
-function CaptureNet({
-  faces,
-  current,
-  matchingFaces,
-  liveMatchingFace,
-  size,
-  predictedCenters,
-  mirrored,
-  onSelect,
-}: {
-  faces: Record<string, string[][] | undefined>
-  current: string
-  matchingFaces: Set<string>
-  liveMatchingFace: string | null
-  size: number
-  predictedCenters: Array<string | null>
-  mirrored: boolean
-  onSelect: (slot: string) => void
-}) {
-  const empty = Array.from({ length: size }, () => Array<string>(size).fill(''))
-  const slot = (key: string, gridArea: string) => {
-    const colors = faces[key]
-    const suggested = !colors ? predictedCenters[FACE_ORDER.indexOf(key)] : null
-    const preview = suggested ? empty.map((row) => row.slice()) : empty
-    if (suggested)
-      preview[Math.floor(size / 2)][Math.floor(size / 2)] = suggested
-    const shown = colors ?? preview
-    return (
-      <button
-        type="button"
-        key={key}
-        class={`capture-net-slot${matchingFaces.has(key) ? ' pattern-match' : ''}`}
-        style={{ gridArea }}
-        data-slot={key}
-        aria-label={`${FACE_DISPLAY_LABEL[key]}: ${colors ? (matchingFaces.has(key) ? `captured, pattern looks like ${key === liveMatchingFace ? 'the live face' : 'another captured face'}; tap to retake` : 'captured, tap to retake') : suggested ? `suggested ${COLOR_NAME[suggested]} center, not captured yet` : 'not captured yet'}`}
-        aria-current={key === current ? 'step' : undefined}
-        onClick={() => onSelect(key)}
-      >
-        <FaceGrid
-          colors={shown}
-          undecided={shown.flat().some((color) => !color)}
-          current={key === current}
-        />
-        <span class="capture-net-label" aria-hidden="true">
-          {FACE_SHORT_LABEL[key]}
-        </span>
-      </button>
-    )
-  }
-  const [s1, s2, s3, s4, top, bottom] = FACE_ORDER
-  return (
-    <div
-      class={`capture-net ${mirrored ? 'mirrored' : ''}`}
-      role="group"
-      aria-label="Captured faces"
-    >
-      {slot(s1, '2 / 1')}
-      {slot(s2, '2 / 2')}
-      {slot(s3, '2 / 3')}
-      {slot(s4, '2 / 4')}
-      {slot(top, '1 / 2')}
-      {slot(bottom, '3 / 2')}
-    </div>
-  )
-}
-
 // Moves `target` from where `from` was to where it is now (FLIP) - how a
 // just-captured face flies from the scan square into its net slot.
 // Skipped under prefers-reduced-motion.
@@ -760,6 +634,7 @@ function OrientationNetPreview({
 }) {
   const faceGrid = (face: string) => (
     <FaceGrid
+      stickerColors={STICKER_HEX}
       colors={faces[face]}
       undecided={undecidedFaces?.has(face)}
       current={face === currentFace}
@@ -4208,6 +4083,11 @@ function App() {
                   Captured so far · tap one to retake
                 </span>
                 <CaptureNet
+                  faceOrder={FACE_ORDER}
+                  faceLabels={FACE_DISPLAY_LABEL}
+                  shortLabels={FACE_SHORT_LABEL}
+                  colorNames={COLOR_NAME}
+                  stickerColors={STICKER_HEX}
                   faces={Object.fromEntries(
                     FACE_ORDER.map((f) => [f, capturedFaces[f]?.colors]),
                   )}
@@ -5123,7 +5003,7 @@ function App() {
                         )
                       }
                     >
-                      <FaceGrid colors={opt.grid} />
+                      <FaceGrid colors={opt.grid} stickerColors={STICKER_HEX} />
                     </button>
                   ))}
                 </div>
