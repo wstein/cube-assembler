@@ -163,7 +163,7 @@ export function SettingsPage({ onClose }: Props) {
       <Section id="settings-view" title="3D view">
         <ToggleSetting
           label="Show 3D help"
-          hint="Show gesture tips at first, then again after 20 seconds without touching the cube."
+          hint="Show gesture tips at first and after 20 seconds idle. Turns off automatically after 30 minutes of active play."
           checked={readPreference(cookies, VIEW_HELP_COOKIE, true)}
           onChange={(on) => write(preferenceCookie(VIEW_HELP_COOKIE, on))}
         />

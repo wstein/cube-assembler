@@ -1,7 +1,11 @@
 import type { ComponentChildren, RefObject } from 'preact'
 import type { PressLevel } from './cubeGesture'
 import { formatCubeTurn, type CubeTurn } from './cubeView3DState'
-import { readPreference, VIEW_HELP_COOKIE } from './preferences'
+import {
+  preferenceCookie,
+  readPreference,
+  VIEW_HELP_COOKIE,
+} from './preferences'
 import { useCubeHelpHint } from './useCubeHelpHint'
 
 interface CubeView3DPresentationProps {
@@ -59,15 +63,9 @@ export function CubeView3DPresentation({
   gizmo,
 }: CubeView3DPresentationProps) {
   const helpEnabled = readPreference(document.cookie, VIEW_HELP_COOKIE, true)
-  const help = useCubeHelpHint(helpEnabled)
-  const pointerDown = (event: PointerEvent) => {
-    help.pointerDown(event.pointerId)
-    handlePointerDown(event)
-  }
-  const pointerUp = (event: PointerEvent) => {
-    help.pointerUp(event.pointerId)
-    handlePointerUp(event)
-  }
+  const help = useCubeHelpHint(helpEnabled, () => {
+    document.cookie = preferenceCookie(VIEW_HELP_COOKIE, false)
+  })
 
   return (
     <div class="cube-3d-container">
@@ -79,6 +77,9 @@ export function CubeView3DPresentation({
         <>
           <div
             class="cube-3d-canvas-wrap"
+            onPointerDown={(event) => help.pointerDown(event.pointerId)}
+            onPointerUp={(event) => help.pointerUp(event.pointerId)}
+            onPointerCancel={(event) => help.pointerUp(event.pointerId)}
             tabIndex={0}
             onKeyDown={handleKeyDown}
             role="region"
@@ -87,13 +88,16 @@ export function CubeView3DPresentation({
             <canvas
               ref={canvasRef}
               class="cube-3d-canvas"
-              onPointerDown={pointerDown}
+              onPointerDown={handlePointerDown}
               onPointerMove={handlePointerMove}
-              onPointerUp={pointerUp}
-              onPointerCancel={pointerUp}
+              onPointerUp={handlePointerUp}
+              onPointerCancel={handlePointerUp}
               // A held sticker must not open the long-press menu.
               onContextMenu={(e) => e.preventDefault()}
-              onWheel={handleWheel}
+              onWheel={(event) => {
+                help.activity()
+                handleWheel(event)
+              }}
               aria-label="Interactive 3D Rubik's Cube Viewer"
             />
             {gizmo}
@@ -106,16 +110,18 @@ export function CubeView3DPresentation({
               <div class="cube-3d-hint">
                 {coarsePointer ? (
                   <>
-                    Swipe a sticker to turn its layer; hold 300 ms for a wide
-                    turn &bull; Two fingers on the cube turn it, beside it
-                    rotate the view &bull; Pinch to zoom
+                    Swipe a sticker to turn its layer; move toward an edge then
+                    across for a wide turn, or hold 300 ms &bull; Two fingers on
+                    the cube turn it, beside it rotate the view &bull; Pinch to
+                    zoom
                   </>
                 ) : (
                   <>
-                    Swipe a sticker to turn its layer; hold 300 ms or Shift for
-                    a wide turn &bull; Two fingers on the cube turn the whole
-                    cube &bull; Drag the background or swipe two fingers beside
-                    the cube to rotate the view &bull; Pinch or scroll to zoom
+                    Swipe a sticker to turn its layer; move toward an edge then
+                    across for a wide turn, or hold 300 ms or Shift &bull; Two
+                    fingers on the cube turn the whole cube &bull; Drag the
+                    background or swipe two fingers beside the cube to rotate
+                    the view &bull; Pinch or scroll to zoom
                   </>
                 )}
               </div>

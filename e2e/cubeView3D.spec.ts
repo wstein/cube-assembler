@@ -44,6 +44,79 @@ test('3D help hides after first touch and returns after twenty seconds idle', as
   await expect(hint).toBeVisible({ timeout: 1_500 })
 })
 
+test('3D help turns itself off after active play, including a whole-cube touch', async ({
+  page,
+}) => {
+  await page.addInitScript(() => {
+    const original = window.setTimeout.bind(window)
+    window.setTimeout = ((
+      handler: TimerHandler,
+      timeout?: number,
+      ...args: unknown[]
+    ) =>
+      original(
+        handler,
+        timeout === 30 * 60_000 ? 500 : timeout,
+        ...args,
+      )) as typeof window.setTimeout
+  })
+  await page.goto('/')
+  await page.getByRole('button', { name: '3D View' }).click()
+  const canvas = page.locator('.cube-3d-canvas')
+  const bounds = await canvas.boundingBox()
+  if (!bounds) throw new Error('No canvas')
+  for (const [id, offset] of [
+    [1, -20],
+    [2, 20],
+  ]) {
+    await canvas.dispatchEvent('pointerdown', {
+      pointerId: id,
+      pointerType: 'touch',
+      clientX: bounds.x + bounds.width / 2 + offset,
+      clientY: bounds.y + bounds.height / 2,
+      bubbles: true,
+    })
+  }
+  await expect(page.locator('.cube-3d-hint')).toHaveCount(0)
+  await expect
+    .poll(() => page.evaluate(() => document.cookie))
+    .toContain('cube-assembler-view-help=0')
+})
+
+test('touchpad whole-cube swipes count as 3D help activity', async ({
+  page,
+}) => {
+  await page.addInitScript(() => {
+    const original = window.setTimeout.bind(window)
+    window.setTimeout = ((
+      handler: TimerHandler,
+      timeout?: number,
+      ...args: unknown[]
+    ) =>
+      original(
+        handler,
+        timeout === 30 * 60_000 ? 500 : timeout,
+        ...args,
+      )) as typeof window.setTimeout
+  })
+  await page.goto('/')
+  await page.getByRole('button', { name: '3D View' }).click()
+  const canvas = page.locator('.cube-3d-canvas')
+  const bounds = await canvas.boundingBox()
+  if (!bounds) throw new Error('No canvas')
+  await canvas.dispatchEvent('wheel', {
+    deltaY: 50,
+    deltaX: 0,
+    deltaMode: 0,
+    clientX: bounds.x + bounds.width / 2,
+    clientY: bounds.y + bounds.height / 2,
+    bubbles: true,
+  })
+  await expect
+    .poll(() => page.evaluate(() => document.cookie))
+    .toContain('cube-assembler-view-help=0')
+})
+
 async function swipeFrontFace(page: Page, dx = -38) {
   const bounds = await page.locator('.cube-3d-canvas').boundingBox()
   expect(bounds).not.toBeNull()
