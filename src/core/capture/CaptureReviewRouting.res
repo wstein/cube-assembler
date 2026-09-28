@@ -229,3 +229,49 @@ let readyAssemblyAfterCapture = (
     let valid = solution->Null.toOption->Option.mapOr(false, solution => solution.fullyValid)
     canSkipColorReview(faces, order, valid, glareFaces, mixedUpColors) ? solution : Null.null
   }
+
+// The "Which way is your ... face?" wizard: the arrangements still
+// possible, whether the solver dropped some, and the faces the customer
+// answered directly (every other settled face was inferred).
+type wizardState = {
+  remaining: array<orientedCandidate>,
+  truncated: bool,
+  picked: array<CubeState.faceKey>,
+}
+
+// "No, let me choose each side": only offered when the photos fit together
+// some other way too. The wizard starts from every arrangement, the
+// turned-down one included - it only asks about faces the candidates
+// disagree on and fills in the rest, so leaving the suggestion out can
+// drop a face's one alternative. If the answers lead back to the
+// suggestion, it was right after all.
+let wizardAfterRejection = (approval: captureApproval) =>
+  switch Null.toOption(approval.fallback) {
+  | Some(fallback) if Array.length(rejectAlternatives(approval)) > 0 =>
+    Null.make({remaining: fallback.alternatives, truncated: fallback.truncated, picked: []})
+  | _ => Null.null
+  }
+
+@tag("kind")
+type wizardAnswer =
+  // Every face agrees: assemble this one.
+  | @as("chosen") Chosen({candidate: orientedCandidate})
+  // Ask the next most informative question.
+  | @as("narrowed") Narrowed({wizard: Null.t<wizardState>})
+
+// One answer: the candidates that match the customer's pick for `face`.
+let answerWizard = (wizard: Null.t<wizardState>, matched, face) =>
+  switch OrientationWizard.pickWizardFace(matched)->Null.toOption {
+  | None => Chosen({candidate: matched->Array.getUnsafe(0)})
+  | Some(_) =>
+    Narrowed({
+      wizard: wizard
+      ->Null.toOption
+      ->Option.map(wizard => {
+        remaining: matched,
+        truncated: wizard.truncated,
+        picked: [...wizard.picked, face],
+      })
+      ->Null.fromOption,
+    })
+  }

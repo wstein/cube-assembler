@@ -1,16 +1,15 @@
 import { useState } from 'preact/hooks'
-import { pickWizardFace } from '../cube/orientationWizard'
+import {
+  answerWizard,
+  wizardAfterRejection,
+} from '../core/capture/CaptureReviewRouting.gen'
 import type {
   FaceKey,
   OrientedCandidate,
   OrientationSolution,
 } from '../cube/cubeAssembly'
 import { FACE_ORDER, describeCenterIssue } from './captureSteps'
-import {
-  planCaptureReview,
-  rejectAlternatives,
-  type CaptureApproval,
-} from './captureReviewRouting'
+import { planCaptureReview, type CaptureApproval } from './captureReviewRouting'
 import type { FaceCaptureData } from './captureTypes'
 import { morphInto } from './flyAnimation'
 import type { OrientationWizardState } from './orientationWizardDialog'
@@ -104,45 +103,30 @@ export function useOrientationReview({
     }
   }
 
-  // "No, let me choose each side" is only offered when the photos fit
-  // together some other way too; the wizard then starts from every
-  // arrangement (see wizardStart).
+  // "No, let me choose each side" (see wizardAfterRejection).
   const handleRejectOrientation = () => {
     if (!orientationApproval) return
-    if (rejectAlternatives(orientationApproval).length === 0) return
+    const wizard = wizardAfterRejection(orientationApproval)
+    if (!wizard) return
     setOrientationApproval(null)
-    // Every arrangement, the turned-down one included: the wizard only asks
-    // about faces the remaining candidates disagree on and fills in the
-    // rest, so leaving the suggestion out can drop a face's one alternative
-    // - a pattern cube whose back face fits either way got it filled in
-    // turned 90 degrees, never asked about. If the answers lead back to the
-    // suggestion, it was right after all.
-    setOrientationWizard({
-      remaining: orientationApproval.fallback!.alternatives,
-      truncated: orientationApproval.fallback!.truncated,
-      picked: [],
-    })
+    setOrientationWizard(wizard as OrientationWizardState)
   }
 
-  // Advances the orientation wizard by one answer: narrows `remaining` to
-  // whichever candidates matched the customer's pick for the face just
-  // asked about, then either asks the next most-informative question or,
-  // once every face agrees (pickWizardFace returns null), finishes
-  // assembly with the single remaining candidate.
+  // Advances the orientation wizard by one answer (see answerWizard): the
+  // next most informative question, or assembly once every face agrees.
   const handleWizardAnswer = (matched: OrientedCandidate[], face: FaceKey) => {
-    if (pickWizardFace(matched) === null) {
-      void onChoose(matched[0])
+    const answer = answerWizard(null, matched, face)
+    if (answer.kind === 'chosen') {
+      void onChoose(answer.candidate)
       return
     }
-    setOrientationWizard((prev) =>
-      prev
-        ? {
-            remaining: matched,
-            truncated: prev.truncated,
-            picked: [...prev.picked, face],
-          }
-        : null,
-    )
+    // Narrowed from the latest wizard state, not this render's.
+    setOrientationWizard((prev) => {
+      const next = answerWizard(prev, matched, face)
+      return next.kind === 'narrowed'
+        ? (next.wizard as OrientationWizardState | null)
+        : prev
+    })
   }
 
   // Clicking an option face flies it into the framed slot in the progress

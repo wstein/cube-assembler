@@ -57,3 +57,24 @@ let readyAssemblyAfterCapture: (
   array<string>,
   array<string>,
 ) => Null.t<CubeTypes.orientationSolution>
+
+@genType
+type wizardState = {
+  remaining: array<CubeTypes.orientedCandidate>,
+  truncated: bool,
+  picked: array<CubeState.faceKey>,
+}
+
+@genType let wizardAfterRejection: captureApproval => Null.t<wizardState>
+
+@genType @tag("kind")
+type wizardAnswer =
+  | @as("chosen") Chosen({candidate: CubeTypes.orientedCandidate})
+  | @as("narrowed") Narrowed({wizard: Null.t<wizardState>})
+
+@genType
+let answerWizard: (
+  Null.t<wizardState>,
+  array<CubeTypes.orientedCandidate>,
+  CubeState.faceKey,
+) => wizardAnswer
