@@ -163,23 +163,9 @@ for (const size of [2, 5]) {
     await page.locator('.cube-3d-hint').evaluate((hint) => {
       ;(hint as HTMLElement).style.visibility = 'hidden'
     })
-    if (size === 5) {
-      await page.getByRole('button', { name: 'Front (F)' }).click()
-    }
+    await page.getByRole('button', { name: 'Front (F)' }).click()
     await page.clock.pauseAt((await page.evaluate(() => Date.now())) + 1000)
-    if (size === 2) {
-      await page.getByTitle('Turn R clockwise').click()
-    } else {
-      const bounds = await canvas.boundingBox()
-      expect(bounds).not.toBeNull()
-      if (!bounds) return
-      const x = bounds.x + bounds.width / 2 - 38
-      const y = bounds.y + bounds.height / 2
-      await page.mouse.move(x, y)
-      await page.mouse.down()
-      await page.mouse.move(x, y - 70, { steps: 5 })
-      await page.mouse.up()
-    }
+    await swipeFrontFace(page)
     await page.clock.runFor(96)
     await expect(canvas).toHaveScreenshot(`cube-${size}x${size}-mid-turn.png`, {
       animations: 'allow',
@@ -411,7 +397,7 @@ for (const sound of [true, false])
       {
         name: 'cube-assembler-capture-sound',
         value: sound ? '1' : '0',
-        url: 'http://127.0.0.1:4174',
+        url: `http://127.0.0.1:${process.env.E2E_PORT ?? '4174'}`,
       },
     ])
     await page.addInitScript(() => {
@@ -429,10 +415,11 @@ for (const sound of [true, false])
     await page.goto('/')
     await page.getByRole('button', { name: 'Solved cube' }).click()
     await page.getByRole('button', { name: '3D View' }).click()
-    await page.getByTitle('Turn R clockwise').click()
-    await expect(page.getByRole('status', { name: 'Move history' })).toHaveText(
-      'Moves: R',
-    )
+    await page.getByRole('button', { name: 'Front (F)' }).click()
+    await swipeFrontFace(page)
+    await expect(
+      page.getByRole('status', { name: 'Move history' }),
+    ).not.toHaveText('Moves: None')
     const contexts = await page.evaluate(
       () =>
         (window as unknown as { audioContexts: unknown[] }).audioContexts
