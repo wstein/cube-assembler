@@ -1,11 +1,7 @@
 import type { RefObject } from 'preact'
+import { pickBlockStep } from '../core/view/BlockPick.gen'
 import {
-  blockLayer,
-  facePlanePoint,
-  layerIndex,
-  pickSwipeLayer,
   swipeLayerAngle,
-  swipeMoveAxis,
   type CubeGesture,
   type CubeGestureCamera,
   type CubeSurfaceHit,
@@ -88,9 +84,9 @@ export function createBlockInteraction({
     setIsTurning(true)
   }
 
-  // Picking a block: the first clear move across layers chooses the axis,
-  // later moves stretch the block to the layer under the finger, and a move
-  // the other way starts turning it.
+  // Picking a block (see pickBlockStep): the first clear move across layers
+  // chooses the axis, later moves stretch the block to the layer under the
+  // finger, and a move the other way starts turning it.
   const pickBlock = (
     gesture: CubePointerGesture,
     hit: CubeSurfaceHit,
@@ -98,52 +94,32 @@ export function createBlockInteraction({
     rect: DOMRect,
     camera: CubeGestureCamera,
   ) => {
-    const here: Point = [e.clientX, e.clientY]
-    const onPlane = (point: Point) =>
-      facePlanePoint(point[0] - rect.left, point[1] - rect.top, camera, hit)
-    let block = gesture.block
-    if (!block) {
-      const axis = swipeMoveAxis(
-        hit,
-        e.clientX - gesture.x,
-        e.clientY - gesture.y,
+    const step = pickBlockStep(
+      gesture.block,
+      hit,
+      [e.clientX, e.clientY],
+      [gesture.x, gesture.y],
+      [rect.left, rect.top],
+      camera,
+      gesture.tuning.startPx,
+      puzzleSize,
+    )
+    if (step === 'none') return
+    if (step.kind === 'turn') {
+      startDragTurn(
+        gesture,
+        step.layer as SwipeLayer,
+        step.from,
+        step.hit as CubeSurfaceHit,
+        e,
         camera,
-        gesture.tuning.startPx,
       )
-      if (axis === null) return
-      const start = layerIndex(hit.point[axis], puzzleSize)
-      block = { axis, from: start, to: start, anchor: here }
-      gesture.block = block
-    } else {
-      const anchorPoint = onPlane(block.anchor)
-      if (anchorPoint) {
-        const anchorHit = { ...hit, point: anchorPoint }
-        const move = pickSwipeLayer(
-          anchorHit,
-          e.clientX - block.anchor[0],
-          e.clientY - block.anchor[1],
-          camera,
-          gesture.tuning.startPx,
-        )
-        if (move?.axis === block.axis) {
-          startDragTurn(
-            gesture,
-            blockLayer(block.axis, block.from, block.to, puzzleSize),
-            block.anchor,
-            anchorHit,
-            e,
-            camera,
-          )
-          return
-        }
-        if (move) block.anchor = here
-      }
+      return
     }
-    const point = onPlane(here)
-    if (point) block.to = layerIndex(point[block.axis], puzzleSize)
+    gesture.block = step.block as CubePointerGesture['block']
     // The picked layers light up until they start turning.
     dragTurnRef.current = {
-      layer: blockLayer(block.axis, block.from, block.to, puzzleSize),
+      layer: step.layer as SwipeLayer,
       angle: 0,
       velocity: 0,
       time: e.timeStamp,
