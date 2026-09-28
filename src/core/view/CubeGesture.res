@@ -201,20 +201,14 @@ let swipeLayerAngle = (hit, layer: swipeLayer, dx, dy, camera) =>
     Int.toFloat(layer.sign) *. 0.1 *. along->Array.getUnsafe(axes->Array.indexOf(layer.axis))
   }
 
-// Holding a sticker widens its turn after 300 ms; moving first keeps the
-// single-layer swipe; Shift widens it at once. Holding longer never turns
-// the whole cube: two fingers on it do.
-let widePressMs = 300.0
-let pressSlopPx = 10.0
-
 type pressLevel =
   | @as("layer") Layer
   | @as("wide") Wide
 
 type pressKeys = {shiftKey: bool}
 
-let pressLevel = (heldMs, keys) =>
-  if keys.shiftKey || heldMs >= widePressMs {
+let pressLevel = keys =>
+  if keys.shiftKey {
     Wide
   } else {
     Layer
@@ -239,7 +233,7 @@ let blockLayer = (axis, from, to, size) => {
 // Every layer about an axis: an x, y or z rotation of the whole cube.
 let wholeCubeLayer = (axis, size) => blockLayer(axis, 0, size - 1, size)
 
-// A held sticker turns a standard wide move from the same named face.
+// Shift turns a standard wide move from the same named face.
 // An outer slice widens to two layers; an inner slice includes all layers
 // between the named face and the touched slice.
 let standardWideLayer = (layer: swipeLayer, size) => {

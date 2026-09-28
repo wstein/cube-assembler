@@ -50,7 +50,7 @@ export function playTurnClick(gain: number): void {
 export const MODE_CUE_GAIN = modeCueGain
 export const WIDE_CUE_NOTES = wideCueNotes
 
-// A held sticker announces its wide turn with one short tone.
+// Selecting a wide turn plays one short tone.
 export function playWideCue(gain: number): void {
   if (gain <= 0) return
   try {

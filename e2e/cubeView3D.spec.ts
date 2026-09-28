@@ -935,7 +935,7 @@ test('a two-finger tilt with close, drifting fingers never zooms', async ({
   expect((await canvas.screenshot()).equals(before)).toBe(true)
 })
 
-test.describe('held sticker drags', () => {
+test.describe('wide sticker drags', () => {
   // Facing the front of a 5x5: columns are about an eighth of the canvas
   // height apart, and a quarter turn is a drag of about half of it.
   const setUp = async (page: Page) => {
@@ -975,21 +975,6 @@ test.describe('held sticker drags', () => {
     await expect(history(page)).toContainText('4Uw')
   })
 
-  test('a 300 ms hold turns a standard wide move directly', async ({
-    page,
-  }) => {
-    const { x, y, quarter } = await setUp(page)
-    await page.mouse.move(x, y)
-    await page.mouse.down()
-    await page.waitForTimeout(450)
-    await expect(badge(page)).toHaveText(/Wide turn/)
-    await page.mouse.move(x, y - 1.1 * quarter, { steps: 12 })
-    await page.waitForTimeout(150)
-    await page.mouse.up()
-    await expect(history(page)).toHaveText("Moves: Lw'")
-    await expect(badge(page)).toHaveCount(0)
-  })
-
   test('Shift turns a standard wide move at once', async ({ page }) => {
     const { x, y, quarter } = await setUp(page)
     await page.keyboard.down('Shift')
@@ -1002,66 +987,36 @@ test.describe('held sticker drags', () => {
     await expect(history(page)).toHaveText("Moves: Lw'")
   })
 
-  test('a long hold stays a wide move', async ({ page }) => {
-    const { x, y, quarter } = await setUp(page)
-    await page.mouse.move(x, y)
-    await page.mouse.down()
-    await page.waitForTimeout(1000)
-    await expect(badge(page)).toHaveText(/Wide turn/)
-    await page.mouse.move(x, y - 1.1 * quarter, { steps: 12 })
-    await page.waitForTimeout(150)
-    await page.mouse.up()
-    await expect(history(page)).toHaveText("Moves: Lw'")
-  })
-
-  test('a held finger on a touch screen turns a wide layer', async ({
-    page,
-  }) => {
-    const { x, y, quarter } = await setUp(page)
+  test('a bent touch swipe turns a wide layer', async ({ page }) => {
+    const { x, y, column, quarter } = await setUp(page)
     const canvas = page.locator('.cube-3d-canvas')
-    const touch = (type: string, clientY: number) =>
+    const startX = x + 38
+    const startY = y + column
+    const touch = (type: string, clientX: number, clientY: number) =>
       canvas.dispatchEvent(type, {
         pointerId: 7,
         pointerType: 'touch',
         isPrimary: true,
-        clientX: x,
+        clientX,
         clientY,
         bubbles: true,
       })
-    await touch('pointerdown', y)
-    await page.waitForTimeout(450)
-    await expect(badge(page)).toHaveText(/Wide turn/)
+    await touch('pointerdown', startX, startY)
     for (let step = 1; step <= 10; step++)
-      await touch('pointermove', y - (1.1 * quarter * step) / 10)
-    await page.waitForTimeout(150)
-    await touch('pointerup', y - 1.1 * quarter)
-    await expect(history(page)).toHaveText("Moves: Lw'")
-  })
-
-  test('a long touch hold stays a wide turn', async ({ page }) => {
-    const { x, y, quarter } = await setUp(page)
-    const canvas = page.locator('.cube-3d-canvas')
-    const touch = (type: string, clientY: number) =>
-      canvas.dispatchEvent(type, {
-        pointerId: 8,
-        pointerType: 'touch',
-        isPrimary: true,
-        clientX: x,
-        clientY,
-        bubbles: true,
-      })
-    await touch('pointerdown', y)
-    await page.waitForTimeout(950)
+      await touch('pointermove', startX, startY - (0.85 * column * step) / 10)
+    for (let step = 1; step <= 20; step++)
+      await touch(
+        'pointermove',
+        startX + (1.1 * quarter * step) / 20,
+        startY - 0.85 * column,
+      )
     await expect(badge(page)).toHaveText(/Wide turn/)
-    for (let step = 1; step <= 10; step++)
-      await touch('pointermove', y - (1.1 * quarter * step) / 10)
-    await page.waitForTimeout(150)
-    await touch('pointerup', y - 1.1 * quarter)
-    await expect(history(page)).toHaveText("Moves: Lw'")
+    await touch('pointerup', startX + 1.1 * quarter, startY - 0.85 * column)
+    await expect(history(page)).toContainText('4Uw')
   })
 
   for (const sound of [true, false])
-    test(`holding ${sound ? 'sounds' : 'stays silent with the turn sound off'} for a wide turn`, async ({
+    test(`Shift wide turn ${sound ? 'sounds' : 'stays silent with sound off'}`, async ({
       page,
       context,
     }) => {
@@ -1088,17 +1043,17 @@ test.describe('held sticker drags', () => {
         page.evaluate(
           () => (window as unknown as { tones: number[] }).tones.length,
         )
+      await page.keyboard.down('Shift')
       await page.mouse.move(x, y)
       await page.mouse.down()
-      await page.waitForTimeout(450)
-      expect(await tones()).toBe(sound ? 1 : 0)
-      // No second cue: a longer hold stays a wide turn.
-      await page.waitForTimeout(650)
       expect(await tones()).toBe(sound ? 1 : 0)
       await page.mouse.up()
+      await page.keyboard.up('Shift')
     })
 
-  test('a hold released without a drag turns nothing', async ({ page }) => {
+  test('a stationary press does not select a wide turn or move the cube', async ({
+    page,
+  }) => {
     const { x, y } = await setUp(page)
     const canvas = page.locator('.cube-3d-canvas')
     await page.waitForTimeout(300)
@@ -1106,6 +1061,7 @@ test.describe('held sticker drags', () => {
     await page.mouse.move(x, y)
     await page.mouse.down()
     await page.waitForTimeout(650)
+    await expect(badge(page)).toHaveCount(0)
     await page.mouse.up()
     await page.waitForTimeout(400)
     await expect(history(page)).toHaveText('Moves: None')

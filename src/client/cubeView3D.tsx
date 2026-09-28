@@ -7,8 +7,6 @@ import {
   gestureForPointerDown,
   gestureWhenSwipeTurnsNothing,
   pickCubeSurface,
-  PRESS_SLOP_PX,
-  WIDE_PRESS_MS,
   pickSwipeLayer,
   pressLevel,
   releasedQuarterTurns,
@@ -640,13 +638,7 @@ export function CubeView3D({
     size: puzzleSize,
   })
 
-  const clearHold = () => {
-    const gesture = gestureRef.current
-    if (gesture?.holdTimer) clearTimeout(gesture.holdTimer)
-    if (gesture) gesture.holdTimer = undefined
-  }
-
-  // Shows, sounds and (on phones) buzzes when a held sticker widens its turn.
+  // Shows, sounds and (on phones) buzzes when a wide turn is selected.
   const announceWideTurn = () => {
     setPressMode('wide')
     const cookies = document.cookie
@@ -658,18 +650,8 @@ export function CubeView3D({
     }
   }
 
-  // A held sticker widens its turn; two fingers on the cube turn all of it.
-  const holdSticker = (gesture: NonNullable<typeof gestureRef.current>) => {
-    gesture.holdTimer = setTimeout(() => {
-      if (gestureRef.current !== gesture || gesture.mode !== 'pending') return
-      gesture.level = 'wide'
-      announceWideTurn()
-    }, WIDE_PRESS_MS)
-  }
-
   const { startDragTurn } = createDragInteraction({
     dragTurnRef,
-    clearHold,
     setIsTurning,
   })
 
@@ -807,7 +789,6 @@ export function CubeView3D({
       if (gesture) gesture.mode = mode
       if (mode === 'two-finger') {
         // A second finger lets go of a dragged layer.
-        clearHold()
         setPressMode(null)
         settleDrag(0)
         startTilt()
@@ -838,7 +819,7 @@ export function CubeView3D({
             gestureCamera(rect),
           )
         : null
-    const level = pressLevel(0, e)
+    const level = pressLevel(e)
     const gesture: NonNullable<typeof gestureRef.current> = {
       x: e.clientX,
       y: e.clientY,
@@ -850,8 +831,7 @@ export function CubeView3D({
     }
     gestureRef.current = gesture
     if (gesture.mode !== 'pending') return
-    if (level === 'layer') holdSticker(gesture)
-    else announceWideTurn()
+    if (level === 'wide') announceWideTurn()
   }
 
   const handlePointerMove = (e: PointerEvent) => {
@@ -913,7 +893,7 @@ export function CubeView3D({
             gesture.wideBend = undefined
             gesture.wideTurned = true
             if (dragTurnRef.current) dragTurnRef.current.highlight = true
-            setPressMode('wide')
+            announceWideTurn()
             return
           }
           // Follow the first leg until it bends. Once it starts turning,
@@ -961,8 +941,6 @@ export function CubeView3D({
       const dx = e.clientX - gesture.x
       const dy = e.clientY - gesture.y
       const distance = Math.hypot(dx, dy)
-      // Moving before the hold is up makes it a plain swipe.
-      if (distance > PRESS_SLOP_PX) clearHold()
       const camera = gestureCamera(rect)
       if (distance < gesture.tuning.startPx) return
       const layer = pickSwipeLayer(
@@ -1027,7 +1005,6 @@ export function CubeView3D({
       return
     }
     isDraggingRef.current = false
-    clearHold()
     setPressMode(null)
     const gesture = gestureRef.current
     if (gesture?.mode === 'turn') {

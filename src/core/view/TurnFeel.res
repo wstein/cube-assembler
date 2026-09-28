@@ -106,8 +106,7 @@ let turnClickGain = (durationMs, soundOn) =>
 
 type note = {frequency: float, start: float, duration: float}
 
-// A held sticker announces that it now turns a wide layer with one short
-// tone (seconds, hertz).
+// Selecting a wide turn plays one short tone (seconds, hertz).
 let wideCueNotes = [{frequency: 660.0, start: 0.0, duration: 0.06}]
 
 let modeCueGain = 0.08

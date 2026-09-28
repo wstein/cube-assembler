@@ -20,7 +20,6 @@ export {
   gestureWhenSwipeTurnsNothing,
   pickCubeSurface,
   pressLevel,
-  pressSlopPx as PRESS_SLOP_PX,
   standardWideLayer,
   selectWideBlock,
   swipeLayerAngle,
@@ -30,7 +29,6 @@ export {
   wheelSwipeGapMs as WHEEL_SWIPE_GAP_MS,
   nextWheelSwipe,
   wholeCubeLayer,
-  widePressMs as WIDE_PRESS_MS,
 } from '../core/view/CubeGesture.gen'
 
 export type {

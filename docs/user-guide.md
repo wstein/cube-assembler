@@ -56,16 +56,15 @@ gestures also count as touching the cube. Swipe a sticker in the 3D view to turn
 including inner slices on larger cubes. The layer follows your finger: let
 go early and it springs back, keep dragging for two or three quarter turns,
 or drag back to turn the other way. A quick flick finishes one turn, and a
-turn that reverses the previous one removes it from the move list. Hold a sticker
-for 0.3 seconds, then swipe to turn a standard wide move such as Rw or 3Rw.
-Shift starts a wide turn immediately. With Turn sound on, a tone marks the
-wide turn.
+turn that reverses the previous one removes it from the move list. Hold Shift
+while swiping to turn a standard wide move such as Rw or 3Rw. With Turn sound
+on, a tone marks the wide turn.
 For a wider block, first move about three quarters of a sticker toward the
 edge you want to include, then swipe across to turn. For example, on a 5×5,
 start on the fourth U row, move toward U, then swipe along that row for 4Uw.
 With a mouse, drag the background to
 rotate the view; it keeps turning briefly after release. On a touch screen,
-one finger turns a layer, or a wide move after a hold.
+one finger turns a layer, or a wide move with the two-direction gesture.
 Two fingers on the cube turn the whole cube, recorded as x, y or z, and two
 fingers beside it rotate the view without recording anything; pinch to zoom.
 A touchpad works the same way: a two-finger swipe over the cube turns it

@@ -29,16 +29,13 @@ type swipeLayer = {
 @genType let pickSwipeLayer: (surfaceHit, float, float, camera, float) => Null.t<swipeLayer>
 @genType let swipeLayerAngle: (surfaceHit, swipeLayer, float, float, camera) => float
 
-@genType let widePressMs: float
-@genType let pressSlopPx: float
-
 @genType
 type pressLevel =
   | @as("layer") Layer
   | @as("wide") Wide
 
 @genType type pressKeys = {shiftKey: bool}
-@genType let pressLevel: (float, pressKeys) => pressLevel
+@genType let pressLevel: pressKeys => pressLevel
 
 @genType let blockLayer: (int, int, int, int) => swipeLayer
 @genType let wholeCubeLayer: (int, int) => swipeLayer

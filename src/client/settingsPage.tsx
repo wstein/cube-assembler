@@ -190,8 +190,8 @@ export function SettingsPage({ onClose }: Props) {
           onChange={(on) => write(preferenceCookie(TURN_OVERSHOOT_COOKIE, on))}
         />
         <ToggleSetting
-          label="Vibrate on hold"
-          hint="On phones, a short buzz when a held sticker turns more layers."
+          label="Vibrate on wide turn"
+          hint="On phones, a short buzz when a wide turn is selected."
           checked={vibrationOn(cookies)}
           onChange={(on) => write(preferenceCookie(VIBRATION_COOKIE, on))}
         />

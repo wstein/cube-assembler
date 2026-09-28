@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
   DEFAULT_SWIPE_TUNING,
-  WIDE_PRESS_MS,
   blockLayer,
   clampZoom,
   pressLevel,
@@ -323,7 +322,7 @@ describe('wheel and touchpad', () => {
   })
 })
 
-describe('held sticker drags', () => {
+describe('wide sticker drags', () => {
   const front = {
     width: 600,
     height: 600,
@@ -333,15 +332,8 @@ describe('held sticker drags', () => {
     size: 5,
   }
 
-  it('holds a sticker 300 ms for a wide turn, however long it is held', () => {
-    const keys = { shiftKey: false }
-    expect(pressLevel(0, keys)).toBe('layer')
-    expect(WIDE_PRESS_MS).toBe(300)
-    expect(pressLevel(WIDE_PRESS_MS - 1, keys)).toBe('layer')
-    expect(pressLevel(WIDE_PRESS_MS, keys)).toBe('wide')
-    // Holding longer never turns the whole cube: two fingers on it do.
-    expect(pressLevel(800, keys)).toBe('wide')
-    expect(pressLevel(5000, keys)).toBe('wide')
+  it('keeps an ordinary sticker press on one layer', () => {
+    expect(pressLevel({ shiftKey: false })).toBe('layer')
   })
 
   it('widens a touched slice from its named face without a selection swipe', () => {
@@ -360,7 +352,7 @@ describe('held sticker drags', () => {
   })
 
   it('takes Shift for a wide turn', () => {
-    expect(pressLevel(0, { shiftKey: true })).toBe('wide')
+    expect(pressLevel({ shiftKey: true })).toBe('wide')
   })
 
   it('names a block from the face it reaches, or the nearer one', () => {

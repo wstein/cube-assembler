@@ -1,14 +1,7 @@
 import { expect, test } from '@playwright/test'
 
-test('a sticker hold widens after 300 ms without a timing setting', async ({
-  page,
-}) => {
+test('Shift selects a wide turn immediately', async ({ page }) => {
   await page.goto('/')
-  await page.getByRole('link', { name: 'Settings' }).click()
-  await expect(page.getByRole('heading', { name: 'Settings' })).toBeVisible()
-  await expect(page.getByRole('slider', { name: /Hold for/ })).toHaveCount(0)
-  await page.getByRole('button', { name: '← Back to the scanner' }).click()
-
   await page.getByRole('button', { name: 'Solved cube' }).click()
   await page.getByRole('button', { name: '3D View' }).click()
   const bounds = await page.locator('.cube-3d-canvas').boundingBox()
@@ -17,10 +10,11 @@ test('a sticker hold widens after 300 ms without a timing setting', async ({
     bounds.x + bounds.width / 2 - 38,
     bounds.y + bounds.height / 2,
   )
+  await page.keyboard.down('Shift')
   await page.mouse.down()
-  await page.waitForTimeout(400)
   await expect(page.locator('.cube-3d-press-mode')).toHaveText(/Wide turn/)
   await page.mouse.up()
+  await page.keyboard.up('Shift')
 })
 
 test('Reset all settings restores the defaults', async ({ page }) => {
@@ -132,7 +126,7 @@ test('the theme can override the system color scheme', async ({ page }) => {
   expect(await background()).toBe(dark)
 })
 
-test('a hold vibrates for the set length, 50 ms by default', async ({
+test('a wide turn vibrates for the set length, 50 ms by default', async ({
   page,
 }) => {
   await page.addInitScript(() => {
@@ -143,7 +137,7 @@ test('a hold vibrates for the set length, 50 ms by default', async ({
       return true
     }) as typeof navigator.vibrate
   })
-  const hold = async () => {
+  const wide = async () => {
     await page.getByRole('button', { name: 'Solved cube' }).click()
     await page.getByRole('button', { name: '3D View' }).click()
     const bounds = await page.locator('.cube-3d-canvas').boundingBox()
@@ -152,9 +146,11 @@ test('a hold vibrates for the set length, 50 ms by default', async ({
       bounds.x + bounds.width / 2 - 38,
       bounds.y + bounds.height / 2,
     )
+    await page.keyboard.down('Shift')
     await page.mouse.down()
     await expect(page.locator('.cube-3d-press-mode')).toHaveText(/Wide turn/)
     await page.mouse.up()
+    await page.keyboard.up('Shift')
     return page.evaluate(
       () => (window as unknown as { vibrations: unknown[] }).vibrations,
     )
@@ -163,7 +159,7 @@ test('a hold vibrates for the set length, 50 ms by default', async ({
   const length = page.getByRole('slider', { name: /Vibration length/ })
   await expect(length).toHaveValue('50')
   await page.getByRole('button', { name: '← Back to the scanner' }).click()
-  expect(await hold()).toEqual([50])
+  expect(await wide()).toEqual([50])
 
   await page.goto('/#settings')
   await length.fill('120')
@@ -171,6 +167,6 @@ test('a hold vibrates for the set length, 50 ms by default', async ({
     .poll(() => page.evaluate(() => document.cookie))
     .toContain('cube-assembler-vibration-ms=120')
   await page.getByRole('button', { name: '← Back to the scanner' }).click()
-  // The same page, so the first hold's call is still recorded.
-  expect(await hold()).toEqual([50, 120])
+  // The same page, so the first wide turn's call is still recorded.
+  expect(await wide()).toEqual([50, 120])
 })

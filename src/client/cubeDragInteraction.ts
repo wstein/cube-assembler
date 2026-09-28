@@ -26,9 +26,8 @@ export interface CubePointerGesture {
   hit: CubeSurfaceHit | null
   mode: CubeGesture
   pointerType: string
-  // What a held sticker turns: its layer, a wide move, or the cube.
+  // Shift selects a wide move; an ordinary swipe starts on one layer.
   level: PressLevel
-  holdTimer?: ReturnType<typeof setTimeout>
   // Read once when the gesture starts so settings stay stable during a swipe.
   tuning: SwipeTuning
   // Where the turn's angle is measured from once dragging turns layers.
@@ -41,13 +40,11 @@ export interface CubePointerGesture {
 
 interface DragInteractionOptions {
   dragTurnRef: RefObject<DragTurn | null>
-  clearHold: () => void
   setIsTurning: (turning: boolean) => void
 }
 
 export function createDragInteraction({
   dragTurnRef,
-  clearHold,
   setIsTurning,
 }: DragInteractionOptions) {
   // From here the layers follow the finger until release.
@@ -59,7 +56,6 @@ export function createDragInteraction({
     e: Pick<PointerEvent, 'clientX' | 'clientY' | 'timeStamp'>,
     camera: CubeGestureCamera,
   ) => {
-    clearHold()
     gesture.mode = 'turn'
     gesture.turnHit = hit
     gesture.turnFrom = from
