@@ -1,0 +1,496 @@
+/* Always-on guide marking exactly which square region of the frame gets
+   analyzed, visible from the moment the modal opens (not gated behind a
+   detection result landing first). */
+.capture-scan-frame {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 60%;
+  aspect-ratio: 1;
+  transform: translate(-50%, -50%);
+  border: 3px dashed rgba(255, 255, 255, 0.85);
+  border-radius: var(--radius-sm);
+  box-shadow: 0 0 0 2000px rgba(0, 0, 0, 0.35);
+  pointer-events: none;
+
+  &.cv-search-frame {
+    width: 70%;
+    border: 2px dashed rgba(255, 255, 255, 0.5);
+    box-shadow: 0 0 0 2000px rgba(0, 0, 0, 0.2);
+  }
+
+  &.pattern-match {
+    border: 3px solid #e6a23c;
+    box-shadow: 0 0 0 2000px rgba(151, 91, 15, 0.3);
+  }
+
+  &.capture-holding {
+    border-color: #e6a23c;
+  }
+
+  &.capture-flashed {
+    border-color: #4dca74;
+  }
+}
+
+.capture-progress-ring {
+  position: absolute;
+  right: 8px;
+  bottom: 8px;
+  width: 40px;
+  height: 40px;
+  transform: rotate(-90deg);
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.65);
+  opacity: 1;
+  transition: opacity 120ms ease;
+
+  &.paused {
+    opacity: 0.45;
+  }
+
+  circle {
+    fill: none;
+    stroke-width: 4;
+  }
+}
+
+.capture-progress-track {
+  stroke: rgba(255, 255, 255, 0.4);
+}
+.capture-progress-fill {
+  stroke: #e6a23c;
+  stroke-dasharray: 100.53;
+  transition: stroke-dashoffset 150ms ease;
+}
+
+.capture-flash {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  background: rgba(255, 255, 255, 0.75);
+  pointer-events: none;
+}
+
+.capture-mode-switch {
+  display: flex;
+  gap: 4px;
+  padding: 3px;
+  border-radius: 999px;
+  background: var(--color-bg-secondary);
+  align-self: flex-start;
+
+  button {
+    border: 0;
+    border-radius: 999px;
+    padding: 6px 12px;
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    cursor: pointer;
+
+    &.active {
+      background: var(--color-bg-primary, #fff);
+      box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
+    }
+  }
+}
+
+.capture-scan-label {
+  position: absolute;
+  top: -1.6rem;
+  left: 50%;
+  transform: translateX(-50%);
+  white-space: nowrap;
+  font-size: 0.75rem;
+  color: #fff;
+  background: rgba(0, 0, 0, 0.6);
+  padding: 0.15rem 0.5rem;
+  border-radius: var(--radius-sm);
+}
+
+/* Sits on the guide, moved by --grid-x/--grid-y (center offset), turned
+   by --grid-angle (degrees) and scaled by --grid-scale (in guide sizes)
+   onto the square the colors were actually sampled from - see
+   findGridAlignment. */
+.capture-grid-overlay {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 60%;
+  aspect-ratio: 1;
+  transform: translate(-50%, -50%)
+    translate(calc(var(--grid-x, 0) * 100%), calc(var(--grid-y, 0) * 100%))
+    rotate(calc(var(--grid-angle, 0) * 1deg)) scale(var(--grid-scale, 1));
+  pointer-events: none;
+
+  &.mirrored {
+    transform: translate(-50%, -50%) scaleX(-1)
+      translate(calc(var(--grid-x, 0) * 100%), calc(var(--grid-y, 0) * 100%))
+      rotate(calc(var(--grid-angle, 0) * 1deg)) scale(var(--grid-scale, 1));
+  }
+}
+
+/* Thin cell guides - the sampled zones (.capture-sample-zone) are what
+   stands out, the camera feed stays visible underneath. */
+.capture-grid-cell {
+  position: absolute;
+  box-sizing: border-box;
+  border: 1px solid rgba(255, 255, 255, 0.45);
+}
+
+/* A text-styled button for small inline actions inside a sentence. */
+.link-button {
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--color-accent-dark);
+  font: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.cube-profile-select {
+  min-width: 10rem;
+  padding: 0.3rem 0.5rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-bg-primary, #fff);
+  font: inherit;
+  font-size: 0.85rem;
+}
+
+.cube-profile-name {
+  font-family: inherit;
+  font-weight: 400;
+}
+
+label.capture-size-label {
+  font-weight: inherit;
+  margin: 0;
+}
+
+/* One sampled zone, outlined in the color it reads as - a dark halo keeps
+   the outline visible on a sticker of the same color. */
+.capture-sample-zone {
+  position: absolute;
+  box-sizing: border-box;
+  border: 3px solid;
+  box-shadow:
+    0 0 0 1px rgba(0, 0, 0, 0.8),
+    inset 0 0 0 1px rgba(0, 0, 0, 0.8);
+}
+
+.status-detail {
+  font-weight: 400;
+}
+
+.capture-warning {
+  margin: 0 0 var(--spacing-sm);
+  padding: var(--spacing-sm) var(--spacing-md);
+  border-left: 4px solid var(--color-warning);
+  border-radius: var(--radius-md);
+  background: rgba(250, 204, 21, 0.12);
+  font-size: 0.85rem;
+}
+
+/* Cube size / profile / camera options, foldable (see the capture dialog). */
+.capture-settings {
+  margin-bottom: var(--spacing-sm);
+}
+
+.capture-settings summary {
+  cursor: pointer;
+  font-size: 0.85rem;
+  font-weight: 600;
+  margin-bottom: var(--spacing-sm);
+}
+
+.capture-settings-summary {
+  font-weight: 400;
+  color: var(--color-text-secondary);
+}
+
+/* Capture button (and its message) at the bottom of the step panel -
+   kept in view (sticky) wherever the panel scrolls. */
+.capture-actions {
+  position: sticky;
+  bottom: 0;
+  z-index: 2;
+  display: grid;
+  gap: var(--spacing-sm);
+  margin-top: auto;
+  padding-top: var(--spacing-sm);
+  background: var(--color-bg-primary);
+}
+
+.auto-capture-toggle {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  font-size: 0.9rem;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+}
+
+.capture-sound-toggle {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  font-size: 0.9rem;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+/* Inside the bar an empty message takes no room - the bar already sits
+   at a fixed place, so there's no layout jump to prevent. */
+.capture-actions .capture-message {
+  margin: 0;
+}
+
+.capture-actions .capture-message.is-empty {
+  display: none;
+}
+
+.capture-actions .capture-hint-text {
+  margin: 0;
+}
+
+.capture-actions > .btn-primary {
+  height: 60px;
+  font-size: 1.05rem;
+  border-radius: var(--radius-lg);
+}
+
+@media (max-width: 600px) {
+  .modal-content {
+    --modal-pad: var(--spacing-lg);
+    width: 94vw;
+  }
+
+  .capture-video-wrapper {
+    max-height: 38vh;
+  }
+}
+
+.capture-soft-warning {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--spacing-sm);
+}
+
+.capture-soft-warning span {
+  flex: 1 1 14rem;
+}
+
+/* Live net of captured faces in the capture dialog (see CaptureNet). */
+.capture-net {
+  display: grid;
+  grid-template-columns: repeat(4, auto);
+  gap: 3px;
+}
+
+.capture-net-slot {
+  position: relative;
+  padding: 0;
+  border: none;
+  background: none;
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+}
+
+.capture-net-slot .orientation-net-face {
+  width: 56px;
+  height: 56px;
+  border-radius: var(--radius-md);
+}
+
+.capture-net-slot.pattern-match .orientation-net-face {
+  outline: 3px solid #d98919;
+  outline-offset: 2px;
+}
+
+.capture-net.mirrored .orientation-net-face {
+  transform: scaleX(-1);
+}
+
+.capture-net-slot:focus-visible {
+  outline: 2px solid var(--color-accent-dark);
+  outline-offset: 2px;
+}
+
+.capture-net-label {
+  position: absolute;
+  right: 2px;
+  bottom: 1px;
+  font-size: 0.6rem;
+  font-weight: 700;
+  color: #fff;
+  text-shadow:
+    0 0 2px #000,
+    0 0 2px #000;
+  pointer-events: none;
+}
+
+/* A capture step's instruction, with its hint drawing floated left. */
+.capture-hint-text {
+  display: flow-root;
+  min-height: 56px;
+}
+
+.capture-expected-center {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 6px;
+  font-size: 0.82rem;
+}
+
+.capture-expected-swatch {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border: 1px solid #596574;
+  border-radius: 3px;
+}
+
+/* Step hint drawing (see TurnHint). */
+.turn-hint {
+  float: left;
+  width: 56px;
+  height: 56px;
+  margin: 0 var(--spacing-sm) 0 0;
+}
+
+.turn-hint.mirrored {
+  transform: scaleX(-1);
+}
+
+.turn-hint-face {
+  fill: var(--color-bg-secondary);
+  stroke: var(--color-text-secondary);
+  stroke-width: 1.2;
+}
+
+.turn-hint-top {
+  fill: var(--color-border);
+}
+
+.turn-hint-side {
+  fill: var(--color-border);
+}
+
+.turn-hint-painted-arrow {
+  fill: #399dea;
+  stroke: #133a60;
+  stroke-width: 2;
+  stroke-linejoin: round;
+}
+
+.capture-progress {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--spacing-sm);
+}
+
+.capture-progress-label {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+}
+
+.progress-dot {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 2px solid var(--color-border);
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  background: var(--color-bg-secondary);
+  transition: all 0.2s;
+
+  &.done {
+    border-color: var(--color-success);
+    color: var(--color-success);
+    background: color-mix(in srgb, var(--color-success) 15%, transparent);
+  }
+
+  &.current {
+    border-color: var(--color-primary);
+    color: var(--color-primary);
+    box-shadow: 0 0 0 3px
+      color-mix(in srgb, var(--color-primary) 20%, transparent);
+  }
+}
+
+.capture-size-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--spacing-sm);
+  margin-bottom: var(--spacing-sm);
+  font-size: 0.8rem;
+}
+
+.capture-size-label {
+  color: var(--color-text-secondary);
+  white-space: nowrap;
+}
+
+.wb-btn {
+  padding: 0.2rem 0.55rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-bg-secondary);
+  color: var(--color-text-primary);
+  font-size: 0.75rem;
+  cursor: pointer;
+  transition: all 0.15s;
+
+  &:hover {
+    border-color: var(--color-accent);
+  }
+
+  &.active {
+    background: var(--color-accent);
+    border-color: var(--color-accent);
+    color: var(--color-on-accent);
+  }
+}
+
+.mirror-toggle {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  font-size: 0.8rem;
+  color: var(--color-text-primary);
+  cursor: pointer;
+  white-space: nowrap;
+  margin-left: auto;
+
+  input {
+    cursor: pointer;
+  }
+}
+
+/* Mirror, Auto capture and Sound, right below the live view. */
+.capture-live-options {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: var(--spacing-xs) var(--spacing-lg);
+
+  label {
+    margin-left: 0;
+    font-size: 0.85rem;
+    color: #ffffff;
+  }
+}

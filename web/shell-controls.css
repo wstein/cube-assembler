@@ -1,0 +1,173 @@
+/* ─────────────────────────────────────────────────────────────────────────────
+   BUTTON STATES
+   ───────────────────────────────────────────────────────────────────────────── */
+
+.btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.btn:disabled:hover {
+  transform: none;
+}
+
+/* Manual color input. */
+.color-input-panel {
+  margin-top: var(--spacing-lg);
+  padding: var(--spacing-lg);
+  background: var(--color-bg-primary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+
+.notation-format-toggle {
+  display: flex;
+  gap: var(--spacing-xs);
+  margin-bottom: var(--spacing-sm);
+}
+
+.color-input-panel textarea {
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  padding: var(--spacing-md);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-secondary);
+  color: var(--color-text-primary);
+  resize: vertical;
+}
+
+.input-actions {
+  display: flex;
+  gap: var(--spacing-sm);
+  margin-top: var(--spacing-md);
+}
+
+/* The fixture download dialog: the zip's photos and meta.json summary. */
+.fixture-download-content {
+  --modal-pad: var(--spacing-lg);
+  max-width: 640px;
+}
+
+.fixture-download-content .input-actions {
+  justify-content: flex-end;
+  flex-wrap: wrap;
+}
+
+.fixture-download-file {
+  margin: 0 0 var(--spacing-md);
+  color: var(--color-text-secondary);
+}
+
+.fixture-download-photos {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: var(--spacing-sm);
+  margin: 0 0 var(--spacing-md);
+  padding: 0;
+  list-style: none;
+}
+
+.fixture-download-photos li {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 0.8rem;
+  min-width: 0;
+}
+
+.fixture-download-photos img {
+  width: 100%;
+  aspect-ratio: 1;
+  object-fit: cover;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-border);
+}
+
+.fixture-download-meta {
+  color: var(--color-text-secondary);
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  overflow-wrap: anywhere;
+}
+
+.fixture-download-summary {
+  display: grid;
+  gap: var(--spacing-xs);
+  margin: 0;
+  font-size: 0.9rem;
+}
+
+.fixture-download-summary div {
+  display: grid;
+  grid-template-columns: 9rem minmax(0, 1fr);
+  gap: var(--spacing-sm);
+}
+
+.fixture-download-summary dt {
+  color: var(--color-text-secondary);
+}
+
+.fixture-download-summary dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.fixture-download-hint {
+  margin: var(--spacing-md) 0 0;
+  font-size: 0.85rem;
+  color: var(--color-text-secondary);
+}
+
+@media (max-width: 560px) {
+  .fixture-download-photos {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .fixture-download-summary div {
+    grid-template-columns: 1fr;
+    gap: 0;
+  }
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   RESPONSIVE
+   ───────────────────────────────────────────────────────────────────────────── */
+
+@media (max-width: 768px) {
+  .app-header {
+    padding: var(--spacing-md);
+  }
+
+  .header-content h1 {
+    font-size: 1.35rem;
+  }
+
+  .app-main {
+    padding: var(--spacing-md);
+    gap: var(--spacing-md);
+  }
+
+  .net-region {
+    padding: var(--spacing-md);
+  }
+
+  .modal-content {
+    padding: var(--spacing-lg);
+  }
+}
+
+@media (max-width: 540px) {
+  .face-status-dots {
+    justify-content: center;
+    width: 100%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
