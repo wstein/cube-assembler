@@ -1,0 +1,100 @@
+@genType type vec = (float, float, float)
+
+@genType
+type camera = {
+  width: float,
+  height: float,
+  zoom: float,
+  pitch: float,
+  yaw: float,
+  size: float,
+}
+
+@genType type surfaceHit = {face: CubeState.faceKey, point: vec, normalAxis: int}
+
+@genType let pickCubeSurface: (float, float, camera) => Null.t<surfaceHit>
+
+@genType
+type swipeLayer = {
+  face: CubeState.faceKey,
+  depth: int,
+  width?: int,
+  axis: int,
+  sign: int,
+}
+
+@genType let swipeStartPx: float
+@genType let layerIndex: (float, float) => float
+@genType let pickSwipeLayer: (surfaceHit, float, float, camera, float) => Null.t<swipeLayer>
+@genType let swipeLayerAngle: (surfaceHit, swipeLayer, float, float, camera) => float
+
+@genType let widePressMs: float
+@genType let cubePressMs: float
+@genType let pressSlopPx: float
+
+@genType
+type pressLevel =
+  | @as("layer") Layer
+  | @as("block") Block
+  | @as("cube") Cube
+
+@genType type holdTimings = {blockMs: float, cubeMs: float}
+@genType let defaultHoldTimings: holdTimings
+@genType type pressKeys = {shiftKey: bool, altKey: bool}
+@genType let pressLevel: (float, pressKeys, holdTimings) => pressLevel
+
+@genType let facePlanePoint: (float, float, camera, surfaceHit) => Null.t<vec>
+@genType let swipeMoveAxis: (surfaceHit, float, float, camera, float) => Null.t<int>
+@genType let blockLayer: (int, int, int, int) => swipeLayer
+@genType let wholeCubeLayer: (int, int) => swipeLayer
+
+@genType let turnCommitFraction: float
+@genType let flickMs: float
+@genType type swipeTuning = {startPx: float, commitFraction: float, flickMs: float}
+@genType let defaultSwipeTuning: swipeTuning
+@genType let releasedQuarterTurns: (float, float, float, float) => float
+
+@genType
+type cubeGesture =
+  | @as("pending") Pending
+  | @as("turn") Turn
+  | @as("camera") Camera
+  | @as("tilt") Tilt
+  | @as("none") NoGesture
+
+@genType
+let gestureForPointerDown: (
+  string,
+  int,
+  Nullable.t<surfaceHit>,
+  Nullable.t<cubeGesture>,
+) => cubeGesture
+@genType let gestureWhenSwipeTurnsNothing: string => cubeGesture
+@genType let gestureAfterPointerUp: (int, Nullable.t<cubeGesture>) => Null.t<cubeGesture>
+
+@genType type screenPoint = (float, float)
+@genType type motion = {dx: float, dy: float, scale: float}
+@genType
+let twoFingerMotion: ((screenPoint, screenPoint), (screenPoint, screenPoint)) => motion
+
+@genType let pinchMinPx: float
+@genType let pinchMinRatio: float
+@genType let tiltMinPx: float
+
+@genType
+type twoFingerLock =
+  | @as("undecided") Undecided
+  | @as("tilt") TiltLock
+  | @as("pinch") Pinch
+
+@genType let twoFingerLock: (float, float, float, twoFingerLock) => twoFingerLock
+@genType let clampZoom: (float, float) => float
+
+@genType type wheel = {deltaX: float, deltaY: float, deltaMode: int, ctrlKey: bool}
+
+@genType
+type wheelGesture =
+  | @as("zoom") Zoom
+  | @as("tilt") WheelTilt
+
+@genType let wheelGesture: wheel => wheelGesture
