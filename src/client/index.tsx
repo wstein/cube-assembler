@@ -52,14 +52,11 @@ import {
   importCapturePhoto,
   type CaptureMode,
 } from './capturePhoto'
-import { CubeNetView } from './cubeNetView'
+import { CubeDisplayCard } from './cubeDisplayCard'
 import { NotationCard } from './notationCard'
 import { ManualFaceletInput } from './manualFaceletInput'
 import { lazy, Suspense } from 'preact/compat'
 
-const CubeView3D = lazy(() =>
-  import('./cubeView3D').then((m) => ({ default: m.CubeView3D })),
-)
 const ProfilesPage = lazy(() =>
   import('./profilesPage').then((m) => ({ default: m.ProfilesPage })),
 )
@@ -317,16 +314,6 @@ const FACE_SHORT_LABEL: Record<string, string> = Object.fromEntries(
 // calmer than pure RGB so the six still read at a glance without glaring.
 // Display only: detection never compares against these.
 // Readable names for parity.ts's checks (unknown ones show as-is).
-const PARITY_CHECK_NAMES: Record<string, string> = {
-  colorBalance: 'Color balance',
-  cornerColors: 'Corner colors',
-  cornerOrientation: 'Corner twist',
-  edgeColors: 'Edge colors',
-  edgeOrientation: 'Edge flip',
-  permutationParity: 'Parity',
-  wingEdgeColors: 'Wing colors',
-}
-
 const STICKER_HEX: Record<string, string> = {
   W: '#f7f6f1',
   O: '#ff7a1a',
@@ -2333,107 +2320,23 @@ function App() {
 
       <main class="app-main">
         <div class="main-column">
-          {/* The cube: net, parity verdict and its individual checks */}
-          <section class="card cube-card">
-            <div class="card-header">
-              <h2>Your cube</h2>
-              <div role="status">
-                {parity && (
-                  <span
-                    class={`verdict ${parity.valid ? 'is-valid' : 'is-invalid'}`}
-                  >
-                    {parity.valid
-                      ? '✓ Valid cube — every check passed'
-                      : parity.result}
-                    {!parity.valid && parity.detail && (
-                      <span class="status-detail">: {parity.detail}</span>
-                    )}
-                  </span>
-                )}
-              </div>
-              <div class="header-spacer" />
-              {cube && (
-                <div
-                  class="cube-view-toggle"
-                  role="group"
-                  aria-label="Cube view mode"
-                >
-                  <button
-                    type="button"
-                    class={`cube-view-toggle-btn ${cubeViewMode === 'net' ? 'is-active' : ''}`}
-                    onClick={() => setCubeViewMode('net')}
-                  >
-                    2D Net
-                  </button>
-                  <button
-                    type="button"
-                    class={`cube-view-toggle-btn ${cubeViewMode === '3d' ? 'is-active' : ''}`}
-                    onClick={() => setCubeViewMode('3d')}
-                  >
-                    3D View
-                  </button>
-                </div>
-              )}
-            </div>
-            {cube ? (
-              cubeViewMode === '3d' ? (
-                <Suspense
-                  fallback={
-                    <div class="cube-3d-container">
-                      <div class="cube-3d-hint">Loading 3D view...</div>
-                    </div>
-                  }
-                >
-                  <CubeView3D
-                    cube={cube}
-                    initialCube={visibleCube}
-                    initialMoves={
-                      turnedCube?.source === cube ? turnedCube.moves : []
-                    }
-                    onTurnStateChange={(value, moves) =>
-                      setTurnedCube({ source: cube, value, moves })
-                    }
-                    puzzleSize={puzzleSize}
-                    palette={STICKER_HEX}
-                  />
-                </Suspense>
-              ) : (
-                <CubeNetView
-                  key={puzzleSize}
-                  cube={visibleCube}
-                  size={puzzleSize}
-                  parity={parity}
-                  capturedFaces={capturedFaces}
-                  faceOrder={FACE_ORDER}
-                  stickerColors={STICKER_HEX}
-                  colorNames={COLOR_NAME}
-                  confidenceTier={confidenceTier}
-                />
-              )
-            ) : (
-              <p class="empty-state">
-                No cube yet — capture the faces, upload a fixture or type the
-                colors.
-              </p>
-            )}
-            {parity && (
-              <div class="parity-checks">
-                {Object.entries(parity.checks).map(([check, valid]) => (
-                  <div
-                    class={`parity-check ${valid ? 'is-ok' : 'is-failed'}`}
-                    key={check}
-                  >
-                    <span class="parity-check-name">
-                      {PARITY_CHECK_NAMES[check] ?? check}
-                    </span>
-                    <span class="parity-check-result">
-                      {valid ? '✓ ok' : '✗ failed'}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            )}
-          </section>
+          <CubeDisplayCard
+            cube={cube}
+            visibleCube={visibleCube}
+            size={puzzleSize}
+            parity={parity}
+            capturedFaces={capturedFaces}
+            faceOrder={FACE_ORDER}
+            stickerColors={STICKER_HEX}
+            colorNames={COLOR_NAME}
+            confidenceTier={confidenceTier}
+            viewMode={cubeViewMode}
+            initialMoves={turnedCube?.source === cube ? turnedCube.moves : []}
+            onViewModeChange={setCubeViewMode}
+            onTurnStateChange={(value, moves) =>
+              cube && setTurnedCube({ source: cube, value, moves })
+            }
+          />
 
           <NotationCard
             cube={displayedCube}
