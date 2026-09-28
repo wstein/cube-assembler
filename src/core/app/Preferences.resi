@@ -21,8 +21,6 @@
 @genType let themeCookie: string
 @genType let notationCookie: string
 @genType let captureModeCookie: string
-@genType let widePressCookie: string
-@genType let cubePressCookie: string
 @genType let fixtureServerCookie: string
 
 @genType let readPreference: (string, string, bool) => bool
@@ -38,10 +36,6 @@ type cubeView =
 
 @genType let selectedCubeView: string => Null.t<cubeView>
 
-@genType type holdTimingLimits = {minMs: float, maxMs: float, gapMs: float}
-@genType let holdTimingLimits: holdTimingLimits
-@genType let readHoldTimings: string => CubeGesture.holdTimings
-@genType let holdTimingCookie: (string, float) => string
 @genType let readChoice: (string, string, array<string>, string) => string
 
 @genType type range = {min: float, max: float, fallback: float}

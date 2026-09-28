@@ -24,7 +24,7 @@ let autoCaptureFramesCookie = "cube-assembler-auto-capture-frames"
 // How long scrambles are, and whether they turn inner layers.
 let scrambleLengthCookie = "cube-assembler-scramble-length"
 let scrambleInnerCookie = "cube-assembler-scramble-inner"
-// A short vibration when a held sticker switches to a block or the cube.
+// A short vibration when a held sticker switches to a wide turn.
 let vibrationCookie = "cube-assembler-vibration"
 // Developer settings: where the published app finds the local fixture
 // server, and whether saving a fixture offers Upload to localhost.
@@ -34,9 +34,6 @@ let localUploadCookie = "cube-assembler-local-upload"
 let themeCookie = "cube-assembler-theme"
 let notationCookie = "cube-assembler-notation"
 let captureModeCookie = "cube-assembler-capture-mode"
-// How long a sticker is held before a drag turns a block or the whole cube.
-let widePressCookie = "cube-assembler-wide-press-ms"
-let cubePressCookie = "cube-assembler-cube-press-ms"
 // Set after an upload from the published app reached the local fixture
 // server.
 let fixtureServerCookie = "cube-assembler-fixture-server"
@@ -93,29 +90,7 @@ let savedNumber = (cookies, name) => {
   Float.isFinite(value) ? Some(value) : None
 }
 
-// Hold times stay between minMs and maxMs, and the whole cube comes at
-// least gapMs after the block so both remain reachable.
-type holdTimingLimits = {minMs: float, maxMs: float, gapMs: float}
-
-let holdTimingLimits = {minMs: 200.0, maxMs: 3000.0, gapMs: 200.0}
-
-let readHoldTimings = (cookies): CubeGesture.holdTimings => {
-  let {minMs, maxMs, gapMs} = holdTimingLimits
-  let saved = (name, fallback) => savedNumber(cookies, name)->Option.getOr(fallback)
-  let blockMs = Math.min(
-    maxMs -. gapMs,
-    Math.max(minMs, saved(widePressCookie, CubeGesture.defaultHoldTimings.blockMs)),
-  )
-  let cubeMs = Math.min(
-    maxMs,
-    Math.max(blockMs +. gapMs, saved(cubePressCookie, CubeGesture.defaultHoldTimings.cubeMs)),
-  )
-  {blockMs, cubeMs}
-}
-
 let numberCookie = (name, value) => selectionCookie(name, Float.toString(Math.round(value)))
-
-let holdTimingCookie = numberCookie
 
 // One of `choices`, else `fallback`.
 let readChoice = (cookies, name, choices, fallback) =>
@@ -141,8 +116,6 @@ let settingCookies = [
   mirrorCookie,
   autoCaptureCookie,
   soundCookie,
-  widePressCookie,
-  cubePressCookie,
   notationCookie,
   captureModeCookie,
   turnSoundCookie,

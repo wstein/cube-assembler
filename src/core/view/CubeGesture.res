@@ -190,30 +190,23 @@ let swipeLayerAngle = (hit, layer: swipeLayer, dx, dy, camera) =>
     Int.toFloat(layer.sign) *. 0.1 *. along->Array.getUnsafe(axes->Array.indexOf(layer.axis))
   }
 
-// Holding a sticker before dragging turns more than its layer: a block of
-// layers after widePressMs, the whole cube after cubePressMs. Shift and Alt
-// pick the same at once. A finger that moves pressSlopPx first is swiping,
-// not holding.
+// Holding a sticker widens its turn after 400 ms. Shift widens immediately;
+// Alt turns the whole cube. Moving first keeps the single-layer swipe.
 let widePressMs = 400.0
-let cubePressMs = 900.0
 let pressSlopPx = 10.0
 
 type pressLevel =
   | @as("layer") Layer
-  | @as("block") Block
+  | @as("wide") Wide
   | @as("cube") Cube
-
-type holdTimings = {blockMs: float, cubeMs: float}
-
-let defaultHoldTimings = {blockMs: widePressMs, cubeMs: cubePressMs}
 
 type pressKeys = {shiftKey: bool, altKey: bool}
 
-let pressLevel = (heldMs, keys, timings) =>
-  if keys.altKey || heldMs >= timings.cubeMs {
+let pressLevel = (heldMs, keys) =>
+  if keys.altKey {
     Cube
-  } else if keys.shiftKey || heldMs >= timings.blockMs {
-    Block
+  } else if keys.shiftKey || heldMs >= widePressMs {
+    Wide
   } else {
     Layer
   }
@@ -267,6 +260,14 @@ let blockLayer = (axis, from, to, size) => {
 // Every layer about an axis: an x, y or z rotation of the whole cube.
 let wholeCubeLayer = (axis, size) => blockLayer(axis, 0, size - 1, size)
 
+// A held sticker turns a standard wide move from the same named face.
+// An outer slice widens to two layers; an inner slice includes all layers
+// between the named face and the touched slice.
+let standardWideLayer = (layer: swipeLayer, size) => {
+  let width = size <= 2 ? 1 : Math.Int.min(size - 1, Math.Int.max(2, layer.depth))
+  {...layer, depth: width, width}
+}
+
 // A released drag settles on whole quarter turns. Each further quarter
 // counts once the drag passes turnCommitFraction of it, so a short slow
 // drag springs back. A flick carries on for flickMs at its speed, but at
@@ -288,13 +289,13 @@ let releasedQuarterTurns = (angle, velocity, commitFraction, flickMs) => {
 }
 
 // What a drag does. Mouse and pen: a sticker swipe turns its layer and the
-// background rotates the view. Touch: one finger only turns layers, and two
-// fingers tilt and zoom, so a thumb resting on the cube never spins it.
+// background rotates the view. Touch: one finger turns layers; two fingers
+// turn the cube, then control the camera after a still hold.
 type cubeGesture =
   | @as("pending") Pending
   | @as("turn") Turn
   | @as("camera") Camera
-  | @as("tilt") Tilt
+  | @as("two-finger") TwoFinger
   | @as("none") NoGesture
 
 let gestureForPointerDown = (pointerType, touches, hit: Nullable.t<surfaceHit>, current) => {
@@ -304,7 +305,7 @@ let gestureForPointerDown = (pointerType, touches, hit: Nullable.t<surfaceHit>, 
   } else if touches == 1 {
     onSticker ? Pending : NoGesture
   } else if touches == 2 {
-    Tilt
+    TwoFinger
   } else {
     Nullable.toOption(current)->Option.getOr(NoGesture)
   }
@@ -312,14 +313,14 @@ let gestureForPointerDown = (pointerType, touches, hit: Nullable.t<surfaceHit>, 
 
 let gestureWhenSwipeTurnsNothing = pointerType => pointerType == "touch" ? NoGesture : Camera
 
-// Lifting one of two tilting fingers must not start a layer turn with the
+// Lifting one of two fingers must not start a layer turn with the
 // other.
 let gestureAfterPointerUp = (remaining, current: Nullable.t<cubeGesture>) =>
   if remaining == 0 {
     Null.null
   } else {
     switch Nullable.toOption(current) {
-    | Some(Tilt) => Null.make(NoGesture)
+    | Some(TwoFinger) => Null.make(NoGesture)
     | Some(gesture) => Null.make(gesture)
     | None => Null.null
     }

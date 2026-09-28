@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest'
 import {
-  CUBE_PRESS_MS,
   DEFAULT_SWIPE_TUNING,
   WIDE_PRESS_MS,
   blockLayer,
@@ -10,6 +9,7 @@ import {
   pressLevel,
   swipeMoveAxis,
   wholeCubeLayer,
+  standardWideLayer,
   gestureAfterPointerUp,
   gestureForPointerDown,
   gestureWhenSwipeTurnsNothing,
@@ -198,16 +198,20 @@ describe('touch gestures', () => {
     expect(gestureWhenSwipeTurnsNothing('touch')).toBe('none')
   })
 
-  it('tilts with a second finger, even after a pending sticker swipe', () => {
-    expect(gestureForPointerDown('touch', 2, null, 'pending')).toBe('tilt')
-    expect(gestureForPointerDown('touch', 2, hit, 'none')).toBe('tilt')
+  it('starts a two-finger gesture even after a pending sticker swipe', () => {
+    expect(gestureForPointerDown('touch', 2, null, 'pending')).toBe(
+      'two-finger',
+    )
+    expect(gestureForPointerDown('touch', 2, hit, 'none')).toBe('two-finger')
     // A third finger changes nothing.
-    expect(gestureForPointerDown('touch', 3, null, 'tilt')).toBe('tilt')
+    expect(gestureForPointerDown('touch', 3, null, 'two-finger')).toBe(
+      'two-finger',
+    )
   })
 
-  it('does not turn a layer with the finger left after a two-finger tilt', () => {
-    expect(gestureAfterPointerUp(1, 'tilt')).toBe('none')
-    expect(gestureAfterPointerUp(0, 'tilt')).toBeNull()
+  it('does not turn a layer with the finger left after a two-finger gesture', () => {
+    expect(gestureAfterPointerUp(1, 'two-finger')).toBe('none')
+    expect(gestureAfterPointerUp(0, 'two-finger')).toBeNull()
     expect(gestureAfterPointerUp(0, 'turn')).toBeNull()
   })
 
@@ -302,27 +306,32 @@ describe('held sticker drags', () => {
     size: 5,
   }
 
-  it('holds a sticker 400 ms for a block and 900 ms for the whole cube', () => {
+  it('holds a sticker 400 ms for a direct wide turn', () => {
     const keys = { shiftKey: false, altKey: false }
     expect(pressLevel(0, keys)).toBe('layer')
     expect(WIDE_PRESS_MS).toBe(400)
-    expect(CUBE_PRESS_MS).toBe(900)
     expect(pressLevel(WIDE_PRESS_MS - 1, keys)).toBe('layer')
-    expect(pressLevel(WIDE_PRESS_MS, keys)).toBe('block')
-    expect(pressLevel(CUBE_PRESS_MS - 1, keys)).toBe('block')
-    expect(pressLevel(CUBE_PRESS_MS, keys)).toBe('cube')
+    expect(pressLevel(WIDE_PRESS_MS, keys)).toBe('wide')
+    expect(pressLevel(900, keys)).toBe('wide')
   })
 
-  it('holds for the times set on the settings page', () => {
-    const keys = { shiftKey: false, altKey: false }
-    const timings = { blockMs: 200, cubeMs: 400 }
-    expect(pressLevel(199, keys, timings)).toBe('layer')
-    expect(pressLevel(200, keys, timings)).toBe('block')
-    expect(pressLevel(400, keys, timings)).toBe('cube')
+  it('widens a touched slice from its named face without a selection swipe', () => {
+    expect(
+      standardWideLayer({ face: 'R', depth: 1, axis: 0, sign: -1 }, 5),
+    ).toMatchObject({ face: 'R', depth: 2, width: 2 })
+    expect(
+      standardWideLayer({ face: 'L', depth: 2, axis: 0, sign: 1 }, 5),
+    ).toMatchObject({ face: 'L', depth: 2, width: 2 })
+    expect(
+      standardWideLayer({ face: 'U', depth: 3, axis: 1, sign: -1 }, 7),
+    ).toMatchObject({ face: 'U', depth: 3, width: 3 })
+    expect(
+      standardWideLayer({ face: 'R', depth: 1, axis: 0, sign: -1 }, 2),
+    ).toMatchObject({ face: 'R', depth: 1, width: 1 })
   })
 
-  it('takes Shift for a block and Alt for the whole cube at once', () => {
-    expect(pressLevel(0, { shiftKey: true, altKey: false })).toBe('block')
+  it('takes Shift for a wide turn and Alt for the whole cube at once', () => {
+    expect(pressLevel(0, { shiftKey: true, altKey: false })).toBe('wide')
     expect(pressLevel(0, { shiftKey: false, altKey: true })).toBe('cube')
     expect(pressLevel(0, { shiftKey: true, altKey: true })).toBe('cube')
   })

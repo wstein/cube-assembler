@@ -17,7 +17,6 @@ import {
   selectedCubeView,
   CAPTURE_MODE_COOKIE,
   AUTO_CAPTURE_FRAMES_COOKIE,
-  CUBE_PRESS_COOKIE,
   THEME_COOKIE,
   selectedTheme,
   FIXTURE_SERVER_URL_COOKIE,
@@ -47,10 +46,6 @@ import {
   numberCookie,
   readChoice,
   readNumber,
-  HOLD_TIMING_LIMITS,
-  WIDE_PRESS_COOKIE,
-  holdTimingCookie,
-  readHoldTimings,
 } from '../src/client/preferences'
 
 describe('preference cookies', () => {
@@ -133,36 +128,6 @@ describe('preference cookies', () => {
   })
 })
 
-describe('hold timing cookies', () => {
-  it('uses 400 and 900 ms until other times are saved', () => {
-    expect(readHoldTimings('')).toEqual({ blockMs: 400, cubeMs: 900 })
-    const saved = [
-      holdTimingCookie(WIDE_PRESS_COOKIE, 350),
-      holdTimingCookie(CUBE_PRESS_COOKIE, 900),
-    ]
-      .map((cookie) => cookie.split(';')[0])
-      .join('; ')
-    expect(readHoldTimings(saved)).toEqual({ blockMs: 350, cubeMs: 900 })
-  })
-
-  it('keeps saved times in range and the whole cube after the block', () => {
-    const cookies = (block: string, cube: string) =>
-      `${WIDE_PRESS_COOKIE}=${block}; ${CUBE_PRESS_COOKIE}=${cube}`
-    expect(readHoldTimings(cookies('50', '99999'))).toEqual({
-      blockMs: HOLD_TIMING_LIMITS.minMs,
-      cubeMs: HOLD_TIMING_LIMITS.maxMs,
-    })
-    expect(readHoldTimings(cookies('800', '600'))).toEqual({
-      blockMs: 800,
-      cubeMs: 800 + HOLD_TIMING_LIMITS.gapMs,
-    })
-    expect(readHoldTimings(cookies('soon', ''))).toEqual({
-      blockMs: 400,
-      cubeMs: 900,
-    })
-  })
-})
-
 describe('setting cookies', () => {
   it('reads a choice, falling back on anything unknown', () => {
     const choices = ['wrg', 'urf'] as const
@@ -182,7 +147,6 @@ describe('setting cookies', () => {
   })
 
   it('clears every setting cookie for a reset', () => {
-    expect(SETTING_COOKIES).toContain(WIDE_PRESS_COOKIE)
     expect(SETTING_COOKIES).toContain(MIRROR_COOKIE)
     expect(SETTING_COOKIES).not.toContain(CUBE_SIZE_COOKIE)
     expect(clearedCookie('x')).toBe('x=; Max-Age=0; Path=/; SameSite=Lax')

@@ -29,24 +29,22 @@ type swipeLayer = {
 @genType let swipeLayerAngle: (surfaceHit, swipeLayer, float, float, camera) => float
 
 @genType let widePressMs: float
-@genType let cubePressMs: float
 @genType let pressSlopPx: float
 
 @genType
 type pressLevel =
   | @as("layer") Layer
-  | @as("block") Block
+  | @as("wide") Wide
   | @as("cube") Cube
 
-@genType type holdTimings = {blockMs: float, cubeMs: float}
-@genType let defaultHoldTimings: holdTimings
 @genType type pressKeys = {shiftKey: bool, altKey: bool}
-@genType let pressLevel: (float, pressKeys, holdTimings) => pressLevel
+@genType let pressLevel: (float, pressKeys) => pressLevel
 
 @genType let facePlanePoint: (float, float, camera, surfaceHit) => Null.t<vec>
 @genType let swipeMoveAxis: (surfaceHit, float, float, camera, float) => Null.t<int>
 @genType let blockLayer: (int, int, int, int) => swipeLayer
 @genType let wholeCubeLayer: (int, int) => swipeLayer
+@genType let standardWideLayer: (swipeLayer, int) => swipeLayer
 
 @genType let turnCommitFraction: float
 @genType let flickMs: float
@@ -59,7 +57,7 @@ type cubeGesture =
   | @as("pending") Pending
   | @as("turn") Turn
   | @as("camera") Camera
-  | @as("tilt") Tilt
+  | @as("two-finger") TwoFinger
   | @as("none") NoGesture
 
 @genType

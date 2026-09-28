@@ -48,16 +48,16 @@ export function playTurnClick(gain: number): void {
 }
 
 // A held sticker announces that it now turns more: one short tone for a
-// block of layers, two rising tones for the whole cube (seconds, hertz).
+// a wide turn, two rising tones for the whole cube (seconds, hertz).
 export function modeCueNotes(
-  level: 'block' | 'cube',
+  level: 'wide' | 'cube',
 ): Array<{ frequency: number; start: number; duration: number }> {
   return modeCueNotesRes(level)
 }
 
 export const MODE_CUE_GAIN = modeCueGain
 
-export function playModeCue(level: 'block' | 'cube', gain: number): void {
+export function playModeCue(level: 'wide' | 'cube', gain: number): void {
   if (gain <= 0) return
   try {
     audio ??= new AudioContext()

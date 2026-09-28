@@ -8,9 +8,11 @@ import {
   gestureWhenSwipeTurnsNothing,
   pickCubeSurface,
   PRESS_SLOP_PX,
+  WIDE_PRESS_MS,
   pickSwipeLayer,
   pressLevel,
   releasedQuarterTurns,
+  standardWideLayer,
   swipeLayerAngle,
   wholeCubeLayer,
   twoFingerLock,
@@ -33,7 +35,6 @@ import {
   AUTO_ROTATE_COOKIE,
   STICKERLESS_COOKIE,
   preferenceCookie,
-  readHoldTimings,
   readPreference,
   readScrambleOptions,
   readSwipeTuning,
@@ -47,10 +48,10 @@ import { buildCubeMesh } from './cubeMesh'
 import { CubeView3DPresentation } from './cubeView3DPresentation'
 import { createCubeViewControls } from './cubeViewControls'
 import {
-  createBlockInteraction,
+  createDragInteraction,
   type CubePointerGesture,
   type DragTurn,
-} from './cubeBlockInteraction'
+} from './cubeDragInteraction'
 import {
   initProgram,
   mat4Create,
@@ -175,6 +176,11 @@ export function CubeView3D({
   // Fingers on the canvas, and where the two tilting fingers were last.
   const touchesRef = useRef(new Map<number, [number, number]>())
   const tiltFromRef = useRef<[[number, number], [number, number]] | null>(null)
+  const twoFingerTurnRef = useRef(false)
+  const twoFingerCameraRef = useRef(false)
+  const twoFingerStartRef = useRef<[number, number] | null>(null)
+  const twoFingerHitRef = useRef<ReturnType<typeof pickCubeSurface>>(null)
+  const twoFingerTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   // Where two fingers landed (spread and midpoint), and whether the gesture
   // has locked to tilting or pinching.
   const pinchRef = useRef<{
@@ -684,9 +690,8 @@ export function CubeView3D({
     if (gesture) gesture.holdTimer = undefined
   }
 
-  // Shows, sounds and (on phones) buzzes that a held sticker or a modifier
-  // key now turns a block of layers or the whole cube.
-  const announcePressMode = (level: 'block' | 'cube') => {
+  // Shows, sounds and (on phones) buzzes when a held sticker widens its turn.
+  const announcePressMode = (level: 'wide' | 'cube') => {
     setPressMode(level)
     const cookies = document.cookie
     playModeCue(level, turnSoundOn(cookies) ? MODE_CUE_GAIN : 0)
@@ -697,31 +702,17 @@ export function CubeView3D({
     }
   }
 
-  // Holding the sticker still widens what it turns: a block of layers, then
-  // the whole cube, after the times saved on the settings page.
+  // A held sticker starts a standard wide turn directly on the next swipe.
   const holdSticker = (gesture: NonNullable<typeof gestureRef.current>) => {
-    const { blockMs, cubeMs } = readHoldTimings(document.cookie)
-    const upgrade = (level: 'block' | 'cube', next?: () => void) => {
+    const upgrade = () => {
       if (gestureRef.current !== gesture || gesture.mode !== 'pending') return
-      if (gesture.block) return
-      gesture.level = level
-      announcePressMode(level)
-      next?.()
+      gesture.level = 'wide'
+      announcePressMode('wide')
     }
-    gesture.holdTimer = setTimeout(
-      () =>
-        upgrade('block', () => {
-          gesture.holdTimer = setTimeout(
-            () => upgrade('cube'),
-            cubeMs - blockMs,
-          )
-        }),
-      blockMs,
-    )
+    gesture.holdTimer = setTimeout(upgrade, WIDE_PRESS_MS)
   }
 
-  const { startDragTurn, pickBlock } = createBlockInteraction({
-    puzzleSize,
+  const { startDragTurn } = createDragInteraction({
     dragTurnRef,
     clearHold,
     setIsTurning,
@@ -758,7 +749,8 @@ export function CubeView3D({
     resumeAutoAtRef.current = Number.POSITIVE_INFINITY
     inertiaRef.current = { yaw: 0, pitch: 0 }
     if (touches > 1) {
-      // A second finger switches to tilting, whatever the first one did.
+      // Two fingers swipe the whole cube immediately. Holding both still for
+      // 400 ms switches to view rotation and pinch zoom.
       const gesture = gestureRef.current
       const mode = gestureForPointerDown(
         'touch',
@@ -767,12 +759,36 @@ export function CubeView3D({
         gesture?.mode ?? null,
       )
       if (gesture) gesture.mode = mode
-      if (mode === 'tilt') {
+      if (mode === 'two-finger') {
         // A second finger lets go of a dragged layer.
         clearHold()
         setPressMode(null)
         settleDrag(0)
         startTilt()
+        const pair = twoTouches()
+        const midpoint = pair ? midpointOf(pair) : null
+        twoFingerStartRef.current = midpoint
+        const rect = canvasRef.current?.getBoundingClientRect()
+        twoFingerHitRef.current =
+          midpoint && rect
+            ? pickCubeSurface(
+                midpoint[0] - rect.left,
+                midpoint[1] - rect.top,
+                gestureCamera(rect),
+              )
+            : null
+        twoFingerTurnRef.current = false
+        twoFingerCameraRef.current = false
+        if (twoFingerTimerRef.current) clearTimeout(twoFingerTimerRef.current)
+        twoFingerTimerRef.current = setTimeout(() => {
+          if (
+            gestureRef.current?.mode !== 'two-finger' ||
+            touchesRef.current.size < 2
+          )
+            return
+          twoFingerCameraRef.current = true
+          startTilt()
+        }, WIDE_PRESS_MS)
         lastPointerRef.current = {
           ...lastPointerRef.current,
           time: e.timeStamp,
@@ -815,10 +831,46 @@ export function CubeView3D({
     if (!isDraggingRef.current) return
     const gesture = gestureRef.current
     if (!gesture) return
-    if (gesture.mode === 'tilt') {
+    if (gesture.mode === 'two-finger') {
       const from = tiltFromRef.current
       const to = twoTouches()
       if (!from || !to) return
+      if (!twoFingerCameraRef.current) {
+        const start = twoFingerStartRef.current
+        const hit = twoFingerHitRef.current
+        if (!start || !hit) return
+        const midpoint = midpointOf(to)
+        const dx = midpoint[0] - start[0]
+        const dy = midpoint[1] - start[1]
+        const rect = canvasRef.current?.getBoundingClientRect()
+        if (!rect || Math.hypot(dx, dy) < gesture.tuning.startPx) return
+        if (twoFingerTimerRef.current) clearTimeout(twoFingerTimerRef.current)
+        twoFingerTimerRef.current = null
+        const camera = gestureCamera(rect)
+        const layer = pickSwipeLayer(
+          hit,
+          dx,
+          dy,
+          camera,
+          gesture.tuning.startPx,
+        )
+        if (!layer) return
+        gesture.level = 'cube'
+        twoFingerTurnRef.current = true
+        startDragTurn(
+          gesture,
+          wholeCubeLayer(layer.axis, puzzleSize),
+          start,
+          hit,
+          {
+            clientX: midpoint[0],
+            clientY: midpoint[1],
+            timeStamp: e.timeStamp,
+          },
+          camera,
+        )
+        return
+      }
       tiltFromRef.current = to
       const [mx, my] = midpointOf(to)
       const [sx, sy] = pinchRef.current.midpoint
@@ -844,11 +896,15 @@ export function CubeView3D({
       const hit = gesture.turnHit ?? gesture.hit
       const [fromX, fromY] = gesture.turnFrom ?? [gesture.x, gesture.y]
       if (!drag || !hit || !rect) return
+      const midpoint = twoFingerTurnRef.current ? twoTouches() : null
+      const [clientX, clientY] = midpoint
+        ? midpointOf(midpoint)
+        : [e.clientX, e.clientY]
       const angle = swipeLayerAngle(
         hit,
         drag.layer,
-        e.clientX - fromX,
-        e.clientY - fromY,
+        clientX - fromX,
+        clientY - fromY,
         gestureCamera(rect),
       )
       drag.velocity =
@@ -866,10 +922,6 @@ export function CubeView3D({
       // Moving before the hold is up makes it a plain swipe.
       if (gesture.level === 'layer' && distance > PRESS_SLOP_PX) clearHold()
       const camera = gestureCamera(rect)
-      if (gesture.level === 'block') {
-        pickBlock(gesture, gesture.hit, e, rect, camera)
-        return
-      }
       if (distance < gesture.tuning.startPx) return
       const layer = pickSwipeLayer(
         gesture.hit,
@@ -883,7 +935,9 @@ export function CubeView3D({
           gesture,
           gesture.level === 'cube'
             ? wholeCubeLayer(layer.axis, puzzleSize)
-            : layer,
+            : gesture.level === 'wide'
+              ? standardWideLayer(layer, puzzleSize)
+              : layer,
           [gesture.x, gesture.y],
           gesture.hit,
           e,
@@ -910,21 +964,40 @@ export function CubeView3D({
       // Ignore if pointer capture release fails
     }
     const remaining = touch ? touchesRef.current.size : 0
+    if (twoFingerTimerRef.current) clearTimeout(twoFingerTimerRef.current)
+    twoFingerTimerRef.current = null
+    if (twoFingerTurnRef.current && gestureRef.current?.mode === 'turn') {
+      const drag = dragTurnRef.current
+      if (drag)
+        settleDrag(
+          e.type === 'pointercancel'
+            ? 0
+            : releasedQuarterTurns(
+                drag.angle,
+                e.timeStamp - drag.time > 100 ? 0 : drag.velocity,
+                gestureRef.current.tuning.commitFraction,
+                gestureRef.current.tuning.flickMs,
+              ),
+        )
+      twoFingerTurnRef.current = false
+      if (remaining) {
+        gestureRef.current.mode = 'none'
+        return
+      }
+    }
     const next = gestureAfterPointerUp(
       remaining,
       gestureRef.current?.mode ?? null,
     )
     if (next !== null) {
       if (gestureRef.current) gestureRef.current.mode = next
-      if (next === 'tilt') startTilt()
+      if (next === 'two-finger') startTilt()
       else tiltFromRef.current = null
       return
     }
     isDraggingRef.current = false
     clearHold()
     setPressMode(null)
-    // A block picked but never turned springs back.
-    if (gestureRef.current?.mode === 'pending') settleDrag(0)
     const gesture = gestureRef.current
     if (gesture?.mode === 'turn') {
       inertiaRef.current = { yaw: 0, pitch: 0 }

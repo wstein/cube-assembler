@@ -4,7 +4,6 @@
 import {
   autoCaptureFramesRange,
   fixtureServerUrlCookie,
-  holdTimingLimits,
   readChoice as readChoiceRes,
   readNumber as readNumberRes,
   readPreference as readPreferenceRes,
@@ -24,12 +23,10 @@ export {
   captureModeCookie as CAPTURE_MODE_COOKIE,
   clearedCookie,
   colorProfileCookie as COLOR_PROFILE_COOKIE,
-  cubePressCookie as CUBE_PRESS_COOKIE,
   cubeSizeCookie as CUBE_SIZE_COOKIE,
   cubeViewCookie as CUBE_VIEW_COOKIE,
   fixtureServerCookie as FIXTURE_SERVER_COOKIE,
   fixtureServerUrlCookie as FIXTURE_SERVER_URL_COOKIE,
-  holdTimingCookie,
   localUploadCookie as LOCAL_UPLOAD_COOKIE,
   localUploadShown,
   mirrorCookie as MIRROR_COOKIE,
@@ -37,7 +34,6 @@ export {
   numberCookie,
   preferenceCookie,
   readAutoCaptureFrames,
-  readHoldTimings,
   readScrambleOptions,
   readSelection,
   readSwipeTuning,
@@ -61,10 +57,8 @@ export {
   turnSoundOn,
   vibrationCookie as VIBRATION_COOKIE,
   vibrationOn,
-  widePressCookie as WIDE_PRESS_COOKIE,
 } from '../core/app/Preferences.gen'
 
-export const HOLD_TIMING_LIMITS = holdTimingLimits
 export const TURN_MS_RANGE = turnMsRange
 export const SWIPE_RANGES = swipeRanges
 export const AUTO_CAPTURE_FRAMES_RANGE = autoCaptureFramesRange

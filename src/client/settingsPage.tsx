@@ -2,7 +2,6 @@
 import '../../web/settings.css'
 import type { ComponentChildren } from 'preact'
 import { useState } from 'preact/hooks'
-import { DEFAULT_HOLD_TIMINGS } from './cubeGesture'
 import {
   AUTO_CAPTURE_COOKIE,
   AUTO_CAPTURE_FRAMES_COOKIE,
@@ -11,8 +10,6 @@ import {
   LOCAL_UPLOAD_COOKIE,
   CAPTURE_MODE_COOKIE,
   NOTATION_COOKIE,
-  CUBE_PRESS_COOKIE,
-  HOLD_TIMING_LIMITS,
   MIRROR_COOKIE,
   SCRAMBLE_INNER_COOKIE,
   SCRAMBLE_LENGTH_COOKIE,
@@ -28,12 +25,9 @@ import {
   TURN_OVERSHOOT_COOKIE,
   TURN_SOUND_COOKIE,
   VIBRATION_COOKIE,
-  WIDE_PRESS_COOKIE,
   clearedCookie,
-  holdTimingCookie,
   localUploadShown,
   preferenceCookie,
-  readHoldTimings,
   readPreference,
   selectedCaptureMode,
   selectedNotationFormat,
@@ -88,25 +82,6 @@ export function SettingsPage({ onClose }: Props) {
     for (const cookie of updates) document.cookie = cookie
     setCookies(document.cookie)
     applyTheme(selectedTheme(document.cookie))
-  }
-
-  const timings = readHoldTimings(cookies)
-  const { minMs, maxMs, gapMs } = HOLD_TIMING_LIMITS
-  // Saves both times as the view will read them, so the whole cube always
-  // stays reachable after the block.
-  const saveHold = (blockMs: number, cubeMs: number) => {
-    const saved = readHoldTimings(
-      [
-        holdTimingCookie(WIDE_PRESS_COOKIE, blockMs),
-        holdTimingCookie(CUBE_PRESS_COOKIE, cubeMs),
-      ]
-        .map((cookie) => cookie.split(';')[0])
-        .join('; '),
-    )
-    write(
-      holdTimingCookie(WIDE_PRESS_COOKIE, saved.blockMs),
-      holdTimingCookie(CUBE_PRESS_COOKIE, saved.cubeMs),
-    )
   }
 
   return (
@@ -184,7 +159,7 @@ export function SettingsPage({ onClose }: Props) {
       <Section id="settings-view" title="3D view">
         <ToggleSetting
           label="Turn sound"
-          hint="A soft click when a layer snaps into place, and a tone when a held sticker turns a block or the whole cube."
+          hint="A soft click when a layer snaps into place, and a tone when a held sticker starts a wide turn."
           checked={turnSoundOn(cookies)}
           onChange={(on) => write(preferenceCookie(TURN_SOUND_COOKIE, on))}
         />
@@ -249,45 +224,6 @@ export function SettingsPage({ onClose }: Props) {
           unit=" ms"
           onChange={(ms) => write(numberCookie(SWIPE_FLICK_COOKIE, ms))}
         />
-      </Section>
-
-      <Section
-        id="settings-hold"
-        title="Turning several layers"
-        hint="Hold a sticker in the 3D view before dragging to turn a block of layers, and hold it longer to turn the whole cube."
-      >
-        <SliderSetting
-          label="Hold for a block of layers"
-          min={minMs}
-          max={maxMs - gapMs}
-          step={50}
-          value={timings.blockMs}
-          unit=" ms"
-          onChange={(blockMs) => saveHold(blockMs, timings.cubeMs)}
-        />
-        <SliderSetting
-          label="Hold for the whole cube"
-          min={minMs + gapMs}
-          max={maxMs}
-          step={50}
-          value={timings.cubeMs}
-          unit=" ms"
-          onChange={(cubeMs) => saveHold(timings.blockMs, cubeMs)}
-        />
-        <button
-          type="button"
-          class="btn btn-secondary btn-sm"
-          disabled={
-            timings.blockMs === DEFAULT_HOLD_TIMINGS.blockMs &&
-            timings.cubeMs === DEFAULT_HOLD_TIMINGS.cubeMs
-          }
-          onClick={() =>
-            saveHold(DEFAULT_HOLD_TIMINGS.blockMs, DEFAULT_HOLD_TIMINGS.cubeMs)
-          }
-        >
-          Reset to {DEFAULT_HOLD_TIMINGS.blockMs} and{' '}
-          {DEFAULT_HOLD_TIMINGS.cubeMs} ms
-        </button>
       </Section>
 
       <Section id="settings-scramble" title="Scramble">

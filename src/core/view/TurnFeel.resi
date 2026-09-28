@@ -8,7 +8,7 @@
 
 @genType
 type modeLevel =
-  | @as("block") Block
+  | @as("wide") Wide
   | @as("cube") Cube
 
 @genType type note = {frequency: float, start: float, duration: float}

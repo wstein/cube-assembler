@@ -63,8 +63,8 @@ describe('turn speed and overshoot settings', () => {
 })
 
 describe('mode cues', () => {
-  it('sounds one tone for a block and two rising tones for the whole cube', () => {
-    const block = modeCueNotes('block')
+  it('sounds one tone for a wide turn and two rising tones for the whole cube', () => {
+    const block = modeCueNotes('wide')
     const cube = modeCueNotes('cube')
     expect(block).toHaveLength(1)
     expect(cube).toHaveLength(2)

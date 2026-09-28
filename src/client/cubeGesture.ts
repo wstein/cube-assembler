@@ -1,7 +1,6 @@
-// The 3D cube's gesture math: typed entry point for
-// src/core/view/CubeGesture.res. Wrappers only add default arguments.
+// Typed entry point for the 3D cube's ReScript gesture math. Only the
+// optional arguments need wrappers; all other values keep their generated types.
 import {
-  defaultHoldTimings,
   flickMs,
   pickSwipeLayer as pickSwipeLayerRes,
   pressLevel as pressLevelRes,
@@ -10,7 +9,6 @@ import {
   swipeStartPx,
   turnCommitFraction,
   type camera,
-  type holdTimings,
   type pressKeys,
   type pressLevel as level,
   type surfaceHit,
@@ -20,8 +18,6 @@ import {
 export {
   blockLayer,
   clampZoom,
-  cubePressMs as CUBE_PRESS_MS,
-  defaultHoldTimings as DEFAULT_HOLD_TIMINGS,
   defaultSwipeTuning as DEFAULT_SWIPE_TUNING,
   facePlanePoint,
   flickMs as FLICK_MS,
@@ -33,6 +29,7 @@ export {
   pinchMinPx as PINCH_MIN_PX,
   pinchMinRatio as PINCH_MIN_RATIO,
   pressSlopPx as PRESS_SLOP_PX,
+  standardWideLayer,
   swipeLayerAngle,
   swipeStartPx as SWIPE_START_PX,
   tiltMinPx as TILT_MIN_PX,
@@ -47,7 +44,6 @@ export {
 export type {
   camera as CubeGestureCamera,
   cubeGesture as CubeGesture,
-  holdTimings as HoldTimings,
   pressLevel as PressLevel,
   surfaceHit as CubeSurfaceHit,
   swipeLayer as SwipeLayer,
@@ -67,12 +63,8 @@ export function pickSwipeLayer(
   return pickSwipeLayerRes(hit, dx, dy, camera, startPx)
 }
 
-export function pressLevel(
-  heldMs: number,
-  keys: pressKeys,
-  timings: holdTimings = defaultHoldTimings,
-): level {
-  return pressLevelRes(heldMs, keys, timings)
+export function pressLevel(heldMs: number, keys: pressKeys): level {
+  return pressLevelRes(heldMs, keys)
 }
 
 export function swipeMoveAxis(
