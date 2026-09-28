@@ -16,15 +16,7 @@ let toCubeIR = (cube: cubeState, size): cubeIR => {
   }
 }
 
-let solvedColor = (face: faceKey) =>
-  switch face {
-  | U => "W"
-  | R => "R"
-  | F => "G"
-  | D => "Y"
-  | L => "O"
-  | B => "B"
-  }
+let solvedColor = CubePieces.solvedColor
 
 let faceOfColor = color => faceKeys->Array.find(face => solvedColor(face) == color)
 
@@ -67,118 +59,37 @@ let assembleCubeFromFaces = (faces: Dict.t<grid>, size): cubeState => {
 // score equally well on corners.
 // ─────────────────────────────────────────────────────────────────────────────
 
-type cornerPos = TL | TR | BL | BR
-type edgePos = Top | Right | Bottom | Left
-
-// Which named physical corner/edge occupies each of a face's 4 corner / 4
-// edge-midpoint positions, in the face's un-rotated (as-stored) orientation
-// - row 0 at the top, as a person looks at that face from outside with U
-// "up" and F "toward them", the convention of the spaced facelet notation.
-let faceCorners = (face: faceKey) =>
-  switch face {
-  | U => [(TL, "UBL"), (TR, "UBR"), (BL, "UFL"), (BR, "UFR")]
-  | F => [(TL, "UFL"), (TR, "UFR"), (BL, "DFL"), (BR, "DFR")]
-  | R => [(TL, "UFR"), (TR, "UBR"), (BL, "DFR"), (BR, "DBR")]
-  | B => [(TL, "UBR"), (TR, "UBL"), (BL, "DBR"), (BR, "DBL")]
-  | L => [(TL, "UBL"), (TR, "UFL"), (BL, "DBL"), (BR, "DFL")]
-  | D => [(TL, "DFL"), (TR, "DFR"), (BL, "DBL"), (BR, "DBR")]
-  }
-
-let faceEdges = (face: faceKey) =>
-  switch face {
-  | U => [(Top, "UB"), (Right, "UR"), (Bottom, "UF"), (Left, "UL")]
-  | F => [(Top, "UF"), (Right, "FR"), (Bottom, "DF"), (Left, "FL")]
-  | R => [(Top, "UR"), (Right, "BR"), (Bottom, "DR"), (Left, "FR")]
-  | B => [(Top, "UB"), (Right, "BL"), (Bottom, "DB"), (Left, "BR")]
-  | L => [(Top, "UL"), (Right, "FL"), (Bottom, "DL"), (Left, "BL")]
-  | D => [(Top, "DF"), (Right, "DR"), (Bottom, "DB"), (Left, "DL")]
-  }
-
-// Each named corner/edge's 3/2 touching faces, in a fixed reading order.
-// The corner order fixes which cyclic sticker rotations count as a valid
-// "twisted in place" corner rather than an unreachable mirror image, so it
-// follows each corner's actual geometric chirality (consistently CW or CCW
-// as seen from outside), matching parity.ts's CORNER_SLOTS and
-// SOLVED_CORNERS tables - not a naive "U/D axis first" pattern.
-let cornerFaces: array<(string, (faceKey, faceKey, faceKey))> = [
-  ("UFR", (U, R, F)),
-  ("UFL", (U, F, L)),
-  ("UBR", (U, B, R)),
-  ("UBL", (U, L, B)),
-  ("DFR", (D, F, R)),
-  ("DFL", (D, L, F)),
-  ("DBR", (D, R, B)),
-  ("DBL", (D, B, L)),
-]
-let edgeFaces: array<(string, (faceKey, faceKey))> = [
-  ("UF", (U, F)),
-  ("UR", (U, R)),
-  ("UB", (U, B)),
-  ("UL", (U, L)),
-  ("DF", (D, F)),
-  ("DR", (D, R)),
-  ("DB", (D, B)),
-  ("DL", (D, L)),
-  ("FR", (F, R)),
-  ("FL", (F, L)),
-  ("BR", (B, R)),
-  ("BL", (B, L)),
-]
-
-// On N>3, an edge's two faces don't always read their shared wing positions
-// in the same direction: UR/UB/DB/DL's second-listed face (R/B/B/L) reads
-// its wing index mirrored relative to the first face (U/U/D/D), while the
-// other 8 edges read both faces the same way. This mirrors parity.ts's
-// EDGE_LINES table (reverseB), derived from explicit 3D coordinates.
-// Invisible on N=3 (single, self-symmetric wing position).
-let edgesWithMirroredSecondFace = ["UR", "UB", "DB", "DL"]
-
-let positionOf = (table, name) =>
-  table->Array.find(((_, n)) => n == name)->Option.map(((pos, _)) => pos)->Option.getOrThrow
-
-// Each corner/edge with its touching faces and the position it occupies on
-// each of them, computed once for the searches below.
+// The corners and edges, from CubePieces (shared with the parity report):
+// each corner with its three faces and grid-corner positions, read in its
+// chirality; each edge read at its middle wing.
 type corner = {
-  name: string,
   faces: (faceKey, faceKey, faceKey),
-  positions: (cornerPos, cornerPos, cornerPos),
-  solved: (string, string, string),
+  positions: (CubePieces.cornerPos, CubePieces.cornerPos, CubePieces.cornerPos),
 }
 type edge = {
-  name: string,
-  faces: (faceKey, faceKey),
-  positions: (edgePos, edgePos),
-  solved: (string, string),
-  mirrored: bool,
+  a: (faceKey, CubePieces.edgeLine, bool),
+  b: (faceKey, CubePieces.edgeLine, bool),
 }
 
-let corners = cornerFaces->Array.map(((name, (f1, f2, f3))) => {
-  name,
-  faces: (f1, f2, f3),
-  positions: (
-    positionOf(faceCorners(f1), name),
-    positionOf(faceCorners(f2), name),
-    positionOf(faceCorners(f3), name),
-  ),
-  solved: (solvedColor(f1), solvedColor(f2), solvedColor(f3)),
+let corners = CubePieces.cornerSlots->Array.map(slots => {
+  let (f1, p1) = slots->Array.getUnsafe(0)
+  let (f2, p2) = slots->Array.getUnsafe(1)
+  let (f3, p3) = slots->Array.getUnsafe(2)
+  {faces: (f1, f2, f3), positions: (p1, p2, p3)}
 })
-let edges = edgeFaces->Array.map(((name, (f1, f2))) => {
-  name,
-  faces: (f1, f2),
-  positions: (positionOf(faceEdges(f1), name), positionOf(faceEdges(f2), name)),
-  solved: (solvedColor(f1), solvedColor(f2)),
-  mirrored: edgesWithMirroredSecondFace->Array.includes(name),
-})
+let edges = CubePieces.edgeLines->Array.map(((a, b)) => {a, b})
 
 // All valid ordered triples/pairs, including every cyclic rotation (corner
 // twist) / flip (edge flip) - both are legal on a real, possibly-scrambled
 // cube, so a "wrong-looking" order alone must not be flagged.
 let validCornerTriples = Set.fromArray(
-  corners->Array.flatMap(({solved: (a, b, c)}) => [a ++ b ++ c, b ++ c ++ a, c ++ a ++ b]),
+  CubePieces.solvedCorners->Array.flatMap(((a, b, c)) => [a ++ b ++ c, b ++ c ++ a, c ++ a ++ b]),
 )
-let validEdgePairs = Set.fromArray(edges->Array.flatMap(({solved: (a, b)}) => [a ++ b, b ++ a]))
+let validEdgePairs = Set.fromArray(
+  CubePieces.solvedEdges->Array.flatMap(((a, b)) => [a ++ b, b ++ a]),
+)
 
-let cornerSticker = (grid: grid, pos) => {
+let cornerSticker = (grid: grid, pos: CubePieces.cornerPos) => {
   let n = Array.length(grid)
   let at = (r, c) => grid->Array.getUnsafe(r)->Array.getUnsafe(c)
   switch pos {
@@ -189,17 +100,17 @@ let cornerSticker = (grid: grid, pos) => {
   }
 }
 
-// One representative sticker per side - enough as a corroborating signal.
-let edgeSticker = (grid: grid, pos, mirrored) => {
+// A wing's sticker on one face: the face's border line at distance w, or
+// at N-1-w when that face reads the edge the other way.
+let edgeLineSticker = (grid: grid, line: CubePieces.edgeLine, reverse, w) => {
   let n = Array.length(grid)
-  let raw = n / 2
-  let mid = mirrored ? n - 1 - raw : raw
+  let pos = reverse ? n - 1 - w : w
   let at = (r, c) => grid->Array.getUnsafe(r)->Array.getUnsafe(c)
-  switch pos {
-  | Top => at(0, mid)
-  | Bottom => at(n - 1, mid)
-  | Left => at(mid, 0)
-  | Right => at(mid, n - 1)
+  switch line {
+  | TopLine => at(0, pos)
+  | BottomLine => at(n - 1, pos)
+  | LeftLine => at(pos, 0)
+  | RightLine => at(pos, n - 1)
   }
 }
 
@@ -213,14 +124,17 @@ let cornerTriple = (faces, corner: corner) => {
   )
 }
 
-let edgePair = (faces, edge: edge) => {
-  let (f1, f2) = edge.faces
-  let (p1, p2) = edge.positions
+let wingPair = (faces, edge: edge, w) => {
+  let (faceA, lineA, reverseA) = edge.a
+  let (faceB, lineB, reverseB) = edge.b
   (
-    edgeSticker(faceValue(faces, f1), p1, false),
-    edgeSticker(faceValue(faces, f2), p2, edge.mirrored),
+    edgeLineSticker(faceValue(faces, faceA), lineA, reverseA, w),
+    edgeLineSticker(faceValue(faces, faceB), lineB, reverseB, w),
   )
 }
+
+// One representative sticker per side - enough as a corroborating signal.
+let edgePair = (faces: faceSet<grid>, edge) => wingPair(faces, edge, Array.length(faces.u) / 2)
 
 let scoreCorners = faces =>
   corners->Array.reduce(0, (score, corner) => {
@@ -236,8 +150,8 @@ let scoreEdges = faces =>
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Full validity (distinct pieces + orientation sums + matching permutation
-// parity) - mirrors parity.ts's runFullParity, but as a filter the rotation
-// SEARCH itself optimizes for, not a check run afterward.
+// parity) - the parity report's rules, but as a filter the rotation SEARCH
+// itself optimizes for, not a check run afterward.
 //
 // scoreCorners/scoreEdges check each position against the SET of real
 // pieces independently - "is this ANY valid corner" - so a rotation that
@@ -247,46 +161,6 @@ let scoreEdges = faces =>
 // specific piece, a piece claimed twice rejects the candidate, and the same
 // orientation-sum and permutation-parity invariants apply.
 // ─────────────────────────────────────────────────────────────────────────────
-
-// Which corner the triple at a position is, and its twist (0/1/2) relative
-// to that piece's solved orientation; None for an impossible combination.
-let identifyCorner = ((a, b, c)) =>
-  corners
-  ->Array.findIndexOpt(({solved: (s0, s1, s2)}) =>
-    (a == s0 && b == s1 && c == s2) ||
-    b == s0 && c == s1 && a == s2 ||
-    (c == s0 && a == s1 && b == s2)
-  )
-  ->Option.map(index => {
-    let {solved: (s0, s1, s2)} = corners->Array.getUnsafe(index)
-    let twist = a == s0 && b == s1 && c == s2 ? 0 : b == s0 && c == s1 && a == s2 ? 1 : 2
-    (index, twist)
-  })
-
-let identifyEdge = ((a, b)) =>
-  edges
-  ->Array.findIndexOpt(({solved: (s0, s1)}) => (a == s0 && b == s1) || (a == s1 && b == s0))
-  ->Option.map(index => {
-    let {solved: (s0, _)} = edges->Array.getUnsafe(index)
-    (index, a == s0 ? 0 : 1)
-  })
-
-// Even permutation: its length minus its cycle count is even.
-let permParity = perm => {
-  let visited = Array.make(~length=Array.length(perm), false)
-  let cycles = ref(0)
-  perm->Array.forEachWithIndex((_, i) =>
-    if !(visited->Array.getUnsafe(i)) {
-      let j = ref(i)
-      while !(visited->Array.getUnsafe(j.contents)) {
-        visited->Array.setUnsafe(j.contents, true)
-        j := perm->Array.getUnsafe(j.contents)
-      }
-      cycles := cycles.contents + 1
-    }
-  )
-  mod(Array.length(perm) - cycles.contents, 2) == 0
-}
 
 // The pieces the positions show, in order, with their twists or flips; None
 // once any position shows an impossible piece or one already seen.
@@ -309,81 +183,37 @@ let identifyAll = (count, read) => {
   ok.contents ? Some((pieces, turns)) : None
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Wing-edge validity for N>3 - mirrors parity.ts's EDGE_LINES /
-// validateWingEdges on this module's grids. Corners alone don't fully
-// constrain a 4x4+'s per-face rotation; without this the search had no
-// signal that a corner-valid candidate's wings were scrambled, and settled
-// on a wrong rotation on a real reported capture.
-// ─────────────────────────────────────────────────────────────────────────────
-
-type edgeLine = TopLine | BottomLine | LeftLine | RightLine
-
-let edgeLineSticker = (grid: grid, line, reverse, w) => {
-  let n = Array.length(grid)
-  let pos = reverse ? n - 1 - w : w
-  let at = (r, c) => grid->Array.getUnsafe(r)->Array.getUnsafe(c)
-  switch line {
-  | TopLine => at(0, pos)
-  | BottomLine => at(n - 1, pos)
-  | LeftLine => at(pos, 0)
-  | RightLine => at(pos, n - 1)
-  }
-}
-
-// (faceA, lineA, reverseA, faceB, lineB, reverseB), in the order of
-// `edges`. reverse means the wing at distance w from the edge's first
-// corner reads that face's line at N-1-w; checked against parity.ts's
-// EDGE_LINES table.
-let wingEdgeLines = [
-  (U, BottomLine, false, F, TopLine, false),
-  (U, RightLine, false, R, TopLine, true),
-  (U, TopLine, false, B, TopLine, true),
-  (U, LeftLine, false, L, TopLine, false),
-  (D, TopLine, false, F, BottomLine, false),
-  (D, RightLine, false, R, BottomLine, false),
-  (D, BottomLine, false, B, BottomLine, true),
-  (D, LeftLine, false, L, BottomLine, true),
-  (F, RightLine, false, R, LeftLine, false),
-  (F, LeftLine, false, L, RightLine, false),
-  (B, LeftLine, false, R, RightLine, false),
-  (B, RightLine, false, L, LeftLine, false),
-]
-
 let range = (from, to) =>
   from > to ? [] : Array.fromInitializer(~length=to - from + 1, i => from + i)
 
-// Counting check only (a full check would need per-depth wing orbits on
-// N>=5): every wing sticker pair must be one of the 12 real pairs, and each
-// pair must appear exactly N-2 times. It can accept too much on N>=5 but
-// never rejects a real cube.
+// Wing-edge validity for N>3. Corners alone don't fully constrain a 4x4+'s
+// per-face rotation; without this the search had no signal that a
+// corner-valid candidate's wings were scrambled, and settled on a wrong
+// rotation on a real reported capture. Counting check only (a full check
+// would need per-depth wing orbits on N>=5): every wing sticker pair must
+// be one of the 12 real pairs, and each pair must appear exactly N-2 times.
+// It can accept too much on N>=5 but never rejects a real cube.
 let wingEdgeCountsValid = (faces, n) => {
   let counts = Array.make(~length=Array.length(edges), 0)
-  let valid = wingEdgeLines->Array.every(((faceA, lineA, reverseA, faceB, lineB, reverseB)) =>
-    range(1, n - 2)->Array.every(w => {
-      let c0 = edgeLineSticker(faceValue(faces, faceA), lineA, reverseA, w)
-      let c1 = edgeLineSticker(faceValue(faces, faceB), lineB, reverseB, w)
-      switch edges->Array.findIndexOpt(
-        ({solved: (p0, p1)}) => (c0 == p0 && c1 == p1) || (c0 == p1 && c1 == p0),
-      ) {
-      | Some(index) =>
+  let valid = edges->Array.every(edge =>
+    range(1, n - 2)->Array.every(w =>
+      switch CubePieces.identifyEdge(wingPair(faces, edge, w)) {
+      | Some((index, _)) =>
         counts->Array.setUnsafe(index, counts->Array.getUnsafe(index) + 1)
         true
       | None => false
       }
-    })
+    )
   )
   valid && counts->Array.every(count => count == n - 2)
 }
 
-let sum = values => values->Array.reduce(0, (a, b) => a + b)
-
 let isFullyValid = (faces: faceSet<grid>) => {
   let n = Array.length(faces.u)
   switch identifyAll(Array.length(corners), i =>
-    identifyCorner(cornerTriple(faces, corners->Array.getUnsafe(i)))
+    CubePieces.identifyCorner(cornerTriple(faces, corners->Array.getUnsafe(i)))
   ) {
-  | Some((cornerPieces, twists)) if mod(sum(twists), 3) == 0 =>
+  | Some((cornerPieces, twists)) if mod(CubePieces.sum(twists), 3) == 0 =>
     if n == 2 {
       // No edges at all: corner distinctness and orientation are complete.
       true
@@ -391,10 +221,11 @@ let isFullyValid = (faces: faceSet<grid>) => {
       wingEdgeCountsValid(faces, n)
     } else {
       switch identifyAll(Array.length(edges), i =>
-        identifyEdge(edgePair(faces, edges->Array.getUnsafe(i)))
+        CubePieces.identifyEdge(edgePair(faces, edges->Array.getUnsafe(i)))
       ) {
       | Some((edgePieces, flips)) =>
-        mod(sum(flips), 2) == 0 && permParity(cornerPieces) == permParity(edgePieces)
+        mod(CubePieces.sum(flips), 2) == 0 &&
+          CubePieces.permParity(cornerPieces) == CubePieces.permParity(edgePieces)
       | None => false
       }
     }

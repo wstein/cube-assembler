@@ -1,8 +1,8 @@
 // Cube validity (color balance, corners, edges, wings and their parity)
 // with the stickers to point at when a check fails. Runs in the browser, so
-// the check also works on the static GitHub Pages site. The orientation
-// search keeps its own faster mirror of these rules - see CubeAssembly's
-// isFullyValid.
+// the check also works on the static GitHub Pages site. The pieces and how
+// a reading is identified come from CubePieces, shared with the
+// orientation search's faster yes/no check (CubeAssembly's isFullyValid).
 open CubeState
 
 type faceletRef = {face: string, index: int}
@@ -118,115 +118,12 @@ let colorBalanceReport = (cube: cubeIR) => {
   (detail, highlight)
 }
 
-// ─── Corner facelet-slot geometry (size-independent) ──────────────────────────
-// Every NxN cube has the same 8 corners, each in the same grid-corner slot
-// of each of its 3 faces; only the facelet index of a slot depends on N.
-type cornerSlot = TL | TR | BL | BR
+// ─── Pieces (see CubePieces) ──────────────────────────────────────────────────
 
-let cornerFaceletIndex = (n, slot) =>
-  switch slot {
-  | TL => 0
-  | TR => n - 1
-  | BL => n * (n - 1)
-  | BR => n * n - 1
-  }
-
-// Per corner (UFR, UBR, UBL, UFL, DFR, DBR, DBL, DFL): its three facelets
-// as (face, slot). The B face is viewed from outside the cube (mirrored
-// left/right relative to F), confirmed against a real scrambled capture.
-let cornerSlots = [
-  [("u", BR), ("r", TL), ("f", TR)],
-  [("u", TR), ("b", TL), ("r", TR)],
-  [("u", TL), ("l", TL), ("b", TR)],
-  [("u", BL), ("f", TL), ("l", TR)],
-  [("d", TR), ("f", BR), ("r", BL)],
-  [("d", BR), ("r", BR), ("b", BL)],
-  [("d", BL), ("b", BR), ("l", BL)],
-  [("d", TL), ("l", BR), ("f", BL)],
-]
-
-// The 8 corner color triples and 12 edge color pairs, fixed for every N.
-let solvedCorners = [
-  ["W", "R", "G"],
-  ["W", "B", "R"],
-  ["W", "O", "B"],
-  ["W", "G", "O"],
-  ["Y", "G", "R"],
-  ["Y", "R", "B"],
-  ["Y", "B", "O"],
-  ["Y", "O", "G"],
-]
-let cornerNames = ["UFR", "UBR", "UBL", "UFL", "DFR", "DBR", "DBL", "DFL"]
-let solvedEdges = [
-  ("W", "G"),
-  ("W", "R"),
-  ("W", "B"),
-  ("W", "O"),
-  ("Y", "G"),
-  ("Y", "R"),
-  ("Y", "B"),
-  ("Y", "O"),
-  ("G", "R"),
-  ("G", "O"),
-  ("B", "R"),
-  ("B", "O"),
-]
-let edgeNames = ["UF", "UR", "UB", "UL", "DF", "DR", "DB", "DL", "FR", "FL", "BR", "BL"]
-
-// UF, UR, UB, UL, DF, DR, DB, DL, FR, FL, BR, BL on a 3x3; same B-face
-// mirroring as the corner slots.
-let edgeFacelets3x3 = [
-  (("u", 7), ("f", 1)),
-  (("u", 5), ("r", 1)),
-  (("u", 1), ("b", 1)),
-  (("u", 3), ("l", 1)),
-  (("d", 1), ("f", 7)),
-  (("d", 5), ("r", 7)),
-  (("d", 7), ("b", 7)),
-  (("d", 3), ("l", 7)),
-  (("f", 5), ("r", 3)),
-  (("f", 3), ("l", 5)),
-  (("b", 3), ("r", 5)),
-  (("b", 5), ("l", 3)),
-]
-
-// ─── Wing-edge facelet geometry for N>3 (size-independent) ────────────────────
-// On a 4x4+ cube each edge splits into N-2 wings. A wing at distance w
-// (1..N-2) from the edge's first corner has one sticker on each face.
-// Derived from explicit 3D coordinates for all 6 faces - a shortcut from
-// the corner slots got UR, UB, DB and DL wrong, invisible on 3x3's single
-// self-symmetric wing. `reverse` reads that face's line at N-1-w.
-type edgeLine = TopLine | BottomLine | LeftLine | RightLine
-
-let lineFaceletIndex = (n, line, w) =>
-  switch line {
-  | TopLine => w
-  | BottomLine => n * (n - 1) + w
-  | LeftLine => w * n
-  | RightLine => w * n + (n - 1)
-  }
-
-let edgeLines = [
-  ("UF", ("u", BottomLine, false), ("f", TopLine, false)),
-  ("UR", ("u", RightLine, false), ("r", TopLine, true)),
-  ("UB", ("u", TopLine, false), ("b", TopLine, true)),
-  ("UL", ("u", LeftLine, false), ("l", TopLine, false)),
-  ("DF", ("d", TopLine, false), ("f", BottomLine, false)),
-  ("DR", ("d", RightLine, false), ("r", BottomLine, false)),
-  ("DB", ("d", BottomLine, false), ("b", BottomLine, true)),
-  ("DL", ("d", LeftLine, false), ("l", BottomLine, true)),
-  ("FR", ("f", RightLine, false), ("r", LeftLine, false)),
-  ("FL", ("f", LeftLine, false), ("l", RightLine, false)),
-  ("BR", ("b", LeftLine, false), ("r", RightLine, false)),
-  ("BL", ("b", RightLine, false), ("l", LeftLine, false)),
-]
-
-let edgeLineFaceletIndex = (n, line, reverse, w) =>
-  lineFaceletIndex(n, line, reverse ? n - 1 - w : w)
+// A face as the facelet references name it: "u" .. "b".
+let faceName = (face: faceKey) => String.toLowerCase((face :> string))
 
 let pairName = ((a, b)) => `${a}-${b}`
-
-let matchesPair = ((c0, c1), (s0, s1)) => (c0 == s0 && c1 == s1) || (c0 == s1 && c1 == s0)
 
 exception UnknownWing(wingResult)
 
@@ -237,19 +134,25 @@ exception UnknownWing(wingResult)
 // a valid cube.
 let validateWingEdges = (cube: cubeIR): wingResult => {
   let n = cube.size
-  let counts = Array.make(~length=Array.length(solvedEdges), 0)
+  let counts = Array.make(~length=Array.length(CubePieces.solvedEdges), 0)
   // Every wing reading's facelets, grouped by the pair it matched, so an
   // over-represented pair can point at exactly its wings.
-  let faceletsByPair = solvedEdges->Array.map(_ => [])
+  let faceletsByPair = CubePieces.solvedEdges->Array.map(_ => [])
   try {
-    edgeLines->Array.forEach(((edgeName, (faceA, lineA, reverseA), (faceB, lineB, reverseB))) =>
+    CubePieces.edgeLines->Array.forEachWithIndex((
+      ((keyA, lineA, reverseA), (keyB, lineB, reverseB)),
+      edge,
+    ) =>
       for w in 1 to n - 2 {
-        let indexA = edgeLineFaceletIndex(n, lineA, reverseA, w)
-        let indexB = edgeLineFaceletIndex(n, lineB, reverseB, w)
+        let edgeName = CubePieces.edgeNames->Array.getUnsafe(edge)
+        let faceA = faceName(keyA)
+        let faceB = faceName(keyB)
+        let indexA = CubePieces.edgeLineFaceletIndex(n, lineA, reverseA, w)
+        let indexB = CubePieces.edgeLineFaceletIndex(n, lineB, reverseB, w)
         let colors = (sticker(cube, faceA, indexA), sticker(cube, faceB, indexB))
         let facelets = [{face: faceA, index: indexA}, {face: faceB, index: indexB}]
-        switch solvedEdges->Array.findIndexOpt(pair => matchesPair(colors, pair)) {
-        | Some(pi) =>
+        switch CubePieces.identifyEdge(colors) {
+        | Some((pi, _)) =>
           counts->Array.setUnsafe(pi, counts->Array.getUnsafe(pi) + 1)
           faceletsByPair->Array.getUnsafe(pi)->Array.push(facelets)
         | None =>
@@ -277,7 +180,7 @@ let validateWingEdges = (cube: cubeIR): wingResult => {
       // Every pair that is off, with its count - the over/under pattern
       // shows which two colors are being confused.
       let offending =
-        solvedEdges
+        CubePieces.solvedEdges
         ->Array.mapWithIndex((pair, i) => (pairName(pair), counts->Array.getUnsafe(i)))
         ->Array.filter(((_, count)) => count != expected)
         ->Array.map(((pair, count)) =>
@@ -290,7 +193,7 @@ let validateWingEdges = (cube: cubeIR): wingResult => {
           ? faceletsByPair
             ->Array.getUnsafe(i)
             ->Array.map(facelets => {
-              group: pairName(solvedEdges->Array.getUnsafe(i)),
+              group: pairName(CubePieces.solvedEdges->Array.getUnsafe(i)),
               facelets,
             })
           : []
@@ -306,25 +209,6 @@ let validateWingEdges = (cube: cubeIR): wingResult => {
   }
 }
 
-// Even permutation: its length minus its cycle count is even.
-let permParity = perm => {
-  let visited = Array.make(~length=Array.length(perm), false)
-  let cycles = ref(0)
-  perm->Array.forEachWithIndex((_, i) =>
-    if !(visited->Array.getUnsafe(i)) {
-      let j = ref(i)
-      while !(visited->Array.getUnsafe(j.contents)) {
-        visited->Array.setUnsafe(j.contents, true)
-        j := perm->Array.getUnsafe(j.contents)
-      }
-      cycles := cycles.contents + 1
-    }
-  )
-  mod(Array.length(perm) - cycles.contents, 2) == 0
-}
-
-let sum = values => values->Array.reduce(0, (a, b) => a + b)
-
 let validResult = "Valid — all parity checks passed"
 
 // 3x3 edges: which piece each position shows, then their flip sum and the
@@ -333,13 +217,16 @@ let runEdgeChecks = (cube, checks, cornerPieces): parityResult => {
   let edgePieces = []
   let edgeOrients = []
   let edgeFacelets = []
-  let unknown = edgeFacelets3x3->Array.findMap((((fa, ia), (fb, ib))) => {
+  let unknown = CubePieces.edgeLines->Array.findMap(((
+    (keyA, lineA, reverseA),
+    (keyB, lineB, reverseB),
+  )) => {
+    // A 3x3's one wing is the edge itself.
+    let (fa, ia) = (faceName(keyA), CubePieces.edgeLineFaceletIndex(3, lineA, reverseA, 1))
+    let (fb, ib) = (faceName(keyB), CubePieces.edgeLineFaceletIndex(3, lineB, reverseB, 1))
     let (c0, c1) = (sticker(cube, fa, ia), sticker(cube, fb, ib))
     let facelets = [{face: fa, index: ia}, {face: fb, index: ib}]
-    let found =
-      solvedEdges->findMapWithIndex(((s0, s1), piece) =>
-        c0 == s0 && c1 == s1 ? Some((piece, 0)) : c0 == s1 && c1 == s0 ? Some((piece, 1)) : None
-      )
+    let found = CubePieces.identifyEdge((c0, c1))
     switch found {
     | Some((piece, flip)) =>
       edgePieces->Array.push(piece)
@@ -364,7 +251,7 @@ let runEdgeChecks = (cube, checks, cornerPieces): parityResult => {
     switch duplicate {
     | Some((piece, first, slot)) =>
       checks->Dict.set("edgeColors", false)
-      let name = edgeNames->Array.getUnsafe(piece)
+      let name = CubePieces.edgeNames->Array.getUnsafe(piece)
       {
         valid: false,
         result: "Duplicate edge piece (two positions read the same physical edge)",
@@ -376,7 +263,7 @@ let runEdgeChecks = (cube, checks, cornerPieces): parityResult => {
       }
     | None =>
       checks->Dict.set("edgeColors", true)
-      let edgeOrientSum = sum(edgeOrients)
+      let edgeOrientSum = CubePieces.sum(edgeOrients)
       checks->Dict.set("edgeOrientation", mod(edgeOrientSum, 2) == 0)
       if mod(edgeOrientSum, 2) != 0 {
         {
@@ -384,12 +271,12 @@ let runEdgeChecks = (cube, checks, cornerPieces): parityResult => {
           result: `Edge orientation sum ${Int.toString(edgeOrientSum)} ≢ 0 (mod 2)`,
           checks,
           highlight: edgeFacelets->Array.mapWithIndex((facelets, slot) => {
-            group: edgeNames->Array.getUnsafe(edgePieces->Array.getUnsafe(slot)),
+            group: CubePieces.edgeNames->Array.getUnsafe(edgePieces->Array.getUnsafe(slot)),
             facelets,
           }),
         }
       } else {
-        let parityMatches = permParity(cornerPieces) == permParity(edgePieces)
+        let parityMatches = CubePieces.permParity(cornerPieces) == CubePieces.permParity(edgePieces)
         checks->Dict.set("permutationParity", parityMatches)
         parityMatches
           ? {valid: true, result: validResult, checks}
@@ -414,23 +301,14 @@ let runFullParity = (cube: cubeIR): parityResult => {
     // failure can point at exactly those stickers.
     let cornerFacelets = []
     let unknownCorners = []
-    cornerSlots->Array.forEach(slots => {
+    CubePieces.cornerSlots->Array.forEach(slots => {
       let facelets = slots->Array.map(((face, slot)) => {
-        face,
-        index: cornerFaceletIndex(n, slot),
+        face: faceName(face),
+        index: CubePieces.cornerFaceletIndex(n, slot),
       })
       let colors = facelets->Array.map(({face, index}) => sticker(cube, face, index))
-      let color = i => colors->Array.getUnsafe(mod(i, 3))
-      let found = solvedCorners->findMapWithIndex((solved, piece) =>
-        [0, 1, 2]
-        ->Array.find(
-          rot =>
-            color(rot) == solved->Array.getUnsafe(0) &&
-            color(rot + 1) == solved->Array.getUnsafe(1) &&
-            color(rot + 2) == solved->Array.getUnsafe(2),
-        )
-        ->Option.map(rot => (piece, rot))
-      )
+      let color = i => colors->Array.getUnsafe(i)
+      let found = CubePieces.identifyCorner((color(0), color(1), color(2)))
       switch found {
       | Some((piece, rot)) =>
         cornerPieces->Array.push(piece)
@@ -456,7 +334,7 @@ let runFullParity = (cube: cubeIR): parityResult => {
         ->Array.filterMap(x => x)
       Array.length(slots) > 1
         ? slots->Array.map(slot => {
-            group: cornerNames->Array.getUnsafe(piece),
+            group: CubePieces.cornerNames->Array.getUnsafe(piece),
             facelets: cornerFacelets->Array.getUnsafe(slot),
           })
         : []
@@ -487,7 +365,7 @@ let runFullParity = (cube: cubeIR): parityResult => {
       checks->Dict.set("cornerColors", true)
       // The twist sum belongs to all 8 corners together, so all of them are
       // highlighted, each under its own piece.
-      let cornerOrientSum = sum(cornerOrients)
+      let cornerOrientSum = CubePieces.sum(cornerOrients)
       checks->Dict.set("cornerOrientation", mod(cornerOrientSum, 3) == 0)
       if mod(cornerOrientSum, 3) != 0 {
         {
@@ -495,7 +373,7 @@ let runFullParity = (cube: cubeIR): parityResult => {
           result: `Corner orientation sum ${Int.toString(cornerOrientSum)} ≢ 0 (mod 3)`,
           checks,
           highlight: cornerFacelets->Array.mapWithIndex((facelets, slot) => {
-            group: cornerNames->Array.getUnsafe(cornerPieces->Array.getUnsafe(slot)),
+            group: CubePieces.cornerNames->Array.getUnsafe(cornerPieces->Array.getUnsafe(slot)),
             facelets,
           }),
         }
