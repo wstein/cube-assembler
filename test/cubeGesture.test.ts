@@ -306,13 +306,14 @@ describe('held sticker drags', () => {
     size: 5,
   }
 
-  it('holds a sticker 400 ms for a direct wide turn', () => {
+  it('holds a sticker 300 ms for a wide turn, then 800 ms for x/y/z', () => {
     const keys = { shiftKey: false, altKey: false }
     expect(pressLevel(0, keys)).toBe('layer')
-    expect(WIDE_PRESS_MS).toBe(400)
+    expect(WIDE_PRESS_MS).toBe(300)
     expect(pressLevel(WIDE_PRESS_MS - 1, keys)).toBe('layer')
     expect(pressLevel(WIDE_PRESS_MS, keys)).toBe('wide')
-    expect(pressLevel(900, keys)).toBe('wide')
+    expect(pressLevel(799, keys)).toBe('wide')
+    expect(pressLevel(800, keys)).toBe('cube')
   })
 
   it('widens a touched slice from its named face without a selection swipe', () => {

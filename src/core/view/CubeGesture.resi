@@ -29,6 +29,7 @@ type swipeLayer = {
 @genType let swipeLayerAngle: (surfaceHit, swipeLayer, float, float, camera) => float
 
 @genType let widePressMs: float
+@genType let cubePressMs: float
 @genType let pressSlopPx: float
 
 @genType

@@ -159,7 +159,7 @@ export function SettingsPage({ onClose }: Props) {
       <Section id="settings-view" title="3D view">
         <ToggleSetting
           label="Turn sound"
-          hint="A soft click when a layer snaps into place, and a tone when a held sticker starts a wide turn."
+          hint="A soft click when a layer snaps into place, one tone for a wide turn, and two for a whole-cube turn."
           checked={turnSoundOn(cookies)}
           onChange={(on) => write(preferenceCookie(TURN_SOUND_COOKIE, on))}
         />

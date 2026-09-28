@@ -190,9 +190,10 @@ let swipeLayerAngle = (hit, layer: swipeLayer, dx, dy, camera) =>
     Int.toFloat(layer.sign) *. 0.1 *. along->Array.getUnsafe(axes->Array.indexOf(layer.axis))
   }
 
-// Holding a sticker widens its turn after 400 ms. Shift widens immediately;
-// Alt turns the whole cube. Moving first keeps the single-layer swipe.
-let widePressMs = 400.0
+// Holding a sticker widens its turn after 300 ms, then selects a whole-cube
+// x/y/z turn after 800 ms. Moving first keeps the single-layer swipe.
+let widePressMs = 300.0
+let cubePressMs = 800.0
 let pressSlopPx = 10.0
 
 type pressLevel =
@@ -203,7 +204,7 @@ type pressLevel =
 type pressKeys = {shiftKey: bool, altKey: bool}
 
 let pressLevel = (heldMs, keys) =>
-  if keys.altKey {
+  if keys.altKey || heldMs >= cubePressMs {
     Cube
   } else if keys.shiftKey || heldMs >= widePressMs {
     Wide
@@ -289,8 +290,8 @@ let releasedQuarterTurns = (angle, velocity, commitFraction, flickMs) => {
 }
 
 // What a drag does. Mouse and pen: a sticker swipe turns its layer and the
-// background rotates the view. Touch: one finger turns layers; two fingers
-// turn the cube, then control the camera after a still hold.
+// background rotates the view. Touch: one finger turns layers or, after a
+// hold, the cube; two fingers rotate or zoom the camera.
 type cubeGesture =
   | @as("pending") Pending
   | @as("turn") Turn

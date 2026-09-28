@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test'
 
-test('a sticker hold widens after 400 ms without a timing setting', async ({
+test('a sticker hold widens after 300 ms without a timing setting', async ({
   page,
 }) => {
   await page.goto('/')
@@ -18,7 +18,7 @@ test('a sticker hold widens after 400 ms without a timing setting', async ({
     bounds.y + bounds.height / 2,
   )
   await page.mouse.down()
-  await page.waitForTimeout(450)
+  await page.waitForTimeout(400)
   await expect(page.locator('.cube-3d-press-mode')).toHaveText(/Wide turn/)
   await page.mouse.up()
 })

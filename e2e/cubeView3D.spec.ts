@@ -384,7 +384,7 @@ for (const control of ['Front (F)', 'Isometric', 'Iso-back']) {
   })
 }
 
-test('on touch, one finger turns a layer and a quick two-finger swipe turns the cube', async ({
+test('on touch, one finger turns a layer and two fingers rotate the view', async ({
   page,
 }) => {
   await page.goto('/')
@@ -435,7 +435,7 @@ test('on touch, one finger turns a layer and a quick two-finger swipe turns the 
   await page.waitForTimeout(600)
   const afterTurn = await canvas.screenshot()
 
-  // A quick two-finger swipe turns the whole cube and records x/y/z.
+  // Two fingers rotate the view without changing the cube state.
   await touch('pointerdown', 3, cx - 40, cy)
   await touch('pointerdown', 4, cx + 40, cy)
   for (let step = 1; step <= 5; step++) {
@@ -446,11 +446,11 @@ test('on touch, one finger turns a layer and a quick two-finger swipe turns the 
   await touch('pointerup', 4, cx + 100, cy + 30)
   await page.waitForTimeout(300)
   expect((await canvas.screenshot()).equals(afterTurn)).toBe(false)
-  await expect(history).toContainText(/Moves: 2L' [xyz]/)
-  await expect(notation).not.toHaveValue(turned)
+  await expect(history).toHaveText("Moves: 2L'")
+  await expect(notation).toHaveValue(turned)
 })
 
-test('a quick two-finger flick commits with one move per finger', async ({
+test('a quick two-finger flick rotates the view without recording a move', async ({
   page,
 }) => {
   await page.goto('/')
@@ -482,9 +482,9 @@ test('a quick two-finger flick commits with one move per finger', async ({
     type: 'touchEnd',
     touchPoints: [],
   })
-  await expect(
-    page.getByRole('status', { name: 'Move history' }),
-  ).toContainText(/Moves: [xyz]/)
+  await expect(page.getByRole('status', { name: 'Move history' })).toHaveText(
+    'Moves: None',
+  )
 })
 
 test('a two-finger touchpad swipe tilts the cube instead of zooming', async ({
@@ -536,7 +536,6 @@ test('two fingers zoom only once they clearly pinch', async ({ page }) => {
   const spread = async (half: number) => {
     await touch('pointerdown', 1, cx - 50)
     await touch('pointerdown', 2, cx + 50)
-    await page.waitForTimeout(450)
     for (let step = 1; step <= 5; step++) {
       const h = 50 + ((half - 50) * step) / 5
       await touch('pointermove', 1, cx - h)
@@ -648,7 +647,6 @@ test('a two-finger tilt with close, drifting fingers never zooms', async ({
   // real fingers do. That used to switch zoom on for the rest of the swipe.
   await touch('pointerdown', 1, cx - 30, cy - 75)
   await touch('pointerdown', 2, cx + 30, cy - 75)
-  await page.waitForTimeout(450)
   for (let step = 1; step <= 10; step++) {
     const drift = 1.5 * step
     await touch('pointermove', 1, cx - 30 - drift / 2, cy - 75 + step * 15)
@@ -690,13 +688,13 @@ test.describe('held sticker drags', () => {
     page.getByRole('status', { name: 'Move history' })
   const badge = (page: Page) => page.locator('.cube-3d-press-mode')
 
-  test('a 400 ms hold turns a standard wide move directly', async ({
+  test('a 300 ms hold turns a standard wide move directly', async ({
     page,
   }) => {
     const { x, y, quarter } = await setUp(page)
     await page.mouse.move(x, y)
     await page.mouse.down()
-    await page.waitForTimeout(650)
+    await page.waitForTimeout(450)
     await expect(badge(page)).toHaveText(/Wide turn/)
     await page.mouse.move(x, y - 1.1 * quarter, { steps: 12 })
     await page.waitForTimeout(150)
@@ -717,18 +715,18 @@ test.describe('held sticker drags', () => {
     await expect(history(page)).toHaveText("Moves: Lw'")
   })
 
-  test('holding past 900 ms stays a wide turn', async ({ page }) => {
+  test('holding for 800 ms turns the whole cube as x/y/z', async ({ page }) => {
     const { x, y, quarter } = await setUp(page)
     const notation = page.getByRole('textbox', { name: 'Notation' })
     const solved = await notation.inputValue()
     await page.mouse.move(x, y)
     await page.mouse.down()
-    await page.waitForTimeout(1350)
-    await expect(badge(page)).toHaveText(/Wide turn/)
+    await page.waitForTimeout(1000)
+    await expect(badge(page)).toHaveText(/Whole cube/)
     await page.mouse.move(x, y - 1.1 * quarter, { steps: 12 })
     await page.waitForTimeout(150)
     await page.mouse.up()
-    await expect(history(page)).toHaveText("Moves: Lw'")
+    await expect(history(page)).toHaveText('Moves: x')
     await expect(notation).not.toHaveValue(solved)
   })
 
@@ -759,13 +757,36 @@ test.describe('held sticker drags', () => {
         bubbles: true,
       })
     await touch('pointerdown', y)
-    await page.waitForTimeout(650)
+    await page.waitForTimeout(450)
     await expect(badge(page)).toHaveText(/Wide turn/)
     for (let step = 1; step <= 10; step++)
       await touch('pointermove', y - (1.1 * quarter * step) / 10)
     await page.waitForTimeout(150)
     await touch('pointerup', y - 1.1 * quarter)
     await expect(history(page)).toHaveText("Moves: Lw'")
+  })
+
+  test('an 800 ms touch hold selects a whole-cube x/y/z turn', async ({
+    page,
+  }) => {
+    const { x, y, quarter } = await setUp(page)
+    const canvas = page.locator('.cube-3d-canvas')
+    const touch = (type: string, clientY: number) =>
+      canvas.dispatchEvent(type, {
+        pointerId: 8,
+        pointerType: 'touch',
+        isPrimary: true,
+        clientX: x,
+        clientY,
+        bubbles: true,
+      })
+    await touch('pointerdown', y)
+    await page.waitForTimeout(950)
+    await expect(badge(page)).toHaveText(/Whole cube/)
+    for (let step = 1; step <= 10; step++)
+      await touch('pointermove', y - (1.1 * quarter * step) / 10)
+    await touch('pointerup', y - 1.1 * quarter)
+    await expect(history(page)).toContainText(/Moves: [xyz]/)
   })
 
   for (const sound of [true, false])
@@ -798,10 +819,10 @@ test.describe('held sticker drags', () => {
         )
       await page.mouse.move(x, y)
       await page.mouse.down()
+      await page.waitForTimeout(450)
+      expect(await tones()).toBe(sound ? 1 : 0)
       await page.waitForTimeout(650)
-      expect(await tones()).toBe(sound ? 1 : 0)
-      await page.waitForTimeout(700)
-      expect(await tones()).toBe(sound ? 1 : 0)
+      expect(await tones()).toBe(sound ? 3 : 0)
       await page.mouse.up()
     })
 
