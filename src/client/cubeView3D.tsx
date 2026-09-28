@@ -7,9 +7,7 @@ import {
   gestureForPointerDown,
   gestureWhenSwipeTurnsNothing,
   pickCubeSurface,
-  CUBE_PRESS_MS,
   PRESS_SLOP_PX,
-  WIDE_PRESS_MS,
   blockLayer,
   facePlanePoint,
   layerIndex,
@@ -37,6 +35,7 @@ import {
   SOUND_COOKIE,
   STICKERLESS_COOKIE,
   preferenceCookie,
+  readHoldTimings,
   readPreference,
 } from './preferences'
 import type { CubeState, FaceKey } from '../cube/cubeAssembly'
@@ -1920,9 +1919,10 @@ export function CubeView3D({
     if (gesture) gesture.holdTimer = undefined
   }
 
-  // Holding the sticker still widens what it turns: a block of layers after
-  // WIDE_PRESS_MS, then the whole cube after CUBE_PRESS_MS.
+  // Holding the sticker still widens what it turns: a block of layers, then
+  // the whole cube, after the times saved on the settings page.
   const holdSticker = (gesture: NonNullable<typeof gestureRef.current>) => {
+    const { blockMs, cubeMs } = readHoldTimings(document.cookie)
     const upgrade = (level: PressLevel, next?: () => void) => {
       if (gestureRef.current !== gesture || gesture.mode !== 'pending') return
       if (gesture.block) return
@@ -1940,10 +1940,10 @@ export function CubeView3D({
         upgrade('block', () => {
           gesture.holdTimer = setTimeout(
             () => upgrade('cube'),
-            CUBE_PRESS_MS - WIDE_PRESS_MS,
+            cubeMs - blockMs,
           )
         }),
-      WIDE_PRESS_MS,
+      blockMs,
     )
   }
 

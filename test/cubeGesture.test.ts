@@ -312,6 +312,14 @@ describe('held sticker drags', () => {
     expect(pressLevel(CUBE_PRESS_MS, keys)).toBe('cube')
   })
 
+  it('holds for the times set on the settings page', () => {
+    const keys = { shiftKey: false, altKey: false }
+    const timings = { blockMs: 200, cubeMs: 400 }
+    expect(pressLevel(199, keys, timings)).toBe('layer')
+    expect(pressLevel(200, keys, timings)).toBe('block')
+    expect(pressLevel(400, keys, timings)).toBe('cube')
+  })
+
   it('takes Shift for a block and Alt for the whole cube at once', () => {
     expect(pressLevel(0, { shiftKey: true, altKey: false })).toBe('block')
     expect(pressLevel(0, { shiftKey: false, altKey: true })).toBe('cube')

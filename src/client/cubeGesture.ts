@@ -198,12 +198,25 @@ export const PRESS_SLOP_PX = 10
 
 export type PressLevel = 'layer' | 'block' | 'cube'
 
+// How long to hold for a block and for the whole cube; the settings page
+// can change them.
+export interface HoldTimings {
+  blockMs: number
+  cubeMs: number
+}
+
+export const DEFAULT_HOLD_TIMINGS: HoldTimings = {
+  blockMs: WIDE_PRESS_MS,
+  cubeMs: CUBE_PRESS_MS,
+}
+
 export function pressLevel(
   heldMs: number,
   keys: { shiftKey: boolean; altKey: boolean },
+  timings: HoldTimings = DEFAULT_HOLD_TIMINGS,
 ): PressLevel {
-  if (keys.altKey || heldMs >= CUBE_PRESS_MS) return 'cube'
-  if (keys.shiftKey || heldMs >= WIDE_PRESS_MS) return 'block'
+  if (keys.altKey || heldMs >= timings.cubeMs) return 'cube'
+  if (keys.shiftKey || heldMs >= timings.blockMs) return 'block'
   return 'layer'
 }
 

@@ -15,6 +15,11 @@ import {
   selectionCookie,
   selectedCubeSize,
   selectedCubeView,
+  CUBE_PRESS_COOKIE,
+  HOLD_TIMING_LIMITS,
+  WIDE_PRESS_COOKIE,
+  holdTimingCookie,
+  readHoldTimings,
 } from '../src/client/preferences'
 
 describe('preference cookies', () => {
@@ -94,5 +99,35 @@ describe('preference cookies', () => {
     expect(readPreference(`${AUTO_ROTATE_COOKIE}=1`, AUTO_ROTATE_COOKIE)).toBe(
       true,
     )
+  })
+})
+
+describe('hold timing cookies', () => {
+  it('uses 500 and 1200 ms until other times are saved', () => {
+    expect(readHoldTimings('')).toEqual({ blockMs: 500, cubeMs: 1200 })
+    const saved = [
+      holdTimingCookie(WIDE_PRESS_COOKIE, 350),
+      holdTimingCookie(CUBE_PRESS_COOKIE, 900),
+    ]
+      .map((cookie) => cookie.split(';')[0])
+      .join('; ')
+    expect(readHoldTimings(saved)).toEqual({ blockMs: 350, cubeMs: 900 })
+  })
+
+  it('keeps saved times in range and the whole cube after the block', () => {
+    const cookies = (block: string, cube: string) =>
+      `${WIDE_PRESS_COOKIE}=${block}; ${CUBE_PRESS_COOKIE}=${cube}`
+    expect(readHoldTimings(cookies('50', '99999'))).toEqual({
+      blockMs: HOLD_TIMING_LIMITS.minMs,
+      cubeMs: HOLD_TIMING_LIMITS.maxMs,
+    })
+    expect(readHoldTimings(cookies('800', '600'))).toEqual({
+      blockMs: 800,
+      cubeMs: 800 + HOLD_TIMING_LIMITS.gapMs,
+    })
+    expect(readHoldTimings(cookies('soon', ''))).toEqual({
+      blockMs: 500,
+      cubeMs: 1200,
+    })
   })
 })
