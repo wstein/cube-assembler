@@ -8,6 +8,10 @@
     {
       "dir": "src/core",
       "subdirs": true
+    },
+    {
+      "dir": "test/properties",
+      "type": "dev"
     }
   ],
   "package-specs": {

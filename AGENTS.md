@@ -26,7 +26,7 @@ Use two-space indentation, single quotes, and semicolons only when needed in Typ
 
 ## Testing Guidelines
 
-Use test-driven development for behavior changes: write a focused failing test, implement the smallest fix, then refactor with the test passing. Use synthetic cases for edge conditions and saved photos for regressions. Relevant suites include `test/gridAlignment.test.ts`, `test/gridAlignmentRealCrops.test.ts`, `test/liveAnalysis.test.ts`, and `test/autoCapture.test.ts`. Browser upload tests live in `e2e/upload.spec.ts`. Run a targeted suite, for example `npx vitest run test/gridAlignment.test.ts`, then `npm test`; run `npm run test:e2e` for upload UI changes. Include no-cube scenes when changing live face detection. Follow `test/fixtures/README.md` before adding capture images.
+Use test-driven development for behavior changes: write a focused failing test, implement the smallest fix, then refactor with the test passing. Use synthetic cases for edge conditions and saved photos for regressions. Relevant suites include `test/gridAlignment.test.ts`, `test/gridAlignmentRealCrops.test.ts`, `test/liveAnalysis.test.ts`, and `test/autoCapture.test.ts`. Browser upload tests live in `e2e/upload.spec.ts`. Property tests of the cube model are written in ReScript with fast-check in `test/properties/` (`*_test.res`, compiled to `*_test.res.mjs`, which Vitest runs with the other tests); use them for invariants that must hold on every scramble. Run a targeted suite, for example `npx vitest run test/gridAlignment.test.ts`, then `npm test`; run `npm run test:e2e` for upload UI changes. Include no-cube scenes when changing live face detection. Follow `test/fixtures/README.md` before adding capture images.
 
 ## Commit & Pull Request Guidelines
 

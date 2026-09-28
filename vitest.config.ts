@@ -4,7 +4,12 @@ export default defineConfig({
   test: {
     environment: 'node',
     globals: true,
-    include: ['test/**/*.test.ts', 'test/**/*.spec.ts'],
+    include: [
+      'test/**/*.test.ts',
+      'test/**/*.spec.ts',
+      // Property tests written in ReScript (test/properties).
+      'test/**/*_test.res.mjs',
+    ],
     coverage: {
       provider: 'v8',
       reporter: ['text', 'json', 'html'],
