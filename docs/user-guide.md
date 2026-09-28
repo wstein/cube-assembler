@@ -52,7 +52,8 @@ Within 3D View, **Stickerless / Stickered** and **Auto-rotate / Pause** are
 remembered too. Swipe a sticker in the 3D view to turn its row or column,
 including inner slices on larger cubes. With a mouse, drag the background to
 rotate the view; it keeps turning briefly after release. On a touch screen,
-one finger only turns layers; two fingers tilt the cube and pinch to zoom. On
+one finger only turns layers; two fingers tilt the cube or pinch to zoom.
+Each two-finger gesture does one or the other, decided by how it starts. On
 a touchpad, a two-finger swipe tilts the cube and a pinch zooms, while a mouse
 wheel still zooms. Turns snap into place with a slight overshoot, like a magnetic cube, and click
 softly when capture **Sound** is on. Layer turns update the 2D net,
