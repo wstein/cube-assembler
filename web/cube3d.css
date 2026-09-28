@@ -1,0 +1,145 @@
+.cube-3d-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--spacing-sm);
+  width: 100%;
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+.cube-3d-canvas-wrap {
+  position: relative;
+  width: 100%;
+  height: 380px;
+  background:
+    radial-gradient(
+      ellipse at 50% 50%,
+      transparent 58%,
+      var(--cube-3d-vignette)
+    ),
+    radial-gradient(
+      ellipse 55% 50% at 50% 40%,
+      var(--cube-3d-glow),
+      transparent 72%
+    ),
+    linear-gradient(
+      180deg,
+      var(--cube-3d-sweep-top) 0%,
+      var(--cube-3d-sweep-top) 35%,
+      var(--cube-3d-sweep-bottom) 100%
+    );
+  border: 6px solid var(--cube-3d-mat);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  box-shadow:
+    0 0 0 1px var(--color-border),
+    var(--shadow-md),
+    inset 0 0 0 1px var(--cube-3d-frame-line),
+    inset 0 1px 5px rgba(12, 15, 18, 0.24);
+
+  .cube-3d-canvas {
+    width: 100%;
+    height: 100%;
+    display: block;
+    cursor: grab;
+    touch-action: none;
+
+    &:active {
+      cursor: grabbing;
+    }
+  }
+
+  .cube-3d-hint {
+    position: absolute;
+    bottom: 8px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: max-content;
+    max-width: calc(100% - 16px);
+    text-align: center;
+    background: rgba(18, 18, 22, 0.75);
+    color: rgba(255, 255, 255, 0.7);
+    font-size: 0.75rem;
+    font-family: var(--font-sans);
+    padding: 3px 10px;
+    border-radius: 12px;
+    pointer-events: none;
+    backdrop-filter: blur(4px);
+  }
+}
+
+.cube-3d-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  gap: var(--spacing-sm);
+  flex-wrap: wrap;
+
+  .cube-3d-section {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-xs);
+    flex-wrap: wrap;
+  }
+
+  .cube-3d-label {
+    font-size: 0.75rem;
+    font-family: var(--font-sans);
+    font-weight: 600;
+    color: var(--color-text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  .cube-3d-presets {
+    display: flex;
+    gap: 4px;
+    flex-wrap: wrap;
+  }
+
+  .cube-3d-actions {
+    display: flex;
+    gap: 4px;
+  }
+
+  .cube-3d-move-history {
+    order: 1;
+    flex-basis: 100%;
+    color: var(--color-text-secondary);
+    font-family: var(--font-mono);
+    font-size: 0.8rem;
+    overflow-wrap: anywhere;
+  }
+}
+
+.cube-3d-btn {
+  background: var(--color-bg-secondary);
+  border: 1px solid var(--color-border);
+  color: var(--color-text-secondary);
+  border-radius: var(--radius-sm);
+  padding: var(--spacing-xs) var(--spacing-sm);
+  font-size: 0.8rem;
+  font-family: var(--font-sans);
+  cursor: pointer;
+  transition: all 0.15s ease;
+
+  &:hover {
+    background: var(--color-bg-page);
+    color: var(--color-text-primary);
+    border-color: var(--color-text-secondary);
+  }
+
+  &.cube-3d-btn-active {
+    background: var(--color-accent-soft);
+    color: var(--color-accent);
+    border-color: var(--color-accent);
+  }
+}
+
+.cube-3d-unsupported {
+  padding: var(--spacing-xl);
+  text-align: center;
+  color: var(--color-text-secondary);
+}

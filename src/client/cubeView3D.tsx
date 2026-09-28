@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'preact/hooks'
+import '../../web/cube3d.css'
 import { createShadowRenderer } from './cubeShadow'
 import {
   clampZoom,
