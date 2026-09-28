@@ -1,9 +1,21 @@
-// Matching good live detections must agree before the camera captures a face.
-import { findCapturedFaceMatch } from '../cube/cubeAssembly'
+// Auto capture waits for matching good live detections, and the turn cue
+// for the old face to leave: typed entry point for
+// src/core/capture/AutoCapture.res.
+import {
+  autoCaptureMinConfidence,
+  autoCaptureStableFrames,
+  nextAutoCaptureProgress as nextAutoCaptureProgressRes,
+  nextTurnCue as nextTurnCueRes,
+  turnCueAbsentFrames,
+  turnCueClearFrames,
+  turnCueCleared as turnCueClearedRes,
+  turnCueStart,
+  turnPoseChanged as turnPoseChangedRes,
+} from '../core/capture/AutoCapture.gen'
 
-export const AUTO_CAPTURE_STABLE_FRAMES = 5
-export const AUTO_CAPTURE_MIN_CONFIDENCE = 0.6
-export const TURN_CUE_CLEAR_FRAMES = 3
+export const AUTO_CAPTURE_STABLE_FRAMES = autoCaptureStableFrames
+export const AUTO_CAPTURE_MIN_CONFIDENCE = autoCaptureMinConfidence
+export const TURN_CUE_CLEAR_FRAMES = turnCueClearFrames
 
 export interface TurnCuePose {
   centerX: number
@@ -12,37 +24,15 @@ export interface TurnCuePose {
   angle: number
 }
 
-// A same-colored side can still be a new side. Only a substantial change
-// counts; small framing jitter while holding the old face does not.
+// Only a substantial change of where the face sits counts as a turn.
 export function turnPoseChanged(
   anchor: TurnCuePose,
   current: TurnCuePose,
 ): boolean {
-  const angle = Math.abs(
-    Math.atan2(
-      Math.sin(current.angle - anchor.angle),
-      Math.cos(current.angle - anchor.angle),
-    ),
-  )
-  return (
-    Math.hypot(
-      current.centerX - anchor.centerX,
-      current.centerY - anchor.centerY,
-    ) >
-      anchor.size * 0.12 ||
-    Math.abs(current.size - anchor.size) > anchor.size * 0.15 ||
-    angle > Math.PI / 9
-  )
+  return turnPoseChangedRes(anchor, current)
 }
 
-// The turn cue stays up while the captured pattern is still in view. It
-// clears on evidence that the face left: TURN_CUE_CLEAR_FRAMES frames showing
-// a confidently detected different face (or the same letters after a real
-// turn, see turnPoseChanged), or TURN_CUE_ABSENT_FRAMES frames in a row
-// without any usable face, as while the cube is being turned. Detector
-// flicker - a few weak frames between frames of the old face - never clears
-// it, or the same face could be captured again.
-export const TURN_CUE_ABSENT_FRAMES = 5
+export const TURN_CUE_ABSENT_FRAMES = turnCueAbsentFrames
 
 export interface TurnCueState {
   // Frames showing a different face since the old one was last seen.
@@ -51,7 +41,7 @@ export interface TurnCueState {
   missing: number
 }
 
-export const TURN_CUE_START: TurnCueState = { departed: 0, missing: 0 }
+export const TURN_CUE_START: TurnCueState = turnCueStart
 
 export function nextTurnCue(
   state: TurnCueState,
@@ -59,20 +49,11 @@ export function nextTurnCue(
   lastCapturedColors: string[][],
   poseChanged = false,
 ): TurnCueState {
-  if (!visibleColors) return { ...state, missing: state.missing + 1 }
-  const stillLastFace =
-    findCapturedFaceMatch([{ colors: lastCapturedColors }], {
-      colors: visibleColors,
-    }) !== null
-  if (stillLastFace && !poseChanged) return TURN_CUE_START
-  return { departed: state.departed + 1, missing: 0 }
+  return nextTurnCueRes(state, visibleColors, lastCapturedColors, poseChanged)
 }
 
 export function turnCueCleared(state: TurnCueState): boolean {
-  return (
-    state.departed >= TURN_CUE_CLEAR_FRAMES ||
-    state.missing >= TURN_CUE_ABSENT_FRAMES
-  )
+  return turnCueClearedRes(state)
 }
 
 export interface AutoCaptureSample {
@@ -89,31 +70,10 @@ export interface AutoCaptureProgress {
   frames: number
 }
 
-function colorDifference(a: string[][], b: string[][]): number {
-  if (a.length !== b.length) return Infinity
-  let different = 0
-  for (let row = 0; row < a.length; row++) {
-    if (a[row].length !== b[row].length) return Infinity
-    for (let col = 0; col < a[row].length; col++) {
-      if (a[row][col] !== b[row][col]) different++
-    }
-  }
-  return different
-}
-
+// Counts frames of the same face in a row.
 export function nextAutoCaptureProgress(
   previous: AutoCaptureProgress | null,
   sample: AutoCaptureSample | null,
 ): AutoCaptureProgress | null {
-  if (!sample || sample.confidence < AUTO_CAPTURE_MIN_CONFIDENCE)
-    return previous
-  const cells = sample.colors.length ** 2
-  if (!previous) return { first: sample, frames: 1 }
-  const first = previous.first
-  const stable =
-    colorDifference(sample.colors, first.colors) <=
-    Math.max(1, Math.floor(cells * 0.04))
-  return stable
-    ? { first, frames: previous.frames + 1 }
-    : { first: sample, frames: 1 }
+  return nextAutoCaptureProgressRes(previous, sample)
 }
