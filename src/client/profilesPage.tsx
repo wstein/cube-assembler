@@ -1,4 +1,5 @@
 // The profiles page (#profiles): one tab per kind of saved profile.
+import '../../web/profiles.css'
 import { ColorReviewTab, type ReviewCapture } from './colorReviewPage'
 import { CubeReviewTab, type ReviewPhoto } from './cubeReviewPage'
 import type { ProfileSettings } from './profileSettings'
