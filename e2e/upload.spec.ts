@@ -98,6 +98,24 @@ test('uploads the same photos with meta.json and preserves all saved face colors
   expect(grids).toEqual(metadata.colorsURFDLB.split(' '))
 })
 
+test('edits one sticker in the review color picker', async ({ page }) => {
+  await page.goto('/')
+  await page
+    .locator('.capture-alternatives input[type="file"]')
+    .setInputFiles([...photos, resolve(fixture, 'meta.json')])
+  const review = page.locator('.review-modal-content')
+  await expect(review).toBeVisible()
+  const firstCell = review.locator('.review-detected-cell').first()
+  await firstCell.click()
+  const picker = page.locator('.color-picker-content')
+  await expect(picker).toBeVisible()
+  const alternative = picker.locator('.color-btn:not(.is-current)').first()
+  const chosen = await alternative.locator('.color-btn-name').textContent()
+  await alternative.click()
+  await expect(picker).toHaveCount(0)
+  await expect(firstCell).toHaveAttribute('title', new RegExp(`: ${chosen}`))
+})
+
 test('shows the fixture contents before downloading and closes with Escape', async ({
   page,
 }) => {

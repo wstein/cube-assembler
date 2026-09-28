@@ -16,6 +16,7 @@ import type { TurnCuePose } from './autoCapture'
 import { CaptureLiveView } from './captureLiveView'
 import { CaptureDialog } from './captureDialog'
 import { CaptureReviewDialog } from './captureReviewDialog'
+import { CaptureColorPicker } from './captureColorPicker'
 import { CaptureSettings, CubeSelectOptions } from './captureSettings'
 import type { FaceCaptureData, PreviewColorProfile } from './captureTypes'
 import { FaceGrid } from './captureNet'
@@ -92,7 +93,6 @@ import {
   CROP_JPEG_QUALITY,
   DEFAULT_SAMPLING,
   STICKER_MEASUREMENT,
-  colorConfidences,
   STICKER_COLORS,
   rgbToOKLCH,
   hueCircularRange,
@@ -3914,69 +3914,24 @@ function App() {
           )
         })()}
 
-      {/* Color-fix palette popup */}
       {reviewEditingCell && (
-        <div
-          class="modal open color-picker-modal"
-          onClick={() => setReviewEditingCell(null)}
-        >
-          <div
-            class="modal-content color-picker-content"
-            role="dialog"
-            aria-modal="true"
-            tabIndex={-1}
-            ref={focusModalOnOpen}
-            onClick={(e) => e.stopPropagation()}
-            onKeyDown={(e) =>
-              handleModalKeyDown(e, e.currentTarget, () =>
-                setReviewEditingCell(null),
-              )
-            }
-          >
-            <h3>Fix color</h3>
-            {(() => {
-              // How well this sticker's measured color matches each option,
-              // so the likely alternatives stand out.
-              const { face, row, col } = reviewEditingCell
-              const rgb = capturedFaces[face]?.cellColors?.[row]?.[col]
-              const scores = rgb
-                ? colorConfidences(
-                    rgb,
-                    learnedPalette ?? palette ?? STICKER_COLORS,
-                  )
-                : null
-              const current = capturedFaces[face]?.colors[row]?.[col]
-              return (
-                <div class="color-palette">
-                  {['W', 'Y', 'O', 'R', 'G', 'B'].map((color) => (
-                    <button
-                      type="button"
-                      key={color}
-                      class={`color-btn ${color === current ? 'is-current' : ''}`}
-                      style={{ background: STICKER_HEX[color] }}
-                      aria-pressed={color === current}
-                      onClick={() => handleFixCellColor(face, row, col, color)}
-                    >
-                      <span class="color-btn-name">{COLOR_NAME[color]}</span>
-                      {scores && (
-                        <span class="color-btn-confidence">
-                          {Math.round((scores[color] ?? 0) * 100)}%
-                        </span>
-                      )}
-                    </button>
-                  ))}
-                </div>
-              )
-            })()}
-            <button
-              type="button"
-              class="btn btn-secondary btn-sm"
-              onClick={() => setReviewEditingCell(null)}
-            >
-              Cancel
-            </button>
-          </div>
-        </div>
+        <CaptureColorPicker
+          editingCell={reviewEditingCell}
+          faces={capturedFaces}
+          learnedPalette={learnedPalette}
+          palette={palette}
+          defaultColors={STICKER_COLORS}
+          stickerColors={STICKER_HEX}
+          colorNames={COLOR_NAME}
+          focusDialog={focusModalOnOpen}
+          onDialogKeyDown={(event) =>
+            handleModalKeyDown(event, event.currentTarget, () =>
+              setReviewEditingCell(null),
+            )
+          }
+          onFixColor={handleFixCellColor}
+          onClose={() => setReviewEditingCell(null)}
+        />
       )}
 
       {fixtureDownload && (
