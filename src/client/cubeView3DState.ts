@@ -14,6 +14,9 @@ export {
 
 export type Point = [number, number]
 
+export const ISOMETRIC_PITCH = 0.52
+export const ISOMETRIC_YAW = -0.74
+
 export interface MeshData {
   positions: Float32Array
   normals: Float32Array
