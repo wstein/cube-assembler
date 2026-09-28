@@ -16,6 +16,7 @@ import type { TurnCuePose } from './autoCapture'
 import { CaptureLiveView } from './captureLiveView'
 import { CaptureDialog } from './captureDialog'
 import { CaptureReviewDialog } from './captureReviewDialog'
+import { OrientationApprovalDialog } from './orientationApprovalDialog'
 import { CaptureColorPicker } from './captureColorPicker'
 import {
   captureBackgroundGains,
@@ -24,15 +25,11 @@ import {
 import { CaptureSettings, CubeSelectOptions } from './captureSettings'
 import type { FaceCaptureData, PreviewColorProfile } from './captureTypes'
 import { FaceGrid } from './captureNet'
-import {
-  describeArrangement,
-  OrientationNetPreview,
-  FACE_LABELS,
-  ORIENTATION_CHOICES_PER_PAGE,
-} from './orientationPresentation'
+import { OrientationNetPreview, FACE_LABELS } from './orientationPresentation'
 import {
   planCaptureReview,
   readyAssemblyAfterCapture,
+  rejectAlternatives,
   type CaptureApproval,
 } from './captureReviewRouting'
 import {
@@ -118,7 +115,6 @@ import {
   checkGuidedCenters,
   findRepeatedFaces,
   findCaptureSlotForOrientedFace,
-  orientationFreeSignature,
   captureCenterSlots,
   placeCapturedFace,
   type OrientedCandidate,
@@ -1860,16 +1856,6 @@ function App() {
   // "No, let me choose each side" is only offered when the photos fit
   // together some other way too; the wizard then starts from every
   // arrangement (see wizardStart).
-  const rejectAlternatives = (
-    approval: NonNullable<typeof orientationApproval>,
-  ): OrientedCandidate[] => {
-    const rejected = new Set(
-      approval.candidates.map((c) => orientationFreeSignature(c.faces)),
-    )
-    return (approval.fallback?.alternatives ?? []).filter(
-      (c) => !rejected.has(orientationFreeSignature(c.faces)),
-    )
-  }
   const handleRejectOrientation = () => {
     if (!orientationApproval) return
     if (rejectAlternatives(orientationApproval).length === 0) return
@@ -3387,13 +3373,20 @@ function App() {
       {/* Approval of how the captured faces fit together (see
           handleConfirmReview): one arrangement to confirm, a few to pick
           from, or a closest match that isn't a valid cube. */}
-      {orientationApproval &&
-        !orientationWizard &&
-        (() => {
-          const { candidates, arrangements, valid, note, suggestedFrom } =
-            orientationApproval
-          const close = () => setOrientationApproval(null)
-          const checkFace = (candidate: OrientedCandidate, face: string) => {
+      {orientationApproval && !orientationWizard && (
+        <OrientationApprovalDialog
+          approval={orientationApproval}
+          puzzleSize={puzzleSize}
+          mirrorPreview={mirrorPreview}
+          stickerColors={STICKER_HEX}
+          focusDialog={focusModalOnOpen}
+          onDialogKeyDown={(event) =>
+            handleModalKeyDown(event, event.currentTarget, () =>
+              setOrientationApproval(null),
+            )
+          }
+          onClose={() => setOrientationApproval(null)}
+          onCheckFace={(candidate, face) => {
             const slot = findCaptureSlotForOrientedFace(
               FACE_ORDER.map((key) => capturedFaces[key]?.colors),
               candidate.faces[face as FaceKey],
@@ -3404,224 +3397,14 @@ function App() {
             setReviewEditingCell(null)
             setReviewNotice(null)
             setShowReviewDialog(true)
+          }}
+          onChoose={handleChooseOrientation}
+          onReject={handleRejectOrientation}
+          onPageChange={(page) =>
+            setOrientationApproval((prev) => prev && { ...prev, page })
           }
-          const single = candidates.length === 1
-          const page = Math.min(
-            orientationApproval.page ?? 0,
-            Math.floor((candidates.length - 1) / ORIENTATION_CHOICES_PER_PAGE),
-          )
-          const first = page * ORIENTATION_CHOICES_PER_PAGE
-          const shown = candidates
-            .map((candidate, i) => ({ candidate, i }))
-            .slice(first, first + ORIENTATION_CHOICES_PER_PAGE)
-          return (
-            <div class="modal open">
-              <div
-                class="modal-content orientation-approval"
-                role="dialog"
-                aria-modal="true"
-                aria-labelledby="orientation-approval-title"
-                tabIndex={-1}
-                ref={focusModalOnOpen}
-                onKeyDown={(e) => handleModalKeyDown(e, e.currentTarget, close)}
-              >
-                <div class="modal-header">
-                  <h2 id="orientation-approval-title">
-                    {!valid
-                      ? "These faces don't make a valid cube"
-                      : single
-                        ? 'Does this match your cube?'
-                        : 'Which of these is your cube?'}
-                  </h2>
-                  <button
-                    type="button"
-                    class="modal-close"
-                    aria-label="Close"
-                    onClick={close}
-                  >
-                    ×
-                  </button>
-                </div>
-                {note && (
-                  <p
-                    class={
-                      valid ? 'orientation-approval-note' : 'capture-warning'
-                    }
-                  >
-                    {note}
-                  </p>
-                )}
-                <p class="orientation-approval-note">
-                  Tap any face to check its colors or retake that photo.
-                </p>
-                {!note && single && valid && (
-                  <p class="orientation-approval-note">
-                    {suggestedFrom && suggestedFrom > 1
-                      ? 'This is the likely fit if you followed the turning guide. If it looks wrong, choose each side.'
-                      : 'The photos fit together one way.'}
-                    {puzzleSize % 2 === 1 &&
-                      ' Hold your cube with white on top and green in front to compare.'}
-                  </p>
-                )}
-                {!single && valid && (
-                  <p class="orientation-approval-note">
-                    The photos fit your cube in {candidates.length} different
-                    ways. Compare two at a time.
-                  </p>
-                )}
-                {single ? (
-                  <div class="approval-single">
-                    <div class="approval-net">
-                      <OrientationNetPreview
-                        faces={candidates[0].faces}
-                        stickerColors={STICKER_HEX}
-                        onFaceClick={(face) => checkFace(candidates[0], face)}
-                      />
-                    </div>
-                    {arrangements?.[0] && (
-                      <div class="approval-changes">
-                        <span class="approval-changes-title">
-                          How the photos were put together
-                        </span>
-                        <ul class="approval-checklist">
-                          {describeArrangement(
-                            arrangements[0],
-                            mirrorPreview,
-                          ).map((line) => (
-                            <li key={line}>
-                              <svg
-                                width="18"
-                                height="18"
-                                viewBox="0 0 18 18"
-                                aria-hidden="true"
-                              >
-                                <circle
-                                  cx="9"
-                                  cy="9"
-                                  r="8"
-                                  fill="var(--color-accent-soft)"
-                                />
-                                <path
-                                  d="m5.5 9.2 2.3 2.3 4.7-4.8"
-                                  fill="none"
-                                  stroke="var(--color-accent)"
-                                  stroke-width="1.8"
-                                  stroke-linecap="round"
-                                  stroke-linejoin="round"
-                                />
-                              </svg>
-                              {line}
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                    )}
-                  </div>
-                ) : (
-                  <>
-                    <div class="orientation-approval-options">
-                      {shown.map(({ candidate, i }) => (
-                        <div key={i} class="orientation-approval-option">
-                          <OrientationNetPreview
-                            faces={candidate.faces}
-                            stickerColors={STICKER_HEX}
-                            onFaceClick={(face) => checkFace(candidate, face)}
-                          />
-                          {arrangements?.[i] && (
-                            <ul class="orientation-approval-changes">
-                              {describeArrangement(
-                                arrangements[i],
-                                mirrorPreview,
-                              ).map((line) => (
-                                <li key={line}>{line}</li>
-                              ))}
-                            </ul>
-                          )}
-                          <button
-                            type="button"
-                            class="btn btn-primary btn-sm"
-                            onClick={() => handleChooseOrientation(candidate)}
-                          >
-                            {valid ? 'This one' : 'Use it anyway'}
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                    {candidates.length > ORIENTATION_CHOICES_PER_PAGE && (
-                      <div class="orientation-choice-pages">
-                        <button
-                          type="button"
-                          class="btn btn-secondary btn-sm"
-                          disabled={page === 0}
-                          onClick={() =>
-                            setOrientationApproval(
-                              (prev) => prev && { ...prev, page: page - 1 },
-                            )
-                          }
-                        >
-                          Previous two
-                        </button>
-                        <span>
-                          Options {first + 1}–
-                          {Math.min(
-                            first + ORIENTATION_CHOICES_PER_PAGE,
-                            candidates.length,
-                          )}{' '}
-                          of {candidates.length}
-                        </span>
-                        <button
-                          type="button"
-                          class="btn btn-secondary btn-sm"
-                          disabled={
-                            first + ORIENTATION_CHOICES_PER_PAGE >=
-                            candidates.length
-                          }
-                          onClick={() =>
-                            setOrientationApproval(
-                              (prev) => prev && { ...prev, page: page + 1 },
-                            )
-                          }
-                        >
-                          Next two
-                        </button>
-                      </div>
-                    )}
-                  </>
-                )}
-                <div class="orientation-approval-actions">
-                  <button
-                    type="button"
-                    class="btn btn-secondary"
-                    onClick={close}
-                  >
-                    Back to the colors
-                  </button>
-                  <div class="header-spacer" />
-                  {rejectAlternatives(orientationApproval).length > 0 && (
-                    <button
-                      type="button"
-                      class="btn btn-secondary"
-                      onClick={handleRejectOrientation}
-                    >
-                      {single
-                        ? 'No, let me choose each side'
-                        : 'None of these - let me choose each side'}
-                    </button>
-                  )}
-                  {single && (
-                    <button
-                      type="button"
-                      class="btn btn-primary btn-review-next"
-                      onClick={() => handleChooseOrientation(candidates[0])}
-                    >
-                      {valid ? 'Yes, this is my cube' : 'Use it anyway'}
-                    </button>
-                  )}
-                </div>
-              </div>
-            </div>
-          )
-        })()}
+        />
+      )}
 
       {orientationWizard &&
         (() => {

@@ -1,5 +1,6 @@
 import {
   checkGuidedCenters,
+  orientationFreeSignature,
   solveFaceOrientations,
   solveGuidedCapture,
   type FaceKey,
@@ -31,6 +32,19 @@ export interface CaptureApproval {
   suggestedFrom?: number
   fallback: OrientationSolution | null
   page?: number
+}
+
+export function rejectAlternatives(
+  approval: CaptureApproval,
+): OrientedCandidate[] {
+  const rejected = new Set(
+    approval.candidates.map((candidate) =>
+      orientationFreeSignature(candidate.faces),
+    ),
+  )
+  return (approval.fallback?.alternatives ?? []).filter(
+    (candidate) => !rejected.has(orientationFreeSignature(candidate.faces)),
+  )
 }
 
 export type CaptureReviewPlan =

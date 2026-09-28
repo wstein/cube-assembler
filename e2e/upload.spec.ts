@@ -146,3 +146,33 @@ test('shows the fixture contents before downloading and closes with Escape', asy
   await dialog.press('Escape')
   await expect(dialog).toHaveCount(0)
 })
+
+test('opens sticker review from a face in the orientation approval', async ({
+  page,
+}) => {
+  await page.goto('/')
+  await page
+    .locator('.capture-alternatives input[type="file"]')
+    .setInputFiles([...photos, resolve(fixture, 'meta.json')])
+  const review = page.locator('.review-modal-content')
+  await expect(review).toBeVisible()
+  await review.locator('.review-detected-cell').first().click()
+  await page
+    .locator('.color-picker-content .color-btn:not(.is-current)')
+    .first()
+    .click()
+  for (let side = 0; side < 5; side++)
+    await review
+      .getByRole('button', { name: 'Looks right — next side' })
+      .click()
+  await review
+    .getByRole('button', { name: 'Looks right — put the cube together' })
+    .click()
+
+  const approval = page.locator('.orientation-approval')
+  await expect(approval).toBeVisible()
+  await approval
+    .getByRole('button', { name: 'Check colors for U face' })
+    .click()
+  await expect(review).toBeVisible()
+})
