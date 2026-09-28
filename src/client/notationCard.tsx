@@ -16,6 +16,7 @@ type CopyStatus =
 
 interface NotationCardProps {
   cube: CubeState | null
+  canSaveFixture: boolean
   size: number
   format: NotationFormat
   loading: boolean
@@ -26,6 +27,7 @@ interface NotationCardProps {
 
 export function NotationCard({
   cube,
+  canSaveFixture,
   size,
   format,
   loading,
@@ -80,7 +82,7 @@ export function NotationCard({
           </button>
         </div>
         <div class="header-spacer" />
-        {cube && (
+        {canSaveFixture && (
           <button
             type="button"
             class="btn btn-secondary btn-sm"

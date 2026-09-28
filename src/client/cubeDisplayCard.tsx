@@ -20,7 +20,7 @@ const PARITY_CHECK_NAMES: Record<string, string> = {
 }
 
 interface CubeDisplayCardProps {
-  cube: CubeState | null
+  sourceCube: CubeState
   visibleCube: CubeState
   size: number
   parity: ParityResult | null
@@ -36,7 +36,7 @@ interface CubeDisplayCardProps {
 }
 
 export function CubeDisplayCard({
-  cube,
+  sourceCube,
   visibleCube,
   size,
   parity,
@@ -67,64 +67,52 @@ export function CubeDisplayCard({
           )}
         </div>
         <div class="header-spacer" />
-        {cube && (
-          <div
-            class="cube-view-toggle"
-            role="group"
-            aria-label="Cube view mode"
+        <div class="cube-view-toggle" role="group" aria-label="Cube view mode">
+          <button
+            type="button"
+            class={`cube-view-toggle-btn ${viewMode === 'net' ? 'is-active' : ''}`}
+            onClick={() => onViewModeChange('net')}
           >
-            <button
-              type="button"
-              class={`cube-view-toggle-btn ${viewMode === 'net' ? 'is-active' : ''}`}
-              onClick={() => onViewModeChange('net')}
-            >
-              2D Net
-            </button>
-            <button
-              type="button"
-              class={`cube-view-toggle-btn ${viewMode === '3d' ? 'is-active' : ''}`}
-              onClick={() => onViewModeChange('3d')}
-            >
-              3D View
-            </button>
-          </div>
-        )}
+            2D Net
+          </button>
+          <button
+            type="button"
+            class={`cube-view-toggle-btn ${viewMode === '3d' ? 'is-active' : ''}`}
+            onClick={() => onViewModeChange('3d')}
+          >
+            3D View
+          </button>
+        </div>
       </div>
-      {cube ? (
-        viewMode === '3d' ? (
-          <Suspense
-            fallback={
-              <div class="cube-3d-container">
-                <div class="cube-3d-hint">Loading 3D view...</div>
-              </div>
-            }
-          >
-            <CubeView3D
-              cube={cube}
-              initialCube={visibleCube}
-              initialMoves={initialMoves}
-              onTurnStateChange={onTurnStateChange}
-              puzzleSize={size}
-              palette={stickerColors}
-            />
-          </Suspense>
-        ) : (
-          <CubeNetView
-            key={size}
-            cube={visibleCube}
-            size={size}
-            parity={parity}
-            capturedFaces={capturedFaces}
-            faceOrder={faceOrder}
-            stickerColors={stickerColors}
-            colorNames={colorNames}
-            confidenceTier={confidenceTier}
+      {viewMode === '3d' ? (
+        <Suspense
+          fallback={
+            <div class="cube-3d-container">
+              <div class="cube-3d-hint">Loading 3D view...</div>
+            </div>
+          }
+        >
+          <CubeView3D
+            cube={sourceCube}
+            initialCube={visibleCube}
+            initialMoves={initialMoves}
+            onTurnStateChange={onTurnStateChange}
+            puzzleSize={size}
+            palette={stickerColors}
           />
-        )
+        </Suspense>
       ) : (
-        <p class="empty-state">
-          No cube yet — capture the faces, upload a fixture or type the colors.
-        </p>
+        <CubeNetView
+          key={size}
+          cube={visibleCube}
+          size={size}
+          parity={parity}
+          capturedFaces={capturedFaces}
+          faceOrder={faceOrder}
+          stickerColors={stickerColors}
+          colorNames={colorNames}
+          confidenceTier={confidenceTier}
+        />
       )}
       {parity && (
         <div class="parity-checks">

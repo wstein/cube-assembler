@@ -15,6 +15,7 @@ import { ManualFaceletInput } from './manualFaceletInput'
 import { CaptureCard } from './captureCard'
 import { ColorProfileControls } from './colorProfileControls'
 import { lazy, Suspense } from 'preact/compat'
+import { useMemo } from 'preact/hooks'
 
 const ProfilesPage = lazy(() =>
   import('./profilesPage').then((m) => ({ default: m.ProfilesPage })),
@@ -199,9 +200,13 @@ export function ScannerAppView({ model }: { model: ScannerAppModel }) {
   // Render
   // ─────────────────────────────────────────────────────────────────────────
 
-  const displayedCube =
-    cube && turnedCube?.source === cube ? turnedCube.value : cube
-  const visibleCube = displayedCube ?? createSolvedCube(puzzleSize)
+  const solvedPreview = useMemo(
+    () => createSolvedCube(puzzleSize),
+    [puzzleSize],
+  )
+  const baseCube = cube ?? solvedPreview
+  const visibleCube =
+    turnedCube?.source === baseCube ? turnedCube.value : baseCube
   if (onSettingsPage) {
     return (
       <Suspense
@@ -357,7 +362,7 @@ export function ScannerAppView({ model }: { model: ScannerAppModel }) {
       <main class="app-main">
         <div class="main-column">
           <CubeDisplayCard
-            cube={cube}
+            sourceCube={baseCube}
             visibleCube={visibleCube}
             size={puzzleSize}
             parity={parity}
@@ -367,15 +372,18 @@ export function ScannerAppView({ model }: { model: ScannerAppModel }) {
             colorNames={COLOR_NAME}
             confidenceTier={confidenceTier}
             viewMode={cubeViewMode}
-            initialMoves={turnedCube?.source === cube ? turnedCube.moves : []}
+            initialMoves={
+              turnedCube?.source === baseCube ? turnedCube.moves : []
+            }
             onViewModeChange={setCubeViewMode}
             onTurnStateChange={(value, moves) =>
-              cube && setTurnedCube({ source: cube, value, moves })
+              setTurnedCube({ source: baseCube, value, moves })
             }
           />
 
           <NotationCard
-            cube={displayedCube}
+            cube={visibleCube}
+            canSaveFixture={cube !== null}
             size={puzzleSize}
             format={notationFormat}
             loading={loading}
