@@ -17,6 +17,10 @@ import { CaptureLiveView } from './captureLiveView'
 import { CaptureDialog } from './captureDialog'
 import { CaptureReviewDialog } from './captureReviewDialog'
 import { CaptureColorPicker } from './captureColorPicker'
+import {
+  captureBackgroundGains,
+  recalibrateCapture,
+} from './captureFinalization'
 import { CaptureSettings, CubeSelectOptions } from './captureSettings'
 import type { FaceCaptureData, PreviewColorProfile } from './captureTypes'
 import { FaceGrid } from './captureNet'
@@ -84,9 +88,7 @@ import {
 } from '../cube/orientationWizard'
 import {
   runGlobalWhiteBalance,
-  classifyAcrossFaces,
   GLARE_WARNING_STICKERS,
-  computeBackgroundGains,
   backdropReference,
   BACKGROUND_WB_METHOD,
   NEUTRAL_GAINS,
@@ -128,7 +130,6 @@ import {
   activeColorProfile,
   allColorProfiles,
   builtinColorProfiles,
-  captureColorProfileSnapshot,
   capturePalette,
   colorPalette,
   copyColorProfile,
@@ -154,14 +155,11 @@ import {
   canCreateProfileFromCapture,
   captureProfileFinding,
   matchPartialColorProfile,
-  profileColorFitPercent,
   profileToUpdate,
-  resolveAutomaticProfile,
   updateProfileFromCapture,
   type AutomaticResolution,
   type PaletteEvidence,
 } from './colorProfileLearning'
-import { colorsUnderWhite } from './colorProfileReview'
 import { readFixtureUpload } from './readFixtureUpload'
 import {
   buildFixture,
@@ -1496,109 +1494,40 @@ function App() {
     )
     if (canRecalibrate) {
       try {
-        const images: Record<string, string> = {}
-        for (const f of FACE_ORDER)
-          images[f] = newCapturedFaces[f].croppedImage!
-
-        // Each face's backdrop brought to the median of all six (see
-        // computeBackgroundGains) before the colors are learned; neutral
-        // without enough backdrop readings (e.g. imported photos).
-        const faceGains = computeBackgroundGains(
-          Object.fromEntries(
-            FACE_ORDER.map((f) => [f, newCapturedFaces[f].backgroundColor]),
-          ),
-        )
+        const faceGains = captureBackgroundGains(newCapturedFaces, FACE_ORDER)
         setAppliedBackgroundGains(faceGains)
-
-        let wb = await runGlobalWhiteBalance(
-          images,
-          puzzleSize,
-          faceGains ?? undefined,
-          sampling,
-          automatic ? undefined : palette,
+        const result = await recalibrateCapture(
+          {
+            faces: newCapturedFaces,
+            order: FACE_ORDER,
+            size: puzzleSize,
+            sampling,
+            automatic,
+            palette,
+            autoProfiles: autoColorProfiles,
+            colorProfile,
+            glareToWarn: glareFacesToWarn,
+          },
+          faceGains,
         )
-        // Record the latest preview so the final six-face choice can explain
-        // whether it kept or replaced that provisional palette.
-        const latestPreview = FACE_ORDER.map((f) => newCapturedFaces[f])
-          .filter((data) => data?.previewColorProfile)
-          .sort((a, b) => b.timestamp - a.timestamp)[0]?.previewColorProfile
-        const resolution =
-          automatic && wb.learned
-            ? resolveAutomaticProfile(
-                autoColorProfiles,
-                wb.learned.colors,
-                latestPreview?.id ?? null,
-              )
-            : null
-        setAutomaticResolution(resolution)
-        const matched = resolution?.profile ?? null
-        const compared = matched ?? (!automatic ? colorProfile : null)
-        const colorFit =
-          compared && wb.learned
-            ? profileColorFitPercent(compared.colors, wb.learned.colors)
-            : undefined
-        // Matched on colors balanced on White, so its stickers are read as
-        // they look under this capture's White (a merged profile's is grey).
-        const matchedReference =
-          matched && wb.learned
-            ? colorsUnderWhite(matched.colors, wb.learned.colors.W)
-            : null
-        if (matchedReference)
-          wb = classifyAcrossFaces(wb.faces, matchedReference)
-        setResolvedColorReference(
-          matchedReference ?? (automatic ? null : (palette ?? null)),
-        )
-        setResolvedColorProfile(
-          automatic
-            ? matched
-              ? resolvedColorProfileSnapshot(matched, 'automatic', colorFit)
-              : wb.learned
-                ? captureColorProfileSnapshot(wb.learned.colors)
-                : null
-            : resolvedColorProfileSnapshot(colorProfile, 'manual', colorFit),
-        )
-        setLearnedPalette(wb.learned?.colors ?? null)
-        finalMixedUp = wb.learned?.mixedUpColors ?? []
+        setAutomaticResolution(result.resolution)
+        setResolvedColorReference(result.reference)
+        setResolvedColorProfile(result.resolvedProfile)
+        setLearnedPalette(result.learnedPalette)
+        finalMixedUp = result.mixedUp
         setMixedUpColors(finalMixedUp)
-        const confidences = FACE_ORDER.flatMap(
-          (face) => wb.faces[face]?.cellConfidences?.flat() ?? [],
-        )
-        setPendingPalette(
-          wb.learned
-            ? {
-                colors: wb.learned.colors,
-                confidentFraction: confidences.length
-                  ? confidences.filter((value) => value >= 0.7).length /
-                    confidences.length
-                  : 0,
-                recalibrated: wb.applied,
-              }
-            : null,
-        )
+        setPendingPalette(result.pendingPalette)
         setCaptureProfile({ id: profile.id, name: profile.name })
         // Keep calibration provisional until the customer approves the
         // complete cube in the orientation review.
-        if (wb.applied) {
-          const recalibrated = { ...newCapturedFaces }
-          for (const f of FACE_ORDER) {
-            const det = wb.faces[f]
-            recalibrated[f] = {
-              ...recalibrated[f],
-              colors: det.colors,
-              detectedColors: det.colors,
-              cellConfidences: det.cellConfidences,
-              cellColors: det.cellColors,
-              cellLookalikes: det.cellLookalikes,
-              confidence: det.confidence,
-            }
-          }
-          finalFaces = recalibrated
-          setCapturedFaces(recalibrated)
+        if (result.applied) {
+          finalFaces = result.finalFaces
+          setCapturedFaces(result.finalFaces)
           setGlobalWhiteBalanceNote(CALIBRATION_NOTE)
         } else {
           setGlobalWhiteBalanceNote(null)
         }
-        finalGlare = glareFacesToWarn(wb.glare)
+        finalGlare = result.glare
         setGlareFaces(finalGlare)
       } catch (err) {
         console.error('Global white balance error:', err)
