@@ -199,7 +199,26 @@ test('lists face presets in URFDLB order', async ({ page }) => {
     'Left (L)',
     'Back (B)',
     'Isometric',
+    'Iso-back',
   ])
+})
+
+test('Iso-back shows the cube from behind, and Isometric turns it back', async ({
+  page,
+}) => {
+  await page.goto('/')
+  await page.getByRole('button', { name: 'Solved cube' }).click()
+  await page.getByRole('button', { name: '3D View' }).click()
+  const canvas = page.locator('.cube-3d-canvas')
+  await page.getByRole('button', { name: 'Isometric' }).click()
+  await page.waitForTimeout(100)
+  const front = await canvas.screenshot()
+  await page.getByRole('button', { name: 'Iso-back' }).click()
+  await page.waitForTimeout(100)
+  expect((await canvas.screenshot()).equals(front)).toBe(false)
+  await page.getByRole('button', { name: 'Isometric' }).click()
+  await page.waitForTimeout(100)
+  expect((await canvas.screenshot()).equals(front)).toBe(true)
 })
 
 test('shows the slate backdrop through a transparent WebGL canvas', async ({
@@ -318,7 +337,13 @@ test('auto-rotate pauses for a drag and resumes without changing its setting', a
   expect((await canvas.screenshot()).equals(resumed)).toBe(false)
 })
 
-for (const control of ['Front (F)', 'Isometric', 'Tilt Up', 'Rotate Left']) {
+for (const control of [
+  'Front (F)',
+  'Isometric',
+  'Iso-back',
+  'Tilt Up',
+  'Rotate Left',
+]) {
   test(`${control} pauses auto-rotate so its view can be inspected`, async ({
     page,
   }) => {

@@ -1344,11 +1344,11 @@ export function CubeView3D({
     resumeAutoAtRef.current = performance.now() + AUTO_ROTATE_RESUME_DELAY_MS
   }
 
-  // Reset to isometric view
-  const resetView = () => {
+  // The isometric view, from the front corner or the opposite back one.
+  const resetView = (back = false) => {
     pauseAutoRotation()
     setPitch(0.42)
-    setYaw(-0.62)
+    setYaw(-0.62 + (back ? Math.PI : 0))
     setZoom(getDefaultZoom(puzzleSize))
   }
 
@@ -2171,10 +2171,18 @@ export function CubeView3D({
                 <button
                   type="button"
                   class="cube-3d-btn"
-                  onClick={resetView}
+                  onClick={() => resetView()}
                   title="Reset to Isometric view"
                 >
                   Isometric
+                </button>
+                <button
+                  type="button"
+                  class="cube-3d-btn"
+                  onClick={() => resetView(true)}
+                  title="Isometric view from behind"
+                >
+                  Iso-back
                 </button>
               </div>
             </div>
