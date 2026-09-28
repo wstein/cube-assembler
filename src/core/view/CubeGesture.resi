@@ -13,8 +13,6 @@ type camera = {
 @genType type surfaceHit = {face: CubeState.faceKey, point: vec, normalAxis: int}
 
 @genType let pickCubeSurface: (float, float, camera) => Null.t<surfaceHit>
-@genType let viewPoint: (vec, camera) => vec
-@genType let screenPoint: (vec, camera) => (float, float)
 
 @genType
 type swipeLayer = {

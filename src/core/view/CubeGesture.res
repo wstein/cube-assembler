@@ -89,17 +89,6 @@ let project = (point, camera) => {
   (focal *. x /. (camera.zoom -. z), -.focal *. y /. (camera.zoom -. z))
 }
 
-// A point of the cube as the camera sees it: turned by the view, with its
-// depth toward the camera in z.
-let viewPoint = (point, camera) => rotateX(rotateY(point, camera.yaw), camera.pitch)
-
-// Where a point of the cube appears on screen, from the top-left corner -
-// the inverse of the ray pickCubeSurface casts.
-let screenPoint = (point, camera) => {
-  let (x, y) = project(point, camera)
-  (camera.width /. 2.0 +. x, camera.height /. 2.0 +. y)
-}
-
 // The point's motion when turning about `axis`, without its motion along
 // the face's normal.
 let tangentInPlane = (axis, (x, y, z): vec, normalAxis) => {
@@ -202,8 +191,8 @@ let swipeLayerAngle = (hit, layer: swipeLayer, dx, dy, camera) =>
   }
 
 // Holding a sticker widens its turn after 300 ms; moving first keeps the
-// single-layer swipe. Alt selects a whole-cube x/y/z turn, which the mini
-// cube also turns - holding longer does not.
+// single-layer swipe. Alt selects a whole-cube x/y/z turn; holding longer
+// does not.
 let widePressMs = 300.0
 let pressSlopPx = 10.0
 

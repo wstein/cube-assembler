@@ -54,15 +54,13 @@
     }
   }
 
-  /* Centered in the space left of the mini cube. */
   .cube-3d-hint {
     position: absolute;
     bottom: 8px;
-    left: 8px;
-    right: 136px;
-    margin-inline: auto;
+    left: 50%;
+    transform: translateX(-50%);
     width: max-content;
-    max-width: calc(100% - 144px);
+    max-width: calc(100% - 16px);
     text-align: center;
     background: rgba(18, 18, 22, 0.75);
     color: rgba(255, 255, 255, 0.7);
@@ -72,73 +70,6 @@
     border-radius: 12px;
     pointer-events: none;
     backdrop-filter: blur(4px);
-  }
-
-  .cube-3d-minicube {
-    position: absolute;
-    bottom: 8px;
-    right: 8px;
-    width: 120px;
-    height: 120px;
-    touch-action: none;
-    cursor: grab;
-    user-select: none;
-    overflow: visible;
-  }
-
-  .cube-3d-minicube-face {
-    stroke: #10192c;
-    stroke-width: 1.2;
-    stroke-linejoin: round;
-  }
-
-  .cube-3d-minicube-axis {
-    pointer-events: none;
-
-    &.behind {
-      opacity: 0.45;
-    }
-  }
-
-  .cube-3d-minicube-shaft {
-    stroke: currentColor;
-    stroke-width: 2.4;
-    stroke-linecap: round;
-  }
-
-  /* Keeps an arrow visible over a face of its own color. */
-  .cube-3d-minicube-outline {
-    stroke: #10192c;
-    stroke-width: 4.6;
-    stroke-linecap: round;
-  }
-
-  .cube-3d-minicube-tip {
-    fill: currentColor;
-    stroke: #10192c;
-    stroke-width: 0.8;
-  }
-
-  .cube-3d-minicube-label {
-    fill: currentColor;
-    stroke: #10192c;
-    stroke-width: 2.5px;
-    paint-order: stroke;
-    font: 700 11px var(--font-sans);
-    text-anchor: middle;
-    dominant-baseline: central;
-  }
-
-  @media (max-width: 480px) {
-    .cube-3d-minicube {
-      width: 96px;
-      height: 96px;
-    }
-
-    .cube-3d-hint {
-      right: 112px;
-      max-width: calc(100% - 120px);
-    }
   }
 
   .cube-3d-press-mode {
