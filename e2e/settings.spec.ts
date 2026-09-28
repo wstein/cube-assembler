@@ -8,9 +8,9 @@ test('the settings page changes how long a sticker is held for a block', async (
   await expect(page.getByRole('heading', { name: 'Settings' })).toBeVisible()
   const block = page.getByRole('slider', { name: 'Hold for a block of layers' })
   const cube = page.getByRole('slider', { name: 'Hold for the whole cube' })
-  await expect(block).toHaveValue('500')
-  await expect(cube).toHaveValue('1200')
-  const reset = page.getByRole('button', { name: /Reset to 500 and 1200 ms/ })
+  await expect(block).toHaveValue('400')
+  await expect(cube).toHaveValue('900')
+  const reset = page.getByRole('button', { name: /Reset to 400 and 900 ms/ })
   await expect(reset).toBeDisabled()
 
   // A block time past the whole cube's pushes the whole cube later.
@@ -18,7 +18,7 @@ test('the settings page changes how long a sticker is held for a block', async (
   await expect(page.getByText('1500 ms')).toBeVisible()
   await expect(cube).toHaveValue('1700')
   await reset.click()
-  await expect(block).toHaveValue('500')
+  await expect(block).toHaveValue('400')
 
   await block.fill('200')
   await expect
@@ -47,7 +47,7 @@ test('Reset all settings restores the defaults', async ({ page }) => {
   await block.fill('900')
   await expect(block).toHaveValue('900')
   await page.getByRole('button', { name: 'Reset all settings' }).click()
-  await expect(block).toHaveValue('500')
+  await expect(block).toHaveValue('400')
   expect(await page.evaluate(() => document.cookie)).not.toContain(
     'cube-assembler-wide-press-ms',
   )

@@ -121,8 +121,8 @@ describe('preference cookies', () => {
 })
 
 describe('hold timing cookies', () => {
-  it('uses 500 and 1200 ms until other times are saved', () => {
-    expect(readHoldTimings('')).toEqual({ blockMs: 500, cubeMs: 1200 })
+  it('uses 400 and 900 ms until other times are saved', () => {
+    expect(readHoldTimings('')).toEqual({ blockMs: 400, cubeMs: 900 })
     const saved = [
       holdTimingCookie(WIDE_PRESS_COOKIE, 350),
       holdTimingCookie(CUBE_PRESS_COOKIE, 900),
@@ -144,8 +144,8 @@ describe('hold timing cookies', () => {
       cubeMs: 800 + HOLD_TIMING_LIMITS.gapMs,
     })
     expect(readHoldTimings(cookies('soon', ''))).toEqual({
-      blockMs: 500,
-      cubeMs: 1200,
+      blockMs: 400,
+      cubeMs: 900,
     })
   })
 })

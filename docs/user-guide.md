@@ -54,9 +54,9 @@ including inner slices on larger cubes. The layer follows your finger: let
 go early and it springs back, keep dragging for two or three quarter turns,
 or drag back to turn the other way. A quick flick finishes one turn, and a
 turn that reverses the previous one removes it from the move list. Hold a sticker
-for half a second to turn several layers: drag across the layers to pick them (they
+for 0.4 seconds to turn several layers: drag across the layers to pick them (they
 light up), then drag the other way to turn them as a block, recorded as Rw,
-3Rw or 2-3Rw. Hold it for 1.2 seconds to turn the whole cube instead, recorded as
+3Rw or 2-3Rw. Hold it for 0.9 seconds to turn the whole cube instead, recorded as
 x, y or z. With a keyboard, Shift picks layers and Alt turns the whole cube
 at once. **Settings** (next to Profiles) changes both hold times. With a mouse, drag the background to
 rotate the view; it keeps turning briefly after release. On a touch screen,

@@ -651,7 +651,7 @@ test.describe('held sticker drags', () => {
     page.getByRole('status', { name: 'Move history' })
   const badge = (page: Page) => page.locator('.cube-3d-press-mode')
 
-  test('a 500 ms hold picks layers across, then turns them as a block', async ({
+  test('a 400 ms hold picks layers across, then turns them as a block', async ({
     page,
   }) => {
     const { x, y, column, quarter } = await setUp(page)
@@ -681,7 +681,7 @@ test.describe('held sticker drags', () => {
     await expect(history(page)).toHaveText("Moves: Lw'")
   })
 
-  test('a 1200 ms hold turns the whole cube', async ({ page }) => {
+  test('a 900 ms hold turns the whole cube', async ({ page }) => {
     const { x, y, quarter } = await setUp(page)
     const notation = page.getByRole('textbox', { name: 'Notation' })
     const solved = await notation.inputValue()

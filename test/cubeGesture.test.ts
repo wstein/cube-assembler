@@ -302,11 +302,11 @@ describe('held sticker drags', () => {
     size: 5,
   }
 
-  it('holds a sticker 500 ms for a block and 1200 ms for the whole cube', () => {
+  it('holds a sticker 400 ms for a block and 900 ms for the whole cube', () => {
     const keys = { shiftKey: false, altKey: false }
     expect(pressLevel(0, keys)).toBe('layer')
-    expect(WIDE_PRESS_MS).toBe(500)
-    expect(CUBE_PRESS_MS).toBe(1200)
+    expect(WIDE_PRESS_MS).toBe(400)
+    expect(CUBE_PRESS_MS).toBe(900)
     expect(pressLevel(WIDE_PRESS_MS - 1, keys)).toBe('layer')
     expect(pressLevel(WIDE_PRESS_MS, keys)).toBe('block')
     expect(pressLevel(CUBE_PRESS_MS - 1, keys)).toBe('block')
