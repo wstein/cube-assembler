@@ -1,7 +1,41 @@
 // Cube geometry and sticker colors are independent: one color profile can
 // serve cubes of several sizes, while each cube keeps its own sticker gap.
+// Typed entry point for src/core/profiles/ProfileSettings.res.
+import {
+  activeColorProfile as activeColorProfileRes,
+  activeCube as activeCubeRes,
+  allColorProfiles as allColorProfilesRes,
+  allCubes as allCubesRes,
+  builtinColorProfiles as builtinColorProfilesRes,
+  builtinCube as builtinCubeRes,
+  captureColorProfileSnapshot as captureColorProfileSnapshotRes,
+  capturePalette as capturePaletteRes,
+  colorPalette as colorPaletteRes,
+  copyColorProfile as copyColorProfileRes,
+  copyCubeSetting as copyCubeSettingRes,
+  cubeGroupName as cubeGroupNameRes,
+  cubesForSize as cubesForSizeRes,
+  deleteColorProfile as deleteColorProfileRes,
+  deleteCube as deleteCubeRes,
+  groupCubesByName as groupCubesByNameRes,
+  isBuiltinColorProfile as isBuiltinColorProfileRes,
+  isBuiltinCube as isBuiltinCubeRes,
+  mergeSettings as mergeSettingsRes,
+  parseProfileSettingsValue as parseProfileSettingsValueRes,
+  renameColorProfile as renameColorProfileRes,
+  renameCube as renameCubeRes,
+  resolvedColorProfileSnapshot as resolvedColorProfileSnapshotRes,
+  saveColorProfile as saveColorProfileRes,
+  saveCube as saveCubeRes,
+  selectColorProfile as selectColorProfileRes,
+  selectCube as selectCubeRes,
+  setAutoColorMatch as setAutoColorMatchRes,
+  autoColorsId,
+  captureColorsId,
+  cubeSizes,
+  emptySettings,
+} from '../core/profiles/ProfileSettings.gen'
 import type { RGB, SamplingGeometry } from './imageProcessing'
-import profileCollection from '../../cube-assembler-profiles.json'
 
 export interface CubeSetting {
   id: string
@@ -34,135 +68,73 @@ export interface ProfileSettings {
   autoMatchedColorsId?: string
 }
 
-export const CUBE_SIZES = [2, 3, 4, 5, 6, 7]
-export const AUTO_COLORS_ID = 'auto-colors'
-export const CAPTURE_COLORS_ID = 'capture-colors'
-const COLOR_KEYS = ['W', 'Y', 'O', 'R', 'G', 'B']
+type Settings = Parameters<typeof saveCubeRes>[0]
+const toRes = (settings: ProfileSettings) => settings as unknown as Settings
+const fromRes = (settings: Settings) => settings as unknown as ProfileSettings
 
-export const EMPTY_SETTINGS: ProfileSettings = {
-  cubes: [],
-  colors: [],
-  activeCubeBySize: {},
-  activeColorsId: AUTO_COLORS_ID,
-}
-
-const BUILTIN_COLOR_PROFILES: ColorProfile[] = profileCollection.colors.map(
-  (profile) => ({
-    id: profile.id,
-    name: profile.name,
-    colors: profile.colors,
-    captures: profile.captures,
-    updatedAt: profile.updatedAt,
-  }),
-)
-const DEFAULT_COLOR_PROFILE = BUILTIN_COLOR_PROFILES.find(
-  (profile) => profile.name === 'Classic',
-)!
+export const CUBE_SIZES: number[] = cubeSizes
+export const AUTO_COLORS_ID = autoColorsId
+export const CAPTURE_COLORS_ID = captureColorsId
+export const EMPTY_SETTINGS: ProfileSettings = fromRes(emptySettings)
 
 export function builtinColorProfiles(): ColorProfile[] {
-  return BUILTIN_COLOR_PROFILES
+  return builtinColorProfilesRes()
 }
 
 export function isBuiltinColorProfile(id: string): boolean {
-  return (
-    id === AUTO_COLORS_ID ||
-    BUILTIN_COLOR_PROFILES.some((profile) => profile.id === id)
-  )
+  return isBuiltinColorProfileRes(id)
 }
 
-// Keep these objects stable: the live camera effect depends on the selected
-// cube's sampling object. Recreating Generic on each render restarts that
-// effect and resets auto-capture before five frames can accumulate.
-const BUILTIN_CUBES: Record<number, CubeSetting> = Object.fromEntries(
-  CUBE_SIZES.map((size) => [
-    size,
-    Object.freeze({
-      id: `builtin-generic-${size}`,
-      name: `Generic ${size}×${size}`,
-      size,
-      sampling: Object.freeze({ stickerCore: 0.6 }),
-    }),
-  ]),
-)
-
+// The same object every time for a size: the live camera effect depends on
+// the selected cube's sampling object staying stable.
 export function builtinCube(size: number): CubeSetting {
-  if (!CUBE_SIZES.includes(size)) throw new Error('Unsupported cube size')
-  return BUILTIN_CUBES[size]
+  return builtinCubeRes(size)
 }
 
 export function isBuiltinCube(id: string): boolean {
-  return CUBE_SIZES.some((size) => id === builtinCube(size).id)
+  return isBuiltinCubeRes(id)
 }
 
 export function allCubes(settings: ProfileSettings): CubeSetting[] {
-  return [...CUBE_SIZES.map(builtinCube), ...settings.cubes]
+  return allCubesRes(toRes(settings))
 }
 
 export function cubeGroupName(cube: CubeSetting): string {
-  const sizeSuffix = new RegExp(
-    `\\s*${cube.size}\\s*[×xX]\\s*${cube.size}\\s*$`,
-  )
-  return cube.name.replace(sizeSuffix, '').trim() || cube.name
+  return cubeGroupNameRes(cube)
 }
 
 export function groupCubesByName(
   settings: ProfileSettings,
 ): Array<{ name: string; cubes: CubeSetting[] }> {
-  const groups = new Map<string, CubeSetting[]>()
-  for (const cube of allCubes(settings)) {
-    const name = cubeGroupName(cube)
-    groups.set(name, [...(groups.get(name) ?? []), cube])
-  }
-  return [...groups].map(([name, cubes]) => ({
-    name,
-    cubes: cubes.sort((a, b) => a.size - b.size),
-  }))
+  return groupCubesByNameRes(toRes(settings))
 }
 
 export function cubesForSize(
   settings: ProfileSettings,
   size: number,
 ): CubeSetting[] {
-  return allCubes(settings).filter((cube) => cube.size === size)
+  return cubesForSizeRes(toRes(settings), size)
 }
 
 export function activeCube(
   settings: ProfileSettings,
   size: number,
 ): CubeSetting {
-  return (
-    cubesForSize(settings, size).find(
-      (cube) => cube.id === settings.activeCubeBySize[size],
-    ) ?? builtinCube(size)
-  )
+  return activeCubeRes(toRes(settings), size)
 }
 
 export function saveCube(
   settings: ProfileSettings,
   cube: CubeSetting,
 ): ProfileSettings {
-  if (isBuiltinCube(cube.id)) throw new Error('Cannot change a built-in cube')
-  if (!validCube(cube)) throw new Error('Invalid cube')
-  const exists = settings.cubes.some((saved) => saved.id === cube.id)
-  return {
-    ...settings,
-    cubes: exists
-      ? settings.cubes.map((saved) => (saved.id === cube.id ? cube : saved))
-      : [...settings.cubes, cube],
-    activeCubeBySize: { ...settings.activeCubeBySize, [cube.size]: cube.id },
-  }
+  return fromRes(saveCubeRes(toRes(settings), cube))
 }
 
 export function selectCube(
   settings: ProfileSettings,
   id: string,
 ): ProfileSettings {
-  const cube = allCubes(settings).find((candidate) => candidate.id === id)
-  if (!cube) throw new Error('Unknown cube')
-  return {
-    ...settings,
-    activeCubeBySize: { ...settings.activeCubeBySize, [cube.size]: id },
-  }
+  return fromRes(selectCubeRes(toRes(settings), id))
 }
 
 export function copyCubeSetting(
@@ -170,34 +142,14 @@ export function copyCubeSetting(
   cube: CubeSetting,
   name: string,
 ): CubeSetting {
-  const trimmed = name.trim().slice(0, 60)
-  if (!trimmed) throw new Error('Cube name required')
-  let id: string
-  do {
-    id = `cube-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
-  } while (allCubes(settings).some((saved) => saved.id === id))
-  return { id, name: trimmed, size: cube.size, sampling: { ...cube.sampling } }
+  return copyCubeSettingRes(toRes(settings), cube, name)
 }
 
 export function deleteCube(
   settings: ProfileSettings,
   id: string,
 ): ProfileSettings {
-  if (isBuiltinCube(id)) throw new Error('Cannot delete a built-in cube')
-  const activeCubeBySize = { ...settings.activeCubeBySize }
-  for (const [size, active] of Object.entries(activeCubeBySize))
-    if (active === id) delete activeCubeBySize[Number(size)]
-  return {
-    ...settings,
-    cubes: settings.cubes.filter((cube) => cube.id !== id),
-    activeCubeBySize,
-  }
-}
-
-function profileName(name: string, what: string): string {
-  const trimmed = name.trim().slice(0, 60)
-  if (!trimmed) throw new Error(`${what} name required`)
-  return trimmed
+  return fromRes(deleteCubeRes(toRes(settings), id))
 }
 
 // Renames a saved cube; built-in Generic cubes keep their names.
@@ -206,16 +158,7 @@ export function renameCube(
   id: string,
   name: string,
 ): ProfileSettings {
-  if (isBuiltinCube(id)) throw new Error('Cannot rename a built-in cube')
-  if (!settings.cubes.some((cube) => cube.id === id))
-    throw new Error('Unknown cube')
-  const trimmed = profileName(name, 'Cube')
-  return {
-    ...settings,
-    cubes: settings.cubes.map((cube) =>
-      cube.id === id ? { ...cube, name: trimmed } : cube,
-    ),
-  }
+  return fromRes(renameCubeRes(toRes(settings), id, name))
 }
 
 // Renames a saved color profile; Generic and Automatic keep their names.
@@ -224,25 +167,13 @@ export function renameColorProfile(
   id: string,
   name: string,
 ): ProfileSettings {
-  if (isBuiltinColorProfile(id))
-    throw new Error('Cannot rename built-in colors')
-  if (!settings.colors.some((profile) => profile.id === id))
-    throw new Error('Unknown color profile')
-  const trimmed = profileName(name, 'Color profile')
-  return {
-    ...settings,
-    colors: settings.colors.map((profile) =>
-      profile.id === id ? { ...profile, name: trimmed } : profile,
-    ),
-  }
+  return fromRes(renameColorProfileRes(toRes(settings), id, name))
 }
 
 export function colorPalette(
   profile: Pick<ColorProfile, 'colors'>,
 ): Record<string, RGB> {
-  return Object.fromEntries(
-    COLOR_KEYS.map((key) => [key, { ...profile.colors[key] }]),
-  )
+  return colorPaletteRes(profile)
 }
 
 export function copyColorProfile(
@@ -250,56 +181,28 @@ export function copyColorProfile(
   source: ColorProfile,
   name: string,
 ): ColorProfile {
-  const trimmed = name.trim().slice(0, 60)
-  if (!trimmed) throw new Error('Color profile name required')
-  let id: string
-  do {
-    id = `colors-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
-  } while (allColorProfiles(settings).some((profile) => profile.id === id))
-  return { id, name: trimmed, colors: colorPalette(source), captures: 0 }
+  return copyColorProfileRes(toRes(settings), source, name)
 }
 
 export function allColorProfiles(settings: ProfileSettings): ColorProfile[] {
-  return [
-    { ...DEFAULT_COLOR_PROFILE, id: AUTO_COLORS_ID, name: 'Automatic colors' },
-    ...BUILTIN_COLOR_PROFILES,
-    ...settings.colors.filter((profile) => !isBuiltinColorProfile(profile.id)),
-  ]
+  return allColorProfilesRes(toRes(settings))
 }
 
 export function activeColorProfile(settings: ProfileSettings): ColorProfile {
-  if (settings.activeColorsId === AUTO_COLORS_ID)
-    return (
-      allColorProfiles(settings).find(
-        (profile) => profile.id === settings.autoMatchedColorsId,
-      ) ?? DEFAULT_COLOR_PROFILE
-    )
-  return (
-    allColorProfiles(settings).find(
-      (profile) => profile.id === settings.activeColorsId,
-    ) ?? DEFAULT_COLOR_PROFILE
-  )
+  return activeColorProfileRes(toRes(settings))
 }
 
-// Automatic does not reuse a match from an earlier complete cube. The capture
-// UI may supply a provisional palette matched from this cube's captured faces.
+// Automatic does not reuse a match from an earlier complete cube.
 export function capturePalette(
   settings: ProfileSettings,
 ): Record<string, RGB> | undefined {
-  return settings.activeColorsId === AUTO_COLORS_ID
-    ? undefined
-    : colorPalette(activeColorProfile(settings))
+  return capturePaletteRes(toRes(settings))
 }
 
 export function captureColorProfileSnapshot(
   colors: Record<string, RGB>,
 ): UsedColorProfile {
-  return {
-    id: CAPTURE_COLORS_ID,
-    name: 'Colors from this capture',
-    selection: 'automatic',
-    colors: colorPalette({ colors }),
-  }
+  return captureColorProfileSnapshotRes(colors)
 }
 
 export function resolvedColorProfileSnapshot(
@@ -307,197 +210,45 @@ export function resolvedColorProfileSnapshot(
   selection: UsedColorProfile['selection'],
   colorFitPercent?: number,
 ): UsedColorProfile {
-  return {
-    id: active.id,
-    name: active.name,
-    selection,
-    colors: colorPalette(active),
-    ...(colorFitPercent !== undefined ? { colorFitPercent } : {}),
-  }
+  return resolvedColorProfileSnapshotRes(active, selection, colorFitPercent)
 }
 
 export function setAutoColorMatch(
   settings: ProfileSettings,
   id: string | null,
 ): ProfileSettings {
-  if (
-    id !== null &&
-    !allColorProfiles(settings).some(
-      (profile) => profile.id === id && id !== AUTO_COLORS_ID,
-    )
-  )
-    throw new Error('Unknown color profile')
-  const { autoMatchedColorsId: _previous, ...rest } = settings
-  return id === null ? rest : { ...rest, autoMatchedColorsId: id }
+  return fromRes(setAutoColorMatchRes(toRes(settings), id))
 }
 
 export function saveColorProfile(
   settings: ProfileSettings,
   profile: ColorProfile,
 ): ProfileSettings {
-  if (isBuiltinColorProfile(profile.id))
-    throw new Error('Cannot change built-in colors')
-  if (!validColorProfile(profile)) throw new Error('Invalid color profile')
-  const exists = settings.colors.some((saved) => saved.id === profile.id)
-  return {
-    ...settings,
-    colors: exists
-      ? settings.colors.map((saved) =>
-          saved.id === profile.id ? profile : saved,
-        )
-      : [...settings.colors, profile],
-    activeColorsId: profile.id,
-  }
+  return fromRes(saveColorProfileRes(toRes(settings), profile))
 }
 
 export function selectColorProfile(
   settings: ProfileSettings,
   id: string,
 ): ProfileSettings {
-  if (!allColorProfiles(settings).some((profile) => profile.id === id))
-    throw new Error('Unknown color profile')
-  return { ...settings, activeColorsId: id }
+  return fromRes(selectColorProfileRes(toRes(settings), id))
 }
 
 export function deleteColorProfile(
   settings: ProfileSettings,
   id: string,
 ): ProfileSettings {
-  if (isBuiltinColorProfile(id))
-    throw new Error('Cannot delete built-in colors')
-  return {
-    ...settings,
-    colors: settings.colors.filter((profile) => profile.id !== id),
-    activeColorsId:
-      settings.activeColorsId === id ? AUTO_COLORS_ID : settings.activeColorsId,
-    autoMatchedColorsId:
-      settings.autoMatchedColorsId === id
-        ? undefined
-        : settings.autoMatchedColorsId,
-  }
+  return fromRes(deleteColorProfileRes(toRes(settings), id))
 }
 
 export function mergeSettings(
   current: ProfileSettings,
   imported: ProfileSettings,
 ): ProfileSettings {
-  const cubes = [...current.cubes]
-  const colors = [...current.colors]
-  for (const cube of imported.cubes) {
-    const index = cubes.findIndex((saved) => saved.id === cube.id)
-    if (index < 0) cubes.push(cube)
-    else cubes[index] = cube
-  }
-  for (const profile of imported.colors) {
-    const index = colors.findIndex((saved) => saved.id === profile.id)
-    if (index < 0) colors.push(profile)
-    else colors[index] = profile
-  }
-  return parseProfileSettings({
-    cubes,
-    colors,
-    activeCubeBySize: {
-      ...current.activeCubeBySize,
-      ...imported.activeCubeBySize,
-    },
-    activeColorsId: imported.activeColorsId,
-    autoMatchedColorsId:
-      imported.autoMatchedColorsId ?? current.autoMatchedColorsId,
-  })
+  return fromRes(mergeSettingsRes(toRes(current), toRes(imported)))
 }
 
-function validCube(value: unknown): value is CubeSetting {
-  const cube = value as CubeSetting | null
-  return (
-    typeof cube?.id === 'string' &&
-    cube.id.length > 0 &&
-    typeof cube.name === 'string' &&
-    cube.name.trim().length > 0 &&
-    CUBE_SIZES.includes(cube.size) &&
-    Number.isFinite(cube.sampling?.stickerCore) &&
-    cube.sampling.stickerCore > 0 &&
-    cube.sampling.stickerCore <= 1
-  )
-}
-
-function validColors(value: unknown): value is Record<string, RGB> {
-  if (!value || typeof value !== 'object') return false
-  const colors = value as Record<string, RGB>
-  return COLOR_KEYS.every((key) =>
-    ['r', 'g', 'b'].every((channel) => {
-      const n = colors[key]?.[channel as keyof RGB]
-      return typeof n === 'number' && Number.isFinite(n) && n >= 0 && n <= 255
-    }),
-  )
-}
-
-function validColorProfile(value: unknown): value is ColorProfile {
-  const profile = value as ColorProfile | null
-  return (
-    typeof profile?.id === 'string' &&
-    profile.id.length > 0 &&
-    typeof profile.name === 'string' &&
-    profile.name.trim().length > 0 &&
-    validColors(profile.colors) &&
-    Number.isInteger(profile.captures) &&
-    profile.captures >= 0
-  )
-}
-
+// Any value, from storage or an imported file, as valid settings.
 export function parseProfileSettings(value: unknown): ProfileSettings {
-  const raw = value as Partial<ProfileSettings> | null
-  if (!raw || !Array.isArray(raw.cubes) || !Array.isArray(raw.colors))
-    return EMPTY_SETTINGS
-  const cubes = raw.cubes
-    .filter(validCube)
-    .filter((cube) => !isBuiltinCube(cube.id))
-    .map((cube) => ({
-      id: cube.id,
-      name: cube.name.slice(0, 60),
-      size: cube.size,
-      sampling: { stickerCore: cube.sampling.stickerCore },
-    }))
-  const colors = raw.colors
-    .filter(validColorProfile)
-    .filter((profile) => !isBuiltinColorProfile(profile.id))
-    .map((profile) => ({
-      id: profile.id,
-      name: profile.name.slice(0, 60),
-      colors: colorPalette(profile),
-      captures: profile.captures,
-      ...(typeof profile.updatedAt === 'string'
-        ? { updatedAt: profile.updatedAt }
-        : {}),
-    }))
-  const activeCubeBySize: Record<number, string> = {}
-  for (const [size, id] of Object.entries(raw.activeCubeBySize ?? {})) {
-    if (
-      CUBE_SIZES.includes(Number(size)) &&
-      typeof id === 'string' &&
-      [...cubes, builtinCube(Number(size))].some(
-        (cube) => cube.id === id && cube.size === Number(size),
-      )
-    )
-      activeCubeBySize[Number(size)] = id
-  }
-  const activeColorsId =
-    typeof raw.activeColorsId === 'string' &&
-    (isBuiltinColorProfile(raw.activeColorsId) ||
-      colors.some((profile) => profile.id === raw.activeColorsId))
-      ? raw.activeColorsId
-      : AUTO_COLORS_ID
-  const autoMatchedColorsId =
-    typeof raw.autoMatchedColorsId === 'string' &&
-    [...BUILTIN_COLOR_PROFILES, ...colors].some(
-      (profile) => profile.id === raw.autoMatchedColorsId,
-    )
-      ? raw.autoMatchedColorsId
-      : undefined
-  return {
-    cubes,
-    colors,
-    activeCubeBySize,
-    activeColorsId,
-    ...(autoMatchedColorsId ? { autoMatchedColorsId } : {}),
-  }
+  return fromRes(parseProfileSettingsValueRes(value))
 }
