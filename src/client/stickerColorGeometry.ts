@@ -1,14 +1,24 @@
 // Sticker colors and sampling geometry: types, plus the typed entry point
 // for src/core/color/StickerGeometry.res.
-
 import {
   cellEdges as cellEdgesRes,
   defaultSampling,
-  sampleCoreFraction,
-  stickerColors,
   stickerSampleRect as stickerSampleRectRes,
+  type rect,
+  type samplingGeometry,
 } from '../core/color/StickerGeometry.gen'
 
+export {
+  defaultSampling as DEFAULT_SAMPLING,
+  // Fraction of each sticker cell actually sampled, centered - the rest is
+  // a dead zone the color/edge detectors ignore; the UI draws the same one.
+  sampleCoreFraction as SAMPLE_CORE_FRACTION,
+  stickerColors as STICKER_COLORS,
+} from '../core/color/StickerGeometry.gen'
+
+export type { samplingGeometry as SamplingGeometry } from '../core/color/StickerGeometry.gen'
+
+// Plain mutable shapes: callers and tests build and adjust these in place.
 export interface ColorDetectionResult {
   colors: string[][]
   confidence: number
@@ -36,20 +46,6 @@ export interface RGB {
   b: number
 }
 
-// Fraction of each sticker cell actually sampled, centered - the rest is a
-// dead zone the color/edge detectors ignore; the UI draws the same one.
-export const SAMPLE_CORE_FRACTION = sampleCoreFraction
-
-// The centered part of each sticker cell to sample. Cube profiles adjust
-// this for different sticker gaps; backdrop exclusion stays fixed.
-export interface SamplingGeometry {
-  // Fraction of each sticker cell that's sampled, centered (the rest is
-  // the gap/dead zone around it).
-  stickerCore: number
-}
-
-export const DEFAULT_SAMPLING: SamplingGeometry = defaultSampling
-
 // Where the grid lines of a face fall, as fractions of its size; outer
 // rows and columns may be `outer` times as wide as inner ones.
 export function cellEdges(gridSize: number, outer = 1): number[] {
@@ -64,9 +60,9 @@ export function stickerSampleRect(
   gridSize: number,
   faceWidth: number,
   faceHeight: number,
-  sampling: SamplingGeometry = DEFAULT_SAMPLING,
+  sampling: samplingGeometry = defaultSampling,
   outerCellRatio = 1,
-): { x: number; y: number; width: number; height: number } {
+): rect {
   return stickerSampleRectRes(
     row,
     col,
@@ -77,6 +73,3 @@ export function stickerSampleRect(
     outerCellRatio,
   )
 }
-
-// Standard cube sticker colors (WCA compliant).
-export const STICKER_COLORS: Record<string, RGB> = stickerColors
