@@ -1,45 +1,19 @@
-// How a layer turn feels: magnetic cubes hold a layer briefly, then snap it
-// a little past the quarter turn and let it settle, with a soft click.
+// How a layer turn feels: the easing lives in src/core/view/TurnFeel.res;
+// this plays its soft click and mode cues.
+import {
+  modeCueGain,
+  modeCueNotes as modeCueNotesRes,
+} from '../core/view/TurnFeel.gen'
 
-// Overshoot strength of the snap; 1.0 goes about 3.7% past the turn.
-const SNAP = 1.0
-
-export function magneticEase(progress: number): number {
-  const t = Math.min(1, Math.max(0, progress))
-  if (t === 0 || t === 1) return t
-  // A slow start, then an ease-out that overshoots near the end and settles.
-  const x = t * t - 1
-  return 1 + (SNAP + 1) * x * x * x + SNAP * x * x
-}
-
-// A plain ease-out for those who turn the magnetic snap off.
-export function smoothEase(progress: number): number {
-  const t = Math.min(1, Math.max(0, progress))
-  return 1 - (1 - t) ** 3
-}
-
-export function turnEase(progress: number, overshoot: boolean): number {
-  return overshoot ? magneticEase(progress) : smoothEase(progress)
-}
-
-// A quarter turn's animation at the default speed. A released drag settles
-// in proportion to how far it has left, between three quarters and one and
-// a half of that; scrambles run at about half of it.
-export const DEFAULT_TURN_MS = 160
-
-export function settleDuration(quarters: number, turnMs: number): number {
-  return Math.max(0.75 * turnMs, Math.min(1.5 * turnMs, turnMs * quarters))
-}
-
-export function scrambleDuration(turnMs: number): number {
-  return Math.round((turnMs * 85) / DEFAULT_TURN_MS)
-}
-
-// Scrambles turn every 85 ms; full-volume clicks would rattle.
-export function turnClickGain(durationMs: number, soundOn: boolean): number {
-  if (!soundOn) return 0
-  return durationMs < 120 ? 0.05 : 0.12
-}
+export {
+  defaultTurnMs as DEFAULT_TURN_MS,
+  magneticEase,
+  scrambleDuration,
+  settleDuration,
+  smoothEase,
+  turnClickGain,
+  turnEase,
+} from '../core/view/TurnFeel.gen'
 
 let audio: AudioContext | null = null
 
@@ -78,15 +52,10 @@ export function playTurnClick(gain: number): void {
 export function modeCueNotes(
   level: 'block' | 'cube',
 ): Array<{ frequency: number; start: number; duration: number }> {
-  return level === 'block'
-    ? [{ frequency: 660, start: 0, duration: 0.06 }]
-    : [
-        { frequency: 660, start: 0, duration: 0.05 },
-        { frequency: 990, start: 0.07, duration: 0.06 },
-      ]
+  return modeCueNotesRes(level)
 }
 
-export const MODE_CUE_GAIN = 0.08
+export const MODE_CUE_GAIN = modeCueGain
 
 export function playModeCue(level: 'block' | 'cube', gain: number): void {
   if (gain <= 0) return
