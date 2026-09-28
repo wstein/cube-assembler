@@ -54,15 +54,13 @@ including inner slices on larger cubes. The layer follows your finger: let
 go early and it springs back, keep dragging for two or three quarter turns,
 or drag back to turn the other way. A quick flick finishes one turn, and a
 turn that reverses the previous one removes it from the move list. Hold a sticker
-for 0.4 seconds to turn several layers: drag across the layers to pick them (they
-light up), then drag the other way to turn them as a block, recorded as Rw,
-3Rw or 2-3Rw. Hold it for 0.9 seconds to turn the whole cube instead, recorded as
-x, y or z. With a keyboard, Shift picks layers and Alt turns the whole cube
-at once. With Turn sound on, one tone marks a block and two rising tones the whole
-cube. **Settings** (next to Profiles) changes both hold times. With a mouse, drag the background to
+for 0.4 seconds, then swipe to turn a standard wide move such as Rw or 3Rw.
+Shift starts a wide turn immediately and Alt turns the whole cube. With Turn
+sound on, a tone marks the wide turn. With a mouse, drag the background to
 rotate the view; it keeps turning briefly after release. On a touch screen,
-one finger only turns layers; two fingers tilt the cube or pinch to zoom.
-Each two-finger gesture does one or the other, decided by how it starts. On
+one finger turns a layer. A quick two-finger swipe turns the whole cube and
+records x, y or z. Hold two fingers still for 0.4 seconds to rotate the view
+or pinch to zoom. On
 a touchpad, a two-finger swipe tilts the cube and a pinch zooms, while a mouse
 wheel still zooms. Turns snap into place with a slight overshoot, like a magnetic cube, and click
 softly when capture **Sound** is on. Layer turns update the 2D net,
