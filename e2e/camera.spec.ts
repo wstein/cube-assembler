@@ -93,19 +93,30 @@ test('captures and re-detects a face from a live camera stream', async ({
     )
   }
   await expect(page.getByText('All 6 captured', { exact: true })).toBeVisible()
+  await expect(capture).not.toBeVisible()
   const review = page.locator('.review-modal-content')
-  if (!(await review.isVisible())) {
-    const backToColors = page.getByRole('button', {
-      name: 'Back to the colors',
-    })
-    if (await backToColors.isVisible()) await backToColors.click()
-    else {
+  await expect
+    .poll(async () => {
+      if (await review.isVisible()) return true
+      const backToColors = page.getByRole('button', {
+        name: 'Back to the colors',
+      })
+      if (await backToColors.isVisible()) {
+        await backToColors.click()
+        return await review.isVisible()
+      }
       const dialog = page.getByRole('dialog')
-      if (await dialog.isVisible())
+      if (await dialog.isVisible()) {
         await dialog.getByRole('button', { name: 'Close' }).click()
-      await page.getByRole('button', { name: 'Edit colors' }).click()
-    }
-  }
+      }
+      const editColors = page.getByRole('button', { name: 'Edit colors' })
+      if (await editColors.isVisible()) {
+        await editColors.click()
+        return await review.isVisible()
+      }
+      return false
+    })
+    .toBe(true)
   await expect(review.locator('.review-face-image')).toBeVisible()
   const savedPhoto = await review
     .locator('.review-face-image')
