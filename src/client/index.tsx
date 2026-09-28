@@ -54,6 +54,7 @@ import {
 } from './capturePhoto'
 import { CubeNetView } from './cubeNetView'
 import { NotationCard } from './notationCard'
+import { ManualFaceletInput } from './manualFaceletInput'
 import { lazy, Suspense } from 'preact/compat'
 
 const CubeView3D = lazy(() =>
@@ -2715,63 +2716,15 @@ function App() {
               </div>
             )}
             {showColorInput && (
-              <div class="color-input-panel">
-                <div class="notation-format-toggle">
-                  <button
-                    type="button"
-                    class={`wb-btn ${notationFormat === 'wrg' ? 'active' : ''}`}
-                    onClick={() => setNotationFormat('wrg')}
-                  >
-                    WRG Facelets
-                  </button>
-                  <button
-                    type="button"
-                    class={`wb-btn ${notationFormat === 'urf' ? 'active' : ''}`}
-                    onClick={() => setNotationFormat('urf')}
-                  >
-                    URF / Orbit64 Facelets
-                  </button>
-                </div>
-                <label>
-                  {notationFormat === 'wrg'
-                    ? `Enter WRG facelets: 6 blocks of ${puzzleSize * puzzleSize} colors (W, O, G, R, B, Y), space-separated, in U R F D L B order`
-                    : `Enter URF facelets: 6 blocks of ${puzzleSize * puzzleSize} letters (U, R, F, D, L, B - the face each sticker's color matches when solved), space-separated, in U R F D L B order`}{' '}
-                  You can also paste an Orbit64 2×2–7×7 state token.
-                </label>
-                <textarea
-                  value={manualColorInput}
-                  onInput={(e) => {
-                    const value = e.currentTarget.value
-                    setManualColorInput(value)
-                    const detected = looksLikeOrbit64StateToken(value)
-                      ? null
-                      : detectNotationFormat(value)
-                    if (detected && detected !== notationFormat)
-                      setNotationFormat(detected)
-                  }}
-                  placeholder={
-                    notationFormat === 'wrg'
-                      ? Array(6)
-                          .fill('W'.repeat(puzzleSize * puzzleSize))
-                          .join(' ')
-                      : ['U', 'R', 'F', 'D', 'L', 'B']
-                          .map((l) => l.repeat(puzzleSize * puzzleSize))
-                          .join(' ')
-                  }
-                  rows={6}
-                  style={{ width: '100%', marginTop: '0.5rem' }}
-                />
-                <div class="input-actions">
-                  <button
-                    type="button"
-                    class="btn btn-primary btn-sm"
-                    onClick={handleApplyFacelets}
-                    disabled={loading}
-                  >
-                    {loading ? '⏳ Processing...' : 'Apply Facelets'}
-                  </button>
-                </div>
-              </div>
+              <ManualFaceletInput
+                size={puzzleSize}
+                format={notationFormat}
+                value={manualColorInput}
+                loading={loading}
+                onFormatChange={setNotationFormat}
+                onValueChange={setManualColorInput}
+                onApply={handleApplyFacelets}
+              />
             )}
           </section>
         </div>
