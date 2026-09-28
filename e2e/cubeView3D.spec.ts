@@ -404,7 +404,7 @@ for (const control of ['Front (F)', 'Isometric', 'Iso-back']) {
   })
 }
 
-test('on touch, one finger turns a layer and two fingers rotate the view', async ({
+test('on touch, two fingers turn the whole cube on it and rotate the view beside it', async ({
   page,
 }) => {
   await page.goto('/')
@@ -455,24 +455,39 @@ test('on touch, one finger turns a layer and two fingers rotate the view', async
   await page.waitForTimeout(600)
   const afterTurn = await canvas.screenshot()
 
-  // Two fingers rotate the view without changing the cube state.
-  await touch('pointerdown', 3, cx - 40, cy)
-  await touch('pointerdown', 4, cx + 40, cy)
+  // Two fingers beside the cube rotate the view without changing it.
+  const left = bounds.x + 20
+  const top = bounds.y + 20
+  await touch('pointerdown', 3, left, top)
+  await touch('pointerdown', 4, left + 60, top)
   for (let step = 1; step <= 5; step++) {
-    await touch('pointermove', 3, cx - 40 + step * 12, cy + step * 6)
-    await touch('pointermove', 4, cx + 40 + step * 12, cy + step * 6)
+    await touch('pointermove', 3, left, top + step * 16)
+    await touch('pointermove', 4, left + 60, top + step * 16)
   }
-  await touch('pointerup', 3, cx + 20, cy + 30)
-  await touch('pointerup', 4, cx + 100, cy + 30)
+  await touch('pointerup', 3, left, top + 80)
+  await touch('pointerup', 4, left + 60, top + 80)
   await page.waitForTimeout(300)
   expect((await canvas.screenshot()).equals(afterTurn)).toBe(false)
   await expect(history).toHaveText("Moves: 2L'")
   await expect(notation).toHaveValue(turned)
+
+  // Two fingers on the cube turn the whole cube and record x, y or z.
+  await page.getByRole('button', { name: 'Front (F)' }).click()
+  await page.waitForTimeout(300)
+  await touch('pointerdown', 5, cx - 40, cy)
+  await touch('pointerdown', 6, cx + 40, cy)
+  for (let step = 1; step <= 8; step++) {
+    await touch('pointermove', 5, cx - 40 + step * 15, cy)
+    await touch('pointermove', 6, cx + 40 + step * 15, cy)
+  }
+  await page.waitForTimeout(150)
+  await touch('pointerup', 5, cx + 80, cy)
+  await touch('pointerup', 6, cx + 160, cy)
+  await expect(history).toHaveText(/^Moves: 2L' y'?$/)
+  await expect(notation).not.toHaveValue(turned)
 })
 
-test('a quick two-finger flick rotates the view without recording a move', async ({
-  page,
-}) => {
+test('a quick two-finger flick on the cube turns it once', async ({ page }) => {
   await page.goto('/')
   await page.getByRole('button', { name: 'Solved cube' }).click()
   await page.getByRole('button', { name: '3D View' }).click()
@@ -503,11 +518,38 @@ test('a quick two-finger flick rotates the view without recording a move', async
     touchPoints: [],
   })
   await expect(page.getByRole('status', { name: 'Move history' })).toHaveText(
-    'Moves: None',
+    /^Moves: x'?$/,
   )
 })
 
-test('a two-finger touchpad swipe tilts the cube instead of zooming', async ({
+test('a two-finger touchpad swipe over the cube turns the whole cube', async ({
+  page,
+}) => {
+  await page.goto('/')
+  await page.getByRole('button', { name: 'Solved cube' }).click()
+  const notation = page.getByRole('textbox', { name: 'Notation' })
+  const solved = await notation.inputValue()
+  await page.getByRole('button', { name: '3D View' }).click()
+  await page.getByRole('button', { name: 'Front (F)' }).click()
+  const history = page.getByRole('status', { name: 'Move history' })
+  const bounds = await page.locator('.cube-3d-canvas').boundingBox()
+  if (!bounds) throw new Error('No canvas')
+  await page.mouse.move(
+    bounds.x + bounds.width / 2,
+    bounds.y + bounds.height / 2,
+  )
+  // A nudge springs back once the swipe ends.
+  for (let i = 0; i < 2; i++) await page.mouse.wheel(3, 0)
+  await page.waitForTimeout(500)
+  await expect(history).toHaveText('Moves: None')
+  // A touchpad sends a swipe as pixel wheel deltas: the fingers going left
+  // send positive deltaX, and the front goes left with them - y.
+  for (let i = 0; i < 12; i++) await page.mouse.wheel(10, 0)
+  await expect(history).toHaveText('Moves: y')
+  await expect(notation).not.toHaveValue(solved)
+})
+
+test('a two-finger touchpad swipe beside the cube tilts the view instead of zooming', async ({
   page,
 }) => {
   await page.goto('/')
@@ -649,7 +691,6 @@ test('a two-finger tilt with close, drifting fingers never zooms', async ({
   const bounds = await canvas.boundingBox()
   expect(bounds).not.toBeNull()
   if (!bounds) return
-  const cx = bounds.x + bounds.width / 2
   const cy = bounds.y + bounds.height / 2
   const touch = (type: string, id: number, x: number, y: number) =>
     canvas.dispatchEvent(type, {
@@ -665,16 +706,18 @@ test('a two-finger tilt with close, drifting fingers never zooms', async ({
 
   // Fingers 60 px apart swipe down 150 px and drift 15 px apart (25%), as
   // real fingers do. That used to switch zoom on for the rest of the swipe.
-  await touch('pointerdown', 1, cx - 30, cy - 75)
-  await touch('pointerdown', 2, cx + 30, cy - 75)
+  // Beside the cube, where two fingers rotate the view.
+  const x0 = bounds.x + 60
+  await touch('pointerdown', 1, x0 - 30, cy - 75)
+  await touch('pointerdown', 2, x0 + 30, cy - 75)
   for (let step = 1; step <= 10; step++) {
     const drift = 1.5 * step
-    await touch('pointermove', 1, cx - 30 - drift / 2, cy - 75 + step * 15)
-    await touch('pointermove', 2, cx + 30 + drift / 2, cy - 75 + step * 15)
+    await touch('pointermove', 1, x0 - 30 - drift / 2, cy - 75 + step * 15)
+    await touch('pointermove', 2, x0 + 30 + drift / 2, cy - 75 + step * 15)
   }
   await page.waitForTimeout(200)
-  await touch('pointerup', 1, cx - 37.5, cy + 75)
-  await touch('pointerup', 2, cx + 37.5, cy + 75)
+  await touch('pointerup', 1, x0 - 37.5, cy + 75)
+  await touch('pointerup', 2, x0 + 37.5, cy + 75)
   await page.waitForTimeout(300)
   expect((await canvas.screenshot()).equals(before)).toBe(false)
 

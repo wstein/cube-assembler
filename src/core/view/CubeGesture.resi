@@ -96,3 +96,7 @@ type wheelGesture =
   | @as("tilt") WheelTilt
 
 @genType let wheelGesture: wheel => wheelGesture
+
+@genType let wheelSwipeGapMs: float
+@genType type wheelSwipe = {startTime: float, lastTime: float, dx: float, dy: float}
+@genType let nextWheelSwipe: (Null.t<wheelSwipe>, float, float, float) => wheelSwipe

@@ -390,3 +390,21 @@ let wheelGesture = (e: wheel) =>
     let whole = Float.isFinite(e.deltaY) && Math.floor(e.deltaY) == e.deltaY
     e.deltaX == 0.0 && whole && Math.abs(e.deltaY) >= 50.0 ? Zoom : WheelTilt
   }
+
+// A touchpad sends a two-finger swipe as a run of wheel events. They count
+// as one swipe until they pause for wheelSwipeGapMs; `dx`/`dy` add up how
+// far the fingers moved, against the deltas.
+let wheelSwipeGapMs = 150.0
+
+type wheelSwipe = {startTime: float, lastTime: float, dx: float, dy: float}
+
+let nextWheelSwipe = (swipe: Null.t<wheelSwipe>, time, deltaX, deltaY) =>
+  switch Null.toOption(swipe) {
+  | Some(swipe) if time -. swipe.lastTime <= wheelSwipeGapMs => {
+      ...swipe,
+      lastTime: time,
+      dx: swipe.dx -. deltaX,
+      dy: swipe.dy -. deltaY,
+    }
+  | _ => {startTime: time, lastTime: time, dx: -.deltaX, dy: -.deltaY}
+  }

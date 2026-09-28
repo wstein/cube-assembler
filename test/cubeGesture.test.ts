@@ -7,6 +7,8 @@ import {
   facePlanePoint,
   layerIndex,
   pressLevel,
+  nextWheelSwipe,
+  WHEEL_SWIPE_GAP_MS,
   swipeMoveAxis,
   wholeCubeLayer,
   standardWideLayer,
@@ -417,6 +419,24 @@ describe('swipe sensitivity settings', () => {
       startPx: 18,
       commitFraction: 0.35,
       flickMs: 120,
+    })
+  })
+})
+
+describe('touchpad swipes', () => {
+  it('groups wheel events into swipes that end after a pause', () => {
+    const first = nextWheelSwipe(null, 1000, 10, -4)
+    expect(first).toEqual({ startTime: 1000, lastTime: 1000, dx: -10, dy: 4 })
+    // The fingers move against the deltas; events within the gap add up.
+    const second = nextWheelSwipe(first, 1016, 6, 0)
+    expect(second).toEqual({ startTime: 1000, lastTime: 1016, dx: -16, dy: 4 })
+    expect(WHEEL_SWIPE_GAP_MS).toBe(150)
+    // After the gap a new swipe starts.
+    expect(nextWheelSwipe(second, 1016 + 151, 2, 2)).toEqual({
+      startTime: 1167,
+      lastTime: 1167,
+      dx: -2,
+      dy: -2,
     })
   })
 })

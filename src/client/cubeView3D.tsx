@@ -17,6 +17,10 @@ import {
   wholeCubeLayer,
   twoFingerLock,
   twoFingerMotion,
+  nextWheelSwipe,
+  wheelGesture,
+  WHEEL_SWIPE_GAP_MS,
+  type WheelSwipe,
   type TwoFingerLock,
   type CubeGestureCamera,
   type PressLevel,
@@ -687,6 +691,94 @@ export function CubeView3D({
     )
   }
 
+  // Two fingers put down on the cube turn the whole cube once they move
+  // together (a tilt, see twoFingerLock): the sticker under their midpoint
+  // and where the midpoint started. Beside the cube they rotate the view.
+  const twoFingerCubeRef = useRef<{
+    hit: NonNullable<ReturnType<typeof pickCubeSurface>>
+    start: [number, number]
+    startTime: number
+    dragging: boolean
+  } | null>(null)
+
+  // The whole cube follows a swipe, like a layer does: `dx`/`dy` from where
+  // it started on `hit`. Returns false until the swipe picks an axis.
+  const dragWholeCube = (
+    swipe: {
+      hit: NonNullable<ReturnType<typeof pickCubeSurface>>
+      startTime: number
+      dragging: boolean
+    },
+    dx: number,
+    dy: number,
+    timeStamp: number,
+  ) => {
+    const rect = canvasRef.current?.getBoundingClientRect()
+    if (!rect) return
+    const camera = gestureCamera(rect)
+    const drag = dragTurnRef.current
+    if (!swipe.dragging) {
+      const layer = pickSwipeLayer(
+        swipe.hit,
+        dx,
+        dy,
+        camera,
+        readSwipeTuning(document.cookie).startPx,
+      )
+      if (!layer) return
+      const whole = wholeCubeLayer(layer.axis, puzzleSize)
+      const angle = swipeLayerAngle(swipe.hit, whole, dx, dy, camera)
+      swipe.dragging = true
+      dragTurnRef.current = {
+        layer: whole,
+        angle,
+        // Its speed so far, so a quick flick counts from the first move.
+        velocity: angle / Math.max(timeStamp - swipe.startTime, 8),
+        time: timeStamp,
+        drawn: null,
+      }
+      setIsTurning(true)
+      return
+    }
+    if (!drag) return
+    const angle = swipeLayerAngle(swipe.hit, drag.layer, dx, dy, camera)
+    drag.velocity = (angle - drag.angle) / Math.max(timeStamp - drag.time, 8)
+    drag.angle = angle
+    drag.time = timeStamp
+  }
+
+  // Settles a whole-cube drag on whole quarter turns.
+  const releaseWholeCube = (timeStamp: number, cancelled: boolean) => {
+    const drag = dragTurnRef.current
+    if (!drag) return
+    const tuning = readSwipeTuning(document.cookie)
+    settleDrag(
+      cancelled
+        ? 0
+        : releasedQuarterTurns(
+            drag.angle,
+            timeStamp - drag.time > 100 ? 0 : drag.velocity,
+            tuning.commitFraction,
+            tuning.flickMs,
+          ),
+    )
+  }
+
+  // Where two fingers meet, over the cube if they are, while no turn plays.
+  const cubeUnder = (clientX: number, clientY: number) => {
+    const rect = canvasRef.current?.getBoundingClientRect()
+    return rect &&
+      !currentTurnRef.current &&
+      !dragTurnRef.current &&
+      turnQueueRef.current.length === 0
+      ? pickCubeSurface(
+          clientX - rect.left,
+          clientY - rect.top,
+          gestureCamera(rect),
+        )
+      : null
+  }
+
   const handlePointerDown = (e: PointerEvent) => {
     const touch = e.pointerType === 'touch'
     if (touch) touchesRef.current.set(e.pointerId, [e.clientX, e.clientY])
@@ -700,7 +792,8 @@ export function CubeView3D({
     resumeAutoAtRef.current = Number.POSITIVE_INFINITY
     inertiaRef.current = { yaw: 0, pitch: 0 }
     if (touches > 1) {
-      // Two fingers immediately rotate the view or pinch to zoom.
+      // Two fingers turn the whole cube on it, rotate the view beside it,
+      // or pinch to zoom.
       const gesture = gestureRef.current
       const mode = gestureForPointerDown(
         'touch',
@@ -715,6 +808,13 @@ export function CubeView3D({
         setPressMode(null)
         settleDrag(0)
         startTilt()
+        const pair = twoTouches()
+        const midpoint = pair ? midpointOf(pair) : null
+        const hit = midpoint ? cubeUnder(...midpoint) : null
+        twoFingerCubeRef.current =
+          midpoint && hit
+            ? { hit, start: midpoint, startTime: e.timeStamp, dragging: false }
+            : null
         lastPointerRef.current = {
           ...lastPointerRef.current,
           time: e.timeStamp,
@@ -772,7 +872,13 @@ export function CubeView3D({
       )
       pinchRef.current.lock = lock
       // Undecided moves do nothing, so neither a tilt nor a pinch jumps once
-      // it locks; after that only the locked one follows the fingers.
+      // it locks; after that only the locked one follows the fingers. On
+      // the cube a tilt turns the whole cube instead of the view.
+      const cube = twoFingerCubeRef.current
+      if (lock === 'tilt' && cube) {
+        dragWholeCube(cube, mx - cube.start[0], my - cube.start[1], e.timeStamp)
+        return
+      }
       const motion = twoFingerMotion(from, to)
       if (lock === 'tilt') rotateView(motion.dx, motion.dy, e.timeStamp)
       if (lock === 'pinch' && motion.scale !== 1)
@@ -850,6 +956,18 @@ export function CubeView3D({
       // Ignore if pointer capture release fails
     }
     const remaining = touch ? touchesRef.current.size : 0
+    // Lifting a finger lets go of a whole-cube turn; the other finger, if
+    // still down, does nothing more.
+    const cube = twoFingerCubeRef.current
+    twoFingerCubeRef.current = null
+    if (cube?.dragging) {
+      releaseWholeCube(e.timeStamp, e.type === 'pointercancel')
+      if (remaining > 0) {
+        if (gestureRef.current) gestureRef.current.mode = 'none'
+        tiltFromRef.current = null
+        return
+      }
+    }
     const next = gestureAfterPointerUp(
       remaining,
       gestureRef.current?.mode ?? null,
@@ -893,15 +1011,73 @@ export function CubeView3D({
     }
   }
 
-  const { resetView, setPreset, handleWheel, handleKeyDown } =
-    createCubeViewControls({
-      puzzleSize,
-      pauseAutoRotation,
-      setPitch,
-      setYaw,
-      setZoom,
-      rotateView,
-    })
+  // A touchpad's two-finger swipe arrives as wheel events, not touches.
+  // One that starts over the cube turns the whole cube like two fingers
+  // on a touch screen, and settles when the swipe pauses; elsewhere it
+  // rotates the view, and pinches and mouse wheels zoom (see
+  // cubeViewControls).
+  const wheelSwipeRef = useRef<{
+    swipe: WheelSwipe
+    cube: {
+      hit: NonNullable<ReturnType<typeof pickCubeSurface>>
+      startTime: number
+      dragging: boolean
+    } | null
+    timer: ReturnType<typeof setTimeout>
+  } | null>(null)
+
+  const handleCubeWheel = (e: WheelEvent) => {
+    if (wheelGesture(e) !== 'tilt') {
+      handleViewWheel(e)
+      return
+    }
+    const current = wheelSwipeRef.current
+    const swipe = nextWheelSwipe(
+      current?.swipe ?? null,
+      e.timeStamp,
+      e.deltaX,
+      e.deltaY,
+    )
+    const fresh = swipe.startTime === e.timeStamp
+    if (current) clearTimeout(current.timer)
+    const hit = fresh ? cubeUnder(e.clientX, e.clientY) : null
+    const cube = fresh
+      ? hit && { hit, startTime: e.timeStamp, dragging: false }
+      : (current?.cube ?? null)
+    const state = {
+      swipe,
+      cube,
+      timer: setTimeout(() => {
+        if (wheelSwipeRef.current !== state) return
+        wheelSwipeRef.current = null
+        // The swipe has already coasted, so it throws nothing more.
+        if (state.cube?.dragging)
+          releaseWholeCube(Number.POSITIVE_INFINITY, false)
+      }, WHEEL_SWIPE_GAP_MS),
+    }
+    wheelSwipeRef.current = state
+    if (!cube) {
+      handleViewWheel(e)
+      return
+    }
+    e.preventDefault()
+    pauseAutoRotation()
+    dragWholeCube(cube, swipe.dx, swipe.dy, e.timeStamp)
+  }
+
+  const {
+    resetView,
+    setPreset,
+    handleWheel: handleViewWheel,
+    handleKeyDown,
+  } = createCubeViewControls({
+    puzzleSize,
+    pauseAutoRotation,
+    setPitch,
+    setYaw,
+    setZoom,
+    rotateView,
+  })
 
   return (
     <CubeView3DPresentation
@@ -911,7 +1087,7 @@ export function CubeView3D({
       handlePointerDown={handlePointerDown}
       handlePointerMove={handlePointerMove}
       handlePointerUp={handlePointerUp}
-      handleWheel={handleWheel}
+      handleWheel={handleCubeWheel}
       pressMode={pressMode}
       coarsePointer={coarsePointer}
       setPreset={setPreset}

@@ -62,8 +62,10 @@ the wide turn and two rising tones mark the cube turn.
 With a mouse, drag the background to
 rotate the view; it keeps turning briefly after release. On a touch screen,
 one finger turns a layer, or a wide move after a hold.
-Two fingers rotate the view or pinch to zoom immediately. On
-a touchpad, a two-finger swipe tilts the cube and a pinch zooms, while a mouse
+Two fingers on the cube turn the whole cube, recorded as x, y or z, and two
+fingers beside it rotate the view without recording anything; pinch to zoom.
+A touchpad works the same way: a two-finger swipe over the cube turns it,
+one beside it rotates the view, and a pinch zooms, while a mouse
 wheel still zooms. Turns snap into place with a slight overshoot, like a magnetic cube, and click
 softly when capture **Sound** is on. Layer turns update the 2D net,
 facelet notation, and Orbit64 token. The move list records completed turns;

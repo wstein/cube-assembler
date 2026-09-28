@@ -37,6 +37,8 @@ export {
   twoFingerLock,
   twoFingerMotion,
   wheelGesture,
+  wheelSwipeGapMs as WHEEL_SWIPE_GAP_MS,
+  nextWheelSwipe,
   wholeCubeLayer,
   widePressMs as WIDE_PRESS_MS,
 } from '../core/view/CubeGesture.gen'
@@ -49,6 +51,7 @@ export type {
   swipeLayer as SwipeLayer,
   swipeTuning as SwipeTuning,
   twoFingerLock as TwoFingerLock,
+  wheelSwipe as WheelSwipe,
 } from '../core/view/CubeGesture.gen'
 
 export type GestureAxis = 0 | 1 | 2
