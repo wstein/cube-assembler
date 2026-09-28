@@ -250,12 +250,6 @@ export function CubeView3D({
     forceUpdateMeshRef.current = true
   }
 
-  // The whole cube about an axis, recorded as x, y or z.
-  const turnWholeCube = (axis: 0 | 1 | 2, turns: number) => {
-    const layer = wholeCubeLayer(axis, puzzleSize)
-    triggerTurn(layer.face, turns, layer.depth, false, layer.width ?? 1)
-  }
-
   const undoLastTurn = () => {
     if (isTurning) return
     const last = movesRef.current.at(-1)
@@ -1103,7 +1097,6 @@ export function CubeView3D({
       isStickerless={isStickerless}
       onToggleStickerless={() => setIsStickerless((value) => !value)}
       isRotating={isRotating}
-      turnWholeCube={turnWholeCube}
       onToggleAutoRotate={() => {
         inertiaRef.current = { yaw: 0, pitch: 0 }
         resumeAutoAtRef.current = 0
