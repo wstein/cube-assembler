@@ -15,7 +15,7 @@ test('restores cube size and chosen colors from cookies after local storage is c
     .toContain('cube-assembler-cube-size=5')
   await expect
     .poll(async () => page.evaluate(() => document.cookie))
-    .toContain('cube-assembler-color-profile=')
+    .toContain(`cube-assembler-color-profile=${selectedColorId}`)
 
   await page.evaluate(() => localStorage.clear())
   await page.reload()
