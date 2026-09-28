@@ -521,17 +521,36 @@ test('two fingers zoom only once they clearly pinch', async ({ page }) => {
   expect((await canvas.screenshot()).equals(before)).toBe(false)
 })
 
-for (const sound of [true, false])
-  test(`a finished turn ${sound ? 'clicks with Sound on' : 'stays silent with Sound off'}`, async ({
-    page,
-    context,
-  }) => {
+const SOUND_CASES: Array<{
+  title: string
+  cookies: { capture: string; turn?: string }
+  sound: boolean
+}> = [
+  { title: 'clicks with Sound on', cookies: { capture: '1' }, sound: true },
+  {
+    title: 'stays silent with Sound off',
+    cookies: { capture: '0' },
+    sound: false,
+  },
+  {
+    title: 'clicks with the turn sound on and capture sound off',
+    cookies: { capture: '0', turn: '1' },
+    sound: true,
+  },
+  {
+    title: 'stays silent with the turn sound off and capture sound on',
+    cookies: { capture: '1', turn: '0' },
+    sound: false,
+  },
+]
+for (const { title, cookies, sound } of SOUND_CASES)
+  test(`a finished turn ${title}`, async ({ page, context }) => {
+    const url = `http://127.0.0.1:${process.env.E2E_PORT ?? '4174'}`
     await context.addCookies([
-      {
-        name: 'cube-assembler-capture-sound',
-        value: sound ? '1' : '0',
-        url: `http://127.0.0.1:${process.env.E2E_PORT ?? '4174'}`,
-      },
+      { name: 'cube-assembler-capture-sound', value: cookies.capture, url },
+      ...(cookies.turn === undefined
+        ? []
+        : [{ name: 'cube-assembler-turn-sound', value: cookies.turn, url }]),
     ])
     await page.addInitScript(() => {
       const created: unknown[] = []

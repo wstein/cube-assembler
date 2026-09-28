@@ -17,6 +17,8 @@ import {
   selectedCubeView,
   CAPTURE_MODE_COOKIE,
   CUBE_PRESS_COOKIE,
+  TURN_SOUND_COOKIE,
+  turnSoundOn,
   NOTATION_COOKIE,
   selectedCaptureMode,
   selectedNotationFormat,
@@ -177,5 +179,15 @@ describe('remembered choices', () => {
     expect(SETTING_COOKIES).toEqual(
       expect.arrayContaining([NOTATION_COOKIE, CAPTURE_MODE_COOKIE]),
     )
+  })
+})
+
+describe('turn sound', () => {
+  it('follows the capture sound until it is set on its own', () => {
+    expect(turnSoundOn('')).toBe(false)
+    expect(turnSoundOn(`${SOUND_COOKIE}=1`)).toBe(true)
+    expect(turnSoundOn(`${SOUND_COOKIE}=1; ${TURN_SOUND_COOKIE}=0`)).toBe(false)
+    expect(turnSoundOn(`${SOUND_COOKIE}=0; ${TURN_SOUND_COOKIE}=1`)).toBe(true)
+    expect(SETTING_COOKIES).toContain(TURN_SOUND_COOKIE)
   })
 })

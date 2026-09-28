@@ -32,11 +32,11 @@ import { stepDragInertia } from './dragInertia'
 import { magneticEase, playTurnClick, turnClickGain } from './turnFeel'
 import {
   AUTO_ROTATE_COOKIE,
-  SOUND_COOKIE,
   STICKERLESS_COOKIE,
   preferenceCookie,
   readHoldTimings,
   readPreference,
+  turnSoundOn,
 } from './preferences'
 import type { CubeState, FaceKey } from '../cube/cubeAssembly'
 import {
@@ -1639,10 +1639,7 @@ export function CubeView3D({
           // A drag released short of a quarter turn springs back silently.
           if (anim.turns !== 0) {
             playTurnClick(
-              turnClickGain(
-                anim.duration,
-                readPreference(document.cookie, SOUND_COOKIE),
-              ),
+              turnClickGain(anim.duration, turnSoundOn(document.cookie)),
             )
             const nextCube = applyCubeLayerMove(
               currentCubeRef.current,

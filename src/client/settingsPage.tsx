@@ -12,6 +12,7 @@ import {
   MIRROR_COOKIE,
   SETTING_COOKIES,
   SOUND_COOKIE,
+  TURN_SOUND_COOKIE,
   WIDE_PRESS_COOKIE,
   clearedCookie,
   holdTimingCookie,
@@ -21,6 +22,7 @@ import {
   selectedCaptureMode,
   selectedNotationFormat,
   selectionCookie,
+  turnSoundOn,
 } from './preferences'
 import { ChoiceSetting, SliderSetting, ToggleSetting } from './settingControls'
 
@@ -119,6 +121,15 @@ export function SettingsPage({ onClose }: Props) {
           hint="A shutter click and flash for each photo."
           checked={readPreference(cookies, SOUND_COOKIE)}
           onChange={(on) => write(preferenceCookie(SOUND_COOKIE, on))}
+        />
+      </Section>
+
+      <Section id="settings-view" title="3D view">
+        <ToggleSetting
+          label="Turn sound"
+          hint="A soft click when a layer snaps into place."
+          checked={turnSoundOn(cookies)}
+          onChange={(on) => write(preferenceCookie(TURN_SOUND_COOKIE, on))}
         />
       </Section>
 

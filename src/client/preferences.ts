@@ -11,6 +11,8 @@ export const COLOR_PROFILE_COOKIE = 'cube-assembler-color-profile'
 export const CUBE_VIEW_COOKIE = 'cube-assembler-cube-view'
 export const STICKERLESS_COOKIE = 'cube-assembler-stickerless'
 export const AUTO_ROTATE_COOKIE = 'cube-assembler-auto-rotate'
+// The 3D view's turn click; until set it follows the capture sound.
+export const TURN_SOUND_COOKIE = 'cube-assembler-turn-sound'
 export const NOTATION_COOKIE = 'cube-assembler-notation'
 export const CAPTURE_MODE_COOKIE = 'cube-assembler-capture-mode'
 // How long a sticker is held before a drag turns a block or the whole cube.
@@ -130,6 +132,7 @@ export const SETTING_COOKIES = [
   CUBE_PRESS_COOKIE,
   NOTATION_COOKIE,
   CAPTURE_MODE_COOKIE,
+  TURN_SOUND_COOKIE,
 ]
 
 export function selectedNotationFormat(cookies: string): 'wrg' | 'urf' {
@@ -142,5 +145,13 @@ export function selectedCaptureMode(cookies: string): CaptureMode {
     CAPTURE_MODE_COOKIE,
     ['cv', 'guide'] as const,
     'cv',
+  )
+}
+
+export function turnSoundOn(cookies: string): boolean {
+  return readPreference(
+    cookies,
+    TURN_SOUND_COOKIE,
+    readPreference(cookies, SOUND_COOKIE),
   )
 }
