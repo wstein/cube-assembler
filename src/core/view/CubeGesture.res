@@ -190,10 +190,10 @@ let swipeLayerAngle = (hit, layer: swipeLayer, dx, dy, camera) =>
     Int.toFloat(layer.sign) *. 0.1 *. along->Array.getUnsafe(axes->Array.indexOf(layer.axis))
   }
 
-// Holding a sticker widens its turn after 300 ms, then selects a whole-cube
-// x/y/z turn after 800 ms. Moving first keeps the single-layer swipe.
+// Holding a sticker widens its turn after 300 ms; moving first keeps the
+// single-layer swipe. Alt selects a whole-cube x/y/z turn, which the mini
+// cube also turns - holding longer does not.
 let widePressMs = 300.0
-let cubePressMs = 800.0
 let pressSlopPx = 10.0
 
 type pressLevel =
@@ -204,7 +204,7 @@ type pressLevel =
 type pressKeys = {shiftKey: bool, altKey: bool}
 
 let pressLevel = (heldMs, keys) =>
-  if keys.altKey || heldMs >= cubePressMs {
+  if keys.altKey {
     Cube
   } else if keys.shiftKey || heldMs >= widePressMs {
     Wide

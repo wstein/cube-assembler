@@ -8,7 +8,6 @@ import {
   gestureWhenSwipeTurnsNothing,
   pickCubeSurface,
   PRESS_SLOP_PX,
-  CUBE_PRESS_MS,
   WIDE_PRESS_MS,
   pickSwipeLayer,
   pressLevel,
@@ -650,19 +649,14 @@ export function CubeView3D({
     }
   }
 
-  // A held sticker widens its turn, then selects a whole-cube x/y/z turn.
+  // A held sticker widens its turn; whole-cube turns come from the mini
+  // cube (or Alt).
   const holdSticker = (gesture: NonNullable<typeof gestureRef.current>) => {
-    const upgradeToWide = () => {
+    gesture.holdTimer = setTimeout(() => {
       if (gestureRef.current !== gesture || gesture.mode !== 'pending') return
       gesture.level = 'wide'
       announcePressMode('wide')
-      gesture.holdTimer = setTimeout(() => {
-        if (gestureRef.current !== gesture || gesture.mode !== 'pending') return
-        gesture.level = 'cube'
-        announcePressMode('cube')
-      }, CUBE_PRESS_MS - WIDE_PRESS_MS)
-    }
-    gesture.holdTimer = setTimeout(upgradeToWide, WIDE_PRESS_MS)
+    }, WIDE_PRESS_MS)
   }
 
   const { startDragTurn } = createDragInteraction({

@@ -306,14 +306,16 @@ describe('held sticker drags', () => {
     size: 5,
   }
 
-  it('holds a sticker 300 ms for a wide turn, then 800 ms for x/y/z', () => {
+  it('holds a sticker 300 ms for a wide turn, however long it is held', () => {
     const keys = { shiftKey: false, altKey: false }
     expect(pressLevel(0, keys)).toBe('layer')
     expect(WIDE_PRESS_MS).toBe(300)
     expect(pressLevel(WIDE_PRESS_MS - 1, keys)).toBe('layer')
     expect(pressLevel(WIDE_PRESS_MS, keys)).toBe('wide')
-    expect(pressLevel(799, keys)).toBe('wide')
-    expect(pressLevel(800, keys)).toBe('cube')
+    // Holding longer never turns the whole cube: that is the mini cube's
+    // job (and Alt's).
+    expect(pressLevel(800, keys)).toBe('wide')
+    expect(pressLevel(5000, keys)).toBe('wide')
   })
 
   it('widens a touched slice from its named face without a selection swipe', () => {

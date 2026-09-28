@@ -91,14 +91,15 @@ export function CubeView3DPresentation({
               {coarsePointer ? (
                 <>
                   Swipe a sticker to turn its layer; hold 300 ms for a wide turn
-                  or 800 ms for the whole cube &bull; Two fingers rotate the
-                  view or pinch to zoom
+                  &bull; Swipe the mini cube to turn the whole cube &bull; Two
+                  fingers rotate the view or pinch to zoom
                 </>
               ) : (
                 <>
                   Swipe a sticker to turn its layer; hold 300 ms or Shift for a
-                  wide turn, hold 800 ms or Alt for the whole cube &bull; Drag
-                  the background to rotate the view &bull; Scroll to zoom
+                  wide turn &bull; Swipe the mini cube or hold Alt to turn the
+                  whole cube &bull; Drag the background to rotate the view
+                  &bull; Scroll to zoom
                 </>
               )}
             </div>

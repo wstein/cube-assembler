@@ -715,19 +715,16 @@ test.describe('held sticker drags', () => {
     await expect(history(page)).toHaveText("Moves: Lw'")
   })
 
-  test('holding for 800 ms turns the whole cube as x/y/z', async ({ page }) => {
+  test('a long hold stays a wide move', async ({ page }) => {
     const { x, y, quarter } = await setUp(page)
-    const notation = page.getByRole('textbox', { name: 'Notation' })
-    const solved = await notation.inputValue()
     await page.mouse.move(x, y)
     await page.mouse.down()
     await page.waitForTimeout(1000)
-    await expect(badge(page)).toHaveText(/Whole cube/)
+    await expect(badge(page)).toHaveText(/Wide turn/)
     await page.mouse.move(x, y - 1.1 * quarter, { steps: 12 })
     await page.waitForTimeout(150)
     await page.mouse.up()
-    await expect(history(page)).toHaveText('Moves: x')
-    await expect(notation).not.toHaveValue(solved)
+    await expect(history(page)).toHaveText("Moves: Lw'")
   })
 
   test('Alt turns the whole cube at once', async ({ page }) => {
@@ -766,9 +763,7 @@ test.describe('held sticker drags', () => {
     await expect(history(page)).toHaveText("Moves: Lw'")
   })
 
-  test('an 800 ms touch hold selects a whole-cube x/y/z turn', async ({
-    page,
-  }) => {
+  test('a long touch hold stays a wide turn', async ({ page }) => {
     const { x, y, quarter } = await setUp(page)
     const canvas = page.locator('.cube-3d-canvas')
     const touch = (type: string, clientY: number) =>
@@ -782,11 +777,12 @@ test.describe('held sticker drags', () => {
       })
     await touch('pointerdown', y)
     await page.waitForTimeout(950)
-    await expect(badge(page)).toHaveText(/Whole cube/)
+    await expect(badge(page)).toHaveText(/Wide turn/)
     for (let step = 1; step <= 10; step++)
       await touch('pointermove', y - (1.1 * quarter * step) / 10)
+    await page.waitForTimeout(150)
     await touch('pointerup', y - 1.1 * quarter)
-    await expect(history(page)).toContainText(/Moves: [xyz]/)
+    await expect(history(page)).toHaveText("Moves: Lw'")
   })
 
   for (const sound of [true, false])
@@ -821,8 +817,9 @@ test.describe('held sticker drags', () => {
       await page.mouse.down()
       await page.waitForTimeout(450)
       expect(await tones()).toBe(sound ? 1 : 0)
+      // No second cue: a longer hold stays a wide turn.
       await page.waitForTimeout(650)
-      expect(await tones()).toBe(sound ? 3 : 0)
+      expect(await tones()).toBe(sound ? 1 : 0)
       await page.mouse.up()
     })
 

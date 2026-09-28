@@ -18,7 +18,6 @@ import {
 export {
   blockLayer,
   clampZoom,
-  cubePressMs as CUBE_PRESS_MS,
   defaultSwipeTuning as DEFAULT_SWIPE_TUNING,
   facePlanePoint,
   flickMs as FLICK_MS,
