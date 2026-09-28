@@ -15,7 +15,9 @@ type crop = {
   // Where it was straightened from, for a face seen at an angle.
   corners?: array<array<float>>,
 }
-// The camera's settings at capture time, passed through untouched.
+// The camera's settings at capture time, passed through untouched; the
+// browser's type on the TypeScript side.
+@genType.import(("../../client/captureTypes", "CameraSettings"))
 type cameraSettings
 
 type source = | @as("camera") Camera | @as("image-file") ImageFile | @as("fixture") Fixture

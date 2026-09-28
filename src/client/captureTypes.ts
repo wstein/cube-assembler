@@ -6,6 +6,9 @@ export interface PreviewColorProfile {
   colors: Record<string, RGB>
 }
 
+// The camera's settings at capture time, as the browser reports them.
+export type CameraSettings = Partial<MediaTrackSettings>
+
 export interface FaceCaptureData {
   colors: string[][]
   // What automatic detection produced for this face, kept alongside
@@ -32,7 +35,7 @@ export interface FaceCaptureData {
   frame?: FaceCaptureResult['frame']
   crop?: FaceCaptureResult['crop']
   sharpness?: number
-  cameraSettings?: Partial<MediaTrackSettings>
+  cameraSettings?: CameraSettings
   // The color profile that read this face at capture time: Automatic's
   // preview choice (or the selected profile); absent when none was used.
   previewColorProfile?: PreviewColorProfile

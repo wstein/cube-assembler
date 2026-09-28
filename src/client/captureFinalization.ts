@@ -1,13 +1,12 @@
 import { finishRecalibration } from '../core/capture/CaptureFinalization.gen'
 import type { FaceCaptureData } from './captureTypes'
-import type { AutomaticResolution } from './colorProfileLearning'
 import {
   computeBackgroundGains,
   runGlobalWhiteBalance,
   type RGB,
   type SamplingGeometry,
 } from './imageProcessing'
-import type { ColorProfile, UsedColorProfile } from './profileSettings'
+import type { ColorProfile } from './profileSettings'
 
 interface CaptureFinalizationOptions {
   faces: Record<string, FaceCaptureData>
@@ -51,16 +50,5 @@ export async function recalibrateCapture(
     sampling,
     automatic ? undefined : palette,
   )
-  const result = finishRecalibration(
-    { ...options, order: [...order] } as Parameters<
-      typeof finishRecalibration
-    >[0],
-    measured as Parameters<typeof finishRecalibration>[1],
-  )
-  return {
-    ...result,
-    finalFaces: result.finalFaces as unknown as Record<string, FaceCaptureData>,
-    resolution: result.resolution as AutomaticResolution | null,
-    resolvedProfile: result.resolvedProfile as UsedColorProfile | null,
-  }
+  return finishRecalibration({ ...options, order: [...order] }, measured)
 }

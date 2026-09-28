@@ -1,7 +1,7 @@
 // Saving and loading capture fixtures; what a fixture records lives in
 // src/core/capture/CaptureFixture.res.
 import {
-  canSaveCaptureFixture as canSaveCaptureFixtureRes,
+  canSaveCaptureFixture,
   captureFixtureRequest,
   fixtureLoadedMessage,
   recordedAutomaticResolution as recordedAutomaticResolutionRes,
@@ -26,8 +26,6 @@ import type {
 import type { UsedColorProfile } from './profileSettings'
 import type { CameraInfo } from './useCameraStream'
 
-type ResFaces = Parameters<typeof canSaveCaptureFixtureRes>[0]
-
 // Everything a saved fixture records about a capture, besides its faces.
 export interface CaptureFixtureInput {
   capturedFaces: Record<string, FaceCaptureData>
@@ -51,11 +49,7 @@ export interface CaptureFixtureInput {
 }
 
 // Only a complete capture with all six photos can be saved.
-export function canSaveCaptureFixture(
-  capturedFaces: Record<string, FaceCaptureData>,
-): boolean {
-  return canSaveCaptureFixtureRes(capturedFaces as ResFaces)
-}
+export { canSaveCaptureFixture }
 
 // Packs a capture - each face's actual photo plus its (human-reviewed)
 // color grid - into a fixture (see captureFixtureRequest): unzipped into
@@ -65,12 +59,7 @@ export function buildCaptureFixture(
   input: CaptureFixtureInput,
   now = new Date(),
 ): Fixture {
-  return buildFixture(
-    captureFixtureRequest(
-      input as unknown as Parameters<typeof captureFixtureRequest>[0],
-    ) as FixtureRequest,
-    now,
-  )
+  return buildFixture(captureFixtureRequest(input) as FixtureRequest, now)
 }
 
 // The download dialog's contents for a fixture, with its photos as object

@@ -9,7 +9,8 @@ type crop = {
   angle?: float,
   corners?: array<array<float>>,
 }
-@genType type cameraSettings
+@genType.import(("../../client/captureTypes", "CameraSettings"))
+type cameraSettings
 
 @genType
 type source = | @as("camera") Camera | @as("image-file") ImageFile | @as("fixture") Fixture

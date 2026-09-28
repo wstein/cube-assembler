@@ -11,7 +11,6 @@ import type { UsedColorProfile } from './profileSettings'
 
 type Recalibration = Awaited<ReturnType<typeof recalibrateCapture>>
 type Action = Parameters<typeof calibrationReducer>[1]
-type Of<K> = Extract<Action, { kind: K }>
 
 export interface PendingPalette {
   colors: Record<string, RGB>
@@ -66,9 +65,7 @@ export function useCaptureCalibration() {
     ) =>
       act({
         kind: 'applyRecalibration',
-        // The faces carry the browser's camera settings, which the
-        // reducer never reads.
-        result: result as unknown as Of<'applyRecalibration'>['result'],
+        result,
         profile: { id: profile.id, name: profile.name },
       }),
     failRecalibration: () => act('failRecalibration'),
@@ -80,7 +77,7 @@ export function useCaptureCalibration() {
       act({
         kind: 'applyFixtureCalibration',
         capture,
-        classified: classified as Of<'applyFixtureCalibration'>['classified'],
+        classified,
         recordedGains,
       }),
   }
