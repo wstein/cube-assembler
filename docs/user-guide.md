@@ -59,11 +59,15 @@ or drag back to turn the other way. A quick flick finishes one turn, and a
 turn that reverses the previous one removes it from the move list. Hold Shift
 while swiping to turn a standard wide move such as Rw or 3Rw. With Turn sound
 on, a tone marks the wide turn.
-For any wide block, start the swipe on the line between two layers and lean
-it slightly toward the side to include: both layers at the line and every
-layer on that side turn. For example, on a 5×5, start between the third and
-fourth U rows and swipe left, leaning up for 4Uw or down for 3Dw'. A swipe
-from the middle of a sticker, or straight along the line, turns one layer.
+For any wide block, start the swipe near the line between two layers (the
+outer quarter of either sticker) and lean it toward the side to include:
+both layers at the line and every layer on that side turn. For example, on a
+5×5, start between the third and fourth U rows and swipe left, leaning up
+for 4Uw or down for 3Dw'. The chosen block lights up and follows your lean
+at first, so you can still switch sides; it locks once it has turned a
+little. A swipe from the middle of a sticker, or straight along the line,
+turns one layer. A new swipe while the last turn settles finishes that turn
+and starts the next.
 With a mouse, drag the background to
 rotate the view; it keeps turning briefly after release. On a touch screen,
 one finger turns a layer, or a wide block from the line between two layers.
