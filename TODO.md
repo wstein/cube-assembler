@@ -52,8 +52,9 @@ to the original real-fixture testing discussion. See
 - Continue splitting `src/client/index.tsx`: the fixture preview and its
   upload/download lifecycle have a component and hook. Camera stream, photo
   reads, live analysis, shutter feedback, capture net, and turn cues are
-  extracted; the remaining capture dialog UI and photo upload review can move
-  in further tested steps.
+  extracted. Six-photo review, photo reading, and fixture file validation are
+  also separate; the remaining capture dialog and review orchestration can
+  move in further tested steps.
 
 ## Later
 - **#4 Learn color centroids from confirmed fixtures.** Wait until the corpus
