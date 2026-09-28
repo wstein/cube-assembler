@@ -56,6 +56,9 @@ export {
   turnSoundCookie as TURN_SOUND_COOKIE,
   turnSoundOn,
   vibrationCookie as VIBRATION_COOKIE,
+  vibrationMsCookie as VIBRATION_MS_COOKIE,
+  vibrationMsRange as VIBRATION_MS_RANGE,
+  readVibrationMs,
   vibrationOn,
 } from '../core/app/Preferences.gen'
 

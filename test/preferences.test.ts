@@ -29,6 +29,8 @@ import {
   SCRAMBLE_LENGTH_COOKIE,
   readScrambleOptions,
   readAutoCaptureFrames,
+  readVibrationMs,
+  VIBRATION_MS_COOKIE,
   SWIPE_COMMIT_COOKIE,
   SWIPE_FLICK_COOKIE,
   SWIPE_START_COOKIE,
@@ -221,6 +223,14 @@ describe('auto capture steadiness', () => {
     expect(readAutoCaptureFrames(`${AUTO_CAPTURE_FRAMES_COOKIE}=1`)).toBe(2)
     expect(readAutoCaptureFrames(`${AUTO_CAPTURE_FRAMES_COOKIE}=50`)).toBe(12)
     expect(SETTING_COOKIES).toContain(AUTO_CAPTURE_FRAMES_COOKIE)
+  })
+
+  it('reads how long a hold vibrates, 50 ms unless set, kept within 10-200 ms', () => {
+    expect(readVibrationMs('')).toBe(50)
+    expect(readVibrationMs(`${VIBRATION_MS_COOKIE}=80`)).toBe(80)
+    expect(readVibrationMs(`${VIBRATION_MS_COOKIE}=1`)).toBe(10)
+    expect(readVibrationMs(`${VIBRATION_MS_COOKIE}=900`)).toBe(200)
+    expect(SETTING_COOKIES).toContain(VIBRATION_MS_COOKIE)
   })
 })
 

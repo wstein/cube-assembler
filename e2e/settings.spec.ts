@@ -112,3 +112,46 @@ test('the theme can override the system color scheme', async ({ page }) => {
   await expect(html).not.toHaveAttribute('data-theme', /./)
   expect(await background()).toBe(dark)
 })
+
+test('a hold vibrates for the set length, 50 ms by default', async ({
+  page,
+}) => {
+  await page.addInitScript(() => {
+    const calls: unknown[] = []
+    ;(window as unknown as { vibrations: unknown[] }).vibrations = calls
+    navigator.vibrate = ((pattern: VibratePattern) => {
+      calls.push(pattern)
+      return true
+    }) as typeof navigator.vibrate
+  })
+  const hold = async () => {
+    await page.getByRole('button', { name: 'Solved cube' }).click()
+    await page.getByRole('button', { name: '3D View' }).click()
+    const bounds = await page.locator('.cube-3d-canvas').boundingBox()
+    if (!bounds) throw new Error('No canvas')
+    await page.mouse.move(
+      bounds.x + bounds.width / 2 - 38,
+      bounds.y + bounds.height / 2,
+    )
+    await page.mouse.down()
+    await expect(page.locator('.cube-3d-press-mode')).toHaveText(/Wide turn/)
+    await page.mouse.up()
+    return page.evaluate(
+      () => (window as unknown as { vibrations: unknown[] }).vibrations,
+    )
+  }
+  await page.goto('/#settings')
+  const length = page.getByRole('slider', { name: /Vibration length/ })
+  await expect(length).toHaveValue('50')
+  await page.getByRole('button', { name: '← Back to the scanner' }).click()
+  expect(await hold()).toEqual([50])
+
+  await page.goto('/#settings')
+  await length.fill('120')
+  await expect
+    .poll(() => page.evaluate(() => document.cookie))
+    .toContain('cube-assembler-vibration-ms=120')
+  await page.getByRole('button', { name: '← Back to the scanner' }).click()
+  // The same page, so the first hold's call is still recorded.
+  expect(await hold()).toEqual([50, 120])
+})

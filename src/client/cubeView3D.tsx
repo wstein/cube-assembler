@@ -56,6 +56,7 @@ import {
   readTurnFeel,
   turnSoundOn,
   vibrationOn,
+  readVibrationMs,
 } from './preferences'
 import type { CubeState, FaceKey } from '../cube/cubeAssembly'
 
@@ -648,7 +649,11 @@ export function CubeView3D({
     const cookies = document.cookie
     playModeCue(level, turnSoundOn(cookies) ? MODE_CUE_GAIN : 0)
     try {
-      if (vibrationOn(cookies)) navigator.vibrate?.(level === 'cube' ? 20 : 10)
+      if (vibrationOn(cookies)) {
+        // The whole cube buzzes twice as long as a wide turn.
+        const ms = readVibrationMs(cookies)
+        navigator.vibrate?.(level === 'cube' ? 2 * ms : ms)
+      }
     } catch {
       // Vibration is only a hint.
     }

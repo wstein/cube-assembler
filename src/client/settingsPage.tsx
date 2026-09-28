@@ -41,6 +41,9 @@ import {
   readTurnFeel,
   turnSoundOn,
   vibrationOn,
+  readVibrationMs,
+  VIBRATION_MS_COOKIE,
+  VIBRATION_MS_RANGE,
 } from './preferences'
 import { applyTheme } from './theme'
 import { DEFAULT_FIXTURE_SERVER, loopbackFixtureServer } from './fixtureUpload'
@@ -184,6 +187,16 @@ export function SettingsPage({ onClose }: Props) {
           hint="On phones, a short buzz when a held sticker turns more layers."
           checked={vibrationOn(cookies)}
           onChange={(on) => write(preferenceCookie(VIBRATION_COOKIE, on))}
+        />
+        <SliderSetting
+          label="Vibration length"
+          hint="How long that buzz lasts; some phones need 40 ms or more to feel it."
+          min={VIBRATION_MS_RANGE.min}
+          max={VIBRATION_MS_RANGE.max}
+          step={10}
+          value={readVibrationMs(cookies)}
+          unit=" ms"
+          onChange={(ms) => write(numberCookie(VIBRATION_MS_COOKIE, ms))}
         />
       </Section>
 

@@ -16,6 +16,7 @@
 @genType let scrambleLengthCookie: string
 @genType let scrambleInnerCookie: string
 @genType let vibrationCookie: string
+@genType let vibrationMsCookie: string
 @genType let fixtureServerUrlCookie: string
 @genType let localUploadCookie: string
 @genType let themeCookie: string
@@ -67,6 +68,8 @@ type scrambleLength =
 @genType type scrambleOptions = {length: scrambleLength, innerLayers: bool}
 @genType let readScrambleOptions: string => scrambleOptions
 @genType let vibrationOn: string => bool
+@genType let vibrationMsRange: range
+@genType let readVibrationMs: string => float
 @genType let localUploadShown: string => bool
 
 @genType

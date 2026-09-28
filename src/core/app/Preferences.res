@@ -26,6 +26,8 @@ let scrambleLengthCookie = "cube-assembler-scramble-length"
 let scrambleInnerCookie = "cube-assembler-scramble-inner"
 // A short vibration when a held sticker switches to a wide turn.
 let vibrationCookie = "cube-assembler-vibration"
+// How long that vibration lasts (milliseconds).
+let vibrationMsCookie = "cube-assembler-vibration-ms"
 // Developer settings: where the published app finds the local fixture
 // server, and whether saving a fixture offers Upload to localhost.
 let fixtureServerUrlCookie = "cube-assembler-fixture-server-url"
@@ -128,6 +130,7 @@ let settingCookies = [
   scrambleLengthCookie,
   scrambleInnerCookie,
   vibrationCookie,
+  vibrationMsCookie,
   fixtureServerUrlCookie,
   localUploadCookie,
   themeCookie,
@@ -193,6 +196,11 @@ let readScrambleOptions = cookies => {
 }
 
 let vibrationOn = cookies => readPreference(cookies, vibrationCookie, true)
+
+// Many phone motors barely stir for 10 ms; 50 ms is a clear, short buzz.
+let vibrationMsRange = {min: 10.0, max: 200.0, fallback: 50.0}
+
+let readVibrationMs = cookies => readNumber(cookies, vibrationMsCookie, vibrationMsRange)
 
 let localUploadShown = cookies => readPreference(cookies, localUploadCookie, true)
 
