@@ -17,3 +17,8 @@ type fixtureRequest = {
 @genType type summary = {photos: array<photoRef>, rows: array<(string, string)>}
 
 @genType let summarizeMeta: JSON.t => summary
+
+// JavaScript's truthiness, and a field of an object value, for reading
+// untrusted JSON the way the original TypeScript did.
+let truthy: option<JSON.t> => bool
+let field: (option<JSON.t>, string) => option<JSON.t>

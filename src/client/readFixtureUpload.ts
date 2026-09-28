@@ -1,7 +1,8 @@
-import { validateFaceColors } from '../cube/cubeAssembly'
+// Loading an uploaded fixture's files; what its meta.json says is decided
+// in src/core/capture/FixtureUpload.res.
+import { planFixtureUpload } from '../core/capture/FixtureUpload.gen'
 import type { AutomaticResolution } from './colorProfileLearning'
 import type { FaceCaptureData, PreviewColorProfile } from './captureTypes'
-import { readFixtureColors } from './fixtureFormat'
 import type { RGB, SamplingGeometry } from './imageProcessing'
 import type { UsedColorProfile } from './profileSettings'
 
@@ -62,23 +63,18 @@ export async function readFixtureUpload(
     return { ok: false, message: `❌ ${metaFile.name} is not valid JSON.` }
   }
 
-  const colorGrids = readFixtureColors(meta)?.colors ?? null
-  if (!meta.faces || typeof meta.gridSize !== 'number' || !colorGrids)
-    return {
-      ok: false,
-      message: `❌ ${metaFile.name} doesn't look like a saved fixture (missing gridSize, faces or their colors).`,
-    }
-
   const photoFiles = files.filter((file) => file !== metaFile)
+  const plan = planFixtureUpload(
+    meta,
+    metaFile.name,
+    photoFiles.map((file) => file.name),
+    Date.now(),
+  )
+  if (!plan.ok) return { ok: false, message: plan.message }
+
   const entries: Record<string, FaceCaptureData> = {}
-  const missing: string[] = []
-  for (const [face, faceData] of Object.entries(meta.faces)) {
-    const photoFile = photoFiles.find((file) => file.name === faceData.photo)
-    const colors = colorGrids[face.toUpperCase()]
-    if (!photoFile || !colors || !validateFaceColors(colors, meta.gridSize)) {
-      missing.push(face.toUpperCase())
-      continue
-    }
+  for (const { face, photo, ...entry } of plan.faces) {
+    const photoFile = photoFiles.find((file) => file.name === photo)!
     const dataUrl = await new Promise<string>((resolve, reject) => {
       const reader = new FileReader()
       reader.onload = () => resolve(reader.result as string)
@@ -86,28 +82,15 @@ export async function readFixtureUpload(
         reject(new Error(`Could not read ${photoFile.name}`))
       reader.readAsDataURL(photoFile)
     })
-    entries[face.toUpperCase()] = {
-      colors,
+    entries[face] = {
+      ...(entry as Pick<
+        FaceCaptureData,
+        'colors' | 'timestamp' | 'backgroundColor' | 'previewColorProfile'
+      >),
       confidence: 1,
       croppedImage: dataUrl,
       source: 'fixture',
-      timestamp: faceData.capturedAt
-        ? Date.parse(faceData.capturedAt) || Date.now()
-        : Date.now(),
-      ...(faceData.background && { backgroundColor: faceData.background }),
-      ...(faceData.previewColorProfile?.id &&
-        faceData.previewColorProfile.name &&
-        faceData.previewColorProfile.colors && {
-          previewColorProfile: faceData.previewColorProfile,
-        }),
     }
   }
-
-  if (missing.length > 0)
-    return {
-      ok: false,
-      message: `❌ Missing or invalid photo/colors for face${missing.length === 1 ? '' : 's'} ${missing.join(', ')} - make sure all 6 face-*.jpg files named in ${metaFile.name} are selected too.`,
-    }
-
   return { ok: true, meta, entries }
 }
