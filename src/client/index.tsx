@@ -1,4 +1,4 @@
-import { render, Fragment } from 'preact'
+import { render } from 'preact'
 import { useState, useEffect, useRef, useMemo } from 'preact/hooks'
 // Fonts bundled with the app rather than loaded from Google Fonts, which
 // would send every visitor's IP address to Google.
@@ -12,8 +12,9 @@ import '@fontsource/ibm-plex-mono/400.css'
 import '@fontsource/ibm-plex-mono/500.css'
 import '@fontsource/ibm-plex-mono/600.css'
 import '../../web/style.css'
-import { AUTO_CAPTURE_STABLE_FRAMES, type TurnCuePose } from './autoCapture'
-import { CaptureTurnOverlay, TurnHint } from './captureTurnCue'
+import type { TurnCuePose } from './autoCapture'
+import { TurnHint } from './captureTurnCue'
+import { CaptureLiveView } from './captureLiveView'
 import type { FaceCaptureData, PreviewColorProfile } from './captureTypes'
 import { CaptureNet, FaceGrid } from './captureNet'
 import { readyAssemblyAfterCapture } from './captureReviewRouting'
@@ -86,7 +87,6 @@ import {
   CROP_JPEG_QUALITY,
   DEFAULT_SAMPLING,
   STICKER_MEASUREMENT,
-  stickerSampleRect,
   colorConfidences,
   STICKER_COLORS,
   rgbToOKLCH,
@@ -3476,212 +3476,41 @@ function App() {
           >
             {/* Live view on the left, everything about the current step on the
                 right - so on a laptop nothing needs a scroll. */}
-            <div class="capture-live">
-              <div class="capture-video-wrapper">
-                <video
-                  ref={webcamRef}
-                  autoplay
-                  muted
-                  playsinline
-                  class={`webcam-feed ${mirrorPreview ? 'mirrored' : ''}`}
-                />
-                {liveDetection && liveFaceVisible && (
-                  // Positioned from stickerSampleRect in percent of the guide
-                  // square, so the overlay shows exactly what the detector
-                  // reads: thin cell lines, and each sampled zone outlined in the
-                  // color it reads as.
-                  <div
-                    class={`capture-grid-overlay ${mirrorPreview ? 'mirrored' : ''}`}
-                    style={
-                      liveDetection.gridOffset && {
-                        '--grid-x': liveDetection.gridOffset.x,
-                        '--grid-y': liveDetection.gridOffset.y,
-                        '--grid-scale': liveDetection.gridOffset.scale,
-                        '--grid-angle': liveDetection.gridOffset.angle,
-                      }
-                    }
-                  >
-                    {liveDetection.colors.map((row, r) =>
-                      row.map((color, c) => {
-                        const n = liveDetection.colors.length
-                        const outer = liveDetection.outerCellRatio ?? 1
-                        const cell = stickerSampleRect(
-                          r,
-                          c,
-                          n,
-                          100,
-                          100,
-                          { ...sampling, stickerCore: 1 },
-                          outer,
-                        )
-                        const zone = stickerSampleRect(
-                          r,
-                          c,
-                          n,
-                          100,
-                          100,
-                          sampling,
-                          outer,
-                        )
-                        return (
-                          <Fragment key={`${r}-${c}`}>
-                            <div
-                              class="capture-grid-cell"
-                              style={{
-                                left: `${cell.x}%`,
-                                top: `${cell.y}%`,
-                                width: `${cell.width}%`,
-                                height: `${cell.height}%`,
-                              }}
-                            />
-                            <div
-                              class="capture-sample-zone"
-                              style={{
-                                left: `${zone.x}%`,
-                                top: `${zone.y}%`,
-                                width: `${zone.width}%`,
-                                height: `${zone.height}%`,
-                                borderColor: STICKER_HEX[color] ?? '#888',
-                              }}
-                            />
-                          </Fragment>
-                        )
-                      }),
-                    )}
-                  </div>
-                )}
-                {/* Guide mode frames the exact sample square. Detect face shows
-                    the wider seam search area; its moving grid marks the crop. */}
-                <div
-                  class={`capture-scan-frame ${captureMode === 'cv' ? 'cv-search-frame' : ''} ${liveCapturedFace ? 'pattern-match' : ''} ${autoCapture && autoCaptureFrames > 0 ? 'capture-holding' : ''} ${captureFlash ? 'capture-flashed' : ''}`}
-                >
-                  <span class="capture-scan-label">
-                    {captureMode === 'cv'
-                      ? liveNeedsRecentering
-                        ? 'Move face toward center'
-                        : 'Show one face in this area'
-                      : 'Fit face in this square'}
-                  </span>
-                  {captureMode === 'cv' &&
-                    autoCapture &&
-                    autoCaptureFrames > 0 && (
-                      <svg
-                        class={`capture-progress-ring ${autoCapturePaused ? 'paused' : ''}`}
-                        viewBox="0 0 40 40"
-                        aria-hidden="true"
-                      >
-                        <circle
-                          class="capture-progress-track"
-                          cx="20"
-                          cy="20"
-                          r="16"
-                        />
-                        <circle
-                          class="capture-progress-fill"
-                          cx="20"
-                          cy="20"
-                          r="16"
-                          style={{
-                            strokeDashoffset: `${100.53 * (1 - autoCaptureFrames / AUTO_CAPTURE_STABLE_FRAMES)}`,
-                          }}
-                        />
-                      </svg>
-                    )}
-                </div>
-                {captureFlash && (
-                  <div class="capture-flash" aria-hidden="true" />
-                )}
-                {turnOverlay && (
-                  <CaptureTurnOverlay
-                    stickerColors={STICKER_HEX}
-                    step={turnOverlay.step}
-                    startColors={turnOverlay.startColors}
-                    viaColors={turnOverlay.viaColors}
-                    capturedColors={Object.values(capturedFaces).map(
-                      (face) => face.colors,
-                    )}
-                    mirrored={mirrorPreview}
-                    onContinue={continueTurnOverlay}
-                  />
-                )}
-                <span
-                  class={`capture-live-badge ${liveCapturedFace ? 'pattern-match' : ''}`}
-                  role="status"
-                >
-                  <span class="capture-live-dot" />
-                  Live ·{' '}
-                  {liveCapturedFace
-                    ? `Looks like ${FACE_DISPLAY_LABEL[liveCapturedFace]} · capture allowed`
-                    : captureMode === 'cv' && liveNeedsRecentering
-                      ? 'Move face toward center'
-                      : liveDetection
-                        ? liveFaceVisible
-                          ? `${(liveDetection.confidence * 100).toFixed(0)}% color match`
-                          : captureMode === 'cv'
-                            ? 'Align face in view'
-                            : 'Align face in guide'
-                        : '—'}
-                  {profileStore.activeColorsId === AUTO_COLORS_ID &&
-                    liveAutoColorProfile &&
-                    ` · ${liveAutoColorProfile.name}`}
-                  {liveMedianWB && ' · median WB'}
-                </span>
-              </div>
-              <div class="capture-live-options">
-                <label class="mirror-toggle">
-                  <input
-                    type="checkbox"
-                    checked={mirrorPreview}
-                    onChange={(e) =>
-                      changePreference(
-                        MIRROR_COOKIE,
-                        setMirrorPreview,
-                        e.currentTarget.checked,
-                      )
-                    }
-                  />
-                  Mirror
-                </label>
-                {captureMode === 'cv' && (
-                  <>
-                    <label class="auto-capture-toggle">
-                      <input
-                        type="checkbox"
-                        checked={autoCapture}
-                        onChange={(e) =>
-                          changePreference(
-                            AUTO_CAPTURE_COOKIE,
-                            setAutoCapture,
-                            e.currentTarget.checked,
-                          )
-                        }
-                      />
-                      <span>
-                        {autoCapture
-                          ? `Auto capture · matching frames ${autoCaptureFrames}/${AUTO_CAPTURE_STABLE_FRAMES}${autoCapturePaused ? ' · paused' : ''}`
-                          : 'Auto capture'}
-                      </span>
-                    </label>
-                    <label class="capture-sound-toggle">
-                      <input
-                        type="checkbox"
-                        checked={captureSound}
-                        onChange={(e) => {
-                          const enabled = e.currentTarget.checked
-                          changePreference(
-                            SOUND_COOKIE,
-                            setCaptureSound,
-                            enabled,
-                          )
-                          armCaptureAudio(enabled)
-                        }}
-                      />
-                      Sound
-                    </label>
-                  </>
-                )}
-              </div>
-            </div>
+            <CaptureLiveView
+              webcamRef={webcamRef}
+              mirrorPreview={mirrorPreview}
+              captureMode={captureMode}
+              liveDetection={liveDetection}
+              liveFaceVisible={liveFaceVisible}
+              liveNeedsRecentering={liveNeedsRecentering}
+              liveCapturedFace={liveCapturedFace}
+              liveAutoColorProfileName={liveAutoColorProfile?.name}
+              liveMedianWB={liveMedianWB}
+              automaticColors={profileStore.activeColorsId === AUTO_COLORS_ID}
+              autoCapture={autoCapture}
+              autoCaptureFrames={autoCaptureFrames}
+              autoCapturePaused={autoCapturePaused}
+              captureFlash={captureFlash}
+              captureSound={captureSound}
+              turnOverlay={turnOverlay}
+              capturedColors={Object.values(capturedFaces).map(
+                (face) => face.colors,
+              )}
+              sampling={sampling}
+              stickerColors={STICKER_HEX}
+              faceLabels={FACE_DISPLAY_LABEL}
+              onContinueTurn={continueTurnOverlay}
+              onMirrorChange={(enabled) =>
+                changePreference(MIRROR_COOKIE, setMirrorPreview, enabled)
+              }
+              onAutoCaptureChange={(enabled) =>
+                changePreference(AUTO_CAPTURE_COOKIE, setAutoCapture, enabled)
+              }
+              onSoundChange={(enabled) => {
+                changePreference(SOUND_COOKIE, setCaptureSound, enabled)
+                armCaptureAudio(enabled)
+              }}
+            />
             <div class="capture-side">
               <div class="capture-side-header">
                 <div class="capture-side-title">
