@@ -15,6 +15,7 @@ import '../../web/style.css'
 import type { TurnCuePose } from './autoCapture'
 import { TurnHint } from './captureTurnCue'
 import { CaptureLiveView } from './captureLiveView'
+import { CaptureSettings, CubeSelectOptions } from './captureSettings'
 import type { FaceCaptureData, PreviewColorProfile } from './captureTypes'
 import { CaptureNet, FaceGrid } from './captureNet'
 import { readyAssemblyAfterCapture } from './captureReviewRouting'
@@ -131,7 +132,6 @@ import {
   copyColorProfile,
   copyCubeSetting,
   cubeGroupName,
-  groupCubesByName,
   mergeSettings,
   saveCube,
   saveColorProfile,
@@ -205,22 +205,6 @@ function saveProfileStore(store: ProfileSettings): boolean {
   } catch {
     return false
   }
-}
-
-function CubeSelectOptions({ settings }: { settings: ProfileSettings }) {
-  return (
-    <>
-      {groupCubesByName(settings).map((group) => (
-        <optgroup label={group.name} key={group.name}>
-          {group.cubes.map((cube) => (
-            <option key={cube.id} value={cube.id}>
-              {cube.size}×{cube.size}
-            </option>
-          ))}
-        </optgroup>
-      ))}
-    </>
-  )
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -3652,154 +3636,30 @@ function App() {
                   </button>
                 </div>
               )}
-              {/* Cube size, profile and camera options: folded into one summary
-                  line once capturing is under way (and from the start on narrow
-                  screens), so the live view and Capture button stay in reach. */}
-              <details
-                class="capture-settings"
-                open={
-                  FACE_ORDER.every((f) => !capturedFaces[f]) &&
-                  !window.matchMedia('(max-width: 600px)').matches
+              <CaptureSettings
+                profileStore={profileStore}
+                profile={profile}
+                puzzleSize={puzzleSize}
+                colorProfileName={colorProfile.name}
+                automaticColors={profileStore.activeColorsId === AUTO_COLORS_ID}
+                provisionalProfileName={provisionalColorProfile?.name}
+                liveProfileName={liveAutoColorProfile?.name}
+                mirrorPreview={mirrorPreview}
+                noFacesCaptured={FACE_ORDER.every((f) => !capturedFaces[f])}
+                newCubeName={newCubeName}
+                newColorProfileName={newColorProfileName}
+                loading={loading}
+                turnCueShowing={turnOverlay !== null}
+                onCubeChange={changeCube}
+                onColorProfileChange={(id) =>
+                  applyProfileStore(selectColorProfile(profileStore, id))
                 }
-              >
-                <summary>
-                  Cube & camera settings
-                  <span class="capture-settings-summary">
-                    {' '}
-                    {puzzleSize}×{puzzleSize} · {profile.name} · Sticker colors:{' '}
-                    {profileStore.activeColorsId === AUTO_COLORS_ID
-                      ? `Automatic · preview: ${provisionalColorProfile?.name ?? liveAutoColorProfile?.name ?? 'camera hues'}`
-                      : colorProfile.name}
-                    {mirrorPreview ? ' · mirrored' : ''}
-                  </span>
-                </summary>
-                <div class="capture-size-row">
-                  <label class="capture-size-label" for="cube-profile">
-                    Cube:
-                  </label>
-                  <span class="capture-size-label">
-                    {cubeGroupName(profile)}
-                  </span>
-                  <select
-                    id="cube-profile"
-                    class="cube-profile-select"
-                    value={profile.id}
-                    onChange={(e) => {
-                      if (!changeCube(e.currentTarget.value))
-                        e.currentTarget.value = profile.id
-                    }}
-                  >
-                    <CubeSelectOptions settings={profileStore} />
-                  </select>
-                  <button
-                    type="button"
-                    class="btn btn-secondary btn-sm"
-                    aria-expanded={newCubeName !== null}
-                    onClick={() =>
-                      setNewCubeName(
-                        newCubeName === null ? `${profile.name} copy` : null,
-                      )
-                    }
-                  >
-                    ＋ New cube
-                  </button>
-                </div>
-                <div class="capture-size-row">
-                  <label class="capture-size-label" for="color-profile">
-                    Colors:
-                  </label>
-                  <select
-                    id="color-profile"
-                    class="cube-profile-select"
-                    value={profileStore.activeColorsId}
-                    onChange={(e) =>
-                      applyProfileStore(
-                        selectColorProfile(profileStore, e.currentTarget.value),
-                      )
-                    }
-                  >
-                    {allColorProfiles(profileStore).map((colors) => (
-                      <option key={colors.id} value={colors.id}>
-                        {colors.name}
-                      </option>
-                    ))}
-                  </select>
-                  <button
-                    type="button"
-                    class="btn btn-secondary btn-sm"
-                    aria-expanded={newColorProfileName !== null}
-                    onClick={() =>
-                      setNewColorProfileName(
-                        newColorProfileName === null ? '' : null,
-                      )
-                    }
-                  >
-                    ＋ New colors
-                  </button>
-                </div>
-                {newColorProfileName !== null && (
-                  <div class="capture-size-row new-cube-form">
-                    <label
-                      class="capture-size-label"
-                      for="new-color-profile-name"
-                    >
-                      Name:
-                    </label>
-                    <input
-                      id="new-color-profile-name"
-                      class="cube-profile-name"
-                      maxLength={60}
-                      placeholder="e.g. Matte"
-                      value={newColorProfileName}
-                      onInput={(e) =>
-                        setNewColorProfileName(e.currentTarget.value)
-                      }
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') handleCreateNamedColors()
-                      }}
-                    />
-                    <button
-                      type="button"
-                      class="btn btn-primary btn-sm"
-                      disabled={!newColorProfileName.trim()}
-                      onClick={handleCreateNamedColors}
-                    >
-                      Add colors
-                    </button>
-                  </div>
-                )}
-                {newCubeName !== null && (
-                  <div class="capture-size-row new-cube-form">
-                    <label class="capture-size-label" for="new-cube-name">
-                      Name:
-                    </label>
-                    <input
-                      id="new-cube-name"
-                      class="cube-profile-name"
-                      maxLength={60}
-                      value={newCubeName}
-                      onInput={(e) => setNewCubeName(e.currentTarget.value)}
-                    />
-                    <button
-                      type="button"
-                      class="btn btn-primary btn-sm"
-                      disabled={!newCubeName.trim()}
-                      onClick={handleCreateCube}
-                    >
-                      Add cube
-                    </button>
-                  </div>
-                )}
-                <label class="capture-import">
-                  Or use a photo file for this step
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={handleImportImage}
-                    disabled={loading || turnOverlay !== null}
-                  />
-                </label>
-              </details>
+                onNewCubeNameChange={setNewCubeName}
+                onNewColorProfileNameChange={setNewColorProfileName}
+                onCreateCube={handleCreateCube}
+                onCreateNamedColors={handleCreateNamedColors}
+                onImportImage={handleImportImage}
+              />
               <div class="capture-actions">
                 <div
                   role="status"
