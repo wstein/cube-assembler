@@ -1,1 +1,6 @@
 *.jpg filter=lfs diff=lfs merge=lfs -text
+
+# Keep generated artifacts out of GitHub's language statistics and diffs.
+package-lock.json linguist-generated
+*.gen.tsx linguist-generated
+*.res.mjs linguist-generated

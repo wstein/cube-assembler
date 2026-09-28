@@ -1,0 +1,7 @@
+# Generated dependency and compiler output; scc also reads .gitignore.
+package-lock.json
+*.gen.tsx
+*.res.mjs
+dist/
+lib/
+node_modules/
