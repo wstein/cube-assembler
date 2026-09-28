@@ -7,7 +7,10 @@ import {
 
 const ORDER = ['U', 'R', 'F', 'D', 'L', 'B']
 
-function cleanFaces(): Record<string, CaptureReviewFace> {
+// The tests adjust one face at a time.
+type Face = { -readonly [K in keyof CaptureReviewFace]: CaptureReviewFace[K] }
+
+function cleanFaces(): Record<string, Face> {
   return Object.fromEntries(
     ORDER.map((face) => [
       face,

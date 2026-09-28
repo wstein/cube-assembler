@@ -4,6 +4,7 @@
 import {
   classifyAcrossFaces as classifyAcrossFacesRes,
   colorConfidences as colorConfidencesRes,
+  type classified,
 } from '../core/color/Recalibration.gen'
 import {
   DEFAULT_SAMPLING,
@@ -12,18 +13,13 @@ import {
   type RGB,
   type SamplingGeometry,
 } from './stickerColorGeometry'
-import type { LearnedColors } from './stickerLearning'
 import { NEUTRAL_GAINS } from './colorMath'
 import { limitBackgroundGain } from './faceSampling'
 import { redetectFaceColors } from './faceDetection'
 
-export interface LearnedColorClassificationResult {
-  learned: LearnedColors | null
-  applied: boolean
-  faces: Record<string, ColorDetectionResult>
-  // Stickers glare washed out (see glareStickers).
-  glare: Array<{ face: string; row: number; col: number }>
-}
+// Each face's colors after the cross-face pass, the learned palette when it
+// applied, and the stickers glare washed out (see glareStickers).
+export type LearnedColorClassificationResult = classified
 
 // How well `rgb` matches each color, 0-1 on the scale of cellConfidences -
 // for showing a human how plausible each alternative is when fixing a
@@ -84,8 +80,5 @@ export function classifyAcrossFaces(
   baselineFaces: Record<string, ColorDetectionResult>,
   referencePalette?: Record<string, RGB>,
 ): LearnedColorClassificationResult {
-  return classifyAcrossFacesRes(
-    baselineFaces,
-    referencePalette,
-  ) as LearnedColorClassificationResult
+  return classifyAcrossFacesRes(baselineFaces, referencePalette)
 }
