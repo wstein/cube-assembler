@@ -1347,7 +1347,7 @@ export function CubeView3D({
   // The isometric view, from the front corner or the opposite back one.
   const resetView = (back = false) => {
     pauseAutoRotation()
-    setPitch(0.42)
+    setPitch(back ? -0.42 : 0.42)
     setYaw(-0.62 + (back ? Math.PI : 0))
     setZoom(getDefaultZoom(puzzleSize))
   }

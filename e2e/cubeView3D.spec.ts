@@ -221,6 +221,35 @@ test('Iso-back shows the cube from behind, and Isometric turns it back', async (
   expect((await canvas.screenshot()).equals(front)).toBe(true)
 })
 
+test('Iso-back reveals the Down face', async ({ page }) => {
+  await page.goto('/')
+  await page.getByRole('button', { name: 'Solved cube' }).click()
+  await page.getByRole('button', { name: '3D View' }).click()
+  await page.getByRole('button', { name: 'Iso-back' }).click()
+  const screenshot = await page.locator('.cube-3d-canvas').screenshot()
+  const yellowPixels = await page.evaluate(async (base64) => {
+    const image = new Image()
+    image.src = `data:image/png;base64,${base64}`
+    await image.decode()
+    const canvas = document.createElement('canvas')
+    canvas.width = image.width
+    canvas.height = image.height
+    const context = canvas.getContext('2d')!
+    context.drawImage(image, 0, 0)
+    const pixels = context.getImageData(0, 0, canvas.width, canvas.height).data
+    let count = 0
+    for (let i = 0; i < pixels.length; i += 4) {
+      const red = pixels[i]
+      const green = pixels[i + 1]
+      const blue = pixels[i + 2]
+      if (red > 100 && green > red * 0.72 && green < red && blue < green * 0.5)
+        count++
+    }
+    return count
+  }, screenshot.toString('base64'))
+  expect(yellowPixels).toBeGreaterThan(1_000)
+})
+
 test('shows the slate backdrop through a transparent WebGL canvas', async ({
   page,
 }) => {
