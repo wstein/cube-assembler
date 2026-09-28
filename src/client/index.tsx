@@ -15,6 +15,7 @@ import '../../web/style.css'
 import type { TurnCuePose } from './autoCapture'
 import { CaptureLiveView } from './captureLiveView'
 import { CaptureDialog } from './captureDialog'
+import { CaptureReviewDialog } from './captureReviewDialog'
 import { CaptureSettings, CubeSelectOptions } from './captureSettings'
 import type { FaceCaptureData, PreviewColorProfile } from './captureTypes'
 import { FaceGrid } from './captureNet'
@@ -3502,322 +3503,38 @@ function App() {
         />
       )}
 
-      {/* Post-Capture Review Wizard: step through faces one at a time,
-          photo on the left (clean, undecorated) and the detected colors as
-          a separate interactive grid on the right — not overlaid on the
-          photo, so there's always a clear, unobstructed original to check
-          the detection against. */}
-      {showReviewDialog &&
-        (() => {
-          const face = FACE_ORDER[reviewStep]
-          const data = capturedFaces[face]
-          const isLast = reviewStep === FACE_ORDER.length - 1
-
-          return (
-            <div class="modal open">
-              <div
-                class="modal-content review-modal-content"
-                role="dialog"
-                aria-modal="true"
-                aria-labelledby="review-title"
-                tabIndex={-1}
-                ref={focusModalOnOpen}
-                onKeyDown={(e) =>
-                  handleModalKeyDown(e, e.currentTarget, () =>
-                    setShowReviewDialog(false),
-                  )
-                }
-              >
-                <div class="review-header">
-                  <div class="capture-side-title">
-                    <span class="capture-step-kicker">
-                      Check colors · {reviewStep + 1} of {FACE_ORDER.length}
-                    </span>
-                    <h2 id="review-title">{FACE_DISPLAY_LABEL[face]}</h2>
-                  </div>
-                  <div
-                    class="review-progress-dots"
-                    role="group"
-                    aria-label="Faces"
-                  >
-                    {FACE_ORDER.map((f, i) => (
-                      <button
-                        type="button"
-                        key={f}
-                        class={`progress-dot ${i < reviewStep ? 'done' : ''} ${i === reviewStep ? 'current' : ''}`}
-                        aria-current={i === reviewStep ? 'step' : undefined}
-                        aria-label={FACE_DISPLAY_LABEL[f]}
-                        onClick={() => setReviewStep(i)}
-                      >
-                        {FACE_SHORT_LABEL[f]}
-                      </button>
-                    ))}
-                  </div>
-                  <button
-                    type="button"
-                    class="modal-close"
-                    aria-label="Close"
-                    onClick={() => setShowReviewDialog(false)}
-                  >
-                    ×
-                  </button>
-                </div>
-                {captureProfile && (
-                  <p class="capture-profile-used review-profile-used">
-                    Cube: <strong>{captureProfile.name}</strong>
-                  </p>
-                )}
-                {globalWhiteBalanceNote && (
-                  <div class="global-wb-note">✓ {globalWhiteBalanceNote}</div>
-                )}
-                {reviewNotice && (
-                  <div class="capture-warning" role="alert">
-                    {reviewNotice}
-                  </div>
-                )}
-                {glareFaces.length > 0 && (
-                  <div class="capture-warning" role="status">
-                    ⚠ Glare washed out some stickers on{' '}
-                    {glareFaces.map((f) => FACE_DISPLAY_LABEL[f]).join(', ')}.
-                    Check their colors, or tilt the cube away from the light and
-                    retake.
-                  </div>
-                )}
-                {mixedUpColors.length > 0 && (
-                  <div class="capture-warning" role="status">
-                    ⚠{' '}
-                    {mixedUpColors.map((c) => COLOR_NAME[c] ?? c).join(' and ')}{' '}
-                    came out mixed with another color, so two colors may be
-                    swapped. Check those stickers, or retake in more even light.
-                  </div>
-                )}
-                {(() => {
-                  // Detection always assigns every color exactly N² stickers, so
-                  // an imbalance here means a sticker was set to the wrong color
-                  // by hand - worth fixing before assembling.
-                  const counts: Record<string, number> = {}
-                  for (const f of FACE_ORDER)
-                    for (const row of capturedFaces[f]?.colors ?? [])
-                      for (const c of row) counts[c] = (counts[c] ?? 0) + 1
-                  const expected = puzzleSize * puzzleSize
-                  const off = COLOR_ORDER.filter(
-                    (c) => (counts[c] ?? 0) !== expected,
-                  )
-                  if (
-                    off.length === 0 ||
-                    !FACE_ORDER.every((f) => capturedFaces[f])
-                  )
-                    return null
-                  return (
-                    <div class="capture-warning" role="status">
-                      ⚠{' '}
-                      {off
-                        .map((c) => `${COLOR_NAME[c]} ${counts[c] ?? 0}`)
-                        .join(', ')}{' '}
-                      - each color should appear {expected} times. A sticker was
-                      probably set to the wrong color.
-                    </div>
-                  )
-                })()}
-                {data && (
-                  <>
-                    <div class="review-wizard-panes">
-                      <div class="review-pane">
-                        <div class="review-pane-label">Photo</div>
-                        <div class="review-face-image-wrapper">
-                          {data.croppedImage && (
-                            <img
-                              src={data.croppedImage}
-                              class="review-face-image"
-                              alt={`Captured photo of ${FACE_DISPLAY_LABEL[face]}`}
-                            />
-                          )}
-                        </div>
-                      </div>
-                      <div class="review-pane">
-                        {(() => {
-                          // A cell is worth a second look for either of two
-                          // independent reasons: the classifier itself was
-                          // unsure (low confidence), or the sticker sits
-                          // close to the boundary with another color (see
-                          // cellLookalikes) - flag both the same way so a
-                          // human correcting one ambiguous sticker doesn't
-                          // have to first work out which signal triggered it.
-                          let flaggedCount = 0
-                          let correctedCount = 0
-                          for (let r = 0; r < data.colors.length; r++) {
-                            for (let c = 0; c < data.colors[r].length; c++) {
-                              const detected = data.detectedColors?.[r]?.[c]
-                              const corrected =
-                                detected !== undefined &&
-                                detected !== data.colors[r][c]
-                              const lowConfidence =
-                                confidenceTier(
-                                  data.cellConfidences?.[r]?.[c] ?? 1,
-                                ) === 'low'
-                              const lookalike = data.cellLookalikes?.[r]?.[c]
-                              if (corrected) correctedCount++
-                              else if (lowConfidence || lookalike)
-                                flaggedCount++
-                            }
-                          }
-                          return (
-                            <div class="review-pane-label">
-                              <span>Colors found</span>
-                              {flaggedCount > 0 && (
-                                <span class="review-flagged-count">
-                                  ⚠ {flaggedCount} to double-check
-                                </span>
-                              )}
-                              {correctedCount > 0 && (
-                                <span class="review-corrected-count">
-                                  ✎ {correctedCount} changed by you
-                                </span>
-                              )}
-                            </div>
-                          )
-                        })()}
-                        <div
-                          class="review-detected-grid"
-                          style={{
-                            gridTemplateColumns: `repeat(${data.colors.length}, 1fr)`,
-                            gridTemplateRows: `repeat(${data.colors.length}, 1fr)`,
-                            '--grid-n': String(data.colors.length),
-                          }}
-                        >
-                          {data.colors.map((row, r) =>
-                            row.map((color, c) => {
-                              // The final color stays the human choice; the badge only
-                              // records what automatic detection had said instead. A
-                              // human-set sticker is settled: detection's confidence and
-                              // lookalike were about the color it saw, not this one.
-                              const detected = data.detectedColors?.[r]?.[c]
-                              const corrected =
-                                detected !== undefined && detected !== color
-                              const confidence = corrected
-                                ? undefined
-                                : data.cellConfidences?.[r]?.[c]
-                              const tier = confidenceTier(confidence ?? 1)
-                              const lookalike = corrected
-                                ? null
-                                : (data.cellLookalikes?.[r]?.[c] ?? null)
-                              const flagged =
-                                tier === 'low' || lookalike !== null
-                              const name = COLOR_NAME[color] ?? color
-                              const sure =
-                                confidence !== undefined
-                                  ? `, ${Math.round(confidence * 100)}% sure`
-                                  : ''
-                              const notes = [
-                                corrected
-                                  ? `We saw ${COLOR_NAME[detected] ?? detected}, you picked ${name}.`
-                                  : null,
-                                tier === 'low'
-                                  ? 'Not sure about this one.'
-                                  : null,
-                                lookalike
-                                  ? `It looks a lot like ${COLOR_NAME[lookalike] ?? lookalike}.`
-                                  : null,
-                              ].filter(Boolean)
-                              return (
-                                <button
-                                  type="button"
-                                  key={`${r}-${c}`}
-                                  class={`review-detected-cell ${flagged ? 'review-detected-cell-flagged' : ''} ${corrected ? 'review-detected-cell-corrected' : ''}`}
-                                  style={{
-                                    background: STICKER_HEX[color] || '#888',
-                                  }}
-                                  onClick={() =>
-                                    setReviewEditingCell({
-                                      face,
-                                      row: r,
-                                      col: c,
-                                    })
-                                  }
-                                  title={[
-                                    `Row ${r + 1}, column ${c + 1}: ${name}${sure}.`,
-                                    ...notes,
-                                    'Tap to change.',
-                                  ].join(' ')}
-                                >
-                                  {confidence !== undefined && (
-                                    <span class="review-detected-confidence">
-                                      {Math.round(confidence * 100)}%
-                                    </span>
-                                  )}
-                                  {/* Cells on bigger grids are too small for the badge next
-                                    to the percentage - the amber ring alone marks them. */}
-                                  {flagged && data.colors.length <= 4 && (
-                                    <span
-                                      class="review-detected-cell-flag"
-                                      aria-hidden="true"
-                                    >
-                                      !
-                                    </span>
-                                  )}
-                                  {corrected && (
-                                    <span
-                                      class="review-detected-cell-was"
-                                      style={{
-                                        background:
-                                          STICKER_HEX[detected] || '#888',
-                                      }}
-                                      aria-hidden="true"
-                                    >
-                                      {detected}
-                                    </span>
-                                  )}
-                                </button>
-                              )
-                            }),
-                          )}
-                        </div>
-                        <div class="review-pane-hint">
-                          Tap a sticker to fix it
-                        </div>
-                      </div>
-                    </div>
-                    <div class="review-wizard-nav">
-                      <button
-                        type="button"
-                        class="btn btn-secondary"
-                        onClick={() => handleRetakeFace(face)}
-                      >
-                        Retake {FACE_DISPLAY_LABEL[face].toLowerCase()}
-                      </button>
-                      <div class="review-wizard-nav-spacer" />
-                      <button
-                        type="button"
-                        class="btn btn-secondary"
-                        onClick={() => setReviewStep((s) => Math.max(0, s - 1))}
-                        disabled={reviewStep === 0}
-                      >
-                        Previous
-                      </button>
-                      {isLast ? (
-                        <button
-                          type="button"
-                          class="btn btn-primary btn-review-next"
-                          onClick={() => handleConfirmReview()}
-                        >
-                          Looks right — put the cube together
-                        </button>
-                      ) : (
-                        <button
-                          type="button"
-                          class="btn btn-primary btn-review-next"
-                          onClick={() => setReviewStep((s) => s + 1)}
-                        >
-                          Looks right — next side
-                        </button>
-                      )}
-                    </div>
-                  </>
-                )}
-              </div>
-            </div>
-          )
-        })()}
+      {showReviewDialog && (
+        <CaptureReviewDialog
+          faceOrder={FACE_ORDER}
+          faceLabels={FACE_DISPLAY_LABEL}
+          shortLabels={FACE_SHORT_LABEL}
+          colorNames={COLOR_NAME}
+          stickerColors={STICKER_HEX}
+          colorOrder={COLOR_ORDER}
+          faces={capturedFaces}
+          size={puzzleSize}
+          step={reviewStep}
+          captureProfileName={captureProfile?.name}
+          globalNote={globalWhiteBalanceNote}
+          reviewNotice={reviewNotice}
+          glareFaces={glareFaces}
+          mixedUpColors={mixedUpColors}
+          confidenceTier={confidenceTier}
+          focusDialog={focusModalOnOpen}
+          onDialogKeyDown={(event) =>
+            handleModalKeyDown(event, event.currentTarget, () =>
+              setShowReviewDialog(false),
+            )
+          }
+          onClose={() => setShowReviewDialog(false)}
+          onStepChange={setReviewStep}
+          onEditCell={(face, row, col) =>
+            setReviewEditingCell({ face, row, col })
+          }
+          onRetake={handleRetakeFace}
+          onConfirm={() => handleConfirmReview()}
+        />
+      )}
 
       {/* Orientation wizard - see orientationWizard/pickWizardFace/groupWizardOptions */}
       {/* Approval of how the captured faces fit together (see
