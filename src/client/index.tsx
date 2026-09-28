@@ -28,10 +28,6 @@ import {
 import { CaptureSettings, CubeSelectOptions } from './captureSettings'
 import type { FaceCaptureData, PreviewColorProfile } from './captureTypes'
 import { readyAssemblyAfterCapture } from './captureReviewRouting'
-import {
-  decodeOrbit64State,
-  looksLikeOrbit64StateToken,
-} from '../cube/notation/orbit64'
 import type { ReviewCapture } from './colorReviewPage'
 import { BackdropDialog } from './backdropDialog'
 import { FixtureDownloadDialog } from './fixtureDownloadDialog'
@@ -71,7 +67,7 @@ import {
   selectedCubeView,
   selectionCookie,
 } from './preferences'
-import { runFullParity, type ParityResult } from '../cube/parity'
+import { type ParityResult } from '../cube/parity'
 import {
   runGlobalWhiteBalance,
   backdropReference,
@@ -80,19 +76,15 @@ import {
   DEFAULT_SAMPLING,
   STICKER_COLORS,
   type ColorDetectionResult,
-  type FaceCaptureResult,
   type RGB,
 } from './imageProcessing'
 import {
   assembleCubeFromFaces,
   validateFaceColors,
   createSolvedCube,
-  toCubeIR,
-  checkGuidedCenters,
   findRepeatedFaces,
   findCaptureSlotForOrientedFace,
   captureCenterSlots,
-  placeCapturedFace,
   type OrientedCandidate,
   type FaceKey,
   type CubeState,
@@ -118,13 +110,10 @@ import { readFixtureUpload } from './readFixtureUpload'
 import { unzipUploadFiles } from './fixtureZip'
 import { currentAppCommit } from './fixtureUpload'
 import {
-  CAPTURE_STEPS,
   FACE_DISPLAY_LABEL,
   FACE_ORDER,
   FACE_SHORT_LABEL,
-  GUIDED_PROTOCOL,
   captureInstruction,
-  describeCenterIssue,
   glareFacesToWarn,
 } from './captureSteps'
 import {
@@ -136,6 +125,22 @@ import {
 import { flyInto } from './flyAnimation'
 import { focusModalOnOpen, handleModalKeyDown } from './modalFocus'
 import { useProfileStore } from './useProfileStore'
+import {
+  captureEvidence,
+  captureWarning,
+  capturedFaceMessage,
+  checkParity,
+  cubeCaptureFaces,
+  faceConfidences,
+  isGuidedCapture,
+  nextTurnCue,
+  parityStatus,
+  parseCubeInput,
+  placeFaceCapture,
+  solvedCaptureFaces,
+  turnCuePose,
+  type FaceCaptureReading,
+} from './captureFlow'
 import { usePhotoUploads } from './usePhotoUploads'
 import {
   applyFixtureDetection,
@@ -146,11 +151,6 @@ import {
   recordedAutomaticResolution,
 } from './captureFixture'
 import { useOrientationReview } from './useOrientationReview'
-import {
-  fromWRGFacelets,
-  fromURFFacelets,
-  detectNotationFormat,
-} from '../cube/notation/NotationOutput.gen'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
@@ -159,14 +159,6 @@ import {
 // Injected at build time by vite.config.ts's `define`.
 declare const __APP_VERSION__: string
 declare const __APP_COMMIT__: string
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Parity Check
-// ─────────────────────────────────────────────────────────────────────────────
-
-function checkParity(cube: CubeState, size: number): ParityResult {
-  return runFullParity(toCubeIR(cube, size))
-}
 
 const CALIBRATION_NOTE = 'Colors double-checked by comparing all 6 sides.'
 
@@ -269,7 +261,7 @@ function App() {
     handleWizardPick,
   } = useOrientationReview({
     capturedFaces,
-    isGuidedCapture: () => isGuidedCapture(),
+    isGuidedCapture: () => isGuided(),
     onChoose: (candidate) => handleChooseOrientation(candidate),
   })
   // Capture-time warnings the customer chose to ignore (see captureWarning).
@@ -485,26 +477,7 @@ function App() {
     setResolvedColorProfile(null)
     setAutomaticResolution(null)
 
-    const solvedFaceGrid = (color: string): string[][] =>
-      Array.from({ length: puzzleSize }, () => Array(puzzleSize).fill(color))
-    const solvedColors: Record<string, string> = {
-      U: 'W',
-      R: 'R',
-      F: 'G',
-      D: 'Y',
-      L: 'O',
-      B: 'B',
-    }
-
-    const newCapturedFaces: Record<string, FaceCaptureData> = {}
-    for (const face of FACE_ORDER) {
-      newCapturedFaces[face] = {
-        colors: solvedFaceGrid(solvedColors[face]),
-        confidence: 1.0,
-        timestamp: Date.now(),
-      }
-    }
-    setCapturedFaces(newCapturedFaces)
+    setCapturedFaces(solvedCaptureFaces(puzzleSize))
     updateParityStatus(solved)
   }
 
@@ -520,29 +493,12 @@ function App() {
       // pasted content via detectNotationFormat, but fall back to it here
       // too in case content ever reaches this handler without going
       // through that path (e.g. a fast paste-and-submit).
-      const trimmedInput = manualColorInput.trim()
-      const isOrbit64Token = looksLikeOrbit64StateToken(trimmedInput)
-      const decodedToken = isOrbit64Token
-        ? decodeOrbit64State(trimmedInput)
-        : null
-      const effectiveFormat = isOrbit64Token
-        ? 'urf'
-        : (detectNotationFormat(manualColorInput) ?? notationFormat)
-      const newCube = isOrbit64Token
-        ? decodedToken && fromURFFacelets(decodedToken)
-        : effectiveFormat === 'wrg'
-          ? fromWRGFacelets(manualColorInput)
-          : fromURFFacelets(manualColorInput)
-      if (!newCube) {
-        alert(
-          isOrbit64Token
-            ? 'Invalid Orbit64 state token. Only canonical 2×2–7×7 state tokens are supported.'
-            : effectiveFormat === 'wrg'
-              ? 'Invalid facelets. Must be 6 space-separated blocks of equal, perfect-square length (9 for 3×3, 25 for 5×5, ...) using colors W, O, G, R, B, Y, in U R F D L B order.'
-              : 'Invalid facelets. Must be 6 space-separated blocks of equal, perfect-square length (9 for 3×3, 25 for 5×5, ...) using letters U, R, F, D, L, B (the face each sticker matches when solved), in U R F D L B order.',
-        )
+      const parsed = parseCubeInput(manualColorInput, notationFormat)
+      if (!parsed.ok) {
+        alert(parsed.message)
         return
       }
+      const { cube: newCube, format: effectiveFormat } = parsed
       if (effectiveFormat !== notationFormat) setNotationFormat(effectiveFormat)
 
       const size = Math.sqrt(newCube.u.length)
@@ -551,19 +507,7 @@ function App() {
       setResolvedColorProfile(null)
       setAutomaticResolution(null)
 
-      const toGrid = (data: string[]): string[][] =>
-        Array.from({ length: size }, (_, r) =>
-          data.slice(r * size, r * size + size),
-        )
-      const newCapturedFaces: Record<string, FaceCaptureData> = {}
-      for (const [face, data] of Object.entries(newCube)) {
-        newCapturedFaces[face.toUpperCase()] = {
-          colors: toGrid(data),
-          confidence: 1.0,
-          timestamp: Date.now(),
-        }
-      }
-      setCapturedFaces(newCapturedFaces)
+      setCapturedFaces(cubeCaptureFaces(newCube, size))
 
       updateParityStatus(newCube, size)
       setManualColorInput('')
@@ -580,17 +524,7 @@ function App() {
   // ─────────────────────────────────────────────────────────────────────────
 
   const updateParityStatus = (cubeState: CubeState, sizeOverride?: number) => {
-    try {
-      const result = checkParity(cubeState, sizeOverride ?? puzzleSize)
-      setParity(result)
-    } catch (err) {
-      console.error('Parity check error:', err)
-      setParity({
-        valid: false,
-        result: err instanceof Error ? err.message : 'Parity check failed',
-        checks: {},
-      })
-    }
+    setParity(parityStatus(cubeState, sizeOverride ?? puzzleSize))
   }
 
   // ─────────────────────────────────────────────────────────────────────────
@@ -632,17 +566,7 @@ function App() {
   // uncaptured face so the user doesn't have to close/reopen it per face.
   const applyFaceCapture = async (
     face: string,
-    result: {
-      colors: string[][]
-      confidence: number
-      cellConfidences?: number[][]
-      cellColors?: RGB[][]
-      croppedImage?: string
-      backgroundColor?: RGB | null
-      frame?: FaceCaptureResult['frame']
-      crop?: FaceCaptureResult['crop']
-      sharpness?: number
-    },
+    result: FaceCaptureReading,
     source: 'camera' | 'image-file',
     cameraSettings?: Partial<MediaTrackSettings>,
     captureSize = puzzleSize,
@@ -655,56 +579,27 @@ function App() {
       return
     }
 
-    const requestedIndex = FACE_ORDER.indexOf(face)
-    const { index: assignedIndex, unexpectedCenter } = placeCapturedFace(
-      FACE_ORDER.map((f) => capturedFaces[f]?.colors),
-      requestedIndex,
-      result.colors,
+    const {
+      faces: newCapturedFaces,
+      assignedFace,
+      unexpectedCenter,
+    } = placeFaceCapture(
+      capturedFaces,
+      face,
+      result,
+      source,
+      cameraSettings,
+      previewColorProfile,
     )
-    const assignedFace = FACE_ORDER[assignedIndex]
     if (pendingFlyIn.current) pendingFlyIn.current.slot = assignedFace
-
-    const newCapturedFaces = {
-      ...capturedFaces,
-      [assignedFace]: {
-        colors: result.colors,
-        detectedColors: result.colors,
-        cellConfidences: result.cellConfidences,
-        cellColors: result.cellColors,
-        confidence: result.confidence,
-        croppedImage: result.croppedImage,
-        backgroundColor: result.backgroundColor,
-        frame: result.frame,
-        crop: result.crop,
-        sharpness: result.sharpness,
-        cameraSettings,
-        source,
-        ...(previewColorProfile && { previewColorProfile }),
-        outOfOrder:
-          unexpectedCenter ||
-          assignedIndex !== requestedIndex ||
-          capturedFaces[assignedFace]?.outOfOrder,
-        timestamp: Date.now(),
-      },
-    }
 
     setCapturedFaces(newCapturedFaces)
     lastCapturedColors.current = source === 'camera' ? result.colors : null
     lastCapturedPose.current =
-      source === 'camera' && result.crop
-        ? {
-            centerX: result.crop.x + result.crop.width / 2,
-            centerY: result.crop.y + result.crop.height / 2,
-            size: result.crop.width,
-            angle: ((result.crop.angle ?? 0) * Math.PI) / 180,
-          }
-        : null
+      source === 'camera' ? turnCuePose(result.crop) : null
     setFaceConfidence({ ...faceConfidence, [assignedFace]: result.confidence })
     setCaptureMessage(
-      `✓ ${FACE_DISPLAY_LABEL[assignedFace]} captured (${(result.confidence * 100).toFixed(0)}% confidence)` +
-        (unexpectedCenter
-          ? " - its center isn't the suggested one; check it in the review"
-          : ''),
+      capturedFaceMessage(assignedFace, result.confidence, unexpectedCenter),
     )
 
     const allFacesCaptured = FACE_ORDER.every((f) => f in newCapturedFaces)
@@ -720,17 +615,10 @@ function App() {
         // would only be a wait, and the step hint already says what to do.
         if (
           source !== 'camera' ||
-          window.matchMedia('(prefers-reduced-motion: reduce)').matches ||
-          FACE_ORDER.some((f) => newCapturedFaces[f]?.outOfOrder)
+          window.matchMedia('(prefers-reduced-motion: reduce)').matches
         )
           return
-        const step = FACE_ORDER.indexOf(nextFace)
-        setTurnOverlay({
-          step,
-          startColors: result.colors,
-          viaColors:
-            step === 5 ? newCapturedFaces[FACE_ORDER[3]]?.colors : undefined,
-        })
+        setTurnOverlay(nextTurnCue(newCapturedFaces, nextFace, result.colors))
       }
     }
   }
@@ -946,11 +834,7 @@ function App() {
 
       setPuzzleSize(meta.gridSize)
       setCapturedFaces(newEntries)
-      setFaceConfidence(
-        Object.fromEntries(
-          Object.entries(newEntries).map(([f, d]) => [f, d.confidence]),
-        ),
-      )
+      setFaceConfidence(faceConfidences(newEntries))
       setCaptureMessage(
         fixtureLoadedMessage(mismatches, ignoreFixtureCorrections),
       )
@@ -1010,11 +894,7 @@ function App() {
         faceOrder: FACE_ORDER,
       })
       setCapturedFaces(entries)
-      setFaceConfidence(
-        Object.fromEntries(
-          FACE_ORDER.map((face) => [face, entries[face].confidence]),
-        ),
-      )
+      setFaceConfidence(faceConfidences(entries))
       setUploadedProtocol(null)
       setDismissedCaptureWarnings([])
       closePhotoUpload()
@@ -1085,17 +965,7 @@ function App() {
     handleConfirmReview(ready)
   }, [reviewRouting, capturedFaces])
 
-  // Whether the current faces followed the guided protocol: a camera
-  // capture, or an uploaded fixture that recorded it. Faces mixed with
-  // imported photos may not have, so they use the any-order search.
-  const isGuidedCapture = () =>
-    (FACE_ORDER.every((f) => capturedFaces[f]?.source === 'camera') &&
-      !FACE_ORDER.some((f) => capturedFaces[f]?.outOfOrder) &&
-      !checkGuidedCenters(
-        FACE_ORDER.slice(0, 2).map((f) => capturedFaces[f]?.colors),
-      ).length) ||
-    (FACE_ORDER.every((f) => capturedFaces[f]?.source === 'fixture') &&
-      uploadedProtocol === GUIDED_PROTOCOL)
+  const isGuided = () => isGuidedCapture(capturedFaces, uploadedProtocol)
 
   const predictedCenters = captureCenterSlots(
     FACE_ORDER.map((f) => capturedFaces[f]?.colors),
@@ -1113,41 +983,12 @@ function App() {
   )
   if (liveCapturedFace) matchingNetFaces.add(liveCapturedFace)
 
-  // A likely capture mistake visible from odd-size centers while capturing
-  // (see checkGuidedCenters) - only a hint, never blocking. Live colors are
-  // first-pass readings that can confuse e.g. red and orange, so it only
-  // speaks up when the centers involved were read with some confidence.
-  // A whole face matching an earlier one (any size) comes first.
-  const captureWarning = (() => {
-    for (const [j, i] of repeatedFaces) {
-      const key = `repeat:${j}:${i}`
-      if (!dismissedCaptureWarnings.includes(key)) {
-        return {
-          text: `${CAPTURE_STEPS[i].label} and ${CAPTURE_STEPS[j].label} have matching patterns. They may be different faces; check both photos if unsure.`,
-          key,
-          retake: i,
-        }
-      }
-    }
-    const mid = Math.floor(puzzleSize / 2)
-    const sure = (i: number) =>
-      (capturedFaces[FACE_ORDER[i]]?.cellConfidences?.[mid]?.[mid] ?? 0) >= 0.6
-    for (const issue of checkGuidedCenters(capturedPhotos)) {
-      const involved =
-        issue.kind === 'turned-twice'
-          ? [issue.photo - 1, issue.photo]
-          : issue.photos
-      const key = JSON.stringify(issue)
-      if (involved.every(sure) && !dismissedCaptureWarnings.includes(key)) {
-        return {
-          text: describeCenterIssue(issue),
-          key,
-          retake: Math.max(...involved),
-        }
-      }
-    }
-    return null
-  })()
+  const warning = captureWarning(
+    capturedFaces,
+    repeatedFaces,
+    puzzleSize,
+    dismissedCaptureWarnings,
+  )
 
   // Finishes assembly once the orientation wizard has narrowed down to a
   // single candidate - mirrors handleConfirmReview's tail end exactly,
@@ -1165,30 +1006,12 @@ function App() {
       } catch {
         /* Keep learned colors out of a failed review. */
       }
-      const correctedCells = FACE_ORDER.reduce((count, face) => {
-        const captured = capturedFaces[face]
-        if (!captured?.detectedColors) return count + puzzleSize * puzzleSize
-        return (
-          count +
-          captured.colors.reduce(
-            (sum, row, r) =>
-              sum +
-              row.filter(
-                (color, c) => color !== captured.detectedColors?.[r]?.[c],
-              ).length,
-            0,
-          )
-        )
-      }, 0)
-      const evidence = {
+      const evidence = captureEvidence(
+        capturedFaces,
+        puzzleSize,
         reviewedValid,
-        cameraOnly: FACE_ORDER.every(
-          (face) => capturedFaces[face]?.source === 'camera',
-        ),
-        recalibrated: pendingPalette.recalibrated,
-        confidentFraction: pendingPalette.confidentFraction,
-        correctedFraction: correctedCells / (6 * puzzleSize * puzzleSize),
-      }
+        pendingPalette,
+      )
       const automatic = automaticColors
       const matched =
         automatic &&
@@ -1254,7 +1077,7 @@ function App() {
         resolvedColorProfile,
         automaticResolution,
         resolvedColorReference,
-        guided: isGuidedCapture(),
+        guided: isGuided(),
         cube,
         appliedBackgroundGains,
         sampling,
@@ -1711,7 +1534,7 @@ function App() {
             setCaptureMessage('')
           }}
           cameraBlurOn={cameraInfo?.granted.backgroundBlur === true}
-          captureWarning={captureWarning}
+          captureWarning={warning}
           onRetakeWarning={(step) => {
             lastCapturedColors.current = null
             lastCapturedPose.current = null
