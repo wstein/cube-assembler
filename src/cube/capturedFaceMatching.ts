@@ -1,5 +1,5 @@
 import type { cubeState as CubeState } from './CubeState.gen'
-import { rotateGrid } from './faceGridRotation'
+import { rotateGrid } from './cubeGeometry'
 import { OPPOSITE_COLOR } from './guidedCaptureSetup'
 
 // Photo positions in a guided capture: 0-3 the sides, 4-5 top/bottom.

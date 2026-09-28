@@ -7,3 +7,4 @@ type faceKey = CubeState.faceKey
 @genType let turnFace: (faces, faceKey, int, int) => faces
 @genType let allOrientations: faces => array<faces>
 @genType let solvedCubeFaces: (int, colors) => faces
+@genType let rotateGrid: (array<array<string>>, int) => array<array<string>>

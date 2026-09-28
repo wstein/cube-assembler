@@ -5,9 +5,7 @@ import {
   type GridAlignment,
 } from './gridAlignment'
 import { warpQuadToSquare } from './perspective'
-import {
-  type RGB,
-} from './stickerColorGeometry'
+import { type RGB } from './stickerColorGeometry'
 import {
   linearChannelToSrgb,
   srgbChannelToLinear,

@@ -10,6 +10,7 @@
 import { describe, it, expect } from 'vitest'
 import {
   rotateCube,
+  rotateGrid,
   turnFace,
   allOrientations,
   solvedCubeFaces,
@@ -107,4 +108,27 @@ describe('scrambles read as valid cubes', () => {
       }
     })
   }
+})
+
+describe('rotateGrid', () => {
+  const grid = [
+    ['a', 'b', 'c'],
+    ['d', 'e', 'f'],
+    ['g', 'h', 'i'],
+  ]
+  it('turns a face grid clockwise by quarter turns', () => {
+    expect(rotateGrid(grid, 1)).toEqual([
+      ['g', 'd', 'a'],
+      ['h', 'e', 'b'],
+      ['i', 'f', 'c'],
+    ])
+    expect(rotateGrid(grid, 2)).toEqual([
+      ['i', 'h', 'g'],
+      ['f', 'e', 'd'],
+      ['c', 'b', 'a'],
+    ])
+    expect(rotateGrid(grid, -1)).toEqual(rotateGrid(grid, 3))
+    expect(rotateGrid(grid, 4)).toEqual(grid)
+    expect(rotateGrid(grid, 0)).toEqual(grid)
+  })
 })

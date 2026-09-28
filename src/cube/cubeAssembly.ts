@@ -1,7 +1,6 @@
 // Cube state assembly from captured faces
 
-import { allOrientations } from './cubeGeometry'
-import { rotateGrid } from './faceGridRotation'
+import { allOrientations, rotateGrid } from './cubeGeometry'
 import type {
   GuidedCapture,
   GuidedArrangement,

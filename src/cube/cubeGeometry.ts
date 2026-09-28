@@ -3,6 +3,7 @@
 import {
   allOrientations as allOrientationsRes,
   rotateCube as rotateCubeRes,
+  rotateGrid as rotateGridRes,
   solvedCubeFaces as solvedCubeFacesRes,
   turnFace as turnFaceRes,
 } from './CubeGeometry.gen'
@@ -37,4 +38,12 @@ export function solvedCubeFaces(
   colors: Record<FaceKey, string>,
 ): Faces {
   return solvedCubeFacesRes(n, colors) as Faces
+}
+
+// Turns a face grid clockwise by quarter turns, as a new grid.
+export function rotateGrid(
+  grid: string[][],
+  quarterTurnsClockwise: number,
+): string[][] {
+  return rotateGridRes(grid, quarterTurnsClockwise)
 }

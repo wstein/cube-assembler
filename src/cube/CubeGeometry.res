@@ -154,3 +154,20 @@ let solvedCubeFaces = (n, colors) => {
   })
   out
 }
+
+// Turns a face grid clockwise by quarter turns, as a new grid.
+let rotateGrid = (grid: array<array<string>>, quarterTurnsClockwise) => {
+  let turns = mod(mod(quarterTurnsClockwise, 4) + 4, 4)
+  let n = Array.length(grid)
+  let turnOnce = source =>
+    Array.fromInitializer(~length=n, row =>
+      Array.fromInitializer(~length=n, col =>
+        source->Array.getUnsafe(n - 1 - col)->Array.getUnsafe(row)
+      )
+    )
+  let result = ref(grid->Array.map(row => Array.copy(row)))
+  for _ in 1 to turns {
+    result := turnOnce(result.contents)
+  }
+  result.contents
+}
