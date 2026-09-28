@@ -88,7 +88,6 @@ import { runFullParity, type ParityResult } from '../cube/parity'
 import { pickWizardFace } from '../cube/orientationWizard'
 import {
   runGlobalWhiteBalance,
-  GLARE_WARNING_STICKERS,
   backdropReference,
   BACKGROUND_WB_METHOD,
   NEUTRAL_GAINS,
@@ -96,10 +95,6 @@ import {
   DEFAULT_SAMPLING,
   STICKER_MEASUREMENT,
   STICKER_COLORS,
-  rgbToOKLCH,
-  hueCircularRange,
-  hueRangesOverlap,
-  linearRange,
   type ColorDetectionResult,
   type FaceCaptureResult,
   type RGB,
@@ -118,7 +113,6 @@ import {
   type OrientationSolution,
   type FaceKey,
   type CubeState,
-  type GuidedCenterIssue,
 } from '../cube/cubeAssembly'
 import {
   AUTO_COLORS_ID,
@@ -167,6 +161,25 @@ import {
 } from './fixtureZip'
 import { currentAppCommit } from './fixtureUpload'
 import {
+  CAPTURE_STEPS,
+  FACE_DISPLAY_LABEL,
+  FACE_ORDER,
+  FACE_SHORT_LABEL,
+  GUIDED_PROTOCOL,
+  captureInstruction,
+  describeCenterIssue,
+  glareFacesToWarn,
+} from './captureSteps'
+import {
+  COLOR_NAME,
+  COLOR_ORDER,
+  STICKER_HEX,
+  confidenceTier,
+} from './stickerDisplay'
+import { computeColorStats } from './colorStats'
+import { flyInto, morphInto } from './flyAnimation'
+import { focusModalOnOpen, handleModalKeyDown } from './modalFocus'
+import {
   toWRGFacelets,
   fromWRGFacelets,
   fromURFFacelets,
@@ -212,337 +225,7 @@ function checkParity(cube: CubeState, size: number): ParityResult {
   return runFullParity(toCubeIR(cube, size))
 }
 
-const FACE_ORDER = ['U', 'R', 'F', 'D', 'L', 'B']
-
-// Guided capture: the 4 sides in turn while the cube is turned a quarter
-// turn at a time (either way, same row kept on top), then top and bottom
-// (see solveGuidedCapture). Which physical face is which isn't known until
-// all 6 are in, so the capture slots keep the neutral U..B keys of
-// FACE_ORDER (fixtures, uploads and the review key off them) and only
-// their meaning is a step in this order - slot U is Side 1, R Side 2, ...
-const CAPTURE_STEPS: Array<{
-  label: string
-  short: string
-  instruction: string
-}> = [
-  {
-    label: 'Side 1',
-    short: '1',
-    instruction: 'Hold the cube upright and show any side.',
-  },
-  {
-    label: 'Side 2',
-    short: '2',
-    instruction:
-      'Keep the same row on top and turn the whole cube clockwise a quarter turn. Either way works.',
-  },
-  {
-    label: 'Side 3',
-    short: '3',
-    instruction:
-      'Keep turning clockwise another quarter turn. Other directions still work.',
-  },
-  {
-    label: 'Side 4',
-    short: '4',
-    instruction:
-      'Turn clockwise one more quarter turn. Any remaining side still works.',
-  },
-  {
-    label: 'Top',
-    short: '5',
-    instruction:
-      'Tip the cube towards you so its top faces the camera - any angle is fine.',
-  },
-  {
-    label: 'Bottom',
-    short: '6',
-    instruction:
-      'Bring Side 4 back to the camera, then continue tipping to the opposite face. Top and bottom may be swapped.',
-  },
-]
-const stepOf = (slot: string) => CAPTURE_STEPS[FACE_ORDER.indexOf(slot)]
-
-function captureInstruction(step: number, mirrored: boolean): string {
-  if (!mirrored || step === 0) return CAPTURE_STEPS[step].instruction
-  if (step === 4)
-    return 'Tip the cube towards you so its top faces the camera. The mirrored view shows the bottom face.'
-  if (step === 5)
-    return 'Bring Side 4 back to the camera, then continue tipping to the opposite face. The mirrored view shows the top face.'
-  if (step === 1)
-    return 'Keep the same row on top and turn the whole cube counterclockwise in the mirrored view. Either direction works.'
-  if (step === 2)
-    return 'Keep turning counterclockwise in the mirrored view. Other directions still work.'
-  return 'Turn counterclockwise in the mirrored view one more quarter turn. Any remaining side still works.'
-}
-
-// Saved with fixtures captured this way, so they can be put together (and
-// regression-tested) with the guided search again later.
-const GUIDED_PROTOCOL = 'sides-then-top-bottom/v1'
-
-// A capture mistake read from odd-size centers (see checkGuidedCenters),
-// in words; photo indexes are capture steps.
-function describeCenterIssue(issue: GuidedCenterIssue): string {
-  const label = (i: number) => CAPTURE_STEPS[i].label
-  switch (issue.kind) {
-    case 'same-center':
-      return `${label(issue.photos[0])} and ${label(issue.photos[1])} show the same center - the same face photographed twice?`
-    case 'turned-twice':
-      return `${label(issue.photo)} shows the face opposite ${label(issue.photo - 1)} - the cube was probably turned twice.`
-    case 'not-opposite':
-      return `${label(issue.photos[0])} and ${label(issue.photos[1])} should be opposite faces, but aren't.`
-  }
-}
-
-const FACE_DISPLAY_LABEL: Record<string, string> = Object.fromEntries(
-  FACE_ORDER.map((face) => [face, stepOf(face).label]),
-)
-
-// The faces to name in the glare warning, or none if too few stickers are
-// washed out to warn about.
-function glareFacesToWarn(glare: Array<{ face: string }>): string[] {
-  if (glare.length < GLARE_WARNING_STICKERS) return []
-  return FACE_ORDER.filter((face) =>
-    glare.some((sticker) => sticker.face === face),
-  )
-}
-const FACE_SHORT_LABEL: Record<string, string> = Object.fromEntries(
-  FACE_ORDER.map((face) => [face, stepOf(face).short]),
-)
-
-// How each color is drawn on screen (nets, review, picker) - slightly
-// calmer than pure RGB so the six still read at a glance without glaring.
-// Display only: detection never compares against these.
-// Readable names for parity.ts's checks (unknown ones show as-is).
-const STICKER_HEX: Record<string, string> = {
-  W: '#f7f6f1',
-  O: '#ff7a1a',
-  G: '#1e9e57',
-  R: '#cf2a3a',
-  B: '#2459d6',
-  Y: '#f2d21b',
-}
-
-const COLOR_NAME: Record<string, string> = {
-  W: 'White',
-  O: 'Orange',
-  G: 'Green',
-  R: 'Red',
-  B: 'Blue',
-  Y: 'Yellow',
-}
-
 const CALIBRATION_NOTE = 'Colors double-checked by comparing all 6 sides.'
-
-function confidenceTier(c: number): 'high' | 'medium' | 'low' {
-  return c >= 0.8 ? 'high' : c >= 0.5 ? 'medium' : 'low'
-}
-
-const COLOR_ORDER = ['W', 'O', 'G', 'R', 'B', 'Y']
-
-interface ColorStat {
-  count: number
-  expected: number
-  lightness: { min: number; max: number } | null
-  chroma: { min: number; max: number } | null
-  hue: { min: number; max: number } | null
-  hueOverlapsWith: string[]
-}
-
-// Aggregates every captured sticker's detected color across all 6 faces,
-// keyed by color letter - count (vs. the expected per-color total for this
-// puzzle size) plus each color's OKLCH lightness/chroma/hue spread and
-// which other colors' hue ranges it overlaps (the exact condition that
-// produces boundary misclassifications between two colors). Saved as
-// fixture metadata for later offline analysis - the review wizard flags
-// individual stickers from cellLookalikes instead, since a whole color's
-// hue range overlapping another's flagged every sticker of both colors.
-function computeColorStats(
-  capturedFaces: Record<string, { colors: string[][]; cellColors?: RGB[][] }>,
-  puzzleSize: number,
-): Record<string, ColorStat> {
-  const counts: Record<string, number> = { W: 0, O: 0, G: 0, R: 0, B: 0, Y: 0 }
-  const oklchByColor: Record<string, { l: number; c: number; h: number }[]> = {
-    W: [],
-    O: [],
-    G: [],
-    R: [],
-    B: [],
-    Y: [],
-  }
-  for (const f of FACE_ORDER) {
-    const grid = capturedFaces[f]?.colors
-    const cellColors = capturedFaces[f]?.cellColors
-    if (!grid) continue
-    grid.forEach((row, r) =>
-      row.forEach((color, c) => {
-        if (!(color in counts)) return
-        counts[color]++
-        const rgb = cellColors?.[r]?.[c]
-        if (rgb) oklchByColor[color].push(rgbToOKLCH(rgb))
-      }),
-    )
-  }
-  const hueRangeByColor: Record<
-    string,
-    ReturnType<typeof hueCircularRange>
-  > = {}
-  for (const color of COLOR_ORDER)
-    hueRangeByColor[color] = hueCircularRange(
-      oklchByColor[color].map((o) => o.h),
-    )
-
-  const expected = puzzleSize * puzzleSize
-  const stats: Record<string, ColorStat> = {}
-  for (const color of COLOR_ORDER) {
-    const samples = oklchByColor[color]
-    const range = hueRangeByColor[color]
-    stats[color] = {
-      count: counts[color],
-      expected,
-      lightness: linearRange(samples.map((o) => o.l)),
-      chroma: linearRange(samples.map((o) => o.c)),
-      hue: range,
-      hueOverlapsWith: range
-        ? COLOR_ORDER.filter((other) => {
-            if (other === color) return false
-            const otherRange = hueRangeByColor[other]
-            return otherRange !== null && hueRangesOverlap(range, otherRange)
-          })
-        : [],
-    }
-  }
-  return stats
-}
-
-// Moves `target` from where `from` was to where it is now (FLIP) - how a
-// just-captured face flies from the scan square into its net slot.
-// Skipped under prefers-reduced-motion.
-function flyInto(target: HTMLElement, from: DOMRect) {
-  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
-  const to = target.getBoundingClientRect()
-  if (to.width === 0) return
-  target.animate(
-    [
-      {
-        transform: `translate(${from.left - to.left}px, ${from.top - to.top}px) scale(${from.width / to.width})`,
-        transformOrigin: 'top left',
-        opacity: 0.6,
-      },
-      { transform: 'none', transformOrigin: 'top left', opacity: 1 },
-    ],
-    { duration: 500, easing: 'cubic-bezier(0.2, 0.8, 0.2, 1)' },
-  )
-}
-
-// Flies a copy of `source` onto `target`'s position and size (FLIP-style,
-// via a fixed-position clone so neither real element has to move). Resolves
-// once the clone has landed, with a callback that removes it - the caller
-// decides when, so the clone can cover the target until the real content
-// has re-rendered underneath. Skipped entirely under prefers-reduced-motion.
-function morphInto(
-  source: HTMLElement,
-  target: HTMLElement,
-): Promise<() => void> {
-  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches)
-    return Promise.resolve(() => {})
-  const from = source.getBoundingClientRect()
-  const to = target.getBoundingClientRect()
-  const clone = source.cloneNode(true) as HTMLElement
-  Object.assign(clone.style, {
-    position: 'fixed',
-    left: `${from.left}px`,
-    top: `${from.top}px`,
-    width: `${from.width}px`,
-    height: `${from.height}px`,
-    margin: '0',
-    zIndex: '10000',
-    pointerEvents: 'none',
-    transformOrigin: 'top left',
-  })
-  document.body.appendChild(clone)
-  const scale = to.width / from.width
-  const anim = clone.animate(
-    [
-      { transform: 'none' },
-      {
-        transform: `translate(${to.left - from.left}px, ${to.top - from.top}px) scale(${scale})`,
-      },
-    ],
-    {
-      duration: 450,
-      easing: 'cubic-bezier(0.2, 0.8, 0.2, 1)',
-      fill: 'forwards',
-    },
-  )
-  const remove = () => clone.remove()
-  // Browsers freeze animation timelines in background tabs, so `finished`
-  // alone could leave the pick hanging until the tab is visible again -
-  // force-finish after a grace period (timers still fire when hidden).
-  const fallback = setTimeout(() => anim.finish(), 800)
-  return anim.finished.then(
-    () => {
-      clearTimeout(fallback)
-      return remove
-    },
-    () => {
-      clearTimeout(fallback)
-      return remove
-    },
-  )
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Modal accessibility: every modal in this app (capture, review wizard,
-// orientation wizard, color-fix popup) is a plain conditionally-rendered
-// div, not a shared component, so there's no single lifecycle hook to hang
-// this on - these two plain functions (not hooks, so they're safe to wire
-// up from inside a conditionally-rendered block) give each one the same
-// keyboard behavior instead of duplicating it five times.
-// ─────────────────────────────────────────────────────────────────────────────
-
-const FOCUSABLE_SELECTOR =
-  'a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])'
-
-// Escape closes the modal; Tab/Shift+Tab cycles focus within it instead of
-// leaking out to (invisible, behind-the-backdrop) page content.
-function handleModalKeyDown(
-  e: KeyboardEvent,
-  container: HTMLElement,
-  onClose: () => void,
-) {
-  if (e.key === 'Escape') {
-    e.stopPropagation()
-    onClose()
-    return
-  }
-  if (e.key !== 'Tab') return
-  const focusable = Array.from(
-    container.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR),
-  )
-  if (focusable.length === 0) return
-  const first = focusable[0]
-  const last = focusable[focusable.length - 1]
-  if (e.shiftKey && document.activeElement === first) {
-    e.preventDefault()
-    last.focus()
-  } else if (!e.shiftKey && document.activeElement === last) {
-    e.preventDefault()
-    first.focus()
-  }
-}
-
-// Moves focus into a modal right when it opens, so keyboard/screen-reader
-// users land inside it instead of it silently appearing over whatever was
-// focused before (in practice, always the button that opened it). A ref
-// callback (not a hook) re-runs on every render, not just the first one a
-// real element mount would - checking that focus isn't already somewhere
-// inside this modal is what limits the focus grab to that first moment:
-// once the container (or something in it) is focused, later re-renders
-// while the customer is actually using the modal leave it alone.
-function focusModalOnOpen(el: HTMLElement | null) {
-  if (el && !el.contains(document.activeElement)) el.focus()
-}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // App Component
