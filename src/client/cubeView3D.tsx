@@ -7,10 +7,11 @@ import {
   gestureWhenSwipeTurnsNothing,
   getSwipeLayerTurn,
   pickCubeSurface,
-  pinchZoom,
+  twoFingerLock,
   twoFingerMotion,
   wheelGesture,
   type CubeGesture,
+  type TwoFingerLock,
   type CubeSurfaceHit,
 } from './cubeGesture'
 import { stepDragInertia } from './dragInertia'
@@ -1278,8 +1279,13 @@ export function CubeView3D({
   // Fingers on the canvas, and where the two tilting fingers were last.
   const touchesRef = useRef(new Map<number, [number, number]>())
   const tiltFromRef = useRef<[[number, number], [number, number]] | null>(null)
-  // Finger spread when the two fingers landed, and whether they now pinch.
-  const pinchRef = useRef({ start: 0, zooming: false })
+  // Where two fingers landed (spread and midpoint), and whether the gesture
+  // has locked to tilting or pinching.
+  const pinchRef = useRef<{
+    start: number
+    midpoint: [number, number]
+    lock: TwoFingerLock
+  }>({ start: 0, midpoint: [0, 0], lock: 'undecided' })
   const [coarsePointer] = useState(
     () => window.matchMedia?.('(pointer: coarse)').matches ?? false,
   )
@@ -1691,13 +1697,18 @@ export function CubeView3D({
 
   const spreadOf = ([a, b]: [[number, number], [number, number]]) =>
     Math.hypot(a[0] - b[0], a[1] - b[1])
+  const midpointOf = ([a, b]: [[number, number], [number, number]]): [
+    number,
+    number,
+  ] => [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2]
 
   const startTilt = () => {
     const touches = twoTouches()
     tiltFromRef.current = touches
     pinchRef.current = {
       start: touches ? spreadOf(touches) : 0,
-      zooming: false,
+      midpoint: touches ? midpointOf(touches) : [0, 0],
+      lock: 'undecided',
     }
   }
 
@@ -1790,17 +1801,21 @@ export function CubeView3D({
       const to = twoTouches()
       if (!from || !to) return
       tiltFromRef.current = to
-      const motion = twoFingerMotion(from, to)
-      rotateView(motion.dx, motion.dy, e.timeStamp)
-      const pinch = pinchZoom(
+      const [mx, my] = midpointOf(to)
+      const [sx, sy] = pinchRef.current.midpoint
+      const lock = twoFingerLock(
         pinchRef.current.start,
         spreadOf(to),
-        spreadOf(from),
-        pinchRef.current.zooming,
+        Math.hypot(mx - sx, my - sy),
+        pinchRef.current.lock,
       )
-      pinchRef.current.zooming = pinch.zooming
-      if (pinch.scale !== 1)
-        setZoom((prev) => clampZoom(prev / pinch.scale, puzzleSize))
+      pinchRef.current.lock = lock
+      // Undecided moves do nothing, so neither a tilt nor a pinch jumps once
+      // it locks; after that only the locked one follows the fingers.
+      const motion = twoFingerMotion(from, to)
+      if (lock === 'tilt') rotateView(motion.dx, motion.dy, e.timeStamp)
+      if (lock === 'pinch' && motion.scale !== 1)
+        setZoom((prev) => clampZoom(prev / motion.scale, puzzleSize))
       return
     }
     if (gesture.mode === 'turn' || gesture.mode === 'none') return

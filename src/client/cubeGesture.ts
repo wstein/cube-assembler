@@ -199,20 +199,34 @@ export function twoFingerMotion(
   return { dx: x1 - x0, dy: y1 - y0, scale: s0 > 0 ? spread(after) / s0 : 1 }
 }
 
-// Fingers drift apart a little while tilting. Zoom only once their spread
-// has changed by more than this fraction since the two fingers landed.
-export const PINCH_ZOOM_THRESHOLD = 0.15
+// Two fingers either tilt or pinch, decided once per gesture like map apps.
+// Fingers drift apart a little while tilting, so a pinch needs its spread
+// to change by at least PINCH_MIN_PX and PINCH_MIN_RATIO, and by more than
+// the midpoint moved. A tilt needs the midpoint to travel TILT_MIN_PX and
+// more than the spread changed; a pinch with one finger resting moves the
+// midpoint only half as far, so it never counts as a tilt.
+export const PINCH_MIN_PX = 24
+export const PINCH_MIN_RATIO = 0.15
+export const TILT_MIN_PX = 16
 
-export function pinchZoom(
+export type TwoFingerLock = 'undecided' | 'tilt' | 'pinch'
+
+export function twoFingerLock(
   startSpread: number,
   spread: number,
-  previousSpread: number,
-  zooming: boolean,
-): { scale: number; zooming: boolean } {
-  if (startSpread <= 0 || previousSpread <= 0) return { scale: 1, zooming }
-  if (!zooming && Math.abs(spread / startSpread - 1) <= PINCH_ZOOM_THRESHOLD)
-    return { scale: 1, zooming: false }
-  return { scale: spread / previousSpread, zooming: true }
+  midpointTravel: number,
+  lock: TwoFingerLock,
+): TwoFingerLock {
+  if (lock !== 'undecided') return lock
+  const spreadChange = Math.abs(spread - startSpread)
+  if (
+    spreadChange >= Math.max(PINCH_MIN_PX, PINCH_MIN_RATIO * startSpread) &&
+    spreadChange > midpointTravel
+  )
+    return 'pinch'
+  if (midpointTravel >= TILT_MIN_PX && midpointTravel > spreadChange)
+    return 'tilt'
+  return 'undecided'
 }
 
 export function clampZoom(zoom: number, size: number): number {

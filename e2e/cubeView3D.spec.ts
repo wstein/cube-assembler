@@ -431,3 +431,50 @@ for (const sound of [true, false])
     )
     expect(contexts).toBe(sound ? 1 : 0)
   })
+
+test('a two-finger tilt with close, drifting fingers never zooms', async ({
+  page,
+}) => {
+  await page.goto('/')
+  await page.getByRole('button', { name: 'Solved cube' }).click()
+  await page.getByRole('button', { name: '3D View' }).click()
+  const front = page.getByRole('button', { name: 'Front (F)' })
+  await front.click()
+  const canvas = page.locator('.cube-3d-canvas')
+  const bounds = await canvas.boundingBox()
+  expect(bounds).not.toBeNull()
+  if (!bounds) return
+  const cx = bounds.x + bounds.width / 2
+  const cy = bounds.y + bounds.height / 2
+  const touch = (type: string, id: number, x: number, y: number) =>
+    canvas.dispatchEvent(type, {
+      pointerId: id,
+      pointerType: 'touch',
+      isPrimary: id === 1,
+      clientX: x,
+      clientY: y,
+      bubbles: true,
+    })
+  await page.waitForTimeout(300)
+  const before = await canvas.screenshot()
+
+  // Fingers 60 px apart swipe down 150 px and drift 15 px apart (25%), as
+  // real fingers do. That used to switch zoom on for the rest of the swipe.
+  await touch('pointerdown', 1, cx - 30, cy - 75)
+  await touch('pointerdown', 2, cx + 30, cy - 75)
+  for (let step = 1; step <= 10; step++) {
+    const drift = 1.5 * step
+    await touch('pointermove', 1, cx - 30 - drift / 2, cy - 75 + step * 15)
+    await touch('pointermove', 2, cx + 30 + drift / 2, cy - 75 + step * 15)
+  }
+  await page.waitForTimeout(200)
+  await touch('pointerup', 1, cx - 37.5, cy + 75)
+  await touch('pointerup', 2, cx + 37.5, cy + 75)
+  await page.waitForTimeout(300)
+  expect((await canvas.screenshot()).equals(before)).toBe(false)
+
+  // Front resets the orientation but keeps the zoom: same picture, no zoom.
+  await front.click()
+  await page.waitForTimeout(300)
+  expect((await canvas.screenshot()).equals(before)).toBe(true)
+})

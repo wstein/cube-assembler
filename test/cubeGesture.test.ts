@@ -5,7 +5,7 @@ import {
   gestureAfterPointerUp,
   gestureForPointerDown,
   gestureWhenSwipeTurnsNothing,
-  pinchZoom,
+  twoFingerLock,
   pickCubeSurface,
   twoFingerMotion,
   wheelGesture,
@@ -122,26 +122,36 @@ describe('touch gestures', () => {
     expect(motion.scale).toBeCloseTo(1.2)
   })
 
-  it('ignores the small spread changes of a two-finger tilt', () => {
-    // Fingers drift apart a little while tilting; that must not zoom.
-    expect(pinchZoom(200, 212, 210, false)).toEqual({
-      scale: 1,
-      zooming: false,
-    })
-    expect(pinchZoom(200, 184, 186, false)).toEqual({
-      scale: 1,
-      zooming: false,
-    })
+  it('waits until two fingers clearly tilt or pinch', () => {
+    expect(twoFingerLock(60, 64, 6, 'undecided')).toBe('undecided')
   })
 
-  it('zooms once the fingers clearly pinch, without jumping', () => {
-    const start = pinchZoom(200, 240, 226, false)
-    expect(start.zooming).toBe(true)
-    // Only the step past the previous spread applies, not the whole change.
-    expect(start.scale).toBeCloseTo(240 / 226)
-    // Once pinching, every change zooms, even small ones.
-    const next = pinchZoom(200, 236, 240, true)
-    expect(next).toEqual({ scale: 236 / 240, zooming: true })
+  it('locks a two-finger swipe to tilting despite normal finger drift', () => {
+    // Phone fingertips sit 40-100 px apart and drift 6-16 px while swiping;
+    // the midpoint travels much further.
+    expect(twoFingerLock(40, 46, 16, 'undecided')).toBe('tilt')
+    expect(twoFingerLock(60, 70, 20, 'undecided')).toBe('tilt')
+    expect(twoFingerLock(100, 116, 30, 'undecided')).toBe('tilt')
+  })
+
+  it('needs at least 24 px of spread change to pinch, even with close fingers', () => {
+    // 20 px is 50% of a 40 px spread, but still no pinch.
+    expect(twoFingerLock(40, 60, 4, 'undecided')).toBe('undecided')
+    expect(twoFingerLock(40, 65, 4, 'undecided')).toBe('pinch')
+    // Wide fingers need 15%: 24 px of 200 is not enough.
+    expect(twoFingerLock(200, 226, 4, 'undecided')).toBe('undecided')
+    expect(twoFingerLock(200, 232, 4, 'undecided')).toBe('pinch')
+  })
+
+  it('treats a pinch with one finger resting as a pinch, not a tilt', () => {
+    // Moving one finger 30 px moves the midpoint only 15 px.
+    expect(twoFingerLock(80, 110, 15, 'undecided')).toBe('pinch')
+    expect(twoFingerLock(80, 50, 15, 'undecided')).toBe('pinch')
+  })
+
+  it('keeps its lock until the fingers lift', () => {
+    expect(twoFingerLock(60, 140, 5, 'tilt')).toBe('tilt')
+    expect(twoFingerLock(60, 62, 200, 'pinch')).toBe('pinch')
   })
 
   it('keeps the zoom in the same range as the mouse wheel', () => {
