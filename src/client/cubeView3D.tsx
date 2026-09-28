@@ -2188,48 +2188,6 @@ export function CubeView3D({
             </div>
 
             <div class="cube-3d-section">
-              <span class="cube-3d-label">Tilt:</span>
-              <div class="cube-3d-presets">
-                <button
-                  type="button"
-                  class="cube-3d-btn"
-                  onClick={tiltUp}
-                  title="Tilt Up"
-                  aria-label="Tilt Up"
-                >
-                  ▲ Up
-                </button>
-                <button
-                  type="button"
-                  class="cube-3d-btn"
-                  onClick={tiltDown}
-                  title="Tilt Down"
-                  aria-label="Tilt Down"
-                >
-                  ▼ Down
-                </button>
-                <button
-                  type="button"
-                  class="cube-3d-btn"
-                  onClick={rotateLeft}
-                  title="Rotate Left"
-                  aria-label="Rotate Left"
-                >
-                  ◀ Left
-                </button>
-                <button
-                  type="button"
-                  class="cube-3d-btn"
-                  onClick={rotateRight}
-                  title="Rotate Right"
-                  aria-label="Rotate Right"
-                >
-                  ▶ Right
-                </button>
-              </div>
-            </div>
-
-            <div class="cube-3d-section">
               <span class="cube-3d-label">Cube:</span>
               <div class="cube-3d-presets">
                 <button

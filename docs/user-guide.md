@@ -65,8 +65,9 @@ facelet notation, and Orbit64 token. The move list records completed turns;
 **Scramble** uses more moves for larger cubes and turns inner layers on 4×4–7×7,
 while leaving the fixed middle layer alone on odd cubes.
 The face buttons show one side head-on; **Isometric** and **Iso-back** show
-the cube from its front corner or the opposite back corner.
-Auto-rotate pauses during a drag, face preset, or Tilt / Turn action and
+the cube from its front corner or the opposite back corner. With the view
+focused, the arrow keys tilt and turn it.
+Auto-rotate pauses during a drag, a view button, or an arrow key and
 resumes about 1.5 seconds later. These interactions do not change the saved
 setting. Captured photos and cube states are not stored in cookies.
 

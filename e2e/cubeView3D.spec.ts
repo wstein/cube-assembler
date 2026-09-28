@@ -337,13 +337,7 @@ test('auto-rotate pauses for a drag and resumes without changing its setting', a
   expect((await canvas.screenshot()).equals(resumed)).toBe(false)
 })
 
-for (const control of [
-  'Front (F)',
-  'Isometric',
-  'Iso-back',
-  'Tilt Up',
-  'Rotate Left',
-]) {
+for (const control of ['Front (F)', 'Isometric', 'Iso-back']) {
   test(`${control} pauses auto-rotate so its view can be inspected`, async ({
     page,
   }) => {
