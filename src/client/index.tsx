@@ -35,6 +35,7 @@ import type { ReviewCapture } from './colorReviewPage'
 import { BackdropDialog } from './backdropDialog'
 import { FixtureDownloadDialog } from './fixtureDownloadDialog'
 import { useFixtureDownload } from './useFixtureDownload'
+import { useCameraStream, withoutDeviceIds } from './useCameraStream'
 import { faceSources, pieceKey, sourceIndex } from './netPresentation'
 import { lazy, Suspense } from 'preact/compat'
 
@@ -238,15 +239,6 @@ interface FaceCaptureData {
 
 type CaptureMode = 'cv' | 'guide'
 
-// Without an explicit size most webcams default to 640x480, which leaves a
-// 7x7 sticker's sample area only ~25px wide. `ideal` (not `exact`) so a
-// camera that can't do 1080p still opens at the best size it offers.
-const CAMERA_CONSTRAINTS: MediaTrackConstraints = {
-  facingMode: 'environment',
-  width: { ideal: 1920 },
-  height: { ideal: 1080 },
-}
-
 // Injected at build time by vite.config.ts's `define`.
 declare const __APP_VERSION__: string
 declare const __APP_COMMIT__: string
@@ -289,27 +281,10 @@ function CubeSelectOptions({ settings }: { settings: ProfileSettings }) {
   )
 }
 
-interface CameraInfo {
-  label: string
-  requested: MediaTrackConstraints
-  granted: Partial<MediaTrackSettings>
-  supported: Partial<MediaTrackCapabilities> | null
-}
-
-// Drops the per-browser device/group ids from settings/capabilities
-// before they end up in a saved fixture - they identify the user's
-// hardware and say nothing about how the photo was taken.
 // The live preview analyzes frames scaled down to this height: detection
 // found the same faces on 720p copies of 1080p frames at well under half
 // the cost (see liveAnalysis.test.ts); captures still read full resolution.
 const LIVE_ANALYSIS_HEIGHT = 720
-
-function withoutDeviceIds<T extends { deviceId?: unknown; groupId?: unknown }>(
-  info: T,
-): Omit<T, 'deviceId' | 'groupId'> {
-  const { deviceId: _deviceId, groupId: _groupId, ...rest } = info
-  return rest
-}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Parity Check
@@ -1486,13 +1461,7 @@ function App() {
     glare: string[]
     mixedUp: string[]
   } | null>(null)
-  // Captured once per webcam session (device label isn't available until
-  // getUserMedia grants permission) - purely informational, attached to
-  // saved fixtures so a color regression can be cross-checked against the
-  // camera that produced it: what we asked for, what the camera granted,
-  // and which controls (white balance, exposure, ...) it supports at all.
-  const [cameraInfo, setCameraInfo] = useState<CameraInfo | null>(null)
-  const webcamRef = useRef<HTMLVideoElement>(null)
+  const { videoRef: webcamRef, cameraInfo } = useCameraStream(webcamOpen)
   // A face just captured, to fly from the scan square into its net slot
   // once the slot has rendered it (see CaptureNet / flyInto).
   const pendingFlyIn = useRef<{ slot: string; from: DOMRect } | null>(null)
@@ -1564,52 +1533,6 @@ function App() {
 
   useEffect(() => {
     if (!webcamOpen) dismissTurnOverlay()
-  }, [webcamOpen])
-
-  // ─────────────────────────────────────────────────────────────────────────
-  // Webcam Capture
-  // ─────────────────────────────────────────────────────────────────────────
-
-  useEffect(() => {
-    if (!webcamOpen || !webcamRef.current) return
-
-    // The stream is kept here, not read back from the <video> on cleanup:
-    // closing the dialog unmounts the video first, so it would find none
-    // and leave the camera on. A stream arriving after the dialog already
-    // closed is stopped right away.
-    let stream: MediaStream | null = null
-    let closed = false
-    navigator.mediaDevices
-      .getUserMedia({ video: CAMERA_CONSTRAINTS })
-      .then((opened) => {
-        if (closed) {
-          opened.getTracks().forEach((t) => t.stop())
-          return
-        }
-        stream = opened
-        if (webcamRef.current) {
-          webcamRef.current.srcObject = stream
-        }
-        const track = stream.getVideoTracks()[0]
-        if (track) {
-          setCameraInfo({
-            label: track.label || 'Unknown camera',
-            requested: CAMERA_CONSTRAINTS,
-            granted: withoutDeviceIds(track.getSettings()),
-            // getCapabilities is missing in Firefox
-            supported: track.getCapabilities
-              ? withoutDeviceIds(track.getCapabilities())
-              : null,
-          })
-        }
-      })
-      .catch((err) => console.error('Webcam error:', err))
-
-    return () => {
-      closed = true
-      stream?.getTracks().forEach((t) => t.stop())
-      if (webcamRef.current) webcamRef.current.srcObject = null
-    }
   }, [webcamOpen])
 
   useEffect(() => {
