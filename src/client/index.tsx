@@ -13,11 +13,11 @@ import '@fontsource/ibm-plex-mono/500.css'
 import '@fontsource/ibm-plex-mono/600.css'
 import '../../web/style.css'
 import type { TurnCuePose } from './autoCapture'
-import { TurnHint } from './captureTurnCue'
 import { CaptureLiveView } from './captureLiveView'
+import { CaptureDialog } from './captureDialog'
 import { CaptureSettings, CubeSelectOptions } from './captureSettings'
 import type { FaceCaptureData, PreviewColorProfile } from './captureTypes'
-import { CaptureNet, FaceGrid } from './captureNet'
+import { FaceGrid } from './captureNet'
 import { readyAssemblyAfterCapture } from './captureReviewRouting'
 import {
   decodeOrbit64State,
@@ -3446,20 +3446,8 @@ function App() {
 
       {/* Webcam Modal */}
       {webcamOpen && (
-        <div class="modal open">
-          <div
-            class="modal-content capture-modal-content"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="capture-title"
-            tabIndex={-1}
-            ref={focusModalOnOpen}
-            onKeyDown={(e) =>
-              handleModalKeyDown(e, e.currentTarget, () => setWebcamOpen(false))
-            }
-          >
-            {/* Live view on the left, everything about the current step on the
-                right - so on a laptop nothing needs a scroll. */}
+        <CaptureDialog
+          liveView={
             <CaptureLiveView
               webcamRef={webcamRef}
               mirrorPreview={mirrorPreview}
@@ -3478,7 +3466,7 @@ function App() {
               captureSound={captureSound}
               turnOverlay={turnOverlay}
               capturedColors={Object.values(capturedFaces).map(
-                (face) => face.colors,
+                (entry) => entry.colors,
               )}
               sampling={sampling}
               stickerColors={STICKER_HEX}
@@ -3495,194 +3483,94 @@ function App() {
                 armCaptureAudio(enabled)
               }}
             />
-            <div class="capture-side">
-              <div class="capture-side-header">
-                <div class="capture-side-title">
-                  <span class="capture-step-kicker">
-                    Step {FACE_ORDER.indexOf(webcamFace) + 1} of{' '}
-                    {FACE_ORDER.length}
-                  </span>
-                  <h2 id="capture-title">
-                    {FACE_DISPLAY_LABEL[webcamFace]}
-                    {FACE_ORDER.indexOf(webcamFace) < 4 ? ' of 4' : ''}
-                  </h2>
-                </div>
-                <button
-                  type="button"
-                  class="modal-close"
-                  aria-label="Close"
-                  onClick={() => setWebcamOpen(false)}
-                >
-                  ×
-                </button>
-              </div>
-              <div
-                class="capture-mode-switch"
-                role="group"
-                aria-label="Face detection mode"
-              >
-                <button
-                  type="button"
-                  class={captureMode === 'cv' ? 'active' : ''}
-                  aria-pressed={captureMode === 'cv'}
-                  onClick={() => {
-                    setCaptureMode('cv')
-                    setLiveDetection(null)
-                    setLiveFaceVisible(false)
-                  }}
-                >
-                  Detect face
-                </button>
-                <button
-                  type="button"
-                  class={captureMode === 'guide' ? 'active' : ''}
-                  aria-pressed={captureMode === 'guide'}
-                  onClick={() => {
-                    setCaptureMode('guide')
-                    setLiveDetection(null)
-                    setLiveFaceVisible(false)
-                  }}
-                >
-                  Guide grid
-                </button>
-              </div>
-              <p class="capture-hint-text" aria-live="polite">
-                {!centerRoutingActive && (
-                  <TurnHint
-                    step={FACE_ORDER.indexOf(webcamFace)}
-                    mirrored={mirrorPreview}
-                  />
-                )}
-                {centerRoutingActive
-                  ? 'Show any uncaptured face. Its center color will place it in the capture net.'
-                  : captureInstruction(
-                      FACE_ORDER.indexOf(webcamFace),
-                      mirrorPreview,
-                    )}
-                {predictedCenter && (
-                  <span class="capture-expected-center">
-                    Suggested center:{' '}
-                    <span
-                      class="capture-expected-swatch"
-                      style={{ background: STICKER_HEX[predictedCenter] }}
-                    />
-                    <strong>{COLOR_NAME[predictedCenter]}</strong>
-                  </span>
-                )}
-              </p>
-              <div class="capture-progress">
-                <span class="capture-progress-label">
-                  Captured so far · tap one to retake
-                </span>
-                <CaptureNet
-                  faceOrder={FACE_ORDER}
-                  faceLabels={FACE_DISPLAY_LABEL}
-                  shortLabels={FACE_SHORT_LABEL}
-                  colorNames={COLOR_NAME}
-                  stickerColors={STICKER_HEX}
-                  faces={Object.fromEntries(
-                    FACE_ORDER.map((f) => [f, capturedFaces[f]?.colors]),
-                  )}
-                  current={webcamFace}
-                  matchingFaces={matchingNetFaces}
-                  liveMatchingFace={liveCapturedFace}
-                  size={puzzleSize}
-                  predictedCenters={predictedCenters}
-                  mirrored={mirrorPreview}
-                  onSelect={(slot) => {
-                    dismissTurnOverlay()
-                    lastCapturedColors.current = null
-                    lastCapturedPose.current = null
-                    setWebcamFace(slot)
-                    setCaptureMessage('')
-                  }}
-                />
-              </div>
-              {/* macOS reports its Portrait video effect as backgroundBlur, and
-                  the browser can't turn it off - it blurs whatever it takes for
-                  background, which can include the cube held up to the camera. */}
-              {cameraInfo?.granted.backgroundBlur === true && (
-                <p class="capture-warning" role="note">
-                  ⚠ Your camera's background blur (Portrait) is on and can blur
-                  the cube. Turn it off in Control Center → Video Effects.
-                </p>
-              )}
-              {captureWarning && (
-                <div class="capture-warning capture-soft-warning" role="status">
-                  <span>⚠ {captureWarning.text}</span>
-                  <button
-                    type="button"
-                    class="btn btn-secondary btn-sm"
-                    onClick={() => {
-                      lastCapturedColors.current = null
-                      lastCapturedPose.current = null
-                      setWebcamFace(FACE_ORDER[captureWarning.retake])
-                      setCaptureMessage('')
-                    }}
-                  >
-                    Retake {CAPTURE_STEPS[captureWarning.retake].label}
-                  </button>
-                  <button
-                    type="button"
-                    class="link-button"
-                    onClick={() =>
-                      setDismissedCaptureWarnings((keys) => [
-                        ...keys,
-                        captureWarning.key,
-                      ])
-                    }
-                  >
-                    Ignore
-                  </button>
-                </div>
-              )}
-              <CaptureSettings
-                profileStore={profileStore}
-                profile={profile}
-                puzzleSize={puzzleSize}
-                colorProfileName={colorProfile.name}
-                automaticColors={profileStore.activeColorsId === AUTO_COLORS_ID}
-                provisionalProfileName={provisionalColorProfile?.name}
-                liveProfileName={liveAutoColorProfile?.name}
-                mirrorPreview={mirrorPreview}
-                noFacesCaptured={FACE_ORDER.every((f) => !capturedFaces[f])}
-                newCubeName={newCubeName}
-                newColorProfileName={newColorProfileName}
-                loading={loading}
-                turnCueShowing={turnOverlay !== null}
-                onCubeChange={changeCube}
-                onColorProfileChange={(id) =>
-                  applyProfileStore(selectColorProfile(profileStore, id))
-                }
-                onNewCubeNameChange={setNewCubeName}
-                onNewColorProfileNameChange={setNewColorProfileName}
-                onCreateCube={handleCreateCube}
-                onCreateNamedColors={handleCreateNamedColors}
-                onImportImage={handleImportImage}
-              />
-              <div class="capture-actions">
-                <div
-                  role="status"
-                  class={`capture-message ${captureMessage ? (captureMessage.includes('✓') ? 'success' : captureMessage.includes('❌') ? 'error' : '') : 'is-empty'}`}
-                >
-                  {captureMessage || '—'}
-                </div>
-                <button
-                  type="button"
-                  class="btn btn-primary"
-                  onClick={handleCapturePhoto}
-                  disabled={loading || turnOverlay !== null}
-                >
-                  {loading
-                    ? '⏳ Processing...'
-                    : autoCapture && captureMode === 'cv'
-                      ? 'Capture now'
-                      : `Capture ${FACE_DISPLAY_LABEL[webcamFace].toLowerCase()}`}
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
+          }
+          settings={
+            <CaptureSettings
+              profileStore={profileStore}
+              profile={profile}
+              puzzleSize={puzzleSize}
+              colorProfileName={colorProfile.name}
+              automaticColors={profileStore.activeColorsId === AUTO_COLORS_ID}
+              provisionalProfileName={provisionalColorProfile?.name}
+              liveProfileName={liveAutoColorProfile?.name}
+              mirrorPreview={mirrorPreview}
+              noFacesCaptured={FACE_ORDER.every((f) => !capturedFaces[f])}
+              newCubeName={newCubeName}
+              newColorProfileName={newColorProfileName}
+              loading={loading}
+              turnCueShowing={turnOverlay !== null}
+              onCubeChange={changeCube}
+              onColorProfileChange={(id) =>
+                applyProfileStore(selectColorProfile(profileStore, id))
+              }
+              onNewCubeNameChange={setNewCubeName}
+              onNewColorProfileNameChange={setNewColorProfileName}
+              onCreateCube={handleCreateCube}
+              onCreateNamedColors={handleCreateNamedColors}
+              onImportImage={handleImportImage}
+            />
+          }
+          focusDialog={focusModalOnOpen}
+          onDialogKeyDown={(event) =>
+            handleModalKeyDown(event, event.currentTarget, () =>
+              setWebcamOpen(false),
+            )
+          }
+          onClose={() => setWebcamOpen(false)}
+          face={webcamFace}
+          faceOrder={FACE_ORDER}
+          faceLabels={FACE_DISPLAY_LABEL}
+          shortLabels={FACE_SHORT_LABEL}
+          colorNames={COLOR_NAME}
+          stickerColors={STICKER_HEX}
+          size={puzzleSize}
+          captureMode={captureMode}
+          onModeChange={(mode) => {
+            setCaptureMode(mode)
+            setLiveDetection(null)
+            setLiveFaceVisible(false)
+          }}
+          mirrorPreview={mirrorPreview}
+          centerRoutingActive={centerRoutingActive}
+          instruction={
+            centerRoutingActive
+              ? 'Show any uncaptured face. Its center color will place it in the capture net.'
+              : captureInstruction(
+                  FACE_ORDER.indexOf(webcamFace),
+                  mirrorPreview,
+                )
+          }
+          predictedCenter={predictedCenter}
+          predictedCenters={predictedCenters}
+          faces={Object.fromEntries(
+            FACE_ORDER.map((f) => [f, capturedFaces[f]?.colors]),
+          )}
+          matchingNetFaces={matchingNetFaces}
+          liveCapturedFace={liveCapturedFace}
+          onSelectFace={(slot) => {
+            dismissTurnOverlay()
+            lastCapturedColors.current = null
+            lastCapturedPose.current = null
+            setWebcamFace(slot)
+            setCaptureMessage('')
+          }}
+          cameraBlurOn={cameraInfo?.granted.backgroundBlur === true}
+          captureWarning={captureWarning}
+          onRetakeWarning={(step) => {
+            lastCapturedColors.current = null
+            lastCapturedPose.current = null
+            setWebcamFace(FACE_ORDER[step])
+            setCaptureMessage('')
+          }}
+          onIgnoreWarning={(key) =>
+            setDismissedCaptureWarnings((keys) => [...keys, key])
+          }
+          captureMessage={captureMessage}
+          loading={loading}
+          turnCueShowing={turnOverlay !== null}
+          autoCapture={autoCapture}
+          onCapture={handleCapturePhoto}
+        />
       )}
 
       {/* Post-Capture Review Wizard: step through faces one at a time,
