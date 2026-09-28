@@ -54,7 +54,8 @@ including inner slices on larger cubes. With a mouse, drag the background to
 rotate the view; it keeps turning briefly after release. On a touch screen,
 one finger only turns layers; two fingers tilt the cube and pinch to zoom. On
 a touchpad, a two-finger swipe tilts the cube and a pinch zooms, while a mouse
-wheel still zooms. Layer turns update the 2D net,
+wheel still zooms. Turns snap into place with a slight overshoot, like a magnetic cube, and click
+softly when capture **Sound** is on. Layer turns update the 2D net,
 facelet notation, and Orbit64 token. The move list records completed turns;
 **Undo** reverses the last one, and **Reset** returns to the captured state.
 **Scramble** uses more moves for larger cubes and turns inner layers on 4×4–7×7,
