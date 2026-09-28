@@ -54,13 +54,15 @@
     }
   }
 
+  /* Centered in the space left of the mini cube. */
   .cube-3d-hint {
     position: absolute;
     bottom: 8px;
-    left: 50%;
-    transform: translateX(-50%);
+    left: 8px;
+    right: 136px;
+    margin-inline: auto;
     width: max-content;
-    max-width: calc(100% - 16px);
+    max-width: calc(100% - 144px);
     text-align: center;
     background: rgba(18, 18, 22, 0.75);
     color: rgba(255, 255, 255, 0.7);
@@ -74,7 +76,7 @@
 
   .cube-3d-minicube {
     position: absolute;
-    top: 8px;
+    bottom: 8px;
     right: 8px;
     width: 120px;
     height: 120px;
@@ -131,6 +133,11 @@
     .cube-3d-minicube {
       width: 96px;
       height: 96px;
+    }
+
+    .cube-3d-hint {
+      right: 112px;
+      max-width: calc(100% - 120px);
     }
   }
 
