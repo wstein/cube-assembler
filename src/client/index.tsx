@@ -77,9 +77,7 @@ import {
   backdropReference,
   BACKGROUND_WB_METHOD,
   NEUTRAL_GAINS,
-  CROP_JPEG_QUALITY,
   DEFAULT_SAMPLING,
-  STICKER_MEASUREMENT,
   STICKER_COLORS,
   type ColorDetectionResult,
   type FaceCaptureResult,
@@ -117,12 +115,7 @@ import {
   type AutomaticResolution,
 } from './colorProfileLearning'
 import { readFixtureUpload } from './readFixtureUpload'
-import {
-  buildFixture,
-  summarizeFixture,
-  unzipUploadFiles,
-  zipFixture,
-} from './fixtureZip'
+import { unzipUploadFiles } from './fixtureZip'
 import { currentAppCommit } from './fixtureUpload'
 import {
   CAPTURE_STEPS,
@@ -140,18 +133,23 @@ import {
   STICKER_HEX,
   confidenceTier,
 } from './stickerDisplay'
-import { computeColorStats } from './colorStats'
 import { flyInto } from './flyAnimation'
 import { focusModalOnOpen, handleModalKeyDown } from './modalFocus'
 import { useProfileStore } from './useProfileStore'
 import { usePhotoUploads } from './usePhotoUploads'
+import {
+  applyFixtureDetection,
+  buildCaptureFixture,
+  canSaveCaptureFixture,
+  fixtureDownloadFor,
+  fixtureLoadedMessage,
+  recordedAutomaticResolution,
+} from './captureFixture'
 import { useOrientationReview } from './useOrientationReview'
 import {
-  toWRGFacelets,
   fromWRGFacelets,
   fromURFFacelets,
   detectNotationFormat,
-  gridsToWRGFacelets,
 } from '../cube/notation/NotationOutput.gen'
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -915,20 +913,8 @@ function App() {
         recordedColors?.name && recordedColors.colors ? recordedColors : null,
       )
       // The recorded reason for it, where the fixture has one.
-      const recordedResolution = meta.capture?.colorResolution
       setAutomaticResolution(
-        recordedResolution?.reason
-          ? {
-              profile: null,
-              reason: recordedResolution.reason,
-              nearest: (recordedResolution.nearest ?? []).map(
-                ({ id, name, fit }) => ({
-                  profile: { id, name, colors: {}, captures: 0 },
-                  fit,
-                }),
-              ),
-            }
-          : null,
+        recordedAutomaticResolution(meta.capture?.colorResolution),
       )
       setResolvedColorReference(meta.capture?.colorReference ?? null)
       const images = Object.fromEntries(
@@ -947,22 +933,11 @@ function App() {
         meta.capture?.sampling ?? DEFAULT_SAMPLING,
         meta.capture?.colorReference ?? undefined,
       )
-      let mismatches = 0
-      for (const [f, entry] of Object.entries(newEntries)) {
-        const det = wb.faces[f]
-        entry.detectedColors = det.colors
-        entry.cellColors = det.cellColors
-        entry.cellConfidences = det.cellConfidences
-        entry.cellLookalikes = det.cellLookalikes
-        entry.confidence = det.confidence
-        entry.colors.forEach((row, r) =>
-          row.forEach((color, c) => {
-            if (det.colors[r][c] !== color) mismatches++
-          }),
-        )
-        if (ignoreFixtureCorrections)
-          entry.colors = det.colors.map((row) => [...row])
-      }
+      const mismatches = applyFixtureDetection(
+        newEntries,
+        wb.faces,
+        ignoreFixtureCorrections,
+      )
       setAppliedBackgroundGains(recordedGains)
       setGlareFaces(glareFacesToWarn(wb.glare))
       setGlobalWhiteBalanceNote(wb.applied ? CALIBRATION_NOTE : null)
@@ -976,13 +951,8 @@ function App() {
           Object.entries(newEntries).map(([f, d]) => [f, d.confidence]),
         ),
       )
-      const stickers = `${mismatches} sticker${mismatches === 1 ? '' : 's'}`
       setCaptureMessage(
-        mismatches === 0
-          ? `✓ Loaded fixture - detection matches all stickers.`
-          : ignoreFixtureCorrections
-            ? `✓ Loaded fixture with detected colors only - dropped the saved choice on ${stickers}.`
-            : `✓ Loaded fixture - detection differs on ${stickers} (marked in the review).`,
+        fixtureLoadedMessage(mismatches, ignoreFixtureCorrections),
       )
       setReviewStep(0)
       setShowReviewDialog(true)
@@ -1259,17 +1229,11 @@ function App() {
     setShowReviewDialog(false)
   }
 
-  // Packs this capture - each face's actual photo plus its (human-
-  // reviewed/corrected) color grid - into a fixture zip (see fixtureZip.ts)
-  // and shows what's in it before downloading (downloadFixture): unzipped
-  // into test/fixtures/, it is a permanent regression fixture (see
-  // test/fixtures.test.ts). Only meaningful once a
-  // cube has actually been confirmed: that's the point at which
-  // capturedFaces' colors reflect whatever corrections were made in the
-  // review wizard, not just the raw first-pass detection.
+  // Shows what a fixture of this capture holds before downloading it (see
+  // buildCaptureFixture). Only meaningful once the cube has been confirmed,
+  // when the colors include the review's corrections.
   const handleSaveFixture = async () => {
-    const allCaptured = FACE_ORDER.every((f) => capturedFaces[f]?.croppedImage)
-    if (!allCaptured) {
+    if (!canSaveCaptureFixture(capturedFaces)) {
       setFixtureSaveMessage('❌ Capture and confirm all 6 faces first.')
       return
     }
@@ -1277,142 +1241,28 @@ function App() {
       ? await currentAppCommit(__APP_COMMIT__)
       : __APP_COMMIT__
     try {
-      const faces: Record<string, { photo: string } & Record<string, unknown>> =
-        {}
-      for (const f of FACE_ORDER) {
-        const face = capturedFaces[f]
-        faces[f] = {
-          photo: face.croppedImage!,
-          // What the browser measured for each sticker (row-major, after the
-          // face's gain) and detection's confidence in it, 0-100 - lets
-          // the fixture test check its own JPEG decode reads the same.
-          readings: face.cellColors
-            ?.flat()
-            .map(({ r, g, b }) =>
-              [r, g, b].map((v) => Math.round(v * 10) / 10),
-            ),
-          confidences: face.cellConfidences
-            ?.flat()
-            .map((c) => Math.round(c * 100)),
-          source: face.source,
-          capturedAt: new Date(face.timestamp).toISOString(),
-          background: face.backgroundColor,
-          frame: face.frame,
-          crop: face.crop,
-          sharpness:
-            face.sharpness !== undefined
-              ? Math.round(face.sharpness * 10) / 10
-              : undefined,
-          camera: face.cameraSettings,
-          previewColorProfile: face.previewColorProfile,
-        }
-      }
-      const meta = {
-        capturedAt: new Date().toISOString(),
-        app: { version: __APP_VERSION__, commit },
+      const fixture = buildCaptureFixture({
+        capturedFaces,
+        puzzleSize,
+        version: __APP_VERSION__,
+        commit,
         userAgent: navigator.userAgent,
         devicePixelRatio: window.devicePixelRatio,
-        photo: { format: 'image/jpeg', quality: CROP_JPEG_QUALITY },
         mirrored: mirrorPreview,
-        // Only meaningful when at least one face was shot with it - not for
-        // a re-saved uploaded fixture or imported image files.
-        camera: FACE_ORDER.some((f) => capturedFaces[f].source === 'camera')
-          ? cameraInfo
-          : null,
-        // The cube profile the capture was taken with - same condition as
-        // camera, since a re-saved upload wasn't shot with the current one.
-        profile: FACE_ORDER.some((f) => capturedFaces[f].source === 'camera')
-          ? captureProfile
-          : null,
-        // One resolved profile for the complete capture. The actual common
-        // palette learned from all six photos is recorded below.
-        colorProfile: resolvedColorProfile,
-        // Why Automatic chose it: the reason and the nearest saved profiles.
-        colorResolution: automaticResolution && {
-          reason: automaticResolution.reason,
-          nearest: automaticResolution.nearest.map(({ profile, fit }) => ({
-            id: profile.id,
-            name: profile.name,
-            fit,
-          })),
-        },
-        // A saved/manual profile acts as the six-face classification prior.
-        // Automatic without a clear match uses only this capture's colors.
-        colorReference: resolvedColorReference,
-        // How the photos were taken (see CAPTURE_STEPS) and the cube they
-        // were approved as - the fixture test puts the photos together
-        // again and checks it gets that cube.
-        protocol: isGuidedCapture() ? GUIDED_PROTOCOL : null,
-        // How the per-face `readings` were measured (see stickerColor).
-        measurement: STICKER_MEASUREMENT,
-        assembledURFDLB: cube ? toWRGFacelets(cube) : null,
-        // Two corrections run after all 6 faces are in: each face's
-        // backdrop brought to the median of all six (backgroundWhiteBalance,
-        // per-face gains - see computeBackgroundGains; each face's backdrop
-        // reading is recorded per face), then the 6 colors learned from
-        // this capture's own stickers (colorCalibration).
-        backgroundWhiteBalance: appliedBackgroundGains,
-        backgroundWhiteBalanceMethod: appliedBackgroundGains
-          ? BACKGROUND_WB_METHOD
-          : null,
-        // Face border and sticker gap used to sample every face (see
-        // SamplingGeometry) - replayed by the fixture test.
+        cameraInfo,
+        captureProfile,
+        resolvedColorProfile,
+        automaticResolution,
+        resolvedColorReference,
+        guided: isGuidedCapture(),
+        cube,
+        appliedBackgroundGains,
         sampling,
-        // The 6 colors learned from this capture's stickers, which every
-        // sticker was classified against (null when there weren't enough
-        // stickers to learn from and the canonical colors were used).
-        colorCalibration: {
-          applied: globalWhiteBalanceNote !== null,
-          learnedColors: learnedPalette
-            ? Object.fromEntries(
-                Object.entries(learnedPalette).map(([color, { r, g, b }]) => [
-                  color,
-                  [r, g, b].map((v) => Math.round(v * 10) / 10),
-                ]),
-              )
-            : null,
-        },
-        // Per-color detected count/lightness/chroma/hue spread across all 6
-        // faces at confirm time (see computeColorStats) - no longer shown
-        // live in the review wizard (raw OKLCH ranges aren't actionable
-        // mid-capture), but valuable here for offline analysis of a
-        // reported detection problem against this exact fixture.
-        colorStats: computeColorStats(capturedFaces, puzzleSize),
-      }
-      const fixture = buildFixture({
-        gridSize: puzzleSize,
-        colorsURFDLB: gridsToWRGFacelets(
-          Object.fromEntries(
-            FACE_ORDER.map((f) => [f, capturedFaces[f].colors]),
-          ),
-        ),
-        // What detection said before any hand correction - the diff
-        // against colorsURFDLB is exactly what a human had to fix.
-        detectedURFDLB: FACE_ORDER.every((f) => capturedFaces[f].detectedColors)
-          ? gridsToWRGFacelets(
-              Object.fromEntries(
-                FACE_ORDER.map((f) => [f, capturedFaces[f].detectedColors!]),
-              ),
-            )
-          : undefined,
-        faces,
-        meta,
+        calibrationApplied: globalWhiteBalanceNote !== null,
+        learnedPalette,
       })
-      const summary = summarizeFixture(fixture)
       setFixtureSaveMessage('')
-      setFixtureDownload({
-        fixture,
-        name: fixture.name,
-        zip: zipFixture(fixture),
-        summary,
-        photoUrls: summary.photos.map((p) =>
-          URL.createObjectURL(
-            new Blob([p.bytes as BlobPart], {
-              type: p.file.endsWith('.png') ? 'image/png' : 'image/jpeg',
-            }),
-          ),
-        ),
-      })
+      setFixtureDownload(fixtureDownloadFor(fixture))
     } catch (err) {
       setFixtureSaveMessage(
         `❌ Failed to save fixture: ${err instanceof Error ? err.message : String(err)}`,
