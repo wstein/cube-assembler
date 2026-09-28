@@ -1,18 +1,19 @@
+// What the user sees after checking sticker colors - the guided and
+// free-search fallback order: typed entry point for
+// src/core/capture/CaptureReviewRouting.res.
 import {
-  checkGuidedCenters,
-  orientationFreeSignature,
-  solveFaceOrientations,
-  solveGuidedCapture,
-  type FaceKey,
-  type GuidedArrangement,
-  type GuidedCenterIssue,
-  type OrientedCandidate,
-  type OrientationSolution,
+  canSkipColorReview as canSkipColorReviewRes,
+  highConfidenceColorReadings as highConfidenceColorReadingsRes,
+  planCaptureReview as planCaptureReviewRes,
+  readyAssemblyAfterCapture as readyAssemblyAfterCaptureRes,
+  rejectAlternatives as rejectAlternativesRes,
+} from '../core/capture/CaptureReviewRouting.gen'
+import type {
+  GuidedArrangement,
+  GuidedCenterIssue,
+  OrientedCandidate,
+  OrientationSolution,
 } from '../cube/cubeAssembly'
-import {
-  faceContentKey,
-  preferredGuidedArrangementIndex,
-} from '../cube/orientationWizard'
 
 export interface CaptureReviewFace {
   colors: string[][]
@@ -21,8 +22,6 @@ export interface CaptureReviewFace {
   cellLookalikes?: (string | null)[][]
   confidence: number
 }
-
-const HIGH_CONFIDENCE = 0.8
 
 export interface CaptureApproval {
   candidates: OrientedCandidate[]
@@ -34,17 +33,11 @@ export interface CaptureApproval {
   page?: number
 }
 
+// The fallback's arrangements other than the ones already turned down.
 export function rejectAlternatives(
   approval: CaptureApproval,
 ): OrientedCandidate[] {
-  const rejected = new Set(
-    approval.candidates.map((candidate) =>
-      orientationFreeSignature(candidate.faces),
-    ),
-  )
-  return (approval.fallback?.alternatives ?? []).filter(
-    (candidate) => !rejected.has(orientationFreeSignature(candidate.faces)),
-  )
+  return rejectAlternativesRes(approval) as OrientedCandidate[]
 }
 
 export type CaptureReviewPlan =
@@ -53,8 +46,7 @@ export type CaptureReviewPlan =
   | { kind: 'choose'; candidate: OrientedCandidate }
   | { kind: 'notice'; message: string }
 
-// Decide what the user should see after checking sticker colors. The UI owns
-// the dialogs; this module owns the guided and free-search fallback order.
+// Decide what the user should see after checking sticker colors.
 export function planCaptureReview(
   faces: Record<string, string[][]>,
   order: readonly string[],
@@ -62,122 +54,28 @@ export function planCaptureReview(
   describeIssue: (issue: GuidedCenterIssue) => string,
   precomputedFree?: OrientationSolution | null,
 ): CaptureReviewPlan {
-  const free =
-    precomputedFree === undefined
-      ? solveFaceOrientations(faces)
-      : precomputedFree
-
-  if (guided) {
-    const [s1, s2, s3, s4, cap1, cap2] = order.map((face) => faces[face])
-    const solution = solveGuidedCapture({
-      sides: [s1, s2, s3, s4],
-      caps: [cap1, cap2],
-    })
-    if (solution?.fullyValid) {
-      const preferred = preferredGuidedArrangementIndex(solution.arrangements)
-      // Keep every guided fit available after "No" even if the free search
-      // stopped before reaching it.
-      const seen = new Set<string>()
-      const alternatives = [
-        solution.alternatives[preferred],
-        ...solution.alternatives,
-        ...(free?.alternatives ?? []),
-      ].filter((candidate) => {
-        const key = order
-          .map((face) => faceContentKey(candidate.faces[face as FaceKey]))
-          .join('|')
-        if (seen.has(key)) return false
-        seen.add(key)
-        return true
-      })
-      return {
-        kind: 'approval',
-        approval: {
-          candidates: [solution.alternatives[preferred]],
-          arrangements: [solution.arrangements[preferred]],
-          valid: true,
-          suggestedFrom: solution.alternatives.length,
-          fallback: {
-            ...(free ?? solution),
-            alternatives,
-            truncated: Boolean(free?.truncated || solution.truncated),
-          },
-        },
-      }
-    }
-    const issue = checkGuidedCenters(order.map((face) => faces[face]))[0]
-    const why = issue
-      ? describeIssue(issue)
-      : "These photos don't fit together the way they were taken - the cube may have been turned the other way partway through, or tipped over."
-    if (free?.fullyValid)
-      return {
-        kind: 'approval',
-        approval: {
-          candidates: free.alternatives,
-          valid: true,
-          note: `${why} They do fit together another way:`,
-          fallback: null,
-        },
-      }
-    const closest = solution ?? free
-    if (closest)
-      return {
-        kind: 'approval',
-        approval: {
-          candidates: [closest.alternatives[0]],
-          valid: false,
-          note: `${why} No arrangement makes a valid cube, so a color was probably misread - check the colors, or use the closest match anyway.`,
-          fallback: free,
-        },
-      }
-  }
-
-  if (!free)
-    return {
-      kind: 'notice',
-      message:
-        "⚠️ Couldn't work out how the faces fit together (a duplicate or unreadable center?) - check the colors, or retake a face.",
-    }
-  if (!free.fullyValid)
-    return {
-      kind: 'approval',
-      approval: {
-        candidates: [free.alternatives[0]],
-        valid: false,
-        note: 'No arrangement of these faces makes a valid cube, so a color was probably misread - check the colors, or use the closest match anyway.',
-        fallback: free,
-      },
-    }
-  if (free.alternatives.length > 1)
-    return {
-      kind: 'wizard',
-      remaining: free.alternatives,
-      truncated: free.truncated,
-    }
-  return { kind: 'choose', candidate: free.alternatives[0] }
+  return planCaptureReviewRes(
+    faces,
+    [...order],
+    guided,
+    describeIssue,
+    precomputedFree,
+  ) as CaptureReviewPlan
 }
 
+// The solved cube when the capture needs no color review, else null.
 export function readyAssemblyAfterCapture(
   faces: Record<string, CaptureReviewFace | undefined>,
   order: readonly string[],
   glareFaces: readonly string[],
   mixedUpColors: readonly string[],
 ): OrientationSolution | null {
-  if (!highConfidenceColorReadings(faces, order, glareFaces, mixedUpColors))
-    return null
-  const faceData = Object.fromEntries(
-    order.map((face) => [face, faces[face]!.colors]),
-  )
-  const solution = solveFaceOrientations(faceData)
-  return canSkipColorReview(
-    faces,
-    order,
-    Boolean(solution?.fullyValid),
-    glareFaces,
-    mixedUpColors,
-  )
-    ? solution
-    : null
+  return readyAssemblyAfterCaptureRes(
+    faces as Record<string, CaptureReviewFace>,
+    [...order],
+    [...glareFaces],
+    [...mixedUpColors],
+  ) as OrientationSolution | null
 }
 
 export function canSkipColorReview(
@@ -187,45 +85,27 @@ export function canSkipColorReview(
   glareFaces: readonly string[],
   mixedUpColors: readonly string[],
 ): boolean {
-  return (
-    assembledValid &&
-    highConfidenceColorReadings(faces, order, glareFaces, mixedUpColors)
+  return canSkipColorReviewRes(
+    faces as Record<string, CaptureReviewFace>,
+    [...order],
+    assembledValid,
+    [...glareFaces],
+    [...mixedUpColors],
   )
 }
 
+// Every sticker read confidently, as detected, with no lookalike, and no
+// glare or mixed-up colors.
 export function highConfidenceColorReadings(
   faces: Record<string, CaptureReviewFace | undefined>,
   order: readonly string[],
   glareFaces: readonly string[],
   mixedUpColors: readonly string[],
 ): boolean {
-  if (glareFaces.length > 0 || mixedUpColors.length > 0) return false
-
-  const size = faces[order[0]]?.colors.length ?? 0
-  if (size === 0) return false
-  return order.every((key) => {
-    const face = faces[key]
-    if (
-      !face ||
-      face.confidence < HIGH_CONFIDENCE ||
-      face.colors.length !== size ||
-      face.detectedColors?.length !== size ||
-      face.cellConfidences?.length !== size ||
-      face.cellLookalikes?.length !== size
-    )
-      return false
-    return face.colors.every(
-      (row, r) =>
-        row.length === size &&
-        face.detectedColors?.[r]?.length === size &&
-        face.cellConfidences?.[r]?.length === size &&
-        face.cellLookalikes?.[r]?.length === size &&
-        row.every(
-          (color, c) =>
-            face.detectedColors?.[r]?.[c] === color &&
-            (face.cellConfidences?.[r]?.[c] ?? 0) >= HIGH_CONFIDENCE &&
-            face.cellLookalikes?.[r]?.[c] === null,
-        ),
-    )
-  })
+  return highConfidenceColorReadingsRes(
+    faces as Record<string, CaptureReviewFace>,
+    [...order],
+    [...glareFaces],
+    [...mixedUpColors],
+  )
 }
