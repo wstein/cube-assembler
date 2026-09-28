@@ -2,6 +2,7 @@ import type { FaceKey } from '../cube/cubeAssembly'
 
 type Vec = [number, number, number]
 type Axis = 0 | 1 | 2
+export type GestureAxis = Axis
 
 export interface CubeGestureCamera {
   width: number

@@ -607,3 +607,123 @@ test('a two-finger tilt with close, drifting fingers never zooms', async ({
   await page.waitForTimeout(300)
   expect((await canvas.screenshot()).equals(before)).toBe(true)
 })
+
+test.describe('held sticker drags', () => {
+  // Facing the front of a 5x5: columns are about an eighth of the canvas
+  // height apart, and a quarter turn is a drag of about half of it.
+  const setUp = async (page: Page) => {
+    await page.goto('/')
+    await page
+      .getByRole('combobox', { name: 'Cube' })
+      .selectOption({ label: '5×5' })
+    await page.getByRole('button', { name: 'Solved cube' }).click()
+    await page.getByRole('button', { name: '3D View' }).click()
+    await page.getByRole('button', { name: 'Front (F)' }).click()
+    const bounds = await page.locator('.cube-3d-canvas').boundingBox()
+    if (!bounds) throw new Error('No canvas')
+    return {
+      x: bounds.x + bounds.width / 2 - 38,
+      y: bounds.y + bounds.height / 2,
+      column: bounds.height * 0.127,
+      quarter: bounds.height / 2,
+    }
+  }
+  const history = (page: Page) =>
+    page.getByRole('status', { name: 'Move history' })
+  const badge = (page: Page) => page.locator('.cube-3d-press-mode')
+
+  test('a 300 ms hold picks layers across, then turns them as a block', async ({
+    page,
+  }) => {
+    const { x, y, column, quarter } = await setUp(page)
+    await page.mouse.move(x, y)
+    await page.mouse.down()
+    await page.waitForTimeout(400)
+    await expect(badge(page)).toHaveText(/Wide turn/)
+    // Across to the left edge column: the two left columns.
+    await page.mouse.move(x - column, y, { steps: 6 })
+    await page.mouse.move(x - column, y - 1.1 * quarter, { steps: 12 })
+    await page.waitForTimeout(150)
+    await page.mouse.up()
+    await expect(history(page)).toHaveText("Moves: Lw'")
+    await expect(badge(page)).toHaveCount(0)
+  })
+
+  test('Shift picks a block at once', async ({ page }) => {
+    const { x, y, column, quarter } = await setUp(page)
+    await page.keyboard.down('Shift')
+    await page.mouse.move(x, y)
+    await page.mouse.down()
+    await page.mouse.move(x - column, y, { steps: 6 })
+    await page.mouse.move(x - column, y - 1.1 * quarter, { steps: 12 })
+    await page.waitForTimeout(150)
+    await page.mouse.up()
+    await page.keyboard.up('Shift')
+    await expect(history(page)).toHaveText("Moves: Lw'")
+  })
+
+  test('a 600 ms hold turns the whole cube', async ({ page }) => {
+    const { x, y, quarter } = await setUp(page)
+    const notation = page.getByRole('textbox', { name: 'Notation' })
+    const solved = await notation.inputValue()
+    await page.mouse.move(x, y)
+    await page.mouse.down()
+    await page.waitForTimeout(700)
+    await expect(badge(page)).toHaveText(/Whole cube/)
+    await page.mouse.move(x, y - 1.1 * quarter, { steps: 12 })
+    await page.waitForTimeout(150)
+    await page.mouse.up()
+    await expect(history(page)).toHaveText('Moves: x')
+    await expect(notation).not.toHaveValue(solved)
+  })
+
+  test('Alt turns the whole cube at once', async ({ page }) => {
+    const { x, y, quarter } = await setUp(page)
+    await page.keyboard.down('Alt')
+    await page.mouse.move(x, y)
+    await page.mouse.down()
+    await page.mouse.move(x, y + 1.1 * quarter, { steps: 12 })
+    await page.waitForTimeout(150)
+    await page.mouse.up()
+    await page.keyboard.up('Alt')
+    await expect(history(page)).toHaveText("Moves: x'")
+  })
+
+  test('a held finger on a touch screen turns the whole cube', async ({
+    page,
+  }) => {
+    const { x, y, quarter } = await setUp(page)
+    const canvas = page.locator('.cube-3d-canvas')
+    const touch = (type: string, clientY: number) =>
+      canvas.dispatchEvent(type, {
+        pointerId: 7,
+        pointerType: 'touch',
+        isPrimary: true,
+        clientX: x,
+        clientY,
+        bubbles: true,
+      })
+    await touch('pointerdown', y)
+    await page.waitForTimeout(700)
+    await expect(badge(page)).toHaveText(/Whole cube/)
+    for (let step = 1; step <= 10; step++)
+      await touch('pointermove', y - (1.1 * quarter * step) / 10)
+    await page.waitForTimeout(150)
+    await touch('pointerup', y - 1.1 * quarter)
+    await expect(history(page)).toHaveText('Moves: x')
+  })
+
+  test('a hold released without a drag turns nothing', async ({ page }) => {
+    const { x, y } = await setUp(page)
+    const canvas = page.locator('.cube-3d-canvas')
+    await page.waitForTimeout(300)
+    const still = await canvas.screenshot()
+    await page.mouse.move(x, y)
+    await page.mouse.down()
+    await page.waitForTimeout(400)
+    await page.mouse.up()
+    await page.waitForTimeout(400)
+    await expect(history(page)).toHaveText('Moves: None')
+    expect((await canvas.screenshot()).equals(still)).toBe(true)
+  })
+})

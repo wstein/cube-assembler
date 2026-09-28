@@ -7,9 +7,18 @@ import {
   gestureForPointerDown,
   gestureWhenSwipeTurnsNothing,
   pickCubeSurface,
+  CUBE_PRESS_MS,
+  PRESS_SLOP_PX,
+  WIDE_PRESS_MS,
+  blockLayer,
+  facePlanePoint,
+  layerIndex,
   pickSwipeLayer,
+  pressLevel,
   releasedQuarterTurns,
   swipeLayerAngle,
+  swipeMoveAxis,
+  wholeCubeLayer,
   twoFingerLock,
   twoFingerMotion,
   wheelGesture,
@@ -17,6 +26,8 @@ import {
   type TwoFingerLock,
   type CubeSurfaceHit,
   type CubeGestureCamera,
+  type GestureAxis,
+  type PressLevel,
   type SwipeLayer,
 } from './cubeGesture'
 import { stepDragInertia } from './dragInertia'
@@ -35,6 +46,8 @@ import {
   type Faces,
   type Axis,
 } from '../cube/cubeGeometry'
+
+type Point = [number, number]
 
 export const DEFAULT_STICKER_HEX: Record<string, string> = {
   W: '#f7f6f1',
@@ -1371,7 +1384,18 @@ export function CubeView3D({
     hit: CubeSurfaceHit | null
     mode: CubeGesture
     pointerType: string
+    // What a held sticker turns: its layer, a block of layers, the cube.
+    level: PressLevel
+    holdTimer?: ReturnType<typeof setTimeout>
+    // A block being picked: the layers from `from` to `to` along `axis`,
+    // and where the finger was when it last moved across them.
+    block?: { axis: GestureAxis; from: number; to: number; anchor: Point }
+    // Where the turn's angle is measured from once dragging turns layers.
+    turnHit?: CubeSurfaceHit
+    turnFrom?: Point
   } | null>(null)
+  // Shown while a held sticker turns a block or the whole cube.
+  const [pressMode, setPressMode] = useState<PressLevel | null>(null)
   // Fingers on the canvas, and where the two tilting fingers were last.
   const touchesRef = useRef(new Map<number, [number, number]>())
   const tiltFromRef = useRef<[[number, number], [number, number]] | null>(null)
@@ -1890,6 +1914,132 @@ export function CubeView3D({
     size: puzzleSize,
   })
 
+  const clearHold = () => {
+    const gesture = gestureRef.current
+    if (gesture?.holdTimer) clearTimeout(gesture.holdTimer)
+    if (gesture) gesture.holdTimer = undefined
+  }
+
+  // Holding the sticker still widens what it turns: a block of layers after
+  // WIDE_PRESS_MS, then the whole cube after CUBE_PRESS_MS.
+  const holdSticker = (gesture: NonNullable<typeof gestureRef.current>) => {
+    const upgrade = (level: PressLevel, next?: () => void) => {
+      if (gestureRef.current !== gesture || gesture.mode !== 'pending') return
+      if (gesture.block) return
+      gesture.level = level
+      setPressMode(level)
+      try {
+        navigator.vibrate?.(level === 'cube' ? 20 : 10)
+      } catch {
+        // Vibration is only a hint.
+      }
+      next?.()
+    }
+    gesture.holdTimer = setTimeout(
+      () =>
+        upgrade('block', () => {
+          gesture.holdTimer = setTimeout(
+            () => upgrade('cube'),
+            CUBE_PRESS_MS - WIDE_PRESS_MS,
+          )
+        }),
+      WIDE_PRESS_MS,
+    )
+  }
+
+  // From here the layers follow the finger until release.
+  const startDragTurn = (
+    gesture: NonNullable<typeof gestureRef.current>,
+    layer: SwipeLayer,
+    from: Point,
+    hit: CubeSurfaceHit,
+    e: PointerEvent,
+    camera: CubeGestureCamera,
+  ) => {
+    clearHold()
+    gesture.mode = 'turn'
+    gesture.turnHit = hit
+    gesture.turnFrom = from
+    dragTurnRef.current = {
+      layer,
+      angle: swipeLayerAngle(
+        hit,
+        layer,
+        e.clientX - from[0],
+        e.clientY - from[1],
+        camera,
+      ),
+      velocity: 0,
+      time: e.timeStamp,
+      highlight: gesture.level !== 'layer',
+      drawn: null,
+    }
+    setIsTurning(true)
+  }
+
+  // Picking a block: the first clear move across layers chooses the axis,
+  // later moves stretch the block to the layer under the finger, and a move
+  // the other way starts turning it.
+  const pickBlock = (
+    gesture: NonNullable<typeof gestureRef.current>,
+    hit: CubeSurfaceHit,
+    e: PointerEvent,
+    rect: DOMRect,
+    camera: CubeGestureCamera,
+  ) => {
+    const here: Point = [e.clientX, e.clientY]
+    const onPlane = (point: Point) =>
+      facePlanePoint(point[0] - rect.left, point[1] - rect.top, camera, hit)
+    let block = gesture.block
+    if (!block) {
+      const axis = swipeMoveAxis(
+        hit,
+        e.clientX - gesture.x,
+        e.clientY - gesture.y,
+        camera,
+      )
+      if (axis === null) return
+      const start = layerIndex(hit.point[axis], puzzleSize)
+      block = { axis, from: start, to: start, anchor: here }
+      gesture.block = block
+    } else {
+      const anchorPoint = onPlane(block.anchor)
+      if (anchorPoint) {
+        const anchorHit = { ...hit, point: anchorPoint }
+        const move = pickSwipeLayer(
+          anchorHit,
+          e.clientX - block.anchor[0],
+          e.clientY - block.anchor[1],
+          camera,
+        )
+        if (move?.axis === block.axis) {
+          startDragTurn(
+            gesture,
+            blockLayer(block.axis, block.from, block.to, puzzleSize),
+            block.anchor,
+            anchorHit,
+            e,
+            camera,
+          )
+          return
+        }
+        if (move) block.anchor = here
+      }
+    }
+    const point = onPlane(here)
+    if (point) block.to = layerIndex(point[block.axis], puzzleSize)
+    // The picked layers light up until they start turning.
+    dragTurnRef.current = {
+      layer: blockLayer(block.axis, block.from, block.to, puzzleSize),
+      angle: 0,
+      velocity: 0,
+      time: e.timeStamp,
+      highlight: true,
+      drawn: dragTurnRef.current?.drawn ?? null,
+    }
+    setIsTurning(true)
+  }
+
   // Hands a released drag to the turn animation, which settles the layer on
   // whole quarter turns from where the finger left it.
   const settleDrag = (turns: number) => {
@@ -1932,6 +2082,8 @@ export function CubeView3D({
       if (gesture) gesture.mode = mode
       if (mode === 'tilt') {
         // A second finger lets go of a dragged layer.
+        clearHold()
+        setPressMode(null)
         settleDrag(0)
         startTilt()
         lastPointerRef.current = {
@@ -1954,13 +2106,19 @@ export function CubeView3D({
             gestureCamera(rect),
           )
         : null
-    gestureRef.current = {
+    const level = pressLevel(0, e)
+    const gesture: NonNullable<typeof gestureRef.current> = {
       x: e.clientX,
       y: e.clientY,
       hit,
       mode: gestureForPointerDown(e.pointerType, 1, hit, null),
       pointerType: e.pointerType,
+      level,
     }
+    gestureRef.current = gesture
+    if (gesture.mode !== 'pending') return
+    if (level === 'layer') holdSticker(gesture)
+    else setPressMode(level)
   }
 
   const handlePointerMove = (e: PointerEvent) => {
@@ -1995,12 +2153,14 @@ export function CubeView3D({
     if (gesture.mode === 'turn') {
       const drag = dragTurnRef.current
       const rect = canvasRef.current?.getBoundingClientRect()
-      if (!drag || !gesture.hit || !rect) return
+      const hit = gesture.turnHit ?? gesture.hit
+      const [fromX, fromY] = gesture.turnFrom ?? [gesture.x, gesture.y]
+      if (!drag || !hit || !rect) return
       const angle = swipeLayerAngle(
-        gesture.hit,
+        hit,
         drag.layer,
-        e.clientX - gesture.x,
-        e.clientY - gesture.y,
+        e.clientX - fromX,
+        e.clientY - fromY,
         gestureCamera(rect),
       )
       drag.velocity =
@@ -2014,20 +2174,27 @@ export function CubeView3D({
       if (!rect) return
       const dx = e.clientX - gesture.x
       const dy = e.clientY - gesture.y
-      if (Math.hypot(dx, dy) < 18) return
+      const distance = Math.hypot(dx, dy)
+      // Moving before the hold is up makes it a plain swipe.
+      if (gesture.level === 'layer' && distance > PRESS_SLOP_PX) clearHold()
       const camera = gestureCamera(rect)
+      if (gesture.level === 'block') {
+        pickBlock(gesture, gesture.hit, e, rect, camera)
+        return
+      }
+      if (distance < 18) return
       const layer = pickSwipeLayer(gesture.hit, dx, dy, camera)
       if (layer) {
-        // The layer follows the finger from here until release.
-        gesture.mode = 'turn'
-        dragTurnRef.current = {
-          layer,
-          angle: swipeLayerAngle(gesture.hit, layer, dx, dy, camera),
-          velocity: 0,
-          time: e.timeStamp,
-          drawn: null,
-        }
-        setIsTurning(true)
+        startDragTurn(
+          gesture,
+          gesture.level === 'cube'
+            ? wholeCubeLayer(layer.axis, puzzleSize)
+            : layer,
+          [gesture.x, gesture.y],
+          gesture.hit,
+          e,
+          camera,
+        )
         return
       }
       gesture.mode = gestureWhenSwipeTurnsNothing(gesture.pointerType)
@@ -2060,6 +2227,10 @@ export function CubeView3D({
       return
     }
     isDraggingRef.current = false
+    clearHold()
+    setPressMode(null)
+    // A block picked but never turned springs back.
+    if (gestureRef.current?.mode === 'pending') settleDrag(0)
     if (gestureRef.current?.mode === 'turn') {
       inertiaRef.current = { yaw: 0, pitch: 0 }
       const drag = dragTurnRef.current
@@ -2184,19 +2355,30 @@ export function CubeView3D({
               onPointerMove={handlePointerMove}
               onPointerUp={handlePointerUp}
               onPointerCancel={handlePointerUp}
+              // A held sticker must not open the long-press menu.
+              onContextMenu={(e) => e.preventDefault()}
               onWheel={handleWheel}
               aria-label="Interactive 3D Rubik's Cube Viewer"
             />
+            {pressMode && pressMode !== 'layer' && (
+              <div class="cube-3d-press-mode" role="status">
+                {pressMode === 'block'
+                  ? 'Wide turn: drag across layers, then turn them'
+                  : 'Whole cube: drag to rotate it'}
+              </div>
+            )}
             <div class="cube-3d-hint">
               {coarsePointer ? (
                 <>
-                  Swipe a sticker to turn its layer &bull; Two fingers to tilt,
-                  pinch to zoom
+                  Swipe a sticker to turn its layer; hold it first for several
+                  layers or the whole cube &bull; Two fingers to tilt, pinch to
+                  zoom
                 </>
               ) : (
                 <>
-                  Swipe a sticker to turn its layer &bull; Drag the background
-                  or swipe two fingers to rotate &bull; Pinch or scroll to zoom
+                  Swipe a sticker to turn its layer; Shift or hold for several
+                  layers, Alt for the whole cube &bull; Drag the background or
+                  swipe two fingers to rotate &bull; Pinch or scroll to zoom
                 </>
               )}
             </div>
