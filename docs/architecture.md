@@ -27,8 +27,13 @@ reviewed colors; it does not bypass review.
 The 3D viewer uses a transparent WebGL canvas; `web/style.css` supplies its
 dark gray gradient and soft shadow behind the cube.
 
-1. [`index.tsx`](../src/client/index.tsx) coordinates capture, review, and the
-   cube net UI. [`useCameraStream.ts`](../src/client/useCameraStream.ts) manages
+1. [`index.tsx`](../src/client/index.tsx) coordinates capture and review state.
+   [`cubeNetView.tsx`](../src/client/cubeNetView.tsx) draws the 2D cube and its
+   sticker hover details. [`orientationApprovalDialog.tsx`](../src/client/orientationApprovalDialog.tsx)
+   and [`orientationWizardDialog.tsx`](../src/client/orientationWizardDialog.tsx)
+   show the assembly choices; their shared net is in
+   [`orientationPresentation.tsx`](../src/client/orientationPresentation.tsx).
+   [`useCameraStream.ts`](../src/client/useCameraStream.ts) manages
    the camera stream; [`capturePhoto.ts`](../src/client/capturePhoto.ts) reads
    manual camera and uploaded photos. [`useCaptureFeedback.ts`](../src/client/useCaptureFeedback.ts)
    handles the shutter cue. [`useLiveCaptureAnalysis.ts`](../src/client/useLiveCaptureAnalysis.ts)
