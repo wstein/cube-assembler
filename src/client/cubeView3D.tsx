@@ -14,6 +14,7 @@ import {
   type CubeSurfaceHit,
 } from './cubeGesture'
 import { stepDragInertia } from './dragInertia'
+import { magneticEase } from './turnFeel'
 import {
   AUTO_ROTATE_COOKIE,
   STICKERLESS_COOKIE,
@@ -1476,7 +1477,7 @@ export function CubeView3D({
         const anim = currentTurnRef.current
         const turnElapsed = time - anim.startTime
         const progress = Math.min(1, Math.max(0, turnElapsed / anim.duration))
-        const ease = 0.5 - 0.5 * Math.cos(progress * Math.PI)
+        const ease = magneticEase(progress)
         const targetAngle = anim.turns * (Math.PI / 2)
         const currentAngle = ease * targetAngle
 
