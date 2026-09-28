@@ -1,160 +1,55 @@
-// Reviewing saved cube definitions. A cube only sets how much of each
-// sticker is sampled (stickerCore), so cubes of one size whose sticker areas
-// match are duplicates: they can be merged into one, or deleted in favour of
-// the built-in Generic cube they copy.
+// Reviewing saved cube definitions: cubes of one size whose sticker areas
+// match are duplicates to merge or delete. Typed entry point for
+// src/core/profiles/CubeProfileReview.res.
 import {
-  CUBE_SIZES,
-  allCubes,
-  builtinCube,
-  deleteCube,
-  isBuiltinCube,
-  type CubeSetting,
-  type ProfileSettings,
-} from './profileSettings'
+  cubeDeletionEffects as cubeDeletionEffectsRes,
+  cubesSameAsGeneric as cubesSameAsGenericRes,
+  deleteCubes as deleteCubesRes,
+  duplicateCubeGroups as duplicateCubeGroupsRes,
+  mergeCubes as mergeCubesRes,
+  replaceCubes as replaceCubesRes,
+  unusedCubes as unusedCubesRes,
+} from '../core/profiles/CubeProfileReview.gen'
+import type { CubeSetting, ProfileSettings } from './profileSettings'
 
-// Groups per size in which every cube's sticker area is within `tolerance`
-// of every other one (complete linkage). Built-in cubes take part, but a
-// group needs at least one saved cube to be worth reviewing.
+type Settings = Parameters<typeof deleteCubesRes>[0]
+const toRes = (settings: ProfileSettings) => settings as unknown as Settings
+const fromRes = (settings: Settings) => settings as unknown as ProfileSettings
+
+// Groups per size of cubes whose sticker areas are all within `tolerance`,
+// each with at least one saved cube.
 export function duplicateCubeGroups(
   settings: ProfileSettings,
   tolerance: number,
 ): CubeSetting[][] {
-  const result: CubeSetting[][] = []
-  for (const size of CUBE_SIZES) {
-    const groups = allCubes(settings)
-      .filter((cube) => cube.size === size)
-      .map((cube) => [cube])
-    for (;;) {
-      let best: { worst: number; i: number; j: number } | null = null
-      for (let i = 0; i < groups.length; i++) {
-        for (let j = i + 1; j < groups.length; j++) {
-          let worst = 0
-          for (const a of groups[i])
-            for (const b of groups[j])
-              worst = Math.max(
-                worst,
-                Math.abs(a.sampling.stickerCore - b.sampling.stickerCore),
-              )
-          if (worst <= tolerance + 1e-9 && (!best || worst < best.worst))
-            best = { worst, i, j }
-        }
-      }
-      if (!best) break
-      groups[best.i].push(...groups[best.j])
-      groups.splice(best.j, 1)
-    }
-    result.push(
-      ...groups.filter(
-        (group) =>
-          group.length > 1 && group.some((cube) => !isBuiltinCube(cube.id)),
-      ),
-    )
-  }
-  return result
+  return duplicateCubeGroupsRes(toRes(settings), tolerance)
 }
 
-// The saved cubes `ids`, all of one size and none built in.
-function savedCubes(settings: ProfileSettings, ids: string[]): CubeSetting[] {
-  const unique = [...new Set(ids)]
-  if (unique.some(isBuiltinCube))
-    throw new Error('Cannot change a built-in cube')
-  const cubes = unique.map((id) =>
-    settings.cubes.find((cube) => cube.id === id),
-  )
-  if (cubes.some((cube) => !cube)) throw new Error('Unknown cube')
-  if (new Set(cubes.map((cube) => cube!.size)).size > 1)
-    throw new Error('Cubes of different sizes')
-  return cubes as CubeSetting[]
-}
-
-// `settings` without the cubes `gone`, with `keep` as the size's active cube
-// where one of them was active.
-function withoutCubes(
-  settings: ProfileSettings,
-  gone: Set<string>,
-  size: number,
-  keepId: string,
-  cubes = settings.cubes.filter((cube) => !gone.has(cube.id)),
-): ProfileSettings {
-  const active = settings.activeCubeBySize[size]
-  const activeCubeBySize = {
-    ...settings.activeCubeBySize,
-    ...(active !== undefined && gone.has(active) ? { [size]: keepId } : {}),
-  }
-  return { ...settings, cubes, activeCubeBySize }
-}
-
-// Replaces the saved cubes `ids` with one cube named `name` whose sticker area
-// is their mean, placed where the first of them was.
+// Replaces the saved cubes `ids` with one cube of their mean sticker area.
 export function mergeCubes(
   settings: ProfileSettings,
   ids: string[],
   name: string,
 ): { settings: ProfileSettings; cube: CubeSetting } {
-  const members = savedCubes(settings, ids)
-  if (members.length < 2) throw new Error('Pick at least two cubes')
-  const trimmed = name.trim().slice(0, 60)
-  if (!trimmed) throw new Error('Cube name required')
-  let id: string
-  do {
-    id = `cube-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
-  } while (allCubes(settings).some((cube) => cube.id === id))
-  const stickerCore =
-    Math.round(
-      (members.reduce((sum, cube) => sum + cube.sampling.stickerCore, 0) /
-        members.length) *
-        1000,
-    ) / 1000
-  const cube: CubeSetting = {
-    id,
-    name: trimmed,
-    size: members[0].size,
-    sampling: { stickerCore },
-  }
-  const gone = new Set(members.map((member) => member.id))
-  const cubes = settings.cubes.filter((saved) => !gone.has(saved.id))
-  cubes.splice(
-    settings.cubes.findIndex((saved) => gone.has(saved.id)),
-    0,
-    cube,
-  )
-  return { settings: withoutCubes(settings, gone, cube.size, id, cubes), cube }
+  const merged = mergeCubesRes(toRes(settings), ids, name)
+  return { settings: fromRes(merged.settings), cube: merged.cube }
 }
 
-// Deletes the saved cubes `ids` in favour of `keepId` (a built-in Generic
-// cube or another saved cube of the same size).
+// Deletes the saved cubes `ids` in favour of `keepId`.
 export function replaceCubes(
   settings: ProfileSettings,
   ids: string[],
   keepId: string,
 ): ProfileSettings {
-  const members = savedCubes(settings, ids)
-  const keep = allCubes(settings).find((cube) => cube.id === keepId)
-  if (!keep || members.length === 0) throw new Error('Unknown cube')
-  if (members.some((cube) => cube.id === keepId))
-    throw new Error('Cannot delete the cube to keep')
-  if (members.some((cube) => cube.size !== keep.size))
-    throw new Error('Cubes of different sizes')
-  return withoutCubes(
-    settings,
-    new Set(members.map((cube) => cube.id)),
-    keep.size,
-    keepId,
-  )
+  return fromRes(replaceCubesRes(toRes(settings), ids, keepId))
 }
 
-// Deletes the saved cubes `ids`; a size whose active cube goes falls back to
-// its built-in Generic cube (see deleteCube).
+// Deletes the saved cubes `ids`.
 export function deleteCubes(
   settings: ProfileSettings,
   ids: string[],
 ): ProfileSettings {
-  const unique = [...new Set(ids)]
-  if (unique.some(isBuiltinCube))
-    throw new Error('Cannot delete a built-in cube')
-  if (unique.some((id) => !settings.cubes.some((cube) => cube.id === id)))
-    throw new Error('Unknown cube')
-  return unique.reduce(deleteCube, settings)
+  return fromRes(deleteCubesRes(toRes(settings), ids))
 }
 
 // What deleting `ids` changes, one line per size that loses its active cube.
@@ -162,26 +57,15 @@ export function cubeDeletionEffects(
   settings: ProfileSettings,
   ids: string[],
 ): string[] {
-  const gone = new Set(ids)
-  return CUBE_SIZES.filter((size) =>
-    gone.has(settings.activeCubeBySize[size] ?? ''),
-  ).map((size) => `${size}×${size} then uses ${builtinCube(size).name}`)
+  return cubeDeletionEffectsRes(toRes(settings), ids)
 }
 
 // Saved cubes whose sticker area equals their size's built-in Generic cube.
 export function cubesSameAsGeneric(settings: ProfileSettings): string[] {
-  return settings.cubes
-    .filter(
-      (cube) =>
-        cube.sampling.stickerCore ===
-        builtinCube(cube.size).sampling.stickerCore,
-    )
-    .map((cube) => cube.id)
+  return cubesSameAsGenericRes(toRes(settings))
 }
 
 // Saved cubes that are not the active cube of their size.
 export function unusedCubes(settings: ProfileSettings): string[] {
-  return settings.cubes
-    .filter((cube) => settings.activeCubeBySize[cube.size] !== cube.id)
-    .map((cube) => cube.id)
+  return unusedCubesRes(toRes(settings))
 }
