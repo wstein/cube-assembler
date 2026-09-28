@@ -27,10 +27,15 @@ reviewed colors; it does not bypass review.
 The 3D viewer uses a transparent WebGL canvas; `web/style.css` supplies its
 dark gray gradient and soft shadow behind the cube.
 
-1. [`index.tsx`](../src/client/index.tsx) owns the camera, capture, review,
-   and cube net UI. A raw video frame goes to
-   [`liveAnalysis.worker.ts`](../src/client/liveAnalysis.worker.ts), keeping
-   live analysis off the main thread.
+1. [`index.tsx`](../src/client/index.tsx) coordinates capture, review, and the
+   cube net UI. [`useCameraStream.ts`](../src/client/useCameraStream.ts) manages
+   the camera stream; [`capturePhoto.ts`](../src/client/capturePhoto.ts) reads
+   manual camera and uploaded photos. [`useCaptureFeedback.ts`](../src/client/useCaptureFeedback.ts)
+   handles the shutter cue. [`useLiveCaptureAnalysis.ts`](../src/client/useLiveCaptureAnalysis.ts)
+   sends video frames to [`liveAnalysis.worker.ts`](../src/client/liveAnalysis.worker.ts),
+   keeping live analysis off the main thread and managing automatic capture.
+   [`captureNet.tsx`](../src/client/captureNet.tsx) draws captured faces and
+   [`captureTurnCue.tsx`](../src/client/captureTurnCue.tsx) draws turn guidance.
 2. [`gridAlignment.ts`](../src/client/gridAlignment.ts) locates and straightens
    the sticker grid. [`imageProcessing.ts`](../src/client/imageProcessing.ts)
    samples colors, checks face visibility, and recalibrates across six faces.
