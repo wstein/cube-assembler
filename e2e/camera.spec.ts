@@ -118,3 +118,18 @@ test('captures and re-detects a face from a live camera stream', async ({
   expect(savedPhoto.width).toBeLessThan(960)
   expect(savedPhoto.height).toBeLessThan(720)
 })
+
+test('reads a photo file for the current capture step', async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' })
+  await page.goto('/')
+  await page.getByRole('button', { name: 'Capture faces' }).click()
+  const capture = page.locator('.capture-modal-content')
+  await capture.getByRole('button', { name: 'Guide grid' }).click()
+  await capture
+    .locator('.capture-import input[type="file"]')
+    .setInputFiles(resolve(fixture, 'face-u.jpg'))
+  await expect(capture.locator('.capture-net [data-slot="U"]')).toHaveAttribute(
+    'aria-label',
+    /captured/,
+  )
+})

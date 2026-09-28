@@ -36,6 +36,11 @@ import { BackdropDialog } from './backdropDialog'
 import { FixtureDownloadDialog } from './fixtureDownloadDialog'
 import { useFixtureDownload } from './useFixtureDownload'
 import { useCameraStream, withoutDeviceIds } from './useCameraStream'
+import {
+  captureCameraPhoto,
+  importCapturePhoto,
+  type CaptureMode,
+} from './capturePhoto'
 import { faceSources, pieceKey, sourceIndex } from './netPresentation'
 import { lazy, Suspense } from 'preact/compat'
 
@@ -79,11 +84,8 @@ import {
   preferredGuidedArrangementIndex,
 } from '../cube/orientationWizard'
 import {
-  faceBoundsForMode,
   captureAndProcessCanvas,
   captureAndProcessImage,
-  extractBackgroundColor,
-  hasVisibleCubeFace,
   hasPlausibleStickerFace,
   runGlobalWhiteBalance,
   redetectFaceColors,
@@ -236,8 +238,6 @@ interface FaceCaptureData {
   outOfOrder?: boolean
   timestamp: number
 }
-
-type CaptureMode = 'cv' | 'guide'
 
 // Injected at build time by vite.config.ts's `define`.
 declare const __APP_VERSION__: string
@@ -3257,50 +3257,19 @@ function App() {
     try {
       setLoading(true)
       setCaptureMessage('Processing image...')
-      const video = webcamRef.current
-      const canvas = document.createElement('canvas')
-      canvas.width = video.videoWidth
-      canvas.height = video.videoHeight
-      const ctx = canvas.getContext('2d')
-      if (!ctx || !canvas.width || !canvas.height)
-        throw new Error('Camera frame unavailable')
-      ctx.drawImage(video, 0, 0)
-      const geometry = captureMode === 'cv' ? 'aligned' : 'fixed'
-      const bounds = faceBoundsForMode(canvas, puzzleSize, geometry)
-      if (captureMode === 'cv') {
-        if (
-          !bounds.gridFound ||
-          !hasVisibleCubeFace(canvas, puzzleSize, bounds, true)
-        ) {
-          throw new Error(
-            bounds.needsRecentering
-              ? 'Grid does not reach the face edge. Move the cube toward the center and try again.'
-              : 'No cube face detected. Show the face clearly or choose Guide grid.',
-          )
-        }
-      }
-      const background = extractBackgroundColor(canvas, bounds)
       const capturedBackgrounds = Object.fromEntries(
         FACE_ORDER.map((face) => [
           face,
           capturedFaces[face]?.backgroundColor ?? null,
         ]),
       )
-      const gains = background
-        ? (computeBackgroundGains({
-            ...capturedBackgrounds,
-            current: background,
-          })?.current ?? NEUTRAL_GAINS)
-        : NEUTRAL_GAINS
-      const result: FaceCaptureResult = captureAndProcessCanvas(
-        canvas,
-        puzzleSize,
-        gains,
+      const result = captureCameraPhoto(webcamRef.current, {
+        size: puzzleSize,
+        mode: captureMode,
         sampling,
-        palette ?? liveAutoColorProfile?.colors,
-        geometry,
-        bounds,
-      )
+        palette: palette ?? liveAutoColorProfile?.colors,
+        backgrounds: capturedBackgrounds,
+      })
       const track = (
         webcamRef.current.srcObject as MediaStream | null
       )?.getVideoTracks()[0]
@@ -3332,33 +3301,20 @@ function App() {
       setLoading(true)
       setCaptureMessage('Processing image...')
 
-      const url = URL.createObjectURL(file)
-      try {
-        const img = new Image()
-        await new Promise<void>((resolve, reject) => {
-          img.onload = () => resolve()
-          img.onerror = () => reject(new Error('Could not load image file'))
-          img.src = url
-        })
-        const result = captureAndProcessImage(
-          img,
-          puzzleSize,
-          NEUTRAL_GAINS,
-          sampling,
-          palette,
-          captureMode === 'cv' ? 'aligned' : 'fixed',
-        )
-        await applyFaceCapture(
-          webcamFace,
-          result,
-          'image-file',
-          undefined,
-          puzzleSize,
-          previewProfileFor(null),
-        )
-      } finally {
-        URL.revokeObjectURL(url)
-      }
+      const result = await importCapturePhoto(file, {
+        size: puzzleSize,
+        mode: captureMode,
+        sampling,
+        palette,
+      })
+      await applyFaceCapture(
+        webcamFace,
+        result,
+        'image-file',
+        undefined,
+        puzzleSize,
+        previewProfileFor(null),
+      )
     } catch (err) {
       console.error('Image import error:', err)
       setCaptureMessage(
