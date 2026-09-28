@@ -14,9 +14,10 @@ to the original real-fixture testing discussion. See
   to the contributor's localhost server. `CONTRIBUTING.md` links ZIP submission
   to the bug-report form, and both it and the form warn that photos become
   public. Maintainers review each fixture before committing it.
-- **#11 Browser upload coverage:** Playwright checks six-photo uploads with and
-  without metadata in `e2e/upload.spec.ts`. A stubbed live-camera capture test
-  is still open below.
+- **#11 Browser capture and upload coverage:** Playwright checks six-photo
+  uploads with and without metadata in `e2e/upload.spec.ts`. A canvas-backed
+  camera stream in `e2e/camera.spec.ts` checks capture, re-detection, all six
+  saved faces, and the cropped review photo.
 - **#12 Real captures in CI:** real 2×2–5×5 and 7×7 fixtures plus a synthetic
   6×6 are checked in via Git LFS, and `.github/workflows/ci.yml` runs their
   tests.
@@ -43,14 +44,14 @@ to the original real-fixture testing discussion. See
 - **Three-way outer corner spherical caps in 3D:** refined corner cubie outer
   chamfer geometry where 3 outer edges meet at the apex with spherical radius
   $R = r / \sqrt{2}$ matching 45° bevels and unit normals.
+- **Mid-turn 3D visual checks:** Playwright snapshots compare exposed 2×2 and
+  5×5 layer cuts while a turn is in progress.
 
 ## Next
 
-1. **#8–9 Resolve old assembly fixtures.** Recheck the two captures saved
-   with a 90-degree wizard error and the 4×4 capture that did not reassemble.
-2. **Stub the camera in Playwright.** Cover capture, canvas crop, saved photo,
-   and re-detection together; the existing upload tests do not exercise a
-   live camera.
+- Continue splitting `src/client/index.tsx`: the fixture preview and its
+  upload/download lifecycle now have a component and hook; extract the photo
+  upload review and capture flows in further tested moves.
 
 ## Later
 - **#4 Learn color centroids from confirmed fixtures.** Wait until the corpus
@@ -58,9 +59,6 @@ to the original real-fixture testing discussion. See
   fixtures.
 - **#6 Evaluate a small learned classifier.** Only revisit when the corpus
   contains tens of diverse real captures; a smaller set would overfit.
-- Continue splitting `src/client/index.tsx`: the fixture preview and its
-  upload/download lifecycle now have a component and hook; extract the photo
-  upload review and capture flows in further tested moves.
 - Add a production-build Playwright test for localhost upload and CORS.
 - Configure Vitest to flag slow tests before GitHub's 5-second timeout.
 - Remove Git LFS download from Pages once its build is confirmed independent
