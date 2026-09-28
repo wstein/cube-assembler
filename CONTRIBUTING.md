@@ -44,7 +44,9 @@ npm test
 
 `npm run typecheck` checks strict TypeScript. Lint combines type-aware
 typescript-eslint, Biome checks, and ReScript warnings; `npm run format`
-applies Biome and ReScript formatting. There are currently no `.res` files.
+applies Biome and ReScript formatting. Cube state types, notation, and
+geometry are in `src/cube/*.res` and `src/cube/notation/*.res`; edit their
+source and interfaces, then rebuild the generated genType wrappers.
 The browser suite starts a Vite server on port 4174 and uses Chromium.
 
 ## GitHub Pages

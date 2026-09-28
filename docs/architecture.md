@@ -57,11 +57,14 @@ dark gray gradient and soft shadow behind the cube.
    accepts uploads on localhost, from the dev server or (through CORS) the
    published app, and serves no files.
 
-Facelet parsing and formatting now live in
-[`NotationOutput.res`](../src/cube/notation/NotationOutput.res). TypeScript
-consumers import its generated genType wrapper; ReScript builds it before the
-TypeScript and Vite steps. Orbit64 and the rest of the cube core remain
-TypeScript in `src/cube/`.
+Facelet parsing and formatting live in
+[`NotationOutput.res`](../src/cube/notation/NotationOutput.res). Shared cube
+state types live in [`CubeState.res`](../src/cube/CubeState.res), and sticker
+turns and whole-cube rotations live in
+[`CubeGeometry.res`](../src/cube/CubeGeometry.res). TypeScript consumers use
+generated genType wrappers; `cubeGeometry.ts` keeps the existing typed API.
+ReScript builds before TypeScript and Vite. Orbit64, assembly, parity, and
+orientation logic remain TypeScript in `src/cube/`.
 
 ## Profiles and storage
 
