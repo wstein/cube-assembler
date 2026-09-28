@@ -31,3 +31,4 @@ let classifySticker: (StickerGeometry.rgb, option<Dict.t<StickerGeometry.rgb>>) 
 @genType let neutralGains: StickerGeometry.rgb
 @genType let applyGains: (StickerGeometry.rgb, StickerGeometry.rgb) => StickerGeometry.rgb
 @genType let removeGains: (StickerGeometry.rgb, StickerGeometry.rgb) => StickerGeometry.rgb
+@genType let applyGainsToPixels: (Uint8ClampedArray.t, StickerGeometry.rgb) => Uint8ClampedArray.t

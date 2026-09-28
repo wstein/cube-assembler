@@ -224,3 +224,27 @@ let applyGains = (rgb, gains) => {
 // channels clipped at 255.
 let removeGains = (rgb, gains) =>
   applyGains(rgb, {r: 1.0 /. gains.r, g: 1.0 /. gains.g, b: 1.0 /. gains.b})
+
+// A photo's pixels (RGBA) adjusted like its stickers are, for showing what
+// the backdrop white balance did to a face.
+let applyGainsToPixels = (data, gains) => {
+  let out = Pixels.make(Pixels.length(data))
+  let i = ref(0)
+  while i.contents < Pixels.length(data) {
+    let at = i.contents
+    let {r, g, b} = applyGains(
+      {
+        r: Int.toFloat(data->Pixels.get(at)),
+        g: Int.toFloat(data->Pixels.get(at + 1)),
+        b: Int.toFloat(data->Pixels.get(at + 2)),
+      },
+      gains,
+    )
+    out->Pixels.setFloat(at, r)
+    out->Pixels.setFloat(at + 1, g)
+    out->Pixels.setFloat(at + 2, b)
+    out->Pixels.set(at + 3, data->Pixels.get(at + 3))
+    i := at + 4
+  }
+  out
+}
