@@ -138,6 +138,47 @@ test('shows the slate backdrop through a transparent WebGL canvas', async ({
   expect(backdrop.background.match(/radial-gradient/g)).toHaveLength(2)
 })
 
+for (const size of [2, 5]) {
+  test(`${size}x${size} turning cut keeps solid rounded plastic`, async ({
+    page,
+  }) => {
+    await page.clock.install()
+    await page.goto('/')
+    await page
+      .getByRole('combobox', { name: 'Cube' })
+      .selectOption({ label: `${size}×${size}` })
+    await page.getByRole('button', { name: 'Solved cube' }).click()
+    await page.getByRole('button', { name: '3D View' }).click()
+    const canvas = page.locator('.cube-3d-canvas')
+    await expect(canvas).toBeVisible()
+    await page.locator('.cube-3d-hint').evaluate((hint) => {
+      ;(hint as HTMLElement).style.visibility = 'hidden'
+    })
+    if (size === 5) {
+      await page.getByRole('button', { name: 'Front (F)' }).click()
+    }
+    await page.clock.pauseAt((await page.evaluate(() => Date.now())) + 1000)
+    if (size === 2) {
+      await page.getByTitle('Turn R clockwise').click()
+    } else {
+      const bounds = await canvas.boundingBox()
+      expect(bounds).not.toBeNull()
+      if (!bounds) return
+      const x = bounds.x + bounds.width / 2 - 38
+      const y = bounds.y + bounds.height / 2
+      await page.mouse.move(x, y)
+      await page.mouse.down()
+      await page.mouse.move(x, y - 70, { steps: 5 })
+      await page.mouse.up()
+    }
+    await page.clock.runFor(96)
+    await expect(canvas).toHaveScreenshot(`cube-${size}x${size}-mid-turn.png`, {
+      animations: 'allow',
+      maxDiffPixelRatio: 0.03,
+    })
+  })
+}
+
 test('a dragged cube keeps turning briefly after release', async ({ page }) => {
   await page.goto('/')
   await page.getByRole('button', { name: 'Solved cube' }).click()
