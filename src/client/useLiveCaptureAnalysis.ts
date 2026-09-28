@@ -1,7 +1,6 @@
 import { useEffect, useRef } from 'preact/hooks'
 import {
   AUTO_CAPTURE_MIN_CONFIDENCE,
-  AUTO_CAPTURE_STABLE_FRAMES,
   TURN_CUE_START,
   nextAutoCaptureProgress,
   nextTurnCue,
@@ -43,6 +42,8 @@ interface LiveCaptureOptions {
   autoColorsSelected: boolean
   provisionalProfileId: string | null
   autoCapture: boolean
+  // Matching frames before auto capture takes the photo.
+  stableFrames: number
   capturedFaces: Record<
     string,
     { colors: string[][]; backgroundColor?: RGB | null }
@@ -105,6 +106,7 @@ export function useLiveCaptureAnalysis(options: LiveCaptureOptions) {
     autoColorsSelected,
     provisionalProfileId,
     autoCapture,
+    stableFrames,
     capturedFaces,
     videoRef,
     lastCapturedColors,
@@ -234,11 +236,7 @@ export function useLiveCaptureAnalysis(options: LiveCaptureOptions) {
           )
           setAutoCaptureFrames(progress?.frames ?? 0)
           setAutoCapturePaused(!counted && progress !== null)
-          if (
-            counted &&
-            progress &&
-            progress.frames >= AUTO_CAPTURE_STABLE_FRAMES
-          ) {
+          if (counted && progress && progress.frames >= stableFrames) {
             autoCaptureInFlight.current = true
             progress = null
             const frame = document
@@ -358,6 +356,7 @@ export function useLiveCaptureAnalysis(options: LiveCaptureOptions) {
     provisionalProfileId,
     mode,
     autoCapture,
+    stableFrames,
     capturedFaces,
   ])
 }

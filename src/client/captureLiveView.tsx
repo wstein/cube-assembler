@@ -1,5 +1,4 @@
 import { Fragment } from 'preact'
-import { AUTO_CAPTURE_STABLE_FRAMES } from './autoCapture'
 import type { CaptureMode } from './capturePhoto'
 import { CaptureTurnOverlay } from './captureTurnCue'
 import {
@@ -21,6 +20,8 @@ interface CaptureLiveViewProps {
   automaticColors: boolean
   autoCapture: boolean
   autoCaptureFrames: number
+  // Matching frames auto capture waits for.
+  stableFrames: number
   autoCapturePaused: boolean
   captureFlash: boolean
   captureSound: boolean
@@ -52,6 +53,7 @@ export function CaptureLiveView({
   automaticColors,
   autoCapture,
   autoCaptureFrames,
+  stableFrames,
   autoCapturePaused,
   captureFlash,
   captureSound,
@@ -165,7 +167,7 @@ export function CaptureLiveView({
                 cy="20"
                 r="16"
                 style={{
-                  strokeDashoffset: `${100.53 * (1 - autoCaptureFrames / AUTO_CAPTURE_STABLE_FRAMES)}`,
+                  strokeDashoffset: `${100.53 * (1 - autoCaptureFrames / stableFrames)}`,
                 }}
               />
             </svg>
@@ -225,7 +227,7 @@ export function CaptureLiveView({
               />
               <span>
                 {autoCapture
-                  ? `Auto capture · matching frames ${autoCaptureFrames}/${AUTO_CAPTURE_STABLE_FRAMES}${autoCapturePaused ? ' · paused' : ''}`
+                  ? `Auto capture · matching frames ${autoCaptureFrames}/${stableFrames}${autoCapturePaused ? ' · paused' : ''}`
                   : 'Auto capture'}
               </span>
             </label>

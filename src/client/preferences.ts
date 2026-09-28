@@ -1,5 +1,6 @@
 // Viewer preferences kept in first-party cookies. These hold only choices
 // made in the app; profile definitions remain in local storage.
+import { AUTO_CAPTURE_STABLE_FRAMES } from './autoCapture'
 import type { CaptureMode } from './capturePhoto'
 import {
   DEFAULT_HOLD_TIMINGS,
@@ -27,6 +28,8 @@ export const TURN_OVERSHOOT_COOKIE = 'cube-assembler-turn-overshoot'
 export const SWIPE_START_COOKIE = 'cube-assembler-swipe-start-px'
 export const SWIPE_COMMIT_COOKIE = 'cube-assembler-swipe-commit-percent'
 export const SWIPE_FLICK_COOKIE = 'cube-assembler-swipe-flick-ms'
+// How many matching live frames auto capture waits for.
+export const AUTO_CAPTURE_FRAMES_COOKIE = 'cube-assembler-auto-capture-frames'
 export const NOTATION_COOKIE = 'cube-assembler-notation'
 export const CAPTURE_MODE_COOKIE = 'cube-assembler-capture-mode'
 // How long a sticker is held before a drag turns a block or the whole cube.
@@ -152,6 +155,7 @@ export const SETTING_COOKIES = [
   SWIPE_START_COOKIE,
   SWIPE_COMMIT_COOKIE,
   SWIPE_FLICK_COOKIE,
+  AUTO_CAPTURE_FRAMES_COOKIE,
 ]
 
 export function selectedNotationFormat(cookies: string): 'wrg' | 'urf' {
@@ -205,4 +209,18 @@ export function readSwipeTuning(cookies: string): SwipeTuning {
       100,
     flickMs: readNumber(cookies, SWIPE_FLICK_COOKIE, SWIPE_RANGES.flickMs),
   }
+}
+
+export const AUTO_CAPTURE_FRAMES_RANGE = {
+  min: 2,
+  max: 12,
+  fallback: AUTO_CAPTURE_STABLE_FRAMES,
+}
+
+export function readAutoCaptureFrames(cookies: string): number {
+  return readNumber(
+    cookies,
+    AUTO_CAPTURE_FRAMES_COOKIE,
+    AUTO_CAPTURE_FRAMES_RANGE,
+  )
 }

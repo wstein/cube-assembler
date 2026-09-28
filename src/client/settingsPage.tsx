@@ -5,6 +5,8 @@ import { useState } from 'preact/hooks'
 import { DEFAULT_HOLD_TIMINGS } from './cubeGesture'
 import {
   AUTO_CAPTURE_COOKIE,
+  AUTO_CAPTURE_FRAMES_COOKIE,
+  AUTO_CAPTURE_FRAMES_RANGE,
   CAPTURE_MODE_COOKIE,
   NOTATION_COOKIE,
   CUBE_PRESS_COOKIE,
@@ -30,6 +32,7 @@ import {
   selectedNotationFormat,
   selectionCookie,
   numberCookie,
+  readAutoCaptureFrames,
   readSwipeTuning,
   readTurnFeel,
   turnSoundOn,
@@ -125,6 +128,18 @@ export function SettingsPage({ onClose }: Props) {
           hint="Take the photo once the face holds still."
           checked={readPreference(cookies, AUTO_CAPTURE_COOKIE)}
           onChange={(on) => write(preferenceCookie(AUTO_CAPTURE_COOKIE, on))}
+        />
+        <SliderSetting
+          label="Auto capture waits for"
+          hint="Matching frames in a row; more is steadier, fewer is quicker."
+          min={AUTO_CAPTURE_FRAMES_RANGE.min}
+          max={AUTO_CAPTURE_FRAMES_RANGE.max}
+          step={1}
+          value={readAutoCaptureFrames(cookies)}
+          unit=" frames"
+          onChange={(frames) =>
+            write(numberCookie(AUTO_CAPTURE_FRAMES_COOKIE, frames))
+          }
         />
         <ToggleSetting
           label="Capture sound"

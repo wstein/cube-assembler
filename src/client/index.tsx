@@ -66,6 +66,7 @@ import {
   MIRROR_COOKIE,
   SOUND_COOKIE,
   preferenceCookie,
+  readAutoCaptureFrames,
   readPreference,
   selectedCubeSize,
   selectedCaptureMode,
@@ -180,6 +181,9 @@ function App() {
     readPreference(document.cookie, AUTO_CAPTURE_COOKIE),
   )
   const [autoCaptureFrames, setAutoCaptureFrames] = useState(0)
+  const [stableFrames, setStableFrames] = useState(() =>
+    readAutoCaptureFrames(document.cookie),
+  )
   const [autoCapturePaused, setAutoCapturePaused] = useState(false)
   const [captureSound, setCaptureSound] = useState(() =>
     readPreference(document.cookie, SOUND_COOKIE),
@@ -386,6 +390,7 @@ function App() {
     setCaptureSound(readPreference(cookies, SOUND_COOKIE))
     setNotationFormat(selectedNotationFormat(cookies))
     setCaptureMode(selectedCaptureMode(cookies))
+    setStableFrames(readAutoCaptureFrames(cookies))
   }, [onSettingsPage])
   const [showBackdropDialog, setShowBackdropDialog] = useState(false)
   const [reviewStep, setReviewStep] = useState(0)
@@ -527,6 +532,7 @@ function App() {
     autoColorsSelected: automaticColors,
     provisionalProfileId: provisionalColorProfile?.id ?? null,
     autoCapture,
+    stableFrames,
     capturedFaces,
     videoRef: webcamRef,
     lastCapturedColors,
@@ -1289,6 +1295,7 @@ function App() {
               automaticColors={automaticColors}
               autoCapture={autoCapture}
               autoCaptureFrames={autoCaptureFrames}
+              stableFrames={stableFrames}
               autoCapturePaused={autoCapturePaused}
               captureFlash={captureFlash}
               captureSound={captureSound}

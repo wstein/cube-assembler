@@ -16,7 +16,9 @@ import {
   selectedCubeSize,
   selectedCubeView,
   CAPTURE_MODE_COOKIE,
+  AUTO_CAPTURE_FRAMES_COOKIE,
   CUBE_PRESS_COOKIE,
+  readAutoCaptureFrames,
   SWIPE_COMMIT_COOKIE,
   SWIPE_FLICK_COOKIE,
   SWIPE_START_COOKIE,
@@ -234,5 +236,15 @@ describe('swipe sensitivity cookies', () => {
         SWIPE_FLICK_COOKIE,
       ]),
     )
+  })
+})
+
+describe('auto capture steadiness', () => {
+  it('waits for 5 matching frames unless set to 2 to 12', () => {
+    expect(readAutoCaptureFrames('')).toBe(5)
+    expect(readAutoCaptureFrames(`${AUTO_CAPTURE_FRAMES_COOKIE}=8`)).toBe(8)
+    expect(readAutoCaptureFrames(`${AUTO_CAPTURE_FRAMES_COOKIE}=1`)).toBe(2)
+    expect(readAutoCaptureFrames(`${AUTO_CAPTURE_FRAMES_COOKIE}=50`)).toBe(12)
+    expect(SETTING_COOKIES).toContain(AUTO_CAPTURE_FRAMES_COOKIE)
   })
 })
