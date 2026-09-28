@@ -4,12 +4,9 @@ import {
   WIDE_PRESS_MS,
   blockLayer,
   clampZoom,
-  facePlanePoint,
-  layerIndex,
   pressLevel,
   nextWheelSwipe,
   WHEEL_SWIPE_GAP_MS,
-  swipeMoveAxis,
   wholeCubeLayer,
   standardWideLayer,
   gestureAfterPointerUp,
@@ -339,27 +336,6 @@ describe('held sticker drags', () => {
     expect(pressLevel(0, { shiftKey: true, altKey: false })).toBe('wide')
     expect(pressLevel(0, { shiftKey: false, altKey: true })).toBe('cube')
     expect(pressLevel(0, { shiftKey: true, altKey: true })).toBe('cube')
-  })
-
-  it('follows the finger across the face plane, past its edge too', () => {
-    const hit = pickCubeSurface(300, 300, front)!
-    const center = facePlanePoint(300, 300, front, hit)!
-    expect(center[0]).toBeCloseTo(0, 6)
-    expect(center[2]).toBeCloseTo(2.5, 6)
-    const right = facePlanePoint(590, 300, front, hit)!
-    expect(right[0]).toBeGreaterThan(2.5)
-    expect(right[2]).toBeCloseTo(2.5, 6)
-    expect(layerIndex(right[0], 5)).toBe(4)
-    expect(layerIndex(-0.4, 5)).toBe(2)
-    expect(layerIndex(-0.6, 5)).toBe(1)
-  })
-
-  it('selects layers along the way a swipe travels', () => {
-    const hit = pickCubeSurface(300, 300, front)!
-    expect(swipeMoveAxis(hit, 60, 0, front)).toBe(0)
-    expect(swipeMoveAxis(hit, 0, -60, front)).toBe(1)
-    expect(swipeMoveAxis(hit, 5, 0, front)).toBeNull()
-    expect(swipeMoveAxis(hit, 40, 40, front)).toBeNull()
   })
 
   it('names a block from the face it reaches, or the nearer one', () => {

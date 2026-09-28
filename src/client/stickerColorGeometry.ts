@@ -12,7 +12,6 @@ export {
   defaultSampling as DEFAULT_SAMPLING,
   // Fraction of each sticker cell actually sampled, centered - the rest is
   // a dead zone the color/edge detectors ignore; the UI draws the same one.
-  sampleCoreFraction as SAMPLE_CORE_FRACTION,
   stickerColors as STICKER_COLORS,
 } from '../core/color/StickerGeometry.gen'
 
@@ -25,7 +24,7 @@ export interface ColorDetectionResult {
   cellConfidences: number[][]
   cellColors: RGB[][]
   // Per sticker, the other color it sits close to the boundary with (see
-  // nearestOtherColor), or null when it's clearly its own color. Only set
+  // nearestOther in Recalibration.res), or null when it's clearly its own color. Only set
   // after the cross-face recalibration, since it needs the learned colors.
   cellLookalikes?: (string | null)[][]
   // Where the sampled square sat relative to the capture guide, when it was

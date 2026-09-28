@@ -8,7 +8,6 @@ import {
   faceOrder,
   faceShortLabel,
   glareFacesToWarn as glareFacesToWarnRes,
-  guidedProtocol,
 } from '../core/capture/CaptureSteps.gen'
 import type { GuidedCenterIssue } from '../cube/cubeAssembly'
 
@@ -24,9 +23,6 @@ export const CAPTURE_STEPS: Array<{
 export function captureInstruction(step: number, mirrored: boolean): string {
   return captureInstructionRes(step, mirrored)
 }
-
-// Saved with fixtures captured this way.
-export const GUIDED_PROTOCOL = guidedProtocol
 
 // A capture mistake read from odd-size centers, in words.
 export function describeCenterIssue(issue: GuidedCenterIssue): string {

@@ -27,12 +27,9 @@ type classified = {
 @genType
 let colorConfidences: (StickerGeometry.rgb, Dict.t<StickerGeometry.rgb>) => Dict.t<float>
 @genType let paletteDistance: (Dict.t<StickerGeometry.rgb>, Dict.t<StickerGeometry.rgb>) => float
-@genType let lookalikeRatio: float
 
 @genType
 type nearest = {color: string, ratio: float}
 
-@genType
-let nearestOtherColor: (StickerGeometry.rgb, string, Dict.t<StickerGeometry.rgb>) => Null.t<nearest>
 @genType
 let classifyAcrossFaces: (Dict.t<colorDetection>, option<Dict.t<StickerGeometry.rgb>>) => classified

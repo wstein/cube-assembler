@@ -36,13 +36,6 @@ let planCaptureReview: (
   option<Null.t<CubeTypes.orientationSolution>>,
 ) => captureReviewPlan
 @genType
-let highConfidenceColorReadings: (
-  Dict.t<captureReviewFace>,
-  array<string>,
-  array<string>,
-  array<string>,
-) => bool
-@genType
 let canSkipColorReview: (
   Dict.t<captureReviewFace>,
   array<string>,

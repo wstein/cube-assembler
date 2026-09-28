@@ -26,7 +26,6 @@ type swipeLayer = {
 }
 
 @genType let swipeStartPx: float
-@genType let layerIndex: (float, float) => float
 @genType let pickSwipeLayer: (surfaceHit, float, float, camera, float) => Null.t<swipeLayer>
 @genType let swipeLayerAngle: (surfaceHit, swipeLayer, float, float, camera) => float
 
@@ -42,8 +41,6 @@ type pressLevel =
 @genType type pressKeys = {shiftKey: bool, altKey: bool}
 @genType let pressLevel: (float, pressKeys) => pressLevel
 
-@genType let facePlanePoint: (float, float, camera, surfaceHit) => Null.t<vec>
-@genType let swipeMoveAxis: (surfaceHit, float, float, camera, float) => Null.t<int>
 @genType let blockLayer: (int, int, int, int) => swipeLayer
 @genType let wholeCubeLayer: (int, int) => swipeLayer
 @genType let standardWideLayer: (swipeLayer, int) => swipeLayer
@@ -76,10 +73,6 @@ let gestureForPointerDown: (
 @genType type motion = {dx: float, dy: float, scale: float}
 @genType
 let twoFingerMotion: ((screenPoint, screenPoint), (screenPoint, screenPoint)) => motion
-
-@genType let pinchMinPx: float
-@genType let pinchMinRatio: float
-@genType let tiltMinPx: float
 
 @genType
 type twoFingerLock =

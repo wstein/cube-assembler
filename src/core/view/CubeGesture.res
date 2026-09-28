@@ -223,36 +223,6 @@ let pressLevel = (heldMs, keys) =>
     Layer
   }
 
-// Where the pointer is on the plane of the face `hit` is on, even beyond the
-// face's edges, so picking layers can run off the cube.
-let facePlanePoint = (x, y, camera: camera, hit: surfaceHit) =>
-  if camera.width <= 0.0 || camera.height <= 0.0 {
-    Null.null
-  } else {
-    let (origin, direction) = pointerRay(x, y, camera)
-    let axis = hit.normalAxis
-    let d = get(direction, axis)
-    if Math.abs(d) < 1e-8 {
-      Null.null
-    } else {
-      let distance = (get(hit.point, axis) -. get(origin, axis)) /. d
-      distance <= 0.0 ? Null.null : Null.make(along(origin, distance, direction))
-    }
-  }
-
-// The in-plane axis a clear swipe travels along: the layers it crosses are
-// the ones it picks. The layer a swipe would turn rotates about the other.
-let swipeMoveAxis = (hit: surfaceHit, dx, dy, camera, startPx) =>
-  switch pickLayer(hit, dx, dy, camera, startPx) {
-  | None => Null.null
-  | Some(layer) =>
-    Null.make(
-      [0, 1, 2]
-      ->Array.find(axis => axis != hit.normalAxis && axis != layer.axis)
-      ->Option.getUnsafe,
-    )
-  }
-
 // The layers between two indexes along an axis, named from the face the
 // block reaches, else from the nearer face.
 let blockLayer = (axis, from, to, size) => {

@@ -3,7 +3,6 @@
 // src/core/capture/CaptureReviewRouting.res.
 import {
   canSkipColorReview as canSkipColorReviewRes,
-  highConfidenceColorReadings as highConfidenceColorReadingsRes,
   planCaptureReview as planCaptureReviewRes,
   readyAssemblyAfterCapture as readyAssemblyAfterCaptureRes,
   rejectAlternatives as rejectAlternativesRes,
@@ -89,22 +88,6 @@ export function canSkipColorReview(
     faces as Record<string, CaptureReviewFace>,
     [...order],
     assembledValid,
-    [...glareFaces],
-    [...mixedUpColors],
-  )
-}
-
-// Every sticker read confidently, as detected, with no lookalike, and no
-// glare or mixed-up colors.
-export function highConfidenceColorReadings(
-  faces: Record<string, CaptureReviewFace | undefined>,
-  order: readonly string[],
-  glareFaces: readonly string[],
-  mixedUpColors: readonly string[],
-): boolean {
-  return highConfidenceColorReadingsRes(
-    faces as Record<string, CaptureReviewFace>,
-    [...order],
     [...glareFaces],
     [...mixedUpColors],
   )

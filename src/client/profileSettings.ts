@@ -21,7 +21,6 @@ export {
   // on the selected cube's sampling object staying stable.
   builtinCube,
   captureColorProfileSnapshot,
-  captureColorsId as CAPTURE_COLORS_ID,
   // Automatic does not reuse a match from an earlier complete cube.
   capturePalette,
   copyColorProfile,
@@ -30,7 +29,6 @@ export {
   cubeSizes as CUBE_SIZES,
   cubesForSize,
   deleteColorProfile,
-  deleteCube,
   emptySettings as EMPTY_SETTINGS,
   groupCubesByName,
   isBuiltinColorProfile,

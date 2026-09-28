@@ -6,10 +6,9 @@ import {
   orientationFreeSignature as orientationFreeSignatureRes,
   solveFaceOrientations as solveFaceOrientationsRes,
   solveGuidedCapture as solveGuidedCaptureRes,
-  toCubeIR as toCubeIRRes,
 } from './CubeAssembly.gen'
 import type { GuidedCapture, GuidedSolution } from './guidedCaptureSetup'
-import type { cubeState as CubeState, cubeIR as CubeIR } from './CubeState.gen'
+import type { cubeState as CubeState } from './CubeState.gen'
 export type {
   cubeState as CubeState,
   cubeIR as CubeIR,
@@ -17,7 +16,6 @@ export type {
 } from './CubeState.gen'
 
 export {
-  OPPOSITE_COLOR,
   predictGuidedCenters,
   captureCenterSlots,
   captureSlotForCenter,
@@ -39,10 +37,6 @@ export {
 export type { GuidedCenterIssue, FaceMatchSample } from './capturedFaceMatching'
 
 type FaceKey = import('./CubeState.gen').faceKey
-
-export function toCubeIR(cube: CubeState, size: number): CubeIR {
-  return toCubeIRRes(cube, size)
-}
 
 // Flattens captured faces into a cube state; missing faces read as solved.
 export function assembleCubeFromFaces(

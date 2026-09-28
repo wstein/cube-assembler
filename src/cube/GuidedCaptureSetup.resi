@@ -1,6 +1,5 @@
 // Each color's opposite on a standard cube.
 let opposite: string => option<string>
-@genType let oppositeColor: Dict.t<string>
 @genType let predictGuidedCenters: array<option<CubeTypes.grid>> => array<Null.t<string>>
 @genType let captureCenterSlots: array<option<CubeTypes.grid>> => array<Null.t<string>>
 @genType

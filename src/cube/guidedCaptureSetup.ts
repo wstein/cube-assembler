@@ -4,7 +4,6 @@
 import {
   captureCenterSlots as captureCenterSlotsRes,
   captureSlotForCenter as captureSlotForCenterRes,
-  oppositeColor,
   placeCapturedFace as placeCapturedFaceRes,
   predictGuidedCenters as predictGuidedCentersRes,
 } from './GuidedCaptureSetup.gen'
@@ -35,8 +34,6 @@ export interface GuidedSolution extends OrientationSolution {
 }
 
 type Photos = Array<string[][] | undefined>
-
-export const OPPOSITE_COLOR: Record<string, string> = oppositeColor
 
 // Each photo slot's predicted center color from the centers measured so
 // far (odd sizes only).

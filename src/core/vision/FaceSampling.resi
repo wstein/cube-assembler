@@ -18,24 +18,6 @@ type faceBounds = {
 
 @genType let alignmentArea: (faceBounds, float, float) => area
 @genType
-let alignFaceInArea: (
-  Uint8ClampedArray.t,
-  int,
-  int,
-  faceBounds,
-  origin,
-  int,
-) => GridAlignment.gridAlignment
-@genType
-let boundsFromAlignment: (
-  GridAlignment.gridAlignment,
-  faceBounds,
-  origin,
-  float,
-  float,
-  Nullable.t<array<(float, float)>>,
-) => faceBounds
-@genType
 let alignedBoundsInArea: (
   Uint8ClampedArray.t,
   int,

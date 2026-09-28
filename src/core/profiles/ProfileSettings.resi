@@ -37,11 +37,9 @@ type profileSettings = {
 }
 
 // A fresh id with the prefix that `taken` says no existing one uses.
-let freshId: (string, string => bool) => string
 
 @genType let cubeSizes: array<int>
 @genType let autoColorsId: string
-@genType let captureColorsId: string
 @genType let emptySettings: profileSettings
 @genType let builtinColorProfiles: unit => array<colorProfile>
 @genType let isBuiltinColorProfile: string => bool
@@ -59,7 +57,6 @@ type cubeGroup = {name: string, cubes: array<cubeSetting>}
 @genType let saveCube: (profileSettings, cubeSetting) => profileSettings
 @genType let selectCube: (profileSettings, string) => profileSettings
 @genType let copyCubeSetting: (profileSettings, cubeSetting, string) => cubeSetting
-@genType let deleteCube: (profileSettings, string) => profileSettings
 @genType let renameCube: (profileSettings, string, string) => profileSettings
 @genType let renameColorProfile: (profileSettings, string, string) => profileSettings
 
@@ -81,3 +78,5 @@ let resolvedColorProfileSnapshot: (colorProfile, selection, option<float>) => us
 @genType let mergeSettings: (profileSettings, profileSettings) => profileSettings
 let parseProfileSettings: Untrusted.t => profileSettings
 @genType let parseProfileSettingsValue: 'a => profileSettings
+@genType let deleteCube: (profileSettings, string) => profileSettings
+let freshId: (string, string => bool) => string

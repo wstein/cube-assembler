@@ -3,7 +3,6 @@
 export {
   type analysis as LiveAnalysis,
   analyzeLiveFrame,
-  readFaceSquare,
   type request as LiveAnalysisRequest,
   scaleBounds,
 } from '../core/vision/LiveAnalysis.gen'

@@ -2,7 +2,6 @@
 // for the old face to leave: typed entry point for
 // src/core/capture/AutoCapture.res.
 import {
-  autoCaptureMinConfidence,
   autoCaptureStableFrames,
   nextAutoCaptureProgress as nextAutoCaptureProgressRes,
   nextTurnCue as nextTurnCueRes,
@@ -14,7 +13,6 @@ import {
 } from '../core/capture/AutoCapture.gen'
 
 export const AUTO_CAPTURE_STABLE_FRAMES = autoCaptureStableFrames
-export const AUTO_CAPTURE_MIN_CONFIDENCE = autoCaptureMinConfidence
 export const TURN_CUE_CLEAR_FRAMES = turnCueClearFrames
 
 export interface TurnCuePose {

@@ -5,7 +5,6 @@ import {
   pickSwipeLayer as pickSwipeLayerRes,
   pressLevel as pressLevelRes,
   releasedQuarterTurns as releasedQuarterTurnsRes,
-  swipeMoveAxis as swipeMoveAxisRes,
   swipeStartPx,
   turnCommitFraction,
   type camera,
@@ -19,21 +18,13 @@ export {
   blockLayer,
   clampZoom,
   defaultSwipeTuning as DEFAULT_SWIPE_TUNING,
-  facePlanePoint,
-  flickMs as FLICK_MS,
   gestureAfterPointerUp,
   gestureForPointerDown,
   gestureWhenSwipeTurnsNothing,
-  layerIndex,
   pickCubeSurface,
-  pinchMinPx as PINCH_MIN_PX,
-  pinchMinRatio as PINCH_MIN_RATIO,
   pressSlopPx as PRESS_SLOP_PX,
   standardWideLayer,
   swipeLayerAngle,
-  swipeStartPx as SWIPE_START_PX,
-  tiltMinPx as TILT_MIN_PX,
-  turnCommitFraction as TURN_COMMIT_FRACTION,
   twoFingerLock,
   twoFingerMotion,
   wheelGesture,
@@ -68,16 +59,6 @@ export function pickSwipeLayer(
 
 export function pressLevel(heldMs: number, keys: pressKeys): level {
   return pressLevelRes(heldMs, keys)
-}
-
-export function swipeMoveAxis(
-  hit: surfaceHit,
-  dx: number,
-  dy: number,
-  camera: camera,
-  startPx = swipeStartPx,
-): GestureAxis | null {
-  return swipeMoveAxisRes(hit, dx, dy, camera, startPx) as GestureAxis | null
 }
 
 export function releasedQuarterTurns(

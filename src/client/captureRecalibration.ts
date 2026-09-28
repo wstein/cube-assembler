@@ -4,9 +4,6 @@
 import {
   classifyAcrossFaces as classifyAcrossFacesRes,
   colorConfidences as colorConfidencesRes,
-  lookalikeRatio,
-  nearestOtherColor as nearestOtherColorRes,
-  paletteDistance as paletteDistanceRes,
 } from '../core/color/Recalibration.gen'
 import {
   DEFAULT_SAMPLING,
@@ -36,29 +33,6 @@ export function colorConfidences(
   palette: Record<string, RGB> = STICKER_COLORS,
 ): Record<string, number> {
   return colorConfidencesRes(rgb, palette)
-}
-
-// How different two palettes are: the mean distance between their
-// same-named colors, in the clustering metric.
-export function paletteDistance(
-  a: Record<string, RGB>,
-  b: Record<string, RGB>,
-): number {
-  return paletteDistanceRes(a, b)
-}
-
-// How far toward the nearest other color a sticker may sit before it's
-// worth a second look (1 is on the boundary).
-export const LOOKALIKE_RATIO = lookalikeRatio
-
-// The nearest learned color other than `label`, and how close `rgb` is to
-// the boundary with it.
-export function nearestOtherColor(
-  rgb: RGB,
-  label: string,
-  colors: Record<string, RGB>,
-): { color: string; ratio: number } | null {
-  return nearestOtherColorRes(rgb, label, colors)
 }
 
 /**

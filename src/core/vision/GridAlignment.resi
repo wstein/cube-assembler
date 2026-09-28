@@ -16,7 +16,6 @@ type gridAlignment = {
 
 @genType type corner = (float, float)
 
-@genType let maxTilt: float
 @genType let estimateTilt: (Uint8ClampedArray.t, int, int, faceSquare) => float
 @genType let cellEdges: (int, float) => array<float>
 @genType let alignmentMaxOffset: float

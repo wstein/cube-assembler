@@ -16,9 +16,7 @@ export {
   estimateOuterCellRatio,
   estimateTilt,
   type faceSquare as FaceSquare,
-  faceCornersIfBetter,
   type gridAlignment as GridAlignment,
-  maxTilt as MAX_TILT,
 } from '../core/vision/GridAlignment.gen'
 export { cellEdges } from './stickerColorGeometry'
 

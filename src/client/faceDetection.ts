@@ -4,7 +4,6 @@ import {
   cropRecord,
   extractColorsFromImageData as extractColorsFromImageDataRes,
   faceVisibility as faceVisibilityRes,
-  hasCoherentStickerInteriors as hasCoherentStickerInteriorsRes,
   hasPlausibleStickerFace as hasPlausibleStickerFaceRes,
   measureSharpness,
   outlineVisible,
@@ -28,11 +27,7 @@ import {
   cropFaceRegionToDataUrl,
 } from './faceSampling'
 
-export {
-  measureSharpness,
-  outlineVisible,
-  withGridOffset,
-} from '../core/vision/FaceDetection.gen'
+export { measureSharpness } from '../core/vision/FaceDetection.gen'
 
 // The per-sticker sampling and classification on pixels that already cover
 // exactly the face region to sample - so it also runs on a decoded photo in
@@ -54,25 +49,6 @@ export function extractColorsFromImageData(
     gains,
     sampling,
     palette,
-  )
-}
-
-// A cropped face can be one solid color, so seams are optional when the
-// uncropped camera frame shows the cube's outer silhouette instead.
-// `outerCellRatio` widens the outer rows and columns (see cellEdges).
-export function hasCoherentStickerInteriors(
-  data: Uint8ClampedArray,
-  width: number,
-  height: number,
-  gridSize: number,
-  outerCellRatio = 1,
-): boolean {
-  return hasCoherentStickerInteriorsRes(
-    data,
-    width,
-    height,
-    gridSize,
-    outerCellRatio,
   )
 }
 
@@ -158,7 +134,7 @@ export function faceVisibility(
   )
 }
 
-export function extractCubeFaceColors(
+function extractCubeFaceColors(
   canvas: HTMLCanvasElement,
   gridSize = 3,
   gains: RGB = NEUTRAL_GAINS,

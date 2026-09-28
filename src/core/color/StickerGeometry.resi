@@ -1,8 +1,6 @@
 @genType
 type rgb = {r: float, g: float, b: float}
 
-@genType let sampleCoreFraction: float
-
 @genType
 type samplingGeometry = {stickerCore: float}
 

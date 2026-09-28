@@ -1,5 +1,4 @@
 @genType let magneticEase: float => float
-@genType let smoothEase: float => float
 @genType let turnEase: (float, bool) => float
 @genType let defaultTurnMs: float
 @genType let settleDuration: (float, float) => float

@@ -24,7 +24,5 @@ type analysis = {
   colorProfileId?: string,
 }
 
-@genType
-let readFaceSquare: (Uint8ClampedArray.t, int, int, FaceSampling.faceBounds) => Uint8ClampedArray.t
 @genType let analyzeLiveFrame: (Uint8ClampedArray.t, int, int, request) => analysis
 @genType let scaleBounds: (FaceSampling.faceBounds, float) => FaceSampling.faceBounds

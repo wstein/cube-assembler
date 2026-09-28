@@ -15,18 +15,10 @@ import { warpQuadToSquare } from './perspective'
 import { type RGB } from './stickerColorGeometry'
 
 export {
-  alignedBoundsInArea,
-  alignFaceInArea,
-  alignmentArea,
   backdropReference,
   backgroundCubeGap as BACKGROUND_CUBE_GAP,
   backgroundWbMethod as BACKGROUND_WB_METHOD,
-  boundsFromAlignment,
-  centerCore as CENTER_CORE,
-  centerStickerColor,
   computeBackgroundGains,
-  cropJpegQuality as CROP_JPEG_QUALITY,
-  extractBackgroundColorFromPixels,
   limitBackgroundGain,
   stickerColor,
   stickerMeasurement as STICKER_MEASUREMENT,
@@ -49,7 +41,7 @@ export function computeFaceBounds(
 }
 
 // computeFaceBounds for a frame of the given size.
-export function guideBounds(
+function guideBounds(
   width: number,
   height: number,
   fraction = sampleFaceFraction,

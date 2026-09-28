@@ -18,7 +18,6 @@ export {
   groupDifferences,
   mergeColorProfiles,
   mergedColors,
-  mixedDistance as MIXED_DISTANCE,
   pairDistance,
   pairLevel,
   profileDistance,

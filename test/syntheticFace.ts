@@ -6,7 +6,7 @@ import {
   type Point,
 } from '../src/client/perspective'
 
-export const STICKERS = [
+const STICKERS = [
   [220, 105, 30],
   [30, 150, 80],
   [240, 240, 235],

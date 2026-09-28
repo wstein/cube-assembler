@@ -9,8 +9,6 @@ let extractColorsFromImageData: (
   option<Dict.t<StickerGeometry.rgb>>,
 ) => Recalibration.colorDetection
 @genType
-let hasCoherentStickerInteriors: (Uint8ClampedArray.t, float, float, int, float) => bool
-@genType
 let hasPlausibleStickerFace: (Uint8ClampedArray.t, float, float, int, float) => bool
 
 @genType

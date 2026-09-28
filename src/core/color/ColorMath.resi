@@ -5,9 +5,7 @@ type oklab = {l: float, a: float, b: float}
 
 @genType let srgbChannelToLinear: float => float
 @genType let rgbToOklab: StickerGeometry.rgb => oklab
-@genType let linearRgbToOklab: (float, float, float) => oklab
 @genType let linearChannelToSrgb: float => float
-@genType let oklabToRgb: oklab => StickerGeometry.rgb
 @genType let rgbToOKLCH: StickerGeometry.rgb => oklch
 
 @genType
@@ -19,10 +17,6 @@ type hueRange = {min: float, max: float, span: float}
 type linearRange = {min: float, max: float}
 @genType let linearRange: array<float> => Null.t<linearRange>
 
-@genType let clusterOklabDistance: (oklab, oklab) => float
-@genType let clusterDistance: (StickerGeometry.rgb, StickerGeometry.rgb) => float
-@genType let confidenceDistanceScale: float
-
 @genType
 type classification = {color: string, confidence: float}
 @genType
@@ -32,3 +26,8 @@ let classifySticker: (StickerGeometry.rgb, option<Dict.t<StickerGeometry.rgb>>) 
 @genType let applyGains: (StickerGeometry.rgb, StickerGeometry.rgb) => StickerGeometry.rgb
 @genType let removeGains: (StickerGeometry.rgb, StickerGeometry.rgb) => StickerGeometry.rgb
 @genType let applyGainsToPixels: (Uint8ClampedArray.t, StickerGeometry.rgb) => Uint8ClampedArray.t
+@genType let oklabToRgb: oklab => StickerGeometry.rgb
+@genType let linearRgbToOklab: (float, float, float) => oklab
+@genType let clusterOklabDistance: (oklab, oklab) => float
+@genType let clusterDistance: (StickerGeometry.rgb, StickerGeometry.rgb) => float
+@genType let confidenceDistanceScale: float

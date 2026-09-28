@@ -41,7 +41,6 @@ let deleteColorProfiles: (
 @genType let colorDeletionEffects: (ProfileSettings.profileSettings, array<string>) => array<string>
 @genType let unusedColorProfiles: ProfileSettings.profileSettings => array<string>
 
-@genType let mixedDistance: float
 @genType let closeDistance: float
 @genType let pairDistance: (StickerGeometry.rgb, StickerGeometry.rgb) => float
 @genType let pairLevel: float => (level, string)

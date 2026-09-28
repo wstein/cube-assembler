@@ -85,8 +85,6 @@ let nearestOther = (rgb, label, colors: Dict.t<rgb>) =>
     ->Option.map(((color, distance)) => {color, ratio: ownDistance /. Math.max(distance, 1e-9)})
   })
 
-let nearestOtherColor = (rgb, label, colors) => Null.fromOption(nearestOther(rgb, label, colors))
-
 let lookalike = (rgb, label, colors) =>
   switch nearestOther(rgb, label, colors) {
   | Some({color, ratio}) if ratio >= lookalikeRatio => Null.make(color)

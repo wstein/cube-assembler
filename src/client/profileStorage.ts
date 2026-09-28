@@ -5,7 +5,6 @@ import {
   parseStoredText,
   profileSettingsKey,
   settingsFile as settingsFileRes,
-  settingsFileType,
   storedText,
 } from '../core/profiles/ProfileStorage.gen'
 import { EMPTY_SETTINGS, type ProfileSettings } from './profileSettings'
@@ -14,7 +13,6 @@ type Settings = Parameters<typeof storedText>[0]
 const toRes = (settings: ProfileSettings) => settings as unknown as Settings
 
 export const PROFILE_SETTINGS_KEY = profileSettingsKey
-export const SETTINGS_FILE_TYPE = settingsFileType
 
 export function settingsFile(
   settings: ProfileSettings,

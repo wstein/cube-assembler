@@ -3,7 +3,6 @@
 // behind them. Typed entry point for src/core/color/StickerLearning.res
 // (see there for the reasoning and tuning).
 import {
-  balancedAssign as balancedAssignRes,
   learnStickerColors as learnStickerColorsRes,
   type learnedColors,
   type stickerSample,
@@ -11,8 +10,6 @@ import {
 import { STICKER_COLORS, type RGB } from './stickerColorGeometry'
 
 export {
-  clearStickerColors,
-  glareStickers,
   glareWarningStickers as GLARE_WARNING_STICKERS,
   hungarianAssignment,
   mixedUpClusters,
@@ -22,15 +19,6 @@ export type {
   learnedColors as LearnedColors,
   stickerSample as StickerSample,
 } from '../core/color/StickerLearning.gen'
-
-// `pinned[i]`, when set, is the cluster point i must take.
-export function balancedAssign(
-  points: RGB[],
-  centroids: RGB[],
-  pinned: Array<number | null> = [],
-): number[] {
-  return balancedAssignRes(points, centroids, pinned)
-}
 
 export function learnStickerColors(
   samples: stickerSample[],

@@ -10,7 +10,6 @@ export {
   magneticEase,
   scrambleDuration,
   settleDuration,
-  smoothEase,
   turnClickGain,
   turnEase,
 } from '../core/view/TurnFeel.gen'
