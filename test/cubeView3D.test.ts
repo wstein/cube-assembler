@@ -548,5 +548,96 @@ describe('cubeView3D math and geometry', () => {
       }
       expect(changedVertices).toBeGreaterThan(0)
     })
+
+    it('closes both sides of a turning cut with dark cubie interiors', () => {
+      const mesh = buildCubeMesh(createSolvedCube(3), 3, undefined, true, {
+        face: 'U',
+        angle: Math.PI / 4,
+      })
+      const dark = [0.11, 0.11, 0.12]
+      const cutFaces = new Set<'upper' | 'lower'>()
+      for (let i = 0; i < mesh.positions.length; i += 9) {
+        if (
+          dark.some(
+            (value, channel) =>
+              Math.abs(mesh.colors[i + channel] - value) > 1e-5,
+          )
+        )
+          continue
+        const y =
+          (mesh.positions[i + 1] +
+            mesh.positions[i + 4] +
+            mesh.positions[i + 7]) /
+          3
+        const normalY = mesh.normals[i + 1]
+        if (Math.abs(y - 0.5) < 0.04 && normalY > 0.9) cutFaces.add('lower')
+        if (Math.abs(y - 0.5) < 0.04 && normalY < -0.9) cutFaces.add('upper')
+      }
+      expect(cutFaces).toEqual(new Set(['upper', 'lower']))
+    })
+
+    it('shields the hollow middle of a 5x5 cube during an inner turn', () => {
+      const mesh = buildCubeMesh(createSolvedCube(5), 5, undefined, true, {
+        face: 'R',
+        depth: 2,
+        angle: Math.PI / 4,
+      })
+      const staticMesh = buildCubeMesh(createSolvedCube(5), 5)
+      expect(mesh.vertexCount).toBe(staticMesh.vertexCount)
+      expect(mesh.indexCount).toBe(staticMesh.indexCount)
+      let coreTriangles = 0
+      for (let i = 0; i < mesh.positions.length; i += 9) {
+        const dark = [0.11, 0.11, 0.12]
+        if (
+          dark.some(
+            (value, channel) =>
+              Math.abs(mesh.colors[i + channel] - value) > 1e-5,
+          )
+        )
+          continue
+        const inside = [0, 3, 6].every(
+          (offset) =>
+            Math.hypot(
+              mesh.positions[i + offset],
+              mesh.positions[i + offset + 1],
+              mesh.positions[i + offset + 2],
+            ) < 1.49,
+        )
+        if (inside) coreTriangles++
+      }
+      expect(coreTriangles).toBeGreaterThan(0)
+    })
+
+    it('keeps cut caps inside the rounded edges on a 2x2', () => {
+      const mesh = buildCubeMesh(createSolvedCube(2), 2)
+      let found = false
+      for (let i = 0; i < mesh.positions.length; i += 9) {
+        if (mesh.normals[i + 1] > -0.9) continue
+        const y = mesh.positions[i + 1]
+        if (Math.abs(y - 0.005) > 0.001) continue
+        if (Math.abs(mesh.colors[i] - 0.11) > 1e-5) continue
+        found = true
+        for (const offset of [0, 3, 6]) {
+          const x = mesh.positions[i + offset]
+          const z = mesh.positions[i + offset + 2]
+          expect(Math.abs(x) - 0.5).toBeLessThanOrEqual(0.45)
+          expect(Math.abs(z) - 0.5).toBeLessThanOrEqual(0.45)
+        }
+      }
+      expect(found).toBe(true)
+    })
+
+    it('darkens recessed seam walls without changing sticker colors', () => {
+      const mesh = buildCubeMesh(createSolvedCube(3), 3)
+      expect(mesh.occlusion.length).toBe(mesh.vertexCount)
+      expect(Math.min(...mesh.occlusion)).toBeLessThan(0.7)
+      expect(Math.max(...mesh.occlusion)).toBe(1)
+      // AO is a separate channel; the face colors remain the selected palette.
+      expect(
+        mesh.colors.some(
+          (color) => Math.abs(color - hexToRgb('#f7f6f1')[0]) < 1e-5,
+        ),
+      ).toBe(true)
+    })
   })
 })

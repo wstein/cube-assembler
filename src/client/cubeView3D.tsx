@@ -52,6 +52,7 @@ export interface MeshData {
   positions: Float32Array
   normals: Float32Array
   colors: Float32Array
+  occlusion: Float32Array
   indices: Uint16Array | Uint32Array
   vertexCount: number
   indexCount: number
@@ -237,6 +238,7 @@ export function buildCubeMesh(
   const posList: number[] = []
   const normList: number[] = []
   const colList: number[] = []
+  const occlusionList: number[] = []
   const idxList: number[] = []
 
   const darkPlastic: [number, number, number] = [0.11, 0.11, 0.12]
@@ -249,6 +251,7 @@ export function buildCubeMesh(
     n1: [number, number, number],
     n2: [number, number, number],
     col: [number, number, number],
+    occlusion = 1,
   ) {
     const base = posList.length / 3
     posList.push(p0[0], p0[1], p0[2], p1[0], p1[1], p1[2], p2[0], p2[1], p2[2])
@@ -265,6 +268,38 @@ export function buildCubeMesh(
       col[2],
     )
     idxList.push(base, base + 1, base + 2)
+    occlusionList.push(occlusion, occlusion, occlusion)
+  }
+
+  function addInteriorFace(
+    center: [number, number, number],
+    u: [number, number, number],
+    v: [number, number, number],
+    normal: [number, number, number],
+  ) {
+    const depth = 0.495
+    // The cut face sits below the rounded outer shell. A full-width square
+    // would poke out at the rounded corners, especially on a 2x2.
+    const half = 0.435
+    const point = (a: number, b: number): [number, number, number] => [
+      center[0] + half * (a * u[0] + b * v[0]) + depth * normal[0],
+      center[1] + half * (a * u[1] + b * v[1]) + depth * normal[1],
+      center[2] + half * (a * u[2] + b * v[2]) + depth * normal[2],
+    ]
+    const bottomLeft = point(-1, -1)
+    const bottomRight = point(1, -1)
+    const topRight = point(1, 1)
+    const topLeft = point(-1, 1)
+    addTri(
+      bottomLeft,
+      bottomRight,
+      topRight,
+      normal,
+      normal,
+      normal,
+      darkPlastic,
+    )
+    addTri(bottomLeft, topRight, topLeft, normal, normal, normal, darkPlastic)
   }
 
   // Generate a rounded, beveled face with smoothed normals
@@ -489,8 +524,8 @@ export function buildCubeMesh(
         (e1[1] * e2[2] - e1[2] * e2[1]) * nOut[0] +
         (e1[2] * e2[0] - e1[0] * e2[2]) * nOut[1] +
         (e1[0] * e2[1] - e1[1] * e2[0]) * nOut[2]
-      if (facing > 0) addTri(a, b, c, nOut, nOut, nOut, col)
-      else addTri(a, c, b, nOut, nOut, nOut, col)
+      if (facing > 0) addTri(a, b, c, nOut, nOut, nOut, col, 0.58)
+      else addTri(a, c, b, nOut, nOut, nOut, col, 0.58)
     }
 
     // A wall from surface points a-b straight down to the skirt depth, facing
@@ -519,32 +554,32 @@ export function buildCubeMesh(
       const sTop0 = pt(-s, H, zSkirt),
         nsTop = norm(0, 1, 0)
       const sTop1 = pt(s, H, zSkirt)
-      addTri(eTop0, eTop1, sTop1, nsTop, nsTop, nsTop, col)
-      addTri(eTop0, sTop1, sTop0, nsTop, nsTop, nsTop, col)
+      addTri(eTop0, eTop1, sTop1, nsTop, nsTop, nsTop, col, 0.58)
+      addTri(eTop0, sTop1, sTop0, nsTop, nsTop, nsTop, col, 0.58)
     }
 
     if (seamBot) {
       const sBot0 = pt(-s, -H, zSkirt),
         nsBot = norm(0, -1, 0)
       const sBot1 = pt(s, -H, zSkirt)
-      addTri(eBot1, eBot0, sBot0, nsBot, nsBot, nsBot, col)
-      addTri(eBot1, sBot0, sBot1, nsBot, nsBot, nsBot, col)
+      addTri(eBot1, eBot0, sBot0, nsBot, nsBot, nsBot, col, 0.58)
+      addTri(eBot1, sBot0, sBot1, nsBot, nsBot, nsBot, col, 0.58)
     }
 
     if (seamRt) {
       const sRt0 = pt(H, -s, zSkirt),
         nsRt = norm(1, 0, 0)
       const sRt1 = pt(H, s, zSkirt)
-      addTri(eRt1, eRt0, sRt0, nsRt, nsRt, nsRt, col)
-      addTri(eRt1, sRt0, sRt1, nsRt, nsRt, nsRt, col)
+      addTri(eRt1, eRt0, sRt0, nsRt, nsRt, nsRt, col, 0.58)
+      addTri(eRt1, sRt0, sRt1, nsRt, nsRt, nsRt, col, 0.58)
     }
 
     if (seamLt) {
       const sLt0 = pt(-H, -s, zSkirt),
         nsLt = norm(-1, 0, 0)
       const sLt1 = pt(-H, s, zSkirt)
-      addTri(eLt0, eLt1, sLt1, nsLt, nsLt, nsLt, col)
-      addTri(eLt0, sLt1, sLt0, nsLt, nsLt, nsLt, col)
+      addTri(eLt0, eLt1, sLt1, nsLt, nsLt, nsLt, col, 0.58)
+      addTri(eLt0, sLt1, sLt0, nsLt, nsLt, nsLt, col, 0.58)
     }
 
     // 5. The skirts span only the flat part of each side. Continue every seam
@@ -755,6 +790,74 @@ export function buildCubeMesh(
           if (x === last) addFaceWithSticker('r')
           if (x === 0) addFaceWithSticker('l')
         }
+
+        // Each visible cubie needs its hidden plastic faces too. A turn exposes
+        // both sides of its cut, including the backs of the moving pieces.
+        const center: [number, number, number] = [cx, cy, cz]
+        const cap = (face: 'u' | 'd' | 'f' | 'b' | 'r' | 'l') => {
+          const axes = getAxes(face)
+          addInteriorFace(center, axes.u, axes.v, axes.n)
+        }
+        if (y !== last) cap('u')
+        if (y !== 0) cap('d')
+        if (z !== last) cap('f')
+        if (z !== 0) cap('b')
+        if (x !== last) cap('r')
+        if (x !== 0) cap('l')
+      }
+    }
+  }
+
+  // Surface cubies alone leave a hollow opening behind inner-slice cuts.
+  // Keep this shield fixed while the outer pieces turn, and build it in both
+  // static and animated meshes so their vertex counts remain identical.
+  if (n >= 4) {
+    const radius = n / 2 - 1.02
+    const latitudeSteps = 8
+    const longitudeSteps = 16
+    const point = (
+      latitude: number,
+      longitude: number,
+    ): [number, number, number] => {
+      const phi = (Math.PI * latitude) / latitudeSteps
+      const theta = (2 * Math.PI * longitude) / longitudeSteps
+      return [
+        radius * Math.sin(phi) * Math.cos(theta),
+        radius * Math.cos(phi),
+        radius * Math.sin(phi) * Math.sin(theta),
+      ]
+    }
+    const addCoreTri = (
+      a: [number, number, number],
+      b: [number, number, number],
+      c: [number, number, number],
+    ) => {
+      const normal = (
+        p: [number, number, number],
+      ): [number, number, number] => [
+        p[0] / radius,
+        p[1] / radius,
+        p[2] / radius,
+      ]
+      const ab = [b[0] - a[0], b[1] - a[1], b[2] - a[2]]
+      const ac = [c[0] - a[0], c[1] - a[1], c[2] - a[2]]
+      const facing =
+        (ab[1] * ac[2] - ab[2] * ac[1]) * a[0] +
+        (ab[2] * ac[0] - ab[0] * ac[2]) * a[1] +
+        (ab[0] * ac[1] - ab[1] * ac[0]) * a[2]
+      if (facing >= 0)
+        addTri(a, b, c, normal(a), normal(b), normal(c), darkPlastic)
+      else addTri(a, c, b, normal(a), normal(c), normal(b), darkPlastic)
+    }
+    for (let latitude = 0; latitude < latitudeSteps; latitude++) {
+      for (let longitude = 0; longitude < longitudeSteps; longitude++) {
+        const upperLeft = point(latitude, longitude)
+        const upperRight = point(latitude, longitude + 1)
+        const lowerLeft = point(latitude + 1, longitude)
+        const lowerRight = point(latitude + 1, longitude + 1)
+        if (latitude > 0) addCoreTri(upperLeft, lowerLeft, upperRight)
+        if (latitude < latitudeSteps - 1)
+          addCoreTri(upperRight, lowerLeft, lowerRight)
       }
     }
   }
@@ -767,6 +870,7 @@ export function buildCubeMesh(
     positions: new Float32Array(posList),
     normals: new Float32Array(normList),
     colors: new Float32Array(colList),
+    occlusion: new Float32Array(occlusionList),
     indices,
     vertexCount,
     indexCount: idxList.length,
@@ -991,6 +1095,7 @@ const VS_SOURCE = `
 attribute vec3 a_position;
 attribute vec3 a_normal;
 attribute vec3 a_color;
+attribute float a_occlusion;
 
 uniform mat4 u_mvp;
 uniform mat4 u_model;
@@ -998,9 +1103,11 @@ uniform mat4 u_model;
 varying vec3 v_normal;
 varying vec3 v_color;
 varying vec3 v_pos;
+varying float v_occlusion;
 
 void main() {
   v_color = a_color;
+  v_occlusion = a_occlusion;
   v_normal = normalize(mat3(u_model[0].xyz, u_model[1].xyz, u_model[2].xyz) * a_normal);
   v_pos = (u_model * vec4(a_position, 1.0)).xyz;
   gl_Position = u_mvp * vec4(a_position, 1.0);
@@ -1013,6 +1120,7 @@ precision mediump float;
 varying vec3 v_normal;
 varying vec3 v_color;
 varying vec3 v_pos;
+varying float v_occlusion;
 
 uniform vec3 u_lightDir1;
 uniform vec3 u_lightDir2;
@@ -1033,7 +1141,9 @@ void main() {
   float diff2 = max(dot(N, L2), 0.0) * 0.35;
 
   float ambient = 0.42;
-  vec3 lit = v_color * (ambient + diff1 * 0.65 + diff2) + vec3(spec1);
+  float fresnel = pow(1.0 - max(dot(N, V), 0.0), 4.0);
+  vec3 lit = v_color * (ambient + diff1 * 0.65 + diff2) * v_occlusion;
+  lit += vec3(spec1 * v_occlusion) + v_color * fresnel * 0.10;
   gl_FragColor = vec4(lit, 1.0);
 }
 `
@@ -1318,6 +1428,10 @@ export function CubeView3D({
     gl.bindBuffer(gl.ARRAY_BUFFER, colBuf)
     gl.bufferData(gl.ARRAY_BUFFER, mesh.colors, gl.DYNAMIC_DRAW)
 
+    const occlusionBuf = gl.createBuffer()
+    gl.bindBuffer(gl.ARRAY_BUFFER, occlusionBuf)
+    gl.bufferData(gl.ARRAY_BUFFER, mesh.occlusion, gl.STATIC_DRAW)
+
     const idxBuf = gl.createBuffer()
     gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, idxBuf)
     gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, mesh.indices, gl.STATIC_DRAW)
@@ -1325,6 +1439,7 @@ export function CubeView3D({
     const aPos = gl.getAttribLocation(program, 'a_position')
     const aNorm = gl.getAttribLocation(program, 'a_normal')
     const aCol = gl.getAttribLocation(program, 'a_color')
+    const aOcclusion = gl.getAttribLocation(program, 'a_occlusion')
 
     const uMvp = gl.getUniformLocation(program, 'u_mvp')
     const uModel = gl.getUniformLocation(program, 'u_model')
@@ -1531,6 +1646,10 @@ export function CubeView3D({
       gl.vertexAttribPointer(aCol, 3, gl.FLOAT, false, 0, 0)
       gl.enableVertexAttribArray(aCol)
 
+      gl.bindBuffer(gl.ARRAY_BUFFER, occlusionBuf)
+      gl.vertexAttribPointer(aOcclusion, 1, gl.FLOAT, false, 0, 0)
+      gl.enableVertexAttribArray(aOcclusion)
+
       gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, idxBuf)
       const indexType =
         mesh.indices instanceof Uint32Array
@@ -1551,6 +1670,7 @@ export function CubeView3D({
       gl.deleteBuffer(posBuf)
       gl.deleteBuffer(normBuf)
       gl.deleteBuffer(colBuf)
+      gl.deleteBuffer(occlusionBuf)
       gl.deleteBuffer(idxBuf)
       gl.deleteProgram(program)
       shadow?.dispose()
