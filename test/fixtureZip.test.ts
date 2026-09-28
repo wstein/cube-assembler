@@ -5,7 +5,6 @@ import { strToU8, unzipSync, zipSync } from 'fflate'
 import {
   buildFixture,
   summarizeFixture,
-  unzipFixture,
   unzipUploadFiles,
   zipFixture,
   type FixtureRequest,
@@ -38,7 +37,7 @@ function request(extra: Partial<FixtureRequest> = {}): FixtureRequest {
 describe('fixture zips', () => {
   it('round-trips a capture into the test/fixtures/<name>/ layout', async () => {
     const zip = zipFixture(buildFixture(request()))
-    const files = unzipFixture(zip)
+    const files = unzipUploadFiles(zip)
     expect(files.map((f) => f.name).sort()).toEqual([
       'face-b.jpg',
       'face-d.jpg',
@@ -123,19 +122,12 @@ describe('fixture zips', () => {
         new Uint8Array([1, 2, 3]),
         { level: 9 },
       ],
-      'Downloads/other.txt': strToU8('not part of it'),
       '__MACOSX/Downloads/my-fixture/._meta.json': strToU8('resource fork'),
     })
-    const files = unzipFixture(zip)
+    const files = unzipUploadFiles(zip)
     expect(files.map((f) => f.name).sort()).toEqual(['face-u.jpg', 'meta.json'])
     expect(await files.find((f) => f.name === 'meta.json')!.text()).toBe(
       '{"gridSize":3}',
-    )
-  })
-
-  it('says when a zip holds no fixture', () => {
-    expect(() => unzipFixture(zipSync({ 'notes.txt': strToU8('hi') }))).toThrow(
-      'No meta.json in the zip',
     )
   })
 

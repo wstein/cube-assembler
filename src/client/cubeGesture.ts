@@ -185,18 +185,6 @@ export function swipeLayerAngle(
   return layer.sign * 0.1 * swipe.along[swipe.axes.indexOf(layer.axis)]
 }
 
-export function getSwipeLayerTurn(
-  hit: CubeSurfaceHit,
-  dx: number,
-  dy: number,
-  camera: CubeGestureCamera,
-): { face: FaceKey; depth: number; turns: number } | null {
-  const layer = pickSwipeLayer(hit, dx, dy, camera)
-  if (!layer) return null
-  const turns = Math.sign(swipeLayerAngle(hit, layer, dx, dy, camera))
-  return { face: layer.face, depth: layer.depth, turns }
-}
-
 // A released drag settles on whole quarter turns. Each further quarter
 // counts once the drag passes TURN_COMMIT_FRACTION of it, so a short slow
 // drag springs back. A flick carries on for FLICK_MS at its speed, but at

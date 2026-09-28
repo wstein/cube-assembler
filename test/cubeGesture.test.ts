@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
   clampZoom,
-  getSwipeLayerTurn,
   gestureAfterPointerUp,
   gestureForPointerDown,
   gestureWhenSwipeTurnsNothing,
@@ -12,9 +11,24 @@ import {
   swipeLayerAngle,
   twoFingerMotion,
   wheelGesture,
+  type CubeGestureCamera,
+  type CubeSurfaceHit,
 } from '../src/client/cubeGesture'
 
 const camera = { width: 600, height: 600, zoom: 12, pitch: 0, yaw: 0, size: 5 }
+
+// The layer a quick swipe turns and which way, as the view reads it.
+function getSwipeLayerTurn(
+  hit: CubeSurfaceHit,
+  dx: number,
+  dy: number,
+  cam: CubeGestureCamera,
+) {
+  const layer = pickSwipeLayer(hit, dx, dy, cam)
+  if (!layer) return null
+  const turns = Math.sign(swipeLayerAngle(hit, layer, dx, dy, cam))
+  return { face: layer.face, depth: layer.depth, turns }
+}
 
 describe('cube sticker drag', () => {
   it('picks a visible sticker and ignores the background', () => {

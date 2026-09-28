@@ -2398,34 +2398,6 @@ function describeCrop(
   }
 }
 
-export function captureAndProcessFace(
-  video: HTMLVideoElement,
-  gridSize = 3,
-  gains: RGB = NEUTRAL_GAINS,
-  sampling: SamplingGeometry = DEFAULT_SAMPLING,
-  palette?: Record<string, RGB>,
-  geometry: FaceGeometryMode = 'aligned',
-): FaceCaptureResult {
-  const canvas = document.createElement('canvas')
-  canvas.width = video.videoWidth
-  canvas.height = video.videoHeight
-
-  const ctx = canvas.getContext('2d')
-  if (!ctx) {
-    throw new Error('Could not get canvas context')
-  }
-
-  ctx.drawImage(video, 0, 0)
-  return captureAndProcessCanvas(
-    canvas,
-    gridSize,
-    gains,
-    sampling,
-    palette,
-    geometry,
-  )
-}
-
 // Use the already checked live frame for automatic capture. Reading the video
 // again after the stability check could capture a different, moving face.
 export function captureAndProcessCanvas(

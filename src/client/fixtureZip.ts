@@ -147,35 +147,6 @@ export function unzipUploadFiles(zip: Uint8Array): File[] {
     })
 }
 
-// A fixture zip's files as File objects named as in its directory (so
-// meta.json's `photo` names find them), from the folder holding
-// meta.json. Throws when the zip has no meta.json.
-export function unzipFixture(zip: Uint8Array): File[] {
-  const entries = Object.entries(unzipSync(zip)).filter(
-    ([path]) => !path.startsWith('__MACOSX/') && !path.endsWith('/'),
-  )
-  const meta = entries.find(
-    ([path]) => path === 'meta.json' || path.endsWith('/meta.json'),
-  )
-  if (!meta) throw new Error('No meta.json in the zip')
-  const folder = meta[0].slice(0, meta[0].length - 'meta.json'.length)
-  return entries
-    .filter(
-      ([path]) =>
-        path.startsWith(folder) && !path.slice(folder.length).includes('/'),
-    )
-    .map(
-      ([path, data]) =>
-        new File([data as BlobPart], path.slice(folder.length), {
-          type: path.endsWith('.json')
-            ? 'application/json'
-            : path.endsWith('.png')
-              ? 'image/png'
-              : 'image/jpeg',
-        }),
-    )
-}
-
 export interface FixturePhoto {
   // The capture slot (u, r, f, d, l, b) and its file in the zip.
   face: string
