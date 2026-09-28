@@ -1,12 +1,40 @@
 // Cube state assembly from captured faces
 
 import { allOrientations } from './cubeGeometry'
+import { rotateGrid } from './faceGridRotation'
+import type {
+  GuidedCapture,
+  GuidedArrangement,
+  GuidedSolution,
+} from './guidedCaptureSetup'
 import type { cubeState as CubeState, cubeIR as CubeIR } from './CubeState.gen'
 export type {
   cubeState as CubeState,
   cubeIR as CubeIR,
   faceKey as FaceKey,
 } from './CubeState.gen'
+
+export {
+  OPPOSITE_COLOR,
+  predictGuidedCenters,
+  captureCenterSlots,
+  captureSlotForCenter,
+  placeCapturedFace,
+} from './guidedCaptureSetup'
+export type {
+  GuidedCapture,
+  GuidedArrangement,
+  GuidedSolution,
+} from './guidedCaptureSetup'
+export {
+  checkGuidedCenters,
+  findCapturedFaceMatch,
+  findCaptureSlotForOrientedFace,
+  findRepeatedFaces,
+  validateFaceColors,
+  createSolvedCube,
+} from './capturedFaceMatching'
+export type { GuidedCenterIssue, FaceMatchSample } from './capturedFaceMatching'
 
 export function toCubeIR(cube: CubeState, size: number): CubeIR {
   const grid = (data: string[]) => ({ n: size, data })
@@ -496,25 +524,6 @@ function isFullyValid(faces: Record<FaceKey, string[][]>): boolean {
   return permParity(cornerPieces) === permParity(edgePieces)
 }
 
-function rotateGrid(
-  grid: string[][],
-  quarterTurnsClockwise: number,
-): string[][] {
-  const turns = ((quarterTurnsClockwise % 4) + 4) % 4
-  let result = grid
-  for (let t = 0; t < turns; t++) {
-    const n = result.length
-    const next: string[][] = Array.from({ length: n }, () => Array(n).fill(''))
-    for (let r = 0; r < n; r++) {
-      for (let c = 0; c < n; c++) {
-        next[c][n - 1 - r] = result[r][c]
-      }
-    }
-    result = next
-  }
-  return result
-}
-
 function cornerSticker(grid: string[][], pos: CornerPos): string {
   const n = grid.length
   if (pos === 'TL') return grid[0][0]
@@ -858,205 +867,6 @@ export function solveFaceOrientations(
     : solveEvenSizeOrientations(capturedFaces)
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Guided capture: the 4 side faces are photographed in order while the cube
-// is turned a quarter turn at a time around its vertical axis (either way,
-// top row kept on top), then the top and bottom faces in either order and
-// at any rotation. That leaves 2 turning directions x 2 top/bottom orders x
-// 4 x 4 top/bottom rotations = 64 arrangements to check, instead of
-// solveFaceOrientations' 4,096 (odd) or 122,880 (even) - and no assumption
-// about which colors are on the sides or on top.
-// ─────────────────────────────────────────────────────────────────────────────
-
-export interface GuidedCapture {
-  // The 4 side photos in capture order, each taken upright.
-  sides: [string[][], string[][], string[][], string[][]]
-  // The two remaining photos in capture order - top and bottom, either way
-  // round, each at any rotation.
-  caps: [string[][], string[][]]
-}
-
-// How the photos were put together for one arrangement.
-export interface GuidedArrangement {
-  // Which way the cube was turned between side photos: 'left' means the
-  // face that was on the right came to the front next.
-  turn: 'left' | 'right'
-  // True if the second of the two cap photos is the top.
-  capsSwapped: boolean
-  // Quarter turns clockwise applied to cap photo 1 and 2.
-  capRotations: [number, number]
-}
-
-export interface GuidedSolution extends OrientationSolution {
-  // Parallel to `alternatives`: how each was put together.
-  arrangements: GuidedArrangement[]
-}
-
-export const OPPOSITE_COLOR: Record<string, string> = {
-  W: 'Y',
-  Y: 'W',
-  R: 'O',
-  O: 'R',
-  G: 'B',
-  B: 'G',
-}
-
-type CenterVector = readonly [number, number, number]
-const COLOR_NORMAL: Record<string, CenterVector> = {
-  W: [0, 1, 0],
-  Y: [0, -1, 0],
-  R: [1, 0, 0],
-  O: [-1, 0, 0],
-  G: [0, 0, 1],
-  B: [0, 0, -1],
-}
-const NORMAL_COLOR = Object.fromEntries(
-  Object.entries(COLOR_NORMAL).map(([color, normal]) => [
-    normal.join(','),
-    color,
-  ]),
-)
-const cross = (a: CenterVector, b: CenterVector): CenterVector => [
-  a[1] * b[2] - a[2] * b[1],
-  a[2] * b[0] - a[0] * b[2],
-  a[0] * b[1] - a[1] * b[0],
-]
-
-// Capture slots 1/3, 2/4 and 5/6 are suggested opposite pairs. One
-// measured center predicts its opposite. Two centers on different axes
-// determine the remaining colors for the preferred clockwise path; the
-// actual captures and final orientation solver may follow another path.
-// Even cubes have no fixed center sticker, so their slots stay unfilled.
-export function predictGuidedCenters(
-  photos: Array<string[][] | undefined>,
-): Array<string | null> {
-  const predictions: Array<string | null> = Array(6).fill(null)
-  const n = photos.find((photo) => photo)?.length
-  if (n !== 3 && n !== 5 && n !== 7) return predictions
-  const mid = Math.floor(n / 2)
-  const centers = Array.from({ length: 6 }, (_, i) =>
-    photos[i]?.length === n ? photos[i]?.[mid]?.[mid] : undefined,
-  )
-  const pairs = [
-    [0, 2],
-    [1, 3],
-    [4, 5],
-  ] as const
-  for (const [front, back] of pairs) {
-    const a = centers[front],
-      b = centers[back]
-    if (a && OPPOSITE_COLOR[a] && !b) predictions[back] = OPPOSITE_COLOR[a]
-    if (b && OPPOSITE_COLOR[b] && !a) predictions[front] = OPPOSITE_COLOR[b]
-    if (a && b && OPPOSITE_COLOR[a] !== b) return predictions
-  }
-
-  // Positive normals correspond to Side 1 (front), Side 2 (right), Top.
-  const axes = pairs.map(([positive, negative]) => {
-    const color =
-      centers[positive] ??
-      (centers[negative] ? OPPOSITE_COLOR[centers[negative]] : null)
-    return color ? COLOR_NORMAL[color] : undefined
-  })
-  if (axes.filter(Boolean).length < 2) return predictions
-  const [front, right, top] = axes
-  const completed = [
-    front ?? (right && top ? cross(right, top) : undefined),
-    right ?? (top && front ? cross(top, front) : undefined),
-    top ?? (front && right ? cross(front, right) : undefined),
-  ]
-  const colors = completed.map((normal) =>
-    normal ? NORMAL_COLOR[normal.join(',')] : undefined,
-  )
-  if (colors.some((color) => !color)) return predictions
-  for (let axis = 0; axis < pairs.length; axis++) {
-    const [positive, negative] = pairs[axis]
-    const color = colors[axis]!
-    if (
-      (centers[positive] && centers[positive] !== color) ||
-      (centers[negative] && centers[negative] !== OPPOSITE_COLOR[color])
-    )
-      return predictions
-    if (!centers[positive]) predictions[positive] = color
-    if (!centers[negative]) predictions[negative] = OPPOSITE_COLOR[color]
-  }
-  return predictions
-}
-
-// The first and adjacent second photos define capture slots. If the second
-// photo is opposite the first, it occupies slot 3 and slot 2 stays open.
-// Once the first two adjacent centers are known, reserve a stable slot
-// for each remaining center so later photos can arrive in any order.
-export function captureCenterSlots(
-  photos: Array<string[][] | undefined>,
-): Array<string | null> {
-  if (!photos[0] || !photos[1]) return predictGuidedCenters(photos)
-  const n = photos[0].length
-  if (![3, 5, 7].includes(n) || photos[1].length !== n)
-    return Array(6).fill(null)
-  const mid = Math.floor(n / 2)
-  const first = photos[0][mid]?.[mid],
-    second = photos[1][mid]?.[mid]
-  if (
-    !first ||
-    !second ||
-    !OPPOSITE_COLOR[first] ||
-    !OPPOSITE_COLOR[second] ||
-    first === second
-  )
-    return Array(6).fill(null)
-  if (OPPOSITE_COLOR[first] === second) {
-    const remaining = Object.keys(OPPOSITE_COLOR).filter(
-      (color) => color !== first && color !== second,
-    )
-    return [first, second, ...remaining]
-  }
-  const suggested = predictGuidedCenters([photos[0], photos[1]])
-  return [first, second, ...suggested.slice(2)]
-}
-
-// An occupied slot is an explicit retake. Otherwise, an opposite second
-// odd-size face goes to slot 3; the next adjacent face fills slot 2.
-// Later odd-size faces follow their center color.
-// A center already present in another slot is a duplicate, not a new face.
-export function captureSlotForCenter(
-  photos: Array<string[][] | undefined>,
-  requestedIndex: number,
-  candidate: string[][],
-): number | null {
-  if (photos[requestedIndex]) return requestedIndex
-  if (!photos[0]) return 0
-  const n = candidate.length
-  if (!photos[1]) {
-    if ([3, 5, 7].includes(n) && photos[0].length === n) {
-      const mid = Math.floor(n / 2)
-      const first = photos[0][mid]?.[mid],
-        center = candidate[mid]?.[mid]
-      if (first && center && first === center) return null
-      if (first && center && OPPOSITE_COLOR[first] === center)
-        return photos[2] ? null : 2
-    }
-    return 1
-  }
-  if (![3, 5, 7].includes(n)) return requestedIndex
-  const center = candidate[Math.floor(n / 2)]?.[Math.floor(n / 2)]
-  const index = captureCenterSlots(photos).indexOf(center)
-  return index < 0 || photos[index] ? null : index
-}
-
-// The center color only suggests a slot, it never rejects a face: one that
-// fits no free slot (a misread center, or a face shown twice) stays in the
-// slot being captured, flagged so assembly searches any order.
-export function placeCapturedFace(
-  photos: Array<string[][] | undefined>,
-  requestedIndex: number,
-  candidate: string[][],
-): { index: number; unexpectedCenter: boolean } {
-  const index = captureSlotForCenter(photos, requestedIndex, candidate)
-  return index === null
-    ? { index: requestedIndex, unexpectedCenter: true }
-    : { index, unexpectedCenter: false }
-}
-
 // How many stickers already sit on the face of their own color - used to
 // pick which of the 24 whole-cube orientations to present an arrangement
 // in. Centers count far more on odd sizes, since they pin each face's
@@ -1182,164 +992,5 @@ export function solveGuidedCapture(
     alternatives: kept.map((c) => ({ faces: c.faces, rotations: none })),
     arrangements: kept.map((c) => c.arrangement),
     truncated: unique.length > kept.length,
-  }
-}
-
-// Photo positions in a guided capture: 0-3 the sides, 4-5 top/bottom.
-export type GuidedCenterIssue =
-  | { kind: 'same-center'; photos: [number, number] }
-  | { kind: 'turned-twice'; photo: number }
-  | { kind: 'not-opposite'; photos: [number, number] }
-
-// Odd sizes only: the centers alone show several capture mistakes before
-// any search - two photos of the same face, a side turned 180° instead of
-// 90° (it shows the face opposite the one before it), or two photos that
-// should face away from each other but don't. Empty when all is well, and
-// always empty on even sizes (no fixed centers) or for missing photos.
-export function checkGuidedCenters(
-  photos: Array<string[][] | undefined>,
-): GuidedCenterIssue[] {
-  const n = photos.find(Boolean)?.length
-  if (!n || n % 2 === 0) return []
-  const mid = Math.floor(n / 2)
-  const center = photos.map((p) => p?.[mid]?.[mid])
-  const issues: GuidedCenterIssue[] = []
-  for (let i = 0; i < center.length; i++) {
-    for (let j = 0; j < i; j++) {
-      if (center[i] && center[i] === center[j])
-        issues.push({ kind: 'same-center', photos: [j, i] })
-    }
-  }
-  if (issues.length > 0) return issues
-  const opposite = (a?: string, b?: string) =>
-    !!a && !!b && OPPOSITE_COLOR[a] === b
-  for (let i = 1; i < 4; i++) {
-    if (opposite(center[i - 1], center[i]))
-      issues.push({ kind: 'turned-twice', photo: i })
-  }
-  for (const [a, b] of [
-    [0, 2],
-    [1, 3],
-    [4, 5],
-  ] as Array<[number, number]>) {
-    if (center[a] && center[b] && !opposite(center[a], center[b]))
-      issues.push({ kind: 'not-opposite', photos: [a, b] })
-  }
-  return issues
-}
-
-// Pairs of photos that look like the same face taken twice: at some
-// rotation nearly every sticker matches. Works on every size, unlike the
-// center check above. Up to ~10% of stickers may differ (at least 1 on 3x3
-// and up) so a single misread doesn't hide a repeat - two genuinely
-// different faces of a well-scrambled cube never come close (the most
-// alike seen in simulation: 6/9 on 3x3, 9/16 on 4x4, 18/49 on 7x7). A 2x2
-// needs an exact match, and still alarms falsely about once in 1,500 face
-// pairs - fine for a warning that can be dismissed.
-// The same face, allowing misreads: at least 75% of stickers identical at
-// some turn. A 2x2 must match exactly - with 4 stickers, 3 alike happens
-// between different scrambled faces too often.
-const SAME_FACE_FRACTION = 0.75
-
-function sameFaceAtSomeRotation(a: string[][], b: string[][]): boolean {
-  const n = a.length
-  if (b.length !== n) return false
-  const needed = n === 2 ? 4 : Math.ceil(n * n * SAME_FACE_FRACTION)
-  return [0, 1, 2, 3].some((turns) => {
-    const rotated = rotateGrid(b, turns)
-    let same = 0
-    for (let r = 0; r < n; r++)
-      for (let c = 0; c < n; c++) if (a[r][c] === rotated[r][c]) same++
-    return same >= needed
-  })
-}
-
-export interface FaceMatchSample {
-  colors: string[][]
-}
-
-// Identify a face already saved in a different slot by its stickers (see
-// sameFaceAtSomeRotation). A matching center alone is not enough: centers
-// get misread, and a false match would keep a new face from being taken.
-export function findCapturedFaceMatch(
-  captures: Array<FaceMatchSample | undefined>,
-  candidate: FaceMatchSample,
-  excludeIndex = -1,
-): number | null {
-  const n = candidate.colors.length
-  for (let i = 0; i < captures.length; i++) {
-    const saved = captures[i]
-    if (i === excludeIndex || !saved || saved.colors.length !== n) continue
-    if (sameFaceAtSomeRotation(saved.colors, candidate.colors)) return i
-  }
-  return null
-}
-
-// An approval net is in cube orientation, whereas Check colors is in photo
-// order. Find the photo behind a net face even when it was rotated in assembly.
-export function findCaptureSlotForOrientedFace(
-  captures: Array<string[][] | undefined>,
-  face: string[][],
-): number | null {
-  const n = face.length
-  let bestIndex: number | null = null
-  let bestDistance = Infinity
-  for (let i = 0; i < captures.length; i++) {
-    const saved = captures[i]
-    if (!saved || saved.length !== n) continue
-    for (let turn = 0; turn < 4; turn++) {
-      const rotated = rotateGrid(saved, turn)
-      let distance = 0
-      for (let r = 0; r < n; r++)
-        for (let c = 0; c < n; c++) {
-          if (rotated[r][c] !== face[r][c]) distance++
-        }
-      if (distance < bestDistance) {
-        bestDistance = distance
-        bestIndex = i
-      }
-    }
-  }
-  return bestIndex
-}
-
-export function findRepeatedFaces(
-  photos: Array<string[][] | undefined>,
-): Array<[number, number]> {
-  const repeats: Array<[number, number]> = []
-  for (let i = 0; i < photos.length; i++) {
-    const a = photos[i]
-    if (!a) continue
-    for (let j = 0; j < i; j++) {
-      const b = photos[j]
-      if (b && sameFaceAtSomeRotation(a, b)) repeats.push([j, i])
-    }
-  }
-  return repeats
-}
-
-export function validateFaceColors(colors: string[][], size = 3): boolean {
-  if (colors.length !== size) return false
-
-  const validColors = new Set(['W', 'Y', 'O', 'R', 'G', 'B'])
-
-  for (const row of colors) {
-    if (row.length !== size) return false
-    for (const color of row) {
-      if (!validColors.has(color)) return false
-    }
-  }
-
-  return true
-}
-
-export function createSolvedCube(size = 3): CubeState {
-  return {
-    u: Array(size * size).fill('W'),
-    r: Array(size * size).fill('R'),
-    f: Array(size * size).fill('G'),
-    d: Array(size * size).fill('Y'),
-    l: Array(size * size).fill('O'),
-    b: Array(size * size).fill('B'),
   }
 }
