@@ -41,6 +41,7 @@ import {
 import { stepDragInertia } from './dragInertia'
 import {
   MODE_CUE_GAIN,
+  magneticDragAngle,
   playModeCue,
   playTurnClick,
   scrambleDuration,
@@ -348,6 +349,9 @@ export function CubeView3D({
     gl.uniform3f(uLight1, 1.5, 2.5, 2.0)
     gl.uniform3f(uLight2, -2.0, -1.0, -2.0)
 
+    // Read once per view: the settings page is a page of its own.
+    const magnetic = readTurnFeel(document.cookie).overshoot
+
     const render = (time: number) => {
       const elapsed = Math.min(time - (lastFrameTimeRef.current ?? time), 50)
       lastFrameTimeRef.current = time
@@ -435,13 +439,11 @@ export function CubeView3D({
           }
         }
       } else if (dragTurnRef.current) {
-        // Queued turns wait until the finger lets go of the layer.
+        // Queued turns wait until the finger lets go of the layer. With
+        // the magnetic snap each quarter turn holds it like a magnet.
         const drag = dragTurnRef.current
-        const shown = dragMeshKey(
-          drag.layer,
-          drag.angle,
-          drag.highlight === true,
-        )
+        const angle = magnetic ? magneticDragAngle(drag.angle) : drag.angle
+        const shown = dragMeshKey(drag.layer, angle, drag.highlight === true)
         if (drag.drawn !== shown) {
           drag.drawn = shown
           const dragMesh = buildCubeMesh(
@@ -453,7 +455,7 @@ export function CubeView3D({
               face: drag.layer.face,
               depth: drag.layer.depth,
               width: drag.layer.width,
-              angle: drag.angle,
+              angle,
               highlight: drag.highlight,
             },
           )
@@ -677,16 +679,19 @@ export function CubeView3D({
 
   // Hands a released drag to the turn animation, which settles the layer on
   // whole quarter turns from where the finger left it.
-  const settleDrag = (turns: number) => {
+  const settleDrag = (turns: number, speed = 0) => {
     const drag = dragTurnRef.current
     if (!drag) return
     dragTurnRef.current = null
+    const feel = readTurnFeel(document.cookie)
     turnQueueRef.current.unshift(
       settleTurn(
         drag.layer,
-        drag.angle,
+        // From where the magnet held it on screen, so it doesn't jump.
+        feel.overshoot ? magneticDragAngle(drag.angle) : drag.angle,
         turns,
-        readTurnFeel(document.cookie).turnMs,
+        feel.turnMs,
+        speed,
       ),
     )
   }
@@ -752,15 +757,17 @@ export function CubeView3D({
     const drag = dragTurnRef.current
     if (!drag) return
     const tuning = readSwipeTuning(document.cookie)
+    const velocity = timeStamp - drag.time > 100 ? 0 : drag.velocity
     settleDrag(
       cancelled
         ? 0
         : releasedQuarterTurns(
             drag.angle,
-            timeStamp - drag.time > 100 ? 0 : drag.velocity,
+            velocity,
             tuning.commitFraction,
             tuning.flickMs,
           ),
+      cancelled ? 0 : velocity,
     )
   }
 
@@ -997,6 +1004,7 @@ export function CubeView3D({
                 gesture.tuning.commitFraction,
                 gesture.tuning.flickMs,
               ),
+          e.type === 'pointercancel' ? 0 : velocity,
         )
       }
     }

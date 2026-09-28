@@ -12,6 +12,8 @@ type queuedTurn = {
   width?: int,
   turns: int,
   from?: float,
+  // A released drag's speed there (radians per ms), which it settles from.
+  speed?: float,
   duration?: float,
   undo?: bool,
 }
@@ -24,6 +26,7 @@ type activeTurn = {
   width?: int,
   turns: int,
   from?: float,
+  speed?: float,
   startTime: float,
   duration: float,
   overshoot: bool,
@@ -39,6 +42,7 @@ let startTurn = (next: queuedTurn, time, overshoot, fallbackDuration): activeTur
   width: ?next.width,
   turns: next.turns,
   from: ?next.from,
+  speed: ?next.speed,
   startTime: time,
   duration: next.duration->Option.getOr(fallbackDuration),
   overshoot,
@@ -48,13 +52,18 @@ let startTurn = (next: queuedTurn, time, overshoot, fallbackDuration): activeTur
 type frame = {angle: float, finished: bool}
 
 // Where the animating layer is at `time`, eased from where it started to
-// its whole quarter turns.
+// its whole quarter turns. With the magnetic snap a released drag is
+// sucked onto its quarter turn from the speed it was let go with.
 let turnFrame = (turn: activeTurn, time) => {
   let progress = Math.min(1.0, Math.max(0.0, (time -. turn.startTime) /. turn.duration))
-  let ease = TurnFeel.turnEase(progress, turn.overshoot)
   let from = turn.from->Option.getOr(0.0)
   let target = Int.toFloat(turn.turns) *. quarter
-  {angle: from +. ease *. (target -. from), finished: progress >= 1.0}
+  let angle = switch turn.speed {
+  | Some(speed) if turn.overshoot =>
+    TurnFeel.magneticSettleAngle(from, target, speed, turn.duration, progress)
+  | _ => from +. TurnFeel.turnEase(progress, turn.overshoot) *. (target -. from)
+  }
+  {angle, finished: progress >= 1.0}
 }
 
 type turned = {cube: CubeState.cubeState, moves: array<CubeMoves.cubeTurn>}
@@ -86,8 +95,8 @@ let finishTurn = (cube, size, moves: array<CubeMoves.cubeTurn>, turn: activeTurn
   }
 
 // A released drag, settling on `turns` quarter turns from where the finger
-// left the layer, in time proportional to how far it has left.
-let settleTurn = (layer: CubeGesture.swipeLayer, angle, turns, turnMs): queuedTurn => {
+// left the layer at `speed`, in time proportional to how far it has left.
+let settleTurn = (layer: CubeGesture.swipeLayer, angle, turns, turnMs, speed): queuedTurn => {
   let distance = Math.abs(Int.toFloat(turns) *. quarter -. angle) /. quarter
   {
     face: layer.face,
@@ -95,6 +104,7 @@ let settleTurn = (layer: CubeGesture.swipeLayer, angle, turns, turnMs): queuedTu
     width: ?layer.width,
     turns,
     from: angle,
+    speed,
     duration: TurnFeel.settleDuration(distance, turnMs),
   }
 }

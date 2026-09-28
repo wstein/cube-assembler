@@ -26,6 +26,64 @@ let smoothEase = progress => {
 
 let turnEase = (progress, overshoot) => overshoot ? magneticEase(progress) : smoothEase(progress)
 
+// ─── Magnets while dragging and on release ────────────────────────────────────
+let quarter = Math.Constants.pi /. 2.0
+
+// How far from a quarter turn a dragged layer feels its magnet (about
+// 17 degrees).
+let magnetReach = 0.3
+
+// The angle a dragged layer shows for the finger's angle: within reach of
+// a quarter turn the magnet holds it, letting it follow ever faster as the
+// finger pulls away, until it breaks free at magnetReach; in between it
+// follows the finger exactly. Continuous, and it never runs backwards.
+let magneticDragAngle = raw => {
+  let detent = Math.round(raw /. quarter) *. quarter
+  let d = raw -. detent
+  let distance = Math.abs(d)
+  distance >= magnetReach
+    ? raw
+    : detent +. (d >= 0.0 ? 1.0 : -1.0) *. magnetReach *. (distance /. magnetReach) ** 2.0
+}
+
+// When a let-go layer reaches its quarter turn, as a fraction of the settle.
+let magnetImpact = 0.82
+
+// How much faster than its average a let-go layer arrives at the magnet.
+let magnetSuck = 2.4
+
+// A let-go layer's angle, `progress` of the way through a settle of
+// `duration` ms from `from` to `target`: it keeps the speed it was let go
+// with (radians per ms), is sucked in ever faster, snaps a little past the
+// quarter turn on impact and settles back onto it.
+let magneticSettleAngle = (from, target, speed, duration, progress) => {
+  let u = clamp01(progress)
+  let distance = target -. from
+  if u <= magnetImpact {
+    // A cubic from the release, at its speed, to the magnet, arriving
+    // magnetSuck times faster than the average.
+    let s = u /. magnetImpact
+    let s2 = s *. s
+    let s3 = s2 *. s
+    // A fast flick carries in at most twice the way left, so it never
+    // flings the layer far past the magnet.
+    let limit = 2.0 *. Math.abs(distance)
+    let startSlope = Math.max(-.limit, Math.min(limit, speed *. duration *. magnetImpact))
+    let endSlope = magnetSuck *. distance
+    (2.0 *. s3 -. 3.0 *. s2 +. 1.0) *. from +.
+    (s3 -. 2.0 *. s2 +. s) *. startSlope +.
+    (-2.0 *. s3 +. 3.0 *. s2) *. target +.
+    (s3 -. s2) *. endSlope
+  } else {
+    // The snap past it: at most 3.5% of a quarter turn, less for a short
+    // spring back, dying away by the end.
+    let w = (u -. magnetImpact) /. (1.0 -. magnetImpact)
+    let amplitude =
+      Math.min(0.035 *. quarter, 0.3 *. Math.abs(distance)) *. (distance >= 0.0 ? 1.0 : -1.0)
+    target +. amplitude *. Math.sin(Math.Constants.pi *. w) *. (1.0 -. w)
+  }
+}
+
 // A quarter turn's animation at the default speed. A released drag settles
 // in proportion to how far it has left, between three quarters and one and
 // a half of that; scrambles run at about half of it.

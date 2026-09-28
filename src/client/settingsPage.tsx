@@ -178,7 +178,7 @@ export function SettingsPage({ onClose }: Props) {
         />
         <ToggleSetting
           label="Magnetic snap"
-          hint="Layers snap a little past the quarter turn and settle back."
+          hint="Quarter turns hold a dragged layer like magnets and suck it in when you let go; it snaps a little past and settles back."
           checked={readTurnFeel(cookies).overshoot}
           onChange={(on) => write(preferenceCookie(TURN_OVERSHOOT_COOKIE, on))}
         />

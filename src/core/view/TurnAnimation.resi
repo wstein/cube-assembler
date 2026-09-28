@@ -5,6 +5,7 @@ type queuedTurn = {
   width?: int,
   turns: int,
   from?: float,
+  speed?: float,
   duration?: float,
   undo?: bool,
 }
@@ -16,6 +17,7 @@ type activeTurn = {
   width?: int,
   turns: int,
   from?: float,
+  speed?: float,
   startTime: float,
   duration: float,
   overshoot: bool,
@@ -30,7 +32,7 @@ type activeTurn = {
 @genType type turned = {cube: CubeState.cubeState, moves: array<CubeMoves.cubeTurn>}
 @genType
 let finishTurn: (CubeState.cubeState, int, array<CubeMoves.cubeTurn>, activeTurn) => Null.t<turned>
-@genType let settleTurn: (CubeGesture.swipeLayer, float, int, float) => queuedTurn
+@genType let settleTurn: (CubeGesture.swipeLayer, float, int, float, float) => queuedTurn
 @genType let scrambleQueue: (array<CubeMoves.cubeTurn>, float) => array<queuedTurn>
 @genType let dragMeshKey: (CubeGesture.swipeLayer, float, bool) => string
 

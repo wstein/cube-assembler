@@ -7,7 +7,11 @@ import {
 
 export {
   defaultTurnMs as DEFAULT_TURN_MS,
+  magneticDragAngle,
   magneticEase,
+  magneticSettleAngle,
+  magnetImpact as MAGNET_IMPACT,
+  magnetReach as MAGNET_REACH,
   scrambleDuration,
   settleDuration,
   turnClickGain,

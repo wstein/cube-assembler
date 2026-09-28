@@ -13,3 +13,7 @@ type modeLevel =
 @genType type note = {frequency: float, start: float, duration: float}
 @genType let modeCueNotes: modeLevel => array<note>
 @genType let modeCueGain: float
+@genType let magnetReach: float
+@genType let magneticDragAngle: float => float
+@genType let magnetImpact: float
+@genType let magneticSettleAngle: (float, float, float, float, float) => float
