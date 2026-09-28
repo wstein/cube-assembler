@@ -254,6 +254,69 @@ export interface TurningLayer {
   angle: number // in radians
 }
 
+interface CapExtents {
+  uNeg: number
+  uPos: number
+  vNeg: number
+  vPos: number
+}
+
+function getCapExtents(
+  face: 'u' | 'd' | 'f' | 'b' | 'r' | 'l',
+  x: number,
+  y: number,
+  z: number,
+  last: number,
+): CapExtents {
+  const inner = 0.5
+  const outer = 0.44
+
+  switch (face) {
+    case 'u':
+      return {
+        uNeg: x > 0 ? inner : outer,
+        uPos: x < last ? inner : outer,
+        vNeg: z < last ? inner : outer,
+        vPos: z > 0 ? inner : outer,
+      }
+    case 'd':
+      return {
+        uNeg: x > 0 ? inner : outer,
+        uPos: x < last ? inner : outer,
+        vNeg: z > 0 ? inner : outer,
+        vPos: z < last ? inner : outer,
+      }
+    case 'f':
+      return {
+        uNeg: x > 0 ? inner : outer,
+        uPos: x < last ? inner : outer,
+        vNeg: y > 0 ? inner : outer,
+        vPos: y < last ? inner : outer,
+      }
+    case 'b':
+      return {
+        uNeg: x < last ? inner : outer,
+        uPos: x > 0 ? inner : outer,
+        vNeg: y > 0 ? inner : outer,
+        vPos: y < last ? inner : outer,
+      }
+    case 'r':
+      return {
+        uNeg: z < last ? inner : outer,
+        uPos: z > 0 ? inner : outer,
+        vNeg: y > 0 ? inner : outer,
+        vPos: y < last ? inner : outer,
+      }
+    case 'l':
+      return {
+        uNeg: z > 0 ? inner : outer,
+        uPos: z < last ? inner : outer,
+        vNeg: y > 0 ? inner : outer,
+        vPos: y < last ? inner : outer,
+      }
+  }
+}
+
 export function buildCubeMesh(
   cube: CubeState,
   n: number,
@@ -303,16 +366,18 @@ export function buildCubeMesh(
     u: [number, number, number],
     v: [number, number, number],
     normal: [number, number, number],
+    extents: CapExtents,
   ) {
     const depth = 0.495
-    // The cut face sits below the rounded outer shell. A full-width square
-    // would poke out at the rounded corners, especially on a 2x2.
-    const half = 0.435
-    const point = (a: number, b: number): [number, number, number] => [
-      center[0] + half * (a * u[0] + b * v[0]) + depth * normal[0],
-      center[1] + half * (a * u[1] + b * v[1]) + depth * normal[1],
-      center[2] + half * (a * u[2] + b * v[2]) + depth * normal[2],
-    ]
+    const point = (a: number, b: number): [number, number, number] => {
+      const uDist = a < 0 ? -extents.uNeg : extents.uPos
+      const vDist = b < 0 ? -extents.vNeg : extents.vPos
+      return [
+        center[0] + uDist * u[0] + vDist * v[0] + depth * normal[0],
+        center[1] + uDist * u[1] + vDist * v[1] + depth * normal[1],
+        center[2] + uDist * u[2] + vDist * v[2] + depth * normal[2],
+      ]
+    }
     const bottomLeft = point(-1, -1)
     const bottomRight = point(1, -1)
     const topRight = point(1, 1)
@@ -650,18 +715,6 @@ export function buildCubeMesh(
   for (let z = 0; z < n; z++) {
     for (let y = 0; y < n; y++) {
       for (let x = 0; x < n; x++) {
-        // Only surface cubies
-        if (
-          x !== 0 &&
-          x !== last &&
-          y !== 0 &&
-          y !== last &&
-          z !== 0 &&
-          z !== last
-        ) {
-          continue
-        }
-
         let cx = x - last / 2
         let cy = y - last / 2
         let cz = z - last / 2
@@ -818,12 +871,13 @@ export function buildCubeMesh(
           if (x === 0) addFaceWithSticker('l')
         }
 
-        // Each visible cubie needs its hidden plastic faces too. A turn exposes
-        // both sides of its cut, including the backs of the moving pieces.
+        // Each cubie (surface and interior) needs its cut-facing plastic faces.
+        // A turn exposes both sides of its cut, including moving and stationary slabs.
         const center: [number, number, number] = [cx, cy, cz]
         const cap = (face: 'u' | 'd' | 'f' | 'b' | 'r' | 'l') => {
           const axes = getAxes(face)
-          addInteriorFace(center, axes.u, axes.v, axes.n)
+          const extents = getCapExtents(face, x, y, z, last)
+          addInteriorFace(center, axes.u, axes.v, axes.n, extents)
         }
         if (y !== last) cap('u')
         if (y !== 0) cap('d')
@@ -831,60 +885,6 @@ export function buildCubeMesh(
         if (z !== 0) cap('b')
         if (x !== last) cap('r')
         if (x !== 0) cap('l')
-      }
-    }
-  }
-
-  // Surface cubies alone leave a hollow opening behind inner-slice cuts.
-  // Keep this shield fixed while the outer pieces turn, and build it in both
-  // static and animated meshes so their vertex counts remain identical.
-  if (n >= 4) {
-    const radius = n / 2 - 1.02
-    const latitudeSteps = 8
-    const longitudeSteps = 16
-    const point = (
-      latitude: number,
-      longitude: number,
-    ): [number, number, number] => {
-      const phi = (Math.PI * latitude) / latitudeSteps
-      const theta = (2 * Math.PI * longitude) / longitudeSteps
-      return [
-        radius * Math.sin(phi) * Math.cos(theta),
-        radius * Math.cos(phi),
-        radius * Math.sin(phi) * Math.sin(theta),
-      ]
-    }
-    const addCoreTri = (
-      a: [number, number, number],
-      b: [number, number, number],
-      c: [number, number, number],
-    ) => {
-      const normal = (
-        p: [number, number, number],
-      ): [number, number, number] => [
-        p[0] / radius,
-        p[1] / radius,
-        p[2] / radius,
-      ]
-      const ab = [b[0] - a[0], b[1] - a[1], b[2] - a[2]]
-      const ac = [c[0] - a[0], c[1] - a[1], c[2] - a[2]]
-      const facing =
-        (ab[1] * ac[2] - ab[2] * ac[1]) * a[0] +
-        (ab[2] * ac[0] - ab[0] * ac[2]) * a[1] +
-        (ab[0] * ac[1] - ab[1] * ac[0]) * a[2]
-      if (facing >= 0)
-        addTri(a, b, c, normal(a), normal(b), normal(c), darkPlastic)
-      else addTri(a, c, b, normal(a), normal(c), normal(b), darkPlastic)
-    }
-    for (let latitude = 0; latitude < latitudeSteps; latitude++) {
-      for (let longitude = 0; longitude < longitudeSteps; longitude++) {
-        const upperLeft = point(latitude, longitude)
-        const upperRight = point(latitude, longitude + 1)
-        const lowerLeft = point(latitude + 1, longitude)
-        const lowerRight = point(latitude + 1, longitude + 1)
-        if (latitude > 0) addCoreTri(upperLeft, lowerLeft, upperRight)
-        if (latitude < latitudeSteps - 1)
-          addCoreTri(upperRight, lowerLeft, lowerRight)
       }
     }
   }
