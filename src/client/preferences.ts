@@ -85,3 +85,44 @@ export function readHoldTimings(cookies: string): HoldTimings {
 export function holdTimingCookie(name: string, ms: number): string {
   return selectionCookie(name, String(Math.round(ms)))
 }
+
+// One of `choices`, else `fallback`.
+export function readChoice<T extends string>(
+  cookies: string,
+  name: string,
+  choices: readonly T[],
+  fallback: T,
+): T {
+  const value = readSelection(cookies, name)
+  return (choices as readonly string[]).includes(value ?? '')
+    ? (value as T)
+    : fallback
+}
+
+// A whole number kept between `min` and `max`, else `fallback`.
+export function readNumber(
+  cookies: string,
+  name: string,
+  { min, max, fallback }: { min: number; max: number; fallback: number },
+): number {
+  const value = Number.parseInt(readSelection(cookies, name) ?? '', 10)
+  return Number.isFinite(value) ? Math.min(max, Math.max(min, value)) : fallback
+}
+
+export function numberCookie(name: string, value: number): string {
+  return selectionCookie(name, String(Math.round(value)))
+}
+
+export function clearedCookie(name: string): string {
+  return `${name}=; Max-Age=0; Path=/; SameSite=Lax`
+}
+
+// The cookies the settings page edits, which Reset all settings clears.
+// The cube, colors and view picked in the scanner are kept.
+export const SETTING_COOKIES = [
+  MIRROR_COOKIE,
+  AUTO_CAPTURE_COOKIE,
+  SOUND_COOKIE,
+  WIDE_PRESS_COOKIE,
+  CUBE_PRESS_COOKIE,
+]

@@ -20,6 +20,7 @@
 .settings-muted {
   color: var(--color-text-secondary);
   font-size: 0.88rem;
+  font-weight: 400;
   margin: 0;
 }
 
@@ -33,16 +34,26 @@
   }
 }
 
-.settings-slider {
+.settings-row {
   display: grid;
-  grid-template-columns: minmax(10rem, 14rem) minmax(8rem, 1fr) 4.5rem;
   align-items: center;
   gap: var(--spacing-sm);
   width: 100%;
 
-  input {
+  input,
+  select {
     accent-color: var(--color-accent);
   }
+}
+
+.settings-label {
+  display: grid;
+  gap: 2px;
+  font-weight: 600;
+}
+
+.settings-slider {
+  grid-template-columns: minmax(10rem, 14rem) minmax(8rem, 1fr) 4.5rem;
 
   output {
     font-variant-numeric: tabular-nums;
@@ -50,11 +61,28 @@
   }
 }
 
+.settings-toggle,
+.settings-choice {
+  grid-template-columns: 1fr auto;
+}
+
+.settings-toggle input {
+  width: 1.2rem;
+  height: 1.2rem;
+}
+
+.settings-reset {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--spacing-sm);
+}
+
 @media (max-width: 520px) {
   .settings-slider {
     grid-template-columns: 1fr 4.5rem;
 
-    span {
+    .settings-label {
       grid-column: 1 / -1;
     }
   }

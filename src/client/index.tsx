@@ -362,6 +362,15 @@ function App() {
     window.addEventListener('hashchange', onHash)
     return () => window.removeEventListener('hashchange', onHash)
   }, [])
+  // Back from the settings page, pick up what it changed.
+  const onSettingsPage = page === '#settings'
+  useEffect(() => {
+    if (onSettingsPage) return
+    const cookies = document.cookie
+    setMirrorPreview(readPreference(cookies, MIRROR_COOKIE))
+    setAutoCapture(readPreference(cookies, AUTO_CAPTURE_COOKIE))
+    setCaptureSound(readPreference(cookies, SOUND_COOKIE))
+  }, [onSettingsPage])
   const [showBackdropDialog, setShowBackdropDialog] = useState(false)
   const [reviewStep, setReviewStep] = useState(0)
   const [reviewRouting, setReviewRouting] = useState<{
@@ -983,7 +992,7 @@ function App() {
   const displayedCube =
     cube && turnedCube?.source === cube ? turnedCube.value : cube
   const visibleCube = displayedCube ?? createSolvedCube(puzzleSize)
-  if (page === '#settings') {
+  if (onSettingsPage) {
     return (
       <Suspense
         fallback={

@@ -16,6 +16,11 @@ import {
   selectedCubeSize,
   selectedCubeView,
   CUBE_PRESS_COOKIE,
+  SETTING_COOKIES,
+  clearedCookie,
+  numberCookie,
+  readChoice,
+  readNumber,
   HOLD_TIMING_LIMITS,
   WIDE_PRESS_COOKIE,
   holdTimingCookie,
@@ -129,5 +134,31 @@ describe('hold timing cookies', () => {
       blockMs: 500,
       cubeMs: 1200,
     })
+  })
+})
+
+describe('setting cookies', () => {
+  it('reads a choice, falling back on anything unknown', () => {
+    const choices = ['wrg', 'urf'] as const
+    expect(readChoice('x=urf', 'x', choices, 'wrg')).toBe('urf')
+    expect(readChoice('x=abc', 'x', choices, 'wrg')).toBe('wrg')
+    expect(readChoice('', 'x', choices, 'wrg')).toBe('wrg')
+    expect(selectionCookie('x', 'urf')).toContain('x=urf')
+  })
+
+  it('reads a number kept within its range', () => {
+    const range = { min: 60, max: 400, fallback: 160 }
+    expect(readNumber('x=200', 'x', range)).toBe(200)
+    expect(readNumber('x=9', 'x', range)).toBe(60)
+    expect(readNumber('x=9999', 'x', range)).toBe(400)
+    expect(readNumber('x=fast', 'x', range)).toBe(160)
+    expect(numberCookie('x', 212.6)).toContain('x=213')
+  })
+
+  it('clears every setting cookie for a reset', () => {
+    expect(SETTING_COOKIES).toContain(WIDE_PRESS_COOKIE)
+    expect(SETTING_COOKIES).toContain(MIRROR_COOKIE)
+    expect(SETTING_COOKIES).not.toContain(CUBE_SIZE_COOKIE)
+    expect(clearedCookie('x')).toBe('x=; Max-Age=0; Path=/; SameSite=Lax')
   })
 })

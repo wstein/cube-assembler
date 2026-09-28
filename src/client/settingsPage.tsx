@@ -1,31 +1,68 @@
 // The settings page (#settings): app-wide preferences kept in cookies.
 import '../../web/settings.css'
+import type { ComponentChildren } from 'preact'
 import { useState } from 'preact/hooks'
 import { DEFAULT_HOLD_TIMINGS } from './cubeGesture'
 import {
   CUBE_PRESS_COOKIE,
   HOLD_TIMING_LIMITS,
+  SETTING_COOKIES,
   WIDE_PRESS_COOKIE,
+  clearedCookie,
   holdTimingCookie,
   readHoldTimings,
 } from './preferences'
+import { SliderSetting } from './settingControls'
 
 interface Props {
   onClose: () => void
 }
 
-export function SettingsPage({ onClose }: Props) {
-  const [timings, setTimings] = useState(() => readHoldTimings(document.cookie))
-  const { minMs, maxMs, gapMs } = HOLD_TIMING_LIMITS
+function Section({
+  id,
+  title,
+  hint,
+  children,
+}: {
+  id: string
+  title: string
+  hint?: string
+  children: ComponentChildren
+}) {
+  return (
+    <section class="card settings-section" aria-labelledby={id}>
+      <h2 id={id}>{title}</h2>
+      {hint && <p class="settings-muted">{hint}</p>}
+      {children}
+    </section>
+  )
+}
 
+export function SettingsPage({ onClose }: Props) {
+  // Every control reads the cookies, so a reset shows at once.
+  const [cookies, setCookies] = useState(() => document.cookie)
+  const write = (...updates: string[]) => {
+    for (const cookie of updates) document.cookie = cookie
+    setCookies(document.cookie)
+  }
+
+  const timings = readHoldTimings(cookies)
+  const { minMs, maxMs, gapMs } = HOLD_TIMING_LIMITS
   // Saves both times as the view will read them, so the whole cube always
   // stays reachable after the block.
-  const save = (blockMs: number, cubeMs: number) => {
-    document.cookie = holdTimingCookie(WIDE_PRESS_COOKIE, blockMs)
-    document.cookie = holdTimingCookie(CUBE_PRESS_COOKIE, cubeMs)
-    const saved = readHoldTimings(document.cookie)
-    document.cookie = holdTimingCookie(CUBE_PRESS_COOKIE, saved.cubeMs)
-    setTimings(saved)
+  const saveHold = (blockMs: number, cubeMs: number) => {
+    const saved = readHoldTimings(
+      [
+        holdTimingCookie(WIDE_PRESS_COOKIE, blockMs),
+        holdTimingCookie(CUBE_PRESS_COOKIE, cubeMs),
+      ]
+        .map((cookie) => cookie.split(';')[0])
+        .join('; '),
+    )
+    write(
+      holdTimingCookie(WIDE_PRESS_COOKIE, saved.blockMs),
+      holdTimingCookie(CUBE_PRESS_COOKIE, saved.cubeMs),
+    )
   }
 
   return (
@@ -44,40 +81,29 @@ export function SettingsPage({ onClose }: Props) {
         </p>
       </header>
 
-      <section class="card settings-section" aria-labelledby="settings-hold">
-        <h2 id="settings-hold">Turning several layers</h2>
-        <p class="settings-muted">
-          Hold a sticker in the 3D view before dragging to turn a block of
-          layers, and hold it longer to turn the whole cube.
-        </p>
-        <label class="settings-slider">
-          <span>Hold for a block of layers</span>
-          <input
-            type="range"
-            aria-label="Hold for a block of layers"
-            min={minMs}
-            max={maxMs - gapMs}
-            step={50}
-            value={timings.blockMs}
-            onInput={(e) => save(Number(e.currentTarget.value), timings.cubeMs)}
-          />
-          <output>{timings.blockMs} ms</output>
-        </label>
-        <label class="settings-slider">
-          <span>Hold for the whole cube</span>
-          <input
-            type="range"
-            aria-label="Hold for the whole cube"
-            min={minMs + gapMs}
-            max={maxMs}
-            step={50}
-            value={timings.cubeMs}
-            onInput={(e) =>
-              save(timings.blockMs, Number(e.currentTarget.value))
-            }
-          />
-          <output>{timings.cubeMs} ms</output>
-        </label>
+      <Section
+        id="settings-hold"
+        title="Turning several layers"
+        hint="Hold a sticker in the 3D view before dragging to turn a block of layers, and hold it longer to turn the whole cube."
+      >
+        <SliderSetting
+          label="Hold for a block of layers"
+          min={minMs}
+          max={maxMs - gapMs}
+          step={50}
+          value={timings.blockMs}
+          unit=" ms"
+          onChange={(blockMs) => saveHold(blockMs, timings.cubeMs)}
+        />
+        <SliderSetting
+          label="Hold for the whole cube"
+          min={minMs + gapMs}
+          max={maxMs}
+          step={50}
+          value={timings.cubeMs}
+          unit=" ms"
+          onChange={(cubeMs) => saveHold(timings.blockMs, cubeMs)}
+        />
         <button
           type="button"
           class="btn btn-secondary btn-sm"
@@ -86,13 +112,26 @@ export function SettingsPage({ onClose }: Props) {
             timings.cubeMs === DEFAULT_HOLD_TIMINGS.cubeMs
           }
           onClick={() =>
-            save(DEFAULT_HOLD_TIMINGS.blockMs, DEFAULT_HOLD_TIMINGS.cubeMs)
+            saveHold(DEFAULT_HOLD_TIMINGS.blockMs, DEFAULT_HOLD_TIMINGS.cubeMs)
           }
         >
           Reset to {DEFAULT_HOLD_TIMINGS.blockMs} and{' '}
           {DEFAULT_HOLD_TIMINGS.cubeMs} ms
         </button>
-      </section>
+      </Section>
+
+      <div class="settings-reset">
+        <button
+          type="button"
+          class="btn btn-secondary btn-sm"
+          onClick={() => write(...SETTING_COOKIES.map(clearedCookie))}
+        >
+          Reset all settings
+        </button>
+        <span class="settings-muted">
+          Keeps the cube, colors and view picked in the scanner.
+        </span>
+      </div>
     </div>
   )
 }

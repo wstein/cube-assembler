@@ -40,3 +40,15 @@ test('the settings page changes how long a sticker is held for a block', async (
   await expect(page.locator('.cube-3d-press-mode')).toHaveText(/Wide turn/)
   await page.mouse.up()
 })
+
+test('Reset all settings restores the defaults', async ({ page }) => {
+  await page.goto('/#settings')
+  const block = page.getByRole('slider', { name: 'Hold for a block of layers' })
+  await block.fill('900')
+  await expect(block).toHaveValue('900')
+  await page.getByRole('button', { name: 'Reset all settings' }).click()
+  await expect(block).toHaveValue('500')
+  expect(await page.evaluate(() => document.cookie)).not.toContain(
+    'cube-assembler-wide-press-ms',
+  )
+})
