@@ -96,11 +96,14 @@ export function getSwipeLayerTurn(
   camera: CubeGestureCamera,
 ): { face: FaceKey; depth: number; turns: number } | null {
   if (Math.hypot(dx, dy) < 18) return null
-  let best: { axis: Axis; dot: number; score: number } | null = null
-  for (const axis of [0, 1, 2] as const) {
-    if (axis === hit.normalAxis) continue
+  // The two layers a swipe can turn rotate about the face's two in-plane
+  // axes. Each moves the touched point along the face, across the other
+  // axis; its motion into the face would only skew the projection.
+  const axes = ([0, 1, 2] as const).filter((axis) => axis !== hit.normalAxis)
+  const a = project(hit.point, camera)
+  const screen = axes.map((axis) => {
     const direction = tangent(axis, hit.point)
-    const a = project(hit.point, camera)
+    direction[hit.normalAxis] = 0
     const b = project(
       [
         hit.point[0] + direction[0] * 0.1,
@@ -109,15 +112,19 @@ export function getSwipeLayerTurn(
       ],
       camera,
     )
-    const tx = b[0] - a[0]
-    const ty = b[1] - a[1]
-    const length = Math.hypot(tx, ty)
-    if (length < 1e-6) continue
-    const dot = dx * tx + dy * ty
-    const score = Math.abs(dot) / (Math.hypot(dx, dy) * length)
-    if (!best || score > best.score) best = { axis, dot, score }
-  }
-  if (!best || best.score < 0.55) return null
+    return [b[0] - a[0], b[1] - a[1]]
+  })
+  // Express the swipe in those two on-screen directions: how far it moved
+  // the point along the face for each layer.
+  const [[ux, uy], [vx, vy]] = screen
+  const det = ux * vy - uy * vx
+  if (Math.abs(det) < 1e-9) return null
+  const along = [(dx * vy - dy * vx) / det, (ux * dy - uy * dx) / det]
+  const [first, second] = along.map(Math.abs)
+  // A diagonal swipe across the face is ambiguous.
+  if (Math.min(first, second) > 0.75 * Math.max(first, second)) return null
+  const pick = first >= second ? 0 : 1
+  const best = { axis: axes[pick], dot: along[pick] }
   const positive = hit.point[best.axis] >= 0
   const face: FaceKey =
     best.axis === 0

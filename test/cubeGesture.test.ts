@@ -37,6 +37,47 @@ describe('cube sticker drag', () => {
   })
 })
 
+describe('sticker swipes in the default isometric view', () => {
+  const iso = {
+    width: 600,
+    height: 600,
+    zoom: 8.4,
+    pitch: 0.42,
+    yaw: -0.62,
+    size: 3,
+  }
+  const swipe = (x: number, y: number, dx: number, dy: number) => {
+    const hit = pickCubeSurface(x, y, iso)
+    expect(hit).not.toBeNull()
+    const turn = getSwipeLayerTurn(hit!, dx, dy, iso)
+    return turn && `${turn.face}${turn.turns < 0 ? "'" : ''}${turn.depth}`
+  }
+
+  it('turns the row for a sideways swipe low on the front face', () => {
+    // The point's motion into the cube used to make both candidate
+    // directions look alike on screen here, and swapped row and column.
+    expect(swipe(200, 450, 30, 0)).toBe('D1')
+    expect(swipe(200, 450, 0, 30)).toBe('L2')
+    expect(swipe(150, 400, 30, 0)).toBe('D1')
+    expect(swipe(150, 400, 0, 30)).toBe('L1')
+  })
+
+  it('accepts sideways swipes near the back edge of the right face', () => {
+    expect(swipe(450, 300, 30, 0)).toBe("U'2")
+    expect(swipe(450, 300, 0, 30)).toBe("B'1")
+    expect(swipe(450, 400, 30, 0)).toBe('D1')
+  })
+
+  it('turns a column for a downward swipe on the top face', () => {
+    expect(swipe(350, 150, 0, 30)).toBe('L2')
+    expect(swipe(350, 150, 30, 0)).toBe("B'1")
+  })
+
+  it('leaves a swipe diagonal to the face grid alone', () => {
+    expect(swipe(250, 200, 0, 30)).toBeNull()
+  })
+})
+
 describe('touch gestures', () => {
   const hit = pickCubeSurface(300, 300, camera)
 
