@@ -92,3 +92,23 @@ test('the notation format is remembered, and the settings page sets it', async (
     page.getByRole('button', { name: 'Colors (WRG)' }),
   ).toHaveAttribute('aria-pressed', 'true')
 })
+
+test('the fixture server address only accepts this computer', async ({
+  page,
+}) => {
+  await page.goto('/#settings')
+  const address = page.getByRole('textbox', { name: /Fixture server address/ })
+  await expect(address).toHaveValue('http://127.0.0.1:7100')
+  await address.fill('https://example.com')
+  await address.press('Enter')
+  await expect(page.getByRole('alert')).toHaveText(/Use this computer/)
+  await address.fill('http://localhost:7200/')
+  await address.press('Enter')
+  await expect(page.getByRole('alert')).toHaveCount(0)
+  await expect(address).toHaveValue('http://localhost:7200')
+  await expect
+    .poll(() => page.evaluate(() => document.cookie))
+    .toContain(
+      'cube-assembler-fixture-server-url=http%3A%2F%2Flocalhost%3A7200',
+    )
+})

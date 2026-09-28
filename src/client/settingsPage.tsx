@@ -7,6 +7,8 @@ import {
   AUTO_CAPTURE_COOKIE,
   AUTO_CAPTURE_FRAMES_COOKIE,
   AUTO_CAPTURE_FRAMES_RANGE,
+  FIXTURE_SERVER_URL_COOKIE,
+  LOCAL_UPLOAD_COOKIE,
   CAPTURE_MODE_COOKIE,
   NOTATION_COOKIE,
   CUBE_PRESS_COOKIE,
@@ -28,6 +30,7 @@ import {
   WIDE_PRESS_COOKIE,
   clearedCookie,
   holdTimingCookie,
+  localUploadShown,
   preferenceCookie,
   readHoldTimings,
   readPreference,
@@ -36,13 +39,20 @@ import {
   selectionCookie,
   numberCookie,
   readAutoCaptureFrames,
+  readFixtureServer,
   readScrambleOptions,
   readSwipeTuning,
   readTurnFeel,
   turnSoundOn,
   vibrationOn,
 } from './preferences'
-import { ChoiceSetting, SliderSetting, ToggleSetting } from './settingControls'
+import { DEFAULT_FIXTURE_SERVER, loopbackFixtureServer } from './fixtureUpload'
+import {
+  ChoiceSetting,
+  SliderSetting,
+  TextSetting,
+  ToggleSetting,
+} from './settingControls'
 
 interface Props {
   onClose: () => void
@@ -294,6 +304,31 @@ export function SettingsPage({ onClose }: Props) {
             { value: 'urf', label: 'Faces (URF)' },
           ]}
           onChange={(format) => write(selectionCookie(NOTATION_COOKIE, format))}
+        />
+      </Section>
+
+      <Section
+        id="settings-developer"
+        title="Developer"
+        hint="For saving capture fixtures into a checkout of the project with npm run fixture:server."
+      >
+        <ToggleSetting
+          label="Offer Upload to localhost"
+          hint="Off leaves only the zip download when saving a fixture."
+          checked={localUploadShown(cookies)}
+          onChange={(on) => write(preferenceCookie(LOCAL_UPLOAD_COOKIE, on))}
+        />
+        <TextSetting
+          key={readFixtureServer(cookies)}
+          label="Fixture server address"
+          hint="Where the published app sends uploads; npm run dev uses its own proxy."
+          value={readFixtureServer(cookies)}
+          placeholder={DEFAULT_FIXTURE_SERVER}
+          invalid="Use this computer, such as http://127.0.0.1:7100."
+          check={loopbackFixtureServer}
+          onChange={(address) =>
+            write(selectionCookie(FIXTURE_SERVER_URL_COOKIE, address))
+          }
         />
       </Section>
 

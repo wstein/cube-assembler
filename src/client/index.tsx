@@ -65,6 +65,7 @@ import {
   NOTATION_COOKIE,
   MIRROR_COOKIE,
   SOUND_COOKIE,
+  localUploadShown,
   preferenceCookie,
   readAutoCaptureFrames,
   readPreference,
@@ -1515,6 +1516,7 @@ function App() {
           serverChecked={fixtureServerChecked}
           serverReachable={fixtureServerReachable}
           serverPolling={fixtureServerPolling}
+          uploadShown={localUploadShown(document.cookie)}
           uploading={fixtureUploading}
           uploadMessage={fixtureUploadMessage}
           onClose={closeFixtureDownload}

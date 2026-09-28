@@ -14,6 +14,8 @@ interface Props {
   serverChecked: boolean
   serverReachable: boolean
   serverPolling: boolean
+  // Off when the settings page hides Upload to localhost.
+  uploadShown: boolean
   uploading: boolean
   uploadMessage: string
   onClose: () => void
@@ -41,6 +43,7 @@ export function FixtureDownloadDialog({
   serverChecked: fixtureServerChecked,
   serverReachable: fixtureServerReachable,
   serverPolling: fixtureServerPolling,
+  uploadShown,
   uploading: fixtureUploading,
   uploadMessage: fixtureUploadMessage,
   onClose,
@@ -120,23 +123,25 @@ export function FixtureDownloadDialog({
           >
             Cancel
           </button>
-          <button
-            type="button"
-            class="btn btn-primary btn-sm"
-            title="Save into test/fixtures/ through npm run fixture:server on this computer"
-            disabled={
-              fixtureUploading ||
-              (fixtureServerChecked && !fixtureServerReachable) ||
-              (fixtureServerPolling && !fixtureServerChecked)
-            }
-            onClick={onUpload}
-          >
-            {fixtureUploading
-              ? 'Uploading...'
-              : fixtureServerPolling && !fixtureServerChecked
-                ? 'Checking upload server...'
-                : 'Upload to localhost'}
-          </button>
+          {uploadShown && (
+            <button
+              type="button"
+              class="btn btn-primary btn-sm"
+              title="Save into test/fixtures/ through npm run fixture:server on this computer"
+              disabled={
+                fixtureUploading ||
+                (fixtureServerChecked && !fixtureServerReachable) ||
+                (fixtureServerPolling && !fixtureServerChecked)
+              }
+              onClick={onUpload}
+            >
+              {fixtureUploading
+                ? 'Uploading...'
+                : fixtureServerPolling && !fixtureServerChecked
+                  ? 'Checking upload server...'
+                  : 'Upload to localhost'}
+            </button>
+          )}
           <button
             type="button"
             class="btn btn-secondary btn-sm"

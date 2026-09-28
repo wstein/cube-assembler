@@ -1,6 +1,7 @@
 // Viewer preferences kept in first-party cookies. These hold only choices
 // made in the app; profile definitions remain in local storage.
 import { AUTO_CAPTURE_STABLE_FRAMES } from './autoCapture'
+import { DEFAULT_FIXTURE_SERVER, loopbackFixtureServer } from './fixtureUpload'
 import type { CaptureMode } from './capturePhoto'
 import {
   DEFAULT_HOLD_TIMINGS,
@@ -35,6 +36,10 @@ export const SCRAMBLE_LENGTH_COOKIE = 'cube-assembler-scramble-length'
 export const SCRAMBLE_INNER_COOKIE = 'cube-assembler-scramble-inner'
 // A short vibration when a held sticker switches to a block or the cube.
 export const VIBRATION_COOKIE = 'cube-assembler-vibration'
+// Developer settings: where the published app finds the local fixture
+// server, and whether saving a fixture offers Upload to localhost.
+export const FIXTURE_SERVER_URL_COOKIE = 'cube-assembler-fixture-server-url'
+export const LOCAL_UPLOAD_COOKIE = 'cube-assembler-local-upload'
 export const NOTATION_COOKIE = 'cube-assembler-notation'
 export const CAPTURE_MODE_COOKIE = 'cube-assembler-capture-mode'
 // How long a sticker is held before a drag turns a block or the whole cube.
@@ -164,6 +169,8 @@ export const SETTING_COOKIES = [
   SCRAMBLE_LENGTH_COOKIE,
   SCRAMBLE_INNER_COOKIE,
   VIBRATION_COOKIE,
+  FIXTURE_SERVER_URL_COOKIE,
+  LOCAL_UPLOAD_COOKIE,
 ]
 
 export function selectedNotationFormat(cookies: string): 'wrg' | 'urf' {
@@ -254,4 +261,16 @@ export function readScrambleOptions(cookies: string): ScrambleOptions {
 
 export function vibrationOn(cookies: string): boolean {
   return readPreference(cookies, VIBRATION_COOKIE, true)
+}
+
+export function readFixtureServer(cookies: string): string {
+  return (
+    loopbackFixtureServer(
+      readSelection(cookies, FIXTURE_SERVER_URL_COOKIE) ?? '',
+    ) ?? DEFAULT_FIXTURE_SERVER
+  )
+}
+
+export function localUploadShown(cookies: string): boolean {
+  return readPreference(cookies, LOCAL_UPLOAD_COOKIE, true)
 }

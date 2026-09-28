@@ -1,13 +1,32 @@
 import type { Fixture } from './fixtureZip'
 
 const DEV_PROXY = '/fixture-upload'
-const LOCAL_SERVER = 'http://127.0.0.1:7100'
+export const DEFAULT_FIXTURE_SERVER = 'http://127.0.0.1:7100'
 
 // Vite proxies the dev path to the separate localhost-only upload server.
 // The published app has no proxy, so it calls that server directly, which
-// allows it through CORS.
-export function fixtureUploadBase(dev: boolean): string {
-  return dev ? DEV_PROXY : LOCAL_SERVER
+// allows it through CORS; the settings page can move it to another port.
+export function fixtureUploadBase(
+  dev: boolean,
+  localServer = DEFAULT_FIXTURE_SERVER,
+): string {
+  return dev ? DEV_PROXY : localServer
+}
+
+const LOOPBACK_HOSTS = ['127.0.0.1', 'localhost', '[::1]']
+
+// The upload server only ever runs on this computer, so an address set on
+// the settings page must be a loopback origin without a path.
+export function loopbackFixtureServer(address: string): string | null {
+  try {
+    const url = new URL(address.trim())
+    if (url.protocol !== 'http:' && url.protocol !== 'https:') return null
+    if (!LOOPBACK_HOSTS.includes(url.hostname)) return null
+    if (url.pathname !== '/' || url.search || url.hash) return null
+    return url.origin
+  } catch {
+    return null
+  }
 }
 
 // Chrome asks before a public page may reach a local address. The published

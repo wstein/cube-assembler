@@ -8,7 +8,9 @@ import {
 } from './fixtureUpload'
 import {
   FIXTURE_SERVER_COOKIE,
+  localUploadShown,
   preferenceCookie,
+  readFixtureServer,
   readPreference,
 } from './preferences'
 
@@ -20,11 +22,15 @@ export function useFixtureDownload() {
   const [fixtureServerChecked, setFixtureServerChecked] = useState(false)
   const [fixtureDownload, setFixtureDownload] =
     useState<FixtureDownloadData | null>(null)
-  const fixtureUploadUrl = fixtureUploadBase(import.meta.env.DEV)
-  const fixtureServerPolling = pollsFixtureUploadServer(
-    import.meta.env.DEV,
-    readPreference(document.cookie, FIXTURE_SERVER_COOKIE),
-  )
+  const fixtureServer = readFixtureServer(document.cookie)
+  const fixtureUploadUrl = fixtureUploadBase(import.meta.env.DEV, fixtureServer)
+  // Nothing to check while the settings page hides the upload.
+  const fixtureServerPolling =
+    localUploadShown(document.cookie) &&
+    pollsFixtureUploadServer(
+      import.meta.env.DEV,
+      readPreference(document.cookie, FIXTURE_SERVER_COOKIE),
+    )
 
   useEffect(() => {
     if (!fixtureDownload || !fixtureServerPolling) return
@@ -78,7 +84,7 @@ export function useFixtureDownload() {
         ))
       ) {
         throw new Error(
-          'No fixture server on 127.0.0.1:7100. Start it with npm run fixture:server.',
+          `No fixture server on ${import.meta.env.DEV ? '127.0.0.1:7100' : fixtureServer.replace(/^https?:\/\//, '')}. Start it with npm run fixture:server.`,
         )
       }
       await uploadFixtureToDevServer(

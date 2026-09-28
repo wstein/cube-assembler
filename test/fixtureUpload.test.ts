@@ -2,7 +2,9 @@ import { describe, expect, it, vi } from 'vitest'
 import type { Fixture } from '../src/client/fixtureZip'
 import {
   currentAppCommit,
+  DEFAULT_FIXTURE_SERVER,
   fixtureUploadBase,
+  loopbackFixtureServer,
   fixtureUploadServerAvailable,
   pollsFixtureUploadServer,
   uploadFixtureToDevServer,
@@ -141,5 +143,31 @@ describe('the commit saved with a fixture', () => {
     expect(pollsFixtureUploadServer(true, false)).toBe(true)
     expect(pollsFixtureUploadServer(false, false)).toBe(false)
     expect(pollsFixtureUploadServer(false, true)).toBe(true)
+  })
+})
+
+describe('fixture server address', () => {
+  it('sends published uploads to the address set in the settings', () => {
+    expect(fixtureUploadBase(false, 'http://localhost:7200')).toBe(
+      'http://localhost:7200',
+    )
+    expect(fixtureUploadBase(true, 'http://localhost:7200')).toBe(
+      '/fixture-upload',
+    )
+    expect(DEFAULT_FIXTURE_SERVER).toBe('http://127.0.0.1:7100')
+  })
+
+  it('accepts only this computer, without a path', () => {
+    expect(loopbackFixtureServer('http://127.0.0.1:7100')).toBe(
+      'http://127.0.0.1:7100',
+    )
+    expect(loopbackFixtureServer(' http://localhost:8080/ ')).toBe(
+      'http://localhost:8080',
+    )
+    expect(loopbackFixtureServer('http://[::1]:7100')).toBe('http://[::1]:7100')
+    expect(loopbackFixtureServer('https://example.com')).toBeNull()
+    expect(loopbackFixtureServer('http://127.0.0.1:7100/upload')).toBeNull()
+    expect(loopbackFixtureServer('ftp://localhost')).toBeNull()
+    expect(loopbackFixtureServer('not a url')).toBeNull()
   })
 })

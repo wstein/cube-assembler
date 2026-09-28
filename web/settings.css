@@ -62,13 +62,25 @@
 }
 
 .settings-toggle,
-.settings-choice {
+.settings-choice,
+.settings-text {
   grid-template-columns: 1fr auto;
 }
 
 .settings-toggle input {
   width: 1.2rem;
   height: 1.2rem;
+}
+
+.settings-text input {
+  width: min(16rem, 100%);
+  font-family: var(--font-mono);
+}
+
+.settings-error {
+  color: var(--color-danger);
+  font-size: 0.85rem;
+  font-weight: 400;
 }
 
 .settings-reset {

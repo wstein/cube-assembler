@@ -18,6 +18,10 @@ import {
   CAPTURE_MODE_COOKIE,
   AUTO_CAPTURE_FRAMES_COOKIE,
   CUBE_PRESS_COOKIE,
+  FIXTURE_SERVER_URL_COOKIE,
+  LOCAL_UPLOAD_COOKIE,
+  localUploadShown,
+  readFixtureServer,
   VIBRATION_COOKIE,
   vibrationOn,
   SCRAMBLE_INNER_COOKIE,
@@ -276,5 +280,26 @@ describe('vibration setting', () => {
     expect(vibrationOn('')).toBe(true)
     expect(vibrationOn(`${VIBRATION_COOKIE}=0`)).toBe(false)
     expect(SETTING_COOKIES).toContain(VIBRATION_COOKIE)
+  })
+})
+
+describe('developer settings', () => {
+  it('reads the fixture server address and whether to offer uploads', () => {
+    expect(readFixtureServer('')).toBe('http://127.0.0.1:7100')
+    expect(
+      readFixtureServer(
+        `${FIXTURE_SERVER_URL_COOKIE}=${encodeURIComponent('http://localhost:7200')}`,
+      ),
+    ).toBe('http://localhost:7200')
+    expect(
+      readFixtureServer(
+        `${FIXTURE_SERVER_URL_COOKIE}=${encodeURIComponent('https://example.com')}`,
+      ),
+    ).toBe('http://127.0.0.1:7100')
+    expect(localUploadShown('')).toBe(true)
+    expect(localUploadShown(`${LOCAL_UPLOAD_COOKIE}=0`)).toBe(false)
+    expect(SETTING_COOKIES).toEqual(
+      expect.arrayContaining([FIXTURE_SERVER_URL_COOKIE, LOCAL_UPLOAD_COOKIE]),
+    )
   })
 })

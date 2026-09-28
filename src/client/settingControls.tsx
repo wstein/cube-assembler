@@ -1,6 +1,7 @@
 // Controls for one setting each on the settings page: a switch, a slider
 // with its value, or a choice between a few options.
 import type { ComponentChildren } from 'preact'
+import { useState } from 'preact/hooks'
 
 export function ToggleSetting({
   label,
@@ -100,6 +101,63 @@ export function ChoiceSetting<T extends string>({
           </option>
         ))}
       </select>
+    </label>
+  )
+}
+
+// A text field saved once it reads as valid; `check` returns the value to
+// save, or null to show `invalid` instead.
+export function TextSetting({
+  label,
+  hint,
+  value,
+  placeholder,
+  invalid,
+  check,
+  onChange,
+}: {
+  label: string
+  hint?: ComponentChildren
+  value: string
+  placeholder?: string
+  invalid: string
+  check: (text: string) => string | null
+  onChange: (value: string) => void
+}) {
+  const [draft, setDraft] = useState(value)
+  const [error, setError] = useState(false)
+  const save = () => {
+    const checked = check(draft)
+    setError(checked === null)
+    if (checked !== null) {
+      setDraft(checked)
+      if (checked !== value) onChange(checked)
+    }
+  }
+  return (
+    <label class="settings-row settings-text">
+      <span class="settings-label">
+        {label}
+        {hint && <span class="settings-muted">{hint}</span>}
+        {error && (
+          <span class="settings-error" role="alert">
+            {invalid}
+          </span>
+        )}
+      </span>
+      <input
+        type="text"
+        inputMode="url"
+        spellcheck={false}
+        placeholder={placeholder}
+        value={draft}
+        aria-invalid={error}
+        onInput={(e) => setDraft(e.currentTarget.value)}
+        onBlur={save}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') save()
+        }}
+      />
     </label>
   )
 }
