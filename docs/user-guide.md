@@ -59,12 +59,14 @@ or drag back to turn the other way. A quick flick finishes one turn, and a
 turn that reverses the previous one removes it from the move list. Hold Shift
 while swiping to turn a standard wide move such as Rw or 3Rw. With Turn sound
 on, a tone marks the wide turn.
-For a wider block, first move about three quarters of a sticker toward the
-edge you want to include, then swipe across to turn. For example, on a 5×5,
-start on the fourth U row, move toward U, then swipe along that row for 4Uw.
+For any wide block, start the swipe on the line between two layers and lean
+it slightly toward the side to include: both layers at the line and every
+layer on that side turn. For example, on a 5×5, start between the third and
+fourth U rows and swipe left, leaning up for 4Uw or down for 3Dw'. A swipe
+from the middle of a sticker, or straight along the line, turns one layer.
 With a mouse, drag the background to
 rotate the view; it keeps turning briefly after release. On a touch screen,
-one finger turns a layer, or a wide move with the two-direction gesture.
+one finger turns a layer, or a wide block from the line between two layers.
 Two fingers on the cube turn the whole cube, recorded as x, y or z, and two
 fingers beside it rotate the view without recording anything; pinch to zoom.
 A touchpad works the same way: a two-finger swipe over the cube turns it
