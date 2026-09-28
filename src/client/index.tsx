@@ -18,7 +18,11 @@ import { CaptureDialog } from './captureDialog'
 import { CaptureSettings, CubeSelectOptions } from './captureSettings'
 import type { FaceCaptureData, PreviewColorProfile } from './captureTypes'
 import { FaceGrid } from './captureNet'
-import { readyAssemblyAfterCapture } from './captureReviewRouting'
+import {
+  planCaptureReview,
+  readyAssemblyAfterCapture,
+  type CaptureApproval,
+} from './captureReviewRouting'
 import {
   decodeOrbit64State,
   encodeOrbit64State,
@@ -75,7 +79,6 @@ import {
   faceContentKey,
   groupWizardOptions,
   pickWizardFace,
-  preferredGuidedArrangementIndex,
 } from '../cube/orientationWizard'
 import {
   runGlobalWhiteBalance,
@@ -103,8 +106,6 @@ import {
   validateFaceColors,
   createSolvedCube,
   toCubeIR,
-  solveFaceOrientations,
-  solveGuidedCapture,
   checkGuidedCenters,
   findRepeatedFaces,
   findCaptureSlotForOrientedFace,
@@ -799,15 +800,8 @@ function App() {
   // OK (see handleConfirmReview): one to approve, a few to pick from, or a
   // closest match that isn't a valid cube. `fallback` feeds the wizard if
   // they say no.
-  const [orientationApproval, setOrientationApproval] = useState<{
-    candidates: OrientedCandidate[]
-    arrangements?: GuidedArrangement[]
-    valid: boolean
-    note?: string
-    suggestedFrom?: number
-    fallback: OrientationSolution | null
-    page?: number
-  } | null>(null)
+  const [orientationApproval, setOrientationApproval] =
+    useState<CaptureApproval | null>(null)
   // Capture-time warnings the customer chose to ignore (see captureWarning).
   const [dismissedCaptureWarnings, setDismissedCaptureWarnings] = useState<
     string[]
@@ -1901,99 +1895,34 @@ function App() {
     precomputedFree?: OrientationSolution | null,
   ) => {
     setReviewNotice(null)
-    const faceData: Record<string, string[][]> = {}
-    for (const f of FACE_ORDER) faceData[f] = capturedFaces[f].colors
-    const free =
-      precomputedFree === undefined
-        ? solveFaceOrientations(faceData)
-        : precomputedFree
-    const guided = isGuidedCapture()
-
-    if (guided) {
-      const [s1, s2, s3, s4, cap1, cap2] = FACE_ORDER.map((f) => faceData[f])
-      const solution = solveGuidedCapture({
-        sides: [s1, s2, s3, s4],
-        caps: [cap1, cap2],
-      })
-      if (solution?.fullyValid) {
-        const preferred = preferredGuidedArrangementIndex(solution.arrangements)
-        // Keep every guided fit available after "No" even if the broader
-        // orientation search was capped before it reached that fit.
-        const seen = new Set<string>()
-        const alternatives = [
-          solution.alternatives[preferred],
-          ...solution.alternatives,
-          ...(free?.alternatives ?? []),
-        ].filter((candidate) => {
-          const key = FACE_ORDER.map((face) =>
-            faceContentKey(candidate.faces[face as FaceKey]),
-          ).join('|')
-          if (seen.has(key)) return false
-          seen.add(key)
-          return true
+    const faceData = Object.fromEntries(
+      FACE_ORDER.map((face) => [face, capturedFaces[face].colors]),
+    )
+    const plan = planCaptureReview(
+      faceData,
+      FACE_ORDER,
+      isGuidedCapture(),
+      describeCenterIssue,
+      precomputedFree,
+    )
+    switch (plan.kind) {
+      case 'approval':
+        setOrientationApproval(plan.approval)
+        break
+      case 'wizard':
+        setOrientationWizard({
+          remaining: plan.remaining,
+          truncated: plan.truncated,
+          picked: [],
         })
-        setOrientationApproval({
-          candidates: [solution.alternatives[preferred]],
-          arrangements: [solution.arrangements[preferred]],
-          valid: true,
-          suggestedFrom: solution.alternatives.length,
-          fallback: {
-            ...(free ?? solution),
-            alternatives,
-            truncated: Boolean(free?.truncated || solution.truncated),
-          },
-        })
-        return
-      }
-      const issue = checkGuidedCenters(FACE_ORDER.map((f) => faceData[f]))[0]
-      const why = issue
-        ? describeCenterIssue(issue)
-        : "These photos don't fit together the way they were taken - the cube may have been turned the other way partway through, or tipped over."
-      if (free?.fullyValid) {
-        setOrientationApproval({
-          candidates: free.alternatives,
-          valid: true,
-          note: `${why} They do fit together another way:`,
-          fallback: null,
-        })
-        return
-      }
-      const closest = solution ?? free
-      if (closest) {
-        setOrientationApproval({
-          candidates: [closest.alternatives[0]],
-          valid: false,
-          note: `${why} No arrangement makes a valid cube, so a color was probably misread - check the colors, or use the closest match anyway.`,
-          fallback: free,
-        })
-        return
-      }
+        break
+      case 'notice':
+        setReviewNotice(plan.message)
+        break
+      case 'choose':
+        void handleChooseOrientation(plan.candidate)
+        break
     }
-
-    if (!free) {
-      setReviewNotice(
-        "⚠️ Couldn't work out how the faces fit together (a duplicate or unreadable center?) - check the colors, or retake a face.",
-      )
-      return
-    }
-    if (!free.fullyValid) {
-      setOrientationApproval({
-        candidates: [free.alternatives[0]],
-        valid: false,
-        note: 'No arrangement of these faces makes a valid cube, so a color was probably misread - check the colors, or use the closest match anyway.',
-        fallback: free,
-      })
-      return
-    }
-    if (free.alternatives.length > 1) {
-      setOrientationWizard({
-        remaining: free.alternatives,
-        truncated: free.truncated,
-        picked: [],
-      })
-      return
-    }
-    void handleChooseOrientation(free.alternatives[0])
   }
 
   useEffect(() => {

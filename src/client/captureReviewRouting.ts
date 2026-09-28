@@ -1,3 +1,18 @@
+import {
+  checkGuidedCenters,
+  solveFaceOrientations,
+  solveGuidedCapture,
+  type FaceKey,
+  type GuidedArrangement,
+  type GuidedCenterIssue,
+  type OrientedCandidate,
+  type OrientationSolution,
+} from '../cube/cubeAssembly'
+import {
+  faceContentKey,
+  preferredGuidedArrangementIndex,
+} from '../cube/orientationWizard'
+
 export interface CaptureReviewFace {
   colors: string[][]
   detectedColors?: string[][]
@@ -7,6 +22,126 @@ export interface CaptureReviewFace {
 }
 
 const HIGH_CONFIDENCE = 0.8
+
+export interface CaptureApproval {
+  candidates: OrientedCandidate[]
+  arrangements?: GuidedArrangement[]
+  valid: boolean
+  note?: string
+  suggestedFrom?: number
+  fallback: OrientationSolution | null
+  page?: number
+}
+
+export type CaptureReviewPlan =
+  | { kind: 'approval'; approval: CaptureApproval }
+  | { kind: 'wizard'; remaining: OrientedCandidate[]; truncated: boolean }
+  | { kind: 'choose'; candidate: OrientedCandidate }
+  | { kind: 'notice'; message: string }
+
+// Decide what the user should see after checking sticker colors. The UI owns
+// the dialogs; this module owns the guided and free-search fallback order.
+export function planCaptureReview(
+  faces: Record<string, string[][]>,
+  order: readonly string[],
+  guided: boolean,
+  describeIssue: (issue: GuidedCenterIssue) => string,
+  precomputedFree?: OrientationSolution | null,
+): CaptureReviewPlan {
+  const free =
+    precomputedFree === undefined
+      ? solveFaceOrientations(faces)
+      : precomputedFree
+
+  if (guided) {
+    const [s1, s2, s3, s4, cap1, cap2] = order.map((face) => faces[face])
+    const solution = solveGuidedCapture({
+      sides: [s1, s2, s3, s4],
+      caps: [cap1, cap2],
+    })
+    if (solution?.fullyValid) {
+      const preferred = preferredGuidedArrangementIndex(solution.arrangements)
+      // Keep every guided fit available after "No" even if the free search
+      // stopped before reaching it.
+      const seen = new Set<string>()
+      const alternatives = [
+        solution.alternatives[preferred],
+        ...solution.alternatives,
+        ...(free?.alternatives ?? []),
+      ].filter((candidate) => {
+        const key = order
+          .map((face) => faceContentKey(candidate.faces[face as FaceKey]))
+          .join('|')
+        if (seen.has(key)) return false
+        seen.add(key)
+        return true
+      })
+      return {
+        kind: 'approval',
+        approval: {
+          candidates: [solution.alternatives[preferred]],
+          arrangements: [solution.arrangements[preferred]],
+          valid: true,
+          suggestedFrom: solution.alternatives.length,
+          fallback: {
+            ...(free ?? solution),
+            alternatives,
+            truncated: Boolean(free?.truncated || solution.truncated),
+          },
+        },
+      }
+    }
+    const issue = checkGuidedCenters(order.map((face) => faces[face]))[0]
+    const why = issue
+      ? describeIssue(issue)
+      : "These photos don't fit together the way they were taken - the cube may have been turned the other way partway through, or tipped over."
+    if (free?.fullyValid)
+      return {
+        kind: 'approval',
+        approval: {
+          candidates: free.alternatives,
+          valid: true,
+          note: `${why} They do fit together another way:`,
+          fallback: null,
+        },
+      }
+    const closest = solution ?? free
+    if (closest)
+      return {
+        kind: 'approval',
+        approval: {
+          candidates: [closest.alternatives[0]],
+          valid: false,
+          note: `${why} No arrangement makes a valid cube, so a color was probably misread - check the colors, or use the closest match anyway.`,
+          fallback: free,
+        },
+      }
+  }
+
+  if (!free)
+    return {
+      kind: 'notice',
+      message:
+        "⚠️ Couldn't work out how the faces fit together (a duplicate or unreadable center?) - check the colors, or retake a face.",
+    }
+  if (!free.fullyValid)
+    return {
+      kind: 'approval',
+      approval: {
+        candidates: [free.alternatives[0]],
+        valid: false,
+        note: 'No arrangement of these faces makes a valid cube, so a color was probably misread - check the colors, or use the closest match anyway.',
+        fallback: free,
+      },
+    }
+  if (free.alternatives.length > 1)
+    return {
+      kind: 'wizard',
+      remaining: free.alternatives,
+      truncated: free.truncated,
+    }
+  return { kind: 'choose', candidate: free.alternatives[0] }
+}
 
 export function readyAssemblyAfterCapture(
   faces: Record<string, CaptureReviewFace | undefined>,
@@ -80,7 +215,3 @@ export function highConfidenceColorReadings(
     )
   })
 }
-import {
-  solveFaceOrientations,
-  type OrientationSolution,
-} from '../cube/cubeAssembly'
