@@ -1,21 +1,12 @@
 import { useEffect, useRef, useState } from 'preact/hooks'
-import {
-  captureCenterSlots,
-  findRepeatedFaces,
-  validateFaceColors,
-} from '../cube/cubeAssembly'
 import type { TurnCuePose } from './autoCapture'
 import {
-  captureWarning,
-  capturedFaceMessage,
+  captureStep,
   isGuidedCapture,
-  nextTurnCue,
-  placeFaceCapture,
-  turnCuePose,
+  sessionView,
   type FaceCaptureReading,
   type TurnCue,
 } from './captureFlow'
-import { FACE_ORDER } from './captureSteps'
 import type { FaceCaptureData, PreviewColorProfile } from './captureTypes'
 import { flyInto } from './flyAnimation'
 
@@ -100,74 +91,48 @@ export function useCaptureSession({
     captureSize = puzzleSize,
     previewColorProfile?: PreviewColorProfile,
   ) => {
-    if (!validateFaceColors(result.colors, captureSize)) {
-      setCaptureMessage(
-        `❌ Invalid colors detected. Confidence: ${(result.confidence * 100).toFixed(0)}%`,
-      )
-      return
-    }
-
-    const {
-      faces: newCapturedFaces,
-      assignedFace,
-      unexpectedCenter,
-    } = placeFaceCapture(
+    const step = captureStep(
       capturedFaces,
       face,
       result,
       source,
       cameraSettings,
       previewColorProfile,
+      captureSize,
+      window.matchMedia('(prefers-reduced-motion: reduce)').matches,
     )
-    if (pendingFlyIn.current) pendingFlyIn.current.slot = assignedFace
+    if (!step.ok) {
+      setCaptureMessage(step.message)
+      return
+    }
+    if (pendingFlyIn.current) pendingFlyIn.current.slot = step.assignedFace
 
-    setCapturedFaces(newCapturedFaces)
-    lastCapturedColors.current = source === 'camera' ? result.colors : null
-    lastCapturedPose.current =
-      source === 'camera' ? turnCuePose(result.crop) : null
-    setCaptureMessage(
-      capturedFaceMessage(assignedFace, result.confidence, unexpectedCenter),
-    )
+    setCapturedFaces(step.faces)
+    lastCapturedColors.current = step.lastColors
+    lastCapturedPose.current = step.lastPose
+    setCaptureMessage(step.message)
 
-    const allFacesCaptured = FACE_ORDER.every((f) => f in newCapturedFaces)
-    if (allFacesCaptured) {
-      await onAllCaptured(newCapturedFaces)
+    if (step.nextFace === null) {
+      await onAllCaptured(step.faces)
     } else {
-      const nextFace = FACE_ORDER.find((f) => !(f in newCapturedFaces))
-      if (nextFace) {
-        setWebcamFace(nextFace)
-        setCaptureMessage('')
-        dismissTurnOverlay()
-        // The cue blocks capturing while the cube turns; without the turn it
-        // would only be a wait, and the step hint already says what to do.
-        if (
-          source !== 'camera' ||
-          window.matchMedia('(prefers-reduced-motion: reduce)').matches
-        )
-          return
-        setTurnOverlay(nextTurnCue(newCapturedFaces, nextFace, result.colors))
-      }
+      setWebcamFace(step.nextFace)
+      setCaptureMessage('')
+      dismissTurnOverlay()
+      if (step.turnCue) setTurnOverlay(step.turnCue)
     }
   }
 
   const isGuided = () => isGuidedCapture(capturedFaces, uploadedProtocol)
 
-  const capturedPhotos = FACE_ORDER.map((f) => capturedFaces[f]?.colors)
-  const predictedCenters = captureCenterSlots(capturedPhotos)
-  const predictedCenter = predictedCenters[FACE_ORDER.indexOf(webcamFace)]
-  const centerRoutingActive =
-    puzzleSize % 2 === 1 &&
-    Boolean(capturedFaces[FACE_ORDER[0]] && capturedFaces[FACE_ORDER[1]]) &&
-    predictedCenters.every(Boolean) &&
-    !capturedFaces[webcamFace]
-  const repeatedFaces = findRepeatedFaces(capturedPhotos)
-  const repeatedNetFaces = repeatedFaces.flatMap(([a, b]) => [
-    FACE_ORDER[a],
-    FACE_ORDER[b],
-  ])
-  const warning = captureWarning(
+  const {
+    predictedCenters,
+    predictedCenter,
+    centerRoutingActive,
+    repeatedNetFaces,
+    warning,
+  } = sessionView(
     capturedFaces,
-    repeatedFaces,
+    webcamFace,
     puzzleSize,
     dismissedCaptureWarnings,
   )

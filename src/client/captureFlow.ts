@@ -14,6 +14,10 @@ import {
   solvedCaptureFaces as solvedCaptureFacesRes,
   turnCuePose as turnCuePoseRes,
 } from '../core/capture/CaptureFlow.gen'
+import {
+  captureStep as captureStepRes,
+  sessionView as sessionViewRes,
+} from '../core/capture/CaptureSession.gen'
 import type { CubeState } from '../cube/cubeAssembly'
 import type { ParityResult } from '../cube/parity'
 import type { TurnCuePose } from './autoCapture'
@@ -161,4 +165,62 @@ export function captureEvidence(
   palette: { recalibrated: boolean; confidentFraction: number },
 ): PaletteEvidence {
   return captureEvidenceRes(toRes(faces), size, reviewedValid, palette)
+}
+
+export type CaptureStep =
+  | {
+      ok: true
+      faces: Faces
+      assignedFace: string
+      message: string
+      lastColors: string[][] | null
+      lastPose: TurnCuePose | null
+      nextFace: string | null
+      turnCue: TurnCue | null
+    }
+  | { ok: false; message: string }
+
+// What storing a reading for `face` does: the slot it lands in, what to
+// say, the next face (null once all six are in) and the turn cue before
+// it, which needs the camera and motion.
+export function captureStep(
+  faces: Faces,
+  face: string,
+  reading: FaceCaptureReading,
+  source: 'camera' | 'image-file',
+  cameraSettings: Partial<MediaTrackSettings> | undefined,
+  previewColorProfile: PreviewColorProfile | undefined,
+  size: number,
+  reducedMotion: boolean,
+  now = Date.now(),
+): CaptureStep {
+  const step = captureStepRes(
+    toRes(faces),
+    face,
+    reading,
+    source,
+    cameraSettings as Parameters<typeof captureStepRes>[4],
+    previewColorProfile,
+    size,
+    reducedMotion,
+    now,
+  )
+  return step.ok ? { ...step, faces: fromRes(step.faces) } : step
+}
+
+// What the session shows around the captured faces: predicted centers,
+// whether odd-cube center routing is active, repeated faces, a warning.
+export function sessionView(
+  faces: Faces,
+  webcamFace: string,
+  size: number,
+  dismissed: string[],
+): {
+  predictedCenters: Array<string | null>
+  predictedCenter: string | null
+  centerRoutingActive: boolean
+  repeatedNetFaces: string[]
+  warning: CaptureWarning | null
+} {
+  return sessionViewRes(toRes(faces), webcamFace, size, dismissed)
 }
