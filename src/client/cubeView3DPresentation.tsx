@@ -1,4 +1,4 @@
-import type { RefObject } from 'preact'
+import type { ComponentChildren, RefObject } from 'preact'
 import type { PressLevel } from './cubeGesture'
 import { formatCubeTurn, type CubeTurn } from './cubeView3DState'
 
@@ -26,6 +26,8 @@ interface CubeView3DPresentationProps {
   onToggleStickerless: () => void
   isRotating: boolean
   onToggleAutoRotate: () => void
+  // The X/Y/Z gizmo, drawn over the canvas's corner.
+  gizmo: ComponentChildren
 }
 
 export function CubeView3DPresentation({
@@ -52,6 +54,7 @@ export function CubeView3DPresentation({
   onToggleStickerless,
   isRotating,
   onToggleAutoRotate,
+  gizmo,
 }: CubeView3DPresentationProps) {
   return (
     <div class="cube-3d-container">
@@ -80,6 +83,7 @@ export function CubeView3DPresentation({
               onWheel={handleWheel}
               aria-label="Interactive 3D Rubik's Cube Viewer"
             />
+            {gizmo}
             {pressMode && pressMode !== 'layer' && (
               <div class="cube-3d-press-mode" role="status">
                 {pressMode === 'wide'

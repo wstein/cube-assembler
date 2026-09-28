@@ -54,13 +54,15 @@
     }
   }
 
+  /* Centered in the space left of the gizmo. */
   .cube-3d-hint {
     position: absolute;
     bottom: 8px;
-    left: 50%;
-    transform: translateX(-50%);
+    left: 8px;
+    right: 104px;
+    margin-inline: auto;
     width: max-content;
-    max-width: calc(100% - 16px);
+    max-width: calc(100% - 112px);
     text-align: center;
     background: rgba(18, 18, 22, 0.75);
     color: rgba(255, 255, 255, 0.7);
@@ -70,6 +72,49 @@
     border-radius: 12px;
     pointer-events: none;
     backdrop-filter: blur(4px);
+  }
+
+  .cube-3d-gizmo {
+    position: absolute;
+    bottom: 8px;
+    right: 8px;
+    width: 88px;
+    height: 88px;
+    pointer-events: none;
+    overflow: visible;
+  }
+
+  .cube-3d-gizmo-axis.behind {
+    opacity: 0.45;
+  }
+
+  .cube-3d-gizmo-shaft {
+    stroke: currentColor;
+    stroke-width: 2.6;
+    stroke-linecap: round;
+  }
+
+  /* Keeps an arrow visible on any backdrop and over its own color. */
+  .cube-3d-gizmo-outline {
+    stroke: #10192c;
+    stroke-width: 4.8;
+    stroke-linecap: round;
+  }
+
+  .cube-3d-gizmo-tip {
+    fill: currentColor;
+    stroke: #10192c;
+    stroke-width: 0.8;
+  }
+
+  .cube-3d-gizmo-label {
+    fill: currentColor;
+    stroke: #10192c;
+    stroke-width: 2.5px;
+    paint-order: stroke;
+    font: 700 12px var(--font-sans);
+    text-anchor: middle;
+    dominant-baseline: central;
   }
 
   .cube-3d-press-mode {

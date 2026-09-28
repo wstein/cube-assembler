@@ -59,6 +59,7 @@ import {
 } from './preferences'
 import type { CubeState, FaceKey } from '../cube/cubeAssembly'
 
+import { AxisGizmo } from './axisGizmo'
 import { buildCubeMesh } from './cubeMesh'
 import { CubeView3DPresentation } from './cubeView3DPresentation'
 import { createCubeViewControls } from './cubeViewControls'
@@ -1082,6 +1083,15 @@ export function CubeView3D({
       handlePointerMove={handlePointerMove}
       handlePointerUp={handlePointerUp}
       handleWheel={handleCubeWheel}
+      gizmo={
+        <AxisGizmo
+          cube={currentCube}
+          puzzleSize={puzzleSize}
+          pitch={pitch}
+          yaw={yaw}
+          palette={palette}
+        />
+      }
       pressMode={pressMode}
       coarsePointer={coarsePointer}
       setPreset={setPreset}

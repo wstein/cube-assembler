@@ -65,7 +65,8 @@ Two fingers on the cube turn the whole cube, recorded as x, y or z, and two
 fingers beside it rotate the view without recording anything; pinch to zoom.
 A touchpad works the same way: a two-finger swipe over the cube turns it,
 one beside it rotates the view, and a pinch zooms, while a mouse
-wheel still zooms. Turns snap into place with a slight overshoot, like a magnetic cube, and click
+wheel still zooms. The X, Y and Z arrows in the corner show how the cube is
+held: they point through R, U and F and take those faces' colors. Turns snap into place with a slight overshoot, like a magnetic cube, and click
 softly when capture **Sound** is on. Layer turns update the 2D net,
 facelet notation, and Orbit64 token. The move list records completed turns;
 **Undo** reverses the last one, and **Reset** returns to the captured state.

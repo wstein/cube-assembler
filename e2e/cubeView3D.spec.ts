@@ -48,6 +48,60 @@ test('move history and Undo survive a view switch, then Reset clears them', asyn
   await expect(undo).toBeDisabled()
 })
 
+test('the X/Y/Z gizmo follows the view and the faces it points through', async ({
+  page,
+}) => {
+  await page.goto('/')
+  await page.getByRole('button', { name: 'Solved cube' }).click()
+  await page.getByRole('button', { name: '3D View' }).click()
+  await page.getByRole('button', { name: 'Front (F)' }).click()
+  const gizmo = page.getByRole('img', { name: /X, Y and Z axes/ })
+  await expect(gizmo).toBeVisible()
+  // Drawn farthest first, so their order follows the view.
+  expect((await gizmo.locator('text').allTextContents()).sort()).toEqual([
+    'X',
+    'Y',
+    'Z',
+  ])
+  // It shows the orientation only: touches reach the canvas under it.
+  await expect(gizmo).toHaveCSS('pointer-events', 'none')
+  const zColor = () =>
+    gizmo
+      .locator('[data-axis="z"]')
+      .evaluate((el) => getComputedStyle(el).color)
+  const green = await zColor()
+
+  // Two fingers turn the whole cube a quarter about y: Z now points
+  // through what was the right face.
+  const canvas = page.locator('.cube-3d-canvas')
+  const bounds = await canvas.boundingBox()
+  if (!bounds) throw new Error('No canvas')
+  const cx = bounds.x + bounds.width / 2
+  const cy = bounds.y + bounds.height / 2
+  const touch = (type: string, id: number, x: number) =>
+    canvas.dispatchEvent(type, {
+      pointerId: id,
+      pointerType: 'touch',
+      isPrimary: id === 1,
+      clientX: x,
+      clientY: cy,
+      bubbles: true,
+    })
+  await touch('pointerdown', 1, cx - 40)
+  await touch('pointerdown', 2, cx + 40)
+  for (let step = 1; step <= 8; step++) {
+    await touch('pointermove', 1, cx - 40 - step * 15)
+    await touch('pointermove', 2, cx + 40 - step * 15)
+  }
+  await page.waitForTimeout(150)
+  await touch('pointerup', 1, cx - 160)
+  await touch('pointerup', 2, cx - 80)
+  await expect(page.getByRole('status', { name: 'Move history' })).toHaveText(
+    'Moves: y',
+  )
+  await expect.poll(zColor).not.toBe(green)
+})
+
 test('consecutive same-layer turns accumulate in move history', async ({
   page,
 }) => {
