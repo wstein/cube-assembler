@@ -8,6 +8,7 @@ type parameters = {numRuns: int}
 
 @module("fast-check") external integer: range => arbitrary<int> = "integer"
 @module("fast-check") external constant: 'a => arbitrary<'a> = "constant"
+@module("fast-check") external boolean: unit => arbitrary<bool> = "boolean"
 @module("fast-check") @variadic
 external constantFrom: array<'a> => arbitrary<'a> = "constantFrom"
 @module("fast-check") external array: (arbitrary<'a>, lengths) => arbitrary<array<'a>> = "array"
