@@ -335,11 +335,3 @@ export function captureEvidence(
     correctedFraction: correctedCells / (6 * size * size),
   }
 }
-
-export function faceConfidences(
-  faces: Record<string, FaceCaptureData>,
-): Record<string, number> {
-  return Object.fromEntries(
-    Object.entries(faces).map(([face, data]) => [face, data.confidence]),
-  )
-}

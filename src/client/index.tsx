@@ -129,7 +129,6 @@ import {
   capturedFaceMessage,
   checkParity,
   cubeCaptureFaces,
-  faceConfidences,
   isGuidedCapture,
   nextTurnCue,
   parityStatus,
@@ -198,9 +197,6 @@ function App() {
   const [capturedFaces, setCapturedFaces] = useState<
     Record<string, FaceCaptureData>
   >({})
-  const [faceConfidence, setFaceConfidence] = useState<Record<string, number>>(
-    {},
-  )
   const [loading, setLoading] = useState(false)
   const [captureMessage, setCaptureMessage] = useState('')
   const {
@@ -414,7 +410,6 @@ function App() {
     setCube(null)
     setParity(null)
     setCapturedFaces({})
-    setFaceConfidence({})
     lastCapturedColors.current = null
     lastCapturedPose.current = null
     setWebcamFace(FACE_ORDER[0])
@@ -508,7 +503,6 @@ function App() {
     const startOver = restart || allCaptured
     if (startOver) {
       setCapturedFaces({})
-      setFaceConfidence({})
       setProfileLearningOffer(null)
       setNewColorName(null)
     }
@@ -558,7 +552,6 @@ function App() {
     lastCapturedColors.current = source === 'camera' ? result.colors : null
     lastCapturedPose.current =
       source === 'camera' ? turnCuePose(result.crop) : null
-    setFaceConfidence({ ...faceConfidence, [assignedFace]: result.confidence })
     setCaptureMessage(
       capturedFaceMessage(assignedFace, result.confidence, unexpectedCenter),
     )
@@ -758,7 +751,6 @@ function App() {
 
       setPuzzleSize(meta.gridSize)
       setCapturedFaces(newEntries)
-      setFaceConfidence(faceConfidences(newEntries))
       setCaptureMessage(
         fixtureLoadedMessage(mismatches, ignoreFixtureCorrections),
       )
@@ -818,7 +810,6 @@ function App() {
         faceOrder: FACE_ORDER,
       })
       setCapturedFaces(entries)
-      setFaceConfidence(faceConfidences(entries))
       setUploadedProtocol(null)
       setDismissedCaptureWarnings([])
       closePhotoUpload()

@@ -11,7 +11,6 @@ import {
   captureWarning,
   capturedFaceMessage,
   cubeCaptureFaces,
-  faceConfidences,
   isGuidedCapture,
   nextTurnCue,
   parityStatus,
@@ -218,14 +217,5 @@ describe('reviewed capture evidence', () => {
         confidentFraction: 0.9,
       }).correctedFraction,
     ).toBe(5 / 24)
-  })
-
-  it('lists each face confidence', () => {
-    expect(
-      faceConfidences({
-        U: { colors: [], confidence: 0.4, timestamp: 0 },
-        R: { colors: [], confidence: 0.9, timestamp: 0 },
-      }),
-    ).toEqual({ U: 0.4, R: 0.9 })
   })
 })
