@@ -8,26 +8,16 @@ import {
   gestureWhenSwipeTurnsNothing,
   pickCubeSurface,
   PRESS_SLOP_PX,
-  blockLayer,
-  facePlanePoint,
-  layerIndex,
   pickSwipeLayer,
   pressLevel,
   releasedQuarterTurns,
   swipeLayerAngle,
-  swipeMoveAxis,
   wholeCubeLayer,
   twoFingerLock,
   twoFingerMotion,
-  wheelGesture,
-  type CubeGesture,
   type TwoFingerLock,
-  type CubeSurfaceHit,
   type CubeGestureCamera,
-  type GestureAxis,
   type PressLevel,
-  type SwipeLayer,
-  type SwipeTuning,
 } from './cubeGesture'
 import { stepDragInertia } from './dragInertia'
 import {
@@ -54,6 +44,13 @@ import {
 import type { CubeState, FaceKey } from '../cube/cubeAssembly'
 
 import { buildCubeMesh } from './cubeMesh'
+import { CubeView3DPresentation } from './cubeView3DPresentation'
+import { createCubeViewControls } from './cubeViewControls'
+import {
+  createBlockInteraction,
+  type CubePointerGesture,
+  type DragTurn,
+} from './cubeBlockInteraction'
 import {
   initProgram,
   mat4Create,
@@ -68,12 +65,10 @@ import {
   AUTO_ROTATE_RESUME_DELAY_MS,
   DEFAULT_STICKER_HEX,
   applyCubeLayerMove,
-  formatCubeTurn,
   generateScrambleMoves,
   getDefaultZoom,
   recordTurn,
   type CubeTurn,
-  type Point,
 } from './cubeView3DState'
 export * from './cubeMesh'
 export * from './cubeView3DGraphics'
@@ -162,17 +157,7 @@ export function CubeView3D({
     overshoot: boolean
     undo?: boolean
   } | null>(null)
-  // The layer a sticker drag is turning, following the finger until release.
-  const dragTurnRef = useRef<{
-    layer: SwipeLayer
-    angle: number
-    velocity: number
-    time: number
-    // Lights up the grabbed layers of a block or whole-cube turn.
-    highlight?: boolean
-    // What the mesh last showed, so it is rebuilt only when that changes.
-    drawn: string | null
-  } | null>(null)
+  const dragTurnRef = useRef<DragTurn | null>(null)
   const forceUpdateMeshRef = useRef(false)
 
   useEffect(() => {
@@ -183,25 +168,7 @@ export function CubeView3D({
   }, [isStickerless])
 
   const isDraggingRef = useRef(false)
-  const gestureRef = useRef<{
-    x: number
-    y: number
-    hit: CubeSurfaceHit | null
-    mode: CubeGesture
-    pointerType: string
-    // What a held sticker turns: its layer, a block of layers, the cube.
-    level: PressLevel
-    holdTimer?: ReturnType<typeof setTimeout>
-    // A block being picked: the layers from `from` to `to` along `axis`,
-    // and where the finger was when it last moved across them.
-    block?: { axis: GestureAxis; from: number; to: number; anchor: Point }
-    // How eager swipes are, as set on the settings page.
-    tuning: SwipeTuning
-    // Where the turn's angle is measured from once dragging turns layers.
-    turnHit?: CubeSurfaceHit
-    turnFrom?: Point
-  } | null>(null)
-  // Shown while a held sticker turns a block or the whole cube.
+  const gestureRef = useRef<CubePointerGesture | null>(null)
   const [pressMode, setPressMode] = useState<PressLevel | null>(null)
   // Fingers on the canvas, and where the two tilting fingers were last.
   const touchesRef = useRef(new Map<number, [number, number]>())
@@ -234,21 +201,6 @@ export function CubeView3D({
   const pauseAutoRotation = () => {
     inertiaRef.current = { yaw: 0, pitch: 0 }
     resumeAutoAtRef.current = performance.now() + AUTO_ROTATE_RESUME_DELAY_MS
-  }
-
-  // The isometric view, from the front corner or the opposite back one.
-  const resetView = (back = false) => {
-    pauseAutoRotation()
-    setPitch(back ? -0.42 : 0.42)
-    setYaw(-0.62 + (back ? Math.PI : 0))
-    setZoom(getDefaultZoom(puzzleSize))
-  }
-
-  // Preset face views
-  const setPreset = (targetPitch: number, targetYaw: number) => {
-    pauseAutoRotation()
-    setPitch(targetPitch)
-    setYaw(targetYaw)
   }
 
   const triggerTurn = (
@@ -766,100 +718,12 @@ export function CubeView3D({
     )
   }
 
-  // From here the layers follow the finger until release.
-  const startDragTurn = (
-    gesture: NonNullable<typeof gestureRef.current>,
-    layer: SwipeLayer,
-    from: Point,
-    hit: CubeSurfaceHit,
-    e: PointerEvent,
-    camera: CubeGestureCamera,
-  ) => {
-    clearHold()
-    gesture.mode = 'turn'
-    gesture.turnHit = hit
-    gesture.turnFrom = from
-    dragTurnRef.current = {
-      layer,
-      angle: swipeLayerAngle(
-        hit,
-        layer,
-        e.clientX - from[0],
-        e.clientY - from[1],
-        camera,
-      ),
-      velocity: 0,
-      time: e.timeStamp,
-      highlight: gesture.level !== 'layer',
-      drawn: null,
-    }
-    setIsTurning(true)
-  }
-
-  // Picking a block: the first clear move across layers chooses the axis,
-  // later moves stretch the block to the layer under the finger, and a move
-  // the other way starts turning it.
-  const pickBlock = (
-    gesture: NonNullable<typeof gestureRef.current>,
-    hit: CubeSurfaceHit,
-    e: PointerEvent,
-    rect: DOMRect,
-    camera: CubeGestureCamera,
-  ) => {
-    const here: Point = [e.clientX, e.clientY]
-    const onPlane = (point: Point) =>
-      facePlanePoint(point[0] - rect.left, point[1] - rect.top, camera, hit)
-    let block = gesture.block
-    if (!block) {
-      const axis = swipeMoveAxis(
-        hit,
-        e.clientX - gesture.x,
-        e.clientY - gesture.y,
-        camera,
-        gesture.tuning.startPx,
-      )
-      if (axis === null) return
-      const start = layerIndex(hit.point[axis], puzzleSize)
-      block = { axis, from: start, to: start, anchor: here }
-      gesture.block = block
-    } else {
-      const anchorPoint = onPlane(block.anchor)
-      if (anchorPoint) {
-        const anchorHit = { ...hit, point: anchorPoint }
-        const move = pickSwipeLayer(
-          anchorHit,
-          e.clientX - block.anchor[0],
-          e.clientY - block.anchor[1],
-          camera,
-          gesture.tuning.startPx,
-        )
-        if (move?.axis === block.axis) {
-          startDragTurn(
-            gesture,
-            blockLayer(block.axis, block.from, block.to, puzzleSize),
-            block.anchor,
-            anchorHit,
-            e,
-            camera,
-          )
-          return
-        }
-        if (move) block.anchor = here
-      }
-    }
-    const point = onPlane(here)
-    if (point) block.to = layerIndex(point[block.axis], puzzleSize)
-    // The picked layers light up until they start turning.
-    dragTurnRef.current = {
-      layer: blockLayer(block.axis, block.from, block.to, puzzleSize),
-      angle: 0,
-      velocity: 0,
-      time: e.timeStamp,
-      highlight: true,
-      drawn: dragTurnRef.current?.drawn ?? null,
-    }
-    setIsTurning(true)
-  }
+  const { startDragTurn, pickBlock } = createBlockInteraction({
+    puzzleSize,
+    dragTurnRef,
+    clearHold,
+    setIsTurning,
+  })
 
   // Hands a released drag to the turn animation, which settles the layer on
   // whole quarter turns from where the finger left it.
@@ -1089,274 +953,45 @@ export function CubeView3D({
     }
   }
 
-  const handleWheel = (e: WheelEvent) => {
-    e.preventDefault()
-    if (wheelGesture(e) === 'tilt') {
-      // Touchpads already coast their swipes, so add no inertia of our own.
-      rotateView(-e.deltaX, -e.deltaY, e.timeStamp)
-      pauseAutoRotation()
-      return
-    }
-    // Pinch steps are small; mouse wheel notches are about 100.
-    const zoomDelta = e.deltaY * (e.ctrlKey ? 0.05 : 0.01)
-    setZoom((prev) => clampZoom(prev + zoomDelta, puzzleSize))
-  }
-
-  const limit = Math.PI / 2 - 0.05
-  const step = 0.2
-
-  const tiltUp = () => {
-    pauseAutoRotation()
-    setPitch((p) => Math.min(limit, p + step))
-  }
-  const tiltDown = () => {
-    pauseAutoRotation()
-    setPitch((p) => Math.max(-limit, p - step))
-  }
-  const rotateLeft = () => {
-    pauseAutoRotation()
-    setYaw((y) => y + step)
-  }
-  const rotateRight = () => {
-    pauseAutoRotation()
-    setYaw((y) => y - step)
-  }
-
-  const handleKeyDown = (e: KeyboardEvent) => {
-    switch (e.key) {
-      case 'ArrowUp':
-        e.preventDefault()
-        tiltUp()
-        break
-      case 'ArrowDown':
-        e.preventDefault()
-        tiltDown()
-        break
-      case 'ArrowLeft':
-        e.preventDefault()
-        rotateLeft()
-        break
-      case 'ArrowRight':
-        e.preventDefault()
-        rotateRight()
-        break
-      case 'u':
-      case 'U':
-        setPreset(Math.PI / 2 - 0.05, 0)
-        break
-      case 'd':
-      case 'D':
-        setPreset(-Math.PI / 2 + 0.05, 0)
-        break
-      case 'f':
-      case 'F':
-        setPreset(0, 0)
-        break
-      case 'b':
-      case 'B':
-        setPreset(0, Math.PI)
-        break
-      case 'l':
-      case 'L':
-        setPreset(0, Math.PI / 2)
-        break
-      case 'r':
-      case 'R':
-        setPreset(0, -Math.PI / 2)
-        break
-    }
-  }
+  const { resetView, setPreset, handleWheel, handleKeyDown } =
+    createCubeViewControls({
+      puzzleSize,
+      pauseAutoRotation,
+      setPitch,
+      setYaw,
+      setZoom,
+      rotateView,
+    })
 
   return (
-    <div class="cube-3d-container">
-      {!isSupported ? (
-        <div class="cube-3d-unsupported">
-          <p>WebGL is not available in your browser.</p>
-        </div>
-      ) : (
-        <>
-          <div
-            class="cube-3d-canvas-wrap"
-            tabIndex={0}
-            onKeyDown={handleKeyDown}
-            role="region"
-            aria-label="3D Rubik's cube interactive canvas"
-          >
-            <canvas
-              ref={canvasRef}
-              class="cube-3d-canvas"
-              onPointerDown={handlePointerDown}
-              onPointerMove={handlePointerMove}
-              onPointerUp={handlePointerUp}
-              onPointerCancel={handlePointerUp}
-              // A held sticker must not open the long-press menu.
-              onContextMenu={(e) => e.preventDefault()}
-              onWheel={handleWheel}
-              aria-label="Interactive 3D Rubik's Cube Viewer"
-            />
-            {pressMode && pressMode !== 'layer' && (
-              <div class="cube-3d-press-mode" role="status">
-                {pressMode === 'block'
-                  ? 'Wide turn: drag across layers, then turn them'
-                  : 'Whole cube: drag to rotate it'}
-              </div>
-            )}
-            <div class="cube-3d-hint">
-              {coarsePointer ? (
-                <>
-                  Swipe a sticker to turn its layer; hold it first for several
-                  layers or the whole cube &bull; Two fingers to tilt, pinch to
-                  zoom
-                </>
-              ) : (
-                <>
-                  Swipe a sticker to turn its layer; Shift or hold for several
-                  layers, Alt for the whole cube &bull; Drag the background or
-                  swipe two fingers to rotate &bull; Pinch or scroll to zoom
-                </>
-              )}
-            </div>
-          </div>
-          <div class="cube-3d-toolbar">
-            <div class="cube-3d-section">
-              <span class="cube-3d-label">Faces:</span>
-              <div class="cube-3d-presets">
-                <button
-                  type="button"
-                  class="cube-3d-btn"
-                  onClick={() => setPreset(Math.PI / 2 - 0.05, 0)}
-                  title="Up face"
-                >
-                  Up (U)
-                </button>
-                <button
-                  type="button"
-                  class="cube-3d-btn"
-                  onClick={() => setPreset(0, -Math.PI / 2)}
-                  title="Right face"
-                >
-                  Right (R)
-                </button>
-                <button
-                  type="button"
-                  class="cube-3d-btn"
-                  onClick={() => setPreset(0, 0)}
-                  title="Front face"
-                >
-                  Front (F)
-                </button>
-                <button
-                  type="button"
-                  class="cube-3d-btn"
-                  onClick={() => setPreset(-Math.PI / 2 + 0.05, 0)}
-                  title="Down face"
-                >
-                  Down (D)
-                </button>
-                <button
-                  type="button"
-                  class="cube-3d-btn"
-                  onClick={() => setPreset(0, Math.PI / 2)}
-                  title="Left face"
-                >
-                  Left (L)
-                </button>
-                <button
-                  type="button"
-                  class="cube-3d-btn"
-                  onClick={() => setPreset(0, Math.PI)}
-                  title="Back face"
-                >
-                  Back (B)
-                </button>
-                <button
-                  type="button"
-                  class="cube-3d-btn"
-                  onClick={() => resetView()}
-                  title="Reset to Isometric view"
-                >
-                  Isometric
-                </button>
-                <button
-                  type="button"
-                  class="cube-3d-btn"
-                  onClick={() => resetView(true)}
-                  title="Isometric view from behind"
-                >
-                  Iso-back
-                </button>
-              </div>
-            </div>
-
-            <div class="cube-3d-section">
-              <span class="cube-3d-label">Cube:</span>
-              <div class="cube-3d-presets">
-                <button
-                  type="button"
-                  class={`cube-3d-btn ${isScrambling ? 'cube-3d-btn-active' : ''}`}
-                  onClick={toggleScramble}
-                  title={isScrambling ? 'Stop scramble' : 'Scramble cube'}
-                >
-                  {isScrambling ? 'Stop' : 'Scramble'}
-                </button>
-                <button
-                  type="button"
-                  class="cube-3d-btn"
-                  onClick={undoLastTurn}
-                  disabled={moves.length === 0 || isTurning}
-                  title="Undo the last completed layer turn"
-                >
-                  Undo
-                </button>
-                <button
-                  type="button"
-                  class="cube-3d-btn"
-                  onClick={resetCube}
-                  disabled={isInitialCube && moves.length === 0}
-                  title="Reset cube to initial assembled state"
-                >
-                  Reset
-                </button>
-              </div>
-            </div>
-
-            <div
-              class="cube-3d-move-history"
-              role="status"
-              aria-label="Move history"
-            >
-              Moves:{' '}
-              {moves.length
-                ? moves
-                    .map((move) => formatCubeTurn(move, puzzleSize))
-                    .join(' ')
-                : 'None'}
-            </div>
-
-            <div class="cube-3d-actions">
-              <button
-                type="button"
-                class="cube-3d-btn"
-                onClick={() => setIsStickerless((v) => !v)}
-                title="Toggle between stickerless and stickered appearance"
-              >
-                {isStickerless ? 'Stickerless' : 'Stickered'}
-              </button>
-              <button
-                type="button"
-                class={`cube-3d-btn ${isRotating ? 'cube-3d-btn-active' : ''}`}
-                onClick={() => {
-                  inertiaRef.current = { yaw: 0, pitch: 0 }
-                  resumeAutoAtRef.current = 0
-                  setIsRotating((v) => !v)
-                }}
-              >
-                {isRotating ? 'Pause' : 'Auto-rotate'}
-              </button>
-            </div>
-          </div>
-        </>
-      )}
-    </div>
+    <CubeView3DPresentation
+      isSupported={isSupported}
+      canvasRef={canvasRef}
+      handleKeyDown={handleKeyDown}
+      handlePointerDown={handlePointerDown}
+      handlePointerMove={handlePointerMove}
+      handlePointerUp={handlePointerUp}
+      handleWheel={handleWheel}
+      pressMode={pressMode}
+      coarsePointer={coarsePointer}
+      setPreset={setPreset}
+      resetView={resetView}
+      isScrambling={isScrambling}
+      toggleScramble={toggleScramble}
+      undoLastTurn={undoLastTurn}
+      moves={moves}
+      isTurning={isTurning}
+      resetCube={resetCube}
+      isInitialCube={isInitialCube}
+      puzzleSize={puzzleSize}
+      isStickerless={isStickerless}
+      onToggleStickerless={() => setIsStickerless((value) => !value)}
+      isRotating={isRotating}
+      onToggleAutoRotate={() => {
+        inertiaRef.current = { yaw: 0, pitch: 0 }
+        resumeAutoAtRef.current = 0
+        setIsRotating((value) => !value)
+      }}
+    />
   )
 }
