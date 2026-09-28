@@ -29,7 +29,12 @@ import {
   readPreference,
 } from './preferences'
 import type { CubeState, FaceKey } from '../cube/cubeAssembly'
-import { turnFace, type Faces, type Axis } from '../cube/cubeGeometry'
+import {
+  rotateCube,
+  turnFace,
+  type Faces,
+  type Axis,
+} from '../cube/cubeGeometry'
 
 export const DEFAULT_STICKER_HEX: Record<string, string> = {
   W: '#f7f6f1',
@@ -175,30 +180,62 @@ export function applyCubeMove(
   return facesToCubeState(turned)
 }
 
+const POSITIVE_FACES: FaceKey[] = ['R', 'U', 'F']
+
+// Turns `width` layers ending `depth` layers in from `face` (a single slice
+// by default). Turning through to the far side takes the whole cube, since
+// turnFace leaves the opposite face's stickers in place.
 export function applyCubeLayerMove(
   cube: CubeState,
   n: number,
   face: FaceKey,
   depth: number,
   quarterTurns = 1,
+  width = 1,
 ): CubeState {
-  if (depth < 1 || depth > n) return cube
+  const outer = depth - width + 1
+  if (outer < 1 || depth > n) return cube
   if (depth === 1) return applyCubeMove(cube, n, face, quarterTurns)
   const faces = cubeStateToFaces(cube, n)
-  const throughLayer = turnFace(faces, face, quarterTurns, depth)
+  const through =
+    depth === n
+      ? rotateCube(
+          faces,
+          turnAxis(face),
+          POSITIVE_FACES.includes(face) ? quarterTurns : -quarterTurns,
+        )
+      : turnFace(faces, face, quarterTurns, depth)
   return facesToCubeState(
-    turnFace(throughLayer, face, -quarterTurns, depth - 1),
+    outer > 1 ? turnFace(through, face, -quarterTurns, outer - 1) : through,
   )
 }
 
 export interface CubeTurn {
   face: FaceKey
+  // The innermost layer turned, counted from `face`.
   depth: number
+  // How many layers turn together, ending at `depth`; 1 when omitted.
+  width?: number
   turns: number
 }
 
-export function formatCubeTurn({ face, depth, turns }: CubeTurn): string {
-  return `${depth > 1 ? depth : ''}${face}${Math.abs(turns) === 2 ? '2' : turns < 0 ? "'" : ''}`
+// Standard notation: 2R for one inner slice, Rw or 3Rw for a block from the
+// face, 2-3Rw for an inner block, and x, y, z for the whole cube.
+export function formatCubeTurn(
+  { face, depth, width = 1, turns }: CubeTurn,
+  size = Number.POSITIVE_INFINITY,
+): string {
+  const amount = Math.abs(turns) === 2 ? '2' : turns < 0 ? "'" : ''
+  if (width >= size) {
+    const inverted = !POSITIVE_FACES.includes(face)
+    const reversed = inverted && Math.abs(turns) !== 2
+    return `${turnAxis(face)}${reversed ? (turns < 0 ? '' : "'") : amount}`
+  }
+  if (width === 1) return `${depth > 1 ? depth : ''}${face}${amount}`
+  const outer = depth - width + 1
+  const layers =
+    outer > 1 ? `${outer}-${depth}` : depth > 2 ? String(depth) : ''
+  return `${layers}${face}w${amount}`
 }
 
 // Adds a finished turn to the history as its shortest form, accumulating
@@ -208,15 +245,23 @@ export function recordTurn(moves: CubeTurn[], turn: CubeTurn): CubeTurn[] {
   if (quarter === 0) return moves
   const turns = quarter === 3 ? -1 : quarter
   const last = moves.at(-1)
-  if (last && last.face === turn.face && last.depth === turn.depth) {
+  const width = turn.width ?? 1
+  const layers = {
+    face: turn.face,
+    depth: turn.depth,
+    ...(width > 1 && { width }),
+  }
+  if (
+    last &&
+    last.face === turn.face &&
+    last.depth === turn.depth &&
+    (last.width ?? 1) === width
+  ) {
     const net = (((last.turns + turns) % 4) + 4) % 4
     if (net === 0) return moves.slice(0, -1)
-    return [
-      ...moves.slice(0, -1),
-      { face: turn.face, depth: turn.depth, turns: net === 3 ? -1 : net },
-    ]
+    return [...moves.slice(0, -1), { ...layers, turns: net === 3 ? -1 : net }]
   }
-  return [...moves, { face: turn.face, depth: turn.depth, turns }]
+  return [...moves, { ...layers, turns }]
 }
 
 const SCRAMBLE_FACES: FaceKey[] = ['U', 'D', 'L', 'R', 'F', 'B']
@@ -251,7 +296,11 @@ export function generateScrambleMoves(size: number): CubeTurn[] {
 export interface TurningLayer {
   face: FaceKey
   depth?: number
+  // Layers turning together, ending at `depth`; 1 when omitted.
+  width?: number
   angle: number // in radians
+  // Lights up the layers, e.g. while a block is being picked.
+  highlight?: boolean
 }
 
 interface CapExtents {
@@ -720,16 +769,37 @@ export function buildCubeMesh(
         let cz = z - last / 2
         let getAxes = (faceKey: string) => FACE_AXES[faceKey]
 
-        if (turn && turn.angle !== 0) {
-          const depth = turn.depth ?? 1
-          const isTurnCubie =
-            (turn.face === 'U' && y === last - depth + 1) ||
-            (turn.face === 'D' && y === depth - 1) ||
-            (turn.face === 'R' && x === last - depth + 1) ||
-            (turn.face === 'L' && x === depth - 1) ||
-            (turn.face === 'F' && z === last - depth + 1) ||
-            (turn.face === 'B' && z === depth - 1)
+        // This cubie's layer counted from the turning face, 1 outermost.
+        const layer = !turn
+          ? 0
+          : turn.face === 'U'
+            ? last - y + 1
+            : turn.face === 'D'
+              ? y + 1
+              : turn.face === 'R'
+                ? last - x + 1
+                : turn.face === 'L'
+                  ? x + 1
+                  : turn.face === 'F'
+                    ? last - z + 1
+                    : z + 1
+        const depth = turn?.depth ?? 1
+        const isTurnCubie = layer <= depth && layer > depth - (turn?.width ?? 1)
+        const lit = isTurnCubie && turn?.highlight === true
+        const stickerRgb = (colorKey: string): [number, number, number] => {
+          const rgb = hexToRgb(
+            palette[colorKey] ?? DEFAULT_STICKER_HEX[colorKey] ?? '#888',
+          )
+          return lit
+            ? [
+                rgb[0] + (1 - rgb[0]) * 0.35,
+                rgb[1] + (1 - rgb[1]) * 0.35,
+                rgb[2] + (1 - rgb[2]) * 0.35,
+              ]
+            : rgb
+        }
 
+        if (turn && turn.angle !== 0) {
           if (isTurnCubie) {
             const axis: Axis =
               turn.face === 'R' || turn.face === 'L'
@@ -764,54 +834,42 @@ export function buildCubeMesh(
           const r = 0.058
           if (y === last) {
             const colorKey = getFaceletColor(cube, n, 'u', x, y, z)
-            const rgb = hexToRgb(
-              palette[colorKey] ?? DEFAULT_STICKER_HEX[colorKey] ?? '#888',
-            )
+            const rgb = stickerRgb(colorKey)
             const a = getAxes('u')
             const seams = getFaceSeams('u', x, y, z, n)
             addBeveledFace(cx, cy, cz, a.u, a.v, a.n, H, r, rgb, 0, seams)
           }
           if (y === 0) {
             const colorKey = getFaceletColor(cube, n, 'd', x, y, z)
-            const rgb = hexToRgb(
-              palette[colorKey] ?? DEFAULT_STICKER_HEX[colorKey] ?? '#888',
-            )
+            const rgb = stickerRgb(colorKey)
             const a = getAxes('d')
             const seams = getFaceSeams('d', x, y, z, n)
             addBeveledFace(cx, cy, cz, a.u, a.v, a.n, H, r, rgb, 0, seams)
           }
           if (z === last) {
             const colorKey = getFaceletColor(cube, n, 'f', x, y, z)
-            const rgb = hexToRgb(
-              palette[colorKey] ?? DEFAULT_STICKER_HEX[colorKey] ?? '#888',
-            )
+            const rgb = stickerRgb(colorKey)
             const a = getAxes('f')
             const seams = getFaceSeams('f', x, y, z, n)
             addBeveledFace(cx, cy, cz, a.u, a.v, a.n, H, r, rgb, 0, seams)
           }
           if (z === 0) {
             const colorKey = getFaceletColor(cube, n, 'b', x, y, z)
-            const rgb = hexToRgb(
-              palette[colorKey] ?? DEFAULT_STICKER_HEX[colorKey] ?? '#888',
-            )
+            const rgb = stickerRgb(colorKey)
             const a = getAxes('b')
             const seams = getFaceSeams('b', x, y, z, n)
             addBeveledFace(cx, cy, cz, a.u, a.v, a.n, H, r, rgb, 0, seams)
           }
           if (x === last) {
             const colorKey = getFaceletColor(cube, n, 'r', x, y, z)
-            const rgb = hexToRgb(
-              palette[colorKey] ?? DEFAULT_STICKER_HEX[colorKey] ?? '#888',
-            )
+            const rgb = stickerRgb(colorKey)
             const a = getAxes('r')
             const seams = getFaceSeams('r', x, y, z, n)
             addBeveledFace(cx, cy, cz, a.u, a.v, a.n, H, r, rgb, 0, seams)
           }
           if (x === 0) {
             const colorKey = getFaceletColor(cube, n, 'l', x, y, z)
-            const rgb = hexToRgb(
-              palette[colorKey] ?? DEFAULT_STICKER_HEX[colorKey] ?? '#888',
-            )
+            const rgb = stickerRgb(colorKey)
             const a = getAxes('l')
             const seams = getFaceSeams('l', x, y, z, n)
             addBeveledFace(cx, cy, cz, a.u, a.v, a.n, H, r, rgb, 0, seams)
@@ -846,9 +904,7 @@ export function buildCubeMesh(
             )
             // 2. Rounded sticker tile on exterior face
             const colorKey = getFaceletColor(cube, n, faceKey, x, y, z)
-            const rgb = hexToRgb(
-              palette[colorKey] ?? DEFAULT_STICKER_HEX[colorKey] ?? '#888',
-            )
+            const rgb = stickerRgb(colorKey)
             addBeveledFace(
               cx,
               cy,
@@ -1270,6 +1326,7 @@ export function CubeView3D({
     Array<{
       face: FaceKey
       depth?: number
+      width?: number
       turns: number
       from?: number
       duration?: number
@@ -1279,6 +1336,7 @@ export function CubeView3D({
   const currentTurnRef = useRef<{
     face: FaceKey
     depth?: number
+    width?: number
     turns: number
     // A released drag settles from where the finger left the layer.
     from?: number
@@ -1292,7 +1350,10 @@ export function CubeView3D({
     angle: number
     velocity: number
     time: number
-    drawn: number | null
+    // Lights up the grabbed layers of a block or whole-cube turn.
+    highlight?: boolean
+    // What the mesh last showed, so it is rebuilt only when that changes.
+    drawn: string | null
   } | null>(null)
   const forceUpdateMeshRef = useRef(false)
 
@@ -1364,9 +1425,17 @@ export function CubeView3D({
     turns: number,
     depth = 1,
     undo = false,
+    width = 1,
   ) => {
     pauseAutoRotation()
-    turnQueueRef.current.push({ face, depth, turns, duration: 160, undo })
+    turnQueueRef.current.push({
+      face,
+      depth,
+      width,
+      turns,
+      duration: 160,
+      undo,
+    })
     setIsTurning(true)
   }
 
@@ -1401,7 +1470,8 @@ export function CubeView3D({
   const undoLastTurn = () => {
     if (isTurning) return
     const last = movesRef.current.at(-1)
-    if (last) triggerTurn(last.face, -last.turns, last.depth, true)
+    if (last)
+      triggerTurn(last.face, -last.turns, last.depth, true, last.width ?? 1)
   }
 
   const isInitialCube =
@@ -1530,7 +1600,12 @@ export function CubeView3D({
           puzzleSize,
           palette,
           isStickerless,
-          { face: anim.face, depth: anim.depth, angle: currentAngle },
+          {
+            face: anim.face,
+            depth: anim.depth,
+            width: anim.width,
+            angle: currentAngle,
+          },
         )
         gl.bindBuffer(gl.ARRAY_BUFFER, posBuf)
         gl.bufferSubData(gl.ARRAY_BUFFER, 0, turnMesh.positions)
@@ -1552,6 +1627,7 @@ export function CubeView3D({
               anim.face,
               anim.depth ?? 1,
               anim.turns,
+              anim.width ?? 1,
             )
             currentCubeRef.current = nextCube
             setCurrentCube(nextCube)
@@ -1560,6 +1636,7 @@ export function CubeView3D({
               : recordTurn(movesRef.current, {
                   face: anim.face,
                   depth: anim.depth ?? 1,
+                  width: anim.width,
                   turns: anim.turns,
                 })
             movesRef.current = nextMoves
@@ -1585,6 +1662,7 @@ export function CubeView3D({
             currentTurnRef.current = {
               face: next.face,
               depth: next.depth,
+              width: next.width,
               turns: next.turns,
               from: next.from,
               startTime: time,
@@ -1600,8 +1678,9 @@ export function CubeView3D({
       } else if (dragTurnRef.current) {
         // Queued turns wait until the finger lets go of the layer.
         const drag = dragTurnRef.current
-        if (drag.drawn !== drag.angle) {
-          drag.drawn = drag.angle
+        const shown = `${drag.layer.face}${drag.layer.depth}/${drag.layer.width ?? 1}:${drag.angle}:${drag.highlight ? 1 : 0}`
+        if (drag.drawn !== shown) {
+          drag.drawn = shown
           const dragMesh = buildCubeMesh(
             currentCubeRef.current,
             puzzleSize,
@@ -1610,19 +1689,24 @@ export function CubeView3D({
             {
               face: drag.layer.face,
               depth: drag.layer.depth,
+              width: drag.layer.width,
               angle: drag.angle,
+              highlight: drag.highlight,
             },
           )
           gl.bindBuffer(gl.ARRAY_BUFFER, posBuf)
           gl.bufferSubData(gl.ARRAY_BUFFER, 0, dragMesh.positions)
           gl.bindBuffer(gl.ARRAY_BUFFER, normBuf)
           gl.bufferSubData(gl.ARRAY_BUFFER, 0, dragMesh.normals)
+          gl.bindBuffer(gl.ARRAY_BUFFER, colBuf)
+          gl.bufferSubData(gl.ARRAY_BUFFER, 0, dragMesh.colors)
         }
       } else if (turnQueueRef.current.length > 0) {
         const next = turnQueueRef.current.shift()!
         currentTurnRef.current = {
           face: next.face,
           depth: next.depth,
+          width: next.width,
           turns: next.turns,
           from: next.from,
           startTime: time,
@@ -1817,6 +1901,7 @@ export function CubeView3D({
     turnQueueRef.current.unshift({
       face: drag.layer.face,
       depth: drag.layer.depth,
+      width: drag.layer.width,
       turns,
       from: drag.angle,
       duration: Math.max(120, Math.min(240, 160 * distance)),
@@ -2225,7 +2310,11 @@ export function CubeView3D({
               aria-label="Move history"
             >
               Moves:{' '}
-              {moves.length ? moves.map(formatCubeTurn).join(' ') : 'None'}
+              {moves.length
+                ? moves
+                    .map((move) => formatCubeTurn(move, puzzleSize))
+                    .join(' ')
+                : 'None'}
             </div>
 
             <div class="cube-3d-actions">

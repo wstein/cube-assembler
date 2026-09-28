@@ -127,6 +127,8 @@ function swipeAlong(
 export interface SwipeLayer {
   face: FaceKey
   depth: number
+  // Layers turning together, ending at `depth`; 1 when omitted.
+  width?: number
   axis: Axis
   // Turns the rotation about +axis into the face's clockwise turns.
   sign: 1 | -1

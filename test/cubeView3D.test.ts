@@ -503,6 +503,125 @@ describe('cubeView3D math and geometry', () => {
       expect(recordTurn([], { ...u, turns: -4 })).toEqual([])
     })
 
+    it('labels blocks of layers as wide turns and the whole cube as x, y, z', () => {
+      expect(
+        formatCubeTurn({ face: 'R', depth: 2, width: 2, turns: 1 }, 5),
+      ).toBe('Rw')
+      expect(
+        formatCubeTurn({ face: 'U', depth: 3, width: 3, turns: -1 }, 5),
+      ).toBe("3Uw'")
+      expect(
+        formatCubeTurn({ face: 'L', depth: 3, width: 2, turns: 2 }, 5),
+      ).toBe('2-3Lw2')
+      expect(
+        formatCubeTurn({ face: 'R', depth: 3, width: 3, turns: 1 }, 3),
+      ).toBe('x')
+      expect(
+        formatCubeTurn({ face: 'L', depth: 4, width: 4, turns: 1 }, 4),
+      ).toBe("x'")
+      expect(
+        formatCubeTurn({ face: 'D', depth: 2, width: 2, turns: 2 }, 2),
+      ).toBe('y2')
+      expect(
+        formatCubeTurn({ face: 'F', depth: 5, width: 5, turns: -1 }, 5),
+      ).toBe("z'")
+    })
+
+    it('turns a block like each of its layers in turn', () => {
+      // The layer `k` from `face`, turned alone; the far layer is the
+      // opposite face turned the other way.
+      const slice = (
+        cube: ReturnType<typeof createSolvedCube>,
+        size: number,
+        face: 'R' | 'U' | 'F' | 'L' | 'D' | 'B',
+        k: number,
+        turns: number,
+      ) => {
+        const opposite = {
+          R: 'L',
+          L: 'R',
+          U: 'D',
+          D: 'U',
+          F: 'B',
+          B: 'F',
+        } as const
+        return k === size
+          ? applyCubeLayerMove(cube, size, opposite[face], 1, -turns)
+          : applyCubeLayerMove(cube, size, face, k, turns)
+      }
+      const scrambled = (size: number) =>
+        applyCubeLayerMove(
+          applyCubeLayerMove(createSolvedCube(size), size, 'F', 1, 1),
+          size,
+          'U',
+          1,
+          -1,
+        )
+      for (let size = 2; size <= 5; size++) {
+        for (const face of ['R', 'U', 'F', 'L', 'D', 'B'] as const) {
+          for (let depth = 2; depth <= size; depth++) {
+            for (let width = 2; width <= depth; width++) {
+              let expected = scrambled(size)
+              for (let k = depth - width + 1; k <= depth; k++)
+                expected = slice(expected, size, face, k, 1)
+              expect(
+                applyCubeLayerMove(
+                  scrambled(size),
+                  size,
+                  face,
+                  depth,
+                  1,
+                  width,
+                ),
+              ).toEqual(expected)
+            }
+          }
+        }
+      }
+    })
+
+    it('keeps wide turns apart from slices of the same depth in the history', () => {
+      const rw = { face: 'R' as const, depth: 2, width: 2, turns: 1 }
+      const slice = { face: 'R' as const, depth: 2, turns: 1 }
+      expect(recordTurn([rw], slice)).toEqual([rw, slice])
+      expect(recordTurn([rw], rw)).toEqual([{ ...rw, turns: 2 }])
+      expect(recordTurn([rw], { ...rw, turns: -1 })).toEqual([])
+      expect(recordTurn([slice], { ...slice, width: 1, turns: 1 })).toEqual([
+        { ...slice, turns: 2 },
+      ])
+    })
+
+    it('turns every layer of a block in the mesh and can light it up', () => {
+      const solved = createSolvedCube(4)
+      const flat = buildCubeMesh(solved, 4)
+      const changed = (a: Float32Array, b: Float32Array) =>
+        a.reduce((count, value, i) => count + (value === b[i] ? 0 : 1), 0)
+      const one = buildCubeMesh(solved, 4, undefined, true, {
+        face: 'R',
+        depth: 1,
+        angle: 0.3,
+      })
+      const two = buildCubeMesh(solved, 4, undefined, true, {
+        face: 'R',
+        depth: 2,
+        width: 2,
+        angle: 0.3,
+      })
+      expect(changed(two.positions, flat.positions)).toBeGreaterThan(
+        1.5 * changed(one.positions, flat.positions),
+      )
+      const lit = buildCubeMesh(solved, 4, undefined, true, {
+        face: 'R',
+        depth: 2,
+        width: 2,
+        angle: 0,
+        highlight: true,
+      })
+      expect(lit.positions).toEqual(flat.positions)
+      expect(changed(lit.colors, flat.colors)).toBeGreaterThan(0)
+      expect(changed(two.colors, flat.colors)).toBe(0)
+    })
+
     it('roundtrips CubeState to Faces and back', () => {
       const cube = createSolvedCube(3)
       const faces = cubeStateToFaces(cube, 3)
