@@ -1,5 +1,5 @@
 import { render } from 'preact'
-import { useState, useEffect, useRef, useMemo } from 'preact/hooks'
+import { useState, useEffect, useRef } from 'preact/hooks'
 // Fonts bundled with the app rather than loaded from Google Fonts, which
 // would send every visitor's IP address to Google.
 import '@fontsource/space-grotesk/500.css'
@@ -74,14 +74,12 @@ import { repositoryLink } from './repositoryLink'
 import { profilesHash, profilesTab } from './profilesRoute'
 import {
   AUTO_CAPTURE_COOKIE,
-  COLOR_PROFILE_COOKIE,
   CUBE_SIZE_COOKIE,
   CUBE_VIEW_COOKIE,
   MIRROR_COOKIE,
   SOUND_COOKIE,
   preferenceCookie,
   readPreference,
-  readSelection,
   selectedCubeSize,
   selectedCubeView,
   selectionCookie,
@@ -117,42 +115,21 @@ import {
   type CubeState,
 } from '../cube/cubeAssembly'
 import {
-  AUTO_COLORS_ID,
-  EMPTY_SETTINGS,
-  activeCube,
   allCubes,
-  activeColorProfile,
   allColorProfiles,
-  builtinColorProfiles,
   capturePalette,
-  colorPalette,
-  copyColorProfile,
-  copyCubeSetting,
   cubeGroupName,
-  mergeSettings,
-  saveCube,
-  saveColorProfile,
   resolvedColorProfileSnapshot,
   selectCube,
   selectColorProfile,
   setAutoColorMatch,
-  type ProfileSettings,
   type UsedColorProfile,
 } from './profileSettings'
 import {
-  loadProfileSettings,
-  saveProfileSettings,
-  settingsFile,
-  parseSettingsFile,
-} from './profileStorage'
-import {
   canCreateProfileFromCapture,
   captureProfileFinding,
-  matchPartialColorProfile,
   profileToUpdate,
-  updateProfileFromCapture,
   type AutomaticResolution,
-  type PaletteEvidence,
 } from './colorProfileLearning'
 import { readFixtureUpload } from './readFixtureUpload'
 import {
@@ -181,6 +158,7 @@ import {
 import { computeColorStats } from './colorStats'
 import { flyInto, morphInto } from './flyAnimation'
 import { focusModalOnOpen, handleModalKeyDown } from './modalFocus'
+import { useProfileStore } from './useProfileStore'
 import {
   toWRGFacelets,
   fromWRGFacelets,
@@ -196,28 +174,6 @@ import {
 // Injected at build time by vite.config.ts's `define`.
 declare const __APP_VERSION__: string
 declare const __APP_COMMIT__: string
-
-function loadProfileStore(): ProfileSettings {
-  try {
-    const settings = loadProfileSettings(localStorage)
-    const selectedId = readSelection(document.cookie, COLOR_PROFILE_COOKIE)
-    return selectedId &&
-      allColorProfiles(settings).some((profile) => profile.id === selectedId)
-      ? selectColorProfile(settings, selectedId)
-      : settings
-  } catch {
-    return EMPTY_SETTINGS
-  }
-}
-
-// False when the browser won't store it (storage blocked or full).
-function saveProfileStore(store: ProfileSettings): boolean {
-  try {
-    return saveProfileSettings(localStorage, store)
-  } catch {
-    return false
-  }
-}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Parity Check
@@ -363,62 +319,50 @@ function App() {
     set(on)
     document.cookie = preferenceCookie(name, on)
   }
-  const [profileStore, setProfileStore] =
-    useState<ProfileSettings>(loadProfileStore)
+  const {
+    profileStore,
+    applyProfileStore,
+    automaticColors,
+    profile,
+    colorProfile,
+    sampling,
+    autoColorProfiles,
+    provisionalColorProfile,
+    palette,
+    previewProfileFor,
+    samplingFileMessage,
+    profileLearningOffer,
+    setProfileLearningOffer,
+    newColorName,
+    setNewColorName,
+    updatableName,
+    newCubeName,
+    setNewCubeName,
+    newColorProfileName,
+    setNewColorProfileName,
+    handleCreateCube,
+    handleCreateNamedColors,
+    handleCreateColors,
+    handleUpdateColors,
+    handleDownloadSampling,
+    handleUploadSampling,
+  } = useProfileStore({
+    puzzleSize,
+    capturedFaces,
+    onCubeCreated: () => {
+      setWebcamOpen(false)
+      location.hash = profilesHash('cubes')
+    },
+  })
   useEffect(() => {
     document.cookie = selectionCookie(CUBE_SIZE_COOKIE, String(puzzleSize))
   }, [puzzleSize])
   useEffect(() => {
     document.cookie = selectionCookie(CUBE_VIEW_COOKIE, cubeViewMode)
   }, [cubeViewMode])
-  useEffect(() => {
-    document.cookie = selectionCookie(
-      COLOR_PROFILE_COOKIE,
-      profileStore.activeColorsId,
-    )
-  }, [profileStore.activeColorsId])
-  const profile = activeCube(profileStore, puzzleSize)
-  const colorProfile = activeColorProfile(profileStore)
-  const sampling = profile.sampling
-  const autoColorProfiles = useMemo(
-    () => [...builtinColorProfiles(), ...profileStore.colors],
-    [profileStore.colors],
-  )
-  const provisionalColorProfile = useMemo(
-    () =>
-      matchPartialColorProfile(
-        autoColorProfiles,
-        FACE_ORDER.flatMap(
-          (face) => capturedFaces[face]?.cellColors?.flat() ?? [],
-        ),
-      ),
-    [autoColorProfiles, capturedFaces],
-  )
-  const palette = useMemo(
-    () =>
-      profileStore.activeColorsId === AUTO_COLORS_ID
-        ? provisionalColorProfile?.colors
-        : capturePalette(profileStore),
-    [profileStore, provisionalColorProfile],
-  )
   const liveAutoColorProfile = autoColorProfiles.find(
     (candidate) => candidate.id === liveAutoColorProfileId,
   )
-  // The profile a capture is read with right now (see the palette passed to
-  // captureAndProcessCanvas): Automatic's provisional choice, else the live
-  // worker's pick for the first face; the selected profile otherwise.
-  const previewProfileFor = (
-    liveId: string | null,
-  ): PreviewColorProfile | undefined => {
-    const used =
-      profileStore.activeColorsId === AUTO_COLORS_ID
-        ? (provisionalColorProfile ??
-          autoColorProfiles.find((candidate) => candidate.id === liveId))
-        : colorProfile
-    return used
-      ? { id: used.id, name: used.name, colors: colorPalette(used) }
-      : undefined
-  }
   // Upload Fixture option: start the review from what detection reads
   // today instead of the colors the fixture was saved with, so a capture
   // can be reviewed afresh without its earlier hand corrections.
@@ -438,14 +382,6 @@ function App() {
     confidentFraction: number
     recalibrated: boolean
   } | null>(null)
-  const [profileLearningOffer, setProfileLearningOffer] = useState<{
-    colors: Record<string, RGB>
-    evidence: PaletteEvidence
-    matchedProfileId: string | null
-    updatedProfileName?: string
-  } | null>(null)
-  const [newColorName, setNewColorName] = useState<string | null>(null)
-  const [samplingFileMessage, setSamplingFileMessage] = useState('')
   // The cube geometry and colors selected when this capture was taken.
   const [captureProfile, setCaptureProfile] = useState<{
     id?: string
@@ -468,130 +404,6 @@ function App() {
     window.addEventListener('hashchange', onHash)
     return () => window.removeEventListener('hashchange', onHash)
   }, [])
-  const applyProfileStore = (updated: ProfileSettings) => {
-    if (!saveProfileStore(updated)) {
-      setSamplingFileMessage(
-        "❌ This browser won't keep profiles (storage blocked or full) - export them to save a copy",
-      )
-    }
-    setProfileStore(updated)
-  }
-  const [newCubeName, setNewCubeName] = useState<string | null>(null)
-  const [newColorProfileName, setNewColorProfileName] = useState<string | null>(
-    null,
-  )
-  const handleCreateCube = () => {
-    if (!newCubeName?.trim()) return
-    applyProfileStore(
-      saveCube(
-        profileStore,
-        copyCubeSetting(profileStore, profile, newCubeName),
-      ),
-    )
-    setNewCubeName(null)
-    setWebcamOpen(false)
-    location.hash = profilesHash('cubes')
-  }
-  const handleCreateNamedColors = () => {
-    if (!newColorProfileName?.trim()) return
-    applyProfileStore(
-      saveColorProfile(
-        profileStore,
-        copyColorProfile(profileStore, colorProfile, newColorProfileName),
-      ),
-    )
-    setNewColorProfileName(null)
-  }
-  const handleCreateColors = () => {
-    if (!profileLearningOffer || !newColorName?.trim()) return
-    const id = `colors-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
-    const saved = saveColorProfile(profileStore, {
-      id,
-      name: newColorName.trim().slice(0, 60),
-      colors: profileLearningOffer.colors,
-      captures: 1,
-      updatedAt: new Date().toISOString(),
-    })
-    applyProfileStore(
-      profileStore.activeColorsId === AUTO_COLORS_ID
-        ? setAutoColorMatch(selectColorProfile(saved, AUTO_COLORS_ID), id)
-        : saved,
-    )
-    setProfileLearningOffer(null)
-    setNewColorName(null)
-  }
-  // The saved profile the Update action would change (see profileToUpdate).
-  const updatableName =
-    profileStore.colors.find(
-      (profile) => profile.id === profileLearningOffer?.matchedProfileId,
-    )?.name ?? 'detected'
-  const handleUpdateColors = () => {
-    const offer = profileLearningOffer
-    const target = profileStore.colors.find(
-      (profile) => profile.id === offer?.matchedProfileId,
-    )
-    if (!offer || !target) return
-    const updated = updateProfileFromCapture(
-      target,
-      offer.colors,
-      offer.evidence,
-      new Date().toISOString(),
-    )
-    if (!updated) return
-    // Saving would also select the profile; keep Automatic or the current choice.
-    const saved = {
-      ...saveColorProfile(profileStore, updated),
-      activeColorsId: profileStore.activeColorsId,
-    }
-    applyProfileStore(
-      profileStore.activeColorsId === AUTO_COLORS_ID
-        ? setAutoColorMatch(saved, updated.id)
-        : saved,
-    )
-    setProfileLearningOffer({
-      ...offer,
-      matchedProfileId: null,
-      updatedProfileName: updated.name,
-    })
-  }
-  // Profiles file: cubes and colors, so a setup tuned in one browser or
-  // on one machine can be carried to another.
-  const handleDownloadSampling = () => {
-    const blob = new Blob(
-      [JSON.stringify(settingsFile(profileStore), null, 2)],
-      { type: 'application/json' },
-    )
-    const url = URL.createObjectURL(blob)
-    const link = document.createElement('a')
-    link.href = url
-    link.download = 'cube-assembler-profiles.json'
-    link.click()
-    URL.revokeObjectURL(url)
-    setSamplingFileMessage('✓ Profiles downloaded')
-  }
-  const handleUploadSampling = async (e: Event) => {
-    const input = e.currentTarget as HTMLInputElement
-    const file = input.files?.[0]
-    input.value = ''
-    if (!file) return
-    try {
-      const data = JSON.parse(await file.text())
-      // Files saved before cube profiles held per-size settings instead.
-      const uploaded = parseSettingsFile(data)
-      if (!uploaded) {
-        setSamplingFileMessage(
-          `❌ ${file.name} isn't a cube and color profiles file`,
-        )
-        return
-      }
-      applyProfileStore(mergeSettings(profileStore, uploaded))
-      setSamplingFileMessage(
-        `✓ Loaded ${uploaded.cubes.length} cubes and ${uploaded.colors.length} color profiles`,
-      )
-    } catch {
-      setSamplingFileMessage(`❌ ${file.name} isn't valid JSON`)
-    }
-  }
   const [globalWhiteBalanceNote, setGlobalWhiteBalanceNote] = useState<
     string | null
   >(null)
@@ -957,7 +769,7 @@ function App() {
     sampling,
     palette,
     autoProfiles: autoColorProfiles,
-    autoColorsSelected: profileStore.activeColorsId === AUTO_COLORS_ID,
+    autoColorsSelected: automaticColors,
     provisionalProfileId: provisionalColorProfile?.id ?? null,
     autoCapture,
     capturedFaces,
@@ -1015,7 +827,7 @@ function App() {
     setLoading(true)
     setPendingPalette(null)
     setProfileLearningOffer(null)
-    const automatic = profileStore.activeColorsId === AUTO_COLORS_ID
+    const automatic = automaticColors
     setResolvedColorProfile(
       automatic ? null : resolvedColorProfileSnapshot(colorProfile, 'manual'),
     )
@@ -1280,10 +1092,7 @@ function App() {
         size: puzzleSize,
         captureMode,
         sampling,
-        palette:
-          profileStore.activeColorsId === AUTO_COLORS_ID
-            ? undefined
-            : capturePalette(profileStore),
+        palette: automaticColors ? undefined : capturePalette(profileStore),
         faceOrder: FACE_ORDER,
       })
       setCapturedFaces(entries)
@@ -1534,7 +1343,7 @@ function App() {
         confidentFraction: pendingPalette.confidentFraction,
         correctedFraction: correctedCells / (6 * puzzleSize * puzzleSize),
       }
-      const automatic = profileStore.activeColorsId === AUTO_COLORS_ID
+      const automatic = automaticColors
       const matched =
         automatic &&
         reviewedValid &&
@@ -2129,7 +1938,7 @@ function App() {
               liveCapturedFace={liveCapturedFace}
               liveAutoColorProfileName={liveAutoColorProfile?.name}
               liveMedianWB={liveMedianWB}
-              automaticColors={profileStore.activeColorsId === AUTO_COLORS_ID}
+              automaticColors={automaticColors}
               autoCapture={autoCapture}
               autoCaptureFrames={autoCaptureFrames}
               autoCapturePaused={autoCapturePaused}
@@ -2161,7 +1970,7 @@ function App() {
               profile={profile}
               puzzleSize={puzzleSize}
               colorProfileName={colorProfile.name}
-              automaticColors={profileStore.activeColorsId === AUTO_COLORS_ID}
+              automaticColors={automaticColors}
               provisionalProfileName={provisionalColorProfile?.name}
               liveProfileName={liveAutoColorProfile?.name}
               mirrorPreview={mirrorPreview}
