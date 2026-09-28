@@ -68,6 +68,48 @@ test("Rotate y, Rotate y' and Flip x2 turn the whole cube as moves", async ({
   await expect(history).toHaveText('Moves: y x2')
 })
 
+test('swiping the mini cube turns the whole cube like a layer', async ({
+  page,
+}) => {
+  await page.goto('/')
+  await page.getByRole('button', { name: 'Solved cube' }).click()
+  const notation = page.getByRole('textbox', { name: 'Notation' })
+  const solved = await notation.inputValue()
+  await page.getByRole('button', { name: '3D View' }).click()
+  const history = page.getByRole('status', { name: 'Move history' })
+  const mini = page.getByRole('img', { name: /Mini cube/ })
+  await expect(mini).toBeVisible()
+  // The front face's middle, from its drawn corners.
+  const front = async () => {
+    const box = await mini.boundingBox()
+    const points = await mini.locator('[data-face="F"]').getAttribute('points')
+    if (!box || !points) throw new Error('No mini cube front face')
+    const xy = points.split(' ').map((p) => p.split(',').map(Number))
+    const x = xy.reduce((sum, [px]) => sum + px, 0) / xy.length
+    const y = xy.reduce((sum, [, py]) => sum + py, 0) / xy.length
+    const scale = box.width / 96
+    return { x: box.x + x * scale, y: box.y + y * scale }
+  }
+  const swipe = async (dx: number, dy: number) => {
+    const { x, y } = await front()
+    await page.mouse.move(x, y)
+    await page.mouse.down()
+    await page.mouse.move(x + dx, y + dy, { steps: 8 })
+    await page.waitForTimeout(150)
+    await page.mouse.up()
+  }
+  // The front going right is y'; the front going up is x.
+  await swipe(45, 0)
+  await expect(history).toHaveText("Moves: y'")
+  await expect(notation).not.toHaveValue(solved)
+  await swipe(0, -45)
+  await expect(history).toHaveText("Moves: y' x")
+  // A short nudge springs back and records nothing.
+  await swipe(6, 0)
+  await page.waitForTimeout(400)
+  await expect(history).toHaveText("Moves: y' x")
+})
+
 test('consecutive same-layer turns accumulate in move history', async ({
   page,
 }) => {

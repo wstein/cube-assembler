@@ -1,4 +1,4 @@
-import type { RefObject } from 'preact'
+import type { ComponentChildren, RefObject } from 'preact'
 import type { PressLevel } from './cubeGesture'
 import { formatCubeTurn, type CubeTurn } from './cubeView3DState'
 
@@ -28,6 +28,8 @@ interface CubeView3DPresentationProps {
   onToggleAutoRotate: () => void
   // Turns the whole cube about an axis (0 x, 1 y, 2 z), recorded as a move.
   turnWholeCube: (axis: 0 | 1 | 2, turns: number) => void
+  // The mini cube gizmo, drawn over the canvas's corner.
+  miniCube: ComponentChildren
 }
 
 // Icons for the whole-cube buttons: a clockwise and a counterclockwise
@@ -83,6 +85,7 @@ export function CubeView3DPresentation({
   isRotating,
   onToggleAutoRotate,
   turnWholeCube,
+  miniCube,
 }: CubeView3DPresentationProps) {
   return (
     <div class="cube-3d-container">
@@ -111,6 +114,7 @@ export function CubeView3DPresentation({
               onWheel={handleWheel}
               aria-label="Interactive 3D Rubik's Cube Viewer"
             />
+            {miniCube}
             {pressMode && pressMode !== 'layer' && (
               <div class="cube-3d-press-mode" role="status">
                 {pressMode === 'wide'

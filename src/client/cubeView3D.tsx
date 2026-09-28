@@ -56,6 +56,12 @@ import {
 import type { CubeState, FaceKey } from '../cube/cubeAssembly'
 
 import { buildCubeMesh } from './cubeMesh'
+import {
+  MINI_TURN_SCALE,
+  MiniCubeGizmo,
+  miniCubeCamera,
+  miniCubePoint,
+} from './miniCubeGizmo'
 import { CubeView3DPresentation } from './cubeView3DPresentation'
 import { createCubeViewControls } from './cubeViewControls'
 import {
@@ -687,6 +693,104 @@ export function CubeView3D({
     )
   }
 
+  // Swiping the mini cube drags the whole cube like a layer: it follows
+  // the pointer and settles on whole quarter turns when released.
+  const miniGestureRef = useRef<{
+    x: number
+    y: number
+    hit: NonNullable<ReturnType<typeof pickCubeSurface>>
+    tuning: ReturnType<typeof readSwipeTuning>
+  } | null>(null)
+  // A swipe on the mini cube this long (in its units) picks the axis.
+  const MINI_START = 6
+
+  const handleMiniPointerDown = (e: PointerEvent) => {
+    e.stopPropagation()
+    if (
+      currentTurnRef.current ||
+      dragTurnRef.current ||
+      turnQueueRef.current.length > 0
+    )
+      return
+    const element = e.currentTarget as Element
+    const [x, y] = miniCubePoint(element, e)
+    const { pitch, yaw } = stateRef.current
+    const hit = pickCubeSurface(x, y, miniCubeCamera(pitch, yaw))
+    if (!hit) return
+    try {
+      element.setPointerCapture?.(e.pointerId)
+    } catch {
+      // Capture is only a convenience; the swipe works without it.
+    }
+    pauseAutoRotation()
+    miniGestureRef.current = {
+      x,
+      y,
+      hit,
+      tuning: readSwipeTuning(document.cookie),
+    }
+  }
+
+  const handleMiniPointerMove = (e: PointerEvent) => {
+    const gesture = miniGestureRef.current
+    if (!gesture) return
+    e.stopPropagation()
+    const [x, y] = miniCubePoint(e.currentTarget as Element, e)
+    const { pitch, yaw } = stateRef.current
+    const camera = miniCubeCamera(pitch, yaw)
+    const dx = x - gesture.x,
+      dy = y - gesture.y
+    const drag = dragTurnRef.current
+    if (!drag) {
+      const layer = pickSwipeLayer(gesture.hit, dx, dy, camera, MINI_START)
+      if (!layer) return
+      const whole = wholeCubeLayer(layer.axis, puzzleSize)
+      dragTurnRef.current = {
+        layer: whole,
+        angle:
+          MINI_TURN_SCALE * swipeLayerAngle(gesture.hit, whole, dx, dy, camera),
+        velocity: 0,
+        time: e.timeStamp,
+        drawn: null,
+      }
+      setIsTurning(true)
+      return
+    }
+    const angle =
+      MINI_TURN_SCALE * swipeLayerAngle(gesture.hit, drag.layer, dx, dy, camera)
+    drag.velocity = (angle - drag.angle) / Math.max(e.timeStamp - drag.time, 8)
+    drag.angle = angle
+    drag.time = e.timeStamp
+  }
+
+  const handleMiniPointerUp = (e: PointerEvent) => {
+    const gesture = miniGestureRef.current
+    if (!gesture) return
+    e.stopPropagation()
+    miniGestureRef.current = null
+    try {
+      ;(e.currentTarget as Element).releasePointerCapture?.(e.pointerId)
+    } catch {
+      // Ignore if pointer capture release fails
+    }
+    const drag = dragTurnRef.current
+    if (drag) {
+      // A pointer that stopped before lifting throws nothing.
+      const velocity = e.timeStamp - drag.time > 100 ? 0 : drag.velocity
+      settleDrag(
+        e.type === 'pointercancel'
+          ? 0
+          : releasedQuarterTurns(
+              drag.angle,
+              velocity,
+              gesture.tuning.commitFraction,
+              gesture.tuning.flickMs,
+            ),
+      )
+    }
+    resumeAutoAtRef.current = performance.now() + AUTO_ROTATE_RESUME_DELAY_MS
+  }
+
   const handlePointerDown = (e: PointerEvent) => {
     const touch = e.pointerType === 'touch'
     if (touch) touchesRef.current.set(e.pointerId, [e.clientX, e.clientY])
@@ -928,6 +1032,18 @@ export function CubeView3D({
       onToggleStickerless={() => setIsStickerless((value) => !value)}
       isRotating={isRotating}
       turnWholeCube={turnWholeCube}
+      miniCube={
+        <MiniCubeGizmo
+          cube={currentCube}
+          puzzleSize={puzzleSize}
+          pitch={pitch}
+          yaw={yaw}
+          palette={palette}
+          onPointerDown={handleMiniPointerDown}
+          onPointerMove={handleMiniPointerMove}
+          onPointerUp={handleMiniPointerUp}
+        />
+      }
       onToggleAutoRotate={() => {
         inertiaRef.current = { yaw: 0, pitch: 0 }
         resumeAutoAtRef.current = 0

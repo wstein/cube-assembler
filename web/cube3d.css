@@ -72,6 +72,68 @@
     backdrop-filter: blur(4px);
   }
 
+  .cube-3d-minicube {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    width: 120px;
+    height: 120px;
+    touch-action: none;
+    cursor: grab;
+    user-select: none;
+    overflow: visible;
+  }
+
+  .cube-3d-minicube-face {
+    stroke: #10192c;
+    stroke-width: 1.2;
+    stroke-linejoin: round;
+  }
+
+  .cube-3d-minicube-axis {
+    pointer-events: none;
+
+    &.behind {
+      opacity: 0.45;
+    }
+  }
+
+  .cube-3d-minicube-shaft {
+    stroke: currentColor;
+    stroke-width: 2.4;
+    stroke-linecap: round;
+  }
+
+  /* Keeps an arrow visible over a face of its own color. */
+  .cube-3d-minicube-outline {
+    stroke: #10192c;
+    stroke-width: 4.6;
+    stroke-linecap: round;
+  }
+
+  .cube-3d-minicube-tip {
+    fill: currentColor;
+    stroke: #10192c;
+    stroke-width: 0.8;
+  }
+
+  .cube-3d-minicube-label {
+    fill: currentColor;
+    stroke: #10192c;
+    stroke-width: 2.5px;
+    paint-order: stroke;
+    font: 700 11px var(--font-sans);
+    text-anchor: middle;
+    dominant-baseline: central;
+  }
+
+  @media (max-width: 480px) {
+    .cube-3d-minicube {
+      width: 96px;
+      height: 96px;
+    }
+  }
+
   .cube-3d-press-mode {
     position: absolute;
     top: 8px;

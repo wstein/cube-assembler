@@ -55,9 +55,13 @@ go early and it springs back, keep dragging for two or three quarter turns,
 or drag back to turn the other way. A quick flick finishes one turn, and a
 turn that reverses the previous one removes it from the move list. Hold a sticker
 for 0.3 seconds, then swipe to turn a standard wide move such as Rw or 3Rw.
-Shift starts a wide turn immediately and Alt turns the whole cube, recorded as
-x, y or z. With Turn sound on, a tone marks the wide turn and two rising tones
-mark the cube turn.
+Shift starts a wide turn immediately. To turn the whole cube, recorded as x,
+y or z, swipe a face of the mini cube in the view's corner: it turns like a
+layer and settles on whole quarter turns. The mini cube follows the view, its
+faces show the colors they have now, and its X, Y and Z arrows point through
+R, U and F. **Rotate y**, **Rotate y'** and **Flip x2** turn it too, and Alt
+turns the whole cube from a sticker swipe. With Turn sound on, a tone marks
+the wide turn and two rising tones mark the cube turn.
 With a mouse, drag the background to
 rotate the view; it keeps turning briefly after release. On a touch screen,
 one finger turns a layer, or a wide move after a hold.
