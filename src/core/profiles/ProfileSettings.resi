@@ -36,6 +36,9 @@ type profileSettings = {
   autoMatchedColorsId?: string,
 }
 
+// A fresh id with the prefix that `taken` says no existing one uses.
+let freshId: (string, string => bool) => string
+
 @genType let cubeSizes: array<int>
 @genType let autoColorsId: string
 @genType let captureColorsId: string
