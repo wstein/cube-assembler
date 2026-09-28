@@ -137,3 +137,12 @@ export function colorDeletionEffects(
 export function unusedColorProfiles(settings: ProfileSettings): string[] {
   return unusedColorProfilesRes(toRes(settings))
 }
+
+export {
+  closeDistance as CLOSE_DISTANCE,
+  mixedDistance as MIXED_DISTANCE,
+  pairDistance,
+  pairLevel,
+  type reviewFace as ReviewFace,
+  tryOnProfiles,
+} from '../core/profiles/ColorProfileReview.gen'

@@ -10,18 +10,18 @@ import {
   groupSimilarProfiles,
   mergeColorProfiles,
   mergedColors,
+  pairDistance as deltaE,
+  pairLevel,
   splitColorLevel,
+  tryOnProfiles,
   unusedColorProfiles,
   whiteBalancedColors,
+  CLOSE_DISTANCE as CLOSE,
+  type ReviewFace,
 } from './colorProfileReview'
 import { DeleteButton, SelectionBar } from './profileDeletion'
 import { EditableName } from './profileRename'
-import {
-  classifySticker,
-  rgbToOklab,
-  rgbToOKLCH,
-  type RGB,
-} from './imageProcessing'
+import { rgbToOklab, rgbToOKLCH, type RGB } from './imageProcessing'
 import {
   AUTO_COLORS_ID,
   allColorProfiles,
@@ -48,19 +48,11 @@ const PAIRS: Array<[string, string]> = [
   ['O', 'Y'],
   ['G', 'B'],
 ]
-// OKLab distance x 100 below which two colors are "close" / "may be mixed up".
-const CLOSE = 15
-const MIXED = 8
 const DEFAULT_LIMIT = 3
 
 export interface ReviewCapture {
   // Per face in capture order: reviewed colors and measured sticker colors.
-  faces: Array<{
-    face: string
-    label: string
-    colors: string[][]
-    cellColors: RGB[][]
-  }>
+  faces: ReviewFace[]
 }
 
 interface Props {
@@ -73,17 +65,6 @@ const css = (c: RGB) => `rgb(${c.r} ${c.g} ${c.b})`
 const hex = (c: RGB) =>
   '#' + [c.r, c.g, c.b].map((v) => v.toString(16).padStart(2, '0')).join('')
 const ink = (c: RGB) => (rgbToOklab(c).l > 0.68 ? '#17171b' : '#ffffff')
-const deltaE = (a: RGB, b: RGB) => {
-  const x = rgbToOklab(a),
-    y = rgbToOklab(b)
-  return 100 * Math.hypot(x.l - y.l, x.a - y.a, x.b - y.b)
-}
-const pairLevel = (d: number): ['bad' | 'warn' | 'ok', string] =>
-  d < MIXED
-    ? ['bad', 'may be mixed up']
-    : d < CLOSE
-      ? ['warn', 'close']
-      : ['ok', 'clear']
 const isBuiltin = isBuiltinColorProfile
 
 function Swatch({
@@ -228,45 +209,11 @@ export function ColorReviewTab({ settings, onChange, capture }: Props) {
 
   // Try-on: the last capture's stickers read with A and with B. Balanced
   // readings use the capture's own reviewed White stickers.
-  const tryOn = useMemo(() => {
-    if (!capture || capture.faces.length === 0) return null
-    const whites = capture.faces.flatMap((f) =>
-      f.cellColors.flatMap((row, r) =>
-        row.filter((_, c) => f.colors[r]?.[c] === 'W'),
-      ),
-    )
-    const white = whites.length
-      ? {
-          r: whites.reduce((s, c) => s + c.r, 0) / whites.length,
-          g: whites.reduce((s, c) => s + c.g, 0) / whites.length,
-          b: whites.reduce((s, c) => s + c.b, 0) / whites.length,
-        }
-      : null
-    const reading = (c: RGB) =>
-      balanced && white ? whiteBalancedColors({ W: white, X: c }).X : c
-    let wrongA = 0,
-      wrongB = 0,
-      total = 0
-    const changes: Record<string, number> = {}
-    const faces = capture.faces.map((f) =>
-      f.cellColors.map((row, r) =>
-        row.map((c, col) => {
-          const measured = reading(c),
-            truth = f.colors[r][col]
-          const readA = classifySticker(measured, colorsA).color,
-            readB = classifySticker(measured, colorsB).color
-          total++
-          if (readA !== truth) wrongA++
-          if (readB !== truth) wrongB++
-          if (readA !== readB)
-            changes[`${readA}→${readB}`] =
-              (changes[`${readA}→${readB}`] ?? 0) + 1
-          return { measured, truth, readA, readB }
-        }),
-      ),
-    )
-    return { faces, wrongA, wrongB, total, changes }
-  }, [capture, balanced, colorsA, colorsB])
+  const tryOn = useMemo(
+    () =>
+      capture ? tryOnProfiles(capture.faces, balanced, colorsA, colorsB) : null,
+    [capture, balanced, colorsA, colorsB],
+  )
 
   const pairColumn = (profile: ColorProfile, tag: 'a' | 'b') => {
     const colors = shown(profile)

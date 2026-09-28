@@ -40,3 +40,36 @@ let deleteColorProfiles: (
 ) => ProfileSettings.profileSettings
 @genType let colorDeletionEffects: (ProfileSettings.profileSettings, array<string>) => array<string>
 @genType let unusedColorProfiles: ProfileSettings.profileSettings => array<string>
+
+@genType let mixedDistance: float
+@genType let closeDistance: float
+@genType let pairDistance: (StickerGeometry.rgb, StickerGeometry.rgb) => float
+@genType let pairLevel: float => (level, string)
+
+@genType
+type reviewFace = {
+  face: string,
+  label: string,
+  colors: array<array<string>>,
+  cellColors: array<array<StickerGeometry.rgb>>,
+}
+
+@genType
+type tryOnCell = {measured: StickerGeometry.rgb, truth: string, readA: string, readB: string}
+
+@genType
+type tryOn = {
+  faces: array<array<array<tryOnCell>>>,
+  wrongA: int,
+  wrongB: int,
+  total: int,
+  changes: Dict.t<int>,
+}
+
+@genType
+let tryOnProfiles: (
+  array<reviewFace>,
+  bool,
+  Dict.t<StickerGeometry.rgb>,
+  Dict.t<StickerGeometry.rgb>,
+) => Null.t<tryOn>

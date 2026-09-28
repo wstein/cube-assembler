@@ -307,3 +307,111 @@ let unusedColorProfiles = (settings: profileSettings) =>
     profile.id != settings.activeColorsId && Some(profile.id) != settings.autoMatchedColorsId
   )
   ->Array.map(profile => profile.id)
+
+// OKLab distance x 100 below which two colors "may be mixed up" / are
+// "close".
+let mixedDistance = 8.0
+let closeDistance = 15.0
+
+// How far apart two colors are, in OKLab x 100.
+let pairDistance = (a, b) => {
+  let x = rgbToOklab(a)
+  let y = rgbToOklab(b)
+  100.0 *. Math.hypotMany([x.l -. y.l, x.a -. y.a, x.b -. y.b])
+}
+
+// How likely a classifier is to mix up two colors that far apart.
+let pairLevel = distance =>
+  distance < mixedDistance
+    ? (Bad, "may be mixed up")
+    : distance < closeDistance
+    ? (Warn, "close")
+    : (Ok, "clear")
+
+// A face of the last capture: its reviewed colors and measured stickers.
+type reviewFace = {
+  face: string,
+  label: string,
+  colors: array<array<string>>,
+  cellColors: array<array<rgb>>,
+}
+
+type tryOnCell = {measured: rgb, truth: string, readA: string, readB: string}
+
+type tryOn = {
+  faces: array<array<array<tryOnCell>>>,
+  wrongA: int,
+  wrongB: int,
+  total: int,
+  // How often A's reading turned into B's, keyed "A→B".
+  changes: Dict.t<int>,
+}
+
+// The last capture's stickers read with profile A and with B. Balanced
+// readings use the capture's own reviewed White stickers.
+let tryOnProfiles = (faces: array<reviewFace>, balanced, colorsA, colorsB) =>
+  if Array.length(faces) == 0 {
+    Null.null
+  } else {
+    let whites =
+      faces->Array.flatMap(f =>
+        f.cellColors->Array.flatMapWithIndex((row, r) =>
+          row->Array.filterWithIndex(
+            (_, c) => f.colors[r]->Option.flatMap(colors => colors[c]) == Some("W"),
+          )
+        )
+      )
+    let count = Int.toFloat(Array.length(whites))
+    let white =
+      Array.length(whites) > 0
+        ? Some({
+            r: whites->Array.reduce(0.0, (s, c) => s +. c.r) /. count,
+            g: whites->Array.reduce(0.0, (s, c) => s +. c.g) /. count,
+            b: whites->Array.reduce(0.0, (s, c) => s +. c.b) /. count,
+          })
+        : None
+    let reading = c =>
+      switch white {
+      | Some(white) if balanced =>
+        whiteBalancedColors(
+          Dict.fromArray([("W", white), ("X", c)]),
+          balancedWhite,
+        )->Dict.getUnsafe("X")
+      | _ => c
+      }
+    let wrongA = ref(0)
+    let wrongB = ref(0)
+    let total = ref(0)
+    let changes = Dict.make()
+    let faces = faces->Array.map(f =>
+      f.cellColors->Array.mapWithIndex((row, r) =>
+        row->Array.mapWithIndex(
+          (c, col) => {
+            let measured = reading(c)
+            let truth = f.colors->Array.getUnsafe(r)->Array.getUnsafe(col)
+            let readA = classifySticker(measured, Some(colorsA)).color
+            let readB = classifySticker(measured, Some(colorsB)).color
+            total := total.contents + 1
+            if readA != truth {
+              wrongA := wrongA.contents + 1
+            }
+            if readB != truth {
+              wrongB := wrongB.contents + 1
+            }
+            if readA != readB {
+              let key = `${readA}→${readB}`
+              changes->Dict.set(key, changes->Dict.get(key)->Option.getOr(0) + 1)
+            }
+            {measured, truth, readA, readB}
+          },
+        )
+      )
+    )
+    Null.make({
+      faces,
+      wrongA: wrongA.contents,
+      wrongB: wrongB.contents,
+      total: total.contents,
+      changes,
+    })
+  }
