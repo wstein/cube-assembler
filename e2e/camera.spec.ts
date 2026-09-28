@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
-import { expect, test } from '@playwright/test'
+import { expect, test, type Page } from '@playwright/test'
 
 declare global {
   interface Window {
@@ -14,11 +14,7 @@ const photos = faceKeys.map((face) =>
   readFileSync(resolve(fixture, `face-${face}.jpg`)).toString('base64'),
 )
 
-test('captures and re-detects a face from a live camera stream', async ({
-  page,
-}) => {
-  test.setTimeout(120_000)
-  await page.emulateMedia({ reducedMotion: 'reduce' })
+async function installStubCamera(page: Page) {
   await page.addInitScript(
     ({ frames }) => {
       const canvas = document.createElement('canvas')
@@ -49,6 +45,14 @@ test('captures and re-detects a face from a live camera stream', async ({
     },
     { frames: photos },
   )
+}
+
+test('captures and re-detects a face from a live camera stream', async ({
+  page,
+}) => {
+  test.setTimeout(120_000)
+  await page.emulateMedia({ reducedMotion: 'reduce' })
+  await installStubCamera(page)
 
   await page.goto('/')
   await page.getByRole('button', { name: 'Capture faces' }).click()
@@ -117,6 +121,22 @@ test('captures and re-detects a face from a live camera stream', async ({
   expect(savedPhoto.width).toBeGreaterThan(200)
   expect(savedPhoto.width).toBeLessThan(960)
   expect(savedPhoto.height).toBeLessThan(720)
+})
+
+test('auto capture advances after five stable live frames', async ({
+  page,
+}) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' })
+  await installStubCamera(page)
+  await page.goto('/')
+  await page.getByRole('button', { name: 'Capture faces' }).click()
+  const capture = page.locator('.capture-modal-content')
+  await expect(capture.locator('video')).toHaveJSProperty('videoWidth', 960)
+  await capture.getByRole('checkbox', { name: /Auto capture/ }).check()
+  await expect(capture.locator('.capture-net [data-slot="U"]')).toHaveAttribute(
+    'aria-label',
+    /captured/,
+  )
 })
 
 test('reads a photo file for the current capture step', async ({ page }) => {

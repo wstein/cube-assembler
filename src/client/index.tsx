@@ -12,18 +12,7 @@ import '@fontsource/ibm-plex-mono/400.css'
 import '@fontsource/ibm-plex-mono/500.css'
 import '@fontsource/ibm-plex-mono/600.css'
 import '../../web/style.css'
-import {
-  AUTO_CAPTURE_MIN_CONFIDENCE,
-  AUTO_CAPTURE_STABLE_FRAMES,
-  TURN_CUE_START,
-  nextAutoCaptureProgress,
-  nextTurnCue,
-  turnCueCleared,
-  turnPoseChanged,
-  type AutoCaptureProgress,
-  type TurnCuePose,
-  type TurnCueState,
-} from './autoCapture'
+import { AUTO_CAPTURE_STABLE_FRAMES, type TurnCuePose } from './autoCapture'
 import { oppositeFacePreview } from './capturePresentation'
 import { readyAssemblyAfterCapture } from './captureReviewRouting'
 import {
@@ -37,6 +26,7 @@ import { FixtureDownloadDialog } from './fixtureDownloadDialog'
 import { useFixtureDownload } from './useFixtureDownload'
 import { useCameraStream, withoutDeviceIds } from './useCameraStream'
 import { useCaptureFeedback } from './useCaptureFeedback'
+import { useLiveCaptureAnalysis } from './useLiveCaptureAnalysis'
 import {
   captureCameraPhoto,
   importCapturePhoto,
@@ -73,9 +63,6 @@ import {
   selectedCubeView,
   selectionCookie,
 } from './preferences'
-import { holdConfirmedFace, NO_HOLD, type LiveHold } from './liveHold'
-import { scaleBounds, type LiveAnalysisRequest } from './liveAnalysis'
-import type { LiveFrameMessage, LiveResultMessage } from './liveAnalysis.worker'
 import { runFullParity, type ParityResult } from '../cube/parity'
 import {
   WIZARD_FACE_ORDER,
@@ -85,7 +72,6 @@ import {
   preferredGuidedArrangementIndex,
 } from '../cube/orientationWizard'
 import {
-  captureAndProcessCanvas,
   captureAndProcessImage,
   hasPlausibleStickerFace,
   runGlobalWhiteBalance,
@@ -121,7 +107,6 @@ import {
   solveGuidedCapture,
   checkGuidedCenters,
   findRepeatedFaces,
-  findCapturedFaceMatch,
   findCaptureSlotForOrientedFace,
   orientationFreeSignature,
   captureCenterSlots,
@@ -281,11 +266,6 @@ function CubeSelectOptions({ settings }: { settings: ProfileSettings }) {
     </>
   )
 }
-
-// The live preview analyzes frames scaled down to this height: detection
-// found the same faces on 720p copies of 1080p frames at well under half
-// the cost (see liveAnalysis.test.ts); captures still read full resolution.
-const LIVE_ANALYSIS_HEIGHT = 720
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Parity Check
@@ -1102,7 +1082,6 @@ function App() {
     armAudio: armCaptureAudio,
     signalCapture,
   } = useCaptureFeedback(captureSound)
-  const autoCaptureInFlight = useRef(false)
   const lastCapturedColors = useRef<string[][] | null>(null)
   const lastCapturedPose = useRef<TurnCuePose | null>(null)
   const [webcamFace, setWebcamFace] = useState('U')
@@ -1468,15 +1447,6 @@ function App() {
   // A face just captured, to fly from the scan square into its net slot
   // once the slot has rendered it (see CaptureNet / flyInto).
   const pendingFlyIn = useRef<{ slot: string; from: DOMRect } | null>(null)
-  const sampleCanvasRef = useRef<HTMLCanvasElement | null>(null)
-  const liveWorker = useRef<Worker | null>(null)
-  useEffect(
-    () => () => {
-      liveWorker.current?.terminate()
-    },
-    [],
-  )
-
   const dismissTurnOverlay = () => {
     setTurnOverlay(null)
   }
@@ -1502,289 +1472,6 @@ function App() {
     )
     if (target) flyInto(target, fly.from)
   }, [capturedFaces])
-
-  // Live sticker-color preview: sample the video feed a few times a second
-  // so the grid overlay shows detected colors before the user commits to a
-  // capture. Keep analyzing behind the turn cue to see the old face leave.
-  const turnCueShowing = turnOverlay !== null
-  useEffect(() => {
-    setAutoCaptureFrames(0)
-    setAutoCapturePaused(false)
-    if (!webcamOpen) {
-      setLiveDetection(null)
-      setLiveFaceVisible(false)
-      setLiveNeedsRecentering(false)
-      setLiveMedianWB(false)
-      setLiveAutoColorProfileId(null)
-      setLiveCapturedFace(null)
-      return
-    }
-    if (loading) return
-
-    if (!sampleCanvasRef.current) {
-      sampleCanvasRef.current = document.createElement('canvas')
-    }
-    const canvas = sampleCanvasRef.current
-    let progress: AutoCaptureProgress | null = null
-    let hold: LiveHold<ColorDetectionResult> = NO_HOLD
-    let turnCue: TurnCueState = TURN_CUE_START
-    const capturedBackgrounds = Object.fromEntries(
-      FACE_ORDER.map((face) => [
-        face,
-        capturedFaces[face]?.backgroundColor ?? null,
-      ]),
-    )
-
-    // Frames are analyzed in a worker, scaled down to LIVE_ANALYSIS_HEIGHT
-    // there (see liveAnalysis.worker.ts), one at a time. The worker hands
-    // each full-resolution frame back with its result, so a capture reads
-    // the very image the detection judged.
-    const worker = (liveWorker.current ??= new Worker(
-      new URL('./liveAnalysis.worker.ts', import.meta.url),
-      { type: 'module' },
-    ))
-    let active = true
-    let frameId = 0
-    let inFlight: number | null = null
-
-    const onResult = (event: MessageEvent<LiveResultMessage>) => {
-      const full = event.data.frame
-      if (!active || event.data.id !== inFlight) {
-        full.close()
-        return
-      }
-      try {
-        if ('error' in event.data) throw new Error(event.data.error)
-        const { result } = event.data
-        const analysis = result
-        // Bounds in the camera frame's pixels; colors and the check come
-        // from the worker's single read of the face.
-        const bounds = scaleBounds(result.bounds, event.data.scale)
-        const { detection, visible } = result
-        setLiveNeedsRecentering(bounds.needsRecentering === true)
-        setLiveMedianWB(result.backgroundColor !== null)
-        setLiveAutoColorProfileId(
-          result.colorProfileId ?? provisionalColorProfile?.id ?? null,
-        )
-        if (lastCapturedColors.current) {
-          const pose: TurnCuePose = {
-            centerX: bounds.startX + bounds.faceWidth / 2,
-            centerY: bounds.startY + bounds.faceHeight / 2,
-            size: bounds.faceWidth,
-            angle: bounds.angle ?? 0,
-          }
-          turnCue = nextTurnCue(
-            turnCue,
-            visible && bounds.gridFound && detection.confidence >= 0.8
-              ? detection.colors
-              : null,
-            lastCapturedColors.current,
-            visible && bounds.gridFound && lastCapturedPose.current !== null
-              ? turnPoseChanged(lastCapturedPose.current, pose)
-              : false,
-          )
-          if (turnCueCleared(turnCue)) {
-            lastCapturedColors.current = null
-            lastCapturedPose.current = null
-            if (turnCueShowing) dismissTurnOverlay()
-          }
-          return
-        }
-        if (turnCueShowing) return
-        // Detect face holds a confirmed face through a weak frame or two
-        // (display only - see holdConfirmedFace); everything below still
-        // judges this frame on its own.
-        const shown =
-          captureMode === 'cv'
-            ? holdConfirmedFace(hold, detection, visible)
-            : { hold, show: detection, visible }
-        hold = shown.hold
-        setLiveDetection(shown.show)
-        setLiveFaceVisible(shown.visible)
-        const matchedSlot =
-          captureMode === 'cv' && visible && detection.confidence >= 0.8
-            ? findCapturedFaceMatch(
-                FACE_ORDER.map(
-                  (face) =>
-                    capturedFaces[face] && {
-                      colors: capturedFaces[face].colors,
-                    },
-                ),
-                { colors: detection.colors },
-                FACE_ORDER.indexOf(webcamFace),
-              )
-            : null
-        setLiveCapturedFace(
-          matchedSlot === null ? null : FACE_ORDER[matchedSlot],
-        )
-        if (
-          captureMode === 'cv' &&
-          autoCapture &&
-          !autoCaptureInFlight.current
-        ) {
-          const counted =
-            visible &&
-            bounds.gridFound &&
-            detection.confidence >= AUTO_CAPTURE_MIN_CONFIDENCE
-          progress = nextAutoCaptureProgress(
-            progress,
-            counted
-              ? {
-                  colors: detection.colors,
-                  confidence: detection.confidence,
-                  centerX: bounds.startX + bounds.faceWidth / 2,
-                  centerY: bounds.startY + bounds.faceHeight / 2,
-                  size: bounds.faceWidth,
-                  angle: bounds.angle ?? 0,
-                }
-              : null,
-          )
-          setAutoCaptureFrames(progress?.frames ?? 0)
-          setAutoCapturePaused(!counted && progress !== null)
-          if (
-            counted &&
-            progress &&
-            progress.frames >= AUTO_CAPTURE_STABLE_FRAMES
-          ) {
-            autoCaptureInFlight.current = true
-            progress = null
-            const frame = document
-              .querySelector('.capture-scan-frame')
-              ?.getBoundingClientRect()
-            if (frame) pendingFlyIn.current = { slot: webcamFace, from: frame }
-            try {
-              // Capture exactly the frame whose grid and colors stayed stable:
-              // its full-resolution snapshot, not a newer camera frame.
-              canvas.width = full.width
-              canvas.height = full.height
-              canvas.getContext('2d')?.drawImage(full, 0, 0)
-              const autoPalette = autoColorProfiles.find(
-                (candidate) => candidate.id === analysis.colorProfileId,
-              )?.colors
-              const captureResult = captureAndProcessCanvas(
-                canvas,
-                puzzleSize,
-                analysis.gains,
-                sampling,
-                palette ?? autoPalette,
-                'aligned',
-                bounds,
-              )
-              signalCapture()
-              const track = (
-                webcamRef.current?.srcObject as MediaStream | null
-              )?.getVideoTracks()[0]
-              setLoading(true)
-              setCaptureMessage('Processing image...')
-              void applyFaceCapture(
-                webcamFace,
-                captureResult,
-                'camera',
-                track ? withoutDeviceIds(track.getSettings()) : undefined,
-                puzzleSize,
-                previewProfileFor(analysis.colorProfileId ?? null),
-              )
-                .catch((err) =>
-                  setCaptureMessage(
-                    `❌ Error: ${err instanceof Error ? err.message : 'Unknown error'}`,
-                  ),
-                )
-                .finally(() => {
-                  autoCaptureInFlight.current = false
-                  setLoading(false)
-                })
-            } catch (err) {
-              autoCaptureInFlight.current = false
-              setCaptureMessage(
-                `❌ Error: ${err instanceof Error ? err.message : 'Unknown error'}`,
-              )
-            }
-          }
-        }
-      } catch {
-        // Transient frame read failure (e.g. camera still warming up).
-        setLiveDetection(null)
-        setLiveFaceVisible(false)
-        setLiveMedianWB(false)
-        setLiveCapturedFace(null)
-        // A transient worker failure pauses the hold. The next good frame
-        // still has to match the same sticker colors.
-        setAutoCapturePaused(progress !== null)
-      } finally {
-        full.close()
-        inFlight = null
-      }
-    }
-    worker.addEventListener('message', onResult)
-
-    const captureNextFrame = async () => {
-      const video = webcamRef.current
-      if (
-        inFlight ||
-        !video ||
-        video.videoWidth === 0 ||
-        video.videoHeight === 0
-      )
-        return
-      const id = ++frameId
-      inFlight = id
-      try {
-        const frame = await createImageBitmap(video)
-        if (!active || inFlight !== id) {
-          frame.close()
-          return
-        }
-        const request: LiveAnalysisRequest = {
-          gridSize: puzzleSize,
-          mode: captureMode === 'cv' ? 'aligned' : 'fixed',
-          requireOutline: captureMode === 'cv',
-          sampling,
-          palette,
-          autoProfiles:
-            profileStore.activeColorsId === AUTO_COLORS_ID && !palette
-              ? autoColorProfiles
-              : undefined,
-          capturedBackgrounds,
-        }
-        worker.postMessage(
-          {
-            id,
-            frame,
-            maxHeight: LIVE_ANALYSIS_HEIGHT,
-            request,
-          } satisfies LiveFrameMessage,
-          [frame],
-        )
-      } catch {
-        if (inFlight === id) inFlight = null
-      }
-    }
-    const intervalId = setInterval(() => {
-      void captureNextFrame()
-    }, 200)
-
-    return () => {
-      active = false
-      clearInterval(intervalId)
-      worker.removeEventListener('message', onResult)
-      inFlight = null
-    }
-  }, [
-    webcamOpen,
-    turnCueShowing,
-    loading,
-    webcamFace,
-    puzzleSize,
-    sampling,
-    palette,
-    autoColorProfiles,
-    profileStore.activeColorsId,
-    provisionalColorProfile,
-    captureMode,
-    autoCapture,
-    captureSound,
-    capturedFaces,
-  ])
 
   // Everything below belongs to one cube of one size, so switching sizes
   // starts over - keeping it drew e.g. a 5x5's 25 stickers per face into a
@@ -2091,6 +1778,57 @@ function App() {
       }
     }
   }
+
+  useLiveCaptureAnalysis({
+    open: webcamOpen,
+    loading,
+    turnCueShowing: turnOverlay !== null,
+    face: webcamFace,
+    faceOrder: FACE_ORDER,
+    size: puzzleSize,
+    mode: captureMode,
+    sampling,
+    palette,
+    autoProfiles: autoColorProfiles,
+    autoColorsSelected: profileStore.activeColorsId === AUTO_COLORS_ID,
+    provisionalProfileId: provisionalColorProfile?.id ?? null,
+    autoCapture,
+    capturedFaces,
+    videoRef: webcamRef,
+    lastCapturedColors,
+    lastCapturedPose,
+    pendingFlyIn,
+    setAutoCaptureFrames,
+    setAutoCapturePaused,
+    setLiveDetection,
+    setLiveFaceVisible,
+    setLiveNeedsRecentering,
+    setLiveMedianWB,
+    setLiveAutoColorProfileId,
+    setLiveCapturedFace,
+    setCaptureMessage,
+    onTurnCueCleared: dismissTurnOverlay,
+    onCaptureSignal: signalCapture,
+    onAutoCapture: async (result, profileId) => {
+      const track = (
+        webcamRef.current?.srcObject as MediaStream | null
+      )?.getVideoTracks()[0]
+      setLoading(true)
+      setCaptureMessage('Processing image...')
+      try {
+        await applyFaceCapture(
+          webcamFace,
+          result,
+          'camera',
+          track ? withoutDeviceIds(track.getSettings()) : undefined,
+          puzzleSize,
+          previewProfileFor(profileId),
+        )
+      } finally {
+        setLoading(false)
+      }
+    },
+  })
 
   // Runs once every face has a captured entry, regardless of how it got
   // there (one-by-one webcam capture or a bulk file upload) - the global
