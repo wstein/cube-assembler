@@ -5,6 +5,7 @@ import {
   gestureAfterPointerUp,
   gestureForPointerDown,
   gestureWhenSwipeTurnsNothing,
+  pinchZoom,
   pickCubeSurface,
   twoFingerMotion,
   wheelGesture,
@@ -78,6 +79,28 @@ describe('touch gestures', () => {
     expect(motion.dx).toBeCloseTo(20)
     expect(motion.dy).toBeCloseTo(30)
     expect(motion.scale).toBeCloseTo(1.2)
+  })
+
+  it('ignores the small spread changes of a two-finger tilt', () => {
+    // Fingers drift apart a little while tilting; that must not zoom.
+    expect(pinchZoom(200, 212, 210, false)).toEqual({
+      scale: 1,
+      zooming: false,
+    })
+    expect(pinchZoom(200, 184, 186, false)).toEqual({
+      scale: 1,
+      zooming: false,
+    })
+  })
+
+  it('zooms once the fingers clearly pinch, without jumping', () => {
+    const start = pinchZoom(200, 240, 226, false)
+    expect(start.zooming).toBe(true)
+    // Only the step past the previous spread applies, not the whole change.
+    expect(start.scale).toBeCloseTo(240 / 226)
+    // Once pinching, every change zooms, even small ones.
+    const next = pinchZoom(200, 236, 240, true)
+    expect(next).toEqual({ scale: 236 / 240, zooming: true })
   })
 
   it('keeps the zoom in the same range as the mouse wheel', () => {

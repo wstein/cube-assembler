@@ -305,3 +305,49 @@ test('a two-finger touchpad swipe tilts the cube instead of zooming', async ({
   await page.waitForTimeout(300)
   expect((await canvas.screenshot()).equals(front)).toBe(true)
 })
+
+test('two fingers zoom only once they clearly pinch', async ({ page }) => {
+  await page.goto('/')
+  await page.getByRole('button', { name: 'Solved cube' }).click()
+  await page.getByRole('button', { name: '3D View' }).click()
+  await page.getByRole('button', { name: 'Front (F)' }).click()
+  const canvas = page.locator('.cube-3d-canvas')
+  const bounds = await canvas.boundingBox()
+  expect(bounds).not.toBeNull()
+  if (!bounds) return
+  const cx = bounds.x + bounds.width / 2
+  const cy = bounds.y + bounds.height / 2
+  const touch = (type: string, id: number, x: number) =>
+    canvas.dispatchEvent(type, {
+      pointerId: id,
+      pointerType: 'touch',
+      isPrimary: id === 1,
+      clientX: x,
+      clientY: cy,
+      bubbles: true,
+    })
+  // Fingers 100 px apart spread symmetrically to `half` px each side.
+  const spread = async (half: number) => {
+    await touch('pointerdown', 1, cx - 50)
+    await touch('pointerdown', 2, cx + 50)
+    for (let step = 1; step <= 5; step++) {
+      const h = 50 + ((half - 50) * step) / 5
+      await touch('pointermove', 1, cx - h)
+      await touch('pointermove', 2, cx + h)
+    }
+    // Each finger moves in its own event, so the midpoint wobbles by half a
+    // pixel; resting before lifting leaves no coasting from that wobble.
+    await page.waitForTimeout(200)
+    await touch('pointerup', 1, cx - half)
+    await touch('pointerup', 2, cx + half)
+    await page.waitForTimeout(300)
+  }
+  await page.waitForTimeout(300)
+  const before = await canvas.screenshot()
+  // A 10% drift, as while tilting, keeps the zoom.
+  await spread(55)
+  expect((await canvas.screenshot()).equals(before)).toBe(true)
+  // A 60% pinch-out zooms in.
+  await spread(80)
+  expect((await canvas.screenshot()).equals(before)).toBe(false)
+})

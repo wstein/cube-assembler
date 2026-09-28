@@ -7,6 +7,7 @@ import {
   gestureWhenSwipeTurnsNothing,
   getSwipeLayerTurn,
   pickCubeSurface,
+  pinchZoom,
   twoFingerMotion,
   wheelGesture,
   type CubeGesture,
@@ -1275,6 +1276,8 @@ export function CubeView3D({
   // Fingers on the canvas, and where the two tilting fingers were last.
   const touchesRef = useRef(new Map<number, [number, number]>())
   const tiltFromRef = useRef<[[number, number], [number, number]] | null>(null)
+  // Finger spread when the two fingers landed, and whether they now pinch.
+  const pinchRef = useRef({ start: 0, zooming: false })
   const [coarsePointer] = useState(
     () => window.matchMedia?.('(pointer: coarse)').matches ?? false,
   )
@@ -1678,6 +1681,18 @@ export function CubeView3D({
     }
   }, [cube, puzzleSize, palette, isStickerless])
 
+  const spreadOf = ([a, b]: [[number, number], [number, number]]) =>
+    Math.hypot(a[0] - b[0], a[1] - b[1])
+
+  const startTilt = () => {
+    const touches = twoTouches()
+    tiltFromRef.current = touches
+    pinchRef.current = {
+      start: touches ? spreadOf(touches) : 0,
+      zooming: false,
+    }
+  }
+
   const twoTouches = (): [[number, number], [number, number]] | null => {
     const points = [...touchesRef.current.values()]
     return points.length >= 2 ? [points[0], points[1]] : null
@@ -1726,7 +1741,7 @@ export function CubeView3D({
       )
       if (gesture) gesture.mode = mode
       if (mode === 'tilt') {
-        tiltFromRef.current = twoTouches()
+        startTilt()
         lastPointerRef.current = {
           ...lastPointerRef.current,
           time: e.timeStamp,
@@ -1769,8 +1784,15 @@ export function CubeView3D({
       tiltFromRef.current = to
       const motion = twoFingerMotion(from, to)
       rotateView(motion.dx, motion.dy, e.timeStamp)
-      if (motion.scale !== 1)
-        setZoom((prev) => clampZoom(prev / motion.scale, puzzleSize))
+      const pinch = pinchZoom(
+        pinchRef.current.start,
+        spreadOf(to),
+        spreadOf(from),
+        pinchRef.current.zooming,
+      )
+      pinchRef.current.zooming = pinch.zooming
+      if (pinch.scale !== 1)
+        setZoom((prev) => clampZoom(prev / pinch.scale, puzzleSize))
       return
     }
     if (gesture.mode === 'turn' || gesture.mode === 'none') return
@@ -1818,7 +1840,8 @@ export function CubeView3D({
     )
     if (next !== null) {
       if (gestureRef.current) gestureRef.current.mode = next
-      tiltFromRef.current = next === 'tilt' ? twoTouches() : null
+      if (next === 'tilt') startTilt()
+      else tiltFromRef.current = null
       return
     }
     isDraggingRef.current = false

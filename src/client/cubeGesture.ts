@@ -192,6 +192,22 @@ export function twoFingerMotion(
   return { dx: x1 - x0, dy: y1 - y0, scale: s0 > 0 ? spread(after) / s0 : 1 }
 }
 
+// Fingers drift apart a little while tilting. Zoom only once their spread
+// has changed by more than this fraction since the two fingers landed.
+export const PINCH_ZOOM_THRESHOLD = 0.15
+
+export function pinchZoom(
+  startSpread: number,
+  spread: number,
+  previousSpread: number,
+  zooming: boolean,
+): { scale: number; zooming: boolean } {
+  if (startSpread <= 0 || previousSpread <= 0) return { scale: 1, zooming }
+  if (!zooming && Math.abs(spread / startSpread - 1) <= PINCH_ZOOM_THRESHOLD)
+    return { scale: 1, zooming: false }
+  return { scale: spread / previousSpread, zooming: true }
+}
+
 export function clampZoom(zoom: number, size: number): number {
   return Math.max(2 + size, Math.min(8 + size * 3, zoom))
 }
