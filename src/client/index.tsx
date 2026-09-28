@@ -54,12 +54,7 @@ import { lazy, Suspense } from 'preact/compat'
 const ProfilesPage = lazy(() =>
   import('./profilesPage').then((m) => ({ default: m.ProfilesPage })),
 )
-import {
-  orderPhotoUploads,
-  uploadKind,
-  type PhotoFrameMode,
-  type SelectedPhoto,
-} from './photoUpload'
+import { uploadKind } from './photoUpload'
 import { PhotoUploadReview } from './photoUploadReview'
 import { readPhotoUploads } from './readPhotoUploads'
 import { repositoryLink } from './repositoryLink'
@@ -149,6 +144,7 @@ import { computeColorStats } from './colorStats'
 import { flyInto } from './flyAnimation'
 import { focusModalOnOpen, handleModalKeyDown } from './modalFocus'
 import { useProfileStore } from './useProfileStore'
+import { usePhotoUploads } from './usePhotoUploads'
 import { useOrientationReview } from './useOrientationReview'
 import {
   toWRGFacelets,
@@ -222,13 +218,13 @@ function App() {
   )
   const [loading, setLoading] = useState(false)
   const [captureMessage, setCaptureMessage] = useState('')
-  const [photoUpload, setPhotoUpload] = useState<SelectedPhoto[] | null>(null)
-  const photoUploadUrls = useRef<string[]>([])
-  useEffect(
-    () => () =>
-      photoUploadUrls.current.forEach((url) => URL.revokeObjectURL(url)),
-    [],
-  )
+  const {
+    photoUpload,
+    selectPhotos,
+    closePhotoUpload,
+    changePhotoUploadMode,
+    movePhotoUpload,
+  } = usePhotoUploads()
   const [turnOverlay, setTurnOverlay] = useState<{
     step: number
     startColors: string[][]
@@ -995,44 +991,9 @@ function App() {
     }
   }
 
-  const closePhotoUpload = () => {
-    photoUploadUrls.current.forEach((url) => URL.revokeObjectURL(url))
-    photoUploadUrls.current = []
-    setPhotoUpload(null)
-  }
-
-  const changePhotoUploadMode = (index: number, mode: PhotoFrameMode) => {
-    setPhotoUpload(
-      (current) =>
-        current?.map((entry, position) =>
-          position === index ? { ...entry, mode } : entry,
-        ) ?? null,
-    )
-  }
-
-  const movePhotoUpload = (index: number, direction: -1 | 1) => {
-    setPhotoUpload((current) => {
-      if (!current) return current
-      const ordered = [...current]
-      ;[ordered[index], ordered[index + direction]] = [
-        ordered[index + direction],
-        ordered[index],
-      ]
-      return ordered
-    })
-  }
-
   const handleSelectPhotos = (files: File[]) => {
     try {
-      const ordered = orderPhotoUploads(files)
-      closePhotoUpload()
-      const selected = ordered.map((file) => ({
-        file,
-        url: URL.createObjectURL(file),
-        mode: 'auto' as const,
-      }))
-      photoUploadUrls.current = selected.map(({ url }) => url)
-      setPhotoUpload(selected)
+      selectPhotos(files)
       setCaptureMessage('')
     } catch (err) {
       setCaptureMessage(
