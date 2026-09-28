@@ -450,6 +450,43 @@ test('on touch, one finger turns a layer and a quick two-finger swipe turns the 
   await expect(notation).not.toHaveValue(turned)
 })
 
+test('a quick two-finger flick commits with one move per finger', async ({
+  page,
+}) => {
+  await page.goto('/')
+  await page.getByRole('button', { name: 'Solved cube' }).click()
+  await page.getByRole('button', { name: '3D View' }).click()
+  await page.getByRole('button', { name: 'Front (F)' }).click()
+  const bounds = await page.locator('.cube-3d-canvas').boundingBox()
+  if (!bounds) throw new Error('No canvas')
+  const x = bounds.x + bounds.width / 2
+  const y = bounds.y + bounds.height / 2
+  const cdp = await page.context().newCDPSession(page)
+  await cdp.send('Emulation.setTouchEmulationEnabled', {
+    enabled: true,
+    maxTouchPoints: 2,
+  })
+  const points = (dy: number) => [
+    { x: x - 35, y: y + dy, id: 1 },
+    { x: x + 35, y: y + dy, id: 2 },
+  ]
+  await cdp.send('Input.dispatchTouchEvent', {
+    type: 'touchStart',
+    touchPoints: points(0),
+  })
+  await cdp.send('Input.dispatchTouchEvent', {
+    type: 'touchMove',
+    touchPoints: points(-35),
+  })
+  await cdp.send('Input.dispatchTouchEvent', {
+    type: 'touchEnd',
+    touchPoints: [],
+  })
+  await expect(
+    page.getByRole('status', { name: 'Move history' }),
+  ).toContainText(/Moves: [xyz]/)
+})
+
 test('a two-finger touchpad swipe tilts the cube instead of zooming', async ({
   page,
 }) => {

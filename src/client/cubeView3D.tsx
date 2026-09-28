@@ -179,6 +179,7 @@ export function CubeView3D({
   const twoFingerTurnRef = useRef(false)
   const twoFingerCameraRef = useRef(false)
   const twoFingerStartRef = useRef<[number, number] | null>(null)
+  const twoFingerStartTimeRef = useRef(0)
   const twoFingerHitRef = useRef<ReturnType<typeof pickCubeSurface>>(null)
   const twoFingerTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   // Where two fingers landed (spread and midpoint), and whether the gesture
@@ -768,6 +769,7 @@ export function CubeView3D({
         const pair = twoTouches()
         const midpoint = pair ? midpointOf(pair) : null
         twoFingerStartRef.current = midpoint
+        twoFingerStartTimeRef.current = e.timeStamp
         const rect = canvasRef.current?.getBoundingClientRect()
         twoFingerHitRef.current =
           midpoint && rect
@@ -869,6 +871,13 @@ export function CubeView3D({
           },
           camera,
         )
+        const drag = dragTurnRef.current
+        // Browsers can deliver one move per finger before release. Preserve
+        // the flick speed from touch-down instead of starting at zero.
+        if (drag)
+          drag.velocity =
+            drag.angle /
+            Math.max(e.timeStamp - twoFingerStartTimeRef.current, 8)
         return
       }
       tiltFromRef.current = to
