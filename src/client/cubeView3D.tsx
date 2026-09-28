@@ -203,6 +203,7 @@ export function CubeView3D({
   const [pressMode, setPressMode] = useState<PressLevel | null>(null)
   // Fingers on the canvas, and where the two tilting fingers were last.
   const touchesRef = useRef(new Map<number, [number, number]>())
+  const activePointersRef = useRef(new Set<number>())
   const tiltFromRef = useRef<[[number, number], [number, number]] | null>(null)
   // Where two fingers landed (spread and midpoint), and whether the gesture
   // has locked to tilting or pinching.
@@ -782,6 +783,7 @@ export function CubeView3D({
   }
 
   const handlePointerDown = (e: PointerEvent) => {
+    activePointersRef.current.add(e.pointerId)
     const touch = e.pointerType === 'touch'
     if (touch) touchesRef.current.set(e.pointerId, [e.clientX, e.clientY])
     const touches = touch ? touchesRef.current.size : 1
@@ -986,6 +988,16 @@ export function CubeView3D({
   }
 
   const handlePointerUp = (e: PointerEvent) => {
+    // Capture can disappear without pointerup (for example when a touch is
+    // interrupted). Cancel the partial turn so the cube returns upright.
+    if (
+      e.type === 'lostpointercapture' &&
+      !activePointersRef.current.has(e.pointerId)
+    )
+      return
+    activePointersRef.current.delete(e.pointerId)
+    const cancelled =
+      e.type === 'pointercancel' || e.type === 'lostpointercapture'
     const touch = e.pointerType === 'touch'
     if (touch) touchesRef.current.delete(e.pointerId)
     try {
@@ -999,7 +1011,7 @@ export function CubeView3D({
     const cube = twoFingerCubeRef.current
     twoFingerCubeRef.current = null
     if (cube?.dragging) {
-      releaseWholeCube(e.timeStamp, e.type === 'pointercancel')
+      releaseWholeCube(e.timeStamp, cancelled)
       if (remaining > 0) {
         if (gestureRef.current) gestureRef.current.mode = 'none'
         tiltFromRef.current = null
@@ -1026,7 +1038,7 @@ export function CubeView3D({
         // A finger that stopped before lifting throws nothing.
         const velocity = e.timeStamp - drag.time > 100 ? 0 : drag.velocity
         settleDrag(
-          e.type === 'pointercancel'
+          cancelled
             ? 0
             : releasedQuarterTurns(
                 drag.angle,
@@ -1034,17 +1046,14 @@ export function CubeView3D({
                 gesture.tuning.commitFraction,
                 gesture.tuning.flickMs,
               ),
-          e.type === 'pointercancel' ? 0 : velocity,
+          cancelled ? 0 : velocity,
         )
       }
     }
     gestureRef.current = null
     tiltFromRef.current = null
     resumeAutoAtRef.current = performance.now() + AUTO_ROTATE_RESUME_DELAY_MS
-    if (
-      e.type === 'pointercancel' ||
-      e.timeStamp - lastPointerRef.current.time > 120
-    ) {
+    if (cancelled || e.timeStamp - lastPointerRef.current.time > 120) {
       inertiaRef.current = { yaw: 0, pitch: 0 }
     }
   }

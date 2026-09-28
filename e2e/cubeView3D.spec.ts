@@ -668,6 +668,79 @@ test('on touch, two fingers turn the whole cube on it and rotate the view beside
   await expect(notation).not.toHaveValue(turned)
 })
 
+test('losing touch capture cancels a partial whole-cube turn', async ({
+  page,
+}) => {
+  await page.goto('/')
+  await page
+    .getByRole('combobox', { name: 'Cube' })
+    .selectOption({ label: '5×5' })
+  await page.getByRole('button', { name: 'Solved cube' }).click()
+  await page.getByRole('button', { name: '3D View' }).click()
+  await page.getByRole('button', { name: 'Front (F)' }).click()
+  const canvas = page.locator('.cube-3d-canvas')
+  const bounds = await canvas.boundingBox()
+  if (!bounds) throw new Error('No canvas')
+  const cx = bounds.x + bounds.width / 2
+  const cy = bounds.y + bounds.height / 2
+  const touch = (type: string, id: number, x: number, y: number) =>
+    canvas.dispatchEvent(type, {
+      pointerId: id,
+      pointerType: 'touch',
+      isPrimary: id === 1,
+      clientX: x,
+      clientY: y,
+      bubbles: true,
+    })
+  await page.waitForTimeout(300)
+  const before = await canvas.screenshot()
+  await touch('pointerdown', 1, cx - 30, cy)
+  await touch('pointerdown', 2, cx + 30, cy)
+  for (let step = 1; step <= 10; step++) {
+    await touch('pointermove', 1, cx - 30, cy - step * 10)
+    await touch('pointermove', 2, cx + 30, cy - step * 10)
+  }
+  await page.waitForTimeout(100)
+  expect((await canvas.screenshot()).equals(before)).toBe(false)
+  await touch('lostpointercapture', 2, cx + 30, cy - 100)
+  await touch('lostpointercapture', 1, cx - 30, cy - 100)
+  await page.waitForTimeout(500)
+  await expect(page.getByRole('status', { name: 'Move history' })).toHaveText(
+    'Moves: None',
+  )
+  expect((await canvas.screenshot()).equals(before)).toBe(true)
+})
+
+test('losing mouse capture cancels a partial layer turn', async ({ page }) => {
+  await page.goto('/')
+  await page.getByRole('button', { name: 'Solved cube' }).click()
+  await page.getByRole('button', { name: '3D View' }).click()
+  await page.getByRole('button', { name: 'Front (F)' }).click()
+  const canvas = page.locator('.cube-3d-canvas')
+  const bounds = await canvas.boundingBox()
+  if (!bounds) throw new Error('No canvas')
+  await page.waitForTimeout(300)
+  const before = await canvas.screenshot()
+  const x = bounds.x + bounds.width / 2 - 38
+  const y = bounds.y + bounds.height / 2
+  await page.mouse.move(x, y)
+  await page.mouse.down()
+  await page.mouse.move(x, y - 40, { steps: 5 })
+  await canvas.dispatchEvent('lostpointercapture', {
+    pointerId: 1,
+    pointerType: 'mouse',
+    clientX: x,
+    clientY: y - 40,
+    bubbles: true,
+  })
+  await page.waitForTimeout(500)
+  await expect(page.getByRole('status', { name: 'Move history' })).toHaveText(
+    'Moves: None',
+  )
+  expect((await canvas.screenshot()).equals(before)).toBe(true)
+  await page.mouse.up()
+})
+
 test('a quick two-finger flick on the cube turns it once', async ({ page }) => {
   await page.goto('/')
   await page.getByRole('button', { name: 'Solved cube' }).click()

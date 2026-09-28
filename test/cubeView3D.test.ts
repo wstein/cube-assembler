@@ -650,6 +650,14 @@ describe('cubeView3D math and geometry', () => {
       expect(changed(two.colors, flat.colors)).toBe(0)
     })
 
+    it('returns the geometry upright after a whole-cube z turn', () => {
+      const solved = createSolvedCube(5)
+      const rotated = applyCubeLayerMove(solved, 5, 'F', 5, 1, 5)
+      expect(buildCubeMesh(rotated, 5).positions).toEqual(
+        buildCubeMesh(solved, 5).positions,
+      )
+    })
+
     it('roundtrips CubeState to Faces and back', () => {
       const cube = createSolvedCube(3)
       const faces = cubeStateToFaces(cube, 3)

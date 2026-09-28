@@ -92,6 +92,7 @@ export function CubeView3DPresentation({
               onPointerMove={handlePointerMove}
               onPointerUp={handlePointerUp}
               onPointerCancel={handlePointerUp}
+              onLostPointerCapture={handlePointerUp}
               // A held sticker must not open the long-press menu.
               onContextMenu={(e) => e.preventDefault()}
               onWheel={(event) => {
