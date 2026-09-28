@@ -14,6 +14,7 @@
 // first measured (estimateTilt) and turned upright, then searched the same.
 
 import { warpQuadToSquare } from './perspective'
+import { cellEdges } from './stickerColorGeometry'
 
 export interface FaceSquare {
   x: number
@@ -134,18 +135,10 @@ export function estimateTilt(
 
 // Big cubes have wider perimeter cubies: on real 6x6 and 7x7 faces the
 // outer rows and columns measured 1.25-1.56x the inner ones, 5x5 up to
-// 1.15x, 3x3/4x4 about even (1.0-1.1). The grid lines of an N-cell face, from 0 to 1,
-// with the two outer cells `outer` times as wide as the inner ones.
-export function cellEdges(gridSize: number, outer = 1): number[] {
-  if (gridSize <= 2 || outer === 1)
-    return Array.from({ length: gridSize + 1 }, (_, i) => i / gridSize)
-  const total = gridSize - 2 + 2 * outer
-  return [
-    0,
-    ...Array.from({ length: gridSize - 1 }, (_, i) => (outer + i) / total),
-    1,
-  ]
-}
+// 1.15x, 3x3/4x4 about even (1.0-1.1). cellEdges (StickerGeometry.res)
+// gives the grid lines of an N-cell face with the two outer cells `outer`
+// times as wide as the inner ones.
+export { cellEdges }
 
 // Outer-cell ratios tried per cube size. 4x4 and smaller measured about
 // even, and on their saved crops a ratio search only fit noise.
