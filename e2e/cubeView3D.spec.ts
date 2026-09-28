@@ -851,18 +851,6 @@ test.describe('held sticker drags', () => {
     await expect(history(page)).toHaveText("Moves: Lw'")
   })
 
-  test('Alt turns the whole cube at once', async ({ page }) => {
-    const { x, y, quarter } = await setUp(page)
-    await page.keyboard.down('Alt')
-    await page.mouse.move(x, y)
-    await page.mouse.down()
-    await page.mouse.move(x, y + 1.1 * quarter, { steps: 12 })
-    await page.waitForTimeout(150)
-    await page.mouse.up()
-    await page.keyboard.up('Alt')
-    await expect(history(page)).toHaveText("Moves: x'")
-  })
-
   test('a held finger on a touch screen turns a wide layer', async ({
     page,
   }) => {

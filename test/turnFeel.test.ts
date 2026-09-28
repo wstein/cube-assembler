@@ -6,7 +6,7 @@ import {
   magneticDragAngle,
   magneticEase,
   magneticSettleAngle,
-  modeCueNotes,
+  WIDE_CUE_NOTES,
   scrambleDuration,
   settleDuration,
   turnClickGain,
@@ -67,17 +67,9 @@ describe('turn speed and overshoot settings', () => {
 })
 
 describe('mode cues', () => {
-  it('sounds one tone for a wide turn and two rising tones for the whole cube', () => {
-    const block = modeCueNotes('wide')
-    const cube = modeCueNotes('cube')
-    expect(block).toHaveLength(1)
-    expect(cube).toHaveLength(2)
-    expect(cube[1].frequency).toBeGreaterThan(cube[0].frequency)
-    expect(cube[1].start).toBeGreaterThanOrEqual(
-      cube[0].start + cube[0].duration,
-    )
-    for (const note of [...block, ...cube])
-      expect(note.duration).toBeLessThanOrEqual(0.08)
+  it('sounds one short tone for a wide turn', () => {
+    expect(WIDE_CUE_NOTES).toHaveLength(1)
+    expect(WIDE_CUE_NOTES[0].duration).toBeLessThanOrEqual(0.08)
   })
 })
 

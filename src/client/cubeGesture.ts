@@ -3,13 +3,10 @@
 import {
   flickMs,
   pickSwipeLayer as pickSwipeLayerRes,
-  pressLevel as pressLevelRes,
   releasedQuarterTurns as releasedQuarterTurnsRes,
   swipeStartPx,
   turnCommitFraction,
   type camera,
-  type pressKeys,
-  type pressLevel as level,
   type surfaceHit,
   type swipeLayer,
 } from '../core/view/CubeGesture.gen'
@@ -22,6 +19,7 @@ export {
   gestureForPointerDown,
   gestureWhenSwipeTurnsNothing,
   pickCubeSurface,
+  pressLevel,
   pressSlopPx as PRESS_SLOP_PX,
   standardWideLayer,
   swipeLayerAngle,
@@ -55,10 +53,6 @@ export function pickSwipeLayer(
   startPx = swipeStartPx,
 ): swipeLayer | null {
   return pickSwipeLayerRes(hit, dx, dy, camera, startPx)
-}
-
-export function pressLevel(heldMs: number, keys: pressKeys): level {
-  return pressLevelRes(heldMs, keys)
 }
 
 export function releasedQuarterTurns(

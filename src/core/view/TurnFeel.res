@@ -104,21 +104,10 @@ let turnClickGain = (durationMs, soundOn) =>
     0.12
   }
 
-type modeLevel =
-  | @as("wide") Wide
-  | @as("cube") Cube
-
 type note = {frequency: float, start: float, duration: float}
 
-// A held sticker announces that it now turns more: one short tone for a
-// a wide turn, two rising tones for the whole cube (seconds, hertz).
-let modeCueNotes = level =>
-  switch level {
-  | Wide => [{frequency: 660.0, start: 0.0, duration: 0.06}]
-  | Cube => [
-      {frequency: 660.0, start: 0.0, duration: 0.05},
-      {frequency: 990.0, start: 0.07, duration: 0.06},
-    ]
-  }
+// A held sticker announces that it now turns a wide layer with one short
+// tone (seconds, hertz).
+let wideCueNotes = [{frequency: 660.0, start: 0.0, duration: 0.06}]
 
 let modeCueGain = 0.08

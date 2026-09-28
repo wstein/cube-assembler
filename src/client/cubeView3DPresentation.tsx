@@ -86,9 +86,7 @@ export function CubeView3DPresentation({
             {gizmo}
             {pressMode && pressMode !== 'layer' && (
               <div class="cube-3d-press-mode" role="status">
-                {pressMode === 'wide'
-                  ? 'Wide turn: drag to turn the touched layers'
-                  : 'Whole cube: drag to rotate it'}
+                Wide turn: drag to turn the touched layers
               </div>
             )}
             <div class="cube-3d-hint">
@@ -101,10 +99,9 @@ export function CubeView3DPresentation({
               ) : (
                 <>
                   Swipe a sticker to turn its layer; hold 300 ms or Shift for a
-                  wide turn &bull; Two fingers on the cube (or Alt) turn the
-                  whole cube &bull; Drag the background or swipe two fingers
-                  beside the cube to rotate the view &bull; Pinch or scroll to
-                  zoom
+                  wide turn &bull; Two fingers on the cube turn the whole cube
+                  &bull; Drag the background or swipe two fingers beside the
+                  cube to rotate the view &bull; Pinch or scroll to zoom
                 </>
               )}
             </div>

@@ -36,9 +36,8 @@ type swipeLayer = {
 type pressLevel =
   | @as("layer") Layer
   | @as("wide") Wide
-  | @as("cube") Cube
 
-@genType type pressKeys = {shiftKey: bool, altKey: bool}
+@genType type pressKeys = {shiftKey: bool}
 @genType let pressLevel: (float, pressKeys) => pressLevel
 
 @genType let blockLayer: (int, int, int, int) => swipeLayer

@@ -1,9 +1,6 @@
 // How a layer turn feels: the easing lives in src/core/view/TurnFeel.res;
 // this plays its soft click and mode cues.
-import {
-  modeCueGain,
-  modeCueNotes as modeCueNotesRes,
-} from '../core/view/TurnFeel.gen'
+import { modeCueGain, wideCueNotes } from '../core/view/TurnFeel.gen'
 
 export {
   defaultTurnMs as DEFAULT_TURN_MS,
@@ -50,23 +47,17 @@ export function playTurnClick(gain: number): void {
   }
 }
 
-// A held sticker announces that it now turns more: one short tone for a
-// a wide turn, two rising tones for the whole cube (seconds, hertz).
-export function modeCueNotes(
-  level: 'wide' | 'cube',
-): Array<{ frequency: number; start: number; duration: number }> {
-  return modeCueNotesRes(level)
-}
-
 export const MODE_CUE_GAIN = modeCueGain
+export const WIDE_CUE_NOTES = wideCueNotes
 
-export function playModeCue(level: 'wide' | 'cube', gain: number): void {
+// A held sticker announces its wide turn with one short tone.
+export function playWideCue(gain: number): void {
   if (gain <= 0) return
   try {
     audio ??= new AudioContext()
     if (audio.state === 'suspended') void audio.resume()
     const now = audio.currentTime
-    for (const note of modeCueNotes(level)) {
+    for (const note of wideCueNotes) {
       const tone = audio.createOscillator()
       tone.type = 'sine'
       tone.frequency.value = note.frequency

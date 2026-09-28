@@ -306,13 +306,12 @@ describe('held sticker drags', () => {
   }
 
   it('holds a sticker 300 ms for a wide turn, however long it is held', () => {
-    const keys = { shiftKey: false, altKey: false }
+    const keys = { shiftKey: false }
     expect(pressLevel(0, keys)).toBe('layer')
     expect(WIDE_PRESS_MS).toBe(300)
     expect(pressLevel(WIDE_PRESS_MS - 1, keys)).toBe('layer')
     expect(pressLevel(WIDE_PRESS_MS, keys)).toBe('wide')
-    // Holding longer never turns the whole cube: that is the mini cube's
-    // job (and Alt's).
+    // Holding longer never turns the whole cube: two fingers on it do.
     expect(pressLevel(800, keys)).toBe('wide')
     expect(pressLevel(5000, keys)).toBe('wide')
   })
@@ -332,10 +331,8 @@ describe('held sticker drags', () => {
     ).toMatchObject({ face: 'R', depth: 1, width: 1 })
   })
 
-  it('takes Shift for a wide turn and Alt for the whole cube at once', () => {
-    expect(pressLevel(0, { shiftKey: true, altKey: false })).toBe('wide')
-    expect(pressLevel(0, { shiftKey: false, altKey: true })).toBe('cube')
-    expect(pressLevel(0, { shiftKey: true, altKey: true })).toBe('cube')
+  it('takes Shift for a wide turn', () => {
+    expect(pressLevel(0, { shiftKey: true })).toBe('wide')
   })
 
   it('names a block from the face it reaches, or the nearer one', () => {

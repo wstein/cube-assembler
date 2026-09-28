@@ -42,7 +42,7 @@ import { stepDragInertia } from './dragInertia'
 import {
   MODE_CUE_GAIN,
   magneticDragAngle,
-  playModeCue,
+  playWideCue,
   playTurnClick,
   scrambleDuration,
   turnClickGain,
@@ -646,28 +646,23 @@ export function CubeView3D({
   }
 
   // Shows, sounds and (on phones) buzzes when a held sticker widens its turn.
-  const announcePressMode = (level: 'wide' | 'cube') => {
-    setPressMode(level)
+  const announceWideTurn = () => {
+    setPressMode('wide')
     const cookies = document.cookie
-    playModeCue(level, turnSoundOn(cookies) ? MODE_CUE_GAIN : 0)
+    playWideCue(turnSoundOn(cookies) ? MODE_CUE_GAIN : 0)
     try {
-      if (vibrationOn(cookies)) {
-        // The whole cube buzzes twice as long as a wide turn.
-        const ms = readVibrationMs(cookies)
-        navigator.vibrate?.(level === 'cube' ? 2 * ms : ms)
-      }
+      if (vibrationOn(cookies)) navigator.vibrate?.(readVibrationMs(cookies))
     } catch {
       // Vibration is only a hint.
     }
   }
 
-  // A held sticker widens its turn; Alt and the Turn buttons turn the whole
-  // cube.
+  // A held sticker widens its turn; two fingers on the cube turn all of it.
   const holdSticker = (gesture: NonNullable<typeof gestureRef.current>) => {
     gesture.holdTimer = setTimeout(() => {
       if (gestureRef.current !== gesture || gesture.mode !== 'pending') return
       gesture.level = 'wide'
-      announcePressMode('wide')
+      announceWideTurn()
     }, WIDE_PRESS_MS)
   }
 
@@ -855,7 +850,7 @@ export function CubeView3D({
     gestureRef.current = gesture
     if (gesture.mode !== 'pending') return
     if (level === 'layer') holdSticker(gesture)
-    else announcePressMode(level)
+    else announceWideTurn()
   }
 
   const handlePointerMove = (e: PointerEvent) => {
@@ -932,11 +927,9 @@ export function CubeView3D({
       if (layer) {
         startDragTurn(
           gesture,
-          gesture.level === 'cube'
-            ? wholeCubeLayer(layer.axis, puzzleSize)
-            : gesture.level === 'wide'
-              ? standardWideLayer(layer, puzzleSize)
-              : layer,
+          gesture.level === 'wide'
+            ? standardWideLayer(layer, puzzleSize)
+            : layer,
           [gesture.x, gesture.y],
           gesture.hit,
           e,
