@@ -1,5 +1,5 @@
 import { render } from 'preact'
-import { useState, useEffect, useRef } from 'preact/hooks'
+import { useState, useEffect } from 'preact/hooks'
 // Fonts bundled with the app rather than loaded from Google Fonts, which
 // would send every visitor's IP address to Google.
 import '@fontsource/space-grotesk/500.css'
@@ -14,7 +14,6 @@ import '@fontsource/ibm-plex-mono/600.css'
 import '../../web/style.css'
 import '../../web/capture.css'
 import '../../web/review.css'
-import type { TurnCuePose } from './autoCapture'
 import { CaptureLiveView } from './captureLiveView'
 import { CaptureDialog } from './captureDialog'
 import { CaptureReviewDialog } from './captureReviewDialog'
@@ -26,7 +25,7 @@ import {
   recalibrateCapture,
 } from './captureFinalization'
 import { CaptureSettings, CubeSelectOptions } from './captureSettings'
-import type { FaceCaptureData, PreviewColorProfile } from './captureTypes'
+import type { FaceCaptureData } from './captureTypes'
 import { readyAssemblyAfterCapture } from './captureReviewRouting'
 import type { ReviewCapture } from './colorReviewPage'
 import { BackdropDialog } from './backdropDialog'
@@ -79,11 +78,8 @@ import {
 } from './imageProcessing'
 import {
   assembleCubeFromFaces,
-  validateFaceColors,
   createSolvedCube,
-  findRepeatedFaces,
   findCaptureSlotForOrientedFace,
-  captureCenterSlots,
   type OrientedCandidate,
   type FaceKey,
   type CubeState,
@@ -119,24 +115,17 @@ import {
   STICKER_HEX,
   confidenceTier,
 } from './stickerDisplay'
-import { flyInto } from './flyAnimation'
 import { focusModalOnOpen, handleModalKeyDown } from './modalFocus'
 import { useProfileStore } from './useProfileStore'
+import { useCaptureSession } from './useCaptureSession'
 import { useCaptureCalibration } from './useCaptureCalibration'
 import {
   captureEvidence,
-  captureWarning,
-  capturedFaceMessage,
   checkParity,
   cubeCaptureFaces,
-  isGuidedCapture,
-  nextTurnCue,
   parityStatus,
   parseCubeInput,
-  placeFaceCapture,
   solvedCaptureFaces,
-  turnCuePose,
-  type FaceCaptureReading,
 } from './captureFlow'
 import { usePhotoUploads } from './usePhotoUploads'
 import {
@@ -191,14 +180,36 @@ function App() {
     armAudio: armCaptureAudio,
     signalCapture,
   } = useCaptureFeedback(captureSound)
-  const lastCapturedColors = useRef<string[][] | null>(null)
-  const lastCapturedPose = useRef<TurnCuePose | null>(null)
-  const [webcamFace, setWebcamFace] = useState('U')
-  const [capturedFaces, setCapturedFaces] = useState<
-    Record<string, FaceCaptureData>
-  >({})
+  const {
+    capturedFaces,
+    setCapturedFaces,
+    webcamFace,
+    setWebcamFace,
+    captureMessage,
+    setCaptureMessage,
+    turnOverlay,
+    dismissTurnOverlay,
+    continueTurnOverlay,
+    setDismissedCaptureWarnings,
+    setUploadedProtocol,
+    lastCapturedColors,
+    lastCapturedPose,
+    pendingFlyIn,
+    forgetLastCapture,
+    selectFace,
+    applyFaceCapture,
+    isGuided,
+    predictedCenters,
+    predictedCenter,
+    centerRoutingActive,
+    repeatedNetFaces,
+    warning,
+  } = useCaptureSession({
+    puzzleSize,
+    webcamOpen,
+    onAllCaptured: (faces) => finalizeAllFacesCaptured(faces),
+  })
   const [loading, setLoading] = useState(false)
-  const [captureMessage, setCaptureMessage] = useState('')
   const {
     photoUpload,
     selectPhotos,
@@ -206,11 +217,6 @@ function App() {
     changePhotoUploadMode,
     movePhotoUpload,
   } = usePhotoUploads()
-  const [turnOverlay, setTurnOverlay] = useState<{
-    step: number
-    startColors: string[][]
-    viaColors?: string[][]
-  } | null>(null)
   const {
     fixtureSaveMessage,
     setFixtureSaveMessage,
@@ -255,12 +261,6 @@ function App() {
     isGuidedCapture: () => isGuided(),
     onChoose: (candidate) => handleChooseOrientation(candidate),
   })
-  // Capture-time warnings the customer chose to ignore (see captureWarning).
-  const [dismissedCaptureWarnings, setDismissedCaptureWarnings] = useState<
-    string[]
-  >([])
-  // capture.protocol of the last uploaded fixture (see isGuidedCapture).
-  const [uploadedProtocol, setUploadedProtocol] = useState<string | null>(null)
   const [reviewEditingCell, setReviewEditingCell] = useState<{
     face: string
     row: number
@@ -367,35 +367,6 @@ function App() {
     mixedUp: string[]
   } | null>(null)
   const { videoRef: webcamRef, cameraInfo } = useCameraStream(webcamOpen)
-  // A face just captured, to fly from the scan square into its net slot
-  // once the slot has rendered it (see CaptureNet / flyInto).
-  const pendingFlyIn = useRef<{ slot: string; from: DOMRect } | null>(null)
-  const dismissTurnOverlay = () => {
-    setTurnOverlay(null)
-  }
-
-  const continueTurnOverlay = () => {
-    // An identical-looking side cannot be told apart by sticker letters.
-    // Continue explicitly confirms that the cube has been turned.
-    lastCapturedColors.current = null
-    lastCapturedPose.current = null
-    dismissTurnOverlay()
-  }
-
-  useEffect(() => {
-    if (!webcamOpen) dismissTurnOverlay()
-  }, [webcamOpen])
-
-  useEffect(() => {
-    const fly = pendingFlyIn.current
-    if (!fly || !capturedFaces[fly.slot]) return
-    pendingFlyIn.current = null
-    const target = document.querySelector<HTMLElement>(
-      `.capture-net [data-slot="${fly.slot}"] .orientation-net-face`,
-    )
-    if (target) flyInto(target, fly.from)
-  }, [capturedFaces])
-
   // Everything below belongs to one cube of one size, so switching sizes
   // starts over - keeping it drew e.g. a 5x5's 25 stickers per face into a
   // 6x6 net. Shared by the main size bar and the capture dialog.
@@ -410,8 +381,7 @@ function App() {
     setCube(null)
     setParity(null)
     setCapturedFaces({})
-    lastCapturedColors.current = null
-    lastCapturedPose.current = null
+    forgetLastCapture()
     setWebcamFace(FACE_ORDER[0])
     setLiveDetection(null)
     setShowReviewDialog(false)
@@ -497,8 +467,7 @@ function App() {
   const handleOpenCapture = (restart = false) => {
     armCaptureAudio()
     dismissTurnOverlay()
-    lastCapturedColors.current = null
-    lastCapturedPose.current = null
+    forgetLastCapture()
     const allCaptured = FACE_ORDER.every((f) => f in capturedFaces)
     const startOver = restart || allCaptured
     if (startOver) {
@@ -514,67 +483,6 @@ function App() {
     if (startOver) setDismissedCaptureWarnings([])
     startCapture(startOver)
     setWebcamOpen(true)
-  }
-
-  // Stores a capture result for `face`, routes all 6 faces through final
-  // calibration and review/assembly, and otherwise advances to the next
-  // uncaptured face so the user doesn't have to close/reopen it per face.
-  const applyFaceCapture = async (
-    face: string,
-    result: FaceCaptureReading,
-    source: 'camera' | 'image-file',
-    cameraSettings?: Partial<MediaTrackSettings>,
-    captureSize = puzzleSize,
-    previewColorProfile?: PreviewColorProfile,
-  ) => {
-    if (!validateFaceColors(result.colors, captureSize)) {
-      setCaptureMessage(
-        `❌ Invalid colors detected. Confidence: ${(result.confidence * 100).toFixed(0)}%`,
-      )
-      return
-    }
-
-    const {
-      faces: newCapturedFaces,
-      assignedFace,
-      unexpectedCenter,
-    } = placeFaceCapture(
-      capturedFaces,
-      face,
-      result,
-      source,
-      cameraSettings,
-      previewColorProfile,
-    )
-    if (pendingFlyIn.current) pendingFlyIn.current.slot = assignedFace
-
-    setCapturedFaces(newCapturedFaces)
-    lastCapturedColors.current = source === 'camera' ? result.colors : null
-    lastCapturedPose.current =
-      source === 'camera' ? turnCuePose(result.crop) : null
-    setCaptureMessage(
-      capturedFaceMessage(assignedFace, result.confidence, unexpectedCenter),
-    )
-
-    const allFacesCaptured = FACE_ORDER.every((f) => f in newCapturedFaces)
-    if (allFacesCaptured) {
-      await finalizeAllFacesCaptured(newCapturedFaces)
-    } else {
-      const nextFace = FACE_ORDER.find((f) => !(f in newCapturedFaces))
-      if (nextFace) {
-        setWebcamFace(nextFace)
-        setCaptureMessage('')
-        dismissTurnOverlay()
-        // The cue blocks capturing while the cube turns; without the turn it
-        // would only be a wait, and the step hint already says what to do.
-        if (
-          source !== 'camera' ||
-          window.matchMedia('(prefers-reduced-motion: reduce)').matches
-        )
-          return
-        setTurnOverlay(nextTurnCue(newCapturedFaces, nextFace, result.colors))
-      }
-    }
   }
 
   useLiveCaptureAnalysis({
@@ -880,30 +788,8 @@ function App() {
     handleConfirmReview(ready)
   }, [reviewRouting, capturedFaces])
 
-  const isGuided = () => isGuidedCapture(capturedFaces, uploadedProtocol)
-
-  const predictedCenters = captureCenterSlots(
-    FACE_ORDER.map((f) => capturedFaces[f]?.colors),
-  )
-  const predictedCenter = predictedCenters[FACE_ORDER.indexOf(webcamFace)]
-  const centerRoutingActive =
-    puzzleSize % 2 === 1 &&
-    Boolean(capturedFaces[FACE_ORDER[0]] && capturedFaces[FACE_ORDER[1]]) &&
-    predictedCenters.every(Boolean) &&
-    !capturedFaces[webcamFace]
-  const capturedPhotos = FACE_ORDER.map((f) => capturedFaces[f]?.colors)
-  const repeatedFaces = findRepeatedFaces(capturedPhotos)
-  const matchingNetFaces = new Set(
-    repeatedFaces.flatMap(([a, b]) => [FACE_ORDER[a], FACE_ORDER[b]]),
-  )
+  const matchingNetFaces = new Set(repeatedNetFaces)
   if (liveCapturedFace) matchingNetFaces.add(liveCapturedFace)
-
-  const warning = captureWarning(
-    capturedFaces,
-    repeatedFaces,
-    puzzleSize,
-    dismissedCaptureWarnings,
-  )
 
   // Finishes assembly once the orientation wizard has narrowed down to a
   // single candidate - mirrors handleConfirmReview's tail end exactly,
@@ -1441,18 +1327,11 @@ function App() {
           )}
           matchingNetFaces={matchingNetFaces}
           liveCapturedFace={liveCapturedFace}
-          onSelectFace={(slot) => {
-            dismissTurnOverlay()
-            lastCapturedColors.current = null
-            lastCapturedPose.current = null
-            setWebcamFace(slot)
-            setCaptureMessage('')
-          }}
+          onSelectFace={selectFace}
           cameraBlurOn={cameraInfo?.granted.backgroundBlur === true}
           captureWarning={warning}
           onRetakeWarning={(step) => {
-            lastCapturedColors.current = null
-            lastCapturedPose.current = null
+            forgetLastCapture()
             setWebcamFace(FACE_ORDER[step])
             setCaptureMessage('')
           }}
