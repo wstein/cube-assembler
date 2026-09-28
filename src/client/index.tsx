@@ -49,6 +49,9 @@ import { lazy, Suspense } from 'preact/compat'
 const ProfilesPage = lazy(() =>
   import('./profilesPage').then((m) => ({ default: m.ProfilesPage })),
 )
+const SettingsPage = lazy(() =>
+  import('./settingsPage').then((m) => ({ default: m.SettingsPage })),
+)
 import { uploadKind } from './photoUpload'
 import { PhotoUploadReview } from './photoUploadReview'
 import { readPhotoUploads } from './readPhotoUploads'
@@ -980,6 +983,23 @@ function App() {
   const displayedCube =
     cube && turnedCube?.source === cube ? turnedCube.value : cube
   const visibleCube = displayedCube ?? createSolvedCube(puzzleSize)
+  if (page === '#settings') {
+    return (
+      <Suspense
+        fallback={
+          <div class="settings-page">
+            <p class="settings-muted">Loading settings...</p>
+          </div>
+        }
+      >
+        <SettingsPage
+          onClose={() => {
+            location.hash = ''
+          }}
+        />
+      </Suspense>
+    )
+  }
   const profilesPageTab = profilesTab(page)
   if (profilesPageTab) {
     // The last capture's faces that kept their measured sticker colors.
@@ -1108,6 +1128,9 @@ function App() {
           </select>
           <a class="color-review-link" href="#profiles">
             Profiles
+          </a>
+          <a class="color-review-link" href="#settings">
+            Settings
           </a>
         </div>
       </header>
