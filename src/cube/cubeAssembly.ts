@@ -1,26 +1,12 @@
 // Cube state assembly from captured faces
 
 import { allOrientations } from './cubeGeometry'
-
-export interface CubeState {
-  u: string[]
-  r: string[]
-  f: string[]
-  d: string[]
-  l: string[]
-  b: string[]
-}
-
-// What parity.ts checks: each face carries its own grid dimension + colors
-export interface CubeIR {
-  size: number
-  u: { n: number; data: string[] }
-  r: { n: number; data: string[] }
-  f: { n: number; data: string[] }
-  d: { n: number; data: string[] }
-  l: { n: number; data: string[] }
-  b: { n: number; data: string[] }
-}
+import type { cubeState as CubeState, cubeIR as CubeIR } from './CubeState.gen'
+export type {
+  cubeState as CubeState,
+  cubeIR as CubeIR,
+  faceKey as FaceKey,
+} from './CubeState.gen'
 
 export function toCubeIR(cube: CubeState, size: number): CubeIR {
   const grid = (data: string[]) => ({ n: size, data })
@@ -95,7 +81,7 @@ export function assembleCubeFromFaces(
 // that already score equally well on corners.
 // ─────────────────────────────────────────────────────────────────────────────
 
-export type FaceKey = 'U' | 'R' | 'F' | 'D' | 'L' | 'B'
+import type { faceKey as FaceKey } from './CubeState.gen'
 const FACE_KEYS: FaceKey[] = ['U', 'R', 'F', 'D', 'L', 'B']
 
 const COLOR_TO_FACE: Record<string, FaceKey> = Object.fromEntries(

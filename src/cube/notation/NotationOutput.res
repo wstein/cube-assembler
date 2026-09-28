@@ -1,15 +1,9 @@
-type cubeState = {
-  u: array<string>,
-  r: array<string>,
-  f: array<string>,
-  d: array<string>,
-  l: array<string>,
-  b: array<string>,
-}
+open CubeState
+type cubeState = CubeState.cubeState
 
 type notationFormat = | @as("wrg") Wrg | @as("urf") Urf
 
-let faces = cube => [cube.u, cube.r, cube.f, cube.d, cube.l, cube.b]
+let faces = (cube: cubeState) => [cube.u, cube.r, cube.f, cube.d, cube.l, cube.b]
 let letters = ["U", "R", "F", "D", "L", "B"]
 
 let toBlocks = (cube, translate) =>

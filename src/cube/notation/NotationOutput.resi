@@ -1,11 +1,4 @@
-type cubeState = {
-  u: array<string>,
-  r: array<string>,
-  f: array<string>,
-  d: array<string>,
-  l: array<string>,
-  b: array<string>,
-}
+type cubeState = CubeState.cubeState
 
 type notationFormat = | @as("wrg") Wrg | @as("urf") Urf
 
