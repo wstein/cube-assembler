@@ -14,9 +14,10 @@ import {
   type CubeSurfaceHit,
 } from './cubeGesture'
 import { stepDragInertia } from './dragInertia'
-import { magneticEase } from './turnFeel'
+import { magneticEase, playTurnClick, turnClickGain } from './turnFeel'
 import {
   AUTO_ROTATE_COOKIE,
+  SOUND_COOKIE,
   STICKERLESS_COOKIE,
   preferenceCookie,
   readPreference,
@@ -1494,6 +1495,12 @@ export function CubeView3D({
         gl.bufferSubData(gl.ARRAY_BUFFER, 0, turnMesh.normals)
 
         if (progress >= 1) {
+          playTurnClick(
+            turnClickGain(
+              anim.duration,
+              readPreference(document.cookie, SOUND_COOKIE),
+            ),
+          )
           const nextCube = applyCubeLayerMove(
             currentCubeRef.current,
             puzzleSize,

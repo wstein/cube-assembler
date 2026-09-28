@@ -392,3 +392,42 @@ test('two fingers zoom only once they clearly pinch', async ({ page }) => {
   await spread(80)
   expect((await canvas.screenshot()).equals(before)).toBe(false)
 })
+
+for (const sound of [true, false])
+  test(`a finished turn ${sound ? 'clicks with Sound on' : 'stays silent with Sound off'}`, async ({
+    page,
+    context,
+  }) => {
+    await context.addCookies([
+      {
+        name: 'cube-assembler-capture-sound',
+        value: sound ? '1' : '0',
+        url: 'http://127.0.0.1:4174',
+      },
+    ])
+    await page.addInitScript(() => {
+      const created: unknown[] = []
+      ;(window as unknown as { audioContexts: unknown[] }).audioContexts =
+        created
+      const Original = window.AudioContext
+      window.AudioContext = class extends Original {
+        constructor(...args: ConstructorParameters<typeof AudioContext>) {
+          super(...args)
+          created.push(this)
+        }
+      }
+    })
+    await page.goto('/')
+    await page.getByRole('button', { name: 'Solved cube' }).click()
+    await page.getByRole('button', { name: '3D View' }).click()
+    await page.getByTitle('Turn R clockwise').click()
+    await expect(page.getByRole('status', { name: 'Move history' })).toHaveText(
+      'Moves: R',
+    )
+    const contexts = await page.evaluate(
+      () =>
+        (window as unknown as { audioContexts: unknown[] }).audioContexts
+          .length,
+    )
+    expect(contexts).toBe(sound ? 1 : 0)
+  })
