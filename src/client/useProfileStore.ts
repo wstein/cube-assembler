@@ -2,10 +2,16 @@ import { useEffect, useMemo, useState } from 'preact/hooks'
 import { FACE_ORDER } from './captureSteps'
 import type { FaceCaptureData, PreviewColorProfile } from './captureTypes'
 import {
-  matchPartialColorProfile,
-  updateProfileFromCapture,
-  type PaletteEvidence,
-} from './colorProfileLearning'
+  autoColorProfiles as autoColorProfilesOf,
+  capturePalette as capturePaletteOf,
+  previewProfile,
+  provisionalColorProfile as provisionalColorProfileOf,
+  updatableName as updatableNameOf,
+  withNewColors,
+  withSelectedColors,
+  withUpdatedColors,
+} from '../core/profiles/ProfileStore.gen'
+import type { PaletteEvidence } from './colorProfileLearning'
 import type { RGB } from './imageProcessing'
 import {
   COLOR_PROFILE_COOKIE,
@@ -17,17 +23,11 @@ import {
   EMPTY_SETTINGS,
   activeColorProfile,
   activeCube,
-  allColorProfiles,
-  builtinColorProfiles,
-  capturePalette,
-  colorPalette,
   copyColorProfile,
   copyCubeSetting,
   mergeSettings,
   saveColorProfile,
   saveCube,
-  selectColorProfile,
-  setAutoColorMatch,
   type ProfileSettings,
 } from './profileSettings'
 import {
@@ -39,12 +39,10 @@ import {
 
 function loadProfileStore(): ProfileSettings {
   try {
-    const settings = loadProfileSettings(localStorage)
-    const selectedId = readSelection(document.cookie, COLOR_PROFILE_COOKIE)
-    return selectedId &&
-      allColorProfiles(settings).some((profile) => profile.id === selectedId)
-      ? selectColorProfile(settings, selectedId)
-      : settings
+    return withSelectedColors(
+      loadProfileSettings(localStorage),
+      readSelection(document.cookie, COLOR_PROFILE_COOKIE),
+    )
   } catch {
     return EMPTY_SETTINGS
   }
@@ -92,12 +90,12 @@ export function useProfileStore({
   const colorProfile = activeColorProfile(profileStore)
   const sampling = profile.sampling
   const autoColorProfiles = useMemo(
-    () => [...builtinColorProfiles(), ...profileStore.colors],
+    () => autoColorProfilesOf(profileStore),
     [profileStore.colors],
   )
   const provisionalColorProfile = useMemo(
     () =>
-      matchPartialColorProfile(
+      provisionalColorProfileOf(
         autoColorProfiles,
         FACE_ORDER.flatMap(
           (face) => capturedFaces[face]?.cellColors?.flat() ?? [],
@@ -106,27 +104,19 @@ export function useProfileStore({
     [autoColorProfiles, capturedFaces],
   )
   const palette = useMemo(
-    () =>
-      profileStore.activeColorsId === AUTO_COLORS_ID
-        ? provisionalColorProfile?.colors
-        : capturePalette(profileStore),
+    () => capturePaletteOf(profileStore, provisionalColorProfile),
     [profileStore, provisionalColorProfile],
   )
-  // The profile a capture is read with right now (see the palette passed to
-  // captureAndProcessCanvas): Automatic's provisional choice, else the live
-  // worker's pick for the first face; the selected profile otherwise.
+  // The profile a capture is read with right now (see previewProfile).
   const previewProfileFor = (
     liveId: string | null,
-  ): PreviewColorProfile | undefined => {
-    const used =
-      profileStore.activeColorsId === AUTO_COLORS_ID
-        ? (provisionalColorProfile ??
-          autoColorProfiles.find((candidate) => candidate.id === liveId))
-        : colorProfile
-    return used
-      ? { id: used.id, name: used.name, colors: colorPalette(used) }
-      : undefined
-  }
+  ): PreviewColorProfile | undefined =>
+    previewProfile(
+      profileStore,
+      provisionalColorProfile,
+      autoColorProfiles,
+      liveId,
+    )
   const [profileLearningOffer, setProfileLearningOffer] =
     useState<ProfileLearningOffer | null>(null)
   const [newColorName, setNewColorName] = useState<string | null>(null)
@@ -167,54 +157,29 @@ export function useProfileStore({
   const handleCreateColors = () => {
     if (!profileLearningOffer || !newColorName?.trim()) return
     const id = `colors-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
-    const saved = saveColorProfile(profileStore, {
-      id,
-      name: newColorName.trim().slice(0, 60),
-      colors: profileLearningOffer.colors,
-      captures: 1,
-      updatedAt: new Date().toISOString(),
-    })
     applyProfileStore(
-      profileStore.activeColorsId === AUTO_COLORS_ID
-        ? setAutoColorMatch(selectColorProfile(saved, AUTO_COLORS_ID), id)
-        : saved,
+      withNewColors(
+        profileStore,
+        profileLearningOffer,
+        id,
+        newColorName,
+        new Date().toISOString(),
+      ),
     )
     setProfileLearningOffer(null)
     setNewColorName(null)
   }
   // The saved profile the Update action would change (see profileToUpdate).
-  const updatableName =
-    profileStore.colors.find(
-      (profile) => profile.id === profileLearningOffer?.matchedProfileId,
-    )?.name ?? 'detected'
+  const updatableName = updatableNameOf(profileStore, profileLearningOffer)
   const handleUpdateColors = () => {
-    const offer = profileLearningOffer
-    const target = profileStore.colors.find(
-      (profile) => profile.id === offer?.matchedProfileId,
-    )
-    if (!offer || !target) return
-    const updated = updateProfileFromCapture(
-      target,
-      offer.colors,
-      offer.evidence,
+    const updated = withUpdatedColors(
+      profileStore,
+      profileLearningOffer,
       new Date().toISOString(),
     )
     if (!updated) return
-    // Saving would also select the profile; keep Automatic or the current choice.
-    const saved = {
-      ...saveColorProfile(profileStore, updated),
-      activeColorsId: profileStore.activeColorsId,
-    }
-    applyProfileStore(
-      profileStore.activeColorsId === AUTO_COLORS_ID
-        ? setAutoColorMatch(saved, updated.id)
-        : saved,
-    )
-    setProfileLearningOffer({
-      ...offer,
-      matchedProfileId: null,
-      updatedProfileName: updated.name,
-    })
+    applyProfileStore(updated.settings)
+    setProfileLearningOffer(updated.offer)
   }
   // Profiles file: cubes and colors, so a setup tuned in one browser or
   // on one machine can be carried to another.
