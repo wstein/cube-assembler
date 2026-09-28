@@ -201,20 +201,21 @@ export function formatCubeTurn({ face, depth, turns }: CubeTurn): string {
   return `${depth > 1 ? depth : ''}${face}${Math.abs(turns) === 2 ? '2' : turns < 0 ? "'" : ''}`
 }
 
-// Adds a finished turn to the history as its shortest form. A turn that
-// reverses the last one, like swiping a layer back, undoes it instead.
+// Adds a finished turn to the history as its shortest form, accumulating
+// consecutive turns on the same layer (e.g. R R -> R2, R2 R -> R', R R' -> cancelled).
 export function recordTurn(moves: CubeTurn[], turn: CubeTurn): CubeTurn[] {
   const quarter = ((turn.turns % 4) + 4) % 4
   if (quarter === 0) return moves
   const turns = quarter === 3 ? -1 : quarter
   const last = moves.at(-1)
-  if (
-    last &&
-    last.face === turn.face &&
-    last.depth === turn.depth &&
-    (last.turns + turns) % 4 === 0
-  )
-    return moves.slice(0, -1)
+  if (last && last.face === turn.face && last.depth === turn.depth) {
+    const net = (((last.turns + turns) % 4) + 4) % 4
+    if (net === 0) return moves.slice(0, -1)
+    return [
+      ...moves.slice(0, -1),
+      { face: turn.face, depth: turn.depth, turns: net === 3 ? -1 : net },
+    ]
+  }
   return [...moves, { face: turn.face, depth: turn.depth, turns }]
 }
 

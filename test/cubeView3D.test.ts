@@ -18,6 +18,7 @@ import {
   mat4RotateX,
   mat4RotateY,
   mat4Translate,
+  type CubeTurn,
   recordTurn,
   rotateVec,
 } from '../src/client/cubeView3D'
@@ -457,7 +458,7 @@ describe('cubeView3D math and geometry', () => {
       expect(formatCubeTurn({ face: 'F', depth: 3, turns: 2 })).toBe('3F2')
     })
 
-    it('records a turn that reverses the last one as its undo', () => {
+    it('records a turn that reverses the last one as its undo and accumulates same-layer turns', () => {
       const r = { face: 'R' as const, depth: 1, turns: 1 }
       expect(recordTurn([r], { ...r, turns: -1 })).toEqual([])
       expect(recordTurn([{ ...r, turns: 2 }], { ...r, turns: -2 })).toEqual([])
@@ -465,7 +466,33 @@ describe('cubeView3D math and geometry', () => {
         r,
         { ...r, depth: 2, turns: -1 },
       ])
-      expect(recordTurn([r], r)).toEqual([r, r])
+      // R R => R2
+      expect(recordTurn([r], r)).toEqual([{ ...r, turns: 2 }])
+      // R2 R => R'
+      expect(recordTurn([{ ...r, turns: 2 }], r)).toEqual([{ ...r, turns: -1 }])
+      // R' R => cancels
+      expect(recordTurn([{ ...r, turns: -1 }], r)).toEqual([])
+      // R R R => R'
+      expect(recordTurn(recordTurn([r], r), r)).toEqual([{ ...r, turns: -1 }])
+      // R' R' => R2
+      expect(recordTurn([{ ...r, turns: -1 }], { ...r, turns: -1 })).toEqual([
+        { ...r, turns: 2 },
+      ])
+      // R' R' R' R' R' => R'
+      let fiveCounterClockwise: CubeTurn[] = []
+      for (let i = 0; i < 5; i++) {
+        fiveCounterClockwise = recordTurn(fiveCounterClockwise, {
+          ...r,
+          turns: -1,
+        })
+      }
+      expect(fiveCounterClockwise).toEqual([{ ...r, turns: -1 }])
+      // R R R R R => R
+      let fiveClockwise: CubeTurn[] = []
+      for (let i = 0; i < 5; i++) {
+        fiveClockwise = recordTurn(fiveClockwise, r)
+      }
+      expect(fiveClockwise).toEqual([r])
     })
 
     it('records a multi-turn drag as its shortest turn', () => {

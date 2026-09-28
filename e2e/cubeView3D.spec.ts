@@ -1,10 +1,10 @@
 import { expect, test, type Page } from '@playwright/test'
 
-async function swipeFrontFace(page: Page) {
+async function swipeFrontFace(page: Page, dx = -38) {
   const bounds = await page.locator('.cube-3d-canvas').boundingBox()
   expect(bounds).not.toBeNull()
   if (!bounds) return
-  const x = bounds.x + bounds.width / 2 - 38
+  const x = bounds.x + bounds.width / 2 + dx
   const y = bounds.y + bounds.height / 2
   await page.mouse.move(x, y)
   await page.mouse.down()
@@ -32,13 +32,13 @@ test('move history and Undo survive a view switch, then Reset clears them', asyn
   await expect(history).toHaveText("Moves: 2L'")
   const afterFirst = await notation.inputValue()
   expect(afterFirst).not.toBe(solved)
-  await swipeFrontFace(page)
-  await expect(history).toHaveText("Moves: 2L' 2L'")
+  await swipeFrontFace(page, 38)
+  await expect(history).toHaveText("Moves: 2L' 2R")
   await expect(notation).not.toHaveValue(afterFirst)
 
   await page.getByRole('button', { name: '2D Net' }).click()
   await page.getByRole('button', { name: '3D View' }).click()
-  await expect(history).toHaveText("Moves: 2L' 2L'")
+  await expect(history).toHaveText("Moves: 2L' 2R")
   await undo.click()
   await expect(notation).toHaveValue(afterFirst)
   await expect(history).toHaveText("Moves: 2L'")
@@ -46,6 +46,28 @@ test('move history and Undo survive a view switch, then Reset clears them', asyn
   await expect(notation).toHaveValue(solved)
   await expect(history).toHaveText('Moves: None')
   await expect(undo).toBeDisabled()
+})
+
+test('consecutive same-layer turns accumulate in move history', async ({
+  page,
+}) => {
+  await page.goto('/')
+  await page
+    .getByRole('combobox', { name: 'Cube' })
+    .selectOption({ label: '5×5' })
+  await page.getByRole('button', { name: 'Solved cube' }).click()
+  await page.getByRole('button', { name: '3D View' }).click()
+  await page.getByRole('button', { name: 'Front (F)' }).click()
+  const history = page.getByRole('status', { name: 'Move history' })
+
+  await swipeFrontFace(page)
+  await expect(history).toHaveText("Moves: 2L'")
+  await swipeFrontFace(page)
+  await expect(history).toHaveText('Moves: 2L2')
+  await swipeFrontFace(page)
+  await expect(history).toHaveText('Moves: 2L')
+  await swipeFrontFace(page)
+  await expect(history).toHaveText('Moves: None')
 })
 
 test('a sticker drag turns the layer live and settles on whole turns', async ({
