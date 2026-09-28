@@ -19,7 +19,7 @@ CI uses Node.js 22.
 
 ```sh
 npm install
-npm run dev          # ReScript watcher and Vite dev server
+npm run dev          # ReScript watcher, tsc type check and Vite dev server
 npm test             # Vitest, once
 npx vitest run test/gridAlignment.test.ts   # a single suite
 npx playwright install chromium             # once for browser tests

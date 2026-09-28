@@ -11,7 +11,7 @@ Reader guides live in `docs/`; use `CONTRIBUTING.md` for setup and deployment, a
 ## Build, Test, and Development Commands
 
 - `npm install` installs dependencies.
-- `npm run dev` builds ReScript, then runs its watcher alongside Vite.
+- `npm run dev` builds ReScript, then runs its watcher and `tsc --noEmit --watch` alongside Vite.
 - `npm run fixture:server` starts the optional localhost-only fixture upload server for the **Upload to localhost** action in the dev UI and the published app.
 - `npm run build` builds ReScript before the Vite client.
 - `npm run typecheck` builds ReScript before checking strict TypeScript without emitting files.

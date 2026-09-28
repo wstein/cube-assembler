@@ -1,9 +1,15 @@
 import { spawn } from 'node:child_process'
 
-// npm keeps node_modules/.bin on PATH. Build once before this script runs so
-// Vite can resolve generated imports immediately; watch subsequent .res edits.
+// npm and bun keep node_modules/.bin on PATH. Build once before this script
+// runs so Vite can resolve generated imports immediately; watch subsequent
+// .res edits. Vite only strips types, so tsc checks them alongside - without
+// clearing the screen, which would hide Vite's URL - and keeps running when
+// it finds errors.
 const children = [
   spawn('rescript', ['watch', '--warn-error', '+a'], { stdio: 'inherit' }),
+  spawn('tsc', ['--noEmit', '--watch', '--preserveWatchOutput'], {
+    stdio: 'inherit',
+  }),
   spawn('vite', process.argv.slice(2), { stdio: 'inherit' }),
 ]
 
