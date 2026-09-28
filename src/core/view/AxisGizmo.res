@@ -53,34 +53,38 @@ let gizmoAxes = (camera: CubeGesture.camera) =>
   ->Array.toSorted(((a, _), (b, _)) => a -. b)
   ->Array.map(((_, axis)) => axis)
 
-// The color a face shows now: the most common one among its center
-// stickers (every sticker on a 2x2), so a scrambled face still reads as
-// the color it is being solved to. Ties go to the first seen.
+// Odd cubes have one fixed center sticker. A middle-slice turn moves it to
+// another face, just like a whole-cube turn on that axis. Even cubes have
+// no fixed center, so use the most common center color (all four on a 2x2).
 let faceColor = (facelets: array<string>, n) => {
-  let inner = n >= 3
-  let counts = Dict.make()
-  let order = []
-  facelets->Array.forEachWithIndex((color, i) => {
-    let row = i / n
-    let col = mod(i, n)
-    if !inner || (row > 0 && row < n - 1 && col > 0 && col < n - 1) {
-      switch counts->Dict.get(color) {
-      | Some(count) => counts->Dict.set(color, count + 1)
-      | None =>
-        counts->Dict.set(color, 1)
-        order->Array.push(color)
+  if n >= 3 && mod(n, 2) == 1 {
+    facelets->Array.getUnsafe(n * n / 2)
+  } else {
+    let inner = n >= 3
+    let counts = Dict.make()
+    let order = []
+    facelets->Array.forEachWithIndex((color, i) => {
+      let row = i / n
+      let col = mod(i, n)
+      if !inner || (row > 0 && row < n - 1 && col > 0 && col < n - 1) {
+        switch counts->Dict.get(color) {
+        | Some(count) => counts->Dict.set(color, count + 1)
+        | None =>
+          counts->Dict.set(color, 1)
+          order->Array.push(color)
+        }
       }
-    }
-  })
-  order
-  ->Array.reduce(None, (best, color) => {
-    let count = counts->Dict.getUnsafe(color)
-    switch best {
-    | Some((_, bestCount)) if bestCount >= count => best
-    | _ => Some((color, count))
-    }
-  })
-  ->Option.mapOr("", ((color, _)) => color)
+    })
+    order
+    ->Array.reduce(None, (best, color) => {
+      let count = counts->Dict.getUnsafe(color)
+      switch best {
+      | Some((_, bestCount)) if bestCount >= count => best
+      | _ => Some((color, count))
+      }
+    })
+    ->Option.mapOr("", ((color, _)) => color)
+  }
 }
 
 let gizmoFaceColors = (cube: cubeState, n) =>

@@ -55,4 +55,19 @@ describe('axis gizmo', () => {
     expect(gizmoFaceColors(cube, 5)).toMatchObject({ U: 'W', F: 'G' })
     expect(gizmoFaceColors(createSolvedCube(2), 2).F).toBe('G')
   })
+
+  it.each([3, 5, 7])(
+    'tracks M, E, and S by the fixed centers on a %i cube',
+    (size) => {
+      const solved = createSolvedCube(size)
+      const middle = (size + 1) / 2
+      for (const face of ['L', 'D', 'F'] as const) {
+        const slice = applyCubeLayerMove(solved, size, face, middle, 1)
+        const axis = applyCubeLayerMove(solved, size, face, size, 1, size)
+        expect(gizmoFaceColors(slice, size)).toEqual(
+          gizmoFaceColors(axis, size),
+        )
+      }
+    },
+  )
 })

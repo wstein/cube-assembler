@@ -102,6 +102,36 @@ test('the X/Y/Z gizmo follows the view and the faces it points through', async (
   await expect.poll(zColor).not.toBe(green)
 })
 
+for (const size of [3, 5, 7]) {
+  test(`a middle-row swipe moves the ${size}x${size} gizmo like a y rotation`, async ({
+    page,
+  }) => {
+    await page.goto('/')
+    await page
+      .getByRole('combobox', { name: 'Cube' })
+      .selectOption({ label: `${size}×${size}` })
+    await page.getByRole('button', { name: '3D View' }).click()
+    await page.getByRole('button', { name: 'Front (F)' }).click()
+    const gizmoFrontColor = () =>
+      page
+        .locator('.cube-3d-gizmo [data-axis="z"]')
+        .evaluate((el) => getComputedStyle(el).color)
+    const original = await gizmoFrontColor()
+    const bounds = await page.locator('.cube-3d-canvas').boundingBox()
+    if (!bounds) throw new Error('No canvas')
+    const x = bounds.x + bounds.width / 2
+    const y = bounds.y + bounds.height / 2
+    await page.mouse.move(x, y)
+    await page.mouse.down()
+    await page.mouse.move(x + 90, y, { steps: 5 })
+    await page.mouse.up()
+    await expect(page.getByRole('status', { name: 'Move history' })).toHaveText(
+      `Moves: ${(size + 1) / 2}U'`,
+    )
+    await expect.poll(gizmoFrontColor).not.toBe(original)
+  })
+}
+
 test('consecutive same-layer turns accumulate in move history', async ({
   page,
 }) => {
