@@ -632,13 +632,13 @@ test.describe('held sticker drags', () => {
     page.getByRole('status', { name: 'Move history' })
   const badge = (page: Page) => page.locator('.cube-3d-press-mode')
 
-  test('a 300 ms hold picks layers across, then turns them as a block', async ({
+  test('a 500 ms hold picks layers across, then turns them as a block', async ({
     page,
   }) => {
     const { x, y, column, quarter } = await setUp(page)
     await page.mouse.move(x, y)
     await page.mouse.down()
-    await page.waitForTimeout(400)
+    await page.waitForTimeout(650)
     await expect(badge(page)).toHaveText(/Wide turn/)
     // Across to the left edge column: the two left columns.
     await page.mouse.move(x - column, y, { steps: 6 })
@@ -662,13 +662,13 @@ test.describe('held sticker drags', () => {
     await expect(history(page)).toHaveText("Moves: Lw'")
   })
 
-  test('a 600 ms hold turns the whole cube', async ({ page }) => {
+  test('a 1200 ms hold turns the whole cube', async ({ page }) => {
     const { x, y, quarter } = await setUp(page)
     const notation = page.getByRole('textbox', { name: 'Notation' })
     const solved = await notation.inputValue()
     await page.mouse.move(x, y)
     await page.mouse.down()
-    await page.waitForTimeout(700)
+    await page.waitForTimeout(1350)
     await expect(badge(page)).toHaveText(/Whole cube/)
     await page.mouse.move(x, y - 1.1 * quarter, { steps: 12 })
     await page.waitForTimeout(150)
@@ -704,7 +704,7 @@ test.describe('held sticker drags', () => {
         bubbles: true,
       })
     await touch('pointerdown', y)
-    await page.waitForTimeout(700)
+    await page.waitForTimeout(1350)
     await expect(badge(page)).toHaveText(/Whole cube/)
     for (let step = 1; step <= 10; step++)
       await touch('pointermove', y - (1.1 * quarter * step) / 10)
@@ -720,7 +720,7 @@ test.describe('held sticker drags', () => {
     const still = await canvas.screenshot()
     await page.mouse.move(x, y)
     await page.mouse.down()
-    await page.waitForTimeout(400)
+    await page.waitForTimeout(650)
     await page.mouse.up()
     await page.waitForTimeout(400)
     await expect(history(page)).toHaveText('Moves: None')

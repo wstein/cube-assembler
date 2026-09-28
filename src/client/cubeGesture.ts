@@ -192,8 +192,8 @@ export function swipeLayerAngle(
 // layers after WIDE_PRESS_MS, the whole cube after CUBE_PRESS_MS. Shift and
 // Alt pick the same at once. A finger that moves PRESS_SLOP_PX first is
 // swiping, not holding.
-export const WIDE_PRESS_MS = 300
-export const CUBE_PRESS_MS = 600
+export const WIDE_PRESS_MS = 500
+export const CUBE_PRESS_MS = 1200
 export const PRESS_SLOP_PX = 10
 
 export type PressLevel = 'layer' | 'block' | 'cube'
