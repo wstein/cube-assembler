@@ -19,10 +19,7 @@ import { CaptureLiveView } from './captureLiveView'
 import { CaptureDialog } from './captureDialog'
 import { CaptureReviewDialog } from './captureReviewDialog'
 import { OrientationApprovalDialog } from './orientationApprovalDialog'
-import {
-  OrientationWizardDialog,
-  type OrientationWizardState,
-} from './orientationWizardDialog'
+import { OrientationWizardDialog } from './orientationWizardDialog'
 import { CaptureColorPicker } from './captureColorPicker'
 import {
   captureBackgroundGains,
@@ -30,12 +27,7 @@ import {
 } from './captureFinalization'
 import { CaptureSettings, CubeSelectOptions } from './captureSettings'
 import type { FaceCaptureData, PreviewColorProfile } from './captureTypes'
-import {
-  planCaptureReview,
-  readyAssemblyAfterCapture,
-  rejectAlternatives,
-  type CaptureApproval,
-} from './captureReviewRouting'
+import { readyAssemblyAfterCapture } from './captureReviewRouting'
 import {
   decodeOrbit64State,
   looksLikeOrbit64StateToken,
@@ -85,7 +77,6 @@ import {
   selectionCookie,
 } from './preferences'
 import { runFullParity, type ParityResult } from '../cube/parity'
-import { pickWizardFace } from '../cube/orientationWizard'
 import {
   runGlobalWhiteBalance,
   backdropReference,
@@ -110,7 +101,6 @@ import {
   captureCenterSlots,
   placeCapturedFace,
   type OrientedCandidate,
-  type OrientationSolution,
   type FaceKey,
   type CubeState,
 } from '../cube/cubeAssembly'
@@ -156,9 +146,10 @@ import {
   confidenceTier,
 } from './stickerDisplay'
 import { computeColorStats } from './colorStats'
-import { flyInto, morphInto } from './flyAnimation'
+import { flyInto } from './flyAnimation'
 import { focusModalOnOpen, handleModalKeyDown } from './modalFocus'
 import { useProfileStore } from './useProfileStore'
+import { useOrientationReview } from './useOrientationReview'
 import {
   toWRGFacelets,
   fromWRGFacelets,
@@ -270,35 +261,29 @@ function App() {
   >(null)
   const [liveCapturedFace, setLiveCapturedFace] = useState<string | null>(null)
   const [showReviewDialog, setShowReviewDialog] = useState(false)
-  // Non-null only when solveFaceOrientations found genuine ambiguity (see
-  // its alternatives field) - drives the step-by-step orientation wizard
-  // (see pickWizardFace/groupWizardOptions above) that narrows `remaining`
-  // down to one candidate before assembly can proceed, instead of dumping
-  // every alternative in one overwhelming grid. `truncated` mirrors
-  // OrientationSolution.truncated: more genuinely-distinct ties existed
-  // than the solver could keep, so `remaining` may not include every
-  // possibility - shown to the customer rather than silently hidden.
-  // `picked` lists the faces the customer answered directly; every other
-  // settled face was inferred (see the progress net's dimming).
-  const [orientationWizard, setOrientationWizard] =
-    useState<OrientationWizardState | null>(null)
-  // True while a picked option is animating into the net - blocks a second
-  // pick from landing mid-flight.
-  const [wizardMorphing, setWizardMorphing] = useState(false)
-  // The arrangement(s) of the captured faces waiting for the customer's
-  // OK (see handleConfirmReview): one to approve, a few to pick from, or a
-  // closest match that isn't a valid cube. `fallback` feeds the wizard if
-  // they say no.
-  const [orientationApproval, setOrientationApproval] =
-    useState<CaptureApproval | null>(null)
+  const {
+    orientationWizard,
+    setOrientationWizard,
+    wizardMorphing,
+    orientationApproval,
+    setOrientationApproval,
+    reviewNotice,
+    setReviewNotice,
+    clearOrientationReview,
+    handleConfirmReview,
+    handleRejectOrientation,
+    handleWizardPick,
+  } = useOrientationReview({
+    capturedFaces,
+    isGuidedCapture: () => isGuidedCapture(),
+    onChoose: (candidate) => handleChooseOrientation(candidate),
+  })
   // Capture-time warnings the customer chose to ignore (see captureWarning).
   const [dismissedCaptureWarnings, setDismissedCaptureWarnings] = useState<
     string[]
   >([])
   // capture.protocol of the last uploaded fixture (see isGuidedCapture).
   const [uploadedProtocol, setUploadedProtocol] = useState<string | null>(null)
-  // A problem with the capture shown in the review dialog.
-  const [reviewNotice, setReviewNotice] = useState<string | null>(null)
   const [reviewEditingCell, setReviewEditingCell] = useState<{
     face: string
     row: number
@@ -475,9 +460,7 @@ function App() {
     setShowReviewDialog(false)
     setReviewStep(0)
     setReviewEditingCell(null)
-    setOrientationWizard(null)
-    setOrientationApproval(null)
-    setReviewNotice(null)
+    clearOrientationReview()
     setGlobalWhiteBalanceNote(null)
     setGlareFaces([])
     setAppliedBackgroundGains(null)
@@ -1151,52 +1134,6 @@ function App() {
     setWebcamOpen(true)
   }
 
-  // After color review, or automatically for a high-confidence valid cube:
-  // works out how the 6 photos fit together and
-  // asks the customer to approve it, falling back step by step -
-  //   guided capture (camera, sides then top/bottom): the 64 arrangements
-  //   the turning pattern allows (solveGuidedCapture);
-  //   otherwise, or if none of those is a valid cube: any arrangement at
-  //   all (solveFaceOrientations), which also catches a capture that
-  //   didn't follow the pattern;
-  //   if nothing is a valid cube: the closest match, flagged, which can
-  //   still be used or rejected.
-  // Rejecting an arrangement opens the "Which way is your ... face?"
-  // wizard with the remaining ones.
-  const handleConfirmReview = (
-    precomputedFree?: OrientationSolution | null,
-  ) => {
-    setReviewNotice(null)
-    const faceData = Object.fromEntries(
-      FACE_ORDER.map((face) => [face, capturedFaces[face].colors]),
-    )
-    const plan = planCaptureReview(
-      faceData,
-      FACE_ORDER,
-      isGuidedCapture(),
-      describeCenterIssue,
-      precomputedFree,
-    )
-    switch (plan.kind) {
-      case 'approval':
-        setOrientationApproval(plan.approval)
-        break
-      case 'wizard':
-        setOrientationWizard({
-          remaining: plan.remaining,
-          truncated: plan.truncated,
-          picked: [],
-        })
-        break
-      case 'notice':
-        setReviewNotice(plan.message)
-        break
-      case 'choose':
-        void handleChooseOrientation(plan.candidate)
-        break
-    }
-  }
-
   useEffect(() => {
     if (!reviewRouting || capturedFaces !== reviewRouting.faces) return
     setReviewRouting(null)
@@ -1281,34 +1218,12 @@ function App() {
     return null
   })()
 
-  // "No, let me choose each side" is only offered when the photos fit
-  // together some other way too; the wizard then starts from every
-  // arrangement (see wizardStart).
-  const handleRejectOrientation = () => {
-    if (!orientationApproval) return
-    if (rejectAlternatives(orientationApproval).length === 0) return
-    setOrientationApproval(null)
-    // Every arrangement, the turned-down one included: the wizard only asks
-    // about faces the remaining candidates disagree on and fills in the
-    // rest, so leaving the suggestion out can drop a face's one alternative
-    // - a pattern cube whose back face fits either way got it filled in
-    // turned 90 degrees, never asked about. If the answers lead back to the
-    // suggestion, it was right after all.
-    setOrientationWizard({
-      remaining: orientationApproval.fallback!.alternatives,
-      truncated: orientationApproval.fallback!.truncated,
-      picked: [],
-    })
-  }
-
   // Finishes assembly once the orientation wizard has narrowed down to a
   // single candidate - mirrors handleConfirmReview's tail end exactly,
   // since this IS that same step, just with the choice already made
   // instead of auto-picking alternatives[0].
   const handleChooseOrientation = async (chosen: OrientedCandidate) => {
-    setOrientationWizard(null)
-    setOrientationApproval(null)
-    setReviewNotice(null)
+    clearOrientationReview()
     const cubeState = assembleCubeFromFaces(chosen.faces, puzzleSize)
     setCube(cubeState)
     updateParityStatus(cubeState)
@@ -1381,56 +1296,6 @@ function App() {
       setPendingPalette(null)
     }
     setShowReviewDialog(false)
-  }
-
-  // Advances the orientation wizard by one answer: narrows `remaining` to
-  // whichever candidates matched the customer's pick for the face just
-  // asked about, then either asks the next most-informative question or,
-  // once every face agrees (pickWizardFace returns null), finishes
-  // assembly with the single remaining candidate.
-  const handleWizardAnswer = (matched: OrientedCandidate[], face: FaceKey) => {
-    if (pickWizardFace(matched) === null) {
-      void handleChooseOrientation(matched[0])
-      return
-    }
-    setOrientationWizard((prev) =>
-      prev
-        ? {
-            remaining: matched,
-            truncated: prev.truncated,
-            picked: [...prev.picked, face],
-          }
-        : null,
-    )
-  }
-
-  // Clicking an option face flies it into the framed slot in the progress
-  // net before the answer is applied, so the customer sees exactly where
-  // their pick landed. The flying clone is removed in the next task, after
-  // Preact's microtask re-render has already filled the slot - so the slot
-  // never flashes back to its hatched placeholder in between. (A timer,
-  // not requestAnimationFrame, since rAF doesn't fire in background tabs.)
-  const handleWizardPick = async (
-    optionEl: HTMLElement,
-    candidates: OrientedCandidate[],
-    face: FaceKey,
-  ) => {
-    if (wizardMorphing) return
-    const source = optionEl.querySelector<HTMLElement>('.orientation-net-face')
-    const target = document.querySelector<HTMLElement>(
-      '.orientation-picker .orientation-net-face-current',
-    )
-    let removeClone = () => {}
-    if (source && target) {
-      setWizardMorphing(true)
-      try {
-        removeClone = await morphInto(source, target)
-      } finally {
-        setWizardMorphing(false)
-      }
-    }
-    handleWizardAnswer(candidates, face)
-    setTimeout(removeClone, 0)
   }
 
   // Packs this capture - each face's actual photo plus its (human-
