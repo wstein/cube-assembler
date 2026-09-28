@@ -24,6 +24,7 @@ import {
   TURN_MS_RANGE,
   TURN_OVERSHOOT_COOKIE,
   TURN_SOUND_COOKIE,
+  VIBRATION_COOKIE,
   WIDE_PRESS_COOKIE,
   clearedCookie,
   holdTimingCookie,
@@ -39,6 +40,7 @@ import {
   readSwipeTuning,
   readTurnFeel,
   turnSoundOn,
+  vibrationOn,
 } from './preferences'
 import { ChoiceSetting, SliderSetting, ToggleSetting } from './settingControls'
 
@@ -174,6 +176,12 @@ export function SettingsPage({ onClose }: Props) {
           hint="Layers snap a little past the quarter turn and settle back."
           checked={readTurnFeel(cookies).overshoot}
           onChange={(on) => write(preferenceCookie(TURN_OVERSHOOT_COOKIE, on))}
+        />
+        <ToggleSetting
+          label="Vibrate on hold"
+          hint="On phones, a short buzz when a held sticker turns more layers."
+          checked={vibrationOn(cookies)}
+          onChange={(on) => write(preferenceCookie(VIBRATION_COOKIE, on))}
         />
       </Section>
 

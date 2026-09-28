@@ -18,6 +18,8 @@ import {
   CAPTURE_MODE_COOKIE,
   AUTO_CAPTURE_FRAMES_COOKIE,
   CUBE_PRESS_COOKIE,
+  VIBRATION_COOKIE,
+  vibrationOn,
   SCRAMBLE_INNER_COOKIE,
   SCRAMBLE_LENGTH_COOKIE,
   readScrambleOptions,
@@ -266,5 +268,13 @@ describe('scramble settings', () => {
     expect(SETTING_COOKIES).toEqual(
       expect.arrayContaining([SCRAMBLE_LENGTH_COOKIE, SCRAMBLE_INNER_COOKIE]),
     )
+  })
+})
+
+describe('vibration setting', () => {
+  it('vibrates on a held sticker unless switched off', () => {
+    expect(vibrationOn('')).toBe(true)
+    expect(vibrationOn(`${VIBRATION_COOKIE}=0`)).toBe(false)
+    expect(SETTING_COOKIES).toContain(VIBRATION_COOKIE)
   })
 })

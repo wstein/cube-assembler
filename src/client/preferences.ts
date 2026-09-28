@@ -33,6 +33,8 @@ export const AUTO_CAPTURE_FRAMES_COOKIE = 'cube-assembler-auto-capture-frames'
 // How long scrambles are, and whether they turn inner layers.
 export const SCRAMBLE_LENGTH_COOKIE = 'cube-assembler-scramble-length'
 export const SCRAMBLE_INNER_COOKIE = 'cube-assembler-scramble-inner'
+// A short vibration when a held sticker switches to a block or the cube.
+export const VIBRATION_COOKIE = 'cube-assembler-vibration'
 export const NOTATION_COOKIE = 'cube-assembler-notation'
 export const CAPTURE_MODE_COOKIE = 'cube-assembler-capture-mode'
 // How long a sticker is held before a drag turns a block or the whole cube.
@@ -161,6 +163,7 @@ export const SETTING_COOKIES = [
   AUTO_CAPTURE_FRAMES_COOKIE,
   SCRAMBLE_LENGTH_COOKIE,
   SCRAMBLE_INNER_COOKIE,
+  VIBRATION_COOKIE,
 ]
 
 export function selectedNotationFormat(cookies: string): 'wrg' | 'urf' {
@@ -247,4 +250,8 @@ export function readScrambleOptions(cookies: string): ScrambleOptions {
     ),
     innerLayers: readPreference(cookies, SCRAMBLE_INNER_COOKIE, true),
   }
+}
+
+export function vibrationOn(cookies: string): boolean {
+  return readPreference(cookies, VIBRATION_COOKIE, true)
 }

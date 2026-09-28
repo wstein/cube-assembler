@@ -47,6 +47,7 @@ import {
   readSwipeTuning,
   readTurnFeel,
   turnSoundOn,
+  vibrationOn,
   type ScrambleLength,
   type ScrambleOptions,
 } from './preferences'
@@ -1962,7 +1963,8 @@ export function CubeView3D({
       gesture.level = level
       setPressMode(level)
       try {
-        navigator.vibrate?.(level === 'cube' ? 20 : 10)
+        if (vibrationOn(document.cookie))
+          navigator.vibrate?.(level === 'cube' ? 20 : 10)
       } catch {
         // Vibration is only a hint.
       }
