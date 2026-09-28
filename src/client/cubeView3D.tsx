@@ -31,6 +31,8 @@ import {
 } from './cubeGesture'
 import { stepDragInertia } from './dragInertia'
 import {
+  MODE_CUE_GAIN,
+  playModeCue,
   playTurnClick,
   scrambleDuration,
   settleDuration,
@@ -1953,21 +1955,28 @@ export function CubeView3D({
     if (gesture) gesture.holdTimer = undefined
   }
 
+  // Shows, sounds and (on phones) buzzes that a held sticker or a modifier
+  // key now turns a block of layers or the whole cube.
+  const announcePressMode = (level: 'block' | 'cube') => {
+    setPressMode(level)
+    const cookies = document.cookie
+    playModeCue(level, turnSoundOn(cookies) ? MODE_CUE_GAIN : 0)
+    try {
+      if (vibrationOn(cookies)) navigator.vibrate?.(level === 'cube' ? 20 : 10)
+    } catch {
+      // Vibration is only a hint.
+    }
+  }
+
   // Holding the sticker still widens what it turns: a block of layers, then
   // the whole cube, after the times saved on the settings page.
   const holdSticker = (gesture: NonNullable<typeof gestureRef.current>) => {
     const { blockMs, cubeMs } = readHoldTimings(document.cookie)
-    const upgrade = (level: PressLevel, next?: () => void) => {
+    const upgrade = (level: 'block' | 'cube', next?: () => void) => {
       if (gestureRef.current !== gesture || gesture.mode !== 'pending') return
       if (gesture.block) return
       gesture.level = level
-      setPressMode(level)
-      try {
-        if (vibrationOn(document.cookie))
-          navigator.vibrate?.(level === 'cube' ? 20 : 10)
-      } catch {
-        // Vibration is only a hint.
-      }
+      announcePressMode(level)
       next?.()
     }
     gesture.holdTimer = setTimeout(
@@ -2156,7 +2165,7 @@ export function CubeView3D({
     gestureRef.current = gesture
     if (gesture.mode !== 'pending') return
     if (level === 'layer') holdSticker(gesture)
-    else setPressMode(level)
+    else announcePressMode(level)
   }
 
   const handlePointerMove = (e: PointerEvent) => {

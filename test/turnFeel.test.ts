@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   DEFAULT_TURN_MS,
   magneticEase,
+  modeCueNotes,
   scrambleDuration,
   settleDuration,
   turnClickGain,
@@ -58,5 +59,20 @@ describe('turn speed and overshoot settings', () => {
     expect(settleDuration(1, 320)).toBe(320)
     expect(scrambleDuration(DEFAULT_TURN_MS)).toBe(85)
     expect(scrambleDuration(320)).toBe(170)
+  })
+})
+
+describe('mode cues', () => {
+  it('sounds one tone for a block and two rising tones for the whole cube', () => {
+    const block = modeCueNotes('block')
+    const cube = modeCueNotes('cube')
+    expect(block).toHaveLength(1)
+    expect(cube).toHaveLength(2)
+    expect(cube[1].frequency).toBeGreaterThan(cube[0].frequency)
+    expect(cube[1].start).toBeGreaterThanOrEqual(
+      cube[0].start + cube[0].duration,
+    )
+    for (const note of [...block, ...cube])
+      expect(note.duration).toBeLessThanOrEqual(0.08)
   })
 })

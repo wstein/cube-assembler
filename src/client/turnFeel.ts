@@ -72,3 +72,42 @@ export function playTurnClick(gain: number): void {
     // Sound is a nicety; turning works without it.
   }
 }
+
+// A held sticker announces that it now turns more: one short tone for a
+// block of layers, two rising tones for the whole cube (seconds, hertz).
+export function modeCueNotes(
+  level: 'block' | 'cube',
+): Array<{ frequency: number; start: number; duration: number }> {
+  return level === 'block'
+    ? [{ frequency: 660, start: 0, duration: 0.06 }]
+    : [
+        { frequency: 660, start: 0, duration: 0.05 },
+        { frequency: 990, start: 0.07, duration: 0.06 },
+      ]
+}
+
+export const MODE_CUE_GAIN = 0.08
+
+export function playModeCue(level: 'block' | 'cube', gain: number): void {
+  if (gain <= 0) return
+  try {
+    audio ??= new AudioContext()
+    if (audio.state === 'suspended') void audio.resume()
+    const now = audio.currentTime
+    for (const note of modeCueNotes(level)) {
+      const tone = audio.createOscillator()
+      tone.type = 'sine'
+      tone.frequency.value = note.frequency
+      const volume = audio.createGain()
+      const start = now + note.start
+      volume.gain.setValueAtTime(0.0001, start)
+      volume.gain.exponentialRampToValueAtTime(gain, start + 0.008)
+      volume.gain.exponentialRampToValueAtTime(0.0001, start + note.duration)
+      tone.connect(volume).connect(audio.destination)
+      tone.start(start)
+      tone.stop(start + note.duration + 0.01)
+    }
+  } catch {
+    // Sound is a nicety; the badge still shows the mode.
+  }
+}

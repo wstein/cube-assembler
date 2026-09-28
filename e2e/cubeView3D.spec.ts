@@ -732,6 +732,43 @@ test.describe('held sticker drags', () => {
     await expect(history(page)).toHaveText('Moves: x')
   })
 
+  for (const sound of [true, false])
+    test(`holding ${sound ? 'sounds' : 'stays silent with the turn sound off'} for a block and the whole cube`, async ({
+      page,
+      context,
+    }) => {
+      await context.addCookies([
+        {
+          name: 'cube-assembler-turn-sound',
+          value: sound ? '1' : '0',
+          url: `http://127.0.0.1:${process.env.E2E_PORT ?? '4174'}`,
+        },
+      ])
+      await page.addInitScript(() => {
+        const tones: number[] = []
+        ;(window as unknown as { tones: number[] }).tones = tones
+        const Original = window.AudioContext
+        window.AudioContext = class extends Original {
+          createOscillator() {
+            tones.push(0)
+            return super.createOscillator()
+          }
+        }
+      })
+      const { x, y } = await setUp(page)
+      const tones = () =>
+        page.evaluate(
+          () => (window as unknown as { tones: number[] }).tones.length,
+        )
+      await page.mouse.move(x, y)
+      await page.mouse.down()
+      await page.waitForTimeout(650)
+      expect(await tones()).toBe(sound ? 1 : 0)
+      await page.waitForTimeout(700)
+      expect(await tones()).toBe(sound ? 3 : 0)
+      await page.mouse.up()
+    })
+
   test('a hold released without a drag turns nothing', async ({ page }) => {
     const { x, y } = await setUp(page)
     const canvas = page.locator('.cube-3d-canvas')

@@ -58,7 +58,8 @@ for 0.4 seconds to turn several layers: drag across the layers to pick them (the
 light up), then drag the other way to turn them as a block, recorded as Rw,
 3Rw or 2-3Rw. Hold it for 0.9 seconds to turn the whole cube instead, recorded as
 x, y or z. With a keyboard, Shift picks layers and Alt turns the whole cube
-at once. **Settings** (next to Profiles) changes both hold times. With a mouse, drag the background to
+at once. With Turn sound on, one tone marks a block and two rising tones the whole
+cube. **Settings** (next to Profiles) changes both hold times. With a mouse, drag the background to
 rotate the view; it keeps turning briefly after release. On a touch screen,
 one finger only turns layers; two fingers tilt the cube or pinch to zoom.
 Each two-finger gesture does one or the other, decided by how it starts. On
