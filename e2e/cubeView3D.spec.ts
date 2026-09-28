@@ -972,7 +972,7 @@ test.describe('wide sticker drags', () => {
       const startY = y + 0.5 * column
       await page.mouse.move(x, startY)
       await page.mouse.down()
-      await page.mouse.move(x - 1.1 * quarter, startY + lean * 0.1 * quarter, {
+      await page.mouse.move(x - 1.1 * quarter, startY + lean * 0.2 * quarter, {
         steps: 20,
       })
       await expect(badge(page)).toHaveText(/Wide turn/)
@@ -980,6 +980,44 @@ test.describe('wide sticker drags', () => {
       await page.mouse.up()
       await expect(history(page)).toHaveText(`Moves: ${move}`)
     })
+
+  test('a seam swipe reads its lean past the first wobble', async ({
+    page,
+  }) => {
+    const { x, y, column, quarter } = await setUp(page)
+    const startY = y + 0.5 * column
+    await page.mouse.move(x, startY)
+    await page.mouse.down()
+    // The hand first drifts down a little, then leans up.
+    await page.mouse.move(x - 10, startY + 2, { steps: 2 })
+    const lean = Math.tan((12 * Math.PI) / 180)
+    for (let step = 1; step <= 20; step++) {
+      const dx = ((1.1 * quarter - 10) * step) / 20
+      await page.mouse.move(x - 10 - dx, startY + 2 - lean * dx)
+    }
+    await expect(badge(page)).toHaveText(/Wide turn/)
+    await page.waitForTimeout(150)
+    await page.mouse.up()
+    await expect(history(page)).toHaveText('Moves: 4Uw')
+  })
+
+  test("a seam swipe can switch from 4Uw to 3Dw' before it locks", async ({
+    page,
+  }) => {
+    const { x, y, column, quarter } = await setUp(page)
+    const startY = y + 0.5 * column
+    await page.mouse.move(x, startY)
+    await page.mouse.down()
+    await page.mouse.move(x - 25, startY - 6, { steps: 3 })
+    await expect(badge(page)).toHaveText(/Wide turn/)
+    await page.mouse.move(x - 35, startY + 6, { steps: 2 })
+    await page.mouse.move(x - 1.1 * quarter, startY + 0.2 * quarter, {
+      steps: 20,
+    })
+    await page.waitForTimeout(150)
+    await page.mouse.up()
+    await expect(history(page)).toHaveText("Moves: 3Dw'")
+  })
 
   test('a quick second swipe turns its layer too', async ({ page }) => {
     const { x, y, column, quarter } = await setUp(page)
@@ -1040,11 +1078,11 @@ test.describe('wide sticker drags', () => {
       await touch(
         'pointermove',
         x - (1.1 * quarter * step) / 20,
-        startY - (0.1 * quarter * step) / 20,
+        startY - (0.2 * quarter * step) / 20,
       )
     await expect(badge(page)).toHaveText(/Wide turn/)
     await page.waitForTimeout(150)
-    await touch('pointerup', x - 1.1 * quarter, startY - 0.1 * quarter)
+    await touch('pointerup', x - 1.1 * quarter, startY - 0.2 * quarter)
     await expect(history(page)).toHaveText('Moves: 4Uw')
   })
 

@@ -33,6 +33,8 @@ export interface CubePointerGesture {
   // Where the turn's angle is measured from once dragging turns layers.
   turnHit?: CubeSurfaceHit
   turnFrom?: Point
+  // A seam swipe whose lean may still change the turned block.
+  seamOpen?: boolean
 }
 
 interface DragInteractionOptions {

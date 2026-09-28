@@ -245,52 +245,73 @@ let standardWideLayer = (layer: swipeLayer, size) => {
 // toward one side turns a wide block: both layers at the seam and every
 // layer on that side, named from the face it reaches. On a 5x5, swiping
 // along the U3/U4 seam and leaning toward U turns 4Uw, leaning toward D
-// 3Dw. A start in the middle of a sticker, a swipe straight along the
-// seam, or a block that would take the whole cube turns one layer.
-let seamTolerance = 0.15
-let seamLean = 0.05
+// 3Dw. The outer quarters of a sticker count as the seam. A start in the
+// middle half of a sticker, a swipe within about 6 degrees of the seam, or
+// a block that would take the whole cube turns one layer. The lean may
+// change the choice until the layers have turned seamLockAngle radians.
+let seamTolerance = 0.25
+let seamLean = 0.1
+let seamLockAngle = 0.3
 
-let seamWideLayer = (hit: surfaceHit, layer: swipeLayer, dx, dy, camera: camera) => {
+// The seam the swipe starts on, counted in layers from the axis's minus
+// face, or None away from a seam.
+let seamAt = (hit: surfaceHit, layer: swipeLayer, camera: camera) => {
   let position = get(hit.point, layer.axis) +. camera.size /. 2.0
   let seam = Math.round(position)
-  if seam < 1.0 || seam > camera.size -. 1.0 || Math.abs(position -. seam) > seamTolerance {
-    Null.null
-  } else {
+  seam < 1.0 || seam > camera.size -. 1.0 || Math.abs(position -. seam) > seamTolerance
+    ? None
+    : Some(Float.toInt(seam))
+}
+
+// Where one sticker along `axis` from the touched point appears on screen.
+let screenStep = (hit: surfaceHit, axis, camera) => {
+  let (sx, sy) = project(hit.point, camera)
+  let unit = switch axis {
+  | 0 => (1.0, 0.0, 0.0)
+  | 1 => (0.0, 1.0, 0.0)
+  | _ => (0.0, 0.0, 1.0)
+  }
+  let (ex, ey) = project(along(hit.point, 1.0, unit), camera)
+  (ex -. sx, ey -. sy)
+}
+
+let acrossAxis = (hit: surfaceHit, layer: swipeLayer) =>
+  inPlaneAxes(hit.normalAxis)->Array.find(axis => axis != layer.axis)
+
+let onSeam = (hit, layer, camera) => seamAt(hit, layer, camera)->Option.isSome
+
+let seamWideLayer = (hit: surfaceHit, layer: swipeLayer, dx, dy, camera: camera) =>
+  switch (seamAt(hit, layer, camera), acrossAxis(hit, layer)) {
+  | (Some(seam), Some(across)) =>
     // The swipe on screen as motion along the layer axis (the lean) and
     // across it (the turn), in stickers.
-    let (sx, sy) = project(hit.point, camera)
-    let screenStep = axis => {
-      let unit = switch axis {
-      | 0 => (1.0, 0.0, 0.0)
-      | 1 => (0.0, 1.0, 0.0)
-      | _ => (0.0, 0.0, 1.0)
-      }
-      let (ex, ey) = project(along(hit.point, 1.0, unit), camera)
-      (ex -. sx, ey -. sy)
+    let (ux, uy) = screenStep(hit, layer.axis, camera)
+    let (vx, vy) = screenStep(hit, across, camera)
+    let det = ux *. vy -. uy *. vx
+    let lean = Math.abs(det) < 1e-9 ? 0.0 : (dx *. vy -. dy *. vx) /. det
+    let turn = Math.abs(det) < 1e-9 ? 0.0 : (ux *. dy -. uy *. dx) /. det
+    let size = Float.toInt(camera.size)
+    if Math.abs(lean) < seamLean *. Math.hypot(lean, turn) {
+      Null.null
+    } else {
+      let block =
+        lean > 0.0
+          ? blockLayer(layer.axis, seam - 1, size - 1, size)
+          : blockLayer(layer.axis, 0, seam, size)
+      block.width->Option.getOr(1) >= size ? Null.null : Null.make(block)
     }
-    let across = inPlaneAxes(hit.normalAxis)->Array.find(axis => axis != layer.axis)
-    switch across {
-    | None => Null.null
-    | Some(across) =>
-      let (ux, uy) = screenStep(layer.axis)
-      let (vx, vy) = screenStep(across)
-      let det = ux *. vy -. uy *. vx
-      let lean = Math.abs(det) < 1e-9 ? 0.0 : (dx *. vy -. dy *. vx) /. det
-      let turn = Math.abs(det) < 1e-9 ? 0.0 : (ux *. dy -. uy *. dx) /. det
-      let size = Float.toInt(camera.size)
-      let upper = Float.toInt(seam)
-      if Math.abs(lean) < seamLean *. Math.hypot(lean, turn) {
-        Null.null
-      } else {
-        let block =
-          lean > 0.0
-            ? blockLayer(layer.axis, upper - 1, size - 1, size)
-            : blockLayer(layer.axis, 0, upper, size)
-        block.width->Option.getOr(1) >= size ? Null.null : Null.make(block)
-      }
-    }
+  | _ => Null.null
   }
-}
+
+// What a seam swipe turns now: the block its lean picks, else the one
+// layer under the start. A swipe that turns about the other axis keeps the
+// current choice.
+let seamChoice = (hit, current: swipeLayer, dx, dy, camera) =>
+  switch pickLayer(hit, dx, dy, camera, 0.0) {
+  | Some(layer) if layer.axis == current.axis =>
+    seamWideLayer(hit, layer, dx, dy, camera)->Null.toOption->Option.getOr(layer)
+  | _ => current
+  }
 
 // A released drag settles on whole quarter turns. Each further quarter
 // counts once the drag passes turnCommitFraction of it, so a short slow

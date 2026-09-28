@@ -40,7 +40,10 @@ type pressLevel =
 @genType let blockLayer: (int, int, int, int) => swipeLayer
 @genType let wholeCubeLayer: (int, int) => swipeLayer
 @genType let standardWideLayer: (swipeLayer, int) => swipeLayer
+@genType let seamLockAngle: float
+@genType let onSeam: (surfaceHit, swipeLayer, camera) => bool
 @genType let seamWideLayer: (surfaceHit, swipeLayer, float, float, camera) => Null.t<swipeLayer>
+@genType let seamChoice: (surfaceHit, swipeLayer, float, float, camera) => swipeLayer
 
 @genType let turnCommitFraction: float
 @genType let flickMs: float

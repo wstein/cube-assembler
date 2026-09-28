@@ -11,6 +11,9 @@ import {
   pressLevel,
   releasedQuarterTurns,
   standardWideLayer,
+  onSeam,
+  seamChoice,
+  SEAM_LOCK_ANGLE,
   seamWideLayer,
   swipeLayerAngle,
   wholeCubeLayer,
@@ -891,6 +894,32 @@ export function CubeView3D({
       const [fromX, fromY] = gesture.turnFrom ?? [gesture.x, gesture.y]
       if (!drag || !hit || !rect) return
       const camera = gestureCamera(rect)
+      // A young seam swipe follows its lean, so the highlighted block can
+      // be corrected before it locks.
+      if (gesture.seamOpen) {
+        if (Math.abs(drag.angle) >= SEAM_LOCK_ANGLE) gesture.seamOpen = false
+        else {
+          const next = seamChoice(
+            hit,
+            drag.layer,
+            e.clientX - fromX,
+            e.clientY - fromY,
+            camera,
+          )
+          const same =
+            next.face === drag.layer.face &&
+            next.depth === drag.layer.depth &&
+            (next.width ?? 1) === (drag.layer.width ?? 1)
+          if (!same) {
+            const wide = (next.width ?? 1) > 1
+            drag.layer = next
+            drag.highlight = wide
+            if (wide && gesture.level !== 'wide') announceWideTurn()
+            if (!wide) setPressMode(null)
+            gesture.level = wide ? 'wide' : 'layer'
+          }
+        }
+      }
       const angle = swipeLayerAngle(
         hit,
         drag.layer,
@@ -921,15 +950,17 @@ export function CubeView3D({
       )
       if (layer) {
         // Starting on a seam and leaning to one side turns a wide block.
-        const seamBlock =
-          gesture.level === 'layer'
-            ? seamWideLayer(gesture.hit, layer, dx, dy, camera)
-            : null
+        const seam =
+          gesture.level === 'layer' && onSeam(gesture.hit, layer, camera)
+        const seamBlock = seam
+          ? seamWideLayer(gesture.hit, layer, dx, dy, camera)
+          : null
         const turned =
           seamBlock ??
           (gesture.level === 'wide'
             ? standardWideLayer(layer, puzzleSize)
             : layer)
+        gesture.seamOpen = seam
         if (seamBlock) {
           gesture.level = 'wide'
           announceWideTurn()
