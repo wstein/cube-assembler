@@ -1,6 +1,8 @@
 import type { ComponentChildren, RefObject } from 'preact'
 import type { PressLevel } from './cubeGesture'
 import { formatCubeTurn, type CubeTurn } from './cubeView3DState'
+import { readPreference, VIEW_HELP_COOKIE } from './preferences'
+import { useCubeHelpHint } from './useCubeHelpHint'
 
 interface CubeView3DPresentationProps {
   isSupported: boolean
@@ -56,6 +58,17 @@ export function CubeView3DPresentation({
   onToggleAutoRotate,
   gizmo,
 }: CubeView3DPresentationProps) {
+  const helpEnabled = readPreference(document.cookie, VIEW_HELP_COOKIE, true)
+  const help = useCubeHelpHint(helpEnabled)
+  const pointerDown = (event: PointerEvent) => {
+    help.pointerDown(event.pointerId)
+    handlePointerDown(event)
+  }
+  const pointerUp = (event: PointerEvent) => {
+    help.pointerUp(event.pointerId)
+    handlePointerUp(event)
+  }
+
   return (
     <div class="cube-3d-container">
       {!isSupported ? (
@@ -74,10 +87,10 @@ export function CubeView3DPresentation({
             <canvas
               ref={canvasRef}
               class="cube-3d-canvas"
-              onPointerDown={handlePointerDown}
+              onPointerDown={pointerDown}
               onPointerMove={handlePointerMove}
-              onPointerUp={handlePointerUp}
-              onPointerCancel={handlePointerUp}
+              onPointerUp={pointerUp}
+              onPointerCancel={pointerUp}
               // A held sticker must not open the long-press menu.
               onContextMenu={(e) => e.preventDefault()}
               onWheel={handleWheel}
@@ -89,22 +102,24 @@ export function CubeView3DPresentation({
                 Wide turn: drag to turn the touched layers
               </div>
             )}
-            <div class="cube-3d-hint">
-              {coarsePointer ? (
-                <>
-                  Swipe a sticker to turn its layer; hold 300 ms for a wide turn
-                  &bull; Two fingers on the cube turn it, beside it rotate the
-                  view &bull; Pinch to zoom
-                </>
-              ) : (
-                <>
-                  Swipe a sticker to turn its layer; hold 300 ms or Shift for a
-                  wide turn &bull; Two fingers on the cube turn the whole cube
-                  &bull; Drag the background or swipe two fingers beside the
-                  cube to rotate the view &bull; Pinch or scroll to zoom
-                </>
-              )}
-            </div>
+            {help.visible && (
+              <div class="cube-3d-hint">
+                {coarsePointer ? (
+                  <>
+                    Swipe a sticker to turn its layer; hold 300 ms for a wide
+                    turn &bull; Two fingers on the cube turn it, beside it
+                    rotate the view &bull; Pinch to zoom
+                  </>
+                ) : (
+                  <>
+                    Swipe a sticker to turn its layer; hold 300 ms or Shift for
+                    a wide turn &bull; Two fingers on the cube turn the whole
+                    cube &bull; Drag the background or swipe two fingers beside
+                    the cube to rotate the view &bull; Pinch or scroll to zoom
+                  </>
+                )}
+              </div>
+            )}
           </div>
           <div class="cube-3d-toolbar">
             <div class="cube-3d-section">

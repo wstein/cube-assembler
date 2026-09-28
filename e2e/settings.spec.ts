@@ -34,6 +34,25 @@ test('Reset all settings restores the defaults', async ({ page }) => {
   )
 })
 
+test('3D help can be turned off and remembered', async ({ page }) => {
+  await page.goto('/#settings')
+  const help = page.getByRole('switch', { name: 'Show 3D help' })
+  await expect(help).toBeChecked()
+  await help.uncheck()
+  await expect
+    .poll(() => page.evaluate(() => document.cookie))
+    .toContain('cube-assembler-view-help=0')
+  await page.getByRole('button', { name: '← Back to the scanner' }).click()
+  await page.getByRole('button', { name: '3D View' }).click()
+  await expect(page.locator('.cube-3d-hint')).toHaveCount(0)
+  await page.reload()
+  await expect(page.locator('.cube-3d-hint')).toHaveCount(0)
+  await page.goto('/#settings')
+  await expect(help).not.toBeChecked()
+  await page.getByRole('button', { name: 'Reset all settings' }).click()
+  await expect(help).toBeChecked()
+})
+
 test('capture switches on the settings page reach the scanner', async ({
   page,
 }) => {

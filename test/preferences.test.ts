@@ -9,6 +9,7 @@ import {
   MIRROR_COOKIE,
   SOUND_COOKIE,
   STICKERLESS_COOKIE,
+  VIEW_HELP_COOKIE,
   preferenceCookie,
   readPreference,
   readSelection,
@@ -86,8 +87,9 @@ describe('preference cookies', () => {
         CUBE_VIEW_COOKIE,
         STICKERLESS_COOKIE,
         AUTO_ROTATE_COOKIE,
+        VIEW_HELP_COOKIE,
       ]).size,
-    ).toBe(9)
+    ).toBe(10)
   })
 
   it('stores and reads the cube size and color profile selection', () => {
@@ -150,6 +152,11 @@ describe('setting cookies', () => {
 
   it('clears every setting cookie for a reset', () => {
     expect(SETTING_COOKIES).toContain(MIRROR_COOKIE)
+    expect(SETTING_COOKIES).toContain(VIEW_HELP_COOKIE)
+    expect(readPreference('', VIEW_HELP_COOKIE, true)).toBe(true)
+    expect(
+      readPreference(`${VIEW_HELP_COOKIE}=0`, VIEW_HELP_COOKIE, true),
+    ).toBe(false)
     expect(SETTING_COOKIES).not.toContain(CUBE_SIZE_COOKIE)
     expect(clearedCookie('x')).toBe('x=; Max-Age=0; Path=/; SameSite=Lax')
   })

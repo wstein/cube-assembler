@@ -9,6 +9,7 @@ let colorProfileCookie = "cube-assembler-color-profile"
 let cubeViewCookie = "cube-assembler-cube-view"
 let stickerlessCookie = "cube-assembler-stickerless"
 let autoRotateCookie = "cube-assembler-auto-rotate"
+let viewHelpCookie = "cube-assembler-view-help"
 // The 3D view's turn click; until set it follows the capture sound.
 let turnSoundCookie = "cube-assembler-turn-sound"
 // How long a quarter turn takes, and whether it snaps past like a magnet.
@@ -121,6 +122,7 @@ let settingCookies = [
   notationCookie,
   captureModeCookie,
   turnSoundCookie,
+  viewHelpCookie,
   turnMsCookie,
   turnOvershootCookie,
   swipeStartCookie,

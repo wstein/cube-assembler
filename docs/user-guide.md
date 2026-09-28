@@ -49,7 +49,9 @@ enabled. Changing size after a capture asks before clearing saved faces.
 First-party cookies remember the selected cube size and color profile,
 Mirror, Auto capture, capture sound, and the **2D Net / 3D View** choice.
 Within 3D View, **Stickerless / Stickered** and **Auto-rotate / Pause** are
-remembered too. Swipe a sticker in the 3D view to turn its row or column,
+remembered too. The gesture hint hides 10 seconds after the first touch and
+returns after 20 seconds without touch; **Show 3D help** in Settings turns it
+off. Swipe a sticker in the 3D view to turn its row or column,
 including inner slices on larger cubes. The layer follows your finger: let
 go early and it springs back, keep dragging for two or three quarter turns,
 or drag back to turn the other way. A quick flick finishes one turn, and a

@@ -25,6 +25,7 @@ import {
   TURN_OVERSHOOT_COOKIE,
   TURN_SOUND_COOKIE,
   VIBRATION_COOKIE,
+  VIEW_HELP_COOKIE,
   clearedCookie,
   localUploadShown,
   preferenceCookie,
@@ -160,6 +161,12 @@ export function SettingsPage({ onClose }: Props) {
       </Section>
 
       <Section id="settings-view" title="3D view">
+        <ToggleSetting
+          label="Show 3D help"
+          hint="Show gesture tips at first, then again after 20 seconds without touching the cube."
+          checked={readPreference(cookies, VIEW_HELP_COOKIE, true)}
+          onChange={(on) => write(preferenceCookie(VIEW_HELP_COOKIE, on))}
+        />
         <ToggleSetting
           label="Turn sound"
           hint="A soft click when a layer snaps into place, one tone for a wide turn, and two for a whole-cube turn."

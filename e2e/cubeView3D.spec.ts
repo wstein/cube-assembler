@@ -1,5 +1,49 @@
 import { expect, test, type Page } from '@playwright/test'
 
+test('3D help hides after first touch and returns after twenty seconds idle', async ({
+  page,
+}) => {
+  await page.addInitScript(() => {
+    const original = window.setTimeout.bind(window)
+    window.setTimeout = ((
+      handler: TimerHandler,
+      timeout?: number,
+      ...args: unknown[]
+    ) =>
+      original(
+        handler,
+        timeout === 10_000 ? 500 : timeout === 20_000 ? 1_000 : timeout,
+        ...args,
+      )) as typeof window.setTimeout
+  })
+  await page.goto('/')
+  await page.getByRole('button', { name: '3D View' }).click()
+  const hint = page.locator('.cube-3d-hint')
+  await expect(hint).toBeVisible()
+  const canvas = page.locator('.cube-3d-canvas')
+  const bounds = await canvas.boundingBox()
+  if (!bounds) throw new Error('No canvas')
+  const touch = async (type: string) =>
+    canvas.dispatchEvent(type, {
+      pointerId: 1,
+      pointerType: 'touch',
+      clientX: bounds.x + bounds.width / 2,
+      clientY: bounds.y + bounds.height / 2,
+      bubbles: true,
+    })
+  await touch('pointerdown')
+  await touch('pointerup')
+  await page.waitForTimeout(250)
+  await expect(hint).toBeVisible()
+  await expect(hint).toHaveCount(0, { timeout: 1_500 })
+  await page.waitForTimeout(250)
+  await touch('pointerdown')
+  await touch('pointerup')
+  await page.waitForTimeout(750)
+  await expect(hint).toHaveCount(0)
+  await expect(hint).toBeVisible({ timeout: 1_500 })
+})
+
 async function swipeFrontFace(page: Page, dx = -38) {
   const bounds = await page.locator('.cube-3d-canvas').boundingBox()
   expect(bounds).not.toBeNull()

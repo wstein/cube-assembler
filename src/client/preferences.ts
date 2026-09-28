@@ -20,6 +20,7 @@ export {
   autoCaptureCookie as AUTO_CAPTURE_COOKIE,
   autoCaptureFramesCookie as AUTO_CAPTURE_FRAMES_COOKIE,
   autoRotateCookie as AUTO_ROTATE_COOKIE,
+  viewHelpCookie as VIEW_HELP_COOKIE,
   captureModeCookie as CAPTURE_MODE_COOKIE,
   clearedCookie,
   colorProfileCookie as COLOR_PROFILE_COOKIE,
