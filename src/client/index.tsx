@@ -25,6 +25,12 @@ import { CaptureSettings, CubeSelectOptions } from './captureSettings'
 import type { FaceCaptureData, PreviewColorProfile } from './captureTypes'
 import { FaceGrid } from './captureNet'
 import {
+  describeArrangement,
+  OrientationNetPreview,
+  FACE_LABELS,
+  ORIENTATION_CHOICES_PER_PAGE,
+} from './orientationPresentation'
+import {
   planCaptureReview,
   readyAssemblyAfterCapture,
   type CaptureApproval,
@@ -119,7 +125,6 @@ import {
   type OrientationSolution,
   type FaceKey,
   type CubeState,
-  type GuidedArrangement,
   type GuidedCenterIssue,
 } from '../cube/cubeAssembly'
 import {
@@ -297,24 +302,6 @@ function describeCenterIssue(issue: GuidedCenterIssue): string {
   }
 }
 
-// How a top/bottom photo was held, from the quarter turns needed to undo it.
-const HELD_WORDS = ['', 'sideways', 'upside down', 'sideways']
-
-// What the search changed to make the photos fit, in words.
-function describeArrangement(a: GuidedArrangement, mirrored = false): string[] {
-  const [topFix, bottomFix] = a.capsSwapped
-    ? [a.capRotations[1], a.capRotations[0]]
-    : a.capRotations
-  const seenTurn = mirrored ? (a.turn === 'left' ? 'right' : 'left') : a.turn
-  return [
-    `You turned the cube to the ${seenTurn} between sides${mirrored ? ' in the mirrored view' : ''}.`,
-    ...(a.capsSwapped
-      ? ['Top and bottom were photographed the other way round.']
-      : []),
-    ...(topFix ? [`The top was held ${HELD_WORDS[topFix]}.`] : []),
-    ...(bottomFix ? [`The bottom was held ${HELD_WORDS[bottomFix]}.`] : []),
-  ]
-}
 const FACE_DISPLAY_LABEL: Record<string, string> = Object.fromEntries(
   FACE_ORDER.map((face) => [face, stepOf(face).label]),
 )
@@ -558,65 +545,6 @@ function morphInto(
   )
 }
 
-function OrientationNetPreview({
-  faces,
-  undecidedFaces,
-  currentFace,
-  autoFaces,
-  onFaceClick,
-}: {
-  faces: Record<string, string[][]>
-  undecidedFaces?: Set<string>
-  currentFace?: string
-  autoFaces?: Set<string>
-  onFaceClick?: (face: string) => void
-}) {
-  const faceGrid = (face: string) => (
-    <FaceGrid
-      stickerColors={STICKER_HEX}
-      colors={faces[face]}
-      undecided={undecidedFaces?.has(face)}
-      current={face === currentFace}
-      auto={autoFaces?.has(face)}
-    />
-  )
-  const grid = (face: string) =>
-    onFaceClick ? (
-      <button
-        type="button"
-        class="orientation-net-face-button"
-        aria-label={`Check colors for ${face} face`}
-        onClick={() => onFaceClick(face)}
-      >
-        {faceGrid(face)}
-      </button>
-    ) : (
-      faceGrid(face)
-    )
-  return (
-    <div class="orientation-net">
-      <div class="orientation-net-row">
-        <div class="orientation-net-spacer" />
-        {grid('U')}
-        <div class="orientation-net-spacer" />
-        <div class="orientation-net-spacer" />
-      </div>
-      <div class="orientation-net-row">
-        {grid('L')}
-        {grid('F')}
-        {grid('R')}
-        {grid('B')}
-      </div>
-      <div class="orientation-net-row">
-        <div class="orientation-net-spacer" />
-        {grid('D')}
-        <div class="orientation-net-spacer" />
-        <div class="orientation-net-spacer" />
-      </div>
-    </div>
-  )
-}
-
 // ─────────────────────────────────────────────────────────────────────────────
 // Modal accessibility: every modal in this app (capture, review wizard,
 // orientation wizard, color-fix popup) is a plain conditionally-rendered
@@ -668,16 +596,6 @@ function handleModalKeyDown(
 function focusModalOnOpen(el: HTMLElement | null) {
   if (el && !el.contains(document.activeElement)) el.focus()
 }
-
-const FACE_LABELS: Record<FaceKey, string> = {
-  U: 'Up',
-  R: 'Right',
-  F: 'Front',
-  D: 'Down',
-  L: 'Left',
-  B: 'Back',
-}
-const ORIENTATION_CHOICES_PER_PAGE = 2
 
 // ─────────────────────────────────────────────────────────────────────────────
 // App Component
@@ -3556,6 +3474,7 @@ function App() {
                     <div class="approval-net">
                       <OrientationNetPreview
                         faces={candidates[0].faces}
+                        stickerColors={STICKER_HEX}
                         onFaceClick={(face) => checkFace(candidates[0], face)}
                       />
                     </div>
@@ -3605,6 +3524,7 @@ function App() {
                         <div key={i} class="orientation-approval-option">
                           <OrientationNetPreview
                             faces={candidate.faces}
+                            stickerColors={STICKER_HEX}
                             onFaceClick={(face) => checkFace(candidate, face)}
                           />
                           {arrangements?.[i] && (
@@ -3738,7 +3658,10 @@ function App() {
                   <div class="orientation-picker-grid">
                     {remaining.slice(0, 1).map((alt, i) => (
                       <div key={i} class="orientation-picker-option">
-                        <OrientationNetPreview faces={alt.faces} />
+                        <OrientationNetPreview
+                          faces={alt.faces}
+                          stickerColors={STICKER_HEX}
+                        />
                         <button
                           type="button"
                           class="btn btn-primary btn-sm"
@@ -3811,6 +3734,7 @@ function App() {
                 )}
                 <OrientationNetPreview
                   faces={progressFaces}
+                  stickerColors={STICKER_HEX}
                   undecidedFaces={undecidedFaces}
                   currentFace={askingFace}
                   autoFaces={autoFaces}
