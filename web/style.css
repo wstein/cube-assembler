@@ -59,8 +59,10 @@
   --cube-3d-frame-line: rgba(66, 54, 32, 0.18);
 }
 
+/* Dark colors follow the system unless the settings page picks a theme. */
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
     --color-bg-page: #121215;
     --color-bg-primary: #1b1b1f;
     --color-bg-secondary: #232328;
@@ -81,6 +83,33 @@
     --cube-3d-mat: #26262c;
     --cube-3d-frame-line: rgba(255, 255, 255, 0.08);
   }
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --color-bg-page: #121215;
+  --color-bg-primary: #1b1b1f;
+  --color-bg-secondary: #232328;
+  --color-text-primary: #edebe6;
+  --color-text-secondary: #b9b6ae;
+  --color-border: #34343a;
+  --color-accent-soft: #1f2a4d;
+  --color-success: #58c48b;
+  --color-success-soft: #173826;
+  --color-warning: #f0b44c;
+
+  /* Dark mode: a slate stage under a soft spotlight. */
+  --cube-3d-sweep-top: #252c38;
+  --cube-3d-sweep-bottom: #0f1319;
+  --cube-3d-glow: rgba(160, 180, 220, 0.22);
+  --cube-3d-vignette: rgba(0, 0, 0, 0.4);
+  --cube-3d-shadow: 0.62;
+  --cube-3d-mat: #26262c;
+  --cube-3d-frame-line: rgba(255, 255, 255, 0.08);
+}
+
+:root[data-theme="light"] {
+  color-scheme: light;
 }
 
 * {

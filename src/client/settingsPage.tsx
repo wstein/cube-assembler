@@ -17,6 +17,7 @@ import {
   SCRAMBLE_INNER_COOKIE,
   SCRAMBLE_LENGTH_COOKIE,
   SETTING_COOKIES,
+  THEME_COOKIE,
   SWIPE_COMMIT_COOKIE,
   SWIPE_FLICK_COOKIE,
   SWIPE_RANGES,
@@ -36,6 +37,7 @@ import {
   readPreference,
   selectedCaptureMode,
   selectedNotationFormat,
+  selectedTheme,
   selectionCookie,
   numberCookie,
   readAutoCaptureFrames,
@@ -46,6 +48,7 @@ import {
   turnSoundOn,
   vibrationOn,
 } from './preferences'
+import { applyTheme } from './theme'
 import { DEFAULT_FIXTURE_SERVER, loopbackFixtureServer } from './fixtureUpload'
 import {
   ChoiceSetting,
@@ -84,6 +87,7 @@ export function SettingsPage({ onClose }: Props) {
   const write = (...updates: string[]) => {
     for (const cookie of updates) document.cookie = cookie
     setCookies(document.cookie)
+    applyTheme(selectedTheme(document.cookie))
   }
 
   const timings = readHoldTimings(cookies)
@@ -120,6 +124,19 @@ export function SettingsPage({ onClose }: Props) {
           Saved in this browser's cookies and used right away.
         </p>
       </header>
+
+      <Section id="settings-appearance" title="Appearance">
+        <ChoiceSetting
+          label="Theme"
+          value={selectedTheme(cookies)}
+          options={[
+            { value: 'system', label: 'Same as the system' },
+            { value: 'light', label: 'Light' },
+            { value: 'dark', label: 'Dark' },
+          ]}
+          onChange={(theme) => write(selectionCookie(THEME_COOKIE, theme))}
+        />
+      </Section>
 
       <Section id="settings-capture" title="Capture">
         <ChoiceSetting

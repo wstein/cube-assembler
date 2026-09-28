@@ -18,6 +18,8 @@ import {
   CAPTURE_MODE_COOKIE,
   AUTO_CAPTURE_FRAMES_COOKIE,
   CUBE_PRESS_COOKIE,
+  THEME_COOKIE,
+  selectedTheme,
   FIXTURE_SERVER_URL_COOKIE,
   LOCAL_UPLOAD_COOKIE,
   localUploadShown,
@@ -301,5 +303,14 @@ describe('developer settings', () => {
     expect(SETTING_COOKIES).toEqual(
       expect.arrayContaining([FIXTURE_SERVER_URL_COOKIE, LOCAL_UPLOAD_COOKIE]),
     )
+  })
+})
+
+describe('theme setting', () => {
+  it('follows the system unless set to light or dark', () => {
+    expect(selectedTheme('')).toBe('system')
+    expect(selectedTheme(`${THEME_COOKIE}=dark`)).toBe('dark')
+    expect(selectedTheme(`${THEME_COOKIE}=sepia`)).toBe('system')
+    expect(SETTING_COOKIES).toContain(THEME_COOKIE)
   })
 })

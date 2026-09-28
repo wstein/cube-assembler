@@ -112,3 +112,22 @@ test('the fixture server address only accepts this computer', async ({
       'cube-assembler-fixture-server-url=http%3A%2F%2Flocalhost%3A7200',
     )
 })
+
+test('the theme can override the system color scheme', async ({ page }) => {
+  await page.emulateMedia({ colorScheme: 'dark' })
+  await page.goto('/#settings')
+  const html = page.locator('html')
+  const background = () =>
+    page.evaluate(() => getComputedStyle(document.body).backgroundColor)
+  const dark = await background()
+  const theme = page.getByRole('combobox', { name: 'Theme' })
+  await expect(theme).toHaveValue('system')
+  await theme.selectOption('light')
+  await expect(html).toHaveAttribute('data-theme', 'light')
+  expect(await background()).not.toBe(dark)
+  await page.reload()
+  await expect(html).toHaveAttribute('data-theme', 'light')
+  await page.getByRole('button', { name: 'Reset all settings' }).click()
+  await expect(html).not.toHaveAttribute('data-theme', /./)
+  expect(await background()).toBe(dark)
+})

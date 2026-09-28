@@ -40,6 +40,8 @@ export const VIBRATION_COOKIE = 'cube-assembler-vibration'
 // server, and whether saving a fixture offers Upload to localhost.
 export const FIXTURE_SERVER_URL_COOKIE = 'cube-assembler-fixture-server-url'
 export const LOCAL_UPLOAD_COOKIE = 'cube-assembler-local-upload'
+// Light or dark colors, or whatever the system prefers.
+export const THEME_COOKIE = 'cube-assembler-theme'
 export const NOTATION_COOKIE = 'cube-assembler-notation'
 export const CAPTURE_MODE_COOKIE = 'cube-assembler-capture-mode'
 // How long a sticker is held before a drag turns a block or the whole cube.
@@ -171,6 +173,7 @@ export const SETTING_COOKIES = [
   VIBRATION_COOKIE,
   FIXTURE_SERVER_URL_COOKIE,
   LOCAL_UPLOAD_COOKIE,
+  THEME_COOKIE,
 ]
 
 export function selectedNotationFormat(cookies: string): 'wrg' | 'urf' {
@@ -273,4 +276,15 @@ export function readFixtureServer(cookies: string): string {
 
 export function localUploadShown(cookies: string): boolean {
   return readPreference(cookies, LOCAL_UPLOAD_COOKIE, true)
+}
+
+export type Theme = 'system' | 'light' | 'dark'
+
+export function selectedTheme(cookies: string): Theme {
+  return readChoice(
+    cookies,
+    THEME_COOKIE,
+    ['system', 'light', 'dark'] as const,
+    'system',
+  )
 }

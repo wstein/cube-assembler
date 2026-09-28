@@ -73,6 +73,7 @@ import {
   selectedCaptureMode,
   selectedCubeView,
   selectedNotationFormat,
+  selectedTheme,
   selectionCookie,
 } from './preferences'
 import { type ParityResult } from '../cube/parity'
@@ -126,6 +127,7 @@ import {
 } from './stickerDisplay'
 import { focusModalOnOpen, handleModalKeyDown } from './modalFocus'
 import { useProfileStore } from './useProfileStore'
+import { applyTheme } from './theme'
 import { useCaptureSession } from './useCaptureSession'
 import { useCaptureCalibration } from './useCaptureCalibration'
 import {
@@ -1557,6 +1559,7 @@ function App() {
 // Hydrate
 // ─────────────────────────────────────────────────────────────────────────────
 
+applyTheme(selectedTheme(document.cookie))
 const app = document.querySelector('#app')
 if (app) {
   render(<App />, app)
