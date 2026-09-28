@@ -4,15 +4,20 @@ import type { ComponentChildren } from 'preact'
 import { useState } from 'preact/hooks'
 import { DEFAULT_HOLD_TIMINGS } from './cubeGesture'
 import {
+  AUTO_CAPTURE_COOKIE,
   CUBE_PRESS_COOKIE,
   HOLD_TIMING_LIMITS,
+  MIRROR_COOKIE,
   SETTING_COOKIES,
+  SOUND_COOKIE,
   WIDE_PRESS_COOKIE,
   clearedCookie,
   holdTimingCookie,
+  preferenceCookie,
   readHoldTimings,
+  readPreference,
 } from './preferences'
-import { SliderSetting } from './settingControls'
+import { SliderSetting, ToggleSetting } from './settingControls'
 
 interface Props {
   onClose: () => void
@@ -80,6 +85,27 @@ export function SettingsPage({ onClose }: Props) {
           Saved in this browser's cookies and used right away.
         </p>
       </header>
+
+      <Section id="settings-capture" title="Capture">
+        <ToggleSetting
+          label="Mirror the camera preview"
+          hint="Like a mirror, as most webcams show you."
+          checked={readPreference(cookies, MIRROR_COOKIE)}
+          onChange={(on) => write(preferenceCookie(MIRROR_COOKIE, on))}
+        />
+        <ToggleSetting
+          label="Auto capture"
+          hint="Take the photo once the face holds still."
+          checked={readPreference(cookies, AUTO_CAPTURE_COOKIE)}
+          onChange={(on) => write(preferenceCookie(AUTO_CAPTURE_COOKIE, on))}
+        />
+        <ToggleSetting
+          label="Capture sound"
+          hint="A shutter click and flash for each photo."
+          checked={readPreference(cookies, SOUND_COOKIE)}
+          onChange={(on) => write(preferenceCookie(SOUND_COOKIE, on))}
+        />
+      </Section>
 
       <Section
         id="settings-hold"

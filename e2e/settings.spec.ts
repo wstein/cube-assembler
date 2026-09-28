@@ -52,3 +52,21 @@ test('Reset all settings restores the defaults', async ({ page }) => {
     'cube-assembler-wide-press-ms',
   )
 })
+
+test('capture switches on the settings page reach the scanner', async ({
+  page,
+}) => {
+  await page.goto('/#settings')
+  const auto = page.getByRole('switch', { name: /Auto capture/ })
+  await expect(auto).not.toBeChecked()
+  await auto.check()
+  await page.getByRole('switch', { name: /Mirror the camera preview/ }).check()
+  await expect
+    .poll(() => page.evaluate(() => document.cookie))
+    .toContain('cube-assembler-auto-capture=1')
+  await page.getByRole('button', { name: '← Back to the scanner' }).click()
+  await page.getByRole('button', { name: 'Capture faces' }).click()
+  await expect(
+    page.getByRole('checkbox', { name: /Auto capture/ }),
+  ).toBeChecked()
+})
