@@ -5,6 +5,8 @@ import { useState } from 'preact/hooks'
 import { DEFAULT_HOLD_TIMINGS } from './cubeGesture'
 import {
   AUTO_CAPTURE_COOKIE,
+  CAPTURE_MODE_COOKIE,
+  NOTATION_COOKIE,
   CUBE_PRESS_COOKIE,
   HOLD_TIMING_LIMITS,
   MIRROR_COOKIE,
@@ -16,8 +18,11 @@ import {
   preferenceCookie,
   readHoldTimings,
   readPreference,
+  selectedCaptureMode,
+  selectedNotationFormat,
+  selectionCookie,
 } from './preferences'
-import { SliderSetting, ToggleSetting } from './settingControls'
+import { ChoiceSetting, SliderSetting, ToggleSetting } from './settingControls'
 
 interface Props {
   onClose: () => void
@@ -87,6 +92,16 @@ export function SettingsPage({ onClose }: Props) {
       </header>
 
       <Section id="settings-capture" title="Capture">
+        <ChoiceSetting
+          label="Find the face by"
+          hint="The capture dialog can switch it too."
+          value={selectedCaptureMode(cookies)}
+          options={[
+            { value: 'cv', label: 'Detect face' },
+            { value: 'guide', label: 'Guide grid' },
+          ]}
+          onChange={(mode) => write(selectionCookie(CAPTURE_MODE_COOKIE, mode))}
+        />
         <ToggleSetting
           label="Mirror the camera preview"
           hint="Like a mirror, as most webcams show you."
@@ -144,6 +159,18 @@ export function SettingsPage({ onClose }: Props) {
           Reset to {DEFAULT_HOLD_TIMINGS.blockMs} and{' '}
           {DEFAULT_HOLD_TIMINGS.cubeMs} ms
         </button>
+      </Section>
+
+      <Section id="settings-notation" title="Notation">
+        <ChoiceSetting
+          label="Write the cube as"
+          value={selectedNotationFormat(cookies)}
+          options={[
+            { value: 'wrg', label: 'Colors (WRG)' },
+            { value: 'urf', label: 'Faces (URF)' },
+          ]}
+          onChange={(format) => write(selectionCookie(NOTATION_COOKIE, format))}
+        />
       </Section>
 
       <div class="settings-reset">

@@ -15,7 +15,11 @@ import {
   selectionCookie,
   selectedCubeSize,
   selectedCubeView,
+  CAPTURE_MODE_COOKIE,
   CUBE_PRESS_COOKIE,
+  NOTATION_COOKIE,
+  selectedCaptureMode,
+  selectedNotationFormat,
   SETTING_COOKIES,
   clearedCookie,
   numberCookie,
@@ -160,5 +164,18 @@ describe('setting cookies', () => {
     expect(SETTING_COOKIES).toContain(MIRROR_COOKIE)
     expect(SETTING_COOKIES).not.toContain(CUBE_SIZE_COOKIE)
     expect(clearedCookie('x')).toBe('x=; Max-Age=0; Path=/; SameSite=Lax')
+  })
+})
+
+describe('remembered choices', () => {
+  it('remembers the notation format and the capture mode', () => {
+    expect(selectedNotationFormat('')).toBe('wrg')
+    expect(selectedNotationFormat(`${NOTATION_COOKIE}=urf`)).toBe('urf')
+    expect(selectedCaptureMode('')).toBe('cv')
+    expect(selectedCaptureMode(`${CAPTURE_MODE_COOKIE}=guide`)).toBe('guide')
+    expect(selectedCaptureMode(`${CAPTURE_MODE_COOKIE}=ml`)).toBe('cv')
+    expect(SETTING_COOKIES).toEqual(
+      expect.arrayContaining([NOTATION_COOKIE, CAPTURE_MODE_COOKIE]),
+    )
   })
 })

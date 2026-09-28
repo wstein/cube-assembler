@@ -1,5 +1,6 @@
 // Viewer preferences kept in first-party cookies. These hold only choices
 // made in the app; profile definitions remain in local storage.
+import type { CaptureMode } from './capturePhoto'
 import { DEFAULT_HOLD_TIMINGS, type HoldTimings } from './cubeGesture'
 
 export const MIRROR_COOKIE = 'cube-assembler-mirror'
@@ -10,6 +11,8 @@ export const COLOR_PROFILE_COOKIE = 'cube-assembler-color-profile'
 export const CUBE_VIEW_COOKIE = 'cube-assembler-cube-view'
 export const STICKERLESS_COOKIE = 'cube-assembler-stickerless'
 export const AUTO_ROTATE_COOKIE = 'cube-assembler-auto-rotate'
+export const NOTATION_COOKIE = 'cube-assembler-notation'
+export const CAPTURE_MODE_COOKIE = 'cube-assembler-capture-mode'
 // How long a sticker is held before a drag turns a block or the whole cube.
 export const WIDE_PRESS_COOKIE = 'cube-assembler-wide-press-ms'
 export const CUBE_PRESS_COOKIE = 'cube-assembler-cube-press-ms'
@@ -125,4 +128,19 @@ export const SETTING_COOKIES = [
   SOUND_COOKIE,
   WIDE_PRESS_COOKIE,
   CUBE_PRESS_COOKIE,
+  NOTATION_COOKIE,
+  CAPTURE_MODE_COOKIE,
 ]
+
+export function selectedNotationFormat(cookies: string): 'wrg' | 'urf' {
+  return readChoice(cookies, NOTATION_COOKIE, ['wrg', 'urf'] as const, 'wrg')
+}
+
+export function selectedCaptureMode(cookies: string): CaptureMode {
+  return readChoice(
+    cookies,
+    CAPTURE_MODE_COOKIE,
+    ['cv', 'guide'] as const,
+    'cv',
+  )
+}

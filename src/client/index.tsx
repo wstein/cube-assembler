@@ -60,13 +60,17 @@ import { profilesHash, profilesTab } from './profilesRoute'
 import {
   AUTO_CAPTURE_COOKIE,
   CUBE_SIZE_COOKIE,
+  CAPTURE_MODE_COOKIE,
   CUBE_VIEW_COOKIE,
+  NOTATION_COOKIE,
   MIRROR_COOKIE,
   SOUND_COOKIE,
   preferenceCookie,
   readPreference,
   selectedCubeSize,
+  selectedCaptureMode,
   selectedCubeView,
+  selectedNotationFormat,
   selectionCookie,
 } from './preferences'
 import { type ParityResult } from '../cube/parity'
@@ -167,7 +171,9 @@ function App() {
   )
   const [parity, setParity] = useState<ParityResult | null>(null)
   const [webcamOpen, setWebcamOpen] = useState(false)
-  const [captureMode, setCaptureMode] = useState<CaptureMode>('cv')
+  const [captureMode, setCaptureMode] = useState<CaptureMode>(() =>
+    selectedCaptureMode(document.cookie),
+  )
   // Auto capture, sound and mirror start off; the viewer's choices are kept
   // in cookies (see preferences.ts).
   const [autoCapture, setAutoCapture] = useState(() =>
@@ -236,7 +242,9 @@ function App() {
   } = useFixtureDownload()
   const [manualColorInput, setManualColorInput] = useState('')
   const [showColorInput, setShowColorInput] = useState(false)
-  const [notationFormat, setNotationFormat] = useState<'wrg' | 'urf'>('wrg')
+  const [notationFormat, setNotationFormat] = useState<'wrg' | 'urf'>(() =>
+    selectedNotationFormat(document.cookie),
+  )
   const [liveDetection, setLiveDetection] =
     useState<ColorDetectionResult | null>(null)
   const [liveFaceVisible, setLiveFaceVisible] = useState(false)
@@ -325,6 +333,12 @@ function App() {
   useEffect(() => {
     document.cookie = selectionCookie(CUBE_VIEW_COOKIE, cubeViewMode)
   }, [cubeViewMode])
+  useEffect(() => {
+    document.cookie = selectionCookie(NOTATION_COOKIE, notationFormat)
+  }, [notationFormat])
+  useEffect(() => {
+    document.cookie = selectionCookie(CAPTURE_MODE_COOKIE, captureMode)
+  }, [captureMode])
   const liveAutoColorProfile = autoColorProfiles.find(
     (candidate) => candidate.id === liveAutoColorProfileId,
   )
@@ -370,6 +384,8 @@ function App() {
     setMirrorPreview(readPreference(cookies, MIRROR_COOKIE))
     setAutoCapture(readPreference(cookies, AUTO_CAPTURE_COOKIE))
     setCaptureSound(readPreference(cookies, SOUND_COOKIE))
+    setNotationFormat(selectedNotationFormat(cookies))
+    setCaptureMode(selectedCaptureMode(cookies))
   }, [onSettingsPage])
   const [showBackdropDialog, setShowBackdropDialog] = useState(false)
   const [reviewStep, setReviewStep] = useState(0)

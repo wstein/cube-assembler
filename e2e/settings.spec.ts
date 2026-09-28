@@ -70,3 +70,25 @@ test('capture switches on the settings page reach the scanner', async ({
     page.getByRole('checkbox', { name: /Auto capture/ }),
   ).toBeChecked()
 })
+
+test('the notation format is remembered, and the settings page sets it', async ({
+  page,
+}) => {
+  await page.goto('/')
+  await page.getByRole('button', { name: 'Faces (URF)' }).click()
+  await expect
+    .poll(() => page.evaluate(() => document.cookie))
+    .toContain('cube-assembler-notation=urf')
+  await page.reload()
+  await expect(
+    page.getByRole('button', { name: 'Faces (URF)' }),
+  ).toHaveAttribute('aria-pressed', 'true')
+  await page.getByRole('link', { name: 'Settings' }).click()
+  const format = page.getByRole('combobox', { name: 'Write the cube as' })
+  await expect(format).toHaveValue('urf')
+  await format.selectOption('wrg')
+  await page.getByRole('button', { name: '← Back to the scanner' }).click()
+  await expect(
+    page.getByRole('button', { name: 'Colors (WRG)' }),
+  ).toHaveAttribute('aria-pressed', 'true')
+})
