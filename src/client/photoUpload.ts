@@ -21,6 +21,12 @@ export function isNamedFaceCrop(name: string): boolean {
 
 export type PhotoFrameMode = 'auto' | 'cropped' | 'full'
 
+export interface SelectedPhoto {
+  file: File
+  url: string
+  mode: PhotoFrameMode
+}
+
 export function photoReadModes(
   name: string,
   mode: PhotoFrameMode,

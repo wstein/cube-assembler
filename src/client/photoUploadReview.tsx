@@ -1,10 +1,4 @@
-import type { PhotoFrameMode } from './photoUpload'
-
-export interface SelectedPhoto {
-  file: File
-  url: string
-  mode: PhotoFrameMode
-}
+import type { PhotoFrameMode, SelectedPhoto } from './photoUpload'
 
 interface PhotoUploadReviewProps {
   photos: SelectedPhoto[]
