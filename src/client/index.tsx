@@ -55,6 +55,8 @@ import {
 import { CubeDisplayCard } from './cubeDisplayCard'
 import { NotationCard } from './notationCard'
 import { ManualFaceletInput } from './manualFaceletInput'
+import { CaptureCard } from './captureCard'
+import { ColorProfileControls } from './colorProfileControls'
 import { lazy, Suspense } from 'preact/compat'
 
 const ProfilesPage = lazy(() =>
@@ -2033,286 +2035,70 @@ function App() {
         </div>
 
         <div class="side-column">
-          {/* Getting a cube in: guided capture, fixture upload, typed colors */}
-          <section class="card capture-card">
-            <h2>Capture</h2>
-            <div class="capture-card-actions">
-              {FACE_ORDER.some((f) => f in capturedFaces) &&
-                !FACE_ORDER.every((f) => f in capturedFaces) && (
-                  <button
-                    type="button"
-                    class="btn btn-secondary btn-lg"
-                    onClick={() => handleOpenCapture(true)}
-                  >
-                    <svg
-                      width="20"
-                      height="20"
-                      viewBox="0 0 20 20"
-                      fill="none"
-                      aria-hidden="true"
-                    >
-                      <path
-                        d="M16.5 9a6.5 6.5 0 1 0-1.4 5.1M16.5 4.5V9H12"
-                        stroke="currentColor"
-                        stroke-width="1.7"
-                        stroke-linecap="round"
-                        stroke-linejoin="round"
-                      />
-                    </svg>
-                    Capture again
-                  </button>
-                )}
-              <button
-                type="button"
-                class="btn btn-primary btn-lg"
-                onClick={() => handleOpenCapture()}
-              >
-                <svg
-                  width="20"
-                  height="20"
-                  viewBox="0 0 20 20"
-                  aria-hidden="true"
-                >
-                  <path
-                    d="M2.5 6.5A1.5 1.5 0 0 1 4 5h2.2l1.3-2h5l1.3 2H16a1.5 1.5 0 0 1 1.5 1.5V15A1.5 1.5 0 0 1 16 16.5H4A1.5 1.5 0 0 1 2.5 15Z"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="1.6"
-                    stroke-linejoin="round"
-                  />
-                  <circle
-                    cx="10"
-                    cy="10.5"
-                    r="3"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="1.6"
-                  />
-                </svg>
-                {FACE_ORDER.every((f) => f in capturedFaces)
-                  ? 'Capture again'
-                  : FACE_ORDER.some((f) => f in capturedFaces)
-                    ? `Continue (${FACE_ORDER.filter((f) => f in capturedFaces).length}/${FACE_ORDER.length})`
-                    : 'Capture faces'}
-              </button>
-              {FACE_ORDER.every((f) => f in capturedFaces) && (
-                <button
-                  type="button"
-                  class="btn btn-secondary btn-lg"
-                  onClick={() => {
-                    setReviewStep(0)
-                    setShowReviewDialog(true)
-                  }}
-                >
-                  Edit colors
-                </button>
-              )}
-            </div>
-            <p class="card-hint">
-              Four sides while turning the cube, then top and bottom — about a
-              minute.
-            </p>
-            <div class="face-status-row">
-              <div class="face-status-dots">
-                {FACE_ORDER.map((face) => (
-                  <span
-                    key={face}
-                    class={`progress-dot ${capturedFaces[face] ? 'done' : ''}`}
-                    title={`${FACE_DISPLAY_LABEL[face]}${capturedFaces[face] ? ' (captured)' : ' (not captured)'}`}
-                  >
-                    {FACE_SHORT_LABEL[face]}
-                  </span>
-                ))}
-              </div>
-              <span class="card-hint">
-                {FACE_ORDER.every((f) => f in capturedFaces)
-                  ? 'All 6 captured'
-                  : `${FACE_ORDER.filter((f) => f in capturedFaces).length} of 6 captured`}
-              </span>
-            </div>
-            {captureProfile &&
-              FACE_ORDER.every((f) => capturedFaces[f]?.croppedImage) && (
-                <span class="capture-profile-used">
-                  Cube: {captureProfile.name}
-                  {cube && resolvedColorProfile && (
-                    <>
-                      {' · '}Colors: {resolvedColorProfile.name}
-                      {resolvedColorProfile.selection === 'automatic' &&
-                        ' (Automatic)'}
-                      {resolvedColorProfile.colorFitPercent !== undefined &&
-                        ` · ${resolvedColorProfile.colorFitPercent}% color fit`}
-                      {(profileFinding ||
-                        !learnedPalette ||
-                        appliedBackgroundGains) && (
-                        <span class="capture-profile-used-detail">
-                          {profileFinding}
-                          {!learnedPalette &&
-                            `${profileFinding ? ' · ' : ''}Six-face calibration unavailable`}
-                          {appliedBackgroundGains && (
-                            <>
-                              {profileFinding || !learnedPalette ? ' · ' : ''}
-                              <button
-                                type="button"
-                                class="color-review-link"
-                                onClick={() => setShowBackdropDialog(true)}
-                              >
-                                Compare backdrop adjustment
-                              </button>
-                            </>
-                          )}
-                        </span>
-                      )}
-                    </>
-                  )}
-                </span>
-              )}
-            {cube &&
+          <CaptureCard
+            capturedFaces={capturedFaces}
+            loading={loading}
+            captureProfileName={captureProfile?.name}
+            resolvedColorProfile={cube ? resolvedColorProfile : null}
+            profileFinding={profileFinding}
+            calibrationUnavailable={!learnedPalette}
+            onCompareBackdrop={
+              appliedBackgroundGains ? () => setShowBackdropDialog(true) : null
+            }
+            message={webcamOpen ? '' : captureMessage}
+            showColorInput={showColorInput}
+            ignoreFixtureCorrections={ignoreFixtureCorrections}
+            onOpenCapture={handleOpenCapture}
+            onEditColors={() => {
+              setReviewStep(0)
+              setShowReviewDialog(true)
+            }}
+            onUploadFiles={handleUploadFiles}
+            onToggleColorInput={() => setShowColorInput(!showColorInput)}
+            onApplySolved={handleApplySolved}
+            onIgnoreFixtureCorrectionsChange={setIgnoreFixtureCorrections}
+            profileControls={
+              cube &&
               FACE_ORDER.every((face) => capturedFaces[face]?.croppedImage) &&
               !showReviewDialog && (
-                <div class="profile-suggestion">
-                  {newColorName === null ? (
-                    <>
-                      <button
-                        type="button"
-                        class="btn btn-secondary btn-sm"
-                        disabled={!profileLearningOffer}
-                        title={
-                          profileLearningOffer
-                            ? 'Save this capture’s learned sticker colors under a new name'
-                            : 'Requires a valid, confident reviewed camera capture'
-                        }
-                        onClick={() => setNewColorName('')}
-                      >
-                        ＋ Create sticker color profile
-                      </button>
-                      {profileLearningOffer?.matchedProfileId && (
-                        <button
-                          type="button"
-                          class="btn btn-secondary btn-sm"
-                          onClick={handleUpdateColors}
-                          title={`Update the ${updatableName} profile from this reviewed capture`}
-                        >
-                          Update {updatableName} profile
-                        </button>
-                      )}
-                      {profileLearningOffer?.updatedProfileName && (
-                        <span role="status">
-                          ✓ {profileLearningOffer.updatedProfileName} updated
-                        </span>
-                      )}
-                    </>
-                  ) : (
-                    <>
-                      <input
-                        aria-label="New sticker color profile name"
-                        maxLength={60}
-                        placeholder="e.g. Matte"
-                        value={newColorName}
-                        onInput={(e) => setNewColorName(e.currentTarget.value)}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') handleCreateColors()
-                        }}
-                      />
-                      <button
-                        type="button"
-                        class="btn btn-primary btn-sm"
-                        disabled={!newColorName.trim()}
-                        onClick={handleCreateColors}
-                      >
-                        Save profile
-                      </button>
-                      <button
-                        type="button"
-                        class="btn btn-secondary btn-sm"
-                        onClick={() => setNewColorName(null)}
-                      >
-                        Cancel
-                      </button>
-                    </>
-                  )}
-                </div>
-              )}
-            <div class="card-divider" />
-            <div class="capture-alternatives">
-              <label
-                class={`btn btn-secondary btn-sm ${loading ? 'btn-disabled' : ''}`}
-                title="Select six photos, a fixture ZIP, or meta.json with its six photos"
-              >
-                Upload files
-                <input
-                  type="file"
-                  accept=".zip,.json,image/*"
-                  multiple
-                  hidden
-                  disabled={loading}
-                  onChange={handleUploadFiles}
+                <ColorProfileControls
+                  offer={profileLearningOffer}
+                  updatableName={updatableName}
+                  newName={newColorName}
+                  onNewNameChange={setNewColorName}
+                  onCreate={handleCreateColors}
+                  onUpdate={handleUpdateColors}
                 />
-              </label>
-              <button
-                type="button"
-                class="btn btn-secondary btn-sm"
-                aria-expanded={showColorInput}
-                onClick={() => setShowColorInput(!showColorInput)}
-              >
-                {showColorInput ? 'Close' : 'Type colors'}
-              </button>
-              <button
-                type="button"
-                class="btn btn-secondary btn-sm"
-                onClick={handleApplySolved}
-              >
-                Solved cube
-              </button>
-            </div>
-            {photoUpload && (
-              <PhotoUploadReview
-                photos={photoUpload}
-                size={puzzleSize}
-                captureMode={captureMode}
-                loading={loading}
-                onChangeMode={changePhotoUploadMode}
-                onMove={movePhotoUpload}
-                onCancel={closePhotoUpload}
-                onRead={handleUploadPhotos}
-              />
-            )}
-            <label
-              class="checkbox-option"
-              title="Review the fixture from what detection reads now, without the colors that were picked by hand when it was saved"
-            >
-              <input
-                type="checkbox"
-                checked={ignoreFixtureCorrections}
-                onChange={(e) =>
-                  setIgnoreFixtureCorrections(e.currentTarget.checked)
-                }
-              />
-              Fixture uploads ignore saved corrections
-            </label>
-            {/* File-upload/bulk-action feedback: the webcam modal has its own
-                copy of this same message for the live-capture flow, but that
-                modal isn't open for an upload started from this panel, so
-                without this the message would update invisibly. */}
-            {captureMessage && !webcamOpen && (
-              <div
-                role="status"
-                class={`capture-message ${captureMessage.includes('✓') ? 'success' : captureMessage.includes('❌') ? 'error' : ''}`}
-              >
-                {captureMessage}
-              </div>
-            )}
-            {showColorInput && (
-              <ManualFaceletInput
-                size={puzzleSize}
-                format={notationFormat}
-                value={manualColorInput}
-                loading={loading}
-                onFormatChange={setNotationFormat}
-                onValueChange={setManualColorInput}
-                onApply={handleApplyFacelets}
-              />
-            )}
-          </section>
+              )
+            }
+            photoUpload={
+              photoUpload && (
+                <PhotoUploadReview
+                  photos={photoUpload}
+                  size={puzzleSize}
+                  captureMode={captureMode}
+                  loading={loading}
+                  onChangeMode={changePhotoUploadMode}
+                  onMove={movePhotoUpload}
+                  onCancel={closePhotoUpload}
+                  onRead={handleUploadPhotos}
+                />
+              )
+            }
+            manualInput={
+              showColorInput && (
+                <ManualFaceletInput
+                  size={puzzleSize}
+                  format={notationFormat}
+                  value={manualColorInput}
+                  loading={loading}
+                  onFormatChange={setNotationFormat}
+                  onValueChange={setManualColorInput}
+                  onApply={handleApplyFacelets}
+                />
+              )
+            }
+          />
         </div>
       </main>
       <footer class="app-footer">
