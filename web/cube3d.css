@@ -136,6 +136,16 @@
   }
 }
 
+.cube-3d-btn-icon {
+  flex: none;
+}
+
+.cube-3d-btn:has(.cube-3d-btn-icon) {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35em;
+}
+
 .cube-3d-btn {
   background: var(--color-bg-secondary);
   border: 1px solid var(--color-border);

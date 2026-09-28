@@ -26,6 +26,36 @@ interface CubeView3DPresentationProps {
   onToggleStickerless: () => void
   isRotating: boolean
   onToggleAutoRotate: () => void
+  // Turns the whole cube about an axis (0 x, 1 y, 2 z), recorded as a move.
+  turnWholeCube: (axis: 0 | 1 | 2, turns: number) => void
+}
+
+// Icons for the whole-cube buttons: a clockwise and a counterclockwise
+// arrow, and arrows up and down for a half turn.
+function TurnIcon({ kind }: { kind: 'cw' | 'ccw' | 'flip' }) {
+  return (
+    <svg
+      class="cube-3d-btn-icon"
+      viewBox="0 0 24 24"
+      width="16"
+      height="16"
+      fill="none"
+      stroke="currentColor"
+      stroke-width="2"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+      aria-hidden="true"
+    >
+      {kind === 'flip' ? (
+        <path d="M8 3v18M4 7l4-4 4 4M16 21V3M12 17l4 4 4-4" />
+      ) : (
+        <g transform={kind === 'ccw' ? 'matrix(-1 0 0 1 24 0)' : undefined}>
+          <path d="M21 12a9 9 0 1 1-2.64-6.36" />
+          <path d="M21 3v6h-6" />
+        </g>
+      )}
+    </svg>
+  )
 }
 
 export function CubeView3DPresentation({
@@ -52,6 +82,7 @@ export function CubeView3DPresentation({
   onToggleStickerless,
   isRotating,
   onToggleAutoRotate,
+  turnWholeCube,
 }: CubeView3DPresentationProps) {
   return (
     <div class="cube-3d-container">
@@ -203,6 +234,39 @@ export function CubeView3DPresentation({
                   title="Reset cube to initial assembled state"
                 >
                   Reset
+                </button>
+              </div>
+            </div>
+
+            <div class="cube-3d-section">
+              <span class="cube-3d-label">Turn:</span>
+              <div class="cube-3d-presets">
+                <button
+                  type="button"
+                  class="cube-3d-btn"
+                  onClick={() => turnWholeCube(1, 1)}
+                  title="Turn the whole cube like U (y)"
+                >
+                  <TurnIcon kind="cw" />
+                  Rotate y
+                </button>
+                <button
+                  type="button"
+                  class="cube-3d-btn"
+                  onClick={() => turnWholeCube(1, -1)}
+                  title="Turn the whole cube like U' (y')"
+                >
+                  <TurnIcon kind="ccw" />
+                  Rotate y'
+                </button>
+                <button
+                  type="button"
+                  class="cube-3d-btn"
+                  onClick={() => turnWholeCube(0, 2)}
+                  title="Turn the whole cube upside down (x2)"
+                >
+                  <TurnIcon kind="flip" />
+                  Flip x2
                 </button>
               </div>
             </div>

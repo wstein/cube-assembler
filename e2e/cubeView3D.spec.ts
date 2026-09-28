@@ -48,6 +48,26 @@ test('move history and Undo survive a view switch, then Reset clears them', asyn
   await expect(undo).toBeDisabled()
 })
 
+test("Rotate y, Rotate y' and Flip x2 turn the whole cube as moves", async ({
+  page,
+}) => {
+  await page.goto('/')
+  await page.getByRole('button', { name: 'Solved cube' }).click()
+  const notation = page.getByRole('textbox', { name: 'Notation' })
+  const solved = await notation.inputValue()
+  await page.getByRole('button', { name: '3D View' }).click()
+  const history = page.getByRole('status', { name: 'Move history' })
+  await page.getByRole('button', { name: 'Rotate y', exact: true }).click()
+  await expect(history).toHaveText('Moves: y')
+  await expect(notation).not.toHaveValue(solved)
+  await page.getByRole('button', { name: 'Flip x2' }).click()
+  await expect(history).toHaveText('Moves: y x2')
+  await page.getByRole('button', { name: "Rotate y'" }).click()
+  await expect(history).toHaveText("Moves: y x2 y'")
+  await page.getByRole('button', { name: 'Undo', exact: true }).click()
+  await expect(history).toHaveText('Moves: y x2')
+})
+
 test('consecutive same-layer turns accumulate in move history', async ({
   page,
 }) => {
