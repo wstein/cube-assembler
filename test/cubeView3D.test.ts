@@ -140,6 +140,34 @@ describe('cubeView3D math and geometry', () => {
       }
     })
 
+    it('uses the built-in Matte palette for stickerless plastic', () => {
+      const cube = createSolvedCube(2)
+      const customPalette = Object.fromEntries(
+        ['W', 'Y', 'O', 'R', 'G', 'B'].map((color) => [color, '#123456']),
+      )
+      const stickerless = buildCubeMesh(cube, 2, customPalette, true)
+      const hasColor = (
+        mesh: typeof stickerless,
+        [r, g, b]: readonly number[],
+      ) => {
+        for (let i = 0; i < mesh.colors.length; i += 3)
+          if (
+            Math.abs(mesh.colors[i] - r / 255) < 1e-5 &&
+            Math.abs(mesh.colors[i + 1] - g / 255) < 1e-5 &&
+            Math.abs(mesh.colors[i + 2] - b / 255) < 1e-5
+          )
+            return true
+        return false
+      }
+
+      expect(hasColor(stickerless, [185, 200, 208])).toBe(true) // Matte white
+      expect(hasColor(stickerless, [0, 77, 167])).toBe(true) // Matte blue
+      expect(stickerless.colors).toEqual(buildCubeMesh(cube, 2).colors)
+      expect(
+        hasColor(buildCubeMesh(cube, 2, customPalette, false), [18, 52, 86]),
+      ).toBe(true)
+    })
+
     it('generates spherical corner cap apex normals on outer corner cubies', () => {
       const cube = createSolvedCube(3)
       const mesh = buildCubeMesh(cube, 3, undefined, true)
@@ -807,11 +835,9 @@ describe('cubeView3D math and geometry', () => {
       expect(mesh.occlusion.length).toBe(mesh.vertexCount)
       expect(Math.min(...mesh.occlusion)).toBeLessThan(0.7)
       expect(Math.max(...mesh.occlusion)).toBe(1)
-      // AO is a separate channel; the face colors remain the selected palette.
+      // AO is a separate channel; the face colors remain the Matte palette.
       expect(
-        mesh.colors.some(
-          (color) => Math.abs(color - hexToRgb('#f7f6f1')[0]) < 1e-5,
-        ),
+        mesh.colors.some((color) => Math.abs(color - 185 / 255) < 1e-5),
       ).toBe(true)
     })
   })

@@ -242,8 +242,8 @@ test('Iso-back reveals the Down face', async ({ page }) => {
       const red = pixels[i]
       const green = pixels[i + 1]
       const blue = pixels[i + 2]
-      if (red > 100 && green > red * 0.72 && green < red && blue < green * 0.5)
-        count++
+      // Matte yellow is lime leaning, unlike the older orange-yellow display color.
+      if (red > 60 && green > red * 1.05 && blue < red * 0.5) count++
     }
     return count
   }, screenshot.toString('base64'))

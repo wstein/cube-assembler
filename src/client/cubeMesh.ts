@@ -1,5 +1,6 @@
 import type { CubeState, FaceKey } from '../cube/cubeAssembly'
 import type { Axis } from '../cube/cubeGeometry'
+import { builtinColorProfiles } from './profileSettings'
 import {
   DEFAULT_STICKER_HEX,
   getFaceletColor,
@@ -8,6 +9,12 @@ import {
   rotateVec,
   type MeshData,
 } from './cubeView3DState'
+
+// Stickerless pieces are colored plastic. Use the built-in Matte capture
+// palette rather than the brighter colors used to draw stickers and the net.
+const mattePlasticColors = builtinColorProfiles().find(
+  (profile) => profile.name === 'Matte',
+)?.colors
 
 export interface TurningLayer {
   face: FaceKey
@@ -503,9 +510,12 @@ export function buildCubeMesh(
         const isTurnCubie = layer <= depth && layer > depth - (turn?.width ?? 1)
         const lit = isTurnCubie && turn?.highlight === true
         const stickerRgb = (colorKey: string): [number, number, number] => {
-          const rgb = hexToRgb(
-            palette[colorKey] ?? DEFAULT_STICKER_HEX[colorKey] ?? '#888',
-          )
+          const matte = stickerless ? mattePlasticColors?.[colorKey] : undefined
+          const rgb: [number, number, number] = matte
+            ? [matte.r / 255, matte.g / 255, matte.b / 255]
+            : hexToRgb(
+                palette[colorKey] ?? DEFAULT_STICKER_HEX[colorKey] ?? '#888',
+              )
           return lit
             ? [
                 rgb[0] + (1 - rgb[0]) * 0.35,
