@@ -3,75 +3,21 @@
 // on a floor below it with edges that fade out; the shader needs a fixed
 // number of outline corners.
 
-type Vec3 = [number, number, number]
-type FloorPoint = [number, number]
+import {
+  paddedOutline,
+  shadowFloorY,
+  shadowOutline,
+  shadowOutlinePoints as SHADOW_OUTLINE_POINTS,
+} from '../core/view/CubeShadow.gen'
 
-export const SHADOW_OUTLINE_POINTS = 8
-
-// Below the cube's bounding sphere, so no orientation reaches the floor.
-export function shadowFloorY(n: number): number {
-  return -n * 0.9
-}
-
-// The view's model matrix: rotate about X by the pitch after Y by the yaw.
-export function rotateModelPoint(p: Vec3, pitch: number, yaw: number): Vec3 {
-  const cy = Math.cos(yaw)
-  const sy = Math.sin(yaw)
-  const x = p[0] * cy + p[2] * sy
-  const z = -p[0] * sy + p[2] * cy
-  const cp = Math.cos(pitch)
-  const sp = Math.sin(pitch)
-  return [x, p[1] * cp - z * sp, p[1] * sp + z * cp]
-}
-
-// Counter-clockwise convex outline, in floor (x, z) coordinates, of the cube
-// seen from above.
-export function shadowOutline(
-  n: number,
-  pitch: number,
-  yaw: number,
-): FloorPoint[] {
-  const h = n / 2
-  const points: FloorPoint[] = []
-  for (const x of [-h, h])
-    for (const y of [-h, h])
-      for (const z of [-h, h]) {
-        const [rx, , rz] = rotateModelPoint([x, y, z], pitch, yaw)
-        points.push([rx, rz])
-      }
-  return convexHull(points)
-}
-
-export function paddedOutline(outline: FloorPoint[]): Float32Array {
-  const out = new Float32Array(SHADOW_OUTLINE_POINTS * 2)
-  for (let i = 0; i < SHADOW_OUTLINE_POINTS; i++) {
-    const [x, z] = outline[Math.min(i, outline.length - 1)]
-    out[i * 2] = x
-    out[i * 2 + 1] = z
-  }
-  return out
-}
-
-// Andrew's monotone chain; collinear and repeated points are dropped.
-function convexHull(points: FloorPoint[]): FloorPoint[] {
-  const sorted = [...points].sort((a, b) => a[0] - b[0] || a[1] - b[1])
-  const cross = (o: FloorPoint, a: FloorPoint, b: FloorPoint) =>
-    (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0])
-  const half = (list: FloorPoint[]) => {
-    const hull: FloorPoint[] = []
-    for (const p of list) {
-      while (
-        hull.length >= 2 &&
-        cross(hull[hull.length - 2], hull[hull.length - 1], p) <= 1e-9
-      )
-        hull.pop()
-      hull.push(p)
-    }
-    hull.pop()
-    return hull
-  }
-  return [...half(sorted), ...half([...sorted].reverse())]
-}
+// The outline geometry lives in src/core/view/CubeShadow.res; this draws it.
+export {
+  paddedOutline,
+  rotateModelPoint,
+  shadowFloorY,
+  shadowOutline,
+  shadowOutlinePoints as SHADOW_OUTLINE_POINTS,
+} from '../core/view/CubeShadow.gen'
 
 const SHADOW_VS = `
 attribute vec2 a_floor;
