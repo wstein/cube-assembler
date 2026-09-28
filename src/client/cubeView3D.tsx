@@ -1070,6 +1070,14 @@ export function CubeView3D({
     }
     e.preventDefault()
     pauseAutoRotation()
+    if (swipe.coasting) {
+      // The fingers have lifted: settle now, and let the momentum pass.
+      if (cube.dragging) {
+        cube.dragging = false
+        releaseWholeCube(Number.POSITIVE_INFINITY, false)
+      }
+      return
+    }
     dragWholeCube(cube, swipe.dx, swipe.dy, e.timeStamp)
   }
 

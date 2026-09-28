@@ -377,15 +377,52 @@ let wheelGesture = (e: wheel) =>
 // far the fingers moved, against the deltas.
 let wheelSwipeGapMs = 150.0
 
-type wheelSwipe = {startTime: float, lastTime: float, dx: float, dy: float}
+// Once the fingers lift, macOS keeps sending the swipe's momentum: deltas
+// that each shrink to a steady fraction of the one before. Fingers speed
+// up and slow down unevenly, so this many shrinking deltas in a row mean
+// the swipe is coasting, and from then on it no longer counts.
+let coastingDeltas = 4
 
-let nextWheelSwipe = (swipe: Null.t<wheelSwipe>, time, deltaX, deltaY) =>
+type wheelSwipe = {
+  startTime: float,
+  lastTime: float,
+  dx: float,
+  dy: float,
+  // The last delta's size, and how many in a row shrank steadily.
+  lastMagnitude: float,
+  shrinking: int,
+  coasting: bool,
+}
+
+let nextWheelSwipe = (swipe: Null.t<wheelSwipe>, time, deltaX, deltaY) => {
+  let magnitude = Math.hypot(deltaX, deltaY)
   switch Null.toOption(swipe) {
-  | Some(swipe) if time -. swipe.lastTime <= wheelSwipeGapMs => {
-      ...swipe,
-      lastTime: time,
-      dx: swipe.dx -. deltaX,
-      dy: swipe.dy -. deltaY,
+  | Some(swipe) if time -. swipe.lastTime <= wheelSwipeGapMs =>
+    if swipe.coasting {
+      // Momentum keeps the swipe going without moving it.
+      {...swipe, lastTime: time}
+    } else {
+      let ratio = swipe.lastMagnitude > 0.0 ? magnitude /. swipe.lastMagnitude : 0.0
+      let shrinking = ratio >= 0.6 && ratio < 0.99 ? swipe.shrinking + 1 : 0
+      shrinking >= coastingDeltas
+        ? {...swipe, lastTime: time, lastMagnitude: magnitude, shrinking, coasting: true}
+        : {
+            ...swipe,
+            lastTime: time,
+            dx: swipe.dx -. deltaX,
+            dy: swipe.dy -. deltaY,
+            lastMagnitude: magnitude,
+            shrinking,
+          }
     }
-  | _ => {startTime: time, lastTime: time, dx: -.deltaX, dy: -.deltaY}
+  | _ => {
+      startTime: time,
+      lastTime: time,
+      dx: -.deltaX,
+      dy: -.deltaY,
+      lastMagnitude: magnitude,
+      shrinking: 0,
+      coasting: false,
+    }
   }
+}

@@ -583,6 +583,33 @@ test('a two-finger touchpad swipe over the cube turns the whole cube', async ({
   await expect(notation).not.toHaveValue(solved)
 })
 
+test("a touchpad swipe's momentum after the fingers lift turns nothing more", async ({
+  page,
+}) => {
+  await page.goto('/')
+  await page.getByRole('button', { name: 'Solved cube' }).click()
+  await page.getByRole('button', { name: '3D View' }).click()
+  await page.getByRole('button', { name: 'Front (F)' }).click()
+  const history = page.getByRole('status', { name: 'Move history' })
+  const bounds = await page.locator('.cube-3d-canvas').boundingBox()
+  if (!bounds) throw new Error('No canvas')
+  await page.mouse.move(
+    bounds.x + bounds.width / 2,
+    bounds.y + bounds.height / 2,
+  )
+  // The fingers move about three quarters of a quarter turn...
+  for (const delta of [10, 13, 12, 14, 12, 13, 11, 12, 13, 12, 14, 12])
+    await page.mouse.wheel(delta, 0)
+  // ...then the touchpad coasts on, a long way if it all counted.
+  let delta = 13
+  for (let i = 0; i < 30; i++) {
+    delta *= 0.92
+    await page.mouse.wheel(delta, 0)
+  }
+  await page.waitForTimeout(600)
+  await expect(history).toHaveText('Moves: y')
+})
+
 test('a two-finger touchpad swipe beside the cube tilts the view instead of zooming', async ({
   page,
 }) => {

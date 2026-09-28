@@ -63,7 +63,8 @@ rotate the view; it keeps turning briefly after release. On a touch screen,
 one finger turns a layer, or a wide move after a hold.
 Two fingers on the cube turn the whole cube, recorded as x, y or z, and two
 fingers beside it rotate the view without recording anything; pinch to zoom.
-A touchpad works the same way: a two-finger swipe over the cube turns it,
+A touchpad works the same way: a two-finger swipe over the cube turns it
+(the touchpad's coasting after your fingers lift adds nothing),
 one beside it rotates the view, and a pinch zooms, while a mouse
 wheel still zooms. The X, Y and Z arrows in the corner show how the cube is
 held: they point through R, U and F and take those faces' colors. Turns snap into place like a magnetic cube: while you drag a layer or the whole cube, each quarter turn holds it like a magnet until you pull it free, and when you let go it is sucked onto the nearest quarter turn, snapping a little past it and settling back. They click

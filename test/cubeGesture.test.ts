@@ -400,19 +400,68 @@ describe('swipe sensitivity settings', () => {
 })
 
 describe('touchpad swipes', () => {
+  // Runs `deltas` (sideways) through one swipe, 16 ms apart.
+  const run = (deltas: number[]) =>
+    deltas.reduce<ReturnType<typeof nextWheelSwipe> | null>(
+      (swipe, delta, i) => nextWheelSwipe(swipe, 1000 + 16 * i, delta, 0),
+      null,
+    )!
+
   it('groups wheel events into swipes that end after a pause', () => {
     const first = nextWheelSwipe(null, 1000, 10, -4)
-    expect(first).toEqual({ startTime: 1000, lastTime: 1000, dx: -10, dy: 4 })
+    expect(first).toMatchObject({
+      startTime: 1000,
+      lastTime: 1000,
+      dx: -10,
+      dy: 4,
+      coasting: false,
+    })
     // The fingers move against the deltas; events within the gap add up.
     const second = nextWheelSwipe(first, 1016, 6, 0)
-    expect(second).toEqual({ startTime: 1000, lastTime: 1016, dx: -16, dy: 4 })
+    expect(second).toMatchObject({
+      startTime: 1000,
+      lastTime: 1016,
+      dx: -16,
+      dy: 4,
+    })
     expect(WHEEL_SWIPE_GAP_MS).toBe(150)
     // After the gap a new swipe starts.
-    expect(nextWheelSwipe(second, 1016 + 151, 2, 2)).toEqual({
+    expect(nextWheelSwipe(second, 1016 + 151, 2, 2)).toMatchObject({
       startTime: 1167,
       lastTime: 1167,
       dx: -2,
       dy: -2,
+      coasting: false,
     })
+  })
+
+  it('stops counting once the swipe coasts after the fingers lift', () => {
+    // Fingers moving, then the touchpad's momentum: each delta a steady
+    // fraction of the one before.
+    const moving = [8, 12, 10, 13, 12]
+    const momentum = [11, 9.9, 8.9, 8, 7.2, 6.5, 5.8, 5.2, 4.7]
+    const swipe = run([...moving, ...momentum])
+    expect(swipe.coasting).toBe(true)
+    // Only the moving part and the momentum's first events count.
+    const counted = -swipe.dx
+    expect(counted).toBeGreaterThanOrEqual(55)
+    expect(counted).toBeLessThan(55 + 11 + 9.9 + 8.9 + 8 + 0.01)
+    // Nothing after that moves it.
+    expect(nextWheelSwipe(swipe, 1000 + 16 * 14, 4, 0).dx).toBe(swipe.dx)
+  })
+
+  it('keeps following fingers that speed up and slow down', () => {
+    const swipe = run([6, 10, 14, 12, 9, 11, 13, 10, 8, 12, 9, 7, 10])
+    expect(swipe.coasting).toBe(false)
+    expect(-swipe.dx).toBe(131)
+  })
+
+  it('keeps following a swipe that slows down briefly, then goes on', () => {
+    expect(run([12, 11, 10, 9, 12, 14]).coasting).toBe(false)
+  })
+
+  it('coasts the other way too, and diagonally', () => {
+    const swipe = run([-10, -12, -11, -9.9, -8.9, -8, -7.2, -6.5])
+    expect(swipe.coasting).toBe(true)
   })
 })
