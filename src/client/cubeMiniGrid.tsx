@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'preact/hooks'
 import { cellEdges, estimateOuterCellRatio } from './gridAlignment'
 import { sampledSquares as sampledSquaresOf } from './cubeProfileReview'
+import { loadPhotoPixels } from './photoPixels'
 
 export interface ReviewPhoto {
   size: number
@@ -66,25 +67,11 @@ export function useOuterRatio(photo: ReviewPhoto | null): number {
   useEffect(() => {
     setOuter(1)
     if (!photo) return
-    let active = true
-    const image = new Image()
-    image.onload = () => {
-      if (!active) return
-      const canvas = document.createElement('canvas')
-      canvas.width = image.naturalWidth
-      canvas.height = image.naturalHeight
-      const ctx = canvas.getContext('2d')
-      if (!ctx || !canvas.width || !canvas.height) return
-      ctx.drawImage(image, 0, 0)
-      const { data } = ctx.getImageData(0, 0, canvas.width, canvas.height)
+    return loadPhotoPixels(photo.src, ({ data }, canvas) => {
       setOuter(
         estimateOuterCellRatio(data, canvas.width, canvas.height, photo.size),
       )
-    }
-    image.src = photo.src
-    return () => {
-      active = false
-    }
+    })
   }, [photo?.src, photo?.size])
   return outer
 }

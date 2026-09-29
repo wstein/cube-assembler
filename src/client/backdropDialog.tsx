@@ -6,6 +6,7 @@
 // their average, so the exact colors it used are shown as sticker grids.
 import { useEffect, useState } from 'preact/hooks'
 import { applyGainsToPixels, removeGains, type RGB } from './imageProcessing'
+import { loadPhotoPixels } from './photoPixels'
 
 export interface BackdropFace {
   face: string
@@ -37,25 +38,11 @@ function useAdjustedPhoto(photo: string, gains: RGB): string | null {
   const [url, setUrl] = useState<string | null>(null)
   useEffect(() => {
     setUrl(null)
-    let active = true
-    const image = new Image()
-    image.onload = () => {
-      if (!active) return
-      const canvas = document.createElement('canvas')
-      canvas.width = image.naturalWidth
-      canvas.height = image.naturalHeight
-      const ctx = canvas.getContext('2d')
-      if (!ctx || !canvas.width || !canvas.height) return
-      ctx.drawImage(image, 0, 0)
-      const pixels = ctx.getImageData(0, 0, canvas.width, canvas.height)
+    return loadPhotoPixels(photo, (pixels, canvas, ctx) => {
       pixels.data.set(applyGainsToPixels(pixels.data, gains))
       ctx.putImageData(pixels, 0, 0)
       setUrl(canvas.toDataURL('image/jpeg', 0.92))
-    }
-    image.src = photo
-    return () => {
-      active = false
-    }
+    })
   }, [photo, gains.r, gains.g, gains.b])
   return url
 }
