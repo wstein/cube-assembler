@@ -59,20 +59,24 @@ or drag back to turn the other way. A quick flick finishes one turn, and a
 turn that reverses the previous one removes it from the move list. Hold Shift
 while swiping to turn a standard wide move such as Rw or 3Rw. With Turn sound
 on, a tone marks the wide turn.
-For any wide block, start the swipe near the line between two layers (the
-outer quarter of either sticker) and lean it toward the side to include:
+**Wide turns near gaps** is off by default. The gaps themselves do not start
+turns; if a press starts in a gap, drag into a sticker to begin a swipe. Enable
+the setting to select wide blocks by starting on a sticker near a gap (within
+the outer quarter of the sticker) and leaning toward the side to include:
 both layers at the line and every layer on that side turn. For example, on a
-5×5, start between the third and fourth U rows and swipe left, leaning up
-for 4Uw or down for 3Dw'. The chosen block lights up and follows your lean
+5×5, start beside the line between the third and fourth U rows and swipe
+left, leaning up for 4Uw or down for 3Dw'. The chosen block lights up and
+follows your lean
 while your finger stays on the face it started on, so you can still switch
 sides; once it leaves that face, the side is fixed. A swipe
-straight along the line still turns a wide block; reversing the turn direction
+straight beside the line still turns a wide block; reversing the turn direction
 does not change which side is selected. A swipe from the middle of a sticker
 turns one layer. A new swipe while the last turn settles finishes that turn
 and starts the next.
 With a mouse, drag the background to
 rotate the view; it keeps turning briefly after release. On a touch screen,
-one finger turns a layer, or a wide block from the line between two layers.
+one finger turns a layer, or a wide block beside a line between layers when
+enabled.
 Two fingers on the cube turn the whole cube, recorded as x, y or z, and two
 fingers beside it rotate the view without recording anything; pinch to zoom.
 A touchpad works the same way: a two-finger swipe over the cube turns it
