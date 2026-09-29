@@ -558,6 +558,18 @@ test.describe('wide sticker drags', () => {
       await expect(history(page)).toHaveText(`Moves: ${move}`)
     })
 
+  test('a straight seam swipe still turns a wide block', async ({ page }) => {
+    const { x, y, column, quarter } = await setUp(page)
+    const startY = y + 0.5 * column
+    await page.mouse.move(x, startY)
+    await page.mouse.down()
+    await page.mouse.move(x - 1.1 * quarter, startY, { steps: 20 })
+    await expect(badge(page)).toHaveText(/Wide turn/)
+    await page.waitForTimeout(150)
+    await page.mouse.up()
+    await expect(history(page)).toHaveText("Moves: 3Dw'")
+  })
+
   test('a seam swipe reads its lean past the first wobble', async ({
     page,
   }) => {
@@ -578,16 +590,17 @@ test.describe('wide sticker drags', () => {
     await expect(history(page)).toHaveText('Moves: 4Uw')
   })
 
-  test("a seam swipe can switch from 4Uw to 3Dw' before it locks", async ({
+  test("a seam swipe can switch from 4Uw to 3Dw' after a quarter turn", async ({
     page,
   }) => {
     const { x, y, column, quarter } = await setUp(page)
     const startY = y + 0.5 * column
     await page.mouse.move(x, startY)
     await page.mouse.down()
-    await page.mouse.move(x - 25, startY - 6, { steps: 3 })
+    await page.mouse.move(x - 0.7 * quarter, startY - 0.12 * quarter, {
+      steps: 12,
+    })
     await expect(badge(page)).toHaveText(/Wide turn/)
-    await page.mouse.move(x - 35, startY + 6, { steps: 2 })
     await page.mouse.move(x - 1.1 * quarter, startY + 0.2 * quarter, {
       steps: 20,
     })

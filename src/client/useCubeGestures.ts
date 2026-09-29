@@ -9,7 +9,7 @@ import {
   pickSwipeLayer,
   pressLevel,
   releaseDrag,
-  seamFollow,
+  seamChoice,
   swipeLayerAngle,
   swipeStart,
   wholeCubeLayer,
@@ -333,25 +333,28 @@ export function useCubeGestures({
       const [fromX, fromY] = gesture.turnFrom ?? [gesture.x, gesture.y]
       if (!drag || !hit || !rect) return
       const camera = gestureCamera(rect)
-      // A young seam swipe follows its lean, so the highlighted block can
-      // be corrected before it locks.
+      // A seam swipe can change its wide block at any point in the drag.
       if (gesture.seamOpen) {
-        const step = seamFollow(
+        const next = seamChoice(
           hit,
           drag.layer,
-          drag.angle,
           e.clientX - fromX,
           e.clientY - fromY,
           camera,
         )
-        if (step.locked) gesture.seamOpen = false
-        else if (step.layer) {
-          const wide = (step.layer.width ?? 1) > 1
-          drag.layer = step.layer
-          drag.highlight = wide
-          if (wide && gesture.level !== 'wide') announceWideTurn()
-          if (!wide) setPressMode(null)
-          gesture.level = wide ? 'wide' : 'layer'
+        if (
+          next.face !== drag.layer.face ||
+          next.depth !== drag.layer.depth ||
+          next.width !== drag.layer.width
+        ) {
+          // U and D (likewise R/L and F/B) name the same physical rotation
+          // with opposite signs. Keep its velocity continuous at a switch.
+          if (next.sign !== drag.layer.sign) {
+            drag.angle = -drag.angle
+            drag.velocity = -drag.velocity
+          }
+          drag.layer = next
+          drag.highlight = true
         }
       }
       const angle = swipeLayerAngle(

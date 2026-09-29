@@ -16,7 +16,6 @@ import {
   pickSwipeLayer,
   onSeam,
   seamChoice,
-  SEAM_LOCK_ANGLE,
   seamWideLayer,
   screenPoint,
   releasedQuarterTurns,
@@ -27,7 +26,6 @@ import {
   type CubeSurfaceHit,
   followDrag,
   releaseDrag,
-  seamFollow,
   swipeStart,
 } from '../src/client/cubeGesture'
 
@@ -182,9 +180,10 @@ describe('what a swipe starts', () => {
     const start = swipeStart(at(0.3, -0.5), -40, -5, camera, 18, 'layer')
     expect(start).toMatchObject({ kind: 'turn', seam: true, wide: true })
     expect(start.layer).toMatchObject({ face: 'U', depth: 4, width: 4 })
-    // Straight along the seam: one layer for now, still open.
+    // Straight along the seam also starts a wide block.
     const straight = swipeStart(at(0.3, -0.5), -40, 0, camera, 18, 'layer')
-    expect(straight).toMatchObject({ kind: 'turn', seam: true, wide: false })
+    expect(straight).toMatchObject({ kind: 'turn', seam: true, wide: true })
+    expect(straight.layer).toMatchObject({ face: 'D', depth: 3, width: 3 })
   })
 
   it('turns the standard wide move with Shift, never a seam block', () => {
@@ -236,20 +235,20 @@ describe('following a seam swipe', () => {
     return pickCubeSurface(sx, sy, camera)!
   }
 
-  it('switches blocks with the lean, then locks', () => {
+  it('switches blocks with the lean throughout a drag', () => {
     const hit = at(-0.5)
     const one = pickSwipeLayer(hit, -40, 0, camera)!
-    const up = seamFollow(hit, one, 0.1, -50, -8, camera)
-    expect(up.locked).toBe(false)
-    expect(up.layer).toMatchObject({ face: 'U', depth: 4, width: 4 })
-    // The same choice again changes nothing.
-    expect(seamFollow(hit, up.layer!, 0.1, -55, -9, camera)).toEqual({
-      locked: false,
-      layer: null,
+    const up = seamChoice(hit, one, -50, -8, camera)
+    expect(up).toMatchObject({ face: 'U', depth: 4, width: 4 })
+    expect(seamChoice(hit, up, -60, 8, camera)).toMatchObject({
+      face: 'D',
+      depth: 3,
+      width: 3,
     })
-    expect(seamFollow(hit, up.layer!, 0.3, -60, 8, camera)).toEqual({
-      locked: true,
-      layer: null,
+    expect(seamChoice(hit, up, 60, 8, camera)).toMatchObject({
+      face: 'D',
+      depth: 3,
+      width: 3,
     })
   })
 })
@@ -299,6 +298,22 @@ describe('seam swipes', () => {
     expect(swipeLayerAngle(hit, layer!, -40, 5, camera)).toBeLessThan(0)
   })
 
+  it('keeps the chosen U or D block when the turn direction reverses', () => {
+    const hit = at(-0.5)
+    const left = pickSwipeLayer(hit, -40, -5, camera)!
+    const right = pickSwipeLayer(hit, 40, -5, camera)!
+    expect(seamWideLayer(hit, left, -40, -5, camera)).toMatchObject({
+      face: 'U',
+      depth: 4,
+      width: 4,
+    })
+    expect(seamWideLayer(hit, right, 40, -5, camera)).toMatchObject({
+      face: 'U',
+      depth: 4,
+      width: 4,
+    })
+  })
+
   it('accepts a start up to a quarter sticker off the seam', () => {
     expect(seam(-0.27, -40, -5)).toMatchObject({ face: 'U', depth: 4 })
     expect(seam(-0.73, -40, 5)).toMatchObject({ face: 'D', depth: 3 })
@@ -325,15 +340,12 @@ describe('seam swipes', () => {
     ).toBe(false)
   })
 
-  it('follows the lean while the turn is young', () => {
+  it('follows the lean for the entire turn', () => {
     const hit = at(-0.5)
     const first = pickSwipeLayer(hit, -30, 0, camera)!
-    // Straight so far: one layer.
-    expect(seamChoice(hit, first, -30, 0, camera)).toMatchObject({
-      axis: 1,
-      depth: 3,
-    })
-    expect(seamChoice(hit, first, -30, 0, camera).width ?? 1).toBe(1)
+    const straight = swipeStart(hit, -30, 0, camera, 18, 'layer').layer!
+    expect(straight).toMatchObject({ face: 'D', depth: 3, width: 3 })
+    expect(seamChoice(hit, straight, -30, 0, camera)).toBe(straight)
     // Leaning up picks 4Uw, then leaning down 3Dw.
     const up = seamChoice(hit, first, -50, -8, camera)
     expect(up).toMatchObject({ face: 'U', depth: 4, width: 4 })
@@ -344,12 +356,10 @@ describe('seam swipes', () => {
     })
     // A swipe that turns toward the other axis keeps the current layers.
     expect(seamChoice(hit, up, -5, -60, camera)).toBe(up)
-    expect(SEAM_LOCK_ANGLE).toBeCloseTo(0.3)
   })
 
-  it('never turns the whole cube or starts from its edge', () => {
-    // From the U1/U2 seam downward would take all five layers.
-    expect(seam(1.5, -40, 5)).toBeNull()
+  it('chooses the other wide side when a lean would take the whole cube', () => {
+    expect(seam(1.5, -40, 5)).toMatchObject({ face: 'U', depth: 2, width: 2 })
     expect(seam(1.5, -40, -5)).toMatchObject({ face: 'U', depth: 2, width: 2 })
     // The top edge of the face is no seam.
     expect(seam(2.45, -40, -5)).toBeNull()

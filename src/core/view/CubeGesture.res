@@ -246,12 +246,11 @@ let standardWideLayer = (layer: swipeLayer, size) => {
 // layer on that side, named from the face it reaches. On a 5x5, swiping
 // along the U3/U4 seam and leaning toward U turns 4Uw, leaning toward D
 // 3Dw. The outer quarters of a sticker count as the seam. A start in the
-// middle half of a sticker, a swipe within about 6 degrees of the seam, or
-// a block that would take the whole cube turns one layer. The lean may
-// change the choice until the layers have turned seamLockAngle radians.
+// middle half of a sticker turns one layer. A seam always turns a wide
+// block, even if the first movement has no clear lean; the lean can change
+// that block for the entire drag.
 let seamTolerance = 0.25
 let seamLean = 0.1
-let seamLockAngle = 0.3
 
 // The seam the swipe starts on, counted in layers from the axis's minus
 // face, or None away from a seam.
@@ -280,6 +279,20 @@ let acrossAxis = (hit: surfaceHit, layer: swipeLayer) =>
 
 let onSeam = (hit, layer, camera) => seamAt(hit, layer, camera)->Option.isSome
 
+let seamBlock = (axis, seam, size, towardPlus) => {
+  let plus = blockLayer(axis, seam - 1, size - 1, size)
+  let minus = blockLayer(axis, 0, seam, size)
+  let preferred = towardPlus ? plus : minus
+  // A seam beside an outer layer has only one proper wide side. On a
+  // 2x2, both sides are the whole cube, which is still a two-layer move.
+  size > 2 && preferred.width->Option.getOr(1) >= size ? towardPlus ? minus : plus : preferred
+}
+
+let defaultSeamBlock = (hit, layer: swipeLayer, camera) =>
+  seamAt(hit, layer, camera)->Option.map(seam =>
+    seamBlock(layer.axis, seam, Float.toInt(camera.size), layer.sign < 0)
+  )
+
 let seamWideLayer = (hit: surfaceHit, layer: swipeLayer, dx, dy, camera: camera) =>
   switch (seamAt(hit, layer, camera), acrossAxis(hit, layer)) {
   | (Some(seam), Some(across)) =>
@@ -294,11 +307,7 @@ let seamWideLayer = (hit: surfaceHit, layer: swipeLayer, dx, dy, camera: camera)
     if Math.abs(lean) < seamLean *. Math.hypot(lean, turn) {
       Null.null
     } else {
-      let block =
-        lean > 0.0
-          ? blockLayer(layer.axis, seam - 1, size - 1, size)
-          : blockLayer(layer.axis, 0, seam, size)
-      block.width->Option.getOr(1) >= size ? Null.null : Null.make(block)
+      Null.make(seamBlock(layer.axis, seam, size, lean > 0.0))
     }
   | _ => Null.null
   }
@@ -309,7 +318,7 @@ let seamWideLayer = (hit: surfaceHit, layer: swipeLayer, dx, dy, camera: camera)
 let seamChoice = (hit, current: swipeLayer, dx, dy, camera) =>
   switch pickLayer(hit, dx, dy, camera, 0.0) {
   | Some(layer) if layer.axis == current.axis =>
-    seamWideLayer(hit, layer, dx, dy, camera)->Null.toOption->Option.getOr(layer)
+    seamWideLayer(hit, layer, dx, dy, camera)->Null.toOption->Option.getOr(current)
   | _ => current
   }
 
@@ -373,7 +382,11 @@ let swipeStart = (hit, dx, dy, camera: camera, startPx, level) =>
     | None => {kind: StartsNothing, layer: Null.null, seam: false, wide: false}
     | Some(layer) =>
       let seam = level == Layer && onSeam(hit, layer, camera)
-      let block = seam ? seamWideLayer(hit, layer, dx, dy, camera)->Null.toOption : None
+      let block = seam
+        ? seamWideLayer(hit, layer, dx, dy, camera)
+          ->Null.toOption
+          ->Option.orElse(defaultSeamBlock(hit, layer, camera))
+        : None
       let turned = switch block {
       | Some(block) => block
       | None => level == Wide ? standardWideLayer(layer, Float.toInt(camera.size)) : layer
@@ -382,25 +395,9 @@ let swipeStart = (hit, dx, dy, camera: camera, startPx, level) =>
     }
   }
 
-// A young seam swipe: locked once its layers have turned seamLockAngle,
-// else the block its lean now picks when that differs from `current`.
-type seamStep = {locked: bool, layer: Null.t<swipeLayer>}
-
-let seamFollow = (hit, current: swipeLayer, angle, dx, dy, camera) =>
-  if Math.abs(angle) >= seamLockAngle {
-    {locked: true, layer: Null.null}
-  } else {
-    let next = seamChoice(hit, current, dx, dy, camera)
-    let same =
-      next.face == current.face &&
-      next.depth == current.depth &&
-      next.width->Option.getOr(1) == current.width->Option.getOr(1)
-    {locked: false, layer: same ? Null.null : Null.make(next)}
-  }
-
 // What a drag does. Mouse and pen: a sticker swipe turns its layer and the
-// background rotates the view. Touch: one finger turns layers or, after a
-// hold, the cube; two fingers rotate or zoom the camera.
+// background rotates the view. Touch: one finger turns layers; two fingers
+// turn the whole cube, rotate the camera, or zoom.
 type cubeGesture =
   | @as("pending") Pending
   | @as("turn") Turn

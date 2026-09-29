@@ -40,7 +40,6 @@ type pressLevel =
 @genType let blockLayer: (int, int, int, int) => swipeLayer
 @genType let wholeCubeLayer: (int, int) => swipeLayer
 @genType let standardWideLayer: (swipeLayer, int) => swipeLayer
-@genType let seamLockAngle: float
 @genType let onSeam: (surfaceHit, swipeLayer, camera) => bool
 @genType let seamWideLayer: (surfaceHit, swipeLayer, float, float, camera) => Null.t<swipeLayer>
 @genType let seamChoice: (surfaceHit, swipeLayer, float, float, camera) => swipeLayer
@@ -61,9 +60,6 @@ type startKind = | @as("wait") Wait | @as("nothing") StartsNothing | @as("turn")
 type swipeStart = {kind: startKind, layer: Null.t<swipeLayer>, seam: bool, wide: bool}
 @genType
 let swipeStart: (surfaceHit, float, float, camera, float, pressLevel) => swipeStart
-@genType type seamStep = {locked: bool, layer: Null.t<swipeLayer>}
-@genType
-let seamFollow: (surfaceHit, swipeLayer, float, float, float, camera) => seamStep
 
 @genType
 type cubeGesture =
