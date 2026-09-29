@@ -1,11 +1,10 @@
 import { createScannerUploadActions } from './scannerUploadActions'
-import { useState, useEffect } from 'preact/hooks'
+import { useState } from 'preact/hooks'
 import {
   captureBackgroundGains,
   recalibrateCapture,
 } from './captureFinalization'
 import type { FaceCaptureData } from './captureTypes'
-import { readyAssemblyAfterCapture } from './captureReviewRouting'
 import { useFixtureDownload } from './useFixtureDownload'
 import { useCameraStream } from './useCameraStream'
 import { useCaptureFeedback } from './useCaptureFeedback'
@@ -14,6 +13,7 @@ import { selectedCubeSize } from './preferences'
 import { useScannerPreferences } from './useScannerPreferences'
 import { useAssembledCube } from './useAssembledCube'
 import { useCameraCapture } from './useCameraCapture'
+import { useColorReview } from './useColorReview'
 import {
   assembleCubeFromFaces,
   type OrientedCandidate,
@@ -131,7 +131,6 @@ export function useScannerAppModel() {
     uploadFixture,
     downloadFixture,
   } = useFixtureDownload()
-  const [showReviewDialog, setShowReviewDialog] = useState(false)
   const {
     orientationWizard,
     setOrientationWizard,
@@ -149,11 +148,20 @@ export function useScannerAppModel() {
     isGuidedCapture: () => isGuided(),
     onChoose: (candidate) => handleChooseOrientation(candidate),
   })
-  const [reviewEditingCell, setReviewEditingCell] = useState<{
-    face: string
-    row: number
-    col: number
-  } | null>(null)
+  const {
+    showReviewDialog,
+    setShowReviewDialog,
+    reviewStep,
+    setReviewStep,
+    reviewEditingCell,
+    setReviewEditingCell,
+    routeReview,
+    handleFixCellColor,
+  } = useColorReview({
+    capturedFaces,
+    setCapturedFaces,
+    confirmReview: handleConfirmReview,
+  })
   const {
     profileStore,
     applyProfileStore,
@@ -237,12 +245,6 @@ export function useScannerAppModel() {
     setLoading,
   })
   const [showBackdropDialog, setShowBackdropDialog] = useState(false)
-  const [reviewStep, setReviewStep] = useState(0)
-  const [reviewRouting, setReviewRouting] = useState<{
-    faces: Record<string, FaceCaptureData>
-    glare: string[]
-    mixedUp: string[]
-  } | null>(null)
   const { videoRef: webcamRef, cameraInfo } = useCameraStream(webcamOpen)
   // Everything below belongs to one cube of one size, so switching sizes
   // starts over - keeping it drew e.g. a 5x5's 25 stickers per face into a
@@ -408,7 +410,7 @@ export function useScannerAppModel() {
 
     setLoading(false)
     setWebcamOpen(false)
-    setReviewRouting({
+    routeReview({
       faces: finalFaces,
       glare: finalGlare,
       mixedUp: finalMixedUp,
@@ -439,34 +441,6 @@ export function useScannerAppModel() {
     finalizeAllFacesCaptured,
   })
 
-  // ─────────────────────────────────────────────────────────────────────────
-  // Features: Post-Capture Review & Color Fix
-  // ─────────────────────────────────────────────────────────────────────────
-
-  const handleFixCellColor = (
-    face: string,
-    row: number,
-    col: number,
-    newColor: string,
-  ) => {
-    setCapturedFaces((prev) => {
-      const faceData = prev[face]
-      if (!faceData) return prev
-
-      const newColors = faceData.colors.map((r) => [...r])
-      newColors[row][col] = newColor
-
-      // Detection's confidence and lookalike stay as measured (saved with
-      // fixtures); the review hides them while the sticker differs from
-      // what detection saw, and shows them again if it's set back.
-      return {
-        ...prev,
-        [face]: { ...faceData, colors: newColors },
-      }
-    })
-    setReviewEditingCell(null)
-  }
-
   const handleRetakeFace = (face: string) => {
     armCaptureAudio()
     setShowReviewDialog(false)
@@ -474,26 +448,6 @@ export function useScannerAppModel() {
     setCaptureMessage('')
     setWebcamOpen(true)
   }
-
-  useEffect(() => {
-    if (!reviewRouting || capturedFaces !== reviewRouting.faces) return
-    setReviewRouting(null)
-    const showColorReview = () => {
-      setReviewStep(0)
-      setShowReviewDialog(true)
-    }
-    const ready = readyAssemblyAfterCapture(
-      capturedFaces,
-      FACE_ORDER,
-      reviewRouting.glare,
-      reviewRouting.mixedUp,
-    )
-    if (!ready) {
-      showColorReview()
-      return
-    }
-    handleConfirmReview(ready)
-  }, [reviewRouting, capturedFaces])
 
   const matchingNetFaces = new Set(repeatedNetFaces)
   if (liveCapturedFace) matchingNetFaces.add(liveCapturedFace)
