@@ -64,12 +64,14 @@ export function buildCaptureFixture(
 
 // The download dialog's contents for a fixture, with its photos as object
 // URLs the dialog revokes when it closes.
-export function fixtureDownloadFor(fixture: Fixture): FixtureDownloadData {
+export async function fixtureDownloadFor(
+  fixture: Fixture,
+): Promise<FixtureDownloadData> {
   const summary = summarizeFixture(fixture)
   return {
     fixture,
     name: fixture.name,
-    zip: zipFixture(fixture),
+    zip: await zipFixture(fixture),
     summary,
     photoUrls: summary.photos.map((p) =>
       URL.createObjectURL(

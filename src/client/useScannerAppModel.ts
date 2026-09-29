@@ -512,7 +512,7 @@ export function useScannerAppModel() {
         learnedPalette,
       })
       setFixtureSaveMessage('')
-      setFixtureDownload(fixtureDownloadFor(fixture))
+      setFixtureDownload(await fixtureDownloadFor(fixture))
     } catch (err) {
       setFixtureSaveMessage(
         `❌ Failed to save fixture: ${err instanceof Error ? err.message : String(err)}`,

@@ -5,8 +5,10 @@
 // test/fixtures.test.ts runs (see test/fixtures/README.md). Uploading
 // takes the same zip back.
 
-import { strFromU8, strToU8, unzipSync, zipSync } from 'fflate'
 import { fixtureLayout, summarizeMeta } from '../core/capture/FixtureZip.gen'
+
+const encoder = new TextEncoder()
+const decoder = new TextDecoder()
 
 export interface FixtureRequest {
   name?: string
@@ -47,12 +49,13 @@ export function buildFixture(
   const files: Record<string, Uint8Array> = {}
   for (const { file, base64 } of layout.photos)
     files[file] = dataUrlBytes(base64)
-  files['meta.json'] = strToU8(JSON.stringify(layout.meta, null, 2))
+  files['meta.json'] = encoder.encode(JSON.stringify(layout.meta, null, 2))
   return { name: layout.name, files }
 }
 
 // The photos are JPEG/PNG already, so they're stored uncompressed.
-export function zipFixture(fixture: Fixture): Uint8Array {
+export async function zipFixture(fixture: Fixture): Promise<Uint8Array> {
+  const { zipSync } = await import('fflate')
   return zipSync(
     Object.fromEntries(
       Object.entries(fixture.files).map(([path, data]) => [
@@ -65,7 +68,8 @@ export function zipFixture(fixture: Fixture): Uint8Array {
 
 // The combined upload picker also accepts a zip of photos without metadata.
 // Flatten its one photo folder, leaving validation to the chosen import flow.
-export function unzipUploadFiles(zip: Uint8Array): File[] {
+export async function unzipUploadFiles(zip: Uint8Array): Promise<File[]> {
+  const { unzipSync } = await import('fflate')
   return Object.entries(unzipSync(zip))
     .filter(([path]) => {
       const name = path.split('/').at(-1) ?? ''
@@ -108,7 +112,7 @@ export interface FixtureSummary {
 // so the customer sees what they're about to save or share.
 export function summarizeFixture(fixture: Fixture): FixtureSummary {
   const { photos, rows } = summarizeMeta(
-    JSON.parse(strFromU8(fixture.files['meta.json'])),
+    JSON.parse(decoder.decode(fixture.files['meta.json'])),
   )
   return {
     photos: photos.map(({ face, file }) => ({

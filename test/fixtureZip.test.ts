@@ -36,8 +36,8 @@ function request(extra: Partial<FixtureRequest> = {}): FixtureRequest {
 
 describe('fixture zips', () => {
   it('round-trips a capture into the test/fixtures/<name>/ layout', async () => {
-    const zip = zipFixture(buildFixture(request()))
-    const files = unzipUploadFiles(zip)
+    const zip = await zipFixture(buildFixture(request()))
+    const files = await unzipUploadFiles(zip)
     expect(files.map((f) => f.name).sort()).toEqual([
       'face-b.jpg',
       'face-d.jpg',
@@ -71,13 +71,13 @@ describe('fixture zips', () => {
     })
   })
 
-  it('names an unnamed fixture by cube size and time for ZIPs and uploads', () => {
+  it('names an unnamed fixture by cube size and time for ZIPs and uploads', async () => {
     const fixture = buildFixture(
       request({ name: undefined }),
       new Date('2026-09-27T08:55:46.205Z'),
     )
     expect(fixture.name).toBe('cube-3x3-2026-09-27T08-55-46')
-    expect(Object.keys(unzipSync(zipFixture(fixture)))).toContain(
+    expect(Object.keys(unzipSync(await zipFixture(fixture)))).toContain(
       `${fixture.name}/meta.json`,
     )
     expect(
@@ -124,26 +124,24 @@ describe('fixture zips', () => {
       ],
       '__MACOSX/Downloads/my-fixture/._meta.json': strToU8('resource fork'),
     })
-    const files = unzipUploadFiles(zip)
+    const files = await unzipUploadFiles(zip)
     expect(files.map((f) => f.name).sort()).toEqual(['face-u.jpg', 'meta.json'])
     expect(await files.find((f) => f.name === 'meta.json')!.text()).toBe(
       '{"gridSize":3}',
     )
   })
 
-  it('extracts photo-only zips for the combined upload picker', () => {
+  it('extracts photo-only zips for the combined upload picker', async () => {
     const zip = zipSync({
       'photos/face-u.jpg': new Uint8Array([0xff, 0xd8, 0xff]),
       'photos/face-r.jpg': new Uint8Array([0xff, 0xd8, 0xff]),
       '__MACOSX/photos/._face-u.jpg': new Uint8Array([1]),
     })
     expect(
-      unzipUploadFiles(zip)
-        .map((file) => file.name)
-        .sort(),
+      (await unzipUploadFiles(zip)).map((file) => file.name).sort(),
     ).toEqual(['face-r.jpg', 'face-u.jpg'])
     expect(
-      unzipUploadFiles(zipFixture(buildFixture(request()))).some(
+      (await unzipUploadFiles(await zipFixture(buildFixture(request())))).some(
         (file) => file.name === 'meta.json',
       ),
     ).toBe(true)

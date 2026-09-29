@@ -157,7 +157,9 @@ export function createScannerUploadActions({
       for (const file of selected) {
         if (file.name.toLowerCase().endsWith('.zip'))
           files.push(
-            ...unzipUploadFiles(new Uint8Array(await file.arrayBuffer())),
+            ...(await unzipUploadFiles(
+              new Uint8Array(await file.arrayBuffer()),
+            )),
           )
         else files.push(file)
       }
