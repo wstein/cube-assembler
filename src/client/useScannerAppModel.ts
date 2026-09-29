@@ -7,15 +7,13 @@ import {
 import type { FaceCaptureData } from './captureTypes'
 import { readyAssemblyAfterCapture } from './captureReviewRouting'
 import { useFixtureDownload } from './useFixtureDownload'
-import { useCameraStream, withoutDeviceIds } from './useCameraStream'
+import { useCameraStream } from './useCameraStream'
 import { useCaptureFeedback } from './useCaptureFeedback'
-import { useLiveCaptureAnalysis } from './useLiveCaptureAnalysis'
-import { captureCameraPhoto, importCapturePhoto } from './capturePhoto'
 import { profilesHash } from './profilesRoute'
 import { selectedCubeSize } from './preferences'
 import { useScannerPreferences } from './useScannerPreferences'
 import { useAssembledCube } from './useAssembledCube'
-import { type ColorDetectionResult } from './imageProcessing'
+import { useCameraCapture } from './useCameraCapture'
 import {
   assembleCubeFromFaces,
   type OrientedCandidate,
@@ -59,8 +57,6 @@ export function useScannerAppModel() {
     moves: import('./cubeView3D').CubeTurn[]
   } | null>(null)
   const [webcamOpen, setWebcamOpen] = useState(false)
-  const [autoCaptureFrames, setAutoCaptureFrames] = useState(0)
-  const [autoCapturePaused, setAutoCapturePaused] = useState(false)
   const {
     cubeViewMode,
     setCubeViewMode,
@@ -135,15 +131,6 @@ export function useScannerAppModel() {
     uploadFixture,
     downloadFixture,
   } = useFixtureDownload()
-  const [liveDetection, setLiveDetection] =
-    useState<ColorDetectionResult | null>(null)
-  const [liveFaceVisible, setLiveFaceVisible] = useState(false)
-  const [liveNeedsRecentering, setLiveNeedsRecentering] = useState(false)
-  const [liveMedianWB, setLiveMedianWB] = useState(false)
-  const [liveAutoColorProfileId, setLiveAutoColorProfileId] = useState<
-    string | null
-  >(null)
-  const [liveCapturedFace, setLiveCapturedFace] = useState<string | null>(null)
   const [showReviewDialog, setShowReviewDialog] = useState(false)
   const {
     orientationWizard,
@@ -202,9 +189,6 @@ export function useScannerAppModel() {
       location.hash = profilesHash('cubes')
     },
   })
-  const liveAutoColorProfile = autoColorProfiles.find(
-    (candidate) => candidate.id === liveAutoColorProfileId,
-  )
   // Upload Fixture option: start the review from what detection reads
   // today instead of the colors the fixture was saved with, so a capture
   // can be reviewed afresh without its earlier hand corrections.
@@ -324,56 +308,44 @@ export function useScannerAppModel() {
     setWebcamOpen(true)
   }
 
-  useLiveCaptureAnalysis({
-    open: webcamOpen,
+  const {
+    autoCaptureFrames,
+    autoCapturePaused,
+    liveDetection,
+    setLiveDetection,
+    liveFaceVisible,
+    setLiveFaceVisible,
+    liveNeedsRecentering,
+    liveMedianWB,
+    liveAutoColorProfile,
+    liveCapturedFace,
+    handleCapturePhoto,
+    handleImportImage,
+  } = useCameraCapture({
+    webcamOpen,
     loading,
-    turnCueShowing: turnOverlay !== null,
-    face: webcamFace,
-    faceOrder: FACE_ORDER,
-    size: puzzleSize,
-    mode: captureMode,
+    setLoading,
+    turnOverlay,
+    dismissTurnOverlay,
+    webcamFace,
+    puzzleSize,
+    captureMode,
     sampling,
     palette,
-    autoProfiles: autoColorProfiles,
-    autoColorsSelected: automaticColors,
-    provisionalProfileId: provisionalColorProfile?.id ?? null,
+    autoColorProfiles,
+    automaticColors,
+    provisionalColorProfile,
     autoCapture,
     stableFrames,
     capturedFaces,
-    videoRef: webcamRef,
+    webcamRef,
     lastCapturedColors,
     lastCapturedPose,
     pendingFlyIn,
-    setAutoCaptureFrames,
-    setAutoCapturePaused,
-    setLiveDetection,
-    setLiveFaceVisible,
-    setLiveNeedsRecentering,
-    setLiveMedianWB,
-    setLiveAutoColorProfileId,
-    setLiveCapturedFace,
     setCaptureMessage,
-    onTurnCueCleared: dismissTurnOverlay,
-    onCaptureSignal: signalCapture,
-    onAutoCapture: async (result, profileId) => {
-      const track = (
-        webcamRef.current?.srcObject as MediaStream | null
-      )?.getVideoTracks()[0]
-      setLoading(true)
-      setCaptureMessage('Processing image...')
-      try {
-        await applyFaceCapture(
-          webcamFace,
-          result,
-          'camera',
-          track ? withoutDeviceIds(track.getSettings()) : undefined,
-          puzzleSize,
-          previewProfileFor(profileId),
-        )
-      } finally {
-        setLoading(false)
-      }
-    },
+    signalCapture,
+    applyFaceCapture,
+    previewProfileFor,
   })
 
   // Runs once every face has a captured entry, regardless of how it got
@@ -626,85 +598,6 @@ export function useScannerAppModel() {
       setFixtureSaveMessage(
         `❌ Failed to save fixture: ${err instanceof Error ? err.message : String(err)}`,
       )
-    }
-  }
-
-  const handleCapturePhoto = async () => {
-    if (!webcamRef.current || turnOverlay !== null) return
-    const frame = document
-      .querySelector('.capture-scan-frame')
-      ?.getBoundingClientRect()
-    if (frame) pendingFlyIn.current = { slot: webcamFace, from: frame }
-
-    try {
-      setLoading(true)
-      setCaptureMessage('Processing image...')
-      const capturedBackgrounds = Object.fromEntries(
-        FACE_ORDER.map((face) => [
-          face,
-          capturedFaces[face]?.backgroundColor ?? null,
-        ]),
-      )
-      const result = captureCameraPhoto(webcamRef.current, {
-        size: puzzleSize,
-        mode: captureMode,
-        sampling,
-        palette: palette ?? liveAutoColorProfile?.colors,
-        backgrounds: capturedBackgrounds,
-      })
-      const track = (
-        webcamRef.current.srcObject as MediaStream | null
-      )?.getVideoTracks()[0]
-      signalCapture()
-      await applyFaceCapture(
-        webcamFace,
-        result,
-        'camera',
-        track ? withoutDeviceIds(track.getSettings()) : undefined,
-        result.colors.length,
-        previewProfileFor(liveAutoColorProfileId),
-      )
-    } catch (err) {
-      console.error('Capture error:', err)
-      setCaptureMessage(
-        `❌ Error: ${err instanceof Error ? err.message : 'Unknown error'}`,
-      )
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const handleImportImage = async (e: Event) => {
-    const input = e.currentTarget as HTMLInputElement
-    const file = input.files?.[0]
-    if (!file) return
-
-    try {
-      setLoading(true)
-      setCaptureMessage('Processing image...')
-
-      const result = await importCapturePhoto(file, {
-        size: puzzleSize,
-        mode: captureMode,
-        sampling,
-        palette,
-      })
-      await applyFaceCapture(
-        webcamFace,
-        result,
-        'image-file',
-        undefined,
-        puzzleSize,
-        previewProfileFor(null),
-      )
-    } catch (err) {
-      console.error('Image import error:', err)
-      setCaptureMessage(
-        `❌ Error: ${err instanceof Error ? err.message : 'Unknown error'}`,
-      )
-    } finally {
-      setLoading(false)
-      input.value = ''
     }
   }
 
