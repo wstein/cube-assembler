@@ -9,6 +9,7 @@ import {
   shadowOutline,
   shadowOutlinePoints as SHADOW_OUTLINE_POINTS,
 } from '../core/view/CubeShadow.gen'
+import { compileShader } from './webglShader'
 
 // The outline geometry lives in src/core/view/CubeShadow.res; this draws it.
 export {
@@ -67,22 +68,6 @@ void main() {
 }
 `
 
-function compile(
-  gl: WebGLRenderingContext,
-  type: number,
-  source: string,
-): WebGLShader | null {
-  const shader = gl.createShader(type)
-  if (!shader) return null
-  gl.shaderSource(shader, source)
-  gl.compileShader(shader)
-  if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
-    gl.deleteShader(shader)
-    return null
-  }
-  return shader
-}
-
 export interface ShadowRenderer {
   draw(
     viewProj: Float32Array,
@@ -100,8 +85,8 @@ export interface ShadowRenderer {
 export function createShadowRenderer(
   gl: WebGLRenderingContext,
 ): ShadowRenderer | null {
-  const vs = compile(gl, gl.VERTEX_SHADER, SHADOW_VS)
-  const fs = compile(gl, gl.FRAGMENT_SHADER, SHADOW_FS)
+  const vs = compileShader(gl, gl.VERTEX_SHADER, SHADOW_VS)
+  const fs = compileShader(gl, gl.FRAGMENT_SHADER, SHADOW_FS)
   if (!vs || !fs) return null
   const program = gl.createProgram()
   if (!program) return null

@@ -1,5 +1,6 @@
 // The 3D view's shaders; its matrix helpers live in
 // src/core/view/Mat4.res.
+import { compileShader } from './webglShader'
 export {
   mat4Create,
   mat4Multiply,
@@ -66,25 +67,9 @@ void main() {
 }
 `
 
-function createShader(
-  gl: WebGLRenderingContext,
-  type: number,
-  source: string,
-): WebGLShader | null {
-  const shader = gl.createShader(type)
-  if (!shader) return null
-  gl.shaderSource(shader, source)
-  gl.compileShader(shader)
-  if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
-    gl.deleteShader(shader)
-    return null
-  }
-  return shader
-}
-
 export function initProgram(gl: WebGLRenderingContext): WebGLProgram | null {
-  const vs = createShader(gl, gl.VERTEX_SHADER, VS_SOURCE)
-  const fs = createShader(gl, gl.FRAGMENT_SHADER, FS_SOURCE)
+  const vs = compileShader(gl, gl.VERTEX_SHADER, VS_SOURCE)
+  const fs = compileShader(gl, gl.FRAGMENT_SHADER, FS_SOURCE)
   if (!vs || !fs) return null
   const program = gl.createProgram()
   if (!program) return null
