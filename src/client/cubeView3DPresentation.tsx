@@ -1,6 +1,11 @@
 import type { ComponentChildren, RefObject } from 'preact'
 import type { PressLevel } from './cubeGesture'
-import { formatCubeTurn, type CubeTurn } from './cubeView3DState'
+import {
+  facePreset,
+  formatCubeTurn,
+  type CubeTurn,
+  type ViewFace,
+} from './cubeView3DState'
 import {
   preferenceCookie,
   readPreference,
@@ -63,6 +68,10 @@ export function CubeView3DPresentation({
   onToggleAutoRotate,
   gizmo,
 }: CubeView3DPresentationProps) {
+  const showFace = (face: ViewFace) => {
+    const { pitch, yaw } = facePreset(face)
+    setPreset(pitch, yaw)
+  }
   const helpEnabled = readPreference(document.cookie, VIEW_HELP_COOKIE, true)
   const seamWideEnabled = readPreference(document.cookie, SEAM_WIDE_COOKIE)
   const help = useCubeHelpHint(helpEnabled, () => {
@@ -140,7 +149,7 @@ export function CubeView3DPresentation({
                 <button
                   type="button"
                   class="cube-3d-btn"
-                  onClick={() => setPreset(Math.PI / 2 - 0.05, 0)}
+                  onClick={() => showFace('u')}
                   title="Up face"
                 >
                   Up (U)
@@ -148,7 +157,7 @@ export function CubeView3DPresentation({
                 <button
                   type="button"
                   class="cube-3d-btn"
-                  onClick={() => setPreset(0, -Math.PI / 2)}
+                  onClick={() => showFace('r')}
                   title="Right face"
                 >
                   Right (R)
@@ -156,7 +165,7 @@ export function CubeView3DPresentation({
                 <button
                   type="button"
                   class="cube-3d-btn"
-                  onClick={() => setPreset(0, 0)}
+                  onClick={() => showFace('f')}
                   title="Front face"
                 >
                   Front (F)
@@ -164,7 +173,7 @@ export function CubeView3DPresentation({
                 <button
                   type="button"
                   class="cube-3d-btn"
-                  onClick={() => setPreset(-Math.PI / 2 + 0.05, 0)}
+                  onClick={() => showFace('d')}
                   title="Down face"
                 >
                   Down (D)
@@ -172,7 +181,7 @@ export function CubeView3DPresentation({
                 <button
                   type="button"
                   class="cube-3d-btn"
-                  onClick={() => setPreset(0, Math.PI / 2)}
+                  onClick={() => showFace('l')}
                   title="Left face"
                 >
                   Left (L)
@@ -180,7 +189,7 @@ export function CubeView3DPresentation({
                 <button
                   type="button"
                   class="cube-3d-btn"
-                  onClick={() => setPreset(0, Math.PI)}
+                  onClick={() => showFace('b')}
                   title="Back face"
                 >
                   Back (B)

@@ -1,8 +1,11 @@
-import { clampZoom, wheelGesture } from './cubeGesture'
+import { wheelGesture } from './cubeGesture'
 import {
+  facePreset,
   getDefaultZoom,
-  ISOMETRIC_PITCH,
-  ISOMETRIC_YAW,
+  isometricAngles,
+  rotateYaw,
+  tiltPitch,
+  wheelZoom,
 } from './cubeView3DState'
 
 type SetNumber = (value: number | ((previous: number) => number)) => void
@@ -27,8 +30,9 @@ export function createCubeViewControls({
   // The isometric view, from the front corner or the opposite back one.
   const resetView = (back = false) => {
     pauseAutoRotation()
-    setPitch(back ? -ISOMETRIC_PITCH : ISOMETRIC_PITCH)
-    setYaw(ISOMETRIC_YAW + (back ? Math.PI : 0))
+    const { pitch, yaw } = isometricAngles(back)
+    setPitch(pitch)
+    setYaw(yaw)
     setZoom(getDefaultZoom(puzzleSize))
   }
 
@@ -48,28 +52,24 @@ export function createCubeViewControls({
       return
     }
     // Pinch steps are small; mouse wheel notches are about 100.
-    const zoomDelta = e.deltaY * (e.ctrlKey ? 0.05 : 0.01)
-    setZoom((prev) => clampZoom(prev + zoomDelta, puzzleSize))
+    setZoom((prev) => wheelZoom(prev, e.deltaY, e.ctrlKey, puzzleSize))
   }
-
-  const limit = Math.PI / 2 - 0.05
-  const step = 0.2
 
   const tiltUp = () => {
     pauseAutoRotation()
-    setPitch((p) => Math.min(limit, p + step))
+    setPitch((p) => tiltPitch(p, true))
   }
   const tiltDown = () => {
     pauseAutoRotation()
-    setPitch((p) => Math.max(-limit, p - step))
+    setPitch((p) => tiltPitch(p, false))
   }
   const rotateLeft = () => {
     pauseAutoRotation()
-    setYaw((y) => y + step)
+    setYaw((y) => rotateYaw(y, true))
   }
   const rotateRight = () => {
     pauseAutoRotation()
-    setYaw((y) => y - step)
+    setYaw((y) => rotateYaw(y, false))
   }
 
   const handleKeyDown = (e: KeyboardEvent) => {
@@ -90,30 +90,20 @@ export function createCubeViewControls({
         e.preventDefault()
         rotateRight()
         break
-      case 'u':
-      case 'U':
-        setPreset(Math.PI / 2 - 0.05, 0)
-        break
-      case 'd':
-      case 'D':
-        setPreset(-Math.PI / 2 + 0.05, 0)
-        break
-      case 'f':
-      case 'F':
-        setPreset(0, 0)
-        break
-      case 'b':
-      case 'B':
-        setPreset(0, Math.PI)
-        break
-      case 'l':
-      case 'L':
-        setPreset(0, Math.PI / 2)
-        break
-      case 'r':
-      case 'R':
-        setPreset(0, -Math.PI / 2)
-        break
+      default: {
+        const face = e.key.toLowerCase()
+        if (
+          face === 'u' ||
+          face === 'd' ||
+          face === 'f' ||
+          face === 'b' ||
+          face === 'l' ||
+          face === 'r'
+        ) {
+          const { pitch, yaw } = facePreset(face)
+          setPreset(pitch, yaw)
+        }
+      }
     }
   }
 

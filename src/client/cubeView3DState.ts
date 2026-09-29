@@ -4,13 +4,20 @@ export {
   autoRotateResumeDelayMs as AUTO_ROTATE_RESUME_DELAY_MS,
   defaultStickerHex as DEFAULT_STICKER_HEX,
   getDefaultZoom,
+  facePreset,
+  isometricAngles,
   isometricPitch as ISOMETRIC_PITCH,
   isometricYaw as ISOMETRIC_YAW,
+  rotateYaw,
+  tiltPitch,
+  wheelZoom,
   getFaceletColor,
   getFaceSeams,
   hexToRgb,
   rotateVec,
 } from '../core/view/CubeViewState.gen'
+
+export type { face as ViewFace } from '../core/view/CubeViewState.gen'
 
 export type Point = [number, number]
 

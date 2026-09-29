@@ -25,6 +25,40 @@ let autoRotateRadiansPerMs = 0.008 /. (1000.0 /. 60.0)
 let isometricPitch = 0.52
 let isometricYaw = -0.74
 
+type viewAngles = {pitch: float, yaw: float}
+
+let facePreset = face => {
+  let quarter = Math.Constants.pi /. 2.0
+  let limit = quarter -. 0.05
+  switch face {
+  | U => {pitch: limit, yaw: 0.0}
+  | D => {pitch: -.limit, yaw: 0.0}
+  | F => {pitch: 0.0, yaw: 0.0}
+  | B => {pitch: 0.0, yaw: Math.Constants.pi}
+  | R => {pitch: 0.0, yaw: -.quarter}
+  | L => {pitch: 0.0, yaw: quarter}
+  }
+}
+
+let isometricAngles = back => {
+  pitch: back ? -.isometricPitch : isometricPitch,
+  yaw: isometricYaw +. (back ? Math.Constants.pi : 0.0),
+}
+
+let tiltPitch = (pitch, up) => {
+  let limit = Math.Constants.pi /. 2.0 -. 0.05
+  if up {
+    Math.min(limit, pitch +. 0.2)
+  } else {
+    Math.max(-.limit, pitch -. 0.2)
+  }
+}
+
+let rotateYaw = (yaw, left) => yaw +. (left ? 0.2 : -0.2)
+
+let wheelZoom = (zoom, deltaY, ctrlKey, puzzleSize) =>
+  CubeGesture.clampZoom(zoom +. deltaY *. (ctrlKey ? 0.05 : 0.01), puzzleSize)
+
 let hexToRgb = (hex: string): vec3 => {
   let clean = hex->String.replace("#", "")
   let channel = digits => Float.parseInt(digits, ~radix=16) /. 255.0

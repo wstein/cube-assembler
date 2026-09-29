@@ -14,6 +14,12 @@ type face =
 @genType let autoRotateRadiansPerMs: float
 @genType let isometricPitch: float
 @genType let isometricYaw: float
+@genType type viewAngles = {pitch: float, yaw: float}
+@genType let facePreset: face => viewAngles
+@genType let isometricAngles: bool => viewAngles
+@genType let tiltPitch: (float, bool) => float
+@genType let rotateYaw: (float, bool) => float
+@genType let wheelZoom: (float, float, bool, float) => float
 @genType let hexToRgb: string => vec3
 @genType let getFaceletColor: (CubeState.cubeState, int, face, int, int, int) => string
 @genType let getDefaultZoom: float => float
