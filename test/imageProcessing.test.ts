@@ -473,7 +473,7 @@ describe('learnStickerColors', () => {
     Object.values(learned.clusterSizes).forEach((size) => expect(size).toBe(16))
 
     const displaced = blueLike
-      .map((s, i) => learned.labelsBySampleIndex[i])
+      .map((_, i) => learned.labelsBySampleIndex[i])
       .filter((label) => label !== 'B')
     expect(displaced.length).toBe(1) // exactly one of the 17 has to give up its Blue slot
   })
