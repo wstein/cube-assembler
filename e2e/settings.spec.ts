@@ -1,4 +1,10 @@
-import { expect, test } from '@playwright/test'
+import { expect, test, type Page } from '@playwright/test'
+
+async function openAdvanced(page: Page) {
+  const advanced = page.locator('details.settings-advanced')
+  if (!(await advanced.evaluate((element) => element.hasAttribute('open'))))
+    await advanced.locator('summary').click()
+}
 
 test('Shift selects a wide turn immediately', async ({ page }) => {
   await page.goto('/')
@@ -28,6 +34,26 @@ test('Reset all settings restores the defaults', async ({ page }) => {
   )
 })
 
+test('basic settings are visible while advanced settings open on demand', async ({
+  page,
+}) => {
+  await page.goto('/#settings')
+  await expect(page.getByRole('combobox', { name: 'Theme' })).toBeVisible()
+  await expect(page.getByRole('switch', { name: 'Auto capture' })).toBeVisible()
+  const advanced = page.locator('details.settings-advanced')
+  await expect(advanced).not.toHaveAttribute('open', '')
+  await expect(
+    page.getByRole('switch', { name: 'Wide turns near gaps' }),
+  ).toBeHidden()
+  await advanced.locator('summary').click()
+  await expect(
+    page.getByRole('switch', { name: 'Wide turns near gaps' }),
+  ).toBeVisible()
+  await expect(
+    page.getByRole('textbox', { name: /Fixture server address/ }),
+  ).toBeVisible()
+})
+
 test('3D help can be turned off and remembered', async ({ page }) => {
   await page.goto('/#settings')
   const help = page.getByRole('switch', { name: 'Show 3D help' })
@@ -51,6 +77,7 @@ test('wide turns near gaps require an opt-in saved in cookies', async ({
   page,
 }) => {
   await page.goto('/#settings')
+  await openAdvanced(page)
   const wide = page.getByRole('switch', { name: 'Wide turns near gaps' })
   await expect(wide).not.toBeChecked()
   await wide.check()
@@ -58,6 +85,7 @@ test('wide turns near gaps require an opt-in saved in cookies', async ({
     .poll(() => page.evaluate(() => document.cookie))
     .toContain('cube-assembler-seam-wide=1')
   await page.reload()
+  await openAdvanced(page)
   await expect(wide).toBeChecked()
   await page.getByRole('button', { name: 'Reset all settings' }).click()
   await expect(wide).not.toBeChecked()
@@ -94,6 +122,7 @@ test('the notation format is remembered, and the settings page sets it', async (
     page.getByRole('button', { name: 'Faces (URF)' }),
   ).toHaveAttribute('aria-pressed', 'true')
   await page.getByRole('link', { name: 'Settings' }).click()
+  await openAdvanced(page)
   const format = page.getByRole('combobox', { name: 'Write the cube as' })
   await expect(format).toHaveValue('urf')
   await format.selectOption('wrg')
@@ -107,6 +136,7 @@ test('the fixture server address only accepts this computer', async ({
   page,
 }) => {
   await page.goto('/#settings')
+  await openAdvanced(page)
   const address = page.getByRole('textbox', { name: /Fixture server address/ })
   await expect(address).toHaveValue('http://127.0.0.1:7100')
   await address.fill('https://example.com')
@@ -172,12 +202,14 @@ test('a wide turn vibrates for the set length, 50 ms by default', async ({
     )
   }
   await page.goto('/#settings')
+  await openAdvanced(page)
   const length = page.getByRole('slider', { name: /Vibration length/ })
   await expect(length).toHaveValue('50')
   await page.getByRole('button', { name: '← Back to the scanner' }).click()
   expect(await wide()).toEqual([50])
 
   await page.goto('/#settings')
+  await openAdvanced(page)
   await length.fill('120')
   await expect
     .poll(() => page.evaluate(() => document.cookie))

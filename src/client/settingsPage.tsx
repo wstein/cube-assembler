@@ -105,6 +105,8 @@ export function SettingsPage({ onClose }: Props) {
         </p>
       </header>
 
+      <h2 class="settings-group-title">Basic</h2>
+
       <Section id="settings-appearance" title="Appearance">
         <ChoiceSetting
           label="Theme"
@@ -141,18 +143,6 @@ export function SettingsPage({ onClose }: Props) {
           checked={readPreference(cookies, AUTO_CAPTURE_COOKIE)}
           onChange={(on) => write(preferenceCookie(AUTO_CAPTURE_COOKIE, on))}
         />
-        <SliderSetting
-          label="Auto capture waits for"
-          hint="Matching frames in a row; more is steadier, fewer is quicker."
-          min={AUTO_CAPTURE_FRAMES_RANGE.min}
-          max={AUTO_CAPTURE_FRAMES_RANGE.max}
-          step={1}
-          value={readAutoCaptureFrames(cookies)}
-          unit=" frames"
-          onChange={(frames) =>
-            write(numberCookie(AUTO_CAPTURE_FRAMES_COOKIE, frames))
-          }
-        />
         <ToggleSetting
           label="Capture sound"
           hint="A shutter click and flash for each photo."
@@ -174,143 +164,174 @@ export function SettingsPage({ onClose }: Props) {
           checked={turnSoundOn(cookies)}
           onChange={(on) => write(preferenceCookie(TURN_SOUND_COOKIE, on))}
         />
-        <SliderSetting
-          label="Turn speed"
-          hint="How long a quarter turn takes; scrambles run at about half."
-          min={TURN_MS_RANGE.min}
-          max={TURN_MS_RANGE.max}
-          step={10}
-          value={readTurnFeel(cookies).turnMs}
-          unit=" ms"
-          onChange={(ms) => write(numberCookie(TURN_MS_COOKIE, ms))}
-        />
-        <ToggleSetting
-          label="Magnetic snap"
-          hint="Quarter turns hold a dragged layer like magnets and suck it in when you let go; it snaps a little past and settles back."
-          checked={readTurnFeel(cookies).overshoot}
-          onChange={(on) => write(preferenceCookie(TURN_OVERSHOOT_COOKIE, on))}
-        />
-        <ToggleSetting
-          label="Vibrate on wide turn"
-          hint="On phones, a short buzz when a wide turn is selected."
-          checked={vibrationOn(cookies)}
-          onChange={(on) => write(preferenceCookie(VIBRATION_COOKIE, on))}
-        />
-        <SliderSetting
-          label="Vibration length"
-          hint="How long that buzz lasts; some phones need 40 ms or more to feel it."
-          min={VIBRATION_MS_RANGE.min}
-          max={VIBRATION_MS_RANGE.max}
-          step={10}
-          value={readVibrationMs(cookies)}
-          unit=" ms"
-          onChange={(ms) => write(numberCookie(VIBRATION_MS_COOKIE, ms))}
-        />
       </Section>
 
-      <Section
-        id="settings-swipe"
-        title="Swiping"
-        hint="How eagerly a swipe on a sticker turns its layer."
-      >
-        <ToggleSetting
-          label="Wide turns near gaps"
-          hint="Off by default. Swiping a sticker near a gap can select a wide block; the gap itself remains inactive. Shift still makes a wide turn."
-          checked={readPreference(cookies, SEAM_WIDE_COOKIE)}
-          onChange={(on) => write(preferenceCookie(SEAM_WIDE_COOKIE, on))}
-        />
-        <SliderSetting
-          label="Start turning after"
-          hint="Shorter reacts sooner; longer ignores small slips."
-          min={SWIPE_RANGES.startPx.min}
-          max={SWIPE_RANGES.startPx.max}
-          step={1}
-          value={readSwipeTuning(cookies).startPx}
-          unit=" px"
-          onChange={(px) => write(numberCookie(SWIPE_START_COOKIE, px))}
-        />
-        <SliderSetting
-          label="Count a turn from"
-          hint="How far into a quarter turn a released layer keeps turning."
-          min={SWIPE_RANGES.commitPercent.min}
-          max={SWIPE_RANGES.commitPercent.max}
-          step={5}
-          value={Math.round(readSwipeTuning(cookies).commitFraction * 100)}
-          unit=" %"
-          onChange={(percent) =>
-            write(numberCookie(SWIPE_COMMIT_COOKIE, percent))
-          }
-        />
-        <SliderSetting
-          label="Flick strength"
-          hint="How far a quick swipe carries on; 0 turns flicks off."
-          min={SWIPE_RANGES.flickMs.min}
-          max={SWIPE_RANGES.flickMs.max}
-          step={20}
-          value={readSwipeTuning(cookies).flickMs}
-          unit=" ms"
-          onChange={(ms) => write(numberCookie(SWIPE_FLICK_COOKIE, ms))}
-        />
-      </Section>
+      <details class="settings-advanced">
+        <summary>Advanced settings</summary>
+        <div class="settings-advanced-content">
+          <Section id="settings-capture-timing" title="Capture timing">
+            <SliderSetting
+              label="Auto capture waits for"
+              hint="Matching frames in a row; more is steadier, fewer is quicker."
+              min={AUTO_CAPTURE_FRAMES_RANGE.min}
+              max={AUTO_CAPTURE_FRAMES_RANGE.max}
+              step={1}
+              value={readAutoCaptureFrames(cookies)}
+              unit=" frames"
+              onChange={(frames) =>
+                write(numberCookie(AUTO_CAPTURE_FRAMES_COOKIE, frames))
+              }
+            />
+          </Section>
 
-      <Section id="settings-scramble" title="Scramble">
-        <ChoiceSetting
-          label="Scramble length"
-          hint="Normal is 20 moves on a 3×3, more on larger cubes."
-          value={readScrambleOptions(cookies).length}
-          options={[
-            { value: 'short', label: 'Short (half)' },
-            { value: 'normal', label: 'Normal' },
-            { value: 'long', label: 'Long (one and a half)' },
-          ]}
-          onChange={(length) =>
-            write(selectionCookie(SCRAMBLE_LENGTH_COOKIE, length))
-          }
-        />
-        <ToggleSetting
-          label="Turn inner layers"
-          hint="On 4×4 and larger cubes; off scrambles only the outer faces."
-          checked={readScrambleOptions(cookies).innerLayers}
-          onChange={(on) => write(preferenceCookie(SCRAMBLE_INNER_COOKIE, on))}
-        />
-      </Section>
+          <Section id="settings-turn-feel" title="3D turn feel">
+            <SliderSetting
+              label="Turn speed"
+              hint="How long a quarter turn takes; scrambles run at about half."
+              min={TURN_MS_RANGE.min}
+              max={TURN_MS_RANGE.max}
+              step={10}
+              value={readTurnFeel(cookies).turnMs}
+              unit=" ms"
+              onChange={(ms) => write(numberCookie(TURN_MS_COOKIE, ms))}
+            />
+            <ToggleSetting
+              label="Magnetic snap"
+              hint="Quarter turns hold a dragged layer like magnets and suck it in when you let go; it snaps a little past and settles back."
+              checked={readTurnFeel(cookies).overshoot}
+              onChange={(on) =>
+                write(preferenceCookie(TURN_OVERSHOOT_COOKIE, on))
+              }
+            />
+            <ToggleSetting
+              label="Vibrate on wide turn"
+              hint="On phones, a short buzz when a wide turn is selected."
+              checked={vibrationOn(cookies)}
+              onChange={(on) => write(preferenceCookie(VIBRATION_COOKIE, on))}
+            />
+            <SliderSetting
+              label="Vibration length"
+              hint="How long that buzz lasts; some phones need 40 ms or more to feel it."
+              min={VIBRATION_MS_RANGE.min}
+              max={VIBRATION_MS_RANGE.max}
+              step={10}
+              value={readVibrationMs(cookies)}
+              unit=" ms"
+              onChange={(ms) => write(numberCookie(VIBRATION_MS_COOKIE, ms))}
+            />
+          </Section>
 
-      <Section id="settings-notation" title="Notation">
-        <ChoiceSetting
-          label="Write the cube as"
-          value={selectedNotationFormat(cookies)}
-          options={[
-            { value: 'wrg', label: 'Colors (WRG)' },
-            { value: 'urf', label: 'Faces (URF)' },
-          ]}
-          onChange={(format) => write(selectionCookie(NOTATION_COOKIE, format))}
-        />
-      </Section>
+          <Section
+            id="settings-swipe"
+            title="Swiping"
+            hint="How eagerly a swipe on a sticker turns its layer."
+          >
+            <ToggleSetting
+              label="Wide turns near gaps"
+              hint="Off by default. Swiping a sticker near a gap can select a wide block; the gap itself remains inactive. Shift still makes a wide turn."
+              checked={readPreference(cookies, SEAM_WIDE_COOKIE)}
+              onChange={(on) => write(preferenceCookie(SEAM_WIDE_COOKIE, on))}
+            />
+            <SliderSetting
+              label="Start turning after"
+              hint="Shorter reacts sooner; longer ignores small slips."
+              min={SWIPE_RANGES.startPx.min}
+              max={SWIPE_RANGES.startPx.max}
+              step={1}
+              value={readSwipeTuning(cookies).startPx}
+              unit=" px"
+              onChange={(px) => write(numberCookie(SWIPE_START_COOKIE, px))}
+            />
+            <SliderSetting
+              label="Count a turn from"
+              hint="How far into a quarter turn a released layer keeps turning."
+              min={SWIPE_RANGES.commitPercent.min}
+              max={SWIPE_RANGES.commitPercent.max}
+              step={5}
+              value={Math.round(readSwipeTuning(cookies).commitFraction * 100)}
+              unit=" %"
+              onChange={(percent) =>
+                write(numberCookie(SWIPE_COMMIT_COOKIE, percent))
+              }
+            />
+            <SliderSetting
+              label="Flick strength"
+              hint="How far a quick swipe carries on; 0 turns flicks off."
+              min={SWIPE_RANGES.flickMs.min}
+              max={SWIPE_RANGES.flickMs.max}
+              step={20}
+              value={readSwipeTuning(cookies).flickMs}
+              unit=" ms"
+              onChange={(ms) => write(numberCookie(SWIPE_FLICK_COOKIE, ms))}
+            />
+          </Section>
 
-      <Section
-        id="settings-developer"
-        title="Developer"
-        hint="For saving capture fixtures into a checkout of the project with npm run fixture:server."
-      >
-        <ToggleSetting
-          label="Offer Upload to localhost"
-          hint="Off leaves only the zip download when saving a fixture."
-          checked={localUploadShown(cookies)}
-          onChange={(on) => write(preferenceCookie(LOCAL_UPLOAD_COOKIE, on))}
-        />
-        <TextSetting
-          key={readFixtureServer(cookies)}
-          label="Fixture server address"
-          hint="Where the published app sends uploads; npm run dev uses its own proxy."
-          value={readFixtureServer(cookies)}
-          placeholder={DEFAULT_FIXTURE_SERVER}
-          invalid="Use this computer, such as http://127.0.0.1:7100."
-          check={loopbackFixtureServer}
-          onChange={(address) =>
-            write(selectionCookie(FIXTURE_SERVER_URL_COOKIE, address))
-          }
-        />
-      </Section>
+          <Section id="settings-scramble" title="Scramble">
+            <ChoiceSetting
+              label="Scramble length"
+              hint="Normal is 20 moves on a 3×3, more on larger cubes."
+              value={readScrambleOptions(cookies).length}
+              options={[
+                { value: 'short', label: 'Short (half)' },
+                { value: 'normal', label: 'Normal' },
+                { value: 'long', label: 'Long (one and a half)' },
+              ]}
+              onChange={(length) =>
+                write(selectionCookie(SCRAMBLE_LENGTH_COOKIE, length))
+              }
+            />
+            <ToggleSetting
+              label="Turn inner layers"
+              hint="On 4×4 and larger cubes; off scrambles only the outer faces."
+              checked={readScrambleOptions(cookies).innerLayers}
+              onChange={(on) =>
+                write(preferenceCookie(SCRAMBLE_INNER_COOKIE, on))
+              }
+            />
+          </Section>
+
+          <Section id="settings-notation" title="Notation">
+            <ChoiceSetting
+              label="Write the cube as"
+              value={selectedNotationFormat(cookies)}
+              options={[
+                { value: 'wrg', label: 'Colors (WRG)' },
+                { value: 'urf', label: 'Faces (URF)' },
+              ]}
+              onChange={(format) =>
+                write(selectionCookie(NOTATION_COOKIE, format))
+              }
+            />
+          </Section>
+
+          <Section
+            id="settings-developer"
+            title="Developer"
+            hint="For saving capture fixtures into a checkout of the project with npm run fixture:server."
+          >
+            <ToggleSetting
+              label="Offer Upload to localhost"
+              hint="Off leaves only the zip download when saving a fixture."
+              checked={localUploadShown(cookies)}
+              onChange={(on) =>
+                write(preferenceCookie(LOCAL_UPLOAD_COOKIE, on))
+              }
+            />
+            <TextSetting
+              key={readFixtureServer(cookies)}
+              label="Fixture server address"
+              hint="Where the published app sends uploads; npm run dev uses its own proxy."
+              value={readFixtureServer(cookies)}
+              placeholder={DEFAULT_FIXTURE_SERVER}
+              invalid="Use this computer, such as http://127.0.0.1:7100."
+              check={loopbackFixtureServer}
+              onChange={(address) =>
+                write(selectionCookie(FIXTURE_SERVER_URL_COOKIE, address))
+              }
+            />
+          </Section>
+        </div>
+      </details>
 
       <div class="settings-reset">
         <button
