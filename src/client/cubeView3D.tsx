@@ -24,47 +24,29 @@ import {
   type TwoFingerLock,
   type PressLevel,
 } from './cubeGesture'
-import {
-  dragMeshKey,
-  finishTurn,
-  isInitialCube as isInitialCubeOf,
-  scrambleQueue,
-  settleTurn,
-  startTurn,
-  turnFrame,
-  type activeTurn as ActiveTurn,
-  type queuedTurn as QueuedTurn,
-} from '../core/view/TurnAnimation.gen'
-import {
-  MODE_CUE_GAIN,
-  magneticDragAngle,
-  playWideCue,
-  playTurnClick,
-  scrambleDuration,
-  turnClickGain,
-} from './turnFeel'
+import {} from '../core/view/TurnAnimation.gen'
+import { MODE_CUE_GAIN, playWideCue } from './turnFeel'
 import {
   STICKERLESS_COOKIE,
   preferenceCookie,
   readPreference,
-  readScrambleOptions,
   readSwipeTuning,
   readTurnFeel,
   turnSoundOn,
   vibrationOn,
   readVibrationMs,
 } from './preferences'
-import type { CubeState, FaceKey } from '../cube/cubeAssembly'
+import type { CubeState } from '../cube/cubeAssembly'
 
 import { AxisGizmo } from './axisGizmo'
 import { buildCubeMesh } from './cubeMesh'
 import { CubeView3DPresentation } from './cubeView3DPresentation'
 import { useCubeCamera } from './useCubeCamera'
+import { useCubeTurns } from './useCubeTurns'
 import { createCubeViewControls } from './cubeViewControls'
 import {
   createDragInteraction,
   type CubePointerGesture,
-  type DragTurn,
 } from './cubeDragInteraction'
 import {
   initProgram,
@@ -78,7 +60,6 @@ import {
 import {
   AUTO_ROTATE_RESUME_DELAY_MS,
   DEFAULT_STICKER_HEX,
-  generateScrambleMoves,
   type CubeTurn,
 } from './cubeView3DState'
 export * from './cubeMesh'
@@ -106,8 +87,6 @@ export function CubeView3D({
   stickerless = true,
 }: CubeView3DProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
-  const [currentCube, setCurrentCube] = useState<CubeState>(initialCube)
-  const [moves, setMoves] = useState<CubeTurn[]>(initialMoves)
   const {
     pitch,
     setPitch,
@@ -130,68 +109,30 @@ export function CubeView3D({
   const [isStickerless, setIsStickerless] = useState<boolean>(() =>
     readPreference(document.cookie, STICKERLESS_COOKIE, stickerless),
   )
-  const [isScrambling, setIsScrambling] = useState<boolean>(false)
-  const [isTurning, setIsTurning] = useState(false)
-
-  const currentCubeRef = useRef<CubeState>(initialCube)
-  currentCubeRef.current = currentCube
-  const movesRef = useRef(initialMoves)
-  movesRef.current = moves
-  const onTurnStateChangeRef = useRef(onTurnStateChange)
-  onTurnStateChangeRef.current = onTurnStateChange
-  const sourceCubeRef = useRef(cube)
-
-  useEffect(() => {
-    if (sourceCubeRef.current === cube) return
-    sourceCubeRef.current = cube
-    setCurrentCube(cube)
-    currentCubeRef.current = cube
-    movesRef.current = []
-    setMoves([])
-    turnQueueRef.current = []
-    currentTurnRef.current = null
-    dragTurnRef.current = null
-    setIsScrambling(false)
-    setIsTurning(false)
-    forceUpdateMeshRef.current = true
-  }, [cube])
-
-  // The turns waiting to play, and the one animating now (see
-  // TurnAnimation.res).
-  const turnQueueRef = useRef<QueuedTurn[]>([])
-  const currentTurnRef = useRef<ActiveTurn | null>(null)
-  const dragTurnRef = useRef<DragTurn | null>(null)
-  const forceUpdateMeshRef = useRef(false)
-
-  // Records a finished turn. A drag released short of a quarter turn
-  // springs back silently.
-  const applyTurn = (anim: ActiveTurn) => {
-    const turned = finishTurn(
-      currentCubeRef.current,
-      puzzleSize,
-      movesRef.current,
-      anim,
-    )
-    if (!turned) return
-    playTurnClick(turnClickGain(anim.duration, turnSoundOn(document.cookie)))
-    currentCubeRef.current = turned.cube
-    setCurrentCube(turned.cube)
-    movesRef.current = turned.moves
-    setMoves(turned.moves)
-    onTurnStateChangeRef.current?.(turned.cube, turned.moves)
-  }
-
-  // A press while the last turn settles finishes it at once, so swipes in
-  // quick succession each turn their layer instead of rotating the view.
-  const finishSettlingTurn = () => {
-    const anim = currentTurnRef.current
-    if (!anim || turnQueueRef.current.length > 0) return
-    currentTurnRef.current = null
-    applyTurn(anim)
-    forceUpdateMeshRef.current = true
-    setIsScrambling(false)
-    setIsTurning(false)
-  }
+  const {
+    currentCube,
+    currentCubeRef,
+    moves,
+    isScrambling,
+    isTurning,
+    setIsTurning,
+    dragTurnRef,
+    busy,
+    finishSettlingTurn,
+    settleDrag,
+    toggleScramble,
+    resetCube,
+    undoLastTurn,
+    isInitialCube,
+    advance,
+  } = useCubeTurns({
+    cube,
+    initialCube,
+    initialMoves,
+    puzzleSize,
+    onTurnStateChange,
+    pauseAutoRotation,
+  })
 
   useEffect(() => {
     document.cookie = preferenceCookie(STICKERLESS_COOKIE, isStickerless)
@@ -215,66 +156,6 @@ export function CubeView3D({
   )
   const lastFrameTimeRef = useRef<number | null>(null)
   const animFrameRef = useRef<number | null>(null)
-
-  const triggerTurn = (
-    face: FaceKey,
-    turns: number,
-    depth = 1,
-    undo = false,
-    width = 1,
-  ) => {
-    pauseAutoRotation()
-    turnQueueRef.current.push({
-      face,
-      depth,
-      width,
-      turns,
-      duration: readTurnFeel(document.cookie).turnMs,
-      undo,
-    })
-    setIsTurning(true)
-  }
-
-  const toggleScramble = () => {
-    pauseAutoRotation()
-    if (isScrambling) {
-      turnQueueRef.current = []
-      setIsScrambling(false)
-      if (!currentTurnRef.current) setIsTurning(false)
-    } else {
-      setIsScrambling(true)
-      setIsTurning(true)
-      const moves = generateScrambleMoves(
-        puzzleSize,
-        readScrambleOptions(document.cookie),
-      )
-      const duration = scrambleDuration(readTurnFeel(document.cookie).turnMs)
-      turnQueueRef.current = scrambleQueue(moves, duration)
-    }
-  }
-
-  const resetCube = () => {
-    turnQueueRef.current = []
-    currentTurnRef.current = null
-    dragTurnRef.current = null
-    setIsScrambling(false)
-    setIsTurning(false)
-    currentCubeRef.current = cube
-    setCurrentCube(cube)
-    movesRef.current = []
-    setMoves([])
-    onTurnStateChangeRef.current?.(cube, [])
-    forceUpdateMeshRef.current = true
-  }
-
-  const undoLastTurn = () => {
-    if (isTurning) return
-    const last = movesRef.current.at(-1)
-    if (last)
-      triggerTurn(last.face, -last.turns, last.depth, true, last.width ?? 1)
-  }
-
-  const isInitialCube = isInitialCubeOf(currentCube, cube)
 
   useEffect(() => {
     const canvas = canvasRef.current
@@ -370,108 +251,23 @@ export function CubeView3D({
       const elapsed = Math.min(time - (lastFrameTimeRef.current ?? time), 50)
       lastFrameTimeRef.current = time
 
-      // Handle layer turn animation & mesh updates
-      if (forceUpdateMeshRef.current) {
-        forceUpdateMeshRef.current = false
-        const updatedMesh = buildCubeMesh(
+      const update = advance(time, magnetic)
+      if (update) {
+        const next = buildCubeMesh(
           currentCubeRef.current,
           puzzleSize,
           palette,
           isStickerless,
+          update.layer,
         )
         gl.bindBuffer(gl.ARRAY_BUFFER, posBuf)
-        gl.bufferSubData(gl.ARRAY_BUFFER, 0, updatedMesh.positions)
+        gl.bufferSubData(gl.ARRAY_BUFFER, 0, next.positions)
         gl.bindBuffer(gl.ARRAY_BUFFER, normBuf)
-        gl.bufferSubData(gl.ARRAY_BUFFER, 0, updatedMesh.normals)
-        gl.bindBuffer(gl.ARRAY_BUFFER, colBuf)
-        gl.bufferSubData(gl.ARRAY_BUFFER, 0, updatedMesh.colors)
-      } else if (currentTurnRef.current) {
-        const anim = currentTurnRef.current
-        const { angle: currentAngle, finished } = turnFrame(anim, time)
-
-        const turnMesh = buildCubeMesh(
-          currentCubeRef.current,
-          puzzleSize,
-          palette,
-          isStickerless,
-          {
-            face: anim.face,
-            depth: anim.depth,
-            width: anim.width,
-            angle: currentAngle,
-          },
-        )
-        gl.bindBuffer(gl.ARRAY_BUFFER, posBuf)
-        gl.bufferSubData(gl.ARRAY_BUFFER, 0, turnMesh.positions)
-        gl.bindBuffer(gl.ARRAY_BUFFER, normBuf)
-        gl.bufferSubData(gl.ARRAY_BUFFER, 0, turnMesh.normals)
-
-        if (finished) {
-          applyTurn(anim)
-
-          const finalMesh = buildCubeMesh(
-            currentCubeRef.current,
-            puzzleSize,
-            palette,
-            isStickerless,
-          )
-          gl.bindBuffer(gl.ARRAY_BUFFER, posBuf)
-          gl.bufferSubData(gl.ARRAY_BUFFER, 0, finalMesh.positions)
-          gl.bindBuffer(gl.ARRAY_BUFFER, normBuf)
-          gl.bufferSubData(gl.ARRAY_BUFFER, 0, finalMesh.normals)
+        gl.bufferSubData(gl.ARRAY_BUFFER, 0, next.normals)
+        if (update.colors) {
           gl.bindBuffer(gl.ARRAY_BUFFER, colBuf)
-          gl.bufferSubData(gl.ARRAY_BUFFER, 0, finalMesh.colors)
-
-          if (turnQueueRef.current.length > 0) {
-            const next = turnQueueRef.current.shift()!
-            currentTurnRef.current = startTurn(
-              next,
-              time,
-              readTurnFeel(document.cookie).overshoot,
-              90,
-            )
-          } else {
-            currentTurnRef.current = null
-            setIsScrambling(false)
-            setIsTurning(false)
-          }
+          gl.bufferSubData(gl.ARRAY_BUFFER, 0, next.colors)
         }
-      } else if (dragTurnRef.current) {
-        // Queued turns wait until the finger lets go of the layer. With
-        // the magnetic snap each quarter turn holds it like a magnet.
-        const drag = dragTurnRef.current
-        const angle = magnetic ? magneticDragAngle(drag.angle) : drag.angle
-        const shown = dragMeshKey(drag.layer, angle, drag.highlight === true)
-        if (drag.drawn !== shown) {
-          drag.drawn = shown
-          const dragMesh = buildCubeMesh(
-            currentCubeRef.current,
-            puzzleSize,
-            palette,
-            isStickerless,
-            {
-              face: drag.layer.face,
-              depth: drag.layer.depth,
-              width: drag.layer.width,
-              angle,
-              highlight: drag.highlight,
-            },
-          )
-          gl.bindBuffer(gl.ARRAY_BUFFER, posBuf)
-          gl.bufferSubData(gl.ARRAY_BUFFER, 0, dragMesh.positions)
-          gl.bindBuffer(gl.ARRAY_BUFFER, normBuf)
-          gl.bufferSubData(gl.ARRAY_BUFFER, 0, dragMesh.normals)
-          gl.bindBuffer(gl.ARRAY_BUFFER, colBuf)
-          gl.bufferSubData(gl.ARRAY_BUFFER, 0, dragMesh.colors)
-        }
-      } else if (turnQueueRef.current.length > 0) {
-        const next = turnQueueRef.current.shift()!
-        currentTurnRef.current = startTurn(
-          next,
-          time,
-          readTurnFeel(document.cookie).overshoot,
-          160,
-        )
       }
       stepCamera(time, elapsed)
 
@@ -612,25 +408,6 @@ export function CubeView3D({
     setIsTurning,
   })
 
-  // Hands a released drag to the turn animation, which settles the layer on
-  // whole quarter turns from where the finger left it.
-  const settleDrag = (turns: number, speed = 0) => {
-    const drag = dragTurnRef.current
-    if (!drag) return
-    dragTurnRef.current = null
-    const feel = readTurnFeel(document.cookie)
-    turnQueueRef.current.unshift(
-      settleTurn(
-        drag.layer,
-        // From where the magnet held it on screen, so it doesn't jump.
-        feel.overshoot ? magneticDragAngle(drag.angle) : drag.angle,
-        turns,
-        feel.turnMs,
-        speed,
-      ),
-    )
-  }
-
   // Two fingers put down on the cube turn the whole cube once they move
   // together (a tilt, see twoFingerLock): the sticker under their midpoint
   // and where the midpoint started. Beside the cube they rotate the view.
@@ -705,10 +482,7 @@ export function CubeView3D({
   // Where two fingers meet, over the cube if they are, while no turn plays.
   const cubeUnder = (clientX: number, clientY: number) => {
     const rect = canvasRef.current?.getBoundingClientRect()
-    return rect &&
-      !currentTurnRef.current &&
-      !dragTurnRef.current &&
-      turnQueueRef.current.length === 0
+    return rect && !busy()
       ? pickCubeSurface(
           clientX - rect.left,
           clientY - rect.top,
@@ -764,10 +538,7 @@ export function CubeView3D({
     finishSettlingTurn()
     const rect = canvasRef.current?.getBoundingClientRect()
     const hit =
-      rect &&
-      !currentTurnRef.current &&
-      !dragTurnRef.current &&
-      turnQueueRef.current.length === 0
+      rect && !busy()
         ? pickCubeSurface(
             e.clientX - rect.left,
             e.clientY - rect.top,
