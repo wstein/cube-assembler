@@ -6,6 +6,7 @@ import {
   readPreference,
 } from '../preferences'
 import type { CubeState } from '../../cube/cubeAssembly'
+import type { colorFrame as ColorFrame } from '../../core/view/AxisGizmo.gen'
 
 import { AxisGizmo } from './axisGizmo'
 import { CubeView3DPresentation } from './cubeView3DPresentation'
@@ -20,7 +21,12 @@ export interface CubeView3DProps {
   cube: CubeState
   initialCube?: CubeState
   initialMoves?: CubeTurn[]
-  onTurnStateChange?: (cube: CubeState, moves: CubeTurn[]) => void
+  initialFrame?: ColorFrame
+  onTurnStateChange?: (
+    cube: CubeState,
+    moves: CubeTurn[],
+    frame: ColorFrame,
+  ) => void
   puzzleSize: number
   palette?: Record<string, string>
   stickerless?: boolean
@@ -31,6 +37,7 @@ export function CubeView3D({
   cube,
   initialCube = cube,
   initialMoves = [],
+  initialFrame,
   onTurnStateChange,
   puzzleSize,
   palette = DEFAULT_STICKER_HEX,
@@ -60,8 +67,8 @@ export function CubeView3D({
     readPreference(document.cookie, STICKERLESS_COOKIE, stickerless),
   )
   const {
-    currentCube,
     currentCubeRef,
+    frame,
     moves,
     isScrambling,
     isTurning,
@@ -79,6 +86,7 @@ export function CubeView3D({
     cube,
     initialCube,
     initialMoves,
+    initialFrame,
     puzzleSize,
     onTurnStateChange,
     pauseAutoRotation,
@@ -154,13 +162,7 @@ export function CubeView3D({
       handlePointerUp={handlePointerUp}
       handleWheel={handleCubeWheel}
       gizmo={
-        <AxisGizmo
-          cube={currentCube}
-          puzzleSize={puzzleSize}
-          pitch={pitch}
-          yaw={yaw}
-          palette={palette}
-        />
+        <AxisGizmo frame={frame} pitch={pitch} yaw={yaw} palette={palette} />
       }
       pressMode={pressMode}
       coarsePointer={coarsePointer}

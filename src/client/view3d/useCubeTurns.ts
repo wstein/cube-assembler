@@ -11,6 +11,11 @@ import {
   type queuedTurn as QueuedTurn,
 } from '../../core/view/TurnAnimation.gen'
 import type { CubeState, FaceKey } from '../../cube/cubeAssembly'
+import {
+  advanceColorFrame,
+  initialColorFrame,
+  type colorFrame as ColorFrame,
+} from '../../core/view/AxisGizmo.gen'
 import type { DragTurn } from './cubeDragInteraction'
 import type { buildCubeMesh } from './cubeMesh'
 import { generateScrambleMoves, type CubeTurn } from './cubeView3DState'
@@ -34,8 +39,13 @@ interface CubeTurnsOptions {
   cube: CubeState
   initialCube: CubeState
   initialMoves: CubeTurn[]
+  initialFrame?: ColorFrame
   puzzleSize: number
-  onTurnStateChange?: (cube: CubeState, moves: CubeTurn[]) => void
+  onTurnStateChange?: (
+    cube: CubeState,
+    moves: CubeTurn[],
+    frame: ColorFrame,
+  ) => void
   pauseAutoRotation: () => void
 }
 
@@ -46,12 +56,16 @@ export function useCubeTurns({
   cube,
   initialCube,
   initialMoves,
+  initialFrame,
   puzzleSize,
   onTurnStateChange,
   pauseAutoRotation,
 }: CubeTurnsOptions) {
   const [currentCube, setCurrentCube] = useState<CubeState>(initialCube)
   const [moves, setMoves] = useState<CubeTurn[]>(initialMoves)
+  const [frame, setFrame] = useState<ColorFrame>(
+    () => initialFrame ?? initialColorFrame(cube, puzzleSize),
+  )
   const [isScrambling, setIsScrambling] = useState<boolean>(false)
   const [isTurning, setIsTurning] = useState(false)
 
@@ -59,6 +73,8 @@ export function useCubeTurns({
   currentCubeRef.current = currentCube
   const movesRef = useRef(initialMoves)
   movesRef.current = moves
+  const frameRef = useRef(frame)
+  frameRef.current = frame
   const onTurnStateChangeRef = useRef(onTurnStateChange)
   onTurnStateChangeRef.current = onTurnStateChange
   const sourceCubeRef = useRef(cube)
@@ -77,6 +93,9 @@ export function useCubeTurns({
     currentCubeRef.current = cube
     movesRef.current = []
     setMoves([])
+    const resetFrame = initialColorFrame(cube, puzzleSize)
+    frameRef.current = resetFrame
+    setFrame(resetFrame)
     turnQueueRef.current = []
     currentTurnRef.current = null
     dragTurnRef.current = null
@@ -100,7 +119,17 @@ export function useCubeTurns({
     setCurrentCube(turned.cube)
     movesRef.current = turned.moves
     setMoves(turned.moves)
-    onTurnStateChangeRef.current?.(turned.cube, turned.moves)
+    const nextFrame = advanceColorFrame(
+      frameRef.current,
+      puzzleSize,
+      anim.face,
+      anim.depth ?? 1,
+      anim.turns,
+      anim.width ?? 1,
+    )
+    frameRef.current = nextFrame
+    setFrame(nextFrame)
+    onTurnStateChangeRef.current?.(turned.cube, turned.moves, nextFrame)
   }
 
   // A press while the last turn settles finishes it at once, so swipes in
@@ -168,7 +197,10 @@ export function useCubeTurns({
     setCurrentCube(cube)
     movesRef.current = []
     setMoves([])
-    onTurnStateChangeRef.current?.(cube, [])
+    const resetFrame = initialColorFrame(cube, puzzleSize)
+    frameRef.current = resetFrame
+    setFrame(resetFrame)
+    onTurnStateChangeRef.current?.(cube, [], resetFrame)
     forceUpdateMeshRef.current = true
   }
 
@@ -265,8 +297,8 @@ export function useCubeTurns({
   }
 
   return {
-    currentCube,
     currentCubeRef,
+    frame,
     moves,
     isScrambling,
     isTurning,

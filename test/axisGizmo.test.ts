@@ -1,11 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import {
-  gizmoAxes,
-  gizmoCamera,
-  gizmoFaceColors,
-} from '../src/core/view/AxisGizmo.gen'
-import { createSolvedCube } from '../src/cube/cubeAssembly'
-import { applyCubeLayerMove } from '../src/cube/cubeMoves'
+import { gizmoAxes, gizmoCamera } from '../src/core/view/AxisGizmo.gen'
 import {
   ISOMETRIC_PITCH,
   ISOMETRIC_YAW,
@@ -38,39 +32,4 @@ describe('axis gizmo', () => {
     expect(axes.at(-1)?.name).toBe('z')
     for (const axis of axes) expect(axis.center).toEqual([48, 48])
   })
-
-  it('colors each axis by the face it points through now', () => {
-    expect(gizmoFaceColors(createSolvedCube(3), 3)).toEqual({
-      U: 'W',
-      R: 'R',
-      F: 'G',
-      D: 'Y',
-      L: 'O',
-      B: 'B',
-    })
-    // After y the front shows what was on the right.
-    const turned = applyCubeLayerMove(createSolvedCube(4), 4, 'U', 4, 1, 4)
-    expect(gizmoFaceColors(turned, 4)).toMatchObject({ F: 'R', U: 'W' })
-    // A scrambled face reads as its center majority; a 2x2 as all four.
-    let cube = createSolvedCube(5)
-    cube = applyCubeLayerMove(cube, 5, 'R', 1, 1, 1)
-    cube = applyCubeLayerMove(cube, 5, 'U', 1, 1, 1)
-    expect(gizmoFaceColors(cube, 5)).toMatchObject({ U: 'W', F: 'G' })
-    expect(gizmoFaceColors(createSolvedCube(2), 2).F).toBe('G')
-  })
-
-  it.each([3, 5, 7])(
-    'tracks M, E, and S by the fixed centers on a %i cube',
-    (size) => {
-      const solved = createSolvedCube(size)
-      const middle = (size + 1) / 2
-      for (const face of ['L', 'D', 'F'] as const) {
-        const slice = applyCubeLayerMove(solved, size, face, middle, 1)
-        const axis = applyCubeLayerMove(solved, size, face, size, 1, size)
-        expect(gizmoFaceColors(slice, size)).toEqual(
-          gizmoFaceColors(axis, size),
-        )
-      }
-    },
-  )
 })

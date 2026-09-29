@@ -1,12 +1,11 @@
 // The 3D view's X/Y/Z gizmo (see src/core/view/AxisGizmo.res): arrows from
-// the cube's center through R, U and F, turned with the view and colored
-// by the faces there now. It only shows the orientation; touches pass
+// the cube's center through R, U and F, colored by the virtual reference
+// frame. It only shows the orientation; touches pass
 // through to the canvas.
-import type { CubeState } from '../../cube/cubeAssembly'
 import {
   gizmoAxes,
   gizmoCamera,
-  gizmoFaceColors,
+  type colorFrame as ColorFrame,
 } from '../../core/view/AxisGizmo.gen'
 
 // The gizmo's drawing units; CSS scales it.
@@ -35,21 +34,21 @@ function arrowhead(
 }
 
 interface AxisGizmoProps {
-  cube: CubeState
-  puzzleSize: number
+  frame: ColorFrame
   pitch: number
   yaw: number
   palette: Record<string, string>
 }
 
-export function AxisGizmo({
-  cube,
-  puzzleSize,
-  pitch,
-  yaw,
-  palette,
-}: AxisGizmoProps) {
-  const colors = gizmoFaceColors(cube, puzzleSize)
+export function AxisGizmo({ frame, pitch, yaw, palette }: AxisGizmoProps) {
+  const colors = {
+    U: frame.u,
+    R: frame.r,
+    F: frame.f,
+    D: frame.d,
+    L: frame.l,
+    B: frame.b,
+  }
   return (
     <svg
       class="cube-3d-gizmo"

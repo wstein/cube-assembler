@@ -3,6 +3,7 @@ import type { CubeState } from '../cube/cubeAssembly'
 import type { ParityResult } from '../cube/parity'
 import type { FaceCaptureData } from './capture/captureTypes'
 import type { CubeTurn } from './view3d/cubeView3DState'
+import type { colorFrame as ColorFrame } from '../core/view/AxisGizmo.gen'
 import { CubeNetView } from './cubeNetView'
 
 const CubeView3D = lazy(() =>
@@ -33,8 +34,13 @@ interface CubeDisplayCardProps {
   confidenceTier: (confidence: number) => 'high' | 'medium' | 'low'
   viewMode: 'net' | '3d'
   initialMoves: CubeTurn[]
+  initialFrame?: ColorFrame
   onViewModeChange: (mode: 'net' | '3d') => void
-  onTurnStateChange: (cube: CubeState, moves: CubeTurn[]) => void
+  onTurnStateChange: (
+    cube: CubeState,
+    moves: CubeTurn[],
+    frame: ColorFrame,
+  ) => void
 }
 
 export function CubeDisplayCard({
@@ -49,6 +55,7 @@ export function CubeDisplayCard({
   confidenceTier,
   viewMode,
   initialMoves,
+  initialFrame,
   onViewModeChange,
   onTurnStateChange,
 }: CubeDisplayCardProps) {
@@ -98,6 +105,7 @@ export function CubeDisplayCard({
             cube={sourceCube}
             initialCube={visibleCube}
             initialMoves={initialMoves}
+            initialFrame={initialFrame}
             onTurnStateChange={onTurnStateChange}
             puzzleSize={size}
             palette={stickerColors}

@@ -51,6 +51,7 @@ export function useScannerAppModel() {
     source: CubeState
     value: CubeState
     moves: import('./view3d/cubeView3DState').CubeTurn[]
+    frame: import('../core/view/AxisGizmo.gen').colorFrame
   } | null>(null)
   const [webcamOpen, setWebcamOpen] = useState(false)
   const {

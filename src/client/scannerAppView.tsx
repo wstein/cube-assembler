@@ -373,9 +373,12 @@ export function ScannerAppView({ model }: { model: ScannerAppModel }) {
             initialMoves={
               turnedCube?.source === baseCube ? turnedCube.moves : []
             }
+            initialFrame={
+              turnedCube?.source === baseCube ? turnedCube.frame : undefined
+            }
             onViewModeChange={setCubeViewMode}
-            onTurnStateChange={(value, moves) =>
-              setTurnedCube({ source: baseCube, value, moves })
+            onTurnStateChange={(value, moves, frame) =>
+              setTurnedCube({ source: baseCube, value, moves, frame })
             }
           />
 

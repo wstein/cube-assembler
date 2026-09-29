@@ -13,4 +13,6 @@ type gizmoAxis = {
 }
 
 @genType let gizmoAxes: CubeGesture.camera => array<gizmoAxis>
-@genType let gizmoFaceColors: (CubeState.cubeState, int) => Dict.t<string>
+@genType type colorFrame = {u: string, r: string, f: string, d: string, l: string, b: string}
+@genType let initialColorFrame: (CubeState.cubeState, int) => colorFrame
+@genType let advanceColorFrame: (colorFrame, int, CubeState.faceKey, int, int, int) => colorFrame

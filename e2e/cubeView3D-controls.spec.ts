@@ -43,6 +43,9 @@ test('the X/Y/Z gizmo follows the view and the faces it points through', async (
   page,
 }) => {
   await page.goto('/')
+  await page
+    .getByRole('combobox', { name: 'Cube' })
+    .selectOption({ label: '2×2' })
   await page.getByRole('button', { name: 'Solved cube' }).click()
   await page.getByRole('button', { name: '3D View' }).click()
   await page.getByRole('button', { name: 'Front (F)' }).click()
@@ -78,19 +81,55 @@ test('the X/Y/Z gizmo follows the view and the faces it points through', async (
       clientY: cy,
       bubbles: true,
     })
-  await touch('pointerdown', 1, cx - 40)
-  await touch('pointerdown', 2, cx + 40)
-  for (let step = 1; step <= 8; step++) {
-    await touch('pointermove', 1, cx - 40 - step * 15)
-    await touch('pointermove', 2, cx + 40 - step * 15)
+  const turnY = async () => {
+    await touch('pointerdown', 1, cx - 40)
+    await touch('pointerdown', 2, cx + 40)
+    for (let step = 1; step <= 8; step++) {
+      await touch('pointermove', 1, cx - 40 - step * 15)
+      await touch('pointermove', 2, cx + 40 - step * 15)
+    }
+    await page.waitForTimeout(150)
+    await touch('pointerup', 1, cx - 160)
+    await touch('pointerup', 2, cx - 80)
   }
-  await page.waitForTimeout(150)
-  await touch('pointerup', 1, cx - 160)
-  await touch('pointerup', 2, cx - 80)
+  await turnY()
   await expect(page.getByRole('status', { name: 'Move history' })).toHaveText(
     'Moves: y',
   )
   await expect.poll(zColor).not.toBe(green)
+  const turned = await zColor()
+  await page.getByRole('button', { name: '2D Net' }).click()
+  await page.getByRole('button', { name: '3D View' }).click()
+  await expect.poll(zColor).toBe(turned)
+  await page.getByRole('button', { name: 'Undo', exact: true }).click()
+  await expect.poll(zColor).toBe(green)
+  await turnY()
+  await expect.poll(zColor).toBe(turned)
+  await page.getByRole('button', { name: 'Reset', exact: true }).click()
+  await expect.poll(zColor).toBe(green)
+})
+
+test('a 4x4 scramble and Undo leave the invisible axis colors stable', async ({
+  page,
+}) => {
+  await page.goto('/')
+  await page
+    .getByRole('combobox', { name: 'Cube' })
+    .selectOption({ label: '4×4' })
+  await page.getByRole('button', { name: 'Solved cube' }).click()
+  await page.getByRole('button', { name: '3D View' }).click()
+  const z = page.locator('.cube-3d-gizmo [data-axis="z"]')
+  const color = () => z.evaluate((el) => getComputedStyle(el).color)
+  const green = await color()
+  await page.getByRole('button', { name: 'Scramble', exact: true }).click()
+  await expect(
+    page.getByRole('button', { name: 'Scramble', exact: true }),
+  ).toBeVisible()
+  await expect.poll(color).toBe(green)
+  await page.getByRole('button', { name: 'Undo', exact: true }).click()
+  await expect.poll(color).toBe(green)
+  await page.getByRole('button', { name: 'Reset', exact: true }).click()
+  await expect.poll(color).toBe(green)
 })
 
 for (const size of [3, 5, 7]) {
