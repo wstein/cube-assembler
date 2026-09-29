@@ -1,15 +1,10 @@
 // The Colors tab of the profiles page: compare saved sticker color profiles,
 // delete them, merge the ones that only differ by room light, and try two
 // profiles on the last capture. All grouping and merging logic lives in colorProfileReview.ts.
-import { useMemo, useState } from 'preact/hooks'
+import { useState } from 'preact/hooks'
 import {
-  AVERAGE_LIMIT_FRACTION,
   colorDeletionEffects,
   deleteColorProfiles,
-  groupDifferences,
-  groupSimilarProfiles,
-  mergeColorProfiles,
-  mergedColors,
   unusedColorProfiles,
   whiteBalancedColors,
   type ReviewFace,
@@ -17,6 +12,7 @@ import {
 import { DeleteButton, SelectionBar } from './profileDeletion'
 import { NAMES, ORDER, Swatch } from './colorReviewParts'
 import { TryOnSection } from './colorTryOnSection'
+import { SimilarProfilesSection } from './colorGroupsSection'
 import {
   AdvancedSection,
   PairsSection,
@@ -32,8 +28,6 @@ import {
   type ColorProfile,
   type ProfileSettings,
 } from './profileSettings'
-
-const DEFAULT_LIMIT = 3
 
 export interface ReviewCapture {
   // Per face in capture order: reviewed colors and measured sticker colors.
@@ -66,9 +60,6 @@ export function ColorReviewTab({ settings, onChange, capture }: Props) {
       builtinColorProfiles().find((p) => p.id !== a)!.id,
   )
   const [balanced, setBalanced] = useState(true)
-  const [limit, setLimit] = useState(DEFAULT_LIMIT)
-  const [unticked, setUnticked] = useState<Set<string>>(new Set())
-  const [names, setNames] = useState<Record<string, string>>({})
   const [undo, setUndo] = useState<ProfileSettings[]>([])
   const [message, setMessage] = useState('')
   const [selected, setSelected] = useState<string[]>([])
@@ -81,20 +72,6 @@ export function ColorReviewTab({ settings, onChange, capture }: Props) {
     B = byId(b)
   const colorsA = shown(A),
     colorsB = shown(B)
-
-  const groups = useMemo(
-    () => groupSimilarProfiles(saved, limit),
-    [saved, limit],
-  )
-  const mergeable = groups.filter((group) => group.length > 1)
-  const distinct = groups
-    .filter((group) => group.length === 1)
-    .map((group) => group[0])
-  const groupKey = (group: ColorProfile[]) =>
-    group
-      .map((p) => p.id)
-      .sort()
-      .join('+')
 
   const undoLast = () => {
     const previous = undo[undo.length - 1]
@@ -141,32 +118,6 @@ export function ColorReviewTab({ settings, onChange, capture }: Props) {
     onChange(next)
     setMessage(text)
   }
-  const merge = (group: ColorProfile[], name: string) => {
-    const ticked = group.filter((p) => !unticked.has(p.id))
-    try {
-      const { settings: next, profile } = mergeColorProfiles(
-        settings,
-        ticked.map((p) => p.id),
-        name,
-        new Date().toISOString(),
-      )
-      if (ticked.some((p) => p.id === a)) setA(profile.id)
-      if (ticked.some((p) => p.id === b)) setB(profile.id)
-      commit(
-        next,
-        `Merged ${ticked.length} profiles into “${profile.name}” and deleted them.`,
-      )
-    } catch (err) {
-      setMessage(`❌ ${err instanceof Error ? err.message : 'Merge failed'}`)
-    }
-  }
-  const toggle = (id: string, on: boolean) => {
-    const next = new Set(unticked)
-    if (on) next.delete(id)
-    else next.add(id)
-    setUnticked(next)
-  }
-
   return (
     <>
       <div
@@ -227,186 +178,20 @@ export function ColorReviewTab({ settings, onChange, capture }: Props) {
         </label>
       </div>
 
-      <section
-        class="card color-review-section"
-        aria-labelledby="review-groups"
-      >
-        <h2 id="review-groups">Similar profiles</h2>
-        <p class="color-review-muted">
-          Captures are white balanced, so a profile should describe the
-          stickers, not the room light. Each profile is scaled so its own White
-          is neutral; profiles form a group when none of Yellow, Orange, Red,
-          Green and Blue differs by more than the limit between any two of them,
-          and their average difference stays within two thirds of it. Tick the
-          profiles to merge and name the new one: the ticked profiles are
-          deleted, and the selected or automatically matched profile moves to
-          the new one.
-        </p>
-        <div class="color-review-limit">
-          <label for="review-limit">Max color difference (ΔE)</label>
-          <input
-            type="range"
-            id="review-limit"
-            min="2"
-            max="8"
-            step="0.5"
-            value={limit}
-            onInput={(e) => setLimit(Number(e.currentTarget.value))}
-          />
-          <span class="mono">
-            worst color ≤ {limit.toFixed(1)} · average ≤{' '}
-            {(limit * AVERAGE_LIMIT_FRACTION).toFixed(1)}
-          </span>
-          <span class="color-review-muted">
-            {saved.length} profiles → {groups.length} if every group is merged
-          </span>
-        </div>
-        {status}
-        {saved.length < 2 && (
-          <p class="color-review-muted">
-            Save at least two color profiles to find similar ones.
-          </p>
-        )}
-        <div class="color-review-groups">
-          {mergeable.map((group, n) => {
-            const key = groupKey(group)
-            const ticked = group.filter((p) => !unticked.has(p.id))
-            const differences =
-              ticked.length >= 2 ? groupDifferences(ticked) : null
-            const name = names[key] ?? `Merged colors ${n + 1}`
-            const preview = ticked.length >= 2 ? mergedColors(ticked) : null
-            return (
-              <div class="color-review-group" key={key}>
-                <div class="color-review-group-head">
-                  <strong>
-                    Group {n + 1} · {group.length} profiles
-                  </strong>
-                  {differences && (
-                    <span
-                      class={`color-review-pill ${differences.worst.value <= limit * AVERAGE_LIMIT_FRACTION ? 'ok' : 'warn'}`}
-                    >
-                      largest: {NAMES[differences.worst.color]}{' '}
-                      {differences.worst.value.toFixed(1)}
-                    </span>
-                  )}
-                </div>
-                {differences && (
-                  <p
-                    class="color-review-differences"
-                    aria-label="Largest difference per color"
-                  >
-                    {(['Y', 'O', 'R', 'G', 'B'] as const).map((k) => (
-                      <span
-                        key={k}
-                        class={k === differences.worst.color ? 'worst' : ''}
-                        title={`${NAMES[k]}: largest difference ${differences.byColor[k].toFixed(2)}`}
-                      >
-                        {k} {differences.byColor[k].toFixed(1)}
-                      </span>
-                    ))}
-                    <span class="average">
-                      avg {differences.average.toFixed(1)}
-                    </span>
-                  </p>
-                )}
-                <div class="color-review-plate color-review-strips">
-                  {group.map((p) => {
-                    const on = !unticked.has(p.id),
-                      colors = whiteBalancedColors(p.colors)
-                    return (
-                      <div
-                        class={`color-review-strip ${on ? '' : 'off'}`}
-                        key={p.id}
-                      >
-                        <label title={p.name}>
-                          <input
-                            type="checkbox"
-                            checked={on}
-                            onChange={(e) =>
-                              toggle(p.id, e.currentTarget.checked)
-                            }
-                          />
-                          <span class="color-review-strip-name">{p.name}</span>
-                        </label>
-                        {ORDER.map((k) => (
-                          <Swatch
-                            key={k}
-                            color={colors[k]}
-                            class="color-review-dot"
-                          />
-                        ))}
-                      </div>
-                    )
-                  })}
-                  <div class="color-review-strip merged">
-                    <span class="color-review-strip-name">
-                      {preview ? 'New profile' : 'Tick at least two profiles'}
-                    </span>
-                    {preview &&
-                      ORDER.map((k) => (
-                        <Swatch
-                          key={k}
-                          color={whiteBalancedColors(preview)[k]}
-                          class="color-review-dot"
-                        />
-                      ))}
-                  </div>
-                </div>
-                <label class="color-review-field" for={`review-name-${n}`}>
-                  New profile name
-                </label>
-                <input
-                  type="text"
-                  id={`review-name-${n}`}
-                  class="color-review-name"
-                  maxLength={60}
-                  value={name}
-                  onInput={(e) =>
-                    setNames({ ...names, [key]: e.currentTarget.value })
-                  }
-                />
-                <div class="color-review-toolbar">
-                  <button
-                    type="button"
-                    class="btn btn-primary btn-sm"
-                    disabled={ticked.length < 2 || !name.trim()}
-                    onClick={() => merge(group, name)}
-                  >
-                    Merge {ticked.length} into new profile (deletes originals)
-                  </button>
-                  <button
-                    type="button"
-                    class="btn btn-secondary btn-sm"
-                    disabled={ticked.length < 2}
-                    onClick={() => {
-                      setA(ticked[0].id)
-                      setB(ticked[1].id)
-                    }}
-                  >
-                    Compare first two
-                  </button>
-                </div>
-                {ticked.length >= 2 && (
-                  <p class="color-review-note">
-                    Deletes {ticked.map((p) => p.name).join(', ')}.
-                  </p>
-                )}
-              </div>
-            )
-          })}
-        </div>
-        {saved.length >= 2 && mergeable.length === 0 && (
-          <p class="color-review-muted">
-            No profiles are this close. Raise the limit to see candidates.
-          </p>
-        )}
-        {distinct.length > 0 && mergeable.length > 0 && (
-          <p class="color-review-note">
-            <strong>Distinct</strong> (no partner within the limit):{' '}
-            {distinct.map((p) => p.name).join(', ')}
-          </p>
-        )}
-      </section>
+      <SimilarProfilesSection
+        settings={settings}
+        status={status}
+        commit={commit}
+        setMessage={setMessage}
+        onMerged={(ids, id) => {
+          if (ids.includes(a)) setA(id)
+          if (ids.includes(b)) setB(id)
+        }}
+        onCompare={(first, second) => {
+          setA(first)
+          setB(second)
+        }}
+      />
 
       <section class="card color-review-section" aria-labelledby="review-all">
         <h2 id="review-all">All profiles</h2>
