@@ -40,10 +40,10 @@ function loadFaces(): Face[] {
       const image = jpeg.decode(
         readFileSync(join(root, name, meta.faces[face].photo)),
       )
-      // At most the guide of a 720p camera (432 px), nearest-neighbour,
-      // which keeps this test in seconds.
+      // Keep the saved-photo cases small enough for the detector regression
+      // suite to run quickly, while retaining multiple pixels per 7x7 cell.
       const source = Math.min(image.width, image.height)
-      const size = Math.min(source, 432)
+      const size = Math.min(source, 320)
       const data = new Uint8ClampedArray(size * size * 4)
       for (let y = 0; y < size; y++) {
         const sy = Math.floor((y * source) / size)
