@@ -54,6 +54,7 @@ export function CubeView3D({
     pauseAutoRotation,
     rotateView,
     stepCamera,
+    isCameraIdle,
     gestureCamera,
     isRotating,
     toggleAutoRotate,
@@ -98,6 +99,7 @@ export function CubeView3D({
       stepCamera(time, elapsed)
       return update
     },
+    isIdle: (time) => !busy() && isCameraIdle(time),
   })
 
   useEffect(() => {

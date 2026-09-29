@@ -13,3 +13,16 @@ export async function swipeFrontFace(page: Page, dx = -38) {
   await page.mouse.move(x, y - 70, { steps: 5 })
   await page.mouse.up()
 }
+
+// The renderer sets this after drawing each frame, once turns, camera inertia,
+// and auto-rotation have stopped.
+export async function waitForCubeIdle(page: Page) {
+  const canvas = page.locator('.cube-3d-canvas')
+  await canvas.evaluate(
+    () =>
+      new Promise<void>((resolve) => {
+        requestAnimationFrame(() => requestAnimationFrame(() => resolve()))
+      }),
+  )
+  await expect(canvas).toHaveAttribute('data-idle', 'true')
+}

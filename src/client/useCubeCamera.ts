@@ -85,6 +85,12 @@ export function useCubeCamera(puzzleSize: number) {
     }
   }
 
+  const isCameraIdle = (time: number) =>
+    !isDraggingRef.current &&
+    inertiaRef.current.yaw === 0 &&
+    inertiaRef.current.pitch === 0 &&
+    (!stateRef.current.isRotating || time < resumeAutoAtRef.current)
+
   const gestureCamera = (rect: DOMRect): CubeGestureCamera => ({
     width: rect.width,
     height: rect.height,
@@ -116,6 +122,7 @@ export function useCubeCamera(puzzleSize: number) {
     pauseAutoRotation,
     rotateView,
     stepCamera,
+    isCameraIdle,
     gestureCamera,
     toggleAutoRotate,
   }

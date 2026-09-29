@@ -24,6 +24,7 @@ interface CubeRendererOptions {
   viewRef: MutableRef<{ pitch: number; yaw: number; zoom: number }>
   // Advances the view by `elapsed` ms and says what the mesh must show.
   onFrame: (time: number, elapsed: number) => MeshUpdate | null
+  isIdle: (time: number) => boolean
 }
 
 // Draws the cube and its shadow with WebGL every animation frame. False
@@ -37,12 +38,15 @@ export function useCubeRenderer({
   isStickerless,
   viewRef,
   onFrame,
+  isIdle,
 }: CubeRendererOptions) {
   const [isSupported, setIsSupported] = useState<boolean>(true)
   const lastFrameTimeRef = useRef<number | null>(null)
   const animFrameRef = useRef<number | null>(null)
   const onFrameRef = useRef(onFrame)
   onFrameRef.current = onFrame
+  const isIdleRef = useRef(isIdle)
+  isIdleRef.current = isIdle
 
   useEffect(() => {
     const canvas = canvasRef.current
@@ -229,6 +233,10 @@ export function useCubeRenderer({
           ? gl.UNSIGNED_INT
           : gl.UNSIGNED_SHORT
       gl.drawElements(gl.TRIANGLES, mesh.indexCount, indexType, 0)
+
+      // Expose the completed frame's motion state for stable browser tests.
+      const idle = isIdleRef.current(time) ? 'true' : 'false'
+      if (canvas.dataset.idle !== idle) canvas.dataset.idle = idle
 
       animFrameRef.current = requestAnimationFrame(render)
     }

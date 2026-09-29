@@ -1,7 +1,7 @@
 // The 3D view's move history, Undo, scramble, the X/Y/Z gizmo and the
 // preset views.
 import { expect, test } from '@playwright/test'
-import { swipeFrontFace } from './cubeView3DHelpers'
+import { swipeFrontFace, waitForCubeIdle } from './cubeView3DHelpers'
 
 test('move history and Undo survive a view switch, then Reset clears them', async ({
   page,
@@ -201,13 +201,13 @@ test('Iso-back shows the cube from behind, and Isometric turns it back', async (
   await page.getByRole('button', { name: '3D View' }).click()
   const canvas = page.locator('.cube-3d-canvas')
   await page.getByRole('button', { name: 'Isometric' }).click()
-  await page.waitForTimeout(100)
+  await waitForCubeIdle(page)
   const front = await canvas.screenshot()
   await page.getByRole('button', { name: 'Iso-back' }).click()
-  await page.waitForTimeout(100)
+  await waitForCubeIdle(page)
   expect((await canvas.screenshot()).equals(front)).toBe(false)
   await page.getByRole('button', { name: 'Isometric' }).click()
-  await page.waitForTimeout(100)
+  await waitForCubeIdle(page)
   expect((await canvas.screenshot()).equals(front)).toBe(true)
 })
 
