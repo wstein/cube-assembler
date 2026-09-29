@@ -64,7 +64,8 @@ outer quarter of either sticker) and lean it toward the side to include:
 both layers at the line and every layer on that side turn. For example, on a
 5×5, start between the third and fourth U rows and swipe left, leaning up
 for 4Uw or down for 3Dw'. The chosen block lights up and follows your lean
-throughout the drag, so you can switch sides even after turning it. A swipe
+while your finger stays on the face it started on, so you can still switch
+sides; once it leaves that face, the side is fixed. A swipe
 straight along the line still turns a wide block; reversing the turn direction
 does not change which side is selected. A swipe from the middle of a sticker
 turns one layer. A new swipe while the last turn settles finishes that turn
