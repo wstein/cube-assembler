@@ -7,6 +7,7 @@
 @genType let stickerlessCookie: string
 @genType let autoRotateCookie: string
 @genType let viewHelpCookie: string
+@genType let seamWideCookie: string
 @genType let turnSoundCookie: string
 @genType let turnMsCookie: string
 @genType let turnOvershootCookie: string

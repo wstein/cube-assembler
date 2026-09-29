@@ -10,6 +10,7 @@ import {
   SOUND_COOKIE,
   STICKERLESS_COOKIE,
   VIEW_HELP_COOKIE,
+  SEAM_WIDE_COOKIE,
   preferenceCookie,
   readPreference,
   readSelection,
@@ -153,6 +154,8 @@ describe('setting cookies', () => {
   it('clears every setting cookie for a reset', () => {
     expect(SETTING_COOKIES).toContain(MIRROR_COOKIE)
     expect(SETTING_COOKIES).toContain(VIEW_HELP_COOKIE)
+    expect(SETTING_COOKIES).toContain(SEAM_WIDE_COOKIE)
+    expect(readPreference('', SEAM_WIDE_COOKIE)).toBe(false)
     expect(readPreference('', VIEW_HELP_COOKIE, true)).toBe(true)
     expect(
       readPreference(`${VIEW_HELP_COOKIE}=0`, VIEW_HELP_COOKIE, true),

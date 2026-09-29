@@ -10,6 +10,7 @@ let cubeViewCookie = "cube-assembler-cube-view"
 let stickerlessCookie = "cube-assembler-stickerless"
 let autoRotateCookie = "cube-assembler-auto-rotate"
 let viewHelpCookie = "cube-assembler-view-help"
+let seamWideCookie = "cube-assembler-seam-wide"
 // The 3D view's turn click; until set it follows the capture sound.
 let turnSoundCookie = "cube-assembler-turn-sound"
 // How long a quarter turn takes, and whether it snaps past like a magnet.
@@ -123,6 +124,7 @@ let settingCookies = [
   captureModeCookie,
   turnSoundCookie,
   viewHelpCookie,
+  seamWideCookie,
   turnMsCookie,
   turnOvershootCookie,
   swipeStartCookie,

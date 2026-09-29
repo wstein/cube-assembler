@@ -13,6 +13,7 @@ type camera = {
 @genType type surfaceHit = {face: CubeState.faceKey, point: vec, normalAxis: int}
 
 @genType let pickCubeSurface: (float, float, camera) => Null.t<surfaceHit>
+@genType let pickStickerSurface: (float, float, camera) => Null.t<surfaceHit>
 @genType let viewPoint: (vec, camera) => vec
 @genType let screenPoint: (vec, camera) => (float, float)
 
@@ -63,7 +64,7 @@ type startKind = | @as("wait") Wait | @as("nothing") StartsNothing | @as("turn")
 @genType
 type swipeStart = {kind: startKind, layer: Null.t<swipeLayer>, seam: bool, wide: bool}
 @genType
-let swipeStart: (surfaceHit, float, float, camera, float, pressLevel) => swipeStart
+let swipeStart: (surfaceHit, float, float, camera, float, pressLevel, bool) => swipeStart
 
 @genType
 type cubeGesture =

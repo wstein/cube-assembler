@@ -47,6 +47,22 @@ test('3D help can be turned off and remembered', async ({ page }) => {
   await expect(help).toBeChecked()
 })
 
+test('wide turns near gaps require an opt-in saved in cookies', async ({
+  page,
+}) => {
+  await page.goto('/#settings')
+  const wide = page.getByRole('switch', { name: 'Wide turns near gaps' })
+  await expect(wide).not.toBeChecked()
+  await wide.check()
+  await expect
+    .poll(() => page.evaluate(() => document.cookie))
+    .toContain('cube-assembler-seam-wide=1')
+  await page.reload()
+  await expect(wide).toBeChecked()
+  await page.getByRole('button', { name: 'Reset all settings' }).click()
+  await expect(wide).not.toBeChecked()
+})
+
 test('capture switches on the settings page reach the scanner', async ({
   page,
 }) => {

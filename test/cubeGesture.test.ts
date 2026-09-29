@@ -13,6 +13,7 @@ import {
   gestureWhenSwipeTurnsNothing,
   twoFingerLock,
   pickCubeSurface,
+  pickStickerSurface,
   pickSwipeLayer,
   onSeam,
   seamChoice,
@@ -52,6 +53,15 @@ describe('cube sticker drag', () => {
       pickCubeSurface(300, 300, { ...camera, yaw: -Math.PI / 2 })?.face,
     ).toBe('R')
     expect(pickCubeSurface(10, 10, camera)).toBeNull()
+  })
+
+  it('leaves cubie seams dead but accepts the sticker beside them', () => {
+    const point = (y: number) => screenPoint([0.3, y, 2.5], camera)
+    const [gapX, gapY] = point(-0.5)
+    const [stickerX, stickerY] = point(-0.65)
+    expect(pickCubeSurface(gapX, gapY, camera)).not.toBeNull()
+    expect(pickStickerSurface(gapX, gapY, camera)).toBeNull()
+    expect(pickStickerSurface(stickerX, stickerY, camera)?.face).toBe('F')
   })
 
   it('turns the inner column touched on a 5x5 face', () => {
@@ -178,13 +188,35 @@ describe('what a swipe starts', () => {
   })
 
   it('turns a wide block from a seam and keeps the choice open', () => {
-    const start = swipeStart(at(0.3, -0.5), -40, -5, camera, 18, 'layer')
+    const start = swipeStart(at(0.3, -0.5), -40, -5, camera, 18, 'layer', true)
     expect(start).toMatchObject({ kind: 'turn', seam: true, wide: true })
     expect(start.layer).toMatchObject({ face: 'U', depth: 4, width: 4 })
     // Straight along the seam also starts a wide block.
-    const straight = swipeStart(at(0.3, -0.5), -40, 0, camera, 18, 'layer')
+    const straight = swipeStart(
+      at(0.3, -0.5),
+      -40,
+      0,
+      camera,
+      18,
+      'layer',
+      true,
+    )
     expect(straight).toMatchObject({ kind: 'turn', seam: true, wide: true })
     expect(straight.layer).toMatchObject({ face: 'D', depth: 3, width: 3 })
+  })
+
+  it('keeps a nearby sticker swipe on one layer when seam-wide turns are off', () => {
+    const start = swipeStart(
+      at(0.3, -0.65),
+      -40,
+      -5,
+      camera,
+      18,
+      'layer',
+      false,
+    )
+    expect(start).toMatchObject({ kind: 'turn', seam: false, wide: false })
+    expect(start.layer?.width ?? 1).toBe(1)
   })
 
   it('turns the standard wide move with Shift, never a seam block', () => {
@@ -382,7 +414,7 @@ describe('seam swipes', () => {
   it('follows the lean for the entire turn', () => {
     const hit = at(-0.5)
     const first = pickSwipeLayer(hit, -30, 0, camera)!
-    const straight = swipeStart(hit, -30, 0, camera, 18, 'layer').layer!
+    const straight = swipeStart(hit, -30, 0, camera, 18, 'layer', true).layer!
     expect(straight).toMatchObject({ face: 'D', depth: 3, width: 3 })
     expect(seamChoice(hit, straight, -30, 0, camera)).toBe(straight)
     // Leaning up picks 4Uw, then leaning down 3Dw.

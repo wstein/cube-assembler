@@ -6,6 +6,7 @@ import {
   gestureForPointerDown,
   gestureWhenSwipeTurnsNothing,
   pickCubeSurface,
+  pickStickerSurface,
   pickSwipeLayer,
   pressLevel,
   releaseDrag,
@@ -29,6 +30,8 @@ import {
 import { AUTO_ROTATE_RESUME_DELAY_MS } from './cubeView3DState'
 import {
   readSwipeTuning,
+  readPreference,
+  SEAM_WIDE_COOKIE,
   readVibrationMs,
   turnSoundOn,
   vibrationOn,
@@ -268,9 +271,17 @@ export function useCubeGestures({
     lastPointerRef.current = { x: e.clientX, y: e.clientY, time: e.timeStamp }
     finishSettlingTurn()
     const rect = canvasRef.current?.getBoundingClientRect()
-    const hit =
+    const surface =
       rect && !busy()
         ? pickCubeSurface(
+            e.clientX - rect.left,
+            e.clientY - rect.top,
+            gestureCamera(rect),
+          )
+        : null
+    const hit =
+      rect && surface
+        ? pickStickerSurface(
             e.clientX - rect.left,
             e.clientY - rect.top,
             gestureCamera(rect),
@@ -281,10 +292,14 @@ export function useCubeGestures({
       x: e.clientX,
       y: e.clientY,
       hit,
-      mode: gestureForPointerDown(e.pointerType, 1, hit, null),
+      mode:
+        surface && !hit
+          ? 'pending'
+          : gestureForPointerDown(e.pointerType, 1, hit, null),
       pointerType: e.pointerType,
       level,
       tuning: readSwipeTuning(document.cookie),
+      seamWideEnabled: readPreference(document.cookie, SEAM_WIDE_COOKIE),
     }
     gestureRef.current = gesture
     if (gesture.mode !== 'pending') return
@@ -326,6 +341,22 @@ export function useCubeGestures({
       return
     }
     if (gesture.mode === 'none') return
+    if (gesture.mode === 'pending' && !gesture.hit) {
+      const rect = canvasRef.current?.getBoundingClientRect()
+      if (!rect) return
+      const hit = pickStickerSurface(
+        e.clientX - rect.left,
+        e.clientY - rect.top,
+        gestureCamera(rect),
+      )
+      if (!hit) return
+      gesture.hit = hit
+      gesture.x = e.clientX
+      gesture.y = e.clientY
+      lastPointerRef.current = { x: e.clientX, y: e.clientY, time: e.timeStamp }
+      if (gesture.level === 'wide') announceWideTurn()
+      return
+    }
     if (gesture.mode === 'turn') {
       const drag = dragTurnRef.current
       const rect = canvasRef.current?.getBoundingClientRect()
@@ -370,6 +401,7 @@ export function useCubeGestures({
         gestureCamera(rect),
         gesture.tuning.startPx,
         gesture.level,
+        gesture.seamWideEnabled,
       )
       if (start.kind === 'wait') return
       if (start.layer) {

@@ -83,6 +83,26 @@ let pickCubeSurface = (x, y, camera) =>
     hit.contents
   }
 
+// The visible sticker tile stops about 0.07 cubie units before each seam.
+// Keep that inactive band in the stickerless view too.
+let stickerGapHalfWidth = 0.07
+
+let pickStickerSurface = (x, y, camera) =>
+  pickCubeSurface(x, y, camera)
+  ->Null.toOption
+  ->Option.filter((hit: surfaceHit) =>
+    [0, 1, 2]->Array.every(axis => {
+      if axis == hit.normalAxis {
+        true
+      } else {
+        let position = get(hit.point, axis) +. camera.size /. 2.0
+        let seam = Math.round(position)
+        seam < 1.0 || seam > camera.size -. 1.0 || Math.abs(position -. seam) >= stickerGapHalfWidth
+      }
+    })
+  )
+  ->Null.fromOption
+
 let project = (point, camera) => {
   let (x, y, z) = rotateX(rotateY(point, camera.yaw), camera.pitch)
   let focal = camera.height /. (2.0 *. Math.tan(Math.Constants.pi /. 8.0))
@@ -408,14 +428,14 @@ type startKind = | @as("wait") Wait | @as("nothing") StartsNothing | @as("turn")
 
 type swipeStart = {kind: startKind, layer: Null.t<swipeLayer>, seam: bool, wide: bool}
 
-let swipeStart = (hit, dx, dy, camera: camera, startPx, level) =>
+let swipeStart = (hit, dx, dy, camera: camera, startPx, level, seamWideEnabled) =>
   if Math.hypot(dx, dy) < startPx {
     {kind: Wait, layer: Null.null, seam: false, wide: false}
   } else {
     switch pickLayer(hit, dx, dy, camera, startPx) {
     | None => {kind: StartsNothing, layer: Null.null, seam: false, wide: false}
     | Some(layer) =>
-      let seam = level == Layer && onSeam(hit, layer, camera)
+      let seam = seamWideEnabled && level == Layer && onSeam(hit, layer, camera)
       let block = seam
         ? seamWideLayer(hit, layer, dx, dy, camera)
           ->Null.toOption

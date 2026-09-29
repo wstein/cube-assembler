@@ -515,7 +515,14 @@ test('a two-finger tilt with close, drifting fingers never zooms', async ({
 test.describe('wide sticker drags', () => {
   // Facing the front of a 5x5: columns are about an eighth of the canvas
   // height apart, and a quarter turn is a drag of about half of it.
-  const setUp = async (page: Page) => {
+  const setUp = async (page: Page, seamWideEnabled = true) => {
+    await page.context().addCookies([
+      {
+        name: 'cube-assembler-seam-wide',
+        value: seamWideEnabled ? '1' : '0',
+        url: `http://127.0.0.1:${process.env.E2E_PORT ?? '4174'}`,
+      },
+    ])
     await page.goto('/')
     await page
       .getByRole('combobox', { name: 'Cube' })
@@ -546,7 +553,7 @@ test.describe('wide sticker drags', () => {
       page,
     }) => {
       const { x, y, column, quarter } = await setUp(page)
-      const startY = y + 0.5 * column
+      const startY = y + 0.65 * column
       await page.mouse.move(x, startY)
       await page.mouse.down()
       await page.mouse.move(x - 1.1 * quarter, startY + lean * 0.2 * quarter, {
@@ -558,12 +565,68 @@ test.describe('wide sticker drags', () => {
       await expect(history(page)).toHaveText(`Moves: ${move}`)
     })
 
-  test('a straight seam swipe still turns a wide block', async ({ page }) => {
+  test('a straight swipe near a seam still turns a wide block', async ({
+    page,
+  }) => {
     const { x, y, column, quarter } = await setUp(page)
-    const startY = y + 0.5 * column
+    const startY = y + 0.65 * column
     await page.mouse.move(x, startY)
     await page.mouse.down()
     await page.mouse.move(x - 1.1 * quarter, startY, { steps: 20 })
+    await expect(badge(page)).toHaveText(/Wide turn/)
+    await page.waitForTimeout(150)
+    await page.mouse.up()
+    await expect(history(page)).toHaveText("Moves: 3Dw'")
+  })
+
+  test('wide turns are off until enabled', async ({ page }) => {
+    const { x, y, column, quarter } = await setUp(page, false)
+    const startY = y + 0.65 * column
+    await page.mouse.move(x, startY)
+    await page.mouse.down()
+    await page.mouse.move(x - 1.1 * quarter, startY - 0.2 * quarter, {
+      steps: 20,
+    })
+    await expect(badge(page)).toHaveCount(0)
+    await page.waitForTimeout(150)
+    await page.mouse.up()
+    await expect(history(page)).toHaveText("Moves: 2D'")
+  })
+
+  test('a gap press waits until the pointer enters a sticker', async ({
+    page,
+  }) => {
+    const { x, y, column, quarter } = await setUp(page, false)
+    const gapY = y + 0.5 * column
+    await page.mouse.move(x, gapY)
+    await page.mouse.down()
+    await page.mouse.move(x - 0.5 * quarter, gapY, { steps: 12 })
+    await page.mouse.up()
+    await expect(history(page)).toHaveText('Moves: None')
+
+    await page.mouse.move(x, gapY)
+    await page.mouse.down()
+    await page.mouse.move(x, y + 0.75 * column, { steps: 5 })
+    await page.mouse.move(x - 1.1 * quarter, y + 0.75 * column, {
+      steps: 20,
+    })
+    await page.waitForTimeout(150)
+    await page.mouse.up()
+    await expect(history(page)).toHaveText(/Moves: [1-5][UD]/)
+  })
+
+  test('entering a sticker from a gap can start an opted-in wide turn', async ({
+    page,
+  }) => {
+    const { x, y, column, quarter } = await setUp(page)
+    const gapY = y + 0.5 * column
+    const entryY = y + 0.65 * column
+    await page.mouse.move(x, gapY)
+    await page.mouse.down()
+    await page.mouse.move(x, entryY, { steps: 5 })
+    await page.mouse.move(x - 1.1 * quarter, entryY + 0.2 * quarter, {
+      steps: 20,
+    })
     await expect(badge(page)).toHaveText(/Wide turn/)
     await page.waitForTimeout(150)
     await page.mouse.up()
@@ -574,7 +637,7 @@ test.describe('wide sticker drags', () => {
     page,
   }) => {
     const { x, y, column, quarter } = await setUp(page)
-    const startY = y + 0.5 * column
+    const startY = y + 0.65 * column
     await page.mouse.move(x, startY)
     await page.mouse.down()
     // The hand first drifts down a little, then leans up.
@@ -596,7 +659,7 @@ test.describe('wide sticker drags', () => {
     page,
   }) => {
     const { x, y, column, quarter } = await setUp(page)
-    const startY = y + 0.5 * column
+    const startY = y + 0.65 * column
     await page.mouse.move(x, startY)
     await page.mouse.down()
     await page.mouse.move(x - 1.2 * column, startY - 0.25 * column, {
@@ -619,7 +682,7 @@ test.describe('wide sticker drags', () => {
     page,
   }) => {
     const { x, y, column, quarter } = await setUp(page)
-    const startY = y + 0.5 * column
+    const startY = y + 0.65 * column
     await page.mouse.move(x, startY)
     await page.mouse.down()
     await page.mouse.move(x - 1.2 * column, startY - 0.25 * column, {
@@ -682,7 +745,7 @@ test.describe('wide sticker drags', () => {
   }) => {
     const { x, y, column, quarter } = await setUp(page)
     const canvas = page.locator('.cube-3d-canvas')
-    const startY = y + 0.5 * column
+    const startY = y + 0.65 * column
     const touch = (type: string, clientX: number, clientY: number) =>
       canvas.dispatchEvent(type, {
         pointerId: 7,

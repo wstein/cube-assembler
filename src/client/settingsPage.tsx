@@ -19,6 +19,7 @@ import {
   SWIPE_FLICK_COOKIE,
   SWIPE_RANGES,
   SWIPE_START_COOKIE,
+  SEAM_WIDE_COOKIE,
   SOUND_COOKIE,
   TURN_MS_COOKIE,
   TURN_MS_RANGE,
@@ -212,6 +213,12 @@ export function SettingsPage({ onClose }: Props) {
         title="Swiping"
         hint="How eagerly a swipe on a sticker turns its layer."
       >
+        <ToggleSetting
+          label="Wide turns near gaps"
+          hint="Off by default. Swiping a sticker near a gap can select a wide block; the gap itself remains inactive. Shift still makes a wide turn."
+          checked={readPreference(cookies, SEAM_WIDE_COOKIE)}
+          onChange={(on) => write(preferenceCookie(SEAM_WIDE_COOKIE, on))}
+        />
         <SliderSetting
           label="Start turning after"
           hint="Shorter reacts sooner; longer ignores small slips."

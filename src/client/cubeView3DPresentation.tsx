@@ -5,6 +5,7 @@ import {
   preferenceCookie,
   readPreference,
   VIEW_HELP_COOKIE,
+  SEAM_WIDE_COOKIE,
 } from './preferences'
 import { useCubeHelpHint } from './useCubeHelpHint'
 
@@ -63,6 +64,7 @@ export function CubeView3DPresentation({
   gizmo,
 }: CubeView3DPresentationProps) {
   const helpEnabled = readPreference(document.cookie, VIEW_HELP_COOKIE, true)
+  const seamWideEnabled = readPreference(document.cookie, SEAM_WIDE_COOKIE)
   const help = useCubeHelpHint(helpEnabled, () => {
     document.cookie = preferenceCookie(VIEW_HELP_COOKIE, false)
   })
@@ -111,18 +113,21 @@ export function CubeView3DPresentation({
               <div class="cube-3d-hint">
                 {coarsePointer ? (
                   <>
-                    Swipe a sticker to turn its layer; start between two layers
-                    and lean toward a side for a wide turn &bull; Two fingers on
-                    the cube turn it, beside it rotate the view &bull; Pinch to
-                    zoom
+                    Swipe a sticker to turn its layer; gaps are inactive
+                    {seamWideEnabled &&
+                      '; swipe near a gap and lean toward a side for a wide turn'}{' '}
+                    &bull; Two fingers on the cube turn it, beside it rotate the
+                    view &bull; Pinch to zoom
                   </>
                 ) : (
                   <>
-                    Swipe a sticker to turn its layer; start between two layers
-                    and lean toward a side for a wide turn, or use Shift &bull;
-                    Two fingers on the cube turn the whole cube &bull; Drag the
-                    background or swipe two fingers beside the cube to rotate
-                    the view &bull; Pinch or scroll to zoom
+                    Swipe a sticker to turn its layer; gaps are inactive
+                    {seamWideEnabled &&
+                      '; swipe near a gap and lean toward a side for a wide turn'}{' '}
+                    &bull; Shift makes a wide turn &bull; Two fingers on the
+                    cube turn the whole cube &bull; Drag the background or swipe
+                    two fingers beside the cube to rotate the view &bull; Pinch
+                    or scroll to zoom
                   </>
                 )}
               </div>

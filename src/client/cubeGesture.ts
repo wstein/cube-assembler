@@ -3,12 +3,15 @@
 import {
   flickMs,
   pickSwipeLayer as pickSwipeLayerRes,
+  swipeStart as swipeStartRes,
   releasedQuarterTurns as releasedQuarterTurnsRes,
   swipeStartPx,
   turnCommitFraction,
   type camera,
   type surfaceHit,
   type swipeLayer,
+  type pressLevel as PressLevelRes,
+  type swipeStart as SwipeStartRes,
 } from '../core/view/CubeGesture.gen'
 
 export {
@@ -19,12 +22,12 @@ export {
   gestureForPointerDown,
   gestureWhenSwipeTurnsNothing,
   pickCubeSurface,
+  pickStickerSurface,
   pressLevel,
   standardWideLayer,
   onSeam,
   seamChoice,
   seamSwitch,
-  swipeStart,
   followDrag,
   releaseDrag,
   seamWideLayer,
@@ -59,6 +62,18 @@ export function pickSwipeLayer(
   startPx = swipeStartPx,
 ): swipeLayer | null {
   return pickSwipeLayerRes(hit, dx, dy, camera, startPx)
+}
+
+export function swipeStart(
+  hit: surfaceHit,
+  dx: number,
+  dy: number,
+  camera: camera,
+  startPx: number,
+  level: PressLevelRes,
+  seamWideEnabled = false,
+): SwipeStartRes {
+  return swipeStartRes(hit, dx, dy, camera, startPx, level, seamWideEnabled)
 }
 
 export function releasedQuarterTurns(

@@ -30,6 +30,8 @@ export interface CubePointerGesture {
   level: PressLevel
   // Read once when the gesture starts so settings stay stable during a swipe.
   tuning: SwipeTuning
+  // Gap-based wide turns are a saved opt-in, read when the gesture starts.
+  seamWideEnabled: boolean
   // Where the turn's angle is measured from once dragging turns layers.
   turnHit?: CubeSurfaceHit
   turnFrom?: Point

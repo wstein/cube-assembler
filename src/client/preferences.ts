@@ -21,6 +21,7 @@ export {
   autoCaptureFramesCookie as AUTO_CAPTURE_FRAMES_COOKIE,
   autoRotateCookie as AUTO_ROTATE_COOKIE,
   viewHelpCookie as VIEW_HELP_COOKIE,
+  seamWideCookie as SEAM_WIDE_COOKIE,
   captureModeCookie as CAPTURE_MODE_COOKIE,
   clearedCookie,
   colorProfileCookie as COLOR_PROFILE_COOKIE,
