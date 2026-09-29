@@ -1,4 +1,4 @@
-import type { PhotoFrameMode, SelectedPhoto } from '../photoUpload'
+import type { PhotoFrameMode, SelectedPhoto } from './photoUpload'
 
 interface PhotoUploadReviewProps {
   photos: SelectedPhoto[]

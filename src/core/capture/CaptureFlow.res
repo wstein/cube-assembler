@@ -17,7 +17,7 @@ type crop = {
 }
 // The camera's settings at capture time, passed through untouched; the
 // browser's type on the TypeScript side.
-@genType.import(("../../client/captureTypes", "CameraSettings"))
+@genType.import(("../../client/capture/captureTypes", "CameraSettings"))
 type cameraSettings
 
 type source = | @as("camera") Camera | @as("image-file") ImageFile | @as("fixture") Fixture

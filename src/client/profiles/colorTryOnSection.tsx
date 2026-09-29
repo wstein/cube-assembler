@@ -4,7 +4,7 @@ import { useMemo, useState } from 'preact/hooks'
 import { tryOnProfiles } from './colorProfileReview'
 import { css, hex, NAMES } from './colorReviewParts'
 import type { ReviewCapture } from './colorReviewPage'
-import type { RGB } from '../imageProcessing'
+import type { RGB } from '../vision/stickerColorGeometry'
 import type { ColorProfile } from './profileSettings'
 
 interface Props {

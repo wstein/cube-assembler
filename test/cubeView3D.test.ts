@@ -3,7 +3,6 @@ import { createSolvedCube } from '../src/cube/cubeAssembly'
 import {
   applyCubeMove,
   applyCubeLayerMove,
-  buildCubeMesh,
   cubeStateToFaces,
   facesToCubeState,
   formatCubeTurn,
@@ -12,16 +11,19 @@ import {
   getFaceletColor,
   getFaceSeams,
   hexToRgb,
+  type CubeTurn,
+  recordTurn,
+  rotateVec,
+} from '../src/client/view3d/cubeView3DState'
+import { buildCubeMesh } from '../src/client/view3d/cubeMesh'
+import {
   mat4Create,
   mat4Multiply,
   mat4Perspective,
   mat4RotateX,
   mat4RotateY,
   mat4Translate,
-  type CubeTurn,
-  recordTurn,
-  rotateVec,
-} from '../src/client/cubeView3D'
+} from '../src/client/view3d/cubeView3DGraphics'
 
 describe('cubeView3D math and geometry', () => {
   describe('hexToRgb', () => {

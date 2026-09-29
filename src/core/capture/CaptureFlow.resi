@@ -9,7 +9,7 @@ type crop = {
   angle?: float,
   corners?: array<array<float>>,
 }
-@genType.import(("../../client/captureTypes", "CameraSettings"))
+@genType.import(("../../client/capture/captureTypes", "CameraSettings"))
 type cameraSettings
 
 @genType

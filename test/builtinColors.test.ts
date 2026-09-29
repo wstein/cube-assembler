@@ -1,13 +1,13 @@
 import { describe, expect, it } from 'vitest'
 import { existsSync, readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { readFixtureColors } from '../src/client/fixtureFormat'
+import { readFixtureColors } from '../src/client/fixtures/fixtureFormat'
 import {
   STICKER_COLORS,
-  classifySticker,
   type RGB,
-} from '../src/client/imageProcessing'
-import { builtinColorProfiles } from '../src/client/profileSettings'
+} from '../src/client/vision/stickerColorGeometry'
+import { classifySticker } from '../src/client/vision/colorMath'
+import { builtinColorProfiles } from '../src/client/profiles/profileSettings'
 
 // Real capture readings show whether the bundled palettes improve on pure RGB.
 const root = join(__dirname, 'fixtures')

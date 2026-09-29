@@ -3,7 +3,7 @@ import {
   orderPhotoUploads,
   type PhotoFrameMode,
   type SelectedPhoto,
-} from '../photoUpload'
+} from './photoUpload'
 
 // Six selected photos waiting to be read as one capture, in capture order,
 // with their preview URLs released when they are dropped.

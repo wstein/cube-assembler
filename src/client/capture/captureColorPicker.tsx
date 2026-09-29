@@ -1,6 +1,7 @@
 import type { JSX } from 'preact'
 import type { FaceCaptureData } from './captureTypes'
-import { colorConfidences, type RGB } from '../imageProcessing'
+import { colorConfidences } from './captureRecalibration'
+import { type RGB } from '../vision/stickerColorGeometry'
 
 interface CaptureColorPickerProps {
   editingCell: { face: string; row: number; col: number }

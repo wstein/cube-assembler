@@ -1,10 +1,10 @@
 // Synthetic cube faces drawn on a grey background, shared by the grid tests.
-import { cellEdges, type FaceSquare } from '../src/client/gridAlignment'
+import { cellEdges, type FaceSquare } from '../src/client/vision/gridAlignment'
 import {
   applyHomography,
   homography,
   type Point,
-} from '../src/client/perspective'
+} from '../src/client/vision/perspective'
 
 const STICKERS = [
   [220, 105, 30],

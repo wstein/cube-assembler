@@ -5,8 +5,12 @@ import {
   rotateModelPoint,
   shadowFloorY,
   shadowOutline,
-} from '../src/client/cubeShadow'
-import { mat4Create, mat4RotateX, mat4RotateY } from '../src/client/cubeView3D'
+} from '../src/client/view3d/cubeShadow'
+import {
+  mat4Create,
+  mat4RotateX,
+  mat4RotateY,
+} from '../src/client/view3d/cubeView3DGraphics'
 
 function area(points: [number, number][]): number {
   let sum = 0

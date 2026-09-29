@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { stepDragInertia } from '../src/client/dragInertia'
+import { stepDragInertia } from '../src/client/view3d/dragInertia'
 
 describe('stepDragInertia', () => {
   it('continues a released drag and slows it to a stop', () => {

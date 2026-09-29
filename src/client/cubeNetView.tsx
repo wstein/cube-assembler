@@ -1,7 +1,7 @@
 import { useState } from 'preact/hooks'
 import type { CubeState } from '../cube/cubeAssembly'
 import type { ParityResult } from '../cube/parity'
-import type { FaceCaptureData } from './captureTypes'
+import type { FaceCaptureData } from './capture/captureTypes'
 import { faceSources, pieceKey, sourceIndex } from './netPresentation'
 
 interface CubeNetViewProps {

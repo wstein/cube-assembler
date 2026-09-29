@@ -4,7 +4,7 @@ import {
   homography,
   warpQuadToSquare,
   type Point,
-} from '../src/client/perspective'
+} from '../src/client/vision/perspective'
 
 const close = (p: Point, q: Point) => Math.hypot(p[0] - q[0], p[1] - q[1])
 

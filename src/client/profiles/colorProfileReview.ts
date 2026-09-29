@@ -5,7 +5,7 @@ import {
   groupSimilarProfileIndexes,
   whiteBalancedColors as whiteBalancedColorsRes,
 } from '../../core/profiles/ColorProfileReview.gen'
-import type { RGB } from '../imageProcessing'
+import type { RGB } from '../vision/stickerColorGeometry'
 import type { ColorProfile } from './profileSettings'
 
 export {

@@ -6,7 +6,10 @@ import {
 } from '../src/core/view/AxisGizmo.gen'
 import { createSolvedCube } from '../src/cube/cubeAssembly'
 import { applyCubeLayerMove } from '../src/cube/cubeMoves'
-import { ISOMETRIC_PITCH, ISOMETRIC_YAW } from '../src/client/cubeView3DState'
+import {
+  ISOMETRIC_PITCH,
+  ISOMETRIC_YAW,
+} from '../src/client/view3d/cubeView3DState'
 
 const inside = ([x, y]: readonly [number, number]) =>
   x > 0 && x < 96 && y > 0 && y < 96

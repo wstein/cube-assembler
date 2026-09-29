@@ -14,15 +14,15 @@ import {
   splitColorLevel,
   unusedColorProfiles,
   whiteBalancedColors,
-} from '../src/client/colorProfileReview'
+} from '../src/client/profiles/colorProfileReview'
 import {
   AUTO_COLORS_ID,
   EMPTY_SETTINGS,
   builtinColorProfiles,
   type ColorProfile,
   type ProfileSettings,
-} from '../src/client/profileSettings'
-import type { RGB } from '../src/client/imageProcessing'
+} from '../src/client/profiles/profileSettings'
+import type { RGB } from '../src/client/vision/stickerColorGeometry'
 
 const rgb = (r: number, g: number, b: number): RGB => ({ r, g, b })
 const profile = (

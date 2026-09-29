@@ -1,6 +1,6 @@
 /**
  * test/fixtureFormat.test.ts
- * readFixtureColors (src/client/fixtureFormat.ts): a fixture's colors in
+ * readFixtureColors (src/client/fixtures/fixtureFormat.ts): a fixture's colors in
  * the current format (colorsURFDLB) and the earlier per-face one
  * (faces.u.colors), as test/fixtures/synthetic-sanity-check/meta.json and
  * captures from older checkouts still have it.
@@ -8,7 +8,7 @@
  * Run: npx vitest run test/fixtureFormat.test.ts
  */
 import { describe, it, expect } from 'vitest'
-import { readFixtureColors } from '../src/client/fixtureFormat'
+import { readFixtureColors } from '../src/client/fixtures/fixtureFormat'
 
 const solid = (color: string) => [
   [color, color, color],

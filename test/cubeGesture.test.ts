@@ -29,7 +29,7 @@ import {
   followDrag,
   releaseDrag,
   swipeStart,
-} from '../src/client/cubeGesture'
+} from '../src/client/view3d/cubeGesture'
 
 const camera = { width: 600, height: 600, zoom: 12, pitch: 0, yaw: 0, size: 5 }
 

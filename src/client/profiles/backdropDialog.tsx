@@ -5,8 +5,9 @@
 // classifier picks each sticker's pixels on the original photo and adjusts
 // their average, so the exact colors it used are shown as sticker grids.
 import { useEffect, useState } from 'preact/hooks'
-import { applyGainsToPixels, removeGains, type RGB } from '../imageProcessing'
-import { loadPhotoPixels } from '../photoPixels'
+import { applyGainsToPixels, removeGains } from '../vision/colorMath'
+import { type RGB } from '../vision/stickerColorGeometry'
+import { loadPhotoPixels } from '../fixtures/photoPixels'
 
 export interface BackdropFace {
   face: string

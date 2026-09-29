@@ -1,20 +1,20 @@
-import { createScannerUploadActions } from './scannerUploadActions'
+import { createScannerUploadActions } from './fixtures/scannerUploadActions'
 import { useState } from 'preact/hooks'
 import {
   captureBackgroundGains,
   finishReview,
   recalibrateCapture,
-} from './captureFinalization'
-import type { FaceCaptureData } from './captureTypes'
-import { useFixtureDownload } from './useFixtureDownload'
-import { useCameraStream } from './useCameraStream'
-import { useCaptureFeedback } from './useCaptureFeedback'
-import { profilesHash } from './profilesRoute'
+} from './capture/captureFinalization'
+import type { FaceCaptureData } from './capture/captureTypes'
+import { useFixtureDownload } from './fixtures/useFixtureDownload'
+import { useCameraStream } from './capture/useCameraStream'
+import { useCaptureFeedback } from './capture/useCaptureFeedback'
+import { profilesHash } from './profiles/profilesRoute'
 import { selectedCubeSize } from './preferences'
 import { useScannerPreferences } from './useScannerPreferences'
 import { useAssembledCube } from './useAssembledCube'
-import { useCameraCapture } from './useCameraCapture'
-import { useColorReview } from './useColorReview'
+import { useCameraCapture } from './capture/useCameraCapture'
+import { useColorReview } from './profiles/useColorReview'
 import {
   assembleCubeFromFaces,
   type OrientedCandidate,
@@ -25,19 +25,19 @@ import {
   resolvedColorProfileSnapshot,
   selectCube,
   setAutoColorMatch,
-} from './profileSettings'
-import { currentAppCommit } from './fixtureUpload'
-import { FACE_ORDER, glareFacesToWarn } from './captureSteps'
-import { useProfileStore } from './useProfileStore'
-import { useCaptureSession } from './useCaptureSession'
-import { useCaptureCalibration } from './useCaptureCalibration'
-import { usePhotoUploads } from './usePhotoUploads'
+} from './profiles/profileSettings'
+import { currentAppCommit } from './fixtures/fixtureUpload'
+import { FACE_ORDER, glareFacesToWarn } from './capture/captureSteps'
+import { useProfileStore } from './profiles/useProfileStore'
+import { useCaptureSession } from './capture/useCaptureSession'
+import { useCaptureCalibration } from './capture/useCaptureCalibration'
+import { usePhotoUploads } from './fixtures/usePhotoUploads'
 import {
   buildCaptureFixture,
   canSaveCaptureFixture,
   fixtureDownloadFor,
-} from './captureFixture'
-import { useOrientationReview } from './useOrientationReview'
+} from './capture/captureFixture'
+import { useOrientationReview } from './capture/useOrientationReview'
 
 // Injected at build time by Vite.
 declare const __APP_VERSION__: string
@@ -50,7 +50,7 @@ export function useScannerAppModel() {
   const [turnedCube, setTurnedCube] = useState<{
     source: CubeState
     value: CubeState
-    moves: import('./cubeView3D').CubeTurn[]
+    moves: import('./view3d/cubeView3DState').CubeTurn[]
   } | null>(null)
   const [webcamOpen, setWebcamOpen] = useState(false)
   const {

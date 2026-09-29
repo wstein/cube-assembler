@@ -4,10 +4,11 @@ import {
   initialCalibration,
 } from '../../core/capture/CaptureCalibration.gen'
 import type { recalibrateCapture } from './captureFinalization'
-import type { AutomaticResolution } from '../colorProfileLearning'
-import type { LearnedColorClassificationResult, RGB } from '../imageProcessing'
-import type { FixtureUploadMetadata } from '../readFixtureUpload'
-import type { UsedColorProfile } from '../profileSettings'
+import type { AutomaticResolution } from '../profiles/colorProfileLearning'
+import type { LearnedColorClassificationResult } from './captureRecalibration'
+import type { RGB } from '../vision/stickerColorGeometry'
+import type { FixtureUploadMetadata } from '../fixtures/readFixtureUpload'
+import type { UsedColorProfile } from '../profiles/profileSettings'
 
 type Recalibration = Awaited<ReturnType<typeof recalibrateCapture>>
 type Action = Parameters<typeof calibrationReducer>[1]

@@ -2,8 +2,8 @@ import { describe, expect, it } from 'vitest'
 import { existsSync, readFileSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
 import jpeg from 'jpeg-js'
-import { hasPlausibleStickerFace } from '../src/client/imageProcessing'
-import { estimateOuterCellRatio } from '../src/client/gridAlignment'
+import { hasPlausibleStickerFace } from '../src/client/vision/faceDetection'
+import { estimateOuterCellRatio } from '../src/client/vision/gridAlignment'
 
 const fixtureRoot = join(__dirname, 'fixtures')
 const captures = readdirSync(fixtureRoot).filter(

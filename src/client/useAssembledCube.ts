@@ -6,8 +6,8 @@ import {
   parityStatus,
   parseCubeInput,
   solvedCaptureFaces,
-} from './captureFlow'
-import type { useCaptureSession } from './useCaptureSession'
+} from './capture/captureFlow'
+import type { useCaptureSession } from './capture/useCaptureSession'
 
 type Session = ReturnType<typeof useCaptureSession>
 

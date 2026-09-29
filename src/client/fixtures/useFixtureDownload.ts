@@ -1,11 +1,11 @@
 import { useEffect, useState } from 'preact/hooks'
-import type { FixtureDownloadData } from '../fixtureDownloadDialog'
+import type { FixtureDownloadData } from './fixtureDownloadDialog'
 import {
   fixtureUploadBase,
   fixtureUploadServerAvailable,
   pollsFixtureUploadServer,
   uploadFixtureToDevServer,
-} from '../fixtureUpload'
+} from './fixtureUpload'
 import {
   FIXTURE_SERVER_COOKIE,
   localUploadShown,

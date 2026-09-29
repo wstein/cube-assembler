@@ -1,15 +1,16 @@
 import {
   captureAndProcessCanvas,
   captureAndProcessImage,
+  hasVisibleCubeFace,
+  type FaceCaptureResult,
+} from '../vision/faceDetection'
+import {
   computeBackgroundGains,
   extractBackgroundColor,
   faceBoundsForMode,
-  hasVisibleCubeFace,
-  NEUTRAL_GAINS,
-  type FaceCaptureResult,
-  type RGB,
-  type SamplingGeometry,
-} from '../imageProcessing'
+} from '../vision/faceSampling'
+import { NEUTRAL_GAINS } from '../vision/colorMath'
+import { type RGB, type SamplingGeometry } from '../vision/stickerColorGeometry'
 
 export type CaptureMode = 'cv' | 'guide'
 

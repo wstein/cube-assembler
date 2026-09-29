@@ -9,7 +9,7 @@ import {
   unusedColorProfiles,
 } from './colorProfileReview'
 import { NAMES, ORDER, Swatch } from './colorReviewParts'
-import type { RGB } from '../imageProcessing'
+import type { RGB } from '../vision/stickerColorGeometry'
 import { DeleteButton, SelectionBar } from './profileDeletion'
 import { EditableName } from './profileRename'
 import {

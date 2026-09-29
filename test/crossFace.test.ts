@@ -1,11 +1,13 @@
 import { describe, expect, it } from 'vitest'
+import { classifyAcrossFaces } from '../src/client/capture/captureRecalibration'
 import {
-  classifyAcrossFaces,
   learnStickerColors,
   mixedUpClusters,
+} from '../src/client/vision/stickerLearning'
+import {
   type ColorDetectionResult,
   type RGB,
-} from '../src/client/imageProcessing'
+} from '../src/client/vision/stickerColorGeometry'
 
 const COLORS: Record<string, RGB> = {
   W: { r: 238, g: 238, b: 232 },

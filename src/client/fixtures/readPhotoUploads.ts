@@ -1,17 +1,19 @@
 import { validateFaceColors } from '../../cube/cubeAssembly'
-import type { FaceCaptureData } from '../captureTypes'
-import { estimateOuterCellRatio } from '../gridAlignment'
+import type { FaceCaptureData } from '../capture/captureTypes'
+import { estimateOuterCellRatio } from '../vision/gridAlignment'
 import {
   captureAndProcessImage,
   hasPlausibleStickerFace,
-  NEUTRAL_GAINS,
   redetectFaceColors,
-  type ColorDetectionResult,
   type FaceCaptureResult,
+} from '../vision/faceDetection'
+import { NEUTRAL_GAINS } from '../vision/colorMath'
+import {
+  type ColorDetectionResult,
   type RGB,
   type SamplingGeometry,
-} from '../imageProcessing'
-import { photoReadModes, type SelectedPhoto } from '../photoUpload'
+} from '../vision/stickerColorGeometry'
+import { photoReadModes, type SelectedPhoto } from './photoUpload'
 
 interface ReadPhotoUploadsOptions {
   photos: SelectedPhoto[]

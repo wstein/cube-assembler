@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { computeColorStats } from '../src/client/colorStats'
+import { computeColorStats } from '../src/client/vision/colorStats'
 
 describe('capture color stats', () => {
   it('counts each color against the stickers expected per color', () => {

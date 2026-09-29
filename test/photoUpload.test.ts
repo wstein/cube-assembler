@@ -4,7 +4,7 @@ import {
   isNamedFaceCrop,
   uploadKind,
   photoReadModes,
-} from '../src/client/photoUpload'
+} from '../src/client/fixtures/photoUpload'
 
 const image = (name: string) => ({ name, type: 'image/jpeg', size: 10 })
 

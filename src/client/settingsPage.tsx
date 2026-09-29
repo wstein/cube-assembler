@@ -48,7 +48,10 @@ import {
   VIBRATION_MS_RANGE,
 } from './preferences'
 import { applyTheme } from './theme'
-import { DEFAULT_FIXTURE_SERVER, loopbackFixtureServer } from './fixtureUpload'
+import {
+  DEFAULT_FIXTURE_SERVER,
+  loopbackFixtureServer,
+} from './fixtures/fixtureUpload'
 import {
   ChoiceSetting,
   SliderSetting,

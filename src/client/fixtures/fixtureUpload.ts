@@ -1,4 +1,4 @@
-import type { Fixture } from '../fixtureZip'
+import type { Fixture } from './fixtureZip'
 
 const DEV_PROXY = '/fixture-upload'
 export const DEFAULT_FIXTURE_SERVER = 'http://127.0.0.1:7100'

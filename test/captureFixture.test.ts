@@ -6,9 +6,9 @@ import {
   fixtureLoadedMessage,
   recordedAutomaticResolution,
   type CaptureFixtureInput,
-} from '../src/client/captureFixture'
-import type { FaceCaptureData } from '../src/client/captureTypes'
-import type { ColorDetectionResult } from '../src/client/imageProcessing'
+} from '../src/client/capture/captureFixture'
+import type { FaceCaptureData } from '../src/client/capture/captureTypes'
+import type { ColorDetectionResult } from '../src/client/vision/stickerColorGeometry'
 
 const SOLVED: Record<string, string> = {
   U: 'W',

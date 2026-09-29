@@ -1,19 +1,22 @@
 // Face appearance, capture geometry, and six-face color learning tests.
-import { cellEdges } from '../src/client/gridAlignment'
+import { cellEdges } from '../src/client/vision/gridAlignment'
 import { describe, it, expect } from 'vitest'
 import {
   learnStickerColors,
-  rgbToOKLCH,
   hungarianAssignment,
+} from '../src/client/vision/stickerLearning'
+import { rgbToOKLCH, classifySticker } from '../src/client/vision/colorMath'
+import {
   STICKER_COLORS,
-  classifySticker,
+  type RGB,
+} from '../src/client/vision/stickerColorGeometry'
+import {
   extractColorsFromImageData,
   hasPlausibleStickerFace,
   hasVisibleCubeFace,
   faceVisibility,
-  faceBoundsForMode,
-  type RGB,
-} from '../src/client/imageProcessing'
+} from '../src/client/vision/faceDetection'
+import { faceBoundsForMode } from '../src/client/vision/faceSampling'
 
 describe('capture geometry modes', () => {
   it('keeps the manual guide fixed and only searches in Detect face mode', () => {
@@ -342,7 +345,7 @@ function colorDistance(c1: RGB, c2: RGB): number {
 // Mirrors the internal, learnStickerColors-only CLUSTER_L_WEIGHT-adjusted
 // distance (not exported - also not the same metric as colorDistance
 // above, which stays unweighted): same L-axis discount, kept in sync by
-// hand with imageProcessing.ts's CLUSTER_L_WEIGHT constant.
+// hand with ColorMath.res's clusterLWeight constant.
 const CLUSTER_L_WEIGHT = 0.6
 function clusterDistance(c1: RGB, c2: RGB): number {
   const o1 = rgbToOKLCH(c1),
@@ -580,7 +583,7 @@ describe('learnStickerColors', () => {
       // constant regardless of how kMeansCluster's own centroid happened
       // to converge. This distance is computed with the clustering
       // pipeline's own metric (CLUSTER_L_WEIGHT-adjusted, see
-      // imageProcessing.ts) rather than plain unweighted OKLab distance -
+      // ColorMath.res) rather than plain unweighted OKLab distance -
       // recomputed against production code after CLUSTER_L_WEIGHT was
       // introduced (2026-09-23 real-fixture design discussion, "F3").
       expect(leaveOneOutDistance).toBeCloseTo(0.08353292664771421, 9)

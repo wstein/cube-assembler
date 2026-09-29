@@ -1,37 +1,35 @@
-import { CaptureLiveView } from './captureLiveView'
-import { CaptureDialog } from './captureDialog'
-import { CaptureReviewDialog } from './captureReviewDialog'
-import { OrientationApprovalDialog } from './orientationApprovalDialog'
-import { OrientationWizardDialog } from './orientationWizardDialog'
-import { CaptureColorPicker } from './captureColorPicker'
-import { CaptureSettings, CubeSelectOptions } from './captureSettings'
-import type { ReviewCapture } from './colorReviewPage'
-import { BackdropDialog } from './backdropDialog'
-import { FixtureDownloadDialog } from './fixtureDownloadDialog'
+import { CaptureLiveView } from './capture/captureLiveView'
+import { CaptureDialog } from './capture/captureDialog'
+import { CaptureReviewDialog } from './capture/captureReviewDialog'
+import { OrientationApprovalDialog } from './capture/orientationApprovalDialog'
+import { OrientationWizardDialog } from './capture/orientationWizardDialog'
+import { CaptureColorPicker } from './capture/captureColorPicker'
+import { CaptureSettings, CubeSelectOptions } from './capture/captureSettings'
+import type { ReviewCapture } from './profiles/colorReviewPage'
+import { BackdropDialog } from './profiles/backdropDialog'
+import { FixtureDownloadDialog } from './fixtures/fixtureDownloadDialog'
 import { localUploadShown } from './preferences'
 import { CubeDisplayCard } from './cubeDisplayCard'
 import { NotationCard } from './notationCard'
 import { ManualFaceletInput } from './manualFaceletInput'
-import { CaptureCard } from './captureCard'
-import { ColorProfileControls } from './colorProfileControls'
+import { CaptureCard } from './capture/captureCard'
+import { ColorProfileControls } from './profiles/colorProfileControls'
 import { lazy, Suspense } from 'preact/compat'
 import { useMemo } from 'preact/hooks'
 
 const ProfilesPage = lazy(() =>
-  import('./profilesPage').then((m) => ({ default: m.ProfilesPage })),
+  import('./profiles/profilesPage').then((m) => ({ default: m.ProfilesPage })),
 )
 const SettingsPage = lazy(() =>
   import('./settingsPage').then((m) => ({ default: m.SettingsPage })),
 )
-import { PhotoUploadReview } from './photoUploadReview'
+import { PhotoUploadReview } from './fixtures/photoUploadReview'
 import { repositoryLink } from './repositoryLink'
-import { profilesTab } from './profilesRoute'
+import { profilesTab } from './profiles/profilesRoute'
 import { AUTO_CAPTURE_COOKIE, MIRROR_COOKIE, SOUND_COOKIE } from './preferences'
-import {
-  backdropReference,
-  NEUTRAL_GAINS,
-  STICKER_COLORS,
-} from './imageProcessing'
+import { backdropReference } from './vision/faceSampling'
+import { NEUTRAL_GAINS } from './vision/colorMath'
+import { STICKER_COLORS } from './vision/stickerColorGeometry'
 import {
   createSolvedCube,
   findCaptureSlotForOrientedFace,
@@ -41,20 +39,20 @@ import {
   allColorProfiles,
   cubeGroupName,
   selectColorProfile,
-} from './profileSettings'
-import { captureProfileFinding } from './colorProfileLearning'
+} from './profiles/profileSettings'
+import { captureProfileFinding } from './profiles/colorProfileLearning'
 import {
   FACE_DISPLAY_LABEL,
   FACE_ORDER,
   FACE_SHORT_LABEL,
   captureInstruction,
-} from './captureSteps'
+} from './capture/captureSteps'
 import {
   COLOR_NAME,
   COLOR_ORDER,
   STICKER_HEX,
   confidenceTier,
-} from './stickerDisplay'
+} from './vision/stickerDisplay'
 import { focusModalOnOpen, handleModalKeyDown } from './modalFocus'
 import type { ScannerAppModel } from './useScannerAppModel'
 

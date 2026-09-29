@@ -7,8 +7,8 @@ import {
   captureInstruction,
   describeCenterIssue,
   glareFacesToWarn,
-} from '../src/client/captureSteps'
-import { GLARE_WARNING_STICKERS } from '../src/client/imageProcessing'
+} from '../src/client/capture/captureSteps'
+import { GLARE_WARNING_STICKERS } from '../src/client/vision/stickerLearning'
 
 describe('capture steps', () => {
   it('labels each capture slot with its step', () => {

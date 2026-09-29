@@ -1,6 +1,6 @@
 /**
  * test/imageProcessingBackdrop.test.ts
- * Vitest tests for the pure, DOM-free parts of src/client/imageProcessing.ts
+ * Vitest tests for the pure, DOM-free vision and color modules in src/client/vision/
  * (learnStickerColors' unsupervised color learning, hungarianAssignment's
  * optimal balanced assignment, trimmedMeanColor's outlier-robust pixel
  * averaging). Most canvas/Image-touching functions in this file
@@ -18,19 +18,23 @@ import {
   trimmedMeanColor,
   extractBackgroundColor,
   BACKGROUND_CUBE_GAP,
+  backdropReference,
+  computeBackgroundGains,
+  stickerColor,
+} from '../src/client/vision/faceSampling'
+import {
   applyGains,
   applyGainsToPixels,
-  backdropReference,
   removeGains,
-  computeBackgroundGains,
+  classifySticker,
+  NEUTRAL_GAINS,
+} from '../src/client/vision/colorMath'
+import {
   stickerSampleRect,
   DEFAULT_SAMPLING,
-  measureSharpness,
-  classifySticker,
-  stickerColor,
-  NEUTRAL_GAINS,
   type RGB,
-} from '../src/client/imageProcessing'
+} from '../src/client/vision/stickerColorGeometry'
+import { measureSharpness } from '../src/client/vision/faceDetection'
 
 describe('extractBackgroundColor', () => {
   // Simulates a real browser's getImageData(sx, sy, sw, sh): the arguments

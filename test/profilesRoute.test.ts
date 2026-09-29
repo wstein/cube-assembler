@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { profilesHash, profilesTab } from '../src/client/profilesRoute'
+import { profilesHash, profilesTab } from '../src/client/profiles/profilesRoute'
 
 describe('profiles page route', () => {
   it('opens the Colors tab at #profiles and at the old #colors link', () => {

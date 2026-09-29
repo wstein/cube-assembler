@@ -3,17 +3,17 @@ import {
   analyzeLiveFrame,
   scaleBounds,
   type LiveAnalysisRequest,
-} from '../src/client/liveAnalysis'
+} from '../src/client/capture/liveAnalysis'
+import { DEFAULT_SAMPLING } from '../src/client/vision/stickerColorGeometry'
 import {
-  DEFAULT_SAMPLING,
   linearChannelToSrgb,
   srgbChannelToLinear,
-} from '../src/client/imageProcessing'
+} from '../src/client/vision/colorMath'
 import { scene } from './syntheticFace'
 import {
   builtinColorProfiles,
   type ColorProfile,
-} from '../src/client/profileSettings'
+} from '../src/client/profiles/profileSettings'
 
 const COLORS: Record<string, number[]> = {
   W: [240, 240, 235],

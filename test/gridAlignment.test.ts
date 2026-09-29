@@ -7,7 +7,7 @@ import {
   estimateOuterCellRatio,
   estimateTilt,
   findGridAlignment,
-} from '../src/client/gridAlignment'
+} from '../src/client/vision/gridAlignment'
 import { placed, scene } from './syntheticFace'
 
 describe('findGridAlignment', () => {

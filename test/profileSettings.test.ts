@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { STICKER_COLORS } from '../src/client/imageProcessing'
+import { STICKER_COLORS } from '../src/client/vision/stickerColorGeometry'
 import {
   AUTO_COLORS_ID,
   EMPTY_SETTINGS,
@@ -26,7 +26,7 @@ import {
   selectCube,
   setAutoColorMatch,
   resolvedColorProfileSnapshot,
-} from '../src/client/profileSettings'
+} from '../src/client/profiles/profileSettings'
 
 describe('separate cube and color settings', () => {
   it('groups cube choices by name and shows sizes within each group', () => {

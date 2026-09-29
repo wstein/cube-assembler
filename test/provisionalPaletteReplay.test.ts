@@ -22,14 +22,15 @@
 import { describe, expect, it } from 'vitest'
 import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { matchPartialColorProfile } from '../src/client/colorProfileLearning'
-import { readFixtureColors } from '../src/client/fixtureFormat'
-import { classifySticker, type RGB } from '../src/client/imageProcessing'
+import { matchPartialColorProfile } from '../src/client/profiles/colorProfileLearning'
+import { readFixtureColors } from '../src/client/fixtures/fixtureFormat'
+import { classifySticker } from '../src/client/vision/colorMath'
+import { type RGB } from '../src/client/vision/stickerColorGeometry'
 import {
   builtinColorProfiles,
   type ColorProfile,
-} from '../src/client/profileSettings'
-import { parseSettingsFile } from '../src/client/profileStorage'
+} from '../src/client/profiles/profileSettings'
+import { parseSettingsFile } from '../src/client/profiles/profileStorage'
 
 const root = join(__dirname, 'fixtures')
 const captures = existsSync(root)

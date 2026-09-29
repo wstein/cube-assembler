@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import { createSolvedCube } from '../src/cube/cubeAssembly'
-import { finishReview } from '../src/client/captureFinalization'
-import { solvedCaptureFaces } from '../src/client/captureFlow'
-import { STICKER_COLORS } from '../src/client/imageProcessing'
-import type { ColorProfile } from '../src/client/profileSettings'
+import { finishReview } from '../src/client/capture/captureFinalization'
+import { solvedCaptureFaces } from '../src/client/capture/captureFlow'
+import { STICKER_COLORS } from '../src/client/vision/stickerColorGeometry'
+import type { ColorProfile } from '../src/client/profiles/profileSettings'
 
 describe('finishing a reviewed capture', () => {
   const cube = createSolvedCube(3)

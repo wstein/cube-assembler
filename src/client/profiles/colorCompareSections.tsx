@@ -11,7 +11,8 @@ import {
   CLOSE_DISTANCE as CLOSE,
 } from './colorProfileReview'
 import { css, hex, NAMES, ORDER, Swatch } from './colorReviewParts'
-import { rgbToOKLCH, type RGB } from '../imageProcessing'
+import { rgbToOKLCH } from '../vision/colorMath'
+import { type RGB } from '../vision/stickerColorGeometry'
 import type { ColorProfile } from './profileSettings'
 
 type Colors = Record<string, RGB>

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { STICKER_COLORS } from '../src/client/imageProcessing'
+import { STICKER_COLORS } from '../src/client/vision/stickerColorGeometry'
 import {
   assessPalette,
   balancedPaletteDistance,
@@ -14,12 +14,12 @@ import {
   shouldBlendColorProfile,
   summarizePreviewProfiles,
   updateProfileFromCapture,
-} from '../src/client/colorProfileLearning'
+} from '../src/client/profiles/colorProfileLearning'
 import {
   builtinColorProfiles,
   type ColorProfile,
-} from '../src/client/profileSettings'
-import { mergedColors } from '../src/client/colorProfileReview'
+} from '../src/client/profiles/profileSettings'
+import { mergedColors } from '../src/client/profiles/colorProfileReview'
 
 const base: ColorProfile = {
   id: 'base',

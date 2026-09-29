@@ -1,10 +1,13 @@
 // Loading an uploaded fixture's files; what its meta.json says is decided
 // in src/core/capture/FixtureUpload.res.
 import { planFixtureUpload } from '../../core/capture/FixtureUpload.gen'
-import type { AutomaticResolution } from '../colorProfileLearning'
-import type { FaceCaptureData, PreviewColorProfile } from '../captureTypes'
-import type { RGB, SamplingGeometry } from '../imageProcessing'
-import type { UsedColorProfile } from '../profileSettings'
+import type { AutomaticResolution } from '../profiles/colorProfileLearning'
+import type {
+  FaceCaptureData,
+  PreviewColorProfile,
+} from '../capture/captureTypes'
+import type { RGB, SamplingGeometry } from '../vision/stickerColorGeometry'
+import type { UsedColorProfile } from '../profiles/profileSettings'
 
 export interface FixtureUploadMetadata {
   gridSize: number

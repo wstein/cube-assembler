@@ -2,13 +2,10 @@ import { finishRecalibration } from '../../core/capture/CaptureFinalization.gen'
 
 export { finishReview } from '../../core/capture/CaptureFinalization.gen'
 import type { FaceCaptureData } from './captureTypes'
-import {
-  computeBackgroundGains,
-  runGlobalWhiteBalance,
-  type RGB,
-  type SamplingGeometry,
-} from '../imageProcessing'
-import type { ColorProfile } from '../profileSettings'
+import { computeBackgroundGains } from '../vision/faceSampling'
+import { runGlobalWhiteBalance } from './captureRecalibration'
+import { type RGB, type SamplingGeometry } from '../vision/stickerColorGeometry'
+import type { ColorProfile } from '../profiles/profileSettings'
 
 interface CaptureFinalizationOptions {
   faces: Record<string, FaceCaptureData>

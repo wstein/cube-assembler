@@ -1,4 +1,5 @@
-import type { FaceCaptureResult, RGB } from '../imageProcessing'
+import type { FaceCaptureResult } from '../vision/faceDetection'
+import type { RGB } from '../vision/stickerColorGeometry'
 
 export interface PreviewColorProfile {
   id: string

@@ -13,8 +13,11 @@ import {
   swipeRanges,
   turnMsRange,
 } from '../core/app/Preferences.gen'
-import type { CaptureMode } from './capturePhoto'
-import { DEFAULT_FIXTURE_SERVER, loopbackFixtureServer } from './fixtureUpload'
+import type { CaptureMode } from './capture/capturePhoto'
+import {
+  DEFAULT_FIXTURE_SERVER,
+  loopbackFixtureServer,
+} from './fixtures/fixtureUpload'
 
 export {
   autoCaptureCookie as AUTO_CAPTURE_COOKIE,

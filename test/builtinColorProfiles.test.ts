@@ -4,7 +4,7 @@ import {
   matchPartialColorProfile,
   resolveAutomaticProfile,
   shouldBlendColorProfile,
-} from '../src/client/colorProfileLearning'
+} from '../src/client/profiles/colorProfileLearning'
 import {
   AUTO_COLORS_ID,
   EMPTY_SETTINGS,
@@ -17,7 +17,7 @@ import {
   saveColorProfile,
   selectColorProfile,
   setAutoColorMatch,
-} from '../src/client/profileSettings'
+} from '../src/client/profiles/profileSettings'
 
 describe('built-in color profiles', () => {
   it('lists the JSON palettes without a Generic colors choice', () => {

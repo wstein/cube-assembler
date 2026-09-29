@@ -5,7 +5,7 @@ import {
   FACE_SHORT_LABEL,
 } from './captureSteps'
 import type { FaceCaptureData } from './captureTypes'
-import type { UsedColorProfile } from '../profileSettings'
+import type { UsedColorProfile } from '../profiles/profileSettings'
 
 interface CaptureCardProps {
   capturedFaces: Record<string, FaceCaptureData>

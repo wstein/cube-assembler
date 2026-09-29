@@ -1,6 +1,9 @@
 import { useEffect, useMemo, useState } from 'preact/hooks'
-import { FACE_ORDER } from '../captureSteps'
-import type { FaceCaptureData, PreviewColorProfile } from '../captureTypes'
+import { FACE_ORDER } from '../capture/captureSteps'
+import type {
+  FaceCaptureData,
+  PreviewColorProfile,
+} from '../capture/captureTypes'
 import {
   autoColorProfiles as autoColorProfilesOf,
   capturePalette as capturePaletteOf,
@@ -12,7 +15,7 @@ import {
   withUpdatedColors,
 } from '../../core/profiles/ProfileStore.gen'
 import type { PaletteEvidence } from './colorProfileLearning'
-import type { RGB } from '../imageProcessing'
+import type { RGB } from '../vision/stickerColorGeometry'
 import {
   COLOR_PROFILE_COOKIE,
   readSelection,

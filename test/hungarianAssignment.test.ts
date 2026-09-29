@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { hungarianAssignment } from '../src/client/imageProcessing'
+import { hungarianAssignment } from '../src/client/vision/stickerLearning'
 
 describe('hungarianAssignment', () => {
   it('solves a trivial 1x1 matrix', () => {

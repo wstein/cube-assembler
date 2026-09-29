@@ -1,8 +1,8 @@
 // Mini cube sampling grids and the last photo's outer-cell measurement.
 import { useEffect, useState } from 'preact/hooks'
-import { cellEdges, estimateOuterCellRatio } from '../gridAlignment'
+import { cellEdges, estimateOuterCellRatio } from '../vision/gridAlignment'
 import { sampledSquares as sampledSquaresOf } from './cubeProfileReview'
-import { loadPhotoPixels } from '../photoPixels'
+import { loadPhotoPixels } from '../fixtures/photoPixels'
 
 export interface ReviewPhoto {
   size: number

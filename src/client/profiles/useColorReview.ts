@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'preact/hooks'
 import type { OrientationSolution } from '../../cube/cubeAssembly'
-import { readyAssemblyAfterCapture } from '../captureReviewRouting'
-import { FACE_ORDER } from '../captureSteps'
-import type { FaceCaptureData } from '../captureTypes'
-import type { useCaptureSession } from '../useCaptureSession'
+import { readyAssemblyAfterCapture } from '../capture/captureReviewRouting'
+import { FACE_ORDER } from '../capture/captureSteps'
+import type { FaceCaptureData } from '../capture/captureTypes'
+import type { useCaptureSession } from '../capture/useCaptureSession'
 
 type Session = ReturnType<typeof useCaptureSession>
 

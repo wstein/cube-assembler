@@ -4,7 +4,7 @@ import {
   LIVE_HOLD_FRAMES,
   NO_HOLD,
   type LiveHold,
-} from '../src/client/liveHold'
+} from '../src/client/capture/liveHold'
 
 // Runs frames (name, confirmed) and returns what was shown for each.
 function run(frames: Array<[string, boolean]>): string[] {

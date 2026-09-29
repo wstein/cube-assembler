@@ -1,4 +1,4 @@
-import type { Fixture, FixtureSummary } from '../fixtureZip'
+import type { Fixture, FixtureSummary } from './fixtureZip'
 
 export interface FixtureDownloadData {
   fixture: Fixture

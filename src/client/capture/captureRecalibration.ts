@@ -12,10 +12,10 @@ import {
   type ColorDetectionResult,
   type RGB,
   type SamplingGeometry,
-} from '../stickerColorGeometry'
-import { NEUTRAL_GAINS } from '../colorMath'
-import { limitBackgroundGain } from '../faceSampling'
-import { redetectFaceColors } from '../faceDetection'
+} from '../vision/stickerColorGeometry'
+import { NEUTRAL_GAINS } from '../vision/colorMath'
+import { limitBackgroundGain } from '../vision/faceSampling'
+import { redetectFaceColors } from '../vision/faceDetection'
 
 // Each face's colors after the cross-face pass, the learned palette when it
 // applied, and the stickers glare washed out (see glareStickers).

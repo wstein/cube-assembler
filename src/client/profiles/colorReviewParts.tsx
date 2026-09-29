@@ -1,6 +1,7 @@
 // Shared by the Colors tab's sections: the colors in display order, their
 // names and a swatch of one color.
-import { rgbToOklab, type RGB } from '../imageProcessing'
+import { rgbToOklab } from '../vision/colorMath'
+import { type RGB } from '../vision/stickerColorGeometry'
 
 export const ORDER = ['W', 'Y', 'R', 'O', 'G', 'B']
 export const NAMES: Record<string, string> = {

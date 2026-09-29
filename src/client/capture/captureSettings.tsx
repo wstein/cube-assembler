@@ -4,7 +4,7 @@ import {
   groupCubesByName,
   type CubeSetting,
   type ProfileSettings,
-} from '../profileSettings'
+} from '../profiles/profileSettings'
 
 export function CubeSelectOptions({ settings }: { settings: ProfileSettings }) {
   return (

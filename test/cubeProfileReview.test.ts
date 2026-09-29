@@ -7,13 +7,13 @@ import {
   mergeCubes,
   replaceCubes,
   unusedCubes,
-} from '../src/client/cubeProfileReview'
+} from '../src/client/profiles/cubeProfileReview'
 import {
   EMPTY_SETTINGS,
   builtinCube,
   type CubeSetting,
   type ProfileSettings,
-} from '../src/client/profileSettings'
+} from '../src/client/profiles/profileSettings'
 
 const cube = (id: string, size: number, stickerCore: number): CubeSetting => ({
   id,

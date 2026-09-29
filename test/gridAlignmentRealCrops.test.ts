@@ -2,12 +2,12 @@ import { describe, expect, it } from 'vitest'
 import { existsSync, readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import jpeg from 'jpeg-js'
-import { extractColorsFromImageData } from '../src/client/imageProcessing'
+import { extractColorsFromImageData } from '../src/client/vision/faceDetection'
 import {
   ALIGNMENT_MAX_OFFSET,
   alignFace,
   type FaceSquare,
-} from '../src/client/gridAlignment'
+} from '../src/client/vision/gridAlignment'
 
 // Real capture crops (committed fixtures, like test/fixtures.test.ts) held off
 // the guide: each crop is the face, pasted at an offset or scale into a grey

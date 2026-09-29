@@ -11,7 +11,7 @@ import {
   settleDuration,
   turnClickGain,
   turnEase,
-} from '../src/client/turnFeel'
+} from '../src/client/view3d/turnFeel'
 
 describe('turn feel', () => {
   it('starts at rest and ends exactly on the quarter turn', () => {

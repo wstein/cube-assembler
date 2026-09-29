@@ -1,21 +1,22 @@
-import { uploadKind } from '../photoUpload'
-import { readPhotoUploads } from '../readPhotoUploads'
-import { readFixtureUpload } from '../readFixtureUpload'
-import { unzipUploadFiles } from '../fixtureZip'
-import { FACE_ORDER } from '../captureSteps'
+import { uploadKind } from './photoUpload'
+import { readPhotoUploads } from './readPhotoUploads'
+import { readFixtureUpload } from './readFixtureUpload'
+import { unzipUploadFiles } from './fixtureZip'
+import { FACE_ORDER } from '../capture/captureSteps'
+import { runGlobalWhiteBalance } from '../capture/captureRecalibration'
+import { BACKGROUND_WB_METHOD } from '../vision/faceSampling'
+import { DEFAULT_SAMPLING } from '../vision/stickerColorGeometry'
 import {
-  runGlobalWhiteBalance,
-  BACKGROUND_WB_METHOD,
-  DEFAULT_SAMPLING,
-} from '../imageProcessing'
-import { applyFixtureDetection, fixtureLoadedMessage } from '../captureFixture'
-import { capturePalette } from '../profileSettings'
-import type { useCaptureSession } from '../useCaptureSession'
-import type { usePhotoUploads } from '../usePhotoUploads'
-import type { useProfileStore } from '../useProfileStore'
-import type { useCaptureCalibration } from '../useCaptureCalibration'
-import type { CaptureMode } from '../capturePhoto'
-import type { FaceCaptureData } from '../captureTypes'
+  applyFixtureDetection,
+  fixtureLoadedMessage,
+} from '../capture/captureFixture'
+import { capturePalette } from '../profiles/profileSettings'
+import type { useCaptureSession } from '../capture/useCaptureSession'
+import type { usePhotoUploads } from './usePhotoUploads'
+import type { useProfileStore } from '../profiles/useProfileStore'
+import type { useCaptureCalibration } from '../capture/useCaptureCalibration'
+import type { CaptureMode } from '../capture/capturePhoto'
+import type { FaceCaptureData } from '../capture/captureTypes'
 
 type Session = ReturnType<typeof useCaptureSession>
 type Photos = ReturnType<typeof usePhotoUploads>

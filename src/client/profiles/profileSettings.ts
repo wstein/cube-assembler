@@ -1,7 +1,7 @@
 // Cube geometry and sticker colors are independent: one color profile can
 // serve cubes of several sizes, while each cube keeps its own sticker gap.
 // Typed entry point for src/core/profiles/ProfileSettings.res.
-import type { RGB } from '../stickerColorGeometry'
+import type { RGB } from '../vision/stickerColorGeometry'
 import {
   colorPalette as colorPaletteRes,
   resolvedColorProfileSnapshot as resolvedColorProfileSnapshotRes,

@@ -1,12 +1,14 @@
 import { lazy, Suspense } from 'preact/compat'
 import type { CubeState } from '../cube/cubeAssembly'
 import type { ParityResult } from '../cube/parity'
-import type { FaceCaptureData } from './captureTypes'
-import type { CubeTurn } from './cubeView3D'
+import type { FaceCaptureData } from './capture/captureTypes'
+import type { CubeTurn } from './view3d/cubeView3DState'
 import { CubeNetView } from './cubeNetView'
 
 const CubeView3D = lazy(() =>
-  import('./cubeView3D').then((module) => ({ default: module.CubeView3D })),
+  import('./view3d/cubeView3D').then((module) => ({
+    default: module.CubeView3D,
+  })),
 )
 
 const PARITY_CHECK_NAMES: Record<string, string> = {

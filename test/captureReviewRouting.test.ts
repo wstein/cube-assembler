@@ -3,7 +3,7 @@ import {
   canSkipColorReview,
   readyAssemblyAfterCapture,
   type CaptureReviewFace,
-} from '../src/client/captureReviewRouting'
+} from '../src/client/capture/captureReviewRouting'
 
 const ORDER = ['U', 'R', 'F', 'D', 'L', 'B']
 

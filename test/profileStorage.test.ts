@@ -1,12 +1,12 @@
 import { describe, expect, it } from 'vitest'
-import { EMPTY_SETTINGS } from '../src/client/profileSettings'
+import { EMPTY_SETTINGS } from '../src/client/profiles/profileSettings'
 import {
   PROFILE_SETTINGS_KEY,
   loadProfileSettings,
   saveProfileSettings,
   parseSettingsFile,
   settingsFile,
-} from '../src/client/profileStorage'
+} from '../src/client/profiles/profileStorage'
 
 function memoryStorage(): Storage {
   const values = new Map<string, string>()

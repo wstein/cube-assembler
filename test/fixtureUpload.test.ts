@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import type { Fixture } from '../src/client/fixtureZip'
+import type { Fixture } from '../src/client/fixtures/fixtureZip'
 import {
   currentAppCommit,
   DEFAULT_FIXTURE_SERVER,
@@ -8,7 +8,7 @@ import {
   fixtureUploadServerAvailable,
   pollsFixtureUploadServer,
   uploadFixtureToDevServer,
-} from '../src/client/fixtureUpload'
+} from '../src/client/fixtures/fixtureUpload'
 
 const fixture: Fixture = {
   name: 'capture-example',

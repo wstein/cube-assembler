@@ -5,12 +5,14 @@ import { scaleBounds, type LiveAnalysisRequest } from './liveAnalysis'
 import type { LiveFrameMessage, LiveResultMessage } from './liveAnalysis.worker'
 import {
   captureAndProcessCanvas,
-  type ColorDetectionResult,
   type FaceCaptureResult,
+} from '../vision/faceDetection'
+import {
+  type ColorDetectionResult,
   type RGB,
   type SamplingGeometry,
-} from '../imageProcessing'
-import type { ColorProfile } from '../profileSettings'
+} from '../vision/stickerColorGeometry'
+import type { ColorProfile } from '../profiles/profileSettings'
 import type { CaptureMode } from './capturePhoto'
 
 // Live reads use 720p copies of 1080p frames at much lower cost; captures

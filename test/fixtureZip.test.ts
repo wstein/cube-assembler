@@ -8,7 +8,7 @@ import {
   unzipUploadFiles,
   zipFixture,
   type FixtureRequest,
-} from '../src/client/fixtureZip'
+} from '../src/client/fixtures/fixtureZip'
 
 const DIR = join(__dirname, 'fixtures', 'synthetic-sanity-check')
 const saved = JSON.parse(readFileSync(join(DIR, 'meta.json'), 'utf8'))

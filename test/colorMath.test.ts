@@ -4,9 +4,9 @@ import {
   hueCircularRange,
   hueRangesOverlap,
   linearRange,
-  trimmedMeanColor,
-  STICKER_COLORS,
-} from '../src/client/imageProcessing'
+} from '../src/client/vision/colorMath'
+import { trimmedMeanColor } from '../src/client/vision/faceSampling'
+import { STICKER_COLORS } from '../src/client/vision/stickerColorGeometry'
 
 describe('rgbToOKLCH', () => {
   it("matches Ottosson's published OKLab reference values for pure red", () => {

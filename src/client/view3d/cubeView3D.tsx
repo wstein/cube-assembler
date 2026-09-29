@@ -15,9 +15,6 @@ import { useCubeRenderer } from './useCubeRenderer'
 import { useCubeGestures } from './useCubeGestures'
 import { createCubeViewControls } from './cubeViewControls'
 import { DEFAULT_STICKER_HEX, type CubeTurn } from './cubeView3DState'
-export * from './cubeMesh'
-export * from './cubeView3DGraphics'
-export * from './cubeView3DState'
 
 export interface CubeView3DProps {
   cube: CubeState

@@ -1,12 +1,12 @@
 import { useState } from 'preact/hooks'
 import { captureCameraPhoto, importCapturePhoto } from './capturePhoto'
 import { FACE_ORDER } from './captureSteps'
-import type { ColorDetectionResult } from '../imageProcessing'
+import type { ColorDetectionResult } from '../vision/stickerColorGeometry'
 import { withoutDeviceIds, type useCameraStream } from './useCameraStream'
 import type { useCaptureFeedback } from './useCaptureFeedback'
 import type { useCaptureSession } from './useCaptureSession'
 import { useLiveCaptureAnalysis } from './useLiveCaptureAnalysis'
-import type { useProfileStore } from '../useProfileStore'
+import type { useProfileStore } from '../profiles/useProfileStore'
 import type { useScannerPreferences } from '../useScannerPreferences'
 
 type Session = ReturnType<typeof useCaptureSession>

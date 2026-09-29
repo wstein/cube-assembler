@@ -1,12 +1,12 @@
 import { describe, expect, it } from 'vitest'
-import { createCubeViewControls } from '../src/client/cubeViewControls'
+import { createCubeViewControls } from '../src/client/view3d/cubeViewControls'
 import {
   facePreset,
   isometricAngles,
   rotateYaw,
   tiltPitch,
   wheelZoom,
-} from '../src/client/cubeView3DState'
+} from '../src/client/view3d/cubeView3DState'
 
 describe('3D view controls', () => {
   it('uses the same presets and tilt steps for keyboard input', () => {

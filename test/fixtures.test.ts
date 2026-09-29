@@ -7,7 +7,7 @@
  * permanent regression check - a misclassification a human caught once
  * stays caught, instead of only living in a bug report.
  *
- * Runs runGlobalWhiteBalance's actual flow (imageProcessing.ts), not just a
+ * Runs runGlobalWhiteBalance's actual flow (captureRecalibration.ts), not just a
  * single face's raw classification: extract each of the 6 faces with
  * neutral gains, run the app's own cross-face step (classifyAcrossFaces)
  * over them, and compare the resulting labels
@@ -25,7 +25,7 @@ import { existsSync, readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import jpeg from 'jpeg-js'
 import { wrgFaceletsToGrids } from '../src/cube/notation/NotationOutput.gen'
-import { readFixtureColors } from '../src/client/fixtureFormat'
+import { readFixtureColors } from '../src/client/fixtures/fixtureFormat'
 import {
   solveGuidedCapture,
   orientationFreeSignature,
@@ -33,15 +33,17 @@ import {
 } from '../src/cube/cubeAssembly'
 import {
   BACKGROUND_WB_METHOD,
-  DEFAULT_SAMPLING,
   STICKER_MEASUREMENT,
-  classifyAcrossFaces,
-  extractColorsFromImageData,
-  NEUTRAL_GAINS,
+} from '../src/client/vision/faceSampling'
+import {
+  DEFAULT_SAMPLING,
   type ColorDetectionResult,
   type RGB,
   type SamplingGeometry,
-} from '../src/client/imageProcessing'
+} from '../src/client/vision/stickerColorGeometry'
+import { classifyAcrossFaces } from '../src/client/capture/captureRecalibration'
+import { extractColorsFromImageData } from '../src/client/vision/faceDetection'
+import { NEUTRAL_GAINS } from '../src/client/vision/colorMath'
 
 const FIXTURES_DIR = join(__dirname, 'fixtures')
 const FACE_ORDER = ['u', 'r', 'f', 'd', 'l', 'b']

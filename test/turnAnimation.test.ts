@@ -4,7 +4,7 @@ import {
   startTurn,
   turnFrame,
 } from '../src/core/view/TurnAnimation.gen'
-import { magneticSettleAngle, turnEase } from '../src/client/turnFeel'
+import { magneticSettleAngle, turnEase } from '../src/client/view3d/turnFeel'
 
 const layer = { face: 'R' as const, depth: 1, axis: 0, sign: -1 }
 

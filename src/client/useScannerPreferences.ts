@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'preact/hooks'
-import type { CaptureMode } from './capturePhoto'
+import type { CaptureMode } from './capture/capturePhoto'
 import {
   AUTO_CAPTURE_COOKIE,
   CAPTURE_MODE_COOKIE,

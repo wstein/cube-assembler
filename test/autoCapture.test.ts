@@ -9,7 +9,7 @@ import {
   turnCueCleared,
   turnPoseChanged,
   type AutoCaptureSample,
-} from '../src/client/autoCapture'
+} from '../src/client/capture/autoCapture'
 
 const sample = (color = 'R', x = 100, confidence = 0.9): AutoCaptureSample => ({
   colors: Array.from({ length: 3 }, () => Array(3).fill(color)),

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { applyCubeMove } from '../src/client/cubeView3D'
+import { applyCubeMove } from '../src/client/view3d/cubeView3DState'
 import { createSolvedCube } from '../src/cube/cubeAssembly'
 import {
   toURFFacelets,
@@ -18,8 +18,8 @@ import {
   placeFaceCapture,
   solvedCaptureFaces,
   turnCuePose,
-} from '../src/client/captureFlow'
-import type { FaceCaptureData } from '../src/client/captureTypes'
+} from '../src/client/capture/captureFlow'
+import type { FaceCaptureData } from '../src/client/capture/captureTypes'
 
 const grid = (size: number, color: string) =>
   Array.from({ length: size }, () => Array<string>(size).fill(color))

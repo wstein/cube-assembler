@@ -8,22 +8,22 @@ import {
 } from '../../core/capture/CaptureFixture.gen'
 import type { CubeState } from '../../cube/cubeAssembly'
 import type { FaceCaptureData } from './captureTypes'
-import type { AutomaticResolution } from '../colorProfileLearning'
-import type { FixtureDownloadData } from '../fixtureDownloadDialog'
-import type { FixtureUploadMetadata } from '../readFixtureUpload'
+import type { AutomaticResolution } from '../profiles/colorProfileLearning'
+import type { FixtureDownloadData } from '../fixtures/fixtureDownloadDialog'
+import type { FixtureUploadMetadata } from '../fixtures/readFixtureUpload'
 import {
   buildFixture,
   summarizeFixture,
   zipFixture,
   type Fixture,
   type FixtureRequest,
-} from '../fixtureZip'
+} from '../fixtures/fixtureZip'
 import type {
   ColorDetectionResult,
   RGB,
   SamplingGeometry,
-} from '../imageProcessing'
-import type { UsedColorProfile } from '../profileSettings'
+} from '../vision/stickerColorGeometry'
+import type { UsedColorProfile } from '../profiles/profileSettings'
 import type { CameraInfo } from './useCameraStream'
 
 // Everything a saved fixture records about a capture, besides its faces.

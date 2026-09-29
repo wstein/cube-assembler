@@ -5,7 +5,7 @@ import {
   stickerSampleRect,
   type ColorDetectionResult,
   type SamplingGeometry,
-} from '../imageProcessing'
+} from '../vision/stickerColorGeometry'
 
 interface CaptureLiveViewProps {
   webcamRef: { current: HTMLVideoElement | null }

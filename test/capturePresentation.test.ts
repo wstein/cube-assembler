@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { oppositeFacePreview } from '../src/client/capturePresentation'
+import { oppositeFacePreview } from '../src/client/capture/capturePresentation'
 
 describe('oppositeFacePreview', () => {
   it('shows yellow/Down for a captured uniform white/Up face', () => {
