@@ -248,7 +248,7 @@ let standardWideLayer = (layer: swipeLayer, size) => {
 // 3Dw. The outer quarters of a sticker count as the seam. A start in the
 // middle half of a sticker turns one layer. A seam always turns a wide
 // block, even if the first movement has no clear lean; the lean can change
-// that block for the entire drag.
+// that block until the pointer leaves the face it started on (seamSwitch).
 let seamTolerance = 0.25
 let seamLean = 0.1
 
@@ -312,15 +312,49 @@ let seamWideLayer = (hit: surfaceHit, layer: swipeLayer, dx, dy, camera: camera)
   | _ => Null.null
   }
 
-// What a seam swipe turns now: the block its lean picks, else the one
-// layer under the start. A swipe that turns about the other axis keeps the
-// current choice.
+// What a seam swipe turns now: the block its lean picks. Without a clear
+// lean, or for a swipe that turns about the other axis, the current block
+// stays.
 let seamChoice = (hit, current: swipeLayer, dx, dy, camera) =>
   switch pickLayer(hit, dx, dy, camera, 0.0) {
   | Some(layer) if layer.axis == current.axis =>
     seamWideLayer(hit, layer, dx, dy, camera)->Null.toOption->Option.getOr(current)
   | _ => current
   }
+
+// A seam swipe in progress: the lean picks the side while the pointer (x,
+// y on the canvas) stays on the face the swipe started on; once it leaves
+// that face the side is locked. U and D (likewise R/L and F/B) name the
+// same rotation with opposite signs, so a switch between them negates the
+// angle and speed and the turn carries on smoothly.
+type seamDrag = {layer: swipeLayer, angle: float, velocity: float}
+type seamSwitch = {locked: bool, layer: swipeLayer, angle: float, velocity: float}
+
+let seamSwitch = (hit: surfaceHit, drag: seamDrag, x, y, dx, dy, camera) => {
+  let onStartFace =
+    pickCubeSurface(x, y, camera)->Null.toOption->Option.mapOr(false, now => now.face == hit.face)
+  let unchanged = {
+    locked: !onStartFace,
+    layer: drag.layer,
+    angle: drag.angle,
+    velocity: drag.velocity,
+  }
+  if !onStartFace {
+    unchanged
+  } else {
+    let next = seamChoice(hit, drag.layer, dx, dy, camera)
+    let same =
+      next.face == drag.layer.face &&
+      next.depth == drag.layer.depth &&
+      next.width->Option.getOr(1) == drag.layer.width->Option.getOr(1)
+    if same {
+      unchanged
+    } else {
+      let flip = next.sign == drag.layer.sign ? 1.0 : -1.0
+      {locked: false, layer: next, angle: flip *. drag.angle, velocity: flip *. drag.velocity}
+    }
+  }
+}
 
 // A released drag settles on whole quarter turns. Each further quarter
 // counts once the drag passes turnCommitFraction of it, so a short slow

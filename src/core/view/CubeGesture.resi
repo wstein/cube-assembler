@@ -43,6 +43,10 @@ type pressLevel =
 @genType let onSeam: (surfaceHit, swipeLayer, camera) => bool
 @genType let seamWideLayer: (surfaceHit, swipeLayer, float, float, camera) => Null.t<swipeLayer>
 @genType let seamChoice: (surfaceHit, swipeLayer, float, float, camera) => swipeLayer
+@genType type seamDrag = {layer: swipeLayer, angle: float, velocity: float}
+@genType type seamSwitch = {locked: bool, layer: swipeLayer, angle: float, velocity: float}
+@genType
+let seamSwitch: (surfaceHit, seamDrag, float, float, float, float, camera) => seamSwitch
 
 @genType let turnCommitFraction: float
 @genType let flickMs: float

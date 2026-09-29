@@ -16,6 +16,7 @@ import {
   pickSwipeLayer,
   onSeam,
   seamChoice,
+  seamSwitch,
   seamWideLayer,
   screenPoint,
   releasedQuarterTurns,
@@ -249,6 +250,44 @@ describe('following a seam swipe', () => {
       face: 'D',
       depth: 3,
       width: 3,
+    })
+  })
+
+  // The pointer now: `dx`/`dy` from the start on the screen.
+  const [sx, sy] = screenPoint([0.3, -0.5, 2.5], camera)
+  const hit = at(-0.5)
+  const up = { face: 'U', depth: 4, width: 4, axis: 1, sign: -1 } as const
+
+  it('switches sides on the starting face, keeping the turn continuous', () => {
+    const step = seamSwitch(
+      hit,
+      { layer: up, angle: 0.2, velocity: 0.01 },
+      sx - 60,
+      sy + 8,
+      -60,
+      8,
+      camera,
+    )
+    expect(step.locked).toBe(false)
+    expect(step.layer).toMatchObject({ face: 'D', depth: 3, width: 3 })
+    // D names the same rotation as U with the opposite sign.
+    expect(step).toMatchObject({ angle: -0.2, velocity: -0.01 })
+  })
+
+  it('keeps the drag as it is while the lean picks the same side', () => {
+    const drag = { layer: up, angle: 0.2, velocity: 0.01 }
+    expect(seamSwitch(hit, drag, sx - 60, sy - 8, -60, -8, camera)).toEqual({
+      locked: false,
+      ...drag,
+    })
+  })
+
+  it('locks the side once the pointer leaves the starting face', () => {
+    const drag = { layer: up, angle: 0.9, velocity: 0.01 }
+    // Far left of the cube, leaning down.
+    expect(seamSwitch(hit, drag, sx - 260, sy + 40, -260, 40, camera)).toEqual({
+      locked: true,
+      ...drag,
     })
   })
 })

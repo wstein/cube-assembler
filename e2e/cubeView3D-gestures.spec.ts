@@ -590,23 +590,52 @@ test.describe('wide sticker drags', () => {
     await expect(history(page)).toHaveText('Moves: 4Uw')
   })
 
-  test("a seam swipe can switch from 4Uw to 3Dw' after a quarter turn", async ({
+  // The start is 38 px left of the middle, so about 1.7 stickers from the
+  // cube's left edge.
+  test("a seam swipe can switch from 4Uw to 3Dw' on its starting face", async ({
     page,
   }) => {
     const { x, y, column, quarter } = await setUp(page)
     const startY = y + 0.5 * column
     await page.mouse.move(x, startY)
     await page.mouse.down()
-    await page.mouse.move(x - 0.7 * quarter, startY - 0.12 * quarter, {
+    await page.mouse.move(x - 1.2 * column, startY - 0.25 * column, {
       steps: 12,
     })
     await expect(badge(page)).toHaveText(/Wide turn/)
+    // Still on the front face: leaning down picks the other side.
+    await page.mouse.move(x - 1.4 * column, startY + 0.4 * column, {
+      steps: 6,
+    })
     await page.mouse.move(x - 1.1 * quarter, startY + 0.2 * quarter, {
       steps: 20,
     })
     await page.waitForTimeout(150)
     await page.mouse.up()
     await expect(history(page)).toHaveText("Moves: 3Dw'")
+  })
+
+  test('a seam swipe keeps its side once it leaves the starting face', async ({
+    page,
+  }) => {
+    const { x, y, column, quarter } = await setUp(page)
+    const startY = y + 0.5 * column
+    await page.mouse.move(x, startY)
+    await page.mouse.down()
+    await page.mouse.move(x - 1.2 * column, startY - 0.25 * column, {
+      steps: 12,
+    })
+    // Past the cube's left edge, still leaning up.
+    await page.mouse.move(x - 2.4 * column, startY - 0.4 * column, {
+      steps: 8,
+    })
+    // Leaning down now changes nothing.
+    await page.mouse.move(x - 1.1 * quarter, startY + 0.3 * quarter, {
+      steps: 20,
+    })
+    await page.waitForTimeout(150)
+    await page.mouse.up()
+    await expect(history(page)).toHaveText('Moves: 4Uw')
   })
 
   test('a quick second swipe turns its layer too', async ({ page }) => {

@@ -23,6 +23,7 @@ export {
   standardWideLayer,
   onSeam,
   seamChoice,
+  seamSwitch,
   swipeStart,
   followDrag,
   releaseDrag,
