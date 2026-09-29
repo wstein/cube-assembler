@@ -1,30 +1,21 @@
 // The Colors tab of the profiles page: compare saved sticker color profiles,
 // delete them, merge the ones that only differ by room light, and try two
-// profiles on the last capture. All grouping and merging logic lives in colorProfileReview.ts.
+// profiles on the last capture. The sections live in their own files; all
+// grouping and merging logic lives in colorProfileReview.ts.
 import { useState } from 'preact/hooks'
-import {
-  colorDeletionEffects,
-  deleteColorProfiles,
-  unusedColorProfiles,
-  whiteBalancedColors,
-  type ReviewFace,
-} from './colorProfileReview'
-import { DeleteButton, SelectionBar } from './profileDeletion'
-import { NAMES, ORDER, Swatch } from './colorReviewParts'
-import { TryOnSection } from './colorTryOnSection'
-import { SimilarProfilesSection } from './colorGroupsSection'
 import {
   AdvancedSection,
   PairsSection,
   SplitSection,
 } from './colorCompareSections'
-import { EditableName } from './profileRename'
+import { SimilarProfilesSection } from './colorGroupsSection'
+import { whiteBalancedColors, type ReviewFace } from './colorProfileReview'
+import { ProfilesTableSection } from './colorProfilesTable'
+import { TryOnSection } from './colorTryOnSection'
 import {
   AUTO_COLORS_ID,
   allColorProfiles,
   builtinColorProfiles,
-  isBuiltinColorProfile,
-  renameColorProfile,
   type ColorProfile,
   type ProfileSettings,
 } from './profileSettings'
@@ -39,8 +30,6 @@ interface Props {
   onChange: (settings: ProfileSettings) => void
   capture: ReviewCapture | null
 }
-
-const isBuiltin = isBuiltinColorProfile
 
 export function ColorReviewTab({ settings, onChange, capture }: Props) {
   // Automatic isn't a palette of its own; the JSON palettes are references.
@@ -62,7 +51,6 @@ export function ColorReviewTab({ settings, onChange, capture }: Props) {
   const [balanced, setBalanced] = useState(true)
   const [undo, setUndo] = useState<ProfileSettings[]>([])
   const [message, setMessage] = useState('')
-  const [selected, setSelected] = useState<string[]>([])
 
   const byId = (id: string) =>
     profiles.find((profile) => profile.id === id) ?? profiles[0]
@@ -99,20 +87,6 @@ export function ColorReviewTab({ settings, onChange, capture }: Props) {
       )}
     </div>
   )
-  const remove = (ids: string[]) => {
-    try {
-      const names = ids.map((id) => saved.find((p) => p.id === id)?.name ?? id)
-      commit(
-        deleteColorProfiles(settings, ids),
-        ids.length === 1
-          ? `Deleted “${names[0]}”.`
-          : `Deleted ${ids.length} color profiles.`,
-      )
-      setSelected(selected.filter((id) => !ids.includes(id)))
-    } catch (err) {
-      setMessage(`❌ ${err instanceof Error ? err.message : 'Delete failed'}`)
-    }
-  }
   const commit = (next: ProfileSettings, text: string) => {
     setUndo([...undo, settings])
     onChange(next)
@@ -193,125 +167,16 @@ export function ColorReviewTab({ settings, onChange, capture }: Props) {
         }}
       />
 
-      <section class="card color-review-section" aria-labelledby="review-all">
-        <h2 id="review-all">All profiles</h2>
-        <p class="color-review-muted">
-          Each row is one profile's six reference colors on the same neutral
-          grey. Tick saved profiles to delete several at once; built-in colors
-          are read-only.
-        </p>
-        {saved.length > 0 && (
-          <SelectionBar
-            noun={['color profile', 'color profiles']}
-            selected={selected}
-            quick={[
-              { label: 'Select unused', ids: unusedColorProfiles(settings) },
-            ]}
-            effects={colorDeletionEffects(settings, selected)}
-            onSelect={setSelected}
-            onDelete={remove}
-          />
-        )}
-        {status}
-        <div class="color-review-scroll">
-          <table class="color-review-plate color-review-table">
-            <thead>
-              <tr>
-                <th scope="col">
-                  <span class="visually-hidden">Select</span>
-                </th>
-                <th scope="col">Profile</th>
-                {ORDER.map((k) => (
-                  <th scope="col" key={k}>
-                    {NAMES[k]}
-                  </th>
-                ))}
-                <th scope="col">
-                  <span class="visually-hidden">Delete</span>
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {profiles.map((p) => {
-                const colors = shown(p)
-                return (
-                  <tr
-                    key={p.id}
-                    class={selected.includes(p.id) ? 'is-selected' : ''}
-                  >
-                    <td>
-                      {!isBuiltin(p.id) && (
-                        <input
-                          type="checkbox"
-                          aria-label={`Select ${p.name}`}
-                          checked={selected.includes(p.id)}
-                          onChange={(e) =>
-                            setSelected(
-                              e.currentTarget.checked
-                                ? [...selected, p.id]
-                                : selected.filter((id) => id !== p.id),
-                            )
-                          }
-                        />
-                      )}
-                    </td>
-                    <th scope="row">
-                      {p.id === A.id && (
-                        <span class="color-review-badge a">A</span>
-                      )}
-                      {p.id === B.id && (
-                        <span class="color-review-badge b">B</span>
-                      )}
-                      {isBuiltin(p.id) ? (
-                        p.name
-                      ) : (
-                        <EditableName
-                          name={p.name}
-                          onRename={(name) => {
-                            try {
-                              commit(
-                                renameColorProfile(settings, p.id, name),
-                                `Renamed “${p.name}” to “${name.trim().slice(0, 60)}”.`,
-                              )
-                            } catch (err) {
-                              setMessage(
-                                `❌ ${err instanceof Error ? err.message : 'Rename failed'}`,
-                              )
-                            }
-                          }}
-                        />
-                      )}
-                      <span class="color-review-src">
-                        {isBuiltin(p.id)
-                          ? 'built in, read-only'
-                          : `${p.captures} capture${p.captures === 1 ? '' : 's'}`}
-                        {p.id === settings.activeColorsId ? ' · selected' : ''}
-                        {p.id === settings.autoMatchedColorsId
-                          ? ' · automatic match'
-                          : ''}
-                      </span>
-                    </th>
-                    {ORDER.map((k) => (
-                      <td key={k}>
-                        <Swatch color={colors[k]} letter={k} />
-                      </td>
-                    ))}
-                    <td>
-                      {!isBuiltin(p.id) && (
-                        <DeleteButton
-                          name={p.name}
-                          effects={colorDeletionEffects(settings, [p.id])}
-                          onDelete={() => remove([p.id])}
-                        />
-                      )}
-                    </td>
-                  </tr>
-                )
-              })}
-            </tbody>
-          </table>
-        </div>
-      </section>
+      <ProfilesTableSection
+        settings={settings}
+        profiles={profiles}
+        shown={shown}
+        aId={A.id}
+        bId={B.id}
+        status={status}
+        commit={commit}
+        setMessage={setMessage}
+      />
 
       <SplitSection colorsA={colorsA} colorsB={colorsB} />
 
