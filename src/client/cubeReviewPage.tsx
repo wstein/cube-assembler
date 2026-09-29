@@ -13,6 +13,7 @@ import {
 import { DeleteButton, SelectionBar } from './profileDeletion'
 import { EditableName } from './profileRename'
 import { CubeMergeView } from './cubeMergeView'
+import { ReviewStatusToolbar } from './reviewStatusToolbar'
 import {
   MiniGrid,
   sampledSquares,
@@ -57,28 +58,15 @@ export function CubeReviewTab({ settings, onChange, photo }: Props) {
     activeCube(settings, cube.size).id === cube.id
 
   const status = (
-    <div class="color-review-toolbar">
-      <button
-        type="button"
-        class="btn btn-secondary btn-sm"
-        disabled={undo.length === 0}
-        onClick={() => {
-          onChange(undo[undo.length - 1])
-          setUndo(undo.slice(0, -1))
-          setMessage('Undone.')
-        }}
-      >
-        Undo last change
-      </button>
-      {message && (
-        <span
-          role="status"
-          class={`color-review-message ${message.startsWith('❌') ? 'error' : ''}`}
-        >
-          {message}
-        </span>
-      )}
-    </div>
+    <ReviewStatusToolbar
+      canUndo={undo.length > 0}
+      onUndo={() => {
+        onChange(undo[undo.length - 1])
+        setUndo(undo.slice(0, -1))
+        setMessage('Undone.')
+      }}
+      message={message}
+    />
   )
   const remove = (ids: string[]) => {
     try {

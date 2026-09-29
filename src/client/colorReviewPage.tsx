@@ -19,6 +19,7 @@ import {
   type ColorProfile,
   type ProfileSettings,
 } from './profileSettings'
+import { ReviewStatusToolbar } from './reviewStatusToolbar'
 
 export interface ReviewCapture {
   // Per face in capture order: reviewed colors and measured sticker colors.
@@ -68,24 +69,11 @@ export function ColorReviewTab({ settings, onChange, capture }: Props) {
     setMessage('Undone.')
   }
   const status = (
-    <div class="color-review-toolbar">
-      <button
-        type="button"
-        class="btn btn-secondary btn-sm"
-        disabled={undo.length === 0}
-        onClick={undoLast}
-      >
-        Undo last change
-      </button>
-      {message && (
-        <span
-          role="status"
-          class={`color-review-message ${message.startsWith('❌') ? 'error' : ''}`}
-        >
-          {message}
-        </span>
-      )}
-    </div>
+    <ReviewStatusToolbar
+      canUndo={undo.length > 0}
+      onUndo={undoLast}
+      message={message}
+    />
   )
   const commit = (next: ProfileSettings, text: string) => {
     setUndo([...undo, settings])
