@@ -10,29 +10,10 @@ import { useFixtureDownload } from './useFixtureDownload'
 import { useCameraStream, withoutDeviceIds } from './useCameraStream'
 import { useCaptureFeedback } from './useCaptureFeedback'
 import { useLiveCaptureAnalysis } from './useLiveCaptureAnalysis'
-import {
-  captureCameraPhoto,
-  importCapturePhoto,
-  type CaptureMode,
-} from './capturePhoto'
+import { captureCameraPhoto, importCapturePhoto } from './capturePhoto'
 import { profilesHash } from './profilesRoute'
-import {
-  AUTO_CAPTURE_COOKIE,
-  CUBE_SIZE_COOKIE,
-  CAPTURE_MODE_COOKIE,
-  CUBE_VIEW_COOKIE,
-  NOTATION_COOKIE,
-  MIRROR_COOKIE,
-  SOUND_COOKIE,
-  preferenceCookie,
-  readAutoCaptureFrames,
-  readPreference,
-  selectedCubeSize,
-  selectedCaptureMode,
-  selectedCubeView,
-  selectedNotationFormat,
-  selectionCookie,
-} from './preferences'
+import { selectedCubeSize } from './preferences'
+import { useScannerPreferences } from './useScannerPreferences'
 import { type ParityResult } from '../cube/parity'
 import { type ColorDetectionResult } from './imageProcessing'
 import {
@@ -86,27 +67,28 @@ export function useScannerAppModel() {
     value: CubeState
     moves: import('./cubeView3D').CubeTurn[]
   } | null>(null)
-  const [cubeViewMode, setCubeViewMode] = useState<'net' | '3d'>(
-    () => selectedCubeView(document.cookie) ?? 'net',
-  )
   const [parity, setParity] = useState<ParityResult | null>(null)
   const [webcamOpen, setWebcamOpen] = useState(false)
-  const [captureMode, setCaptureMode] = useState<CaptureMode>(() =>
-    selectedCaptureMode(document.cookie),
-  )
-  // Auto capture, sound and mirror start off; the viewer's choices are kept
-  // in cookies (see preferences.ts).
-  const [autoCapture, setAutoCapture] = useState(() =>
-    readPreference(document.cookie, AUTO_CAPTURE_COOKIE),
-  )
   const [autoCaptureFrames, setAutoCaptureFrames] = useState(0)
-  const [stableFrames, setStableFrames] = useState(() =>
-    readAutoCaptureFrames(document.cookie),
-  )
   const [autoCapturePaused, setAutoCapturePaused] = useState(false)
-  const [captureSound, setCaptureSound] = useState(() =>
-    readPreference(document.cookie, SOUND_COOKIE),
-  )
+  const {
+    cubeViewMode,
+    setCubeViewMode,
+    captureMode,
+    setCaptureMode,
+    autoCapture,
+    setAutoCapture,
+    stableFrames,
+    captureSound,
+    setCaptureSound,
+    mirrorPreview,
+    setMirrorPreview,
+    notationFormat,
+    setNotationFormat,
+    changePreference,
+    page,
+    onSettingsPage,
+  } = useScannerPreferences(puzzleSize)
   const {
     flash: captureFlash,
     armAudio: armCaptureAudio,
@@ -165,9 +147,6 @@ export function useScannerAppModel() {
   } = useFixtureDownload()
   const [manualColorInput, setManualColorInput] = useState('')
   const [showColorInput, setShowColorInput] = useState(false)
-  const [notationFormat, setNotationFormat] = useState<'wrg' | 'urf'>(() =>
-    selectedNotationFormat(document.cookie),
-  )
   const [liveDetection, setLiveDetection] =
     useState<ColorDetectionResult | null>(null)
   const [liveFaceVisible, setLiveFaceVisible] = useState(false)
@@ -200,21 +179,6 @@ export function useScannerAppModel() {
     row: number
     col: number
   } | null>(null)
-  // Most laptop/webcam feeds are shown mirrored by convention (like a
-  // physical mirror), which is what most users expect; default on but
-  // let it be turned off for cameras that don't need it (e.g. a rear
-  // phone camera fed in via some capture setups).
-  const [mirrorPreview, setMirrorPreview] = useState(() =>
-    readPreference(document.cookie, MIRROR_COOKIE),
-  )
-  const changePreference = (
-    name: string,
-    set: (on: boolean) => void,
-    on: boolean,
-  ) => {
-    set(on)
-    document.cookie = preferenceCookie(name, on)
-  }
   const {
     profileStore,
     applyProfileStore,
@@ -250,18 +214,6 @@ export function useScannerAppModel() {
       location.hash = profilesHash('cubes')
     },
   })
-  useEffect(() => {
-    document.cookie = selectionCookie(CUBE_SIZE_COOKIE, String(puzzleSize))
-  }, [puzzleSize])
-  useEffect(() => {
-    document.cookie = selectionCookie(CUBE_VIEW_COOKIE, cubeViewMode)
-  }, [cubeViewMode])
-  useEffect(() => {
-    document.cookie = selectionCookie(NOTATION_COOKIE, notationFormat)
-  }, [notationFormat])
-  useEffect(() => {
-    document.cookie = selectionCookie(CAPTURE_MODE_COOKIE, captureMode)
-  }, [captureMode])
   const liveAutoColorProfile = autoColorProfiles.find(
     (candidate) => candidate.id === liveAutoColorProfileId,
   )
@@ -291,26 +243,6 @@ export function useScannerAppModel() {
     failRecalibration,
     applyFixtureCalibration,
   } = useCaptureCalibration()
-  // Applied for this session even when the browser won't keep it.
-  // '#profiles' shows the profiles page instead of the scanner.
-  const [page, setPage] = useState(() => location.hash)
-  useEffect(() => {
-    const onHash = () => setPage(location.hash)
-    window.addEventListener('hashchange', onHash)
-    return () => window.removeEventListener('hashchange', onHash)
-  }, [])
-  // Back from the settings page, pick up what it changed.
-  const onSettingsPage = page === '#settings'
-  useEffect(() => {
-    if (onSettingsPage) return
-    const cookies = document.cookie
-    setMirrorPreview(readPreference(cookies, MIRROR_COOKIE))
-    setAutoCapture(readPreference(cookies, AUTO_CAPTURE_COOKIE))
-    setCaptureSound(readPreference(cookies, SOUND_COOKIE))
-    setNotationFormat(selectedNotationFormat(cookies))
-    setCaptureMode(selectedCaptureMode(cookies))
-    setStableFrames(readAutoCaptureFrames(cookies))
-  }, [onSettingsPage])
   const [showBackdropDialog, setShowBackdropDialog] = useState(false)
   const [reviewStep, setReviewStep] = useState(0)
   const [reviewRouting, setReviewRouting] = useState<{
