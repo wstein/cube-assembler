@@ -1,18 +1,18 @@
 // The Cubes tab of the profiles page: saved cube definitions by size (tick
 // or delete them), their duplicates (merge or delete in favour of Generic), and each cube's sampled
 // sticker area drawn on the last captured face. Logic: cubeProfileReview.ts.
-import { useMemo, useState } from 'preact/hooks'
+import { useState } from 'preact/hooks'
 import {
   cubeDeletionEffects,
   cubesSameAsGeneric,
   deleteCubes,
-  duplicateCubeGroups,
   mergeCubes,
   replaceCubes,
   unusedCubes,
 } from './cubeProfileReview'
 import { DeleteButton, SelectionBar } from './profileDeletion'
 import { EditableName } from './profileRename'
+import { CubeMergeView } from './cubeMergeView'
 import {
   MiniGrid,
   sampledSquares,
@@ -37,16 +37,12 @@ interface Props {
   photo: ReviewPhoto | null
 }
 
-const DEFAULT_TOLERANCE = 0.02
 const GENERIC_CORE = builtinCube(3).sampling.stickerCore
 const pct = (v: number) => `${Math.round(v * 100)}%`
 
 export function CubeReviewTab({ settings, onChange, photo }: Props) {
   const cubes = allCubes(settings)
   const [sizes, setSizes] = useState<number[]>([])
-  const [tolerance, setTolerance] = useState(DEFAULT_TOLERANCE)
-  const [unticked, setUnticked] = useState<Set<string>>(new Set())
-  const [names, setNames] = useState<Record<string, string>>({})
   const [undo, setUndo] = useState<ProfileSettings[]>([])
   const [selected, setSelected] = useState<string[]>([])
   const [message, setMessage] = useState('')
@@ -57,15 +53,6 @@ export function CubeReviewTab({ settings, onChange, photo }: Props) {
   const [gapDraft, setGapDraft] = useState(40)
   const outer = useOuterRatio(photo)
 
-  const groups = useMemo(
-    () => duplicateCubeGroups(settings, tolerance),
-    [settings, tolerance],
-  )
-  const groupKey = (group: CubeSetting[]) =>
-    group
-      .map((cube) => cube.id)
-      .sort()
-      .join('+')
   const isActive = (cube: CubeSetting) =>
     activeCube(settings, cube.size).id === cube.id
 
@@ -114,11 +101,8 @@ export function CubeReviewTab({ settings, onChange, photo }: Props) {
     onChange(next)
     setMessage(text)
   }
-  const apply = (group: CubeSetting[], name: string) => {
+  const apply = (group: CubeSetting[], name: string, ticked: CubeSetting[]) => {
     const generic = group.find((cube) => isBuiltinCube(cube.id))
-    const ticked = group.filter(
-      (cube) => !isBuiltinCube(cube.id) && !unticked.has(cube.id),
-    )
     try {
       if (generic) {
         commit(
@@ -143,11 +127,16 @@ export function CubeReviewTab({ settings, onChange, photo }: Props) {
       setMessage(`❌ ${err instanceof Error ? err.message : 'Change failed'}`)
     }
   }
-  const toggle = (id: string, on: boolean) => {
-    const next = new Set(unticked)
-    if (on) next.delete(id)
-    else next.add(id)
-    setUnticked(next)
+  const tryOn = (group: CubeSetting[]) => {
+    const distinct = [
+      ...new Map(
+        group.map((cube) => [cube.sampling.stickerCore, cube]),
+      ).values(),
+    ]
+    setA(distinct[0].id)
+    setB((distinct[1] ?? group[1]).id)
+    setTrial(null)
+    document.getElementById('cubes-try')?.scrollIntoView({ behavior: 'smooth' })
   }
 
   // Try on the photo: A and B among the cubes of the photo's size.
@@ -426,181 +415,13 @@ export function CubeReviewTab({ settings, onChange, photo }: Props) {
         })}
       </section>
 
-      <section class="card color-review-section" aria-labelledby="cubes-dupes">
-        <h2 id="cubes-dupes">Duplicates</h2>
-        <p class="color-review-muted">
-          Cubes of the same size whose sticker areas all lie within the
-          tolerance of each other. Tick the ones to merge: they are deleted, and
-          the size's active cube moves to the result. A group with a built-in
-          Generic cube keeps Generic.
-        </p>
-        <div class="color-review-limit">
-          <label for="cubes-tolerance">Tolerance</label>
-          <input
-            type="range"
-            id="cubes-tolerance"
-            min="0"
-            max="0.06"
-            step="0.005"
-            value={tolerance}
-            onInput={(e) => setTolerance(Number(e.currentTarget.value))}
-          />
-          <span class="mono">± {pct(tolerance)}</span>
-        </div>
-        {status}
-        {groups.length === 0 && (
-          <p class="color-review-muted">No duplicates at this tolerance.</p>
-        )}
-        <div class="color-review-groups">
-          {groups.map((group, n) => {
-            const key = groupKey(group)
-            const size = group[0].size
-            const generic = group.find((cube) => isBuiltinCube(cube.id))
-            const ticked = group.filter(
-              (cube) => !isBuiltinCube(cube.id) && !unticked.has(cube.id),
-            )
-            const cores = group.map((cube) => cube.sampling.stickerCore)
-            const spread = Math.max(...cores) - Math.min(...cores)
-            const core = generic
-              ? generic.sampling.stickerCore
-              : ticked.reduce(
-                  (sum, cube) => sum + cube.sampling.stickerCore,
-                  0,
-                ) / Math.max(1, ticked.length)
-            const enough = generic ? ticked.length >= 1 : ticked.length >= 2
-            const name = names[key] ?? ticked[0]?.name ?? ''
-            return (
-              <div class="color-review-group" key={key}>
-                <div class="color-review-group-head">
-                  <strong>
-                    {size}×{size} · {group.length} cubes
-                  </strong>
-                  <span
-                    class={`color-review-pill ${spread < 0.005 ? 'ok' : 'warn'}`}
-                  >
-                    {spread < 0.005 ? 'identical' : `spread ${pct(spread)}`}
-                  </span>
-                </div>
-                <div class="cube-review-members">
-                  {group.map((cube) => {
-                    const builtin = isBuiltinCube(cube.id),
-                      on = builtin || !unticked.has(cube.id)
-                    return (
-                      <label
-                        class={`cube-review-member ${on ? '' : 'off'}`}
-                        key={cube.id}
-                      >
-                        <input
-                          type="checkbox"
-                          checked={on}
-                          disabled={builtin}
-                          onChange={(e) =>
-                            toggle(cube.id, e.currentTarget.checked)
-                          }
-                        />
-                        <MiniGrid
-                          size={size}
-                          core={cube.sampling.stickerCore}
-                          class="cube-review-mini small"
-                        />
-                        <span class="cube-review-member-name">
-                          {cube.name}
-                          {builtin ? ' (built in)' : ''}
-                          {isActive(cube) && (
-                            <span class="color-review-pill info">active</span>
-                          )}
-                        </span>
-                        <span class="mono">
-                          {pct(cube.sampling.stickerCore)}
-                        </span>
-                      </label>
-                    )
-                  })}
-                </div>
-                <div class="cube-review-result">
-                  <MiniGrid
-                    size={size}
-                    core={core}
-                    class="cube-review-mini small"
-                  />
-                  <span>
-                    {generic ? (
-                      <>
-                        Keeps <strong>{generic.name}</strong> ({pct(core)})
-                      </>
-                    ) : (
-                      <>
-                        New cube · sticker area{' '}
-                        <span class="mono">{pct(core)}</span>
-                      </>
-                    )}
-                  </span>
-                </div>
-                {!generic && (
-                  <>
-                    <label class="color-review-field" for={`cube-name-${n}`}>
-                      New cube name
-                    </label>
-                    <input
-                      type="text"
-                      id={`cube-name-${n}`}
-                      class="color-review-name"
-                      maxLength={60}
-                      value={name}
-                      onInput={(e) =>
-                        setNames({ ...names, [key]: e.currentTarget.value })
-                      }
-                    />
-                  </>
-                )}
-                <div class="color-review-toolbar">
-                  <button
-                    type="button"
-                    class="btn btn-primary btn-sm"
-                    disabled={!enough || (!generic && !name.trim())}
-                    onClick={() => apply(group, name)}
-                  >
-                    {generic
-                      ? `Delete ${ticked.length}, keep Generic`
-                      : `Merge ${ticked.length} into one`}
-                  </button>
-                  {photo?.size === size && (
-                    <button
-                      type="button"
-                      class="btn btn-secondary btn-sm"
-                      onClick={() => {
-                        const distinct = [
-                          ...new Map(
-                            group.map((cube) => [
-                              cube.sampling.stickerCore,
-                              cube,
-                            ]),
-                          ).values(),
-                        ]
-                        setA(distinct[0].id)
-                        setB((distinct[1] ?? group[1]).id)
-                        setTrial(null)
-                        document
-                          .getElementById('cubes-try')
-                          ?.scrollIntoView({ behavior: 'smooth' })
-                      }}
-                    >
-                      Try on photo
-                    </button>
-                  )}
-                </div>
-                <p class="color-review-note">
-                  {enough
-                    ? `Deletes ${ticked.map((cube) => cube.name).join(', ')}.`
-                    : generic
-                      ? 'Tick at least one cube.'
-                      : 'Tick at least two cubes.'}
-                </p>
-              </div>
-            )
-          })}
-        </div>
-      </section>
+      <CubeMergeView
+        settings={settings}
+        photoSize={photo?.size ?? null}
+        status={status}
+        onApply={apply}
+        onTry={tryOn}
+      />
 
       <section class="card color-review-section" aria-labelledby="cubes-try">
         <h2 id="cubes-try">Try on your last capture</h2>
