@@ -27,36 +27,40 @@ reviewed colors; it does not bypass review.
 The 3D viewer uses a transparent WebGL canvas; `web/style.css` supplies its
 dark gray gradient and soft shadow behind the cube.
 
-1. [`index.tsx`](../src/client/index.tsx) coordinates capture and review state.
+1. [`index.tsx`](../src/client/index.tsx) mounts the app;
+   [`useScannerAppModel.ts`](../src/client/useScannerAppModel.ts) coordinates capture and review state.
    [`cubeNetView.tsx`](../src/client/cubeNetView.tsx) draws the 2D cube and its
-   sticker hover details. [`orientationApprovalDialog.tsx`](../src/client/orientationApprovalDialog.tsx)
-   and [`orientationWizardDialog.tsx`](../src/client/orientationWizardDialog.tsx)
+   sticker hover details. [`orientationApprovalDialog.tsx`](../src/client/capture/orientationApprovalDialog.tsx)
+   and [`orientationWizardDialog.tsx`](../src/client/capture/orientationWizardDialog.tsx)
    show the assembly choices; their shared net is in
-   [`orientationPresentation.tsx`](../src/client/orientationPresentation.tsx).
-   [`useCameraStream.ts`](../src/client/useCameraStream.ts) manages
-   the camera stream; [`capturePhoto.ts`](../src/client/capturePhoto.ts) reads
-   manual camera and uploaded photos. [`useCaptureFeedback.ts`](../src/client/useCaptureFeedback.ts)
-   handles the shutter cue. [`useLiveCaptureAnalysis.ts`](../src/client/useLiveCaptureAnalysis.ts)
-   sends video frames to [`liveAnalysis.worker.ts`](../src/client/liveAnalysis.worker.ts),
+   [`orientationPresentation.tsx`](../src/client/capture/orientationPresentation.tsx).
+   [`useCameraStream.ts`](../src/client/capture/useCameraStream.ts) manages
+   the camera stream; [`capturePhoto.ts`](../src/client/capture/capturePhoto.ts) reads
+   manual camera and uploaded photos. [`useCaptureFeedback.ts`](../src/client/capture/useCaptureFeedback.ts)
+   handles the shutter cue. [`useLiveCaptureAnalysis.ts`](../src/client/capture/useLiveCaptureAnalysis.ts)
+   sends video frames to [`liveAnalysis.worker.ts`](../src/client/capture/liveAnalysis.worker.ts),
    keeping live analysis off the main thread and managing automatic capture.
-   [`captureNet.tsx`](../src/client/captureNet.tsx) draws captured faces and
-   [`captureTurnCue.tsx`](../src/client/captureTurnCue.tsx) draws turn guidance.
-   [`photoUploadReview.tsx`](../src/client/photoUploadReview.tsx) presents six
-   selected photos; [`readPhotoUploads.ts`](../src/client/readPhotoUploads.ts)
-   reads their colors and [`readFixtureUpload.ts`](../src/client/readFixtureUpload.ts)
+   [`captureNet.tsx`](../src/client/capture/captureNet.tsx) draws captured faces and
+   [`captureTurnCue.tsx`](../src/client/capture/captureTurnCue.tsx) draws turn guidance.
+   [`photoUploadReview.tsx`](../src/client/fixtures/photoUploadReview.tsx) presents six
+   selected photos; [`readPhotoUploads.ts`](../src/client/fixtures/readPhotoUploads.ts)
+   reads their colors and [`readFixtureUpload.ts`](../src/client/fixtures/readFixtureUpload.ts)
    validates saved fixture files before review.
-2. [`gridAlignment.ts`](../src/client/gridAlignment.ts) locates and straightens
-   the sticker grid. [`imageProcessing.ts`](../src/client/imageProcessing.ts)
-   samples colors, checks face visibility, and recalibrates across six faces.
-   [`autoCapture.ts`](../src/client/autoCapture.ts) tracks stable readings.
+2. [`gridAlignment.ts`](../src/client/vision/gridAlignment.ts) locates and straightens
+   the sticker grid. [`faceSampling.ts`](../src/client/vision/faceSampling.ts)
+   samples colors, [`faceDetection.ts`](../src/client/vision/faceDetection.ts)
+   checks face visibility, and
+   [`captureRecalibration.ts`](../src/client/capture/captureRecalibration.ts)
+   recalibrates across six faces.
+   [`autoCapture.ts`](../src/client/capture/autoCapture.ts) tracks stable readings.
 3. [`cubeAssembly.ts`](../src/cube/cubeAssembly.ts) searches face identities
    and rotations. Odd cubes use fixed center colors; even cubes search identity
    and rotation together. Guided capture narrows the candidate arrangements
    to 64. [`orientationWizard.ts`](../src/cube/orientationWizard.ts) asks about
    ambiguous placements, then [`parity.ts`](../src/cube/parity.ts) checks
    physical validity.
-4. [`fixtureZip.ts`](../src/client/fixtureZip.ts) exports reviewed photos and
-   metadata. [`fixtureFormat.ts`](../src/client/fixtureFormat.ts) reads saved
+4. [`fixtureZip.ts`](../src/client/fixtures/fixtureZip.ts) exports reviewed photos and
+   metadata. [`fixtureFormat.ts`](../src/client/fixtures/fixtureFormat.ts) reads saved
    fixtures. The [fixture metadata schema](../public/schemas/fixture-meta-v1.schema.json)
    is published with the site. [`scripts/fixtureUploadServer.mjs`](../scripts/fixtureUploadServer.mjs)
    accepts uploads on localhost, from the dev server or (through CORS) the
@@ -69,16 +73,16 @@ turns and whole-cube rotations live in
 [`CubeGeometry.res`](../src/cube/CubeGeometry.res). TypeScript consumers use
 generated genType wrappers; `cubeGeometry.ts` keeps the existing typed API.
 ReScript builds before TypeScript and Vite. Orbit64, assembly, parity, and
-orientation logic remain TypeScript in `src/cube/`.
+orientation logic also live in `src/cube/` as ReScript modules.
 
 ## Profiles and storage
 
-[`profileSettings.ts`](../src/client/profileSettings.ts) separates cube size
-and sticker gap from colors. [`profileStorage.ts`](../src/client/profileStorage.ts)
+[`profileSettings.ts`](../src/client/profiles/profileSettings.ts) separates cube size
+and sticker gap from colors. [`profileStorage.ts`](../src/client/profiles/profileStorage.ts)
 imports, exports, and stores custom definitions under
 `cube-assembler-profiles-v1`. The eight built-in palettes come from
 [`cube-assembler-profiles.json`](../cube-assembler-profiles.json).
-[`colorProfileLearning.ts`](../src/client/colorProfileLearning.ts) guards
+[`colorProfileLearning.ts`](../src/client/profiles/colorProfileLearning.ts) guards
 manual profile updates. [`preferences.ts`](../src/client/preferences.ts) keeps
 the selected cube size and color profile ID, Mirror, Auto capture, sound, and
 2D/3D display options in first-party cookies. See

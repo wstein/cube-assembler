@@ -9,7 +9,7 @@ the detector does not change it. Live analysis runs every 200 ms.
 ## Finding a face
 
 The dashed frame is a 70%-wide placement guide; detection can reach beyond
-it. [`gridAlignment.ts`](../src/client/gridAlignment.ts) estimates an outline
+it. [`gridAlignment.ts`](../src/client/vision/gridAlignment.ts) estimates an outline
 before its fine seam search, or searches around the centered guide when an
 outline is unclear. The outline scan covers faces 0.7–1.3 times guide size
 with centers up to 22% of a guide width away. The seam search stays within
@@ -24,7 +24,7 @@ stickers remain distinguishable from dark plastic. The detector accepts up to
 cubies measured on large cubes. The live check requires even sticker colors
 and an outline in Detect face mode; Guide grid can use a sticker pattern.
 
-[`autoCapture.ts`](../src/client/autoCapture.ts) captures after five matching
+[`autoCapture.ts`](../src/client/capture/autoCapture.ts) captures after five matching
 readings at 60% confidence or better. Missing or weak frames pause progress;
 a changed sticker pattern resets it. A ring shows progress, and an enabled
 sound plays a short click on capture. A confirmed face can remain on screen
