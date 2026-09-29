@@ -2,6 +2,7 @@ import { createScannerUploadActions } from './scannerUploadActions'
 import { useState } from 'preact/hooks'
 import {
   captureBackgroundGains,
+  finishReview,
   recalibrateCapture,
 } from './captureFinalization'
 import type { FaceCaptureData } from './captureTypes'
@@ -25,16 +26,11 @@ import {
   selectCube,
   setAutoColorMatch,
 } from './profileSettings'
-import {
-  canCreateProfileFromCapture,
-  profileToUpdate,
-} from './colorProfileLearning'
 import { currentAppCommit } from './fixtureUpload'
 import { FACE_ORDER, glareFacesToWarn } from './captureSteps'
 import { useProfileStore } from './useProfileStore'
 import { useCaptureSession } from './useCaptureSession'
 import { useCaptureCalibration } from './useCaptureCalibration'
-import { captureEvidence, checkParity } from './captureFlow'
 import { usePhotoUploads } from './usePhotoUploads'
 import {
   buildCaptureFixture,
@@ -462,53 +458,22 @@ export function useScannerAppModel() {
     setCube(cubeState)
     updateParityStatus(cubeState)
     if (pendingPalette) {
-      let reviewedValid = false
-      try {
-        reviewedValid = checkParity(cubeState, puzzleSize).valid
-      } catch {
-        /* Keep learned colors out of a failed review. */
-      }
-      const evidence = captureEvidence(
-        capturedFaces,
-        puzzleSize,
-        reviewedValid,
-        pendingPalette,
-      )
       const automatic = automaticColors
-      const matched =
-        automatic &&
-        reviewedValid &&
-        evidence.cameraOnly &&
-        evidence.recalibrated
-          ? (autoColorProfiles.find(
-              (profile) => profile.id === resolvedColorProfile?.id,
-            ) ?? null)
-          : null
-      // The Automatic match or the hand-selected profile is only ever
-      // updated through the explicit Update action, never silently.
-      const updatable = profileToUpdate(
-        profileStore.colors,
-        {
-          automatic,
-          resolvedId: resolvedColorProfile?.id ?? null,
-          selectedId: profileStore.activeColorsId,
-        },
-        pendingPalette.colors,
-        evidence,
-      )
-      const canCreate = canCreateProfileFromCapture(evidence)
-      setProfileLearningOffer(
-        canCreate
-          ? {
-              colors: pendingPalette.colors,
-              evidence,
-              matchedProfileId: updatable?.id ?? null,
-            }
-          : null,
-      )
+      const { offer, autoMatchId } = finishReview({
+        cube: cubeState,
+        size: puzzleSize,
+        faces: capturedFaces,
+        palette: pendingPalette,
+        automatic,
+        autoProfiles: autoColorProfiles,
+        resolvedId: resolvedColorProfile?.id ?? null,
+        profiles: profileStore.colors,
+        selectedId: profileStore.activeColorsId,
+      })
+      setProfileLearningOffer(offer)
       setNewColorName(null)
       if (automatic)
-        applyProfileStore(setAutoColorMatch(profileStore, matched?.id ?? null))
+        applyProfileStore(setAutoColorMatch(profileStore, autoMatchId))
       setPendingPalette(null)
     }
     setShowReviewDialog(false)

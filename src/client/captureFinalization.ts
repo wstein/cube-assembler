@@ -1,4 +1,6 @@
 import { finishRecalibration } from '../core/capture/CaptureFinalization.gen'
+
+export { finishReview } from '../core/capture/CaptureFinalization.gen'
 import type { FaceCaptureData } from './captureTypes'
 import {
   computeBackgroundGains,

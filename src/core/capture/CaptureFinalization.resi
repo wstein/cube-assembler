@@ -30,3 +30,27 @@ type recalibration = {
 }
 
 @genType let finishRecalibration: (options, Recalibration.classified) => recalibration
+
+@genType
+type review = {
+  cube: CubeState.cubeState,
+  size: int,
+  faces: Dict.t<CaptureFlow.faceCaptureData>,
+  palette: pendingPalette,
+  automatic: bool,
+  autoProfiles: array<ProfileSettings.colorProfile>,
+  resolvedId: Null.t<string>,
+  profiles: array<ProfileSettings.colorProfile>,
+  selectedId: string,
+}
+
+@genType
+type learningOffer = {
+  colors: Dict.t<StickerGeometry.rgb>,
+  evidence: ColorProfileLearning.paletteEvidence,
+  matchedProfileId: Null.t<string>,
+}
+
+@genType type reviewOutcome = {offer: Null.t<learningOffer>, autoMatchId: Null.t<string>}
+
+@genType let finishReview: review => reviewOutcome

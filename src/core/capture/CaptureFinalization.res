@@ -129,3 +129,62 @@ let finishRecalibration = (options: options, measured: Recalibration.classified)
     resolvedProfile: Null.fromOption(resolvedProfile),
   }
 }
+
+// Once the assembled cube is approved: what its learned colors may do to
+// the color profiles. A valid cube photographed entirely by the camera and
+// re-read together may create a profile, or update the one it matched -
+// the hand-selected profile, or Automatic's; either is only ever updated
+// through the explicit Update action, never silently. Automatic records
+// the saved profile it resolved to.
+type review = {
+  cube: CubeState.cubeState,
+  size: int,
+  faces: Dict.t<CaptureFlow.faceCaptureData>,
+  palette: pendingPalette,
+  automatic: bool,
+  autoProfiles: array<ProfileSettings.colorProfile>,
+  resolvedId: Null.t<string>,
+  profiles: array<ProfileSettings.colorProfile>,
+  selectedId: string,
+}
+
+type learningOffer = {
+  colors: Dict.t<rgb>,
+  evidence: ColorProfileLearning.paletteEvidence,
+  matchedProfileId: Null.t<string>,
+}
+
+type reviewOutcome = {offer: Null.t<learningOffer>, autoMatchId: Null.t<string>}
+
+let finishReview = (review: review) => {
+  let reviewedValid = CaptureFlow.parityStatus(review.cube, review.size).valid
+  let evidence = CaptureFlow.captureEvidence(
+    review.faces,
+    review.size,
+    reviewedValid,
+    {
+      recalibrated: review.palette.recalibrated,
+      confidentFraction: review.palette.confidentFraction,
+    },
+  )
+  let matched =
+    review.automatic && reviewedValid && evidence.cameraOnly && evidence.recalibrated
+      ? review.autoProfiles->Array.find(profile => Null.make(profile.id) == review.resolvedId)
+      : None
+  let updatable = ColorProfileLearning.profileToUpdate(
+    review.profiles,
+    {automatic: review.automatic, resolvedId: review.resolvedId, selectedId: review.selectedId},
+    review.palette.colors,
+    evidence,
+  )
+  {
+    offer: ColorProfileLearning.canCreateProfileFromCapture(evidence)
+      ? Null.make({
+          colors: review.palette.colors,
+          evidence,
+          matchedProfileId: updatable->Null.map(profile => profile.id),
+        })
+      : Null.null,
+    autoMatchId: matched->Option.map(profile => profile.id)->Null.fromOption,
+  }
+}
