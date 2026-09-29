@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from 'preact/hooks'
 import '../../web/cube3d.css'
-import { createShadowRenderer } from './cubeShadow'
 import {
   clampZoom,
   followDrag,
@@ -24,14 +23,12 @@ import {
   type TwoFingerLock,
   type PressLevel,
 } from './cubeGesture'
-import {} from '../core/view/TurnAnimation.gen'
 import { MODE_CUE_GAIN, playWideCue } from './turnFeel'
 import {
   STICKERLESS_COOKIE,
   preferenceCookie,
   readPreference,
   readSwipeTuning,
-  readTurnFeel,
   turnSoundOn,
   vibrationOn,
   readVibrationMs,
@@ -39,24 +36,15 @@ import {
 import type { CubeState } from '../cube/cubeAssembly'
 
 import { AxisGizmo } from './axisGizmo'
-import { buildCubeMesh } from './cubeMesh'
 import { CubeView3DPresentation } from './cubeView3DPresentation'
 import { useCubeCamera } from './useCubeCamera'
 import { useCubeTurns } from './useCubeTurns'
+import { useCubeRenderer } from './useCubeRenderer'
 import { createCubeViewControls } from './cubeViewControls'
 import {
   createDragInteraction,
   type CubePointerGesture,
 } from './cubeDragInteraction'
-import {
-  initProgram,
-  mat4Create,
-  mat4Multiply,
-  mat4Perspective,
-  mat4RotateX,
-  mat4RotateY,
-  mat4Translate,
-} from './cubeView3DGraphics'
 import {
   AUTO_ROTATE_RESUME_DELAY_MS,
   DEFAULT_STICKER_HEX,
@@ -105,7 +93,6 @@ export function CubeView3D({
     isRotating,
     toggleAutoRotate,
   } = useCubeCamera(puzzleSize)
-  const [isSupported, setIsSupported] = useState<boolean>(true)
   const [isStickerless, setIsStickerless] = useState<boolean>(() =>
     readPreference(document.cookie, STICKERLESS_COOKIE, stickerless),
   )
@@ -133,6 +120,20 @@ export function CubeView3D({
     onTurnStateChange,
     pauseAutoRotation,
   })
+  const isSupported = useCubeRenderer({
+    canvasRef,
+    cubeRef: currentCubeRef,
+    resetKey: cube,
+    puzzleSize,
+    palette,
+    isStickerless,
+    viewRef: stateRef,
+    onFrame: (time, elapsed) => {
+      const update = advance(time)
+      stepCamera(time, elapsed)
+      return update
+    },
+  })
 
   useEffect(() => {
     document.cookie = preferenceCookie(STICKERLESS_COOKIE, isStickerless)
@@ -154,220 +155,6 @@ export function CubeView3D({
   const [coarsePointer] = useState(
     () => window.matchMedia?.('(pointer: coarse)').matches ?? false,
   )
-  const lastFrameTimeRef = useRef<number | null>(null)
-  const animFrameRef = useRef<number | null>(null)
-
-  useEffect(() => {
-    const canvas = canvasRef.current
-    if (!canvas) return
-
-    const gl =
-      (canvas.getContext('webgl2', {
-        antialias: true,
-        alpha: true,
-      }) as WebGL2RenderingContext | null) ||
-      (canvas.getContext('webgl', {
-        antialias: true,
-        alpha: true,
-      }) as WebGLRenderingContext | null)
-    if (!gl) {
-      setIsSupported(false)
-      return
-    }
-
-    gl.getExtension('OES_element_index_uint')
-
-    const program = initProgram(gl)
-    if (!program) {
-      setIsSupported(false)
-      return
-    }
-
-    const shadow = createShadowRenderer(gl)
-    // Shadow strength comes from the backdrop's CSS so it follows the theme.
-    let shadowAlpha = 0.3
-    const readShadowAlpha = () => {
-      const value = Number.parseFloat(
-        getComputedStyle(canvas).getPropertyValue('--cube-3d-shadow'),
-      )
-      shadowAlpha = Number.isFinite(value) ? value : 0.3
-    }
-    readShadowAlpha()
-    const colorScheme = window.matchMedia?.('(prefers-color-scheme: dark)')
-    colorScheme?.addEventListener('change', readShadowAlpha)
-
-    gl.useProgram(program)
-    gl.enable(gl.DEPTH_TEST)
-    gl.enable(gl.CULL_FACE)
-    gl.cullFace(gl.BACK)
-    gl.clearColor(0, 0, 0, 0)
-
-    // Build geometry
-    const mesh = buildCubeMesh(
-      currentCubeRef.current,
-      puzzleSize,
-      palette,
-      isStickerless,
-    )
-
-    const posBuf = gl.createBuffer()
-    gl.bindBuffer(gl.ARRAY_BUFFER, posBuf)
-    gl.bufferData(gl.ARRAY_BUFFER, mesh.positions, gl.DYNAMIC_DRAW)
-
-    const normBuf = gl.createBuffer()
-    gl.bindBuffer(gl.ARRAY_BUFFER, normBuf)
-    gl.bufferData(gl.ARRAY_BUFFER, mesh.normals, gl.DYNAMIC_DRAW)
-
-    const colBuf = gl.createBuffer()
-    gl.bindBuffer(gl.ARRAY_BUFFER, colBuf)
-    gl.bufferData(gl.ARRAY_BUFFER, mesh.colors, gl.DYNAMIC_DRAW)
-
-    const occlusionBuf = gl.createBuffer()
-    gl.bindBuffer(gl.ARRAY_BUFFER, occlusionBuf)
-    gl.bufferData(gl.ARRAY_BUFFER, mesh.occlusion, gl.STATIC_DRAW)
-
-    const idxBuf = gl.createBuffer()
-    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, idxBuf)
-    gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, mesh.indices, gl.STATIC_DRAW)
-
-    const aPos = gl.getAttribLocation(program, 'a_position')
-    const aNorm = gl.getAttribLocation(program, 'a_normal')
-    const aCol = gl.getAttribLocation(program, 'a_color')
-    const aOcclusion = gl.getAttribLocation(program, 'a_occlusion')
-
-    const uMvp = gl.getUniformLocation(program, 'u_mvp')
-    const uModel = gl.getUniformLocation(program, 'u_model')
-    const uLight1 = gl.getUniformLocation(program, 'u_lightDir1')
-    const uLight2 = gl.getUniformLocation(program, 'u_lightDir2')
-    const uCameraPos = gl.getUniformLocation(program, 'u_cameraPos')
-
-    gl.uniform3f(uLight1, 1.5, 2.5, 2.0)
-    gl.uniform3f(uLight2, -2.0, -1.0, -2.0)
-
-    // Read once per view: the settings page is a page of its own.
-    const magnetic = readTurnFeel(document.cookie).overshoot
-
-    const render = (time: number) => {
-      const elapsed = Math.min(time - (lastFrameTimeRef.current ?? time), 50)
-      lastFrameTimeRef.current = time
-
-      const update = advance(time, magnetic)
-      if (update) {
-        const next = buildCubeMesh(
-          currentCubeRef.current,
-          puzzleSize,
-          palette,
-          isStickerless,
-          update.layer,
-        )
-        gl.bindBuffer(gl.ARRAY_BUFFER, posBuf)
-        gl.bufferSubData(gl.ARRAY_BUFFER, 0, next.positions)
-        gl.bindBuffer(gl.ARRAY_BUFFER, normBuf)
-        gl.bufferSubData(gl.ARRAY_BUFFER, 0, next.normals)
-        if (update.colors) {
-          gl.bindBuffer(gl.ARRAY_BUFFER, colBuf)
-          gl.bufferSubData(gl.ARRAY_BUFFER, 0, next.colors)
-        }
-      }
-      stepCamera(time, elapsed)
-
-      const rect = canvas.getBoundingClientRect()
-      const dpr = window.devicePixelRatio || 1
-      const width = Math.floor(rect.width * dpr)
-      const height = Math.floor(rect.height * dpr)
-
-      if (canvas.width !== width || canvas.height !== height) {
-        canvas.width = width || 400
-        canvas.height = height || 400
-        gl.viewport(0, 0, canvas.width, canvas.height)
-      }
-
-      gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
-
-      const aspect = canvas.width / (canvas.height || 1)
-      const proj = mat4Perspective(
-        mat4Create(),
-        (45 * Math.PI) / 180,
-        aspect,
-        0.1,
-        100.0,
-      )
-
-      // Camera view matrix: translation back by zoom
-      const currentZoom = stateRef.current.zoom
-      const view = mat4Translate(mat4Create(), mat4Create(), [
-        0,
-        0,
-        -currentZoom,
-      ])
-
-      // Model matrix: pitch and yaw rotations
-      const model = mat4Create()
-      mat4RotateX(model, model, stateRef.current.pitch)
-      mat4RotateY(model, model, stateRef.current.yaw)
-
-      // MVP = Proj * View * Model
-      const mvp = mat4Create()
-      const viewProj = mat4Create()
-      mat4Multiply(viewProj, proj, view)
-      mat4Multiply(mvp, viewProj, model)
-
-      shadow?.draw(
-        viewProj,
-        puzzleSize,
-        stateRef.current.pitch,
-        stateRef.current.yaw,
-        shadowAlpha,
-      )
-      gl.useProgram(program)
-      gl.uniformMatrix4fv(uMvp, false, mvp)
-      gl.uniformMatrix4fv(uModel, false, model)
-      gl.uniform3f(uCameraPos, 0, 0, currentZoom)
-
-      // Bind attributes
-      gl.bindBuffer(gl.ARRAY_BUFFER, posBuf)
-      gl.vertexAttribPointer(aPos, 3, gl.FLOAT, false, 0, 0)
-      gl.enableVertexAttribArray(aPos)
-
-      gl.bindBuffer(gl.ARRAY_BUFFER, normBuf)
-      gl.vertexAttribPointer(aNorm, 3, gl.FLOAT, false, 0, 0)
-      gl.enableVertexAttribArray(aNorm)
-
-      gl.bindBuffer(gl.ARRAY_BUFFER, colBuf)
-      gl.vertexAttribPointer(aCol, 3, gl.FLOAT, false, 0, 0)
-      gl.enableVertexAttribArray(aCol)
-
-      gl.bindBuffer(gl.ARRAY_BUFFER, occlusionBuf)
-      gl.vertexAttribPointer(aOcclusion, 1, gl.FLOAT, false, 0, 0)
-      gl.enableVertexAttribArray(aOcclusion)
-
-      gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, idxBuf)
-      const indexType =
-        mesh.indices instanceof Uint32Array
-          ? gl.UNSIGNED_INT
-          : gl.UNSIGNED_SHORT
-      gl.drawElements(gl.TRIANGLES, mesh.indexCount, indexType, 0)
-
-      animFrameRef.current = requestAnimationFrame(render)
-    }
-
-    animFrameRef.current = requestAnimationFrame(render)
-
-    return () => {
-      lastFrameTimeRef.current = null
-      if (animFrameRef.current !== null) {
-        cancelAnimationFrame(animFrameRef.current)
-      }
-      gl.deleteBuffer(posBuf)
-      gl.deleteBuffer(normBuf)
-      gl.deleteBuffer(colBuf)
-      gl.deleteBuffer(occlusionBuf)
-      gl.deleteBuffer(idxBuf)
-      gl.deleteProgram(program)
-      shadow?.dispose()
-      colorScheme?.removeEventListener('change', readShadowAlpha)
-    }
-  }, [cube, puzzleSize, palette, isStickerless])
 
   const spreadOf = ([a, b]: [[number, number], [number, number]]) =>
     Math.hypot(a[0] - b[0], a[1] - b[1])

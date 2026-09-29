@@ -67,6 +67,8 @@ export function useCubeTurns({
   const currentTurnRef = useRef<ActiveTurn | null>(null)
   const dragTurnRef = useRef<DragTurn | null>(null)
   const forceUpdateMeshRef = useRef(false)
+  // Read once per view: the settings page is a page of its own.
+  const [magnetic] = useState(() => readTurnFeel(document.cookie).overshoot)
 
   useEffect(() => {
     if (sourceCubeRef.current === cube) return
@@ -199,7 +201,7 @@ export function useCubeTurns({
   // One frame of turning: what the mesh must show, or null when it is
   // unchanged. Queued turns wait until the finger lets go of a layer; with
   // the magnetic snap each quarter turn holds a dragged layer like a magnet.
-  const advance = (time: number, magnetic: boolean): MeshUpdate | null => {
+  const advance = (time: number): MeshUpdate | null => {
     if (forceUpdateMeshRef.current) {
       forceUpdateMeshRef.current = false
       return { colors: true }
