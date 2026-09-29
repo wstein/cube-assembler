@@ -25,6 +25,10 @@ import {
   wheelGesture,
   type CubeGestureCamera,
   type CubeSurfaceHit,
+  followDrag,
+  releaseDrag,
+  seamFollow,
+  swipeStart,
 } from '../src/client/cubeGesture'
 
 const camera = { width: 600, height: 600, zoom: 12, pitch: 0, yaw: 0, size: 5 }
@@ -142,6 +146,111 @@ describe('live sticker drag', () => {
     expect(releasedQuarterTurns(-0.1 * quarter, -0.01)).toBe(-1)
     expect(releasedQuarterTurns(0, 1)).toBe(1)
     expect(releasedQuarterTurns(1.1 * quarter, -1)).toBe(1)
+  })
+})
+
+describe('what a swipe starts', () => {
+  // Facing the front of a 5x5, as in the seam swipes below.
+  const at = (x: number, y: number) => {
+    const [sx, sy] = screenPoint([x, y, 2.5], camera)
+    return pickCubeSurface(sx, sy, camera)!
+  }
+
+  it('waits until the swipe travels the start distance', () => {
+    expect(swipeStart(at(0.3, 0), -10, 0, camera, 18, 'layer')).toEqual({
+      kind: 'wait',
+      layer: null,
+      seam: false,
+      wide: false,
+    })
+  })
+
+  it('turns nothing for a diagonal swipe', () => {
+    expect(swipeStart(at(0.3, 0), -30, -30, camera, 18, 'layer').kind).toBe(
+      'nothing',
+    )
+  })
+
+  it('turns the touched layer from the middle of a sticker', () => {
+    const start = swipeStart(at(0.3, 0), -40, -5, camera, 18, 'layer')
+    expect(start).toMatchObject({ kind: 'turn', seam: false, wide: false })
+    expect(start.layer).toMatchObject({ axis: 1, depth: 3 })
+    expect(start.layer!.width ?? 1).toBe(1)
+  })
+
+  it('turns a wide block from a seam and keeps the choice open', () => {
+    const start = swipeStart(at(0.3, -0.5), -40, -5, camera, 18, 'layer')
+    expect(start).toMatchObject({ kind: 'turn', seam: true, wide: true })
+    expect(start.layer).toMatchObject({ face: 'U', depth: 4, width: 4 })
+    // Straight along the seam: one layer for now, still open.
+    const straight = swipeStart(at(0.3, -0.5), -40, 0, camera, 18, 'layer')
+    expect(straight).toMatchObject({ kind: 'turn', seam: true, wide: false })
+  })
+
+  it('turns the standard wide move with Shift, never a seam block', () => {
+    const start = swipeStart(at(0.3, -0.5), -40, -5, camera, 18, 'wide')
+    expect(start).toMatchObject({ kind: 'turn', seam: false, wide: false })
+    expect(start.layer).toMatchObject({ face: 'D', depth: 3, width: 3 })
+  })
+})
+
+describe('following and releasing a drag', () => {
+  const tuning = { startPx: 18, commitFraction: 0.35, flickMs: 120 }
+
+  it('measures the speed over at least 8 ms', () => {
+    const moved = followDrag({ angle: 0.1, velocity: 0, time: 100 }, 0.3, 120)
+    expect(moved).toMatchObject({ angle: 0.3, time: 120 })
+    expect(moved.velocity).toBeCloseTo(0.01)
+    expect(
+      followDrag({ angle: 0, velocity: 0, time: 100 }, 0.08, 101).velocity,
+    ).toBeCloseTo(0.01)
+  })
+
+  it('settles on the quarter turns and throws with the last speed', () => {
+    expect(releaseDrag(1.2, 0, 100, 150, false, tuning)).toEqual({
+      turns: 1,
+      speed: 0,
+    })
+    const thrown = releaseDrag(0.5, 0.01, 100, 150, false, tuning)
+    expect(thrown).toEqual({ turns: 1, speed: 0.01 })
+  })
+
+  it('throws nothing from a finger that stopped before lifting', () => {
+    expect(releaseDrag(0.5, 0.01, 100, 201, false, tuning)).toEqual({
+      turns: 0,
+      speed: 0,
+    })
+  })
+
+  it('springs back when cancelled', () => {
+    expect(releaseDrag(1.2, 0.01, 100, 150, true, tuning)).toEqual({
+      turns: 0,
+      speed: 0,
+    })
+  })
+})
+
+describe('following a seam swipe', () => {
+  const at = (y: number) => {
+    const [sx, sy] = screenPoint([0.3, y, 2.5], camera)
+    return pickCubeSurface(sx, sy, camera)!
+  }
+
+  it('switches blocks with the lean, then locks', () => {
+    const hit = at(-0.5)
+    const one = pickSwipeLayer(hit, -40, 0, camera)!
+    const up = seamFollow(hit, one, 0.1, -50, -8, camera)
+    expect(up.locked).toBe(false)
+    expect(up.layer).toMatchObject({ face: 'U', depth: 4, width: 4 })
+    // The same choice again changes nothing.
+    expect(seamFollow(hit, up.layer!, 0.1, -55, -9, camera)).toEqual({
+      locked: false,
+      layer: null,
+    })
+    expect(seamFollow(hit, up.layer!, 0.3, -60, 8, camera)).toEqual({
+      locked: true,
+      layer: null,
+    })
   })
 })
 

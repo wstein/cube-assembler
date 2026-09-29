@@ -50,6 +50,20 @@ type pressLevel =
 @genType type swipeTuning = {startPx: float, commitFraction: float, flickMs: float}
 @genType let defaultSwipeTuning: swipeTuning
 @genType let releasedQuarterTurns: (float, float, float, float) => float
+@genType type release = {turns: float, speed: float}
+@genType
+let releaseDrag: (float, float, float, float, bool, swipeTuning) => release
+@genType type dragMotion = {angle: float, velocity: float, time: float}
+@genType let followDrag: (dragMotion, float, float) => dragMotion
+@genType
+type startKind = | @as("wait") Wait | @as("nothing") StartsNothing | @as("turn") StartsTurn
+@genType
+type swipeStart = {kind: startKind, layer: Null.t<swipeLayer>, seam: bool, wide: bool}
+@genType
+let swipeStart: (surfaceHit, float, float, camera, float, pressLevel) => swipeStart
+@genType type seamStep = {locked: bool, layer: Null.t<swipeLayer>}
+@genType
+let seamFollow: (surfaceHit, swipeLayer, float, float, float, camera) => seamStep
 
 @genType
 type cubeGesture =

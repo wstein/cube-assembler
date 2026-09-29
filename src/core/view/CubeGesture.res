@@ -333,6 +333,71 @@ let releasedQuarterTurns = (angle, velocity, commitFraction, flickMs) => {
   turns == 0.0 ? 0.0 : Math.sign(quarters) *. turns
 }
 
+// How a released drag settles: whole quarter turns, and the speed the
+// settle starts with. A finger that stopped over 100 ms before lifting
+// throws nothing, and a cancelled drag springs back.
+type release = {turns: float, speed: float}
+
+let releaseDrag = (angle, velocity, lastMoveTime, time, cancelled, tuning: swipeTuning) => {
+  let velocity = time -. lastMoveTime > 100.0 ? 0.0 : velocity
+  cancelled
+    ? {turns: 0.0, speed: 0.0}
+    : {
+        turns: releasedQuarterTurns(angle, velocity, tuning.commitFraction, tuning.flickMs),
+        speed: velocity,
+      }
+}
+
+// A dragged layer's new angle, with its speed over at least 8 ms.
+type dragMotion = {angle: float, velocity: float, time: float}
+
+let followDrag = (previous: dragMotion, angle, time) => {
+  angle,
+  velocity: (angle -. previous.angle) /. Math.max(time -. previous.time, 8.0),
+  time,
+}
+
+// What a swipe from a sticker starts once it has travelled startPx: the
+// layers it turns - a seam block, Shift's standard wide move, or the one
+// touched layer - whether a seam keeps the choice open, and whether a
+// seam block was picked. A diagonal swipe turns nothing.
+type startKind = | @as("wait") Wait | @as("nothing") StartsNothing | @as("turn") StartsTurn
+
+type swipeStart = {kind: startKind, layer: Null.t<swipeLayer>, seam: bool, wide: bool}
+
+let swipeStart = (hit, dx, dy, camera: camera, startPx, level) =>
+  if Math.hypot(dx, dy) < startPx {
+    {kind: Wait, layer: Null.null, seam: false, wide: false}
+  } else {
+    switch pickLayer(hit, dx, dy, camera, startPx) {
+    | None => {kind: StartsNothing, layer: Null.null, seam: false, wide: false}
+    | Some(layer) =>
+      let seam = level == Layer && onSeam(hit, layer, camera)
+      let block = seam ? seamWideLayer(hit, layer, dx, dy, camera)->Null.toOption : None
+      let turned = switch block {
+      | Some(block) => block
+      | None => level == Wide ? standardWideLayer(layer, Float.toInt(camera.size)) : layer
+      }
+      {kind: StartsTurn, layer: Null.make(turned), seam, wide: block->Option.isSome}
+    }
+  }
+
+// A young seam swipe: locked once its layers have turned seamLockAngle,
+// else the block its lean now picks when that differs from `current`.
+type seamStep = {locked: bool, layer: Null.t<swipeLayer>}
+
+let seamFollow = (hit, current: swipeLayer, angle, dx, dy, camera) =>
+  if Math.abs(angle) >= seamLockAngle {
+    {locked: true, layer: Null.null}
+  } else {
+    let next = seamChoice(hit, current, dx, dy, camera)
+    let same =
+      next.face == current.face &&
+      next.depth == current.depth &&
+      next.width->Option.getOr(1) == current.width->Option.getOr(1)
+    {locked: false, layer: same ? Null.null : Null.make(next)}
+  }
+
 // What a drag does. Mouse and pen: a sticker swipe turns its layer and the
 // background rotates the view. Touch: one finger turns layers or, after a
 // hold, the cube; two fingers rotate or zoom the camera.

@@ -3,19 +3,17 @@ import '../../web/cube3d.css'
 import { createShadowRenderer } from './cubeShadow'
 import {
   clampZoom,
+  followDrag,
   gestureAfterPointerUp,
   gestureForPointerDown,
   gestureWhenSwipeTurnsNothing,
   pickCubeSurface,
   pickSwipeLayer,
   pressLevel,
-  releasedQuarterTurns,
-  standardWideLayer,
-  onSeam,
-  seamChoice,
-  SEAM_LOCK_ANGLE,
-  seamWideLayer,
+  releaseDrag,
+  seamFollow,
   swipeLayerAngle,
+  swipeStart,
   wholeCubeLayer,
   twoFingerLock,
   twoFingerMotion,
@@ -732,10 +730,12 @@ export function CubeView3D({
       swipe.dragging = true
       dragTurnRef.current = {
         layer: whole,
-        angle,
         // Its speed so far, so a quick flick counts from the first move.
-        velocity: angle / Math.max(timeStamp - swipe.startTime, 8),
-        time: timeStamp,
+        ...followDrag(
+          { angle: 0, velocity: 0, time: swipe.startTime },
+          angle,
+          timeStamp,
+        ),
         drawn: null,
       }
       setIsTurning(true)
@@ -743,28 +743,22 @@ export function CubeView3D({
     }
     if (!drag) return
     const angle = swipeLayerAngle(swipe.hit, drag.layer, dx, dy, camera)
-    drag.velocity = (angle - drag.angle) / Math.max(timeStamp - drag.time, 8)
-    drag.angle = angle
-    drag.time = timeStamp
+    Object.assign(drag, followDrag(drag, angle, timeStamp))
   }
 
   // Settles a whole-cube drag on whole quarter turns.
   const releaseWholeCube = (timeStamp: number, cancelled: boolean) => {
     const drag = dragTurnRef.current
     if (!drag) return
-    const tuning = readSwipeTuning(document.cookie)
-    const velocity = timeStamp - drag.time > 100 ? 0 : drag.velocity
-    settleDrag(
-      cancelled
-        ? 0
-        : releasedQuarterTurns(
-            drag.angle,
-            velocity,
-            tuning.commitFraction,
-            tuning.flickMs,
-          ),
-      cancelled ? 0 : velocity,
+    const { turns, speed } = releaseDrag(
+      drag.angle,
+      drag.velocity,
+      drag.time,
+      timeStamp,
+      cancelled,
+      readSwipeTuning(document.cookie),
     )
+    settleDrag(turns, speed)
   }
 
   // Where two fingers meet, over the cube if they are, while no turn plays.
@@ -899,27 +893,22 @@ export function CubeView3D({
       // A young seam swipe follows its lean, so the highlighted block can
       // be corrected before it locks.
       if (gesture.seamOpen) {
-        if (Math.abs(drag.angle) >= SEAM_LOCK_ANGLE) gesture.seamOpen = false
-        else {
-          const next = seamChoice(
-            hit,
-            drag.layer,
-            e.clientX - fromX,
-            e.clientY - fromY,
-            camera,
-          )
-          const same =
-            next.face === drag.layer.face &&
-            next.depth === drag.layer.depth &&
-            (next.width ?? 1) === (drag.layer.width ?? 1)
-          if (!same) {
-            const wide = (next.width ?? 1) > 1
-            drag.layer = next
-            drag.highlight = wide
-            if (wide && gesture.level !== 'wide') announceWideTurn()
-            if (!wide) setPressMode(null)
-            gesture.level = wide ? 'wide' : 'layer'
-          }
+        const step = seamFollow(
+          hit,
+          drag.layer,
+          drag.angle,
+          e.clientX - fromX,
+          e.clientY - fromY,
+          camera,
+        )
+        if (step.locked) gesture.seamOpen = false
+        else if (step.layer) {
+          const wide = (step.layer.width ?? 1) > 1
+          drag.layer = step.layer
+          drag.highlight = wide
+          if (wide && gesture.level !== 'wide') announceWideTurn()
+          if (!wide) setPressMode(null)
+          gesture.level = wide ? 'wide' : 'layer'
         }
       }
       const angle = swipeLayerAngle(
@@ -929,51 +918,34 @@ export function CubeView3D({
         e.clientY - fromY,
         camera,
       )
-      drag.velocity =
-        (angle - drag.angle) / Math.max(e.timeStamp - drag.time, 8)
-      drag.angle = angle
-      drag.time = e.timeStamp
+      Object.assign(drag, followDrag(drag, angle, e.timeStamp))
       return
     }
     if (gesture.mode === 'pending' && gesture.hit) {
       const rect = canvasRef.current?.getBoundingClientRect()
       if (!rect) return
-      const dx = e.clientX - gesture.x
-      const dy = e.clientY - gesture.y
-      const distance = Math.hypot(dx, dy)
-      const camera = gestureCamera(rect)
-      if (distance < gesture.tuning.startPx) return
-      const layer = pickSwipeLayer(
+      const start = swipeStart(
         gesture.hit,
-        dx,
-        dy,
-        camera,
+        e.clientX - gesture.x,
+        e.clientY - gesture.y,
+        gestureCamera(rect),
         gesture.tuning.startPx,
+        gesture.level,
       )
-      if (layer) {
-        // Starting on a seam and leaning to one side turns a wide block.
-        const seam =
-          gesture.level === 'layer' && onSeam(gesture.hit, layer, camera)
-        const seamBlock = seam
-          ? seamWideLayer(gesture.hit, layer, dx, dy, camera)
-          : null
-        const turned =
-          seamBlock ??
-          (gesture.level === 'wide'
-            ? standardWideLayer(layer, puzzleSize)
-            : layer)
-        gesture.seamOpen = seam
-        if (seamBlock) {
+      if (start.kind === 'wait') return
+      if (start.layer) {
+        gesture.seamOpen = start.seam
+        if (start.wide) {
           gesture.level = 'wide'
           announceWideTurn()
         }
         startDragTurn(
           gesture,
-          turned,
+          start.layer,
           [gesture.x, gesture.y],
           gesture.hit,
           e,
-          camera,
+          gestureCamera(rect),
         )
         return
       }
@@ -1035,19 +1007,15 @@ export function CubeView3D({
       inertiaRef.current = { yaw: 0, pitch: 0 }
       const drag = dragTurnRef.current
       if (drag) {
-        // A finger that stopped before lifting throws nothing.
-        const velocity = e.timeStamp - drag.time > 100 ? 0 : drag.velocity
-        settleDrag(
-          cancelled
-            ? 0
-            : releasedQuarterTurns(
-                drag.angle,
-                velocity,
-                gesture.tuning.commitFraction,
-                gesture.tuning.flickMs,
-              ),
-          cancelled ? 0 : velocity,
+        const { turns, speed } = releaseDrag(
+          drag.angle,
+          drag.velocity,
+          drag.time,
+          e.timeStamp,
+          cancelled,
+          gesture.tuning,
         )
+        settleDrag(turns, speed)
       }
     }
     gestureRef.current = null
