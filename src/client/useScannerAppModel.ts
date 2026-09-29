@@ -14,11 +14,10 @@ import { captureCameraPhoto, importCapturePhoto } from './capturePhoto'
 import { profilesHash } from './profilesRoute'
 import { selectedCubeSize } from './preferences'
 import { useScannerPreferences } from './useScannerPreferences'
-import { type ParityResult } from '../cube/parity'
+import { useAssembledCube } from './useAssembledCube'
 import { type ColorDetectionResult } from './imageProcessing'
 import {
   assembleCubeFromFaces,
-  createSolvedCube,
   type OrientedCandidate,
   type CubeState,
 } from '../cube/cubeAssembly'
@@ -37,14 +36,7 @@ import { FACE_ORDER, glareFacesToWarn } from './captureSteps'
 import { useProfileStore } from './useProfileStore'
 import { useCaptureSession } from './useCaptureSession'
 import { useCaptureCalibration } from './useCaptureCalibration'
-import {
-  captureEvidence,
-  checkParity,
-  cubeCaptureFaces,
-  parityStatus,
-  parseCubeInput,
-  solvedCaptureFaces,
-} from './captureFlow'
+import { captureEvidence, checkParity } from './captureFlow'
 import { usePhotoUploads } from './usePhotoUploads'
 import {
   buildCaptureFixture,
@@ -61,13 +53,11 @@ export function useScannerAppModel() {
   const [puzzleSize, setPuzzleSize] = useState(
     () => selectedCubeSize(document.cookie) ?? 3,
   )
-  const [cube, setCube] = useState<CubeState | null>(null)
   const [turnedCube, setTurnedCube] = useState<{
     source: CubeState
     value: CubeState
     moves: import('./cubeView3D').CubeTurn[]
   } | null>(null)
-  const [parity, setParity] = useState<ParityResult | null>(null)
   const [webcamOpen, setWebcamOpen] = useState(false)
   const [autoCaptureFrames, setAutoCaptureFrames] = useState(0)
   const [autoCapturePaused, setAutoCapturePaused] = useState(false)
@@ -145,8 +135,6 @@ export function useScannerAppModel() {
     uploadFixture,
     downloadFixture,
   } = useFixtureDownload()
-  const [manualColorInput, setManualColorInput] = useState('')
-  const [showColorInput, setShowColorInput] = useState(false)
   const [liveDetection, setLiveDetection] =
     useState<ColorDetectionResult | null>(null)
   const [liveFaceVisible, setLiveFaceVisible] = useState(false)
@@ -243,6 +231,27 @@ export function useScannerAppModel() {
     failRecalibration,
     applyFixtureCalibration,
   } = useCaptureCalibration()
+  const {
+    cube,
+    setCube,
+    parity,
+    setParity,
+    updateParityStatus,
+    manualColorInput,
+    setManualColorInput,
+    showColorInput,
+    setShowColorInput,
+    handleApplySolved,
+    handleApplyFacelets,
+  } = useAssembledCube({
+    puzzleSize,
+    setPuzzleSize,
+    notationFormat,
+    setNotationFormat,
+    setCapturedFaces,
+    forgetResolvedProfile,
+    setLoading,
+  })
   const [showBackdropDialog, setShowBackdropDialog] = useState(false)
   const [reviewStep, setReviewStep] = useState(0)
   const [reviewRouting, setReviewRouting] = useState<{
@@ -286,60 +295,6 @@ export function useScannerAppModel() {
       return false
     applyProfileStore(selectCube(profileStore, id))
     return true
-  }
-
-  const handleApplySolved = async () => {
-    const solved = createSolvedCube(puzzleSize)
-    setCube(solved)
-    forgetResolvedProfile()
-
-    setCapturedFaces(solvedCaptureFaces(puzzleSize))
-    updateParityStatus(solved)
-  }
-
-  const handleApplyFacelets = async () => {
-    if (!manualColorInput.trim()) {
-      alert('Please enter facelet data')
-      return
-    }
-
-    setLoading(true)
-    try {
-      // The textarea's onInput already keeps notationFormat in sync with
-      // pasted content via detectNotationFormat, but fall back to it here
-      // too in case content ever reaches this handler without going
-      // through that path (e.g. a fast paste-and-submit).
-      const parsed = parseCubeInput(manualColorInput, notationFormat)
-      if (!parsed.ok) {
-        alert(parsed.message)
-        return
-      }
-      const { cube: newCube, format: effectiveFormat } = parsed
-      if (effectiveFormat !== notationFormat) setNotationFormat(effectiveFormat)
-
-      const size = Math.sqrt(newCube.u.length)
-      setPuzzleSize(size)
-      setCube(newCube)
-      forgetResolvedProfile()
-
-      setCapturedFaces(cubeCaptureFaces(newCube, size))
-
-      updateParityStatus(newCube, size)
-      setManualColorInput('')
-      setShowColorInput(false)
-    } catch (err) {
-      alert(`Error: ${err instanceof Error ? err.message : 'Unknown error'}`)
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  // ─────────────────────────────────────────────────────────────────────────
-  // Features: Parity Validation (#10)
-  // ─────────────────────────────────────────────────────────────────────────
-
-  const updateParityStatus = (cubeState: CubeState, sizeOverride?: number) => {
-    setParity(parityStatus(cubeState, sizeOverride ?? puzzleSize))
   }
 
   // ─────────────────────────────────────────────────────────────────────────
