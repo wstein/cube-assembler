@@ -44,7 +44,7 @@
     "typescript": "6.0.2",
     "typescript-eslint": "8.65.0",
     "vite": "^8.3.0",
-    "vitest": "^5.0.1"
+    "vitest": "^5.0.2"
   },
   "keywords": [
     "rubiks-cube",
