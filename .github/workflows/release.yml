@@ -1,0 +1,54 @@
+name: Release
+
+# Pushing a version tag (made by `npm version`, see CONTRIBUTING.md)
+# publishes a GitHub release with the built client as a zip.
+on:
+  push:
+    tags: ['v*.*.*']
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          lfs: true
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Check the tag matches package.json
+        run: |
+          version="$(node -p "require('./package.json').version")"
+          if [ "$GITHUB_REF_NAME" != "v$version" ]; then
+            echo "::error::Tag $GITHUB_REF_NAME does not match package.json version $version"
+            exit 1
+          fi
+          echo "VERSION=$version" >> "$GITHUB_ENV"
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm run lint
+      - run: npm run format:check
+      - run: npm test
+      # A relative base, so the unpacked zip runs from any folder of any
+      # static web server.
+      - name: Build
+        run: npm run build
+        env:
+          VITE_BASE_PATH: ./
+      - name: Pack dist
+        run: |
+          zip_name="cube-assembler-$VERSION-dist.zip"
+          (cd dist && zip -qr "../$zip_name" .)
+          echo "ZIP_NAME=$zip_name" >> "$GITHUB_ENV"
+      - name: Publish the release
+        run: |
+          gh release create "$GITHUB_REF_NAME" "$ZIP_NAME" \
+            --verify-tag \
+            --title "$GITHUB_REF_NAME" \
+            --generate-notes
+        env:
+          GH_TOKEN: ${{ github.token }}
