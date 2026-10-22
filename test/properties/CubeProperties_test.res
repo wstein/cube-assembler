@@ -362,3 +362,65 @@ describe("middle edges of odd cubes", () => {
     120000,
   )
 })
+
+// A wing's two stickers swapped: a 4x4+ capture whose wing pairs still
+// count up, but with one wing reading as its mirror-image twin.
+let flippedWing =
+  Fc.integer({min: 4, max: 7})
+  ->Fc.chain(n =>
+    Fc.tuple4(
+      Fc.constant(n),
+      Fc.array(moveOf(n), {minLength: 0, maxLength: 30}),
+      Fc.integer({min: 0, max: 11}),
+      Fc.integer({min: 1, max: n - 2}),
+    )
+  )
+  // The middle wing of an odd cube is its middle edge, covered above.
+  ->Fc.map(((n, moves, edge, w)) => (n, moves, edge, mod(n, 2) == 1 && w == n / 2 ? 1 : w))
+
+let withFlippedWing = (cube, n, edge, w) => {
+  let ((faceA, lineA, reverseA), (faceB, lineB, reverseB)) =
+    CubePieces.edgeLines->Array.getUnsafe(edge)
+  let indexA = CubePieces.edgeLineFaceletIndex(n, lineA, reverseA, w)
+  let indexB = CubePieces.edgeLineFaceletIndex(n, lineB, reverseB, w)
+  edited(cube, copy => {
+    faceletsOf(copy, faceA)->Array.setUnsafe(
+      indexA,
+      faceletsOf(cube, faceB)->Array.getUnsafe(indexB),
+    )
+    faceletsOf(copy, faceB)->Array.setUnsafe(
+      indexB,
+      faceletsOf(cube, faceA)->Array.getUnsafe(indexA),
+    )
+  })
+}
+
+describe("wings of big cubes", () => {
+  test(
+    "a flipped wing is never a valid cube",
+    () =>
+      Fc.check(flippedWing, ((n, moves, edge, w)) =>
+        !valid(withFlippedWing(scramble(n, moves), n, edge, w), n)
+      ),
+    60000,
+  )
+
+  test(
+    "the search offers only arrangements the parity report accepts for a flipped wing",
+    () =>
+      Fc.check(
+        flippedWing,
+        ((n, moves, edge, w)) => {
+          let photographed = facesOf(withFlippedWing(scramble(n, moves), n, edge, w), n)
+          switch CubeAssembly.solveFaceOrientations(captureOf(photographed))->Null.toOption {
+          | Some(solution) =>
+            !solution.fullyValid ||
+            solution.alternatives->Array.every(alternative => valid(cubeOf(alternative.faces), n))
+          | None => true
+          }
+        },
+        ~runs=40,
+      ),
+    120000,
+  )
+})
