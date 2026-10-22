@@ -18,7 +18,9 @@ const colorNames: Record<string, string> = {
   Y: 'Yellow',
 }
 
-async function reviewFaces(page: Page): Promise<string[]> {
+// The sticker color review, opened from Edit colors when the capture went
+// straight on to assembly.
+async function openColorReview(page: Page) {
   await expect(page.getByText('All 6 captured', { exact: true })).toBeVisible()
   if (!(await page.locator('.review-modal-content').isVisible())) {
     const dialog = page.getByRole('dialog')
@@ -28,6 +30,11 @@ async function reviewFaces(page: Page): Promise<string[]> {
   }
   const review = page.locator('.review-modal-content')
   await expect(review).toBeVisible()
+  return review
+}
+
+async function reviewFaces(page: Page): Promise<string[]> {
+  const review = await openColorReview(page)
   const grids: string[] = []
   for (const label of faceLabels) {
     await review
@@ -98,13 +105,27 @@ test('uploads the same photos with meta.json and preserves all saved face colors
   expect(grids).toEqual(metadata.colorsURFDLB.split(' '))
 })
 
+test('goes straight to how the faces fit after uploading a fixture with meta.json', async ({
+  page,
+}) => {
+  await page.goto('/')
+  await page
+    .locator('.capture-alternatives input[type="file"]')
+    .setInputFiles([...photos, resolve(fixture, 'meta.json')])
+  // Its colors were reviewed when it was saved, and they fit together one
+  // way only, so the cube is assembled without asking.
+  await expect(
+    page.getByRole('status').filter({ hasText: 'Valid cube' }),
+  ).toBeVisible()
+  await expect(page.locator('.review-modal-content')).toHaveCount(0)
+})
+
 test('edits one sticker in the review color picker', async ({ page }) => {
   await page.goto('/')
   await page
     .locator('.capture-alternatives input[type="file"]')
     .setInputFiles([...photos, resolve(fixture, 'meta.json')])
-  const review = page.locator('.review-modal-content')
-  await expect(review).toBeVisible()
+  const review = await openColorReview(page)
   const firstCell = review.locator('.review-detected-cell').first()
   await firstCell.click()
   const picker = page.locator('.color-picker-content')
@@ -123,18 +144,9 @@ test('shows the fixture contents before downloading and closes with Escape', asy
   await page
     .locator('.capture-alternatives input[type="file"]')
     .setInputFiles([...photos, resolve(fixture, 'meta.json')])
-  const review = page.locator('.review-modal-content')
-  await expect(review).toBeVisible()
-  for (let side = 0; side < 5; side++) {
-    await review
-      .getByRole('button', { name: 'Looks right — next side' })
-      .click()
-  }
-  await review
-    .getByRole('button', { name: 'Looks right — put the cube together' })
-    .click()
-  const approve = page.getByRole('button', { name: 'Yes, this is my cube' })
-  if (await approve.isVisible()) await approve.click()
+  await expect(
+    page.getByRole('status').filter({ hasText: 'Valid cube' }),
+  ).toBeVisible()
   await page.getByRole('button', { name: 'Save as test fixture' }).click()
   const dialog = page.getByRole('dialog', { name: 'Save as test fixture' })
   await expect(
@@ -154,8 +166,7 @@ test('opens sticker review from a face in the orientation approval', async ({
   await page
     .locator('.capture-alternatives input[type="file"]')
     .setInputFiles([...photos, resolve(fixture, 'meta.json')])
-  const review = page.locator('.review-modal-content')
-  await expect(review).toBeVisible()
+  const review = await openColorReview(page)
   await review.locator('.review-detected-cell').first().click()
   await page
     .locator('.color-picker-content .color-btn:not(.is-current)')
@@ -177,7 +188,7 @@ test('opens sticker review from a face in the orientation approval', async ({
   await expect(review).toBeVisible()
 })
 
-test('asks about an ambiguous face after reviewing six photos', async ({
+test('asks about an ambiguous face after uploading a fixture', async ({
   page,
 }) => {
   const ambiguousFacelets = [
@@ -205,16 +216,6 @@ test('asks about an ambiguous face after reviewing six photos', async ({
       buffer: Buffer.from(JSON.stringify(ambiguousMeta)),
     },
   ])
-  const review = page.locator('.review-modal-content')
-  await expect(review).toBeVisible()
-  for (let side = 0; side < 5; side++)
-    await review
-      .getByRole('button', { name: 'Looks right — next side' })
-      .click()
-  await review
-    .getByRole('button', { name: 'Looks right — put the cube together' })
-    .click()
-
   const wizard = page.locator('.orientation-picker')
   await expect(wizard).toBeVisible({ timeout: 5_000 })
   await expect(

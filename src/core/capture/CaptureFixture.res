@@ -250,5 +250,5 @@ let fixtureLoadedMessage = (mismatches, ignoreCorrections) => {
     ? "✓ Loaded fixture - detection matches all stickers."
     : ignoreCorrections
     ? `✓ Loaded fixture with detected colors only - dropped the saved choice on ${stickers}.`
-    : `✓ Loaded fixture - detection differs on ${stickers} (marked in the review).`
+    : `✓ Loaded fixture - detection differs on ${stickers} (marked in Edit colors).`
 }

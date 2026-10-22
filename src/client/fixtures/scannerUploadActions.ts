@@ -33,6 +33,12 @@ type UploadActions = {
   setCapturedFaces: Session['setCapturedFaces']
   setReviewStep: (step: number) => void
   setShowReviewDialog: (show: boolean) => void
+  routeReview: (routing: {
+    faces: Record<string, FaceCaptureData>
+    glare: string[]
+    mixedUp: string[]
+    reviewed: boolean
+  }) => void
   ignoreFixtureCorrections: boolean
   selectPhotos: Photos['selectPhotos']
   photoUpload: Photos['photoUpload']
@@ -59,6 +65,7 @@ export function createScannerUploadActions({
   setCapturedFaces,
   setReviewStep,
   setShowReviewDialog,
+  routeReview,
   ignoreFixtureCorrections,
   selectPhotos,
   photoUpload,
@@ -80,8 +87,11 @@ export function createScannerUploadActions({
   // uses (runGlobalWhiteBalance), replaying the per-face gains recorded at
   // capture time - so a detection problem reproduces exactly as the
   // customer saw it. meta.json's colors (the human-reviewed answer) are
-  // kept as the final colors; wherever detection disagrees, the review
-  // wizard marks the sticker with what was detected (see detectedColors).
+  // kept as the final colors, so the upload goes straight on to how the
+  // faces fit together; wherever detection disagrees, the color review
+  // (Edit colors) marks the sticker with what was detected (see
+  // detectedColors). With saved corrections ignored, the colors are
+  // detection's own and the review opens to check them.
   // Faces are restored under whatever slot key they were saved under
   // (meta.json's "u"/"r"/... - the ORIGINAL capture-order slot, not
   // necessarily true physical identity, since capturedFaces itself is never
@@ -131,8 +141,17 @@ export function createScannerUploadActions({
       setCaptureMessage(
         fixtureLoadedMessage(mismatches, ignoreFixtureCorrections),
       )
-      setReviewStep(0)
-      setShowReviewDialog(true)
+      if (ignoreFixtureCorrections) {
+        setReviewStep(0)
+        setShowReviewDialog(true)
+      } else {
+        routeReview({
+          faces: newEntries,
+          glare: [],
+          mixedUp: [],
+          reviewed: true,
+        })
+      }
     } finally {
       setLoading(false)
     }

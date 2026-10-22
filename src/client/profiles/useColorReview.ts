@@ -10,12 +10,13 @@ type Session = ReturnType<typeof useCaptureSession>
 interface ColorReviewOptions {
   capturedFaces: Session['capturedFaces']
   setCapturedFaces: Session['setCapturedFaces']
-  confirmReview: (ready: OrientationSolution) => void
+  confirmReview: (ready?: OrientationSolution) => void
 }
 
 // The sticker color review after all six faces are in: whether it shows,
 // which step and sticker it is on, and fixing one sticker's color. A
-// capture that needs no review goes straight on to assembly.
+// capture that needs no review goes straight on to assembly, as does a
+// fixture whose colors were reviewed when it was saved (`reviewed`).
 export function useColorReview({
   capturedFaces,
   setCapturedFaces,
@@ -32,6 +33,7 @@ export function useColorReview({
     faces: Record<string, FaceCaptureData>
     glare: string[]
     mixedUp: string[]
+    reviewed?: boolean
   } | null>(null)
 
   const handleFixCellColor = (
@@ -62,6 +64,10 @@ export function useColorReview({
   useEffect(() => {
     if (!reviewRouting || capturedFaces !== reviewRouting.faces) return
     routeReview(null)
+    if (reviewRouting.reviewed) {
+      confirmReview()
+      return
+    }
     const showColorReview = () => {
       setReviewStep(0)
       setShowReviewDialog(true)

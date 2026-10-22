@@ -424,6 +424,7 @@ export function useScannerAppModel() {
     setCapturedFaces,
     setReviewStep,
     setShowReviewDialog,
+    routeReview,
     ignoreFixtureCorrections,
     selectPhotos,
     photoUpload,
