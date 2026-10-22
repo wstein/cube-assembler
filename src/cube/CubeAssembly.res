@@ -236,10 +236,14 @@ let isFullyValid = (faces: faceSet<grid>) => {
   }
 }
 
-// Cap on how many distinct tied-for-best candidates to keep. A real 4x4
-// with independently symmetric R/D/L wing patterns hit 36 genuine ties, so
-// the cap is generous; `truncated` tells when it still binds.
-let maxAlternatives = 48
+// Cap on how many distinct tied-for-best candidates to keep. Every one of
+// an odd cube's 4^6 rotation combinations fits, because a kept list is
+// what the orientation wizard asks from: the search visits U's rotations
+// in its outermost loop, so a smaller cap cut a 7x7 pattern cube's 80
+// valid arrangements off before U's last two rotations, and the wizard
+// never offered the white face as held. `truncated` tells when it still
+// binds on an even cube's larger search.
+let maxAlternatives = 4096
 
 // The candidate's actual sticker content, for dedup - rotations of a
 // uniformly colored face give identical content and are one candidate.

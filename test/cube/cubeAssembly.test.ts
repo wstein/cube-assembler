@@ -18,7 +18,12 @@ import { describe, it, expect } from 'vitest'
 import {
   solveFaceOrientations,
   type FaceKey,
+  type OrientationSolution,
 } from '../../src/cube/cubeAssembly'
+import {
+  groupWizardOptions,
+  pickWizardFace,
+} from '../../src/cube/orientationWizard'
 import { runFullParity } from '../../src/cube/parity'
 
 const SOLVED_COLOR: Record<string, string> = {
@@ -490,8 +495,8 @@ describe('solveFaceOrientations', () => {
 
 // A 7x7 pattern cube captured without the guided protocol: every face's
 // center differs from its surroundings and R and L are half-turn
-// symmetric, so many rotation combinations fit. The app once assembled
-// its white face turned 180 degrees.
+// symmetric, so many rotation combinations fit and the orientation wizard
+// has to ask. The app once assembled its white face turned 180 degrees.
 describe('7x7 pattern capture (cube-7x7-2026-10-22T19-26-13)', () => {
   const meta = JSON.parse(
     readFileSync(
@@ -535,6 +540,33 @@ describe('7x7 pattern capture (cube-7x7-2026-10-22T19-26-13)', () => {
   const sameGrid = (a: string[][], b: string[][]) =>
     a.map((row) => row.join('')).join('/') ===
     b.map((row) => row.join('')).join('/')
+
+  // Answers every wizard question with the face as the customer holds it;
+  // null when a question doesn't offer that face at all.
+  function wizardResult(solution: OrientationSolution) {
+    let remaining = solution.alternatives
+    for (
+      let face = pickWizardFace(remaining);
+      face;
+      face = pickWizardFace(remaining)
+    ) {
+      const match = groupWizardOptions(remaining, face).find((option) =>
+        sameGrid(option.grid, held[face!]),
+      )
+      if (!match) return null
+      remaining = match.candidates
+    }
+    return remaining[0]
+  }
+
+  it('lets the orientation wizard reach the cube as held, white face included', () => {
+    const solution = solveFaceOrientations(captured)
+    expect(solution?.fullyValid).toBe(true)
+    const chosen = wizardResult(solution!)
+    expect(chosen).not.toBeNull()
+    for (const face of faceOrder)
+      expect(sameGrid(chosen!.faces[face], held[face]), face).toBe(true)
+  })
 
   it('offers only arrangements the parity report accepts', () => {
     const solution = solveFaceOrientations(captured)!
