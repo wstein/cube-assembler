@@ -140,3 +140,16 @@ let permParity = perm => {
 }
 
 let sum = values => values->Array.reduce(0, (a, b) => a + b)
+
+// ─── Middle edges (odd N) ─────────────────────────────────────────────────────
+// On an odd cube the wing halfway along each edge is its middle edge, which
+// moves like a 3x3 edge: with the centers fixed, a real cube's middle edges
+// flip in pairs and permute with the same parity as its corners. Counting
+// wings cannot see either, so a 7x7 capture assembled with its U face
+// turned 180 degrees passed as valid. None on even cubes, which have none.
+let middleEdgeWing = n => mod(n, 2) == 1 && n >= 3 ? Some(n / 2) : None
+
+let edgeFlipsValid = flips => mod(sum(flips), 2) == 0
+
+let edgeParityMatchesCorners = (cornerPieces, edgePieces) =>
+  permParity(cornerPieces) == permParity(edgePieces)

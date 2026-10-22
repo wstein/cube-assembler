@@ -217,17 +217,20 @@ let isFullyValid = (faces: faceSet<grid>) => {
     if n == 2 {
       // No edges at all: corner distinctness and orientation are complete.
       true
-    } else if n > 3 {
-      wingEdgeCountsValid(faces, n)
     } else {
-      switch identifyAll(Array.length(edges), i =>
-        CubePieces.identifyEdge(edgePair(faces, edges->Array.getUnsafe(i)))
-      ) {
-      | Some((edgePieces, flips)) =>
-        mod(CubePieces.sum(flips), 2) == 0 &&
-          CubePieces.permParity(cornerPieces) == CubePieces.permParity(edgePieces)
-      | None => false
-      }
+      (n == 3 || wingEdgeCountsValid(faces, n)) &&
+        switch CubePieces.middleEdgeWing(n) {
+        | None => true
+        | Some(w) =>
+          switch identifyAll(Array.length(edges), i =>
+            CubePieces.identifyEdge(wingPair(faces, edges->Array.getUnsafe(i), w))
+          ) {
+          | Some((edgePieces, flips)) =>
+            CubePieces.edgeFlipsValid(flips) &&
+            CubePieces.edgeParityMatchesCorners(cornerPieces, edgePieces)
+          | None => false
+          }
+        }
     }
   | _ => false
   }

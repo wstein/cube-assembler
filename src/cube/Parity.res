@@ -211,9 +211,9 @@ let validateWingEdges = (cube: cubeIR): wingResult => {
 
 let validResult = "Valid — all parity checks passed"
 
-// 3x3 edges: which piece each position shows, then their flip sum and the
-// corner/edge permutation parity.
-let runEdgeChecks = (cube, checks, cornerPieces): parityResult => {
+// Middle edges of an odd cube (a 3x3's edges): which piece each position
+// shows, then their flip sum and the corner/edge permutation parity.
+let runEdgeChecks = (cube, checks, cornerPieces, ~n, ~wing, ~validMessage): parityResult => {
   let edgePieces = []
   let edgeOrients = []
   let edgeFacelets = []
@@ -221,9 +221,8 @@ let runEdgeChecks = (cube, checks, cornerPieces): parityResult => {
     (keyA, lineA, reverseA),
     (keyB, lineB, reverseB),
   )) => {
-    // A 3x3's one wing is the edge itself.
-    let (fa, ia) = (faceName(keyA), CubePieces.edgeLineFaceletIndex(3, lineA, reverseA, 1))
-    let (fb, ib) = (faceName(keyB), CubePieces.edgeLineFaceletIndex(3, lineB, reverseB, 1))
+    let (fa, ia) = (faceName(keyA), CubePieces.edgeLineFaceletIndex(n, lineA, reverseA, wing))
+    let (fb, ib) = (faceName(keyB), CubePieces.edgeLineFaceletIndex(n, lineB, reverseB, wing))
     let (c0, c1) = (sticker(cube, fa, ia), sticker(cube, fb, ib))
     let facelets = [{face: fa, index: ia}, {face: fb, index: ib}]
     let found = CubePieces.identifyEdge((c0, c1))
@@ -264,8 +263,9 @@ let runEdgeChecks = (cube, checks, cornerPieces): parityResult => {
     | None =>
       checks->Dict.set("edgeColors", true)
       let edgeOrientSum = CubePieces.sum(edgeOrients)
-      checks->Dict.set("edgeOrientation", mod(edgeOrientSum, 2) == 0)
-      if mod(edgeOrientSum, 2) != 0 {
+      let flipsValid = CubePieces.edgeFlipsValid(edgeOrients)
+      checks->Dict.set("edgeOrientation", flipsValid)
+      if !flipsValid {
         {
           valid: false,
           result: `Edge orientation sum ${Int.toString(edgeOrientSum)} ≢ 0 (mod 2)`,
@@ -276,10 +276,10 @@ let runEdgeChecks = (cube, checks, cornerPieces): parityResult => {
           }),
         }
       } else {
-        let parityMatches = CubePieces.permParity(cornerPieces) == CubePieces.permParity(edgePieces)
+        let parityMatches = CubePieces.edgeParityMatchesCorners(cornerPieces, edgePieces)
         checks->Dict.set("permutationParity", parityMatches)
         parityMatches
-          ? {valid: true, result: validResult, checks}
+          ? {valid: true, result: validMessage, checks}
           : {valid: false, result: "Corner perm parity ≠ edge perm parity", checks}
       }
     }
@@ -382,7 +382,8 @@ let runFullParity = (cube: cubeIR): parityResult => {
         // permutation, so there is nothing further to check.
         {valid: true, result: validResult, checks}
       } else if n != 3 {
-        // 4x4-7x7: wings are validated by counting. Centers need no check:
+        // 4x4-7x7: wings are validated by counting, then an odd cube's
+        // middle edges like a 3x3's edges. Centers need no check:
         // color balance plus the exact corner and wing counts leave each
         // color's center count no choice, and center pieces of one color
         // are indistinguishable.
@@ -399,10 +400,25 @@ let runFullParity = (cube: cubeIR): parityResult => {
           | None => {valid: false, result: wings.result->Option.getOr(""), checks}
           }
         } else {
-          {valid: true, result: "Valid (structural + corner + wing-edge count check)", checks}
+          switch CubePieces.middleEdgeWing(n) {
+          | Some(wing) =>
+            runEdgeChecks(
+              cube,
+              checks,
+              cornerPieces,
+              ~n,
+              ~wing,
+              ~validMessage="Valid (structural + corner + wing-edge count + middle-edge check)",
+            )
+          | None => {
+              valid: true,
+              result: "Valid (structural + corner + wing-edge count check)",
+              checks,
+            }
+          }
         }
       } else {
-        runEdgeChecks(cube, checks, cornerPieces)
+        runEdgeChecks(cube, checks, cornerPieces, ~n, ~wing=1, ~validMessage=validResult)
       }
     }
   }

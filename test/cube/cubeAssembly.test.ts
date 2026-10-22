@@ -12,8 +12,14 @@
  *
  * Run: npx vitest run test/cube/cubeAssembly.test.ts
  */
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
 import { describe, it, expect } from 'vitest'
-import { solveFaceOrientations } from '../../src/cube/cubeAssembly'
+import {
+  solveFaceOrientations,
+  type FaceKey,
+} from '../../src/cube/cubeAssembly'
+import { runFullParity } from '../../src/cube/parity'
 
 const SOLVED_COLOR: Record<string, string> = {
   U: 'W',
@@ -479,5 +485,72 @@ describe('solveFaceOrientations', () => {
 
   it('returns null for an empty capture set', () => {
     expect(solveFaceOrientations({})).toBeNull()
+  })
+})
+
+// A 7x7 pattern cube captured without the guided protocol: every face's
+// center differs from its surroundings and R and L are half-turn
+// symmetric, so many rotation combinations fit. The app once assembled
+// its white face turned 180 degrees.
+describe('7x7 pattern capture (cube-7x7-2026-10-22T19-26-13)', () => {
+  const meta = JSON.parse(
+    readFileSync(
+      join(__dirname, '../fixtures/cube-7x7-2026-10-22T19-26-13/meta.json'),
+      'utf8',
+    ),
+  ) as {
+    gridSize: number
+    colorsURFDLB: string
+    capture: { assembledURFDLB: string }
+  }
+  const n = meta.gridSize
+  const faceOrder: FaceKey[] = ['U', 'R', 'F', 'D', 'L', 'B']
+  const grids = (facelets: string) =>
+    facelets
+      .split(' ')
+      .map((block) =>
+        Array.from({ length: n }, (_, r) =>
+          block.slice(r * n, (r + 1) * n).split(''),
+        ),
+      )
+  const captured = Object.fromEntries(
+    grids(meta.colorsURFDLB).map((grid, i) => [
+      faceOrder[i].toLowerCase(),
+      grid,
+    ]),
+  )
+  const held = Object.fromEntries(
+    grids(meta.capture.assembledURFDLB).map((grid, i) => [faceOrder[i], grid]),
+  ) as Record<FaceKey, string[][]>
+  const parityOf = (faces: Record<FaceKey, string[][]>) =>
+    runFullParity({
+      size: n,
+      u: { n, data: faces.U.flat() },
+      r: { n, data: faces.R.flat() },
+      f: { n, data: faces.F.flat() },
+      d: { n, data: faces.D.flat() },
+      l: { n, data: faces.L.flat() },
+      b: { n, data: faces.B.flat() },
+    })
+  const sameGrid = (a: string[][], b: string[][]) =>
+    a.map((row) => row.join('')).join('/') ===
+    b.map((row) => row.join('')).join('/')
+
+  it('offers only arrangements the parity report accepts', () => {
+    const solution = solveFaceOrientations(captured)!
+    for (const candidate of solution.alternatives)
+      expect(parityOf(candidate.faces).valid).toBe(true)
+  })
+
+  it('rejects the cube with the white face turned 180 degrees', () => {
+    // Even corner permutation, odd middle-edge permutation: no 7x7 can be
+    // in that state with its centers in place.
+    const turned = {
+      ...held,
+      U: held.U.map((row) => [...row].reverse()).reverse(),
+    }
+    const result = parityOf(turned)
+    expect(result.valid).toBe(false)
+    expect(result.checks.permutationParity).toBe(false)
   })
 })

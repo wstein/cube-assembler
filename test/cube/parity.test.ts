@@ -166,10 +166,17 @@ describe('parity: non-3x3 sizes (no center-block uniformity check)', () => {
       valid: true,
       result: 'Valid — all parity checks passed',
     })
-    for (const n of [4, 5, 6, 7]) {
+    for (const n of [4, 6]) {
       expect(checkParity(solvedCube(n))).toMatchObject({
         valid: true,
         result: 'Valid (structural + corner + wing-edge count check)',
+      })
+    }
+    for (const n of [5, 7]) {
+      expect(checkParity(solvedCube(n))).toMatchObject({
+        valid: true,
+        result:
+          'Valid (structural + corner + wing-edge count + middle-edge check)',
       })
     }
   })

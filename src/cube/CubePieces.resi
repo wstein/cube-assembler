@@ -16,3 +16,7 @@ let identifyEdge: ((string, string)) => option<(int, int)>
 
 let permParity: array<int> => bool
 let sum: array<int> => int
+
+let middleEdgeWing: int => option<int>
+let edgeFlipsValid: array<int> => bool
+let edgeParityMatchesCorners: (array<int>, array<int>) => bool
