@@ -20,3 +20,5 @@ let sum: array<int> => int
 let middleEdgeWing: int => option<int>
 let edgeFlipsValid: array<int> => bool
 let edgeParityMatchesCorners: (array<int>, array<int>) => bool
+let wingOrbits: int => array<int>
+let identifyWing: ((string, string), ~edge: int, ~far: bool) => option<int>

@@ -153,3 +153,32 @@ let edgeFlipsValid = flips => mod(sum(flips), 2) == 0
 
 let edgeParityMatchesCorners = (cornerPieces, edgePieces) =>
   permParity(cornerPieces) == permParity(edgePieces)
+
+// ─── Wing identity (4x4 and larger) ───────────────────────────────────────────
+// Wings at depths w and N-1-w of the 12 edges form one orbit of 24 wings:
+// each color pair twice, as mirror images, so no move flips a wing in place.
+// Which twin a reading is follows from its flip, the half of the edge it
+// sits in, and how that edge's two lines run: these six edges read their
+// wings mirrored relative to the other six, which every random scramble in
+// the property tests confirms. Counting color pairs cannot see a wing
+// whose two stickers are swapped; identity can.
+let wingMirrored = [true, false, false, true, false, false, true, true, false, true, true, false]
+
+// The depths w that start an orbit (its twin is N-1-w); an odd cube's
+// middle wing is its middle edge and belongs to no wing orbit.
+let wingOrbits = n => n < 4 ? [] : Array.fromInitializer(~length=(n - 2) / 2, i => i + 1)
+
+// Which of the orbit's 24 wings a reading at `edge` is, `far` when it sits
+// at depth N-1-w; None for two colors that never share an edge.
+let identifyWing = (colors, ~edge, ~far) =>
+  identifyEdge(colors)->Option.map(((pair, flip)) => {
+    let bit = mirrored => mirrored ? 1 : 0
+    let twin = mod(
+      flip +
+      bit(far) +
+      bit(wingMirrored->Array.getUnsafe(edge)) +
+      bit(wingMirrored->Array.getUnsafe(pair)),
+      2,
+    )
+    pair * 2 + twin
+  })

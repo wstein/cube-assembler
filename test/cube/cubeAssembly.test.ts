@@ -392,13 +392,14 @@ describe('solveFaceOrientations', () => {
       expect(result!.cornerScore).toBe(8)
       expect(result!.edgeScore).toBe(12)
       // This capture's own U/R/D/L wing patterns turn out to be independently
-      // rotation-symmetric enough that 36 genuinely distinct assignments
-      // tie for the winning score (see the dedicated "multiple genuinely
+      // rotation-symmetric enough that 24 genuinely distinct assignments
+      // tie for the winning score (36 while wings were only counted: 12 of
+      // those read a wing with its two stickers swapped) (see the dedicated "multiple genuinely
       // different alternatives" test below) - a real discovery made while
       // investigating a user report that this exact capture, rotated
       // differently, "has multiple valid permutations" too. Comfortably
       // under MAX_ALTERNATIVES, so nothing here should be silently dropped.
-      expect(result!.alternatives.length).toBe(36)
+      expect(result!.alternatives.length).toBe(24)
       expect(result!.truncated).toBe(false)
     })
 
@@ -410,7 +411,7 @@ describe('solveFaceOrientations', () => {
       // "multiple valid permutations" that the app should ask the
       // customer to choose between, instead of silently picking one as
       // even sizes previously always did. Confirmed genuine, not a
-      // whole-cube relabeling: across the 36 tied alternatives, U/R/D/L
+      // whole-cube relabeling: across the 24 tied alternatives, U/R/D/L
       // each independently take all 4 rotation values while B takes only
       // 2 - an asymmetric spread no single whole-cube rigid rotation
       // (which would move every face together, in lockstep, through one
@@ -431,7 +432,7 @@ describe('solveFaceOrientations', () => {
       const result = solveFaceOrientations(captured)
       expect(result).not.toBeNull()
       expect(result!.fullyValid).toBe(true)
-      expect(result!.alternatives.length).toBe(36)
+      expect(result!.alternatives.length).toBe(24)
       expect(result!.truncated).toBe(false)
       const signatures = new Set(
         result!.alternatives.map((alt) =>
@@ -440,7 +441,7 @@ describe('solveFaceOrientations', () => {
             .join('|'),
         ),
       )
-      expect(signatures.size).toBe(36) // genuinely distinct content, not duplicates
+      expect(signatures.size).toBe(24) // genuinely distinct content, not duplicates
       // R/F/L/B range over all 4 rotations while D is stuck at only 2 -
       // an asymmetric spread proving this isn't one shared whole-cube
       // rotation orbit (U is trivially always 0 - solveEvenSizeOrientations

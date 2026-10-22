@@ -183,30 +183,24 @@ let identifyAll = (count, read) => {
   ok.contents ? Some((pieces, turns)) : None
 }
 
-let range = (from, to) =>
-  from > to ? [] : Array.fromInitializer(~length=to - from + 1, i => from + i)
-
-// Wing-edge validity for N>3. Corners alone don't fully constrain a 4x4+'s
+// Wing validity for N>3. Corners alone don't fully constrain a 4x4+'s
 // per-face rotation; without this the search had no signal that a
 // corner-valid candidate's wings were scrambled, and settled on a wrong
-// rotation on a real reported capture. Counting check only (a full check
-// would need per-depth wing orbits on N>=5): every wing sticker pair must
-// be one of the 12 real pairs, and each pair must appear exactly N-2 times.
-// It can accept too much on N>=5 but never rejects a real cube.
-let wingEdgeCountsValid = (faces, n) => {
-  let counts = Array.make(~length=Array.length(edges), 0)
-  let valid = edges->Array.every(edge =>
-    range(1, n - 2)->Array.every(w =>
-      switch CubePieces.identifyEdge(wingPair(faces, edge, w)) {
-      | Some((index, _)) =>
-        counts->Array.setUnsafe(index, counts->Array.getUnsafe(index) + 1)
-        true
-      | None => false
-      }
-    )
+// rotation on a real reported capture. Each orbit's 24 positions must show
+// 24 different wings (CubePieces.identifyWing), which also makes every
+// color pair appear exactly twice per orbit.
+let wingsValid = (faces, n) =>
+  CubePieces.wingOrbits(n)->Array.every(w =>
+    identifyAll(2 * Array.length(edges), i => {
+      let edge = i / 2
+      let far = mod(i, 2) == 1
+      CubePieces.identifyWing(
+        wingPair(faces, edges->Array.getUnsafe(edge), far ? n - 1 - w : w),
+        ~edge,
+        ~far,
+      )->Option.map(wing => (wing, 0))
+    })->Option.isSome
   )
-  valid && counts->Array.every(count => count == n - 2)
-}
 
 let isFullyValid = (faces: faceSet<grid>) => {
   let n = Array.length(faces.u)
@@ -218,19 +212,19 @@ let isFullyValid = (faces: faceSet<grid>) => {
       // No edges at all: corner distinctness and orientation are complete.
       true
     } else {
-      (n == 3 || wingEdgeCountsValid(faces, n)) &&
-        switch CubePieces.middleEdgeWing(n) {
-        | None => true
-        | Some(w) =>
-          switch identifyAll(Array.length(edges), i =>
-            CubePieces.identifyEdge(wingPair(faces, edges->Array.getUnsafe(i), w))
-          ) {
-          | Some((edgePieces, flips)) =>
-            CubePieces.edgeFlipsValid(flips) &&
-            CubePieces.edgeParityMatchesCorners(cornerPieces, edgePieces)
-          | None => false
-          }
+      wingsValid(faces, n) &&
+      switch CubePieces.middleEdgeWing(n) {
+      | None => true
+      | Some(w) =>
+        switch identifyAll(Array.length(edges), i =>
+          CubePieces.identifyEdge(wingPair(faces, edges->Array.getUnsafe(i), w))
+        ) {
+        | Some((edgePieces, flips)) =>
+          CubePieces.edgeFlipsValid(flips) &&
+          CubePieces.edgeParityMatchesCorners(cornerPieces, edgePieces)
+        | None => false
         }
+      }
     }
   | _ => false
   }

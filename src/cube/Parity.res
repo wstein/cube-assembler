@@ -127,11 +127,10 @@ let pairName = ((a, b)) => `${a}-${b}`
 
 exception UnknownWing(wingResult)
 
-// Validates wing stickers by counting, not full permutation/orientation
-// parity: every wing pair must be one of the 12 real color pairs, and each
-// must appear exactly N-2 times. Wings of every depth are pooled (on N>=5
-// they are separate orbits), which can only make this weaker, never reject
-// a valid cube.
+// Validates wing stickers by counting: every wing pair must be one of the
+// 12 real color pairs, and each must appear exactly N-2 times. Wings of
+// every depth are pooled; duplicateWing then checks each orbit's wings by
+// identity, which reports a misread more precisely than counts could.
 let validateWingEdges = (cube: cubeIR): wingResult => {
   let n = cube.size
   let counts = Array.make(~length=Array.length(CubePieces.solvedEdges), 0)
@@ -207,6 +206,42 @@ let validateWingEdges = (cube: cubeIR): wingResult => {
   } catch {
   | UnknownWing(result) => result
   }
+}
+
+// The first wing an orbit shows twice, with both positions' facelets.
+// Counting color pairs cannot see a wing read with its two stickers
+// swapped: it still counts as its pair, but reads as its mirror-image twin,
+// which the orbit already holds (CubePieces.identifyWing).
+let duplicateWing = (cube: cubeIR) => {
+  let n = cube.size
+  CubePieces.wingOrbits(n)->Array.findMap(w => {
+    let seen = Dict.make()
+    let slots =
+      CubePieces.edgeLines->Array.flatMapWithIndex((lines, edge) => [
+        (lines, edge, false),
+        (lines, edge, true),
+      ])
+    slots->Array.findMap(((((keyA, lineA, reverseA), (keyB, lineB, reverseB)), edge, far)) => {
+      let depth = far ? n - 1 - w : w
+      let (faceA, faceB) = (faceName(keyA), faceName(keyB))
+      let indexA = CubePieces.edgeLineFaceletIndex(n, lineA, reverseA, depth)
+      let indexB = CubePieces.edgeLineFaceletIndex(n, lineB, reverseB, depth)
+      let facelets = [{face: faceA, index: indexA}, {face: faceB, index: indexB}]
+      let colors = (sticker(cube, faceA, indexA), sticker(cube, faceB, indexB))
+      switch CubePieces.identifyWing(colors, ~edge, ~far) {
+      | Some(wing) =>
+        let key = Int.toString(wing)
+        switch seen->Dict.get(key) {
+        | Some(first) => Some((pairName(colors), first, facelets))
+        | None =>
+          seen->Dict.set(key, facelets)
+          None
+        }
+      // Unknown pairs were already reported by validateWingEdges.
+      | None => None
+      }
+    })
+  })
 }
 
 let validResult = "Valid — all parity checks passed"
@@ -382,8 +417,8 @@ let runFullParity = (cube: cubeIR): parityResult => {
         // permutation, so there is nothing further to check.
         {valid: true, result: validResult, checks}
       } else if n != 3 {
-        // 4x4-7x7: wings are validated by counting, then an odd cube's
-        // middle edges like a 3x3's edges. Centers need no check:
+        // 4x4-7x7: wings are validated by counting, then by identity per
+        // orbit, then an odd cube's middle edges like a 3x3's edges. Centers need no check:
         // color balance plus the exact corner and wing counts leave each
         // color's center count no choice, and center pieces of one color
         // are indistinguishable.
@@ -400,20 +435,31 @@ let runFullParity = (cube: cubeIR): parityResult => {
           | None => {valid: false, result: wings.result->Option.getOr(""), checks}
           }
         } else {
-          switch CubePieces.middleEdgeWing(n) {
-          | Some(wing) =>
-            runEdgeChecks(
-              cube,
+          switch duplicateWing(cube) {
+          | Some((pair, first, second)) =>
+            checks->Dict.set("wingEdgeColors", false)
+            {
+              valid: false,
+              result: "Duplicate wing edge piece (a wing read with its two stickers swapped)",
               checks,
-              cornerPieces,
-              ~n,
-              ~wing,
-              ~validMessage="Valid (structural + corner + wing-edge count + middle-edge check)",
-            )
-          | None => {
-              valid: true,
-              result: "Valid (structural + corner + wing-edge count check)",
-              checks,
+              highlight: [{group: pair, facelets: first}, {group: pair, facelets: second}],
+            }
+          | None =>
+            switch CubePieces.middleEdgeWing(n) {
+            | Some(wing) =>
+              runEdgeChecks(
+                cube,
+                checks,
+                cornerPieces,
+                ~n,
+                ~wing,
+                ~validMessage="Valid (structural + corner + wing-edge count + middle-edge check)",
+              )
+            | None => {
+                valid: true,
+                result: "Valid (structural + corner + wing-edge count check)",
+                checks,
+              }
             }
           }
         }
