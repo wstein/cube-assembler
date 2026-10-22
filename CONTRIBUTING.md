@@ -62,6 +62,25 @@ VITE_BASE_PATH=/cube-assembler/ npm run build
 npx vite preview
 ```
 
+## Releases
+
+`package.json` holds the version; saved fixtures record it with the commit.
+To release, on an up-to-date `main`:
+
+```sh
+npm version minor   # or patch / major: bumps package.json, commits, tags vX.Y.Z
+git push --follow-tags
+```
+
+The `Release` workflow runs for the pushed `vX.Y.Z` tag. It checks that the tag
+matches `package.json`, runs typecheck, lint, format check and tests, builds
+with a relative asset base and publishes a GitHub release with generated
+notes and `cube-assembler-X.Y.Z-dist.zip`. Unpacked, the zip runs from any
+folder of any static web server.
+
+To release the current version without bumping it (for example the first
+`v0.1.0`), tag it directly: `git tag v0.1.0 && git push origin v0.1.0`.
+
 ## How changes are made
 
 - **Test first.** For a behavior change, write a focused failing test, make
