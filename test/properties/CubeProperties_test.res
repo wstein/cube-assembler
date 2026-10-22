@@ -234,3 +234,131 @@ describe("parity invariants", () => {
     60000,
   )
 })
+
+// Odd sizes with few moves: faces stay close to uniform, so turning a
+// face's stickers often still reads as real pieces, and the search finds
+// several arrangements that fit. That is where both the filter and the
+// list of tied arrangements get tested.
+let oddScramble =
+  Fc.constantFrom([3, 5, 7])->Fc.chain(n =>
+    Fc.tuple2(Fc.constant(n), Fc.array(moveOf(n), {minLength: 0, maxLength: 4}))
+  )
+
+let gridOf = (facelets, n): CubeTypes.grid =>
+  Array.fromInitializer(~length=n, r => facelets->Array.slice(~start=r * n, ~end=(r + 1) * n))
+
+let facesOf = (cube: CubeState.cubeState, n): CubeTypes.faceSet<CubeTypes.grid> => {
+  u: gridOf(cube.u, n),
+  r: gridOf(cube.r, n),
+  f: gridOf(cube.f, n),
+  d: gridOf(cube.d, n),
+  l: gridOf(cube.l, n),
+  b: gridOf(cube.b, n),
+}
+
+let cubeOf = (faces: CubeTypes.faceSet<CubeTypes.grid>): CubeState.cubeState => {
+  u: faces.u->Array.flat,
+  r: faces.r->Array.flat,
+  f: faces.f->Array.flat,
+  d: faces.d->Array.flat,
+  l: faces.l->Array.flat,
+  b: faces.b->Array.flat,
+}
+
+// `faces` with one face's stickers turned by `turns` quarter turns.
+let turnedFace = (faces: CubeTypes.faceSet<CubeTypes.grid>, face, turns) => {
+  let turn = grid => CubeGeometry.rotateGrid(grid, turns)
+  switch face {
+  | CubeState.U => {...faces, u: turn(faces.u)}
+  | R => {...faces, r: turn(faces.r)}
+  | F => {...faces, f: turn(faces.f)}
+  | D => {...faces, d: turn(faces.d)}
+  | L => {...faces, l: turn(faces.l)}
+  | B => {...faces, b: turn(faces.b)}
+  }
+}
+
+let captureOf = (faces: CubeTypes.faceSet<CubeTypes.grid>) =>
+  Dict.fromArray([
+    ("u", faces.u),
+    ("r", faces.r),
+    ("f", faces.f),
+    ("d", faces.d),
+    ("l", faces.l),
+    ("b", faces.b),
+  ])
+
+describe("middle edges of odd cubes", () => {
+  test(
+    "two swapped middle edges are never a valid odd cube",
+    () =>
+      Fc.check(
+        Fc.tuple3(oddScramble, Fc.integer({min: 0, max: 11}), Fc.integer({min: 1, max: 11})),
+        (((n, moves), first, offset)) => {
+          let cube = scramble(n, moves)
+          let wing = n / 2
+          let second = mod(first + offset, 12)
+          let swapped = edited(
+            cube,
+            copy => {
+              let ((faceA1, lineA1, reverseA1), (faceB1, lineB1, reverseB1)) =
+                CubePieces.edgeLines->Array.getUnsafe(first)
+              let ((faceA2, lineA2, reverseA2), (faceB2, lineB2, reverseB2)) =
+                CubePieces.edgeLines->Array.getUnsafe(second)
+              let swap = ((face1, line1, reverse1), (face2, line2, reverse2)) => {
+                let index1 = CubePieces.edgeLineFaceletIndex(n, line1, reverse1, wing)
+                let index2 = CubePieces.edgeLineFaceletIndex(n, line2, reverse2, wing)
+                faceletsOf(copy, face1)->Array.setUnsafe(
+                  index1,
+                  faceletsOf(cube, face2)->Array.getUnsafe(index2),
+                )
+                faceletsOf(copy, face2)->Array.setUnsafe(
+                  index2,
+                  faceletsOf(cube, face1)->Array.getUnsafe(index1),
+                )
+              }
+              swap((faceA1, lineA1, reverseA1), (faceA2, lineA2, reverseA2))
+              swap((faceB1, lineB1, reverseB1), (faceB2, lineB2, reverseB2))
+            },
+          )
+
+          // One swap leaves the middle edges' permutation parity unmatched
+          // with the corners', which no wing count can see.
+          !valid(swapped, n)
+        },
+      ),
+    60000,
+  )
+
+  test(
+    "a face turned by a quarter or half turn is rejected, or offered among the tied arrangements",
+    () =>
+      Fc.check(
+        Fc.tuple3(oddScramble, Fc.constantFrom(faces), Fc.integer({min: 1, max: 3})),
+        (((n, moves), face, turns)) => {
+          let held = facesOf(scramble(n, moves), n)
+          let photographed = turnedFace(held, face, turns)
+          let rejected = !valid(cubeOf(photographed), n)
+          switch CubeAssembly.solveFaceOrientations(captureOf(photographed))->Null.toOption {
+          | Some(solution) =>
+            let offered = candidate =>
+              solution.alternatives->Array.some(alternative => alternative.faces == candidate)
+            // The cube as held always fits, and every arrangement offered
+            // passes the parity report. A turned face that still passes
+            // is undetectable, so it must be offered next to the real
+            // one rather than picked in its place.
+            solution.fullyValid &&
+            !solution.truncated &&
+            offered(held) &&
+            solution.alternatives->Array.every(alternative =>
+              valid(cubeOf(alternative.faces), n)
+            ) &&
+            (rejected || photographed == held || offered(photographed))
+          | None => false
+          }
+        },
+        ~runs=200,
+      ),
+    120000,
+  )
+})
