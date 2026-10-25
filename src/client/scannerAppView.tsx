@@ -559,7 +559,6 @@ export function ScannerAppView({ model }: { model: ScannerAppModel }) {
             setLiveDetection(null)
             setLiveFaceVisible(false)
           }}
-          mirrorPreview={mirrorPreview}
           centerRoutingActive={centerRoutingActive}
           instruction={
             centerRoutingActive

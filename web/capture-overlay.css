@@ -360,10 +360,6 @@ label.capture-size-label {
   margin: 0 var(--spacing-sm) 0 0;
 }
 
-.turn-hint.mirrored {
-  transform: scaleX(-1);
-}
-
 .turn-hint-face {
   fill: var(--color-bg-secondary);
   stroke: var(--color-text-secondary);

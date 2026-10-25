@@ -190,3 +190,22 @@ test('net thumbnails stay unflipped in mirror mode, also after the fly-in', asyn
   )
   expect(await flipped()).toBe(false)
 })
+
+test('the turn cue is never flipped in mirror mode', async ({ page }) => {
+  await installStubCamera(page)
+  await page.goto('/')
+  await page.getByRole('button', { name: 'Capture faces' }).click()
+  const capture = page.locator('.capture-modal-content')
+  await expect(capture.locator('.capture-live-badge')).toContainText('Live')
+  await capture.getByLabel('Mirror').check()
+  await capture.getByRole('button', { name: 'Capture side 1' }).click()
+  await expect(capture.locator('.capture-turn-overlay')).toBeVisible()
+  await expect(capture.locator('.turn-hint')).toBeVisible()
+  const flipped = (selector: string) =>
+    capture.locator(selector).evaluate((el) => {
+      const transform = getComputedStyle(el).transform
+      return transform !== 'none' && new DOMMatrix(transform).a < 0
+    })
+  expect(await flipped('.capture-turn-scene')).toBe(false)
+  expect(await flipped('.turn-hint')).toBe(false)
+})

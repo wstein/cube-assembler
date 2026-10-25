@@ -171,7 +171,6 @@ export function CaptureLiveView({
         {turnOverlay && (
           <CaptureTurnOverlay
             step={turnOverlay.step}
-            mirrored={mirrorPreview}
             onContinue={onContinueTurn}
           />
         )}

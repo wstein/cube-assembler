@@ -18,7 +18,6 @@ interface CaptureDialogProps {
   size: number
   captureMode: CaptureMode
   onModeChange: (mode: CaptureMode) => void
-  mirrorPreview: boolean
   centerRoutingActive: boolean
   instruction: string
   predictedCenter: string | null
@@ -53,7 +52,6 @@ export function CaptureDialog({
   size,
   captureMode,
   onModeChange,
-  mirrorPreview,
   centerRoutingActive,
   instruction,
   predictedCenter,
@@ -134,10 +132,7 @@ export function CaptureDialog({
           </div>
           <p class="capture-hint-text" aria-live="polite">
             {!centerRoutingActive && (
-              <TurnHint
-                step={faceOrder.indexOf(face)}
-                mirrored={mirrorPreview}
-              />
+              <TurnHint step={faceOrder.indexOf(face)} />
             )}
             {instruction}
             {predictedCenter && (

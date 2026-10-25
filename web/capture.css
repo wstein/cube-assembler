@@ -324,10 +324,6 @@
   aspect-ratio: 1;
   transform: translate(-50%, -50%);
   perspective: 160cqw;
-
-  &.mirrored {
-    transform: translate(-50%, -50%) scaleX(-1);
-  }
 }
 
 .capture-turn-cube {

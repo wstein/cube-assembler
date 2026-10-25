@@ -2,21 +2,11 @@ import { turnHintArrowAngle } from './captureSteps'
 
 // Small drawing next to a capture step's instruction. The arrow is painted
 // on the front face in the same direction as the larger capture cue.
-export function TurnHint({
-  step,
-  mirrored,
-}: {
-  step: number
-  mirrored: boolean
-}) {
+export function TurnHint({ step }: { step: number }) {
   if (step === 0) return null
   const arrowAngle = turnHintArrowAngle(step)
   return (
-    <svg
-      class={`turn-hint ${mirrored ? 'mirrored' : ''}`}
-      viewBox="0 0 64 64"
-      aria-hidden="true"
-    >
+    <svg class="turn-hint" viewBox="0 0 64 64" aria-hidden="true">
       <polygon
         points="16,24 42,24 52,14 26,14"
         class="turn-hint-face turn-hint-top"
@@ -44,11 +34,9 @@ const STICKERS = 3
 // example: the guided solver determines the real face orientation afterward.
 export function CaptureTurnOverlay({
   step,
-  mirrored,
   onContinue,
 }: {
   step: number
-  mirrored: boolean
   onContinue: () => void
 }) {
   const kind = step < 4 ? 'side' : step === 4 ? 'top' : 'bottom'
@@ -60,7 +48,7 @@ export function CaptureTurnOverlay({
         : 'Show the last face'
   const detail =
     kind === 'side'
-      ? 'Clockwise is suggested; either direction works.'
+      ? 'Turn sideways in the direction of the arrow as you see it in the camera picture; either direction works.'
       : kind === 'top'
         ? 'Tip the cube up or down.'
         : 'Move through Side 4 to the opposite face.'
@@ -96,14 +84,11 @@ export function CaptureTurnOverlay({
   )
   return (
     <div
-      class={`capture-turn-overlay capture-turn-${kind} ${mirrored ? 'mirrored' : ''}`}
+      class={`capture-turn-overlay capture-turn-${kind}`}
       role="status"
       aria-label={`${title}. ${detail}`}
     >
-      <div
-        class={`capture-turn-scene ${mirrored ? 'mirrored' : ''}`}
-        aria-hidden="true"
-      >
+      <div class="capture-turn-scene" aria-hidden="true">
         <div class="capture-turn-cube">
           {face('front')}
           {face('back')}
