@@ -214,14 +214,12 @@ let outOfOrder = (faces: Dict.t<faceCaptureData>) =>
     faces->Dict.get(face)->Option.flatMap(data => data.outOfOrder)->Option.getOr(false)
   )
 
-// The turn to show before the next face: none once a face landed out of
-// order, since the step hint then says what to do.
-let nextTurnCue = (faces: Dict.t<faceCaptureData>, nextFace) =>
-  if outOfOrder(faces) {
-    Null.null
-  } else {
-    Null.make({step: faceOrder->Array.indexOf(nextFace)})
-  }
+// The turn to show after the n-th capture, whichever slots the captures
+// landed in: nothing about the faces' colors stops the cues.
+let nextTurnCue = (faces: Dict.t<faceCaptureData>) => {
+  let captured = faceOrder->Array.filter(face => faces->Dict.get(face)->Option.isSome)->Array.length
+  captured >= Array.length(faceOrder) ? Null.null : Null.make({step: captured})
+}
 
 let sourceOf = (faces: Dict.t<faceCaptureData>, face) =>
   faces->Dict.get(face)->Option.flatMap(data => data.source)

@@ -106,14 +106,25 @@ describe('guided face capture', () => {
     )
   })
 
-  it('cues the next turn by its step, without previewing colors', () => {
-    const faces: Record<string, FaceCaptureData> = {
-      D: { colors: grid(3, 'R'), confidence: 1, timestamp: 0 },
-    }
-    expect(nextTurnCue(faces, 'R')).toEqual({ step: 1 })
-    expect(nextTurnCue(faces, 'B')).toEqual({ step: 5 })
+  it('cues the turn after the n-th capture, whichever slots they landed in', () => {
+    const face = (): FaceCaptureData => ({
+      colors: grid(3, 'R'),
+      confidence: 1,
+      timestamp: 0,
+    })
+    const faces: Record<string, FaceCaptureData> = { D: face() }
+    expect(nextTurnCue(faces)).toEqual({ step: 1 })
+    faces.L = face()
+    faces.B = face()
+    faces.R = face()
+    expect(nextTurnCue(faces)).toEqual({ step: 4 })
+    faces.U = face()
+    expect(nextTurnCue(faces)).toEqual({ step: 5 })
+    // A capture the app finds odd never stops the cues: people know best.
     faces.D.outOfOrder = true
-    expect(nextTurnCue(faces, 'R')).toBeNull()
+    expect(nextTurnCue(faces)).toEqual({ step: 5 })
+    faces.F = face()
+    expect(nextTurnCue(faces)).toBeNull()
   })
 
   it('counts a camera capture in order, or a fixture that recorded it, as guided', () => {

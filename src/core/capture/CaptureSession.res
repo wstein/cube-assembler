@@ -64,7 +64,7 @@ let captureStep = (
       // The cue blocks capturing while the cube turns; without the turn it
       // would only be a wait, and the step hint already says what to do.
       turnCue: switch nextFace {
-      | Some(next) if camera && !reducedMotion => CaptureFlow.nextTurnCue(placed.faces, next)
+      | Some(_) if camera && !reducedMotion => CaptureFlow.nextTurnCue(placed.faces)
       | _ => Null.null
       },
     })

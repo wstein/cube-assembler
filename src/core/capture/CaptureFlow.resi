@@ -82,7 +82,7 @@ let placeFaceCapture: (
 type turnCue = {step: int}
 
 @genType
-let nextTurnCue: (Dict.t<faceCaptureData>, string) => Null.t<turnCue>
+let nextTurnCue: Dict.t<faceCaptureData> => Null.t<turnCue>
 @genType let isGuidedCapture: (Dict.t<faceCaptureData>, Null.t<string>) => bool
 
 @genType
