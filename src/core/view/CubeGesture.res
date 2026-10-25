@@ -472,6 +472,17 @@ let gestureForPointerDown = (pointerType, touches, hit: Nullable.t<surfaceHit>, 
   }
 }
 
+// With layer moves locked no sticker starts a turn: one pointer on the cube
+// orbits the view, and fingers keep their usual gestures.
+let gestureWhenLayerMovesLocked = (pointerType, touches, onCube, current) =>
+  if pointerType != "touch" {
+    Camera
+  } else if touches == 1 {
+    onCube ? Camera : NoGesture
+  } else {
+    gestureForPointerDown(pointerType, touches, (Nullable.null: Nullable.t<surfaceHit>), current)
+  }
+
 let gestureWhenSwipeTurnsNothing = pointerType => pointerType == "touch" ? NoGesture : Camera
 
 // Lifting one of two fingers must not start a layer turn with the

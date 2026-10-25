@@ -11,6 +11,7 @@ import {
   gestureAfterPointerUp,
   gestureForPointerDown,
   gestureWhenSwipeTurnsNothing,
+  gestureWhenLayerMovesLocked,
   twoFingerLock,
   pickCubeSurface,
   pickStickerSurface,
@@ -758,5 +759,32 @@ describe('touchpad swipes', () => {
   it('coasts the other way too, and diagonally', () => {
     const swipe = run([-10, -12, -11, -9.9, -8.9, -8, -7.2, -6.5])
     expect(swipe.coasting).toBe(true)
+  })
+})
+
+describe('locked layer moves', () => {
+  it('orbits the view from the cube with a mouse or one finger', () => {
+    expect(gestureWhenLayerMovesLocked('mouse', 1, true, null)).toBe('camera')
+    expect(gestureWhenLayerMovesLocked('mouse', 1, false, null)).toBe('camera')
+    expect(gestureWhenLayerMovesLocked('touch', 1, true, null)).toBe('camera')
+  })
+
+  it('leaves one finger on the background to the page', () => {
+    expect(gestureWhenLayerMovesLocked('touch', 1, false, null)).toBe('none')
+  })
+
+  it('keeps the two-finger gestures', () => {
+    expect(gestureWhenLayerMovesLocked('touch', 2, true, 'camera')).toBe(
+      'two-finger',
+    )
+  })
+
+  it('never starts a pending layer turn', () => {
+    for (const type of ['mouse', 'touch', 'pen'])
+      for (const touches of [1, 2, 3])
+        for (const onCube of [true, false])
+          expect(
+            gestureWhenLayerMovesLocked(type, touches, onCube, null),
+          ).not.toBe('pending')
   })
 })

@@ -1,5 +1,5 @@
 // Shared by the 3D view's specs.
-import { expect, type Page } from '@playwright/test'
+import { expect, type BrowserContext, type Page } from '@playwright/test'
 
 // Drags a sticker left of the front face's middle up by 70 px.
 export async function swipeFrontFace(page: Page, dx = -38) {
@@ -25,4 +25,16 @@ export async function waitForCubeIdle(page: Page) {
       }),
   )
   await expect(canvas).toHaveAttribute('data-idle', 'true')
+}
+
+// Layer moves are locked by default; specs that turn layers by hand set the
+// preference first. Pass false to lock them again.
+export async function setLayerMoves(context: BrowserContext, on = true) {
+  await context.addCookies([
+    {
+      name: 'cube-assembler-layer-moves',
+      value: on ? '1' : '0',
+      url: `http://127.0.0.1:${process.env.E2E_PORT ?? '4174'}`,
+    },
+  ])
 }

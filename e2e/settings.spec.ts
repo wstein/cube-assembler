@@ -1,4 +1,9 @@
 import { expect, test, type Page } from '@playwright/test'
+import { setLayerMoves } from './cubeView3DHelpers'
+
+test.beforeEach(async ({ context }) => {
+  await setLayerMoves(context)
+})
 
 async function openAdvanced(page: Page) {
   const advanced = page.locator('details.settings-advanced')

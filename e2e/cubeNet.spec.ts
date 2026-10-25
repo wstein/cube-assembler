@@ -1,4 +1,9 @@
 import { expect, test } from '@playwright/test'
+import { setLayerMoves } from './cubeView3DHelpers'
+
+test.beforeEach(async ({ context }) => {
+  await setLayerMoves(context)
+})
 
 test('shows a solved cube on first load without marking faces as captured', async ({
   page,

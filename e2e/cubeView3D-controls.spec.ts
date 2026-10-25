@@ -1,7 +1,15 @@
 // The 3D view's move history, Undo, scramble, the X/Y/Z gizmo and the
 // preset views.
 import { expect, test } from '@playwright/test'
-import { swipeFrontFace, waitForCubeIdle } from './cubeView3DHelpers'
+import {
+  swipeFrontFace,
+  waitForCubeIdle,
+  setLayerMoves,
+} from './cubeView3DHelpers'
+
+test.beforeEach(async ({ context }) => {
+  await setLayerMoves(context)
+})
 
 test('move history and Undo survive a view switch, then Reset clears them', async ({
   page,

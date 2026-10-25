@@ -81,6 +81,8 @@ let gestureForPointerDown: (
   Nullable.t<surfaceHit>,
   Nullable.t<cubeGesture>,
 ) => cubeGesture
+@genType
+let gestureWhenLayerMovesLocked: (string, int, bool, Nullable.t<cubeGesture>) => cubeGesture
 @genType let gestureWhenSwipeTurnsNothing: string => cubeGesture
 @genType let gestureAfterPointerUp: (int, Nullable.t<cubeGesture>) => Null.t<cubeGesture>
 

@@ -20,6 +20,7 @@ export {
   defaultSwipeTuning as DEFAULT_SWIPE_TUNING,
   gestureAfterPointerUp,
   gestureForPointerDown,
+  gestureWhenLayerMovesLocked,
   gestureWhenSwipeTurnsNothing,
   pickCubeSurface,
   pickStickerSurface,

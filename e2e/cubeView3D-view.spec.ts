@@ -1,7 +1,11 @@
 // The 3D view's help overlay, rendering and backdrop, the view's inertia
 // after a drag, and auto-rotate.
 import { expect, test } from '@playwright/test'
-import { waitForCubeIdle } from './cubeView3DHelpers'
+import { waitForCubeIdle, setLayerMoves } from './cubeView3DHelpers'
+
+test.beforeEach(async ({ context }) => {
+  await setLayerMoves(context)
+})
 
 test('3D help hides after first touch and returns after twenty seconds idle', async ({
   page,

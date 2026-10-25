@@ -1,7 +1,15 @@
 // Turning the 3D cube by hand: sticker swipes, wide seam swipes, two
 // fingers, the touchpad, pinch zoom, lost pointer capture and turn sounds.
 import { expect, test, type Page } from '@playwright/test'
-import { swipeFrontFace } from './cubeView3DHelpers'
+import {
+  swipeFrontFace,
+  setLayerMoves,
+  waitForCubeIdle,
+} from './cubeView3DHelpers'
+
+test.beforeEach(async ({ context }) => {
+  await setLayerMoves(context)
+})
 
 test('a sticker drag turns the layer live and settles on whole turns', async ({
   page,
@@ -819,5 +827,40 @@ test.describe('wide sticker drags', () => {
     await page.waitForTimeout(400)
     await expect(history(page)).toHaveText('Moves: None')
     expect((await canvas.screenshot()).equals(still)).toBe(true)
+  })
+})
+
+test.describe('locked layer moves', () => {
+  test.beforeEach(async ({ context, page }) => {
+    await setLayerMoves(context, false)
+    await page.goto('/')
+    await page.getByRole('button', { name: 'Solved cube' }).click()
+    await page.getByRole('button', { name: '3D View' }).click()
+    await page.getByRole('button', { name: 'Front (F)' }).click()
+  })
+
+  test('a sticker drag orbits the view and turns no layer', async ({
+    page,
+  }) => {
+    const canvas = page.locator('.cube-3d-canvas')
+    await waitForCubeIdle(page)
+    const before = await canvas.screenshot()
+    await swipeFrontFace(page)
+    await waitForCubeIdle(page)
+    expect((await canvas.screenshot()).equals(before)).toBe(false)
+    await expect(
+      page.getByRole('button', { name: 'Undo', exact: true }),
+    ).toBeDisabled()
+  })
+
+  test('the keyboard still changes the view while locked', async ({ page }) => {
+    const canvas = page.locator('.cube-3d-canvas')
+    await waitForCubeIdle(page)
+    const before = await canvas.screenshot()
+    await page.locator('.cube-3d-canvas-wrap').focus()
+    await page.keyboard.press('ArrowLeft')
+    await expect
+      .poll(async () => (await canvas.screenshot()).equals(before))
+      .toBe(false)
   })
 })

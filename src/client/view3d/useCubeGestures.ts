@@ -5,6 +5,7 @@ import {
   followDrag,
   gestureAfterPointerUp,
   gestureForPointerDown,
+  gestureWhenLayerMovesLocked,
   gestureWhenSwipeTurnsNothing,
   pickCubeSurface,
   pickStickerSurface,
@@ -34,6 +35,7 @@ import {
   readPreference,
   SEAM_WIDE_COOKIE,
   readVibrationMs,
+  layerMovesOn,
   turnSoundOn,
   vibrationOn,
 } from '../preferences'
@@ -280,8 +282,9 @@ export function useCubeGestures({
             gestureCamera(rect),
           )
         : null
+    const layerMoves = layerMovesOn(document.cookie)
     const hit =
-      rect && surface
+      rect && surface && layerMoves
         ? pickStickerSurface(
             e.clientX - rect.left,
             e.clientY - rect.top,
@@ -293,8 +296,9 @@ export function useCubeGestures({
       x: e.clientX,
       y: e.clientY,
       hit,
-      mode:
-        surface && !hit
+      mode: !layerMoves
+        ? gestureWhenLayerMovesLocked(e.pointerType, 1, surface !== null, null)
+        : surface && !hit
           ? 'pending'
           : gestureForPointerDown(e.pointerType, 1, hit, null),
       pointerType: e.pointerType,
