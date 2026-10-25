@@ -20,7 +20,7 @@ type largeTables = {
   corner: array<array<int>>,
   midge: array<array<int>>,
   wings: array<array<array<int>>>,
-  centres: array<array<int>>,
+  centers: array<array<int>>,
 }
 
 let expandFacelet = (n, depth, index) => {
@@ -35,7 +35,7 @@ let expandFacelet = (n, depth, index) => {
 let expandTable = (n, depth, table) =>
   table->Array.map(slot => slot->Array.map(index => expandFacelet(n, depth, index)))
 
-let centres = n => {
+let centers = n => {
   let tables = []
   let last = n - 1
   for row in 1 to last - 1 {
@@ -66,7 +66,7 @@ let largeTables = n => {
     wings: [1, 2]->Array.map(depth =>
       expandTable(n, depth, even ? T.wingFacelet4 : T.wingFacelet5)
     ),
-    centres: centres(n),
+    centers: centers(n),
   }
 }
 
@@ -96,7 +96,7 @@ let choose = (n, k) =>
 let cornerRadix = factorial(8) * 3n ** 7n
 let midgeRadix = factorial(12) * 2n ** 11n / 2n
 let wingRadix = factorial(24)
-let centreRadix =
+let centerRadix =
   [24, 20, 16, 12, 8]->Array.reduce(1n, (product, slots) =>
     product * BigInt.fromInt(choose(slots, 4))
   )
@@ -105,10 +105,10 @@ let radices = n =>
   switch n {
   | 2 => [cornerRadix]
   | 3 => [cornerRadix, midgeRadix]
-  | 4 => [cornerRadix, wingRadix, centreRadix]
-  | 5 => [cornerRadix, midgeRadix, wingRadix, centreRadix, centreRadix]
-  | 6 => [cornerRadix, wingRadix, wingRadix, ...Array.make(~length=4, centreRadix)]
-  | _ => [cornerRadix, midgeRadix, wingRadix, wingRadix, ...Array.make(~length=6, centreRadix)]
+  | 4 => [cornerRadix, wingRadix, centerRadix]
+  | 5 => [cornerRadix, midgeRadix, wingRadix, centerRadix, centerRadix]
+  | 6 => [cornerRadix, wingRadix, wingRadix, ...Array.make(~length=4, centerRadix)]
+  | _ => [cornerRadix, midgeRadix, wingRadix, wingRadix, ...Array.make(~length=6, centerRadix)]
   }
 
 let stateCount = n => radices(n)->Array.reduce(odd(n) ? 24n : 1n, (a, b) => a * b)
@@ -207,7 +207,7 @@ let combUnrank = (rank, k) => {
   positions
 }
 
-let centreRank = values => {
+let centerRank = values => {
   let remaining = ref(range(24))
   let rank = ref(0n)
   for color in 0 to 4 {
@@ -223,7 +223,7 @@ let centreRank = values => {
   rank.contents
 }
 
-let centreUnrank = rank => {
+let centerUnrank = rank => {
   let steps = [24, 20, 16, 12, 8]->Array.map(n => BigInt.fromInt(choose(n, 4)))
   let digits = Array.make(~length=5, 0)
   let rank = ref(rank)
@@ -249,13 +249,13 @@ type coordinate =
   | Corner({pieces: array<int>, orientations: array<int>})
   | Midge({pieces: array<int>, orientations: array<int>})
   | Wing(array<int>)
-  | Centre(array<int>)
+  | Center(array<int>)
 
-type kind = CornerKind | MidgeKind | WingKind | CentreKind
+type kind = CornerKind | MidgeKind | WingKind | CenterKind
 
 let piecesOf = coordinate =>
   switch coordinate {
-  | Corner({pieces}) | Midge({pieces}) | Wing(pieces) | Centre(pieces) => pieces
+  | Corner({pieces}) | Midge({pieces}) | Wing(pieces) | Center(pieces) => pieces
   }
 
 let isPermutation = (pieces, n) =>
@@ -269,7 +269,7 @@ let validOrientations = (orientations, n, radix) =>
 
 let validCoordinate = coordinate =>
   switch coordinate {
-  | Centre(pieces) =>
+  | Center(pieces) =>
     Array.length(pieces) == 24 &&
       range(6)->Array.every(color => pieces->Array.filter(x => x == color)->Array.length == 4)
   | Wing(pieces) => isPermutation(pieces, 24)
@@ -283,7 +283,7 @@ let validCoordinate = coordinate =>
 // permutation parity.
 let rankCoordinate = coordinate =>
   switch coordinate {
-  | Centre(pieces) => centreRank(pieces)
+  | Center(pieces) => centerRank(pieces)
   | Wing(pieces) => permRank(pieces)
   | Corner({pieces, orientations}) => permRank(pieces) * 2187n + orientationRank(orientations, 7, 3)
   | Midge({pieces, orientations}) =>
@@ -292,7 +292,7 @@ let rankCoordinate = coordinate =>
 
 let unrankCoordinate = (kind, rank, parity) =>
   switch kind {
-  | CentreKind => Centre(centreUnrank(rank))
+  | CenterKind => Center(centerUnrank(rank))
   | WingKind => Wing(permUnrank(rank, 24))
   | CornerKind =>
     Corner({
@@ -311,8 +311,8 @@ let cornerTable = n =>
 let edgeTable = n => n == 7 ? large7.midge : n == 5 ? T.midgeFacelet5 : T.edgeFacelet
 let wingTable = (n, depth) =>
   n >= 6 ? large(n).wings->get(depth - 1) : n == 5 ? T.wingFacelet5 : T.wingFacelet4
-let centreTables = n =>
-  n >= 6 ? large(n).centres : n == 5 ? [T.xFacelet5, T.plusFacelet5] : [T.centreFacelet4]
+let centerTables = n =>
+  n >= 6 ? large(n).centers : n == 5 ? [T.xFacelet5, T.plusFacelet5] : [T.centerFacelet4]
 
 // Which piece sits in each slot and how it is turned, or None when some slot
 // shows no piece.
@@ -334,7 +334,7 @@ let readOriented = (fs, slots, colors) => {
 let readWing = (fs, slots) => {
   let pieces =
     slots->Array.map(indices =>
-      T.wingColour4->Array.findIndex(colors =>
+      T.wingColor4->Array.findIndex(colors =>
         colors->Array.everyWithIndex((value, j) => fs->get(indices->get(j)) == value)
       )
     )
@@ -366,11 +366,11 @@ let readCoordinates = (n, facelets) => {
       }))->Option.map(midge => [midge])
     : Some([])
   let wings = n >= 4 ? range((n - 2) / 2)->Array.map(i => readWing(fs, wingTable(n, i + 1))) : []
-  let centreCoords =
-    n >= 4 ? centreTables(n)->Array.map(table => Centre(table->Array.map(at => fs->get(at)))) : []
+  let centerCoords =
+    n >= 4 ? centerTables(n)->Array.map(table => Center(table->Array.map(at => fs->get(at)))) : []
   switch (corner, midge) {
   | (Some(corner), Some(midge)) if wings->Array.every(Option.isSome) =>
-    let coords = [corner, ...midge, ...wings->Array.filterMap(x => x), ...centreCoords]
+    let coords = [corner, ...midge, ...wings->Array.filterMap(x => x), ...centerCoords]
     let parityAgrees = switch midge {
     | [midge] => permParity(piecesOf(corner)) == permParity(piecesOf(midge))
     | _ => true
@@ -401,7 +401,7 @@ let writeCoordinates = (n, coords) => {
       placeOriented(fs, pieces, orientations, cornerTable(n), T.cornerColor)
     | Midge({pieces, orientations}) =>
       placeOriented(fs, pieces, orientations, edgeTable(n), T.edgeColor)
-    | Wing(_) | Centre(_) => ()
+    | Wing(_) | Center(_) => ()
     }
   )
   let next = ref(odd(n) ? 2 : 1)
@@ -409,13 +409,13 @@ let writeCoordinates = (n, coords) => {
     for depth in 1 to (n - 2) / 2 {
       let pieces = piecesOf(coords->get(next.contents))
       wingTable(n, depth)->Array.forEachWithIndex((indices, slot) =>
-        T.wingColour4
+        T.wingColor4
         ->get(pieces->get(slot))
         ->Array.forEachWithIndex((color, j) => fs->Array.setUnsafe(indices->get(j), color))
       )
       next := next.contents + 1
     }
-    centreTables(n)->Array.forEach(table => {
+    centerTables(n)->Array.forEach(table => {
       let pieces = piecesOf(coords->get(next.contents))
       table->Array.forEachWithIndex((at, slot) => fs->Array.setUnsafe(at, pieces->get(slot)))
       next := next.contents + 1
@@ -568,11 +568,11 @@ let looksLikeOrbit64StateToken = input => {
 
 let encode = facelets =>
   parseFacelets(facelets)->Option.flatMap(((n, values)) => {
-    let centre = n * n / 2
+    let center = n * n / 2
     let frame = odd(n)
       ? range(24)->Array.find(i => {
           let unrotated = transform(n, values, i, true)
-          range(6)->Array.every(face => unrotated->get(face * n * n + centre) == face)
+          range(6)->Array.every(face => unrotated->get(face * n * n + center) == face)
         })
       : Some(0)
     frame->Option.flatMap(frame => {
@@ -602,7 +602,7 @@ let decode = token => {
       CornerKind,
       ...odd(n) ? [MidgeKind] : [],
       ...Array.make(~length=(n - 2) / 2, WingKind),
-      ...Array.make(~length=(n - 2) * (n - 2) / 4, CentreKind),
+      ...Array.make(~length=(n - 2) * (n - 2) / 4, CenterKind),
     ]
     let steps = radices(n)
     let values = Array.make(~length=Array.length(kinds), 0n)

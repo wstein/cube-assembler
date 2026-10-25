@@ -722,7 +722,7 @@ let estimateFaceCorners = (data, width, height, found: gridAlignment, gridSize) 
   let band = i => bands->Array.getUnsafe(i)
   // Position of each grid line in one band's profile. Inner lines are
   // searched around where the square puts them; each outer line around
-  // where its inner neighbours extrapolate it to (the square itself can be
+  // where its inner neighbors extrapolate it to (the square itself can be
   // off on a face seen at an angle), and may be a plain edge (see
   // edgeStep). Every line sits where it is darkest against the sticker next
   // to it. An outer line is compared with its inner side only: the

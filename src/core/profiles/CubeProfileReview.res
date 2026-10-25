@@ -1,6 +1,6 @@
 // Reviewing saved cube definitions. A cube only sets how much of each
 // sticker is sampled (stickerCore), so cubes of one size whose sticker areas
-// match are duplicates: they can be merged into one, or deleted in favour of
+// match are duplicates: they can be merged into one, or deleted in favor of
 // the built-in Generic cube they copy.
 open ProfileSettings
 
@@ -120,7 +120,7 @@ let mergeCubes = (settings: profileSettings, ids, name) => {
   {settings: withoutCubes(settings, gone, cube.size, id, cubes), cube}
 }
 
-// Deletes the saved cubes `ids` in favour of `keepId` (a built-in Generic
+// Deletes the saved cubes `ids` in favor of `keepId` (a built-in Generic
 // cube or another saved cube of the same size).
 let replaceCubes = (settings: profileSettings, ids, keepId) => {
   let members = savedCubes(settings, ids)

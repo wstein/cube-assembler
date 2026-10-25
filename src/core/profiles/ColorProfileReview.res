@@ -100,7 +100,7 @@ type comparable = {id: string, colors: Dict.t<rgb>}
 
 // Groups in which every pair of profiles is within the merge limit
 // (complete linkage), closest pairs by worst color first - so a chain of
-// near neighbours never pulls two different cubes together. As indexes.
+// near neighbors never pulls two different cubes together. As indexes.
 let groupSimilarProfileIndexes = (profiles: array<comparable>, limit) => {
   let cache = Dict.make()
   let between = (i, j) => {
