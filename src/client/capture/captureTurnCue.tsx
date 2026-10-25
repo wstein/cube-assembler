@@ -1,5 +1,3 @@
-import { oppositeFacePreview } from './capturePresentation'
-
 // Small drawing next to a capture step's instruction. The arrow is painted
 // on the front face in the same direction as the larger capture cue.
 export function TurnHint({
@@ -11,16 +9,7 @@ export function TurnHint({
 }) {
   if (step === 0) return null
   const kind = step < 4 ? 'turn' : step === 4 ? 'tip-top' : 'tip-bottom'
-  const arrowAngle =
-    kind === 'turn'
-      ? 270
-      : kind === 'tip-top'
-        ? mirrored
-          ? 0
-          : 180
-        : mirrored
-          ? 180
-          : 0
+  const arrowAngle = kind === 'turn' ? 270 : kind === 'tip-top' ? 180 : 0
   return (
     <svg
       class={`turn-hint ${mirrored ? 'mirrored' : ''}`}
@@ -53,7 +42,6 @@ export function CaptureTurnOverlay({
   step,
   startColors,
   viaColors,
-  capturedColors,
   mirrored,
   onContinue,
   stickerColors,
@@ -61,7 +49,6 @@ export function CaptureTurnOverlay({
   step: number
   startColors: string[][]
   viaColors?: string[][]
-  capturedColors: Array<string[][] | undefined>
   mirrored: boolean
   onContinue: () => void
   stickerColors: Record<string, string>
@@ -79,31 +66,13 @@ export function CaptureTurnOverlay({
         ? 'Counterclockwise in the mirrored view is suggested; either direction works.'
         : 'Clockwise is suggested; either direction works.'
       : kind === 'top'
-        ? mirrored
-          ? 'Tip to the top; the mirror shows the bottom.'
-          : 'Tip the cube up or down.'
-        : mirrored
-          ? 'Move through Side 4; the mirror shows the top.'
-          : 'Move through Side 4 to the opposite face.'
-  const nextFace =
-    kind === 'side'
-      ? 'right'
-      : kind === 'top'
-        ? mirrored
-          ? 'down'
-          : 'up'
-        : 'back'
-  const viaFace = mirrored ? 'up' : 'down'
+        ? 'Tip the cube up or down.'
+        : 'Move through Side 4 to the opposite face.'
+  const nextFace = kind === 'side' ? 'right' : kind === 'top' ? 'up' : 'back'
+  const viaFace = 'down'
   const size = startColors.length
-  const startStickers = (
-    mirrored ? oppositeFacePreview(startColors, capturedColors) : startColors
-  ).flat()
-  const viaStickers =
-    viaColors &&
-    (mirrored
-      ? oppositeFacePreview(viaColors, capturedColors)
-      : viaColors
-    ).flat()
+  const startStickers = startColors.flat()
+  const viaStickers = viaColors?.flat()
   const directionArrow = () => (
     <svg
       class={`capture-turn-direction capture-turn-direction-${kind}`}

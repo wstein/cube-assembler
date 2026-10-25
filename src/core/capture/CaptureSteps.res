@@ -40,15 +40,14 @@ let captureSteps = [
 let stepAt = i => captureSteps->Array.getUnsafe(i)
 let stepOf = slot => stepAt(faceOrder->Array.indexOf(slot))
 
-// The instruction for a step; turns read the other way round in a mirrored
-// view, where top and bottom also swap.
+// The instruction for a step; side turns read the other way round in a
+// mirrored view. A mirror flips left and right only, so tipping up or down
+// reads the same.
 let captureInstruction = (step, mirrored) =>
-  if !mirrored || step == 0 {
+  if !mirrored || step == 0 || step >= 4 {
     stepAt(step).instruction
   } else {
     switch step {
-    | 4 => "Tip the cube towards you so its top faces the camera. The mirrored view shows the bottom face."
-    | 5 => "Bring Side 4 back to the camera, then continue tipping to the opposite face. The mirrored view shows the top face."
     | 1 => "Keep the same row on top and turn the whole cube counterclockwise in the mirrored view. Either direction works."
     | 2 => "Keep turning counterclockwise in the mirrored view. Other directions still work."
     | _ => "Turn counterclockwise in the mirrored view one more quarter turn. Any remaining side still works."

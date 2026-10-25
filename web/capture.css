@@ -416,17 +416,6 @@
 .capture-turn-back .capture-turn-direction-bottom {
   --arrow-angle: 180deg;
 }
-.capture-turn-top.mirrored .capture-turn-direction-top {
-  --arrow-angle: 0deg;
-}
-.capture-turn-bottom.mirrored .capture-turn-direction-bottom {
-  --arrow-angle: 180deg;
-}
-.capture-turn-bottom.mirrored
-  .capture-turn-back
-  .capture-turn-direction-bottom {
-  --arrow-angle: 0deg;
-}
 
 .capture-turn-arrow-body {
   fill: #399dea;
@@ -483,17 +472,11 @@
   .capture-turn-top .capture-turn-cube {
     animation: capture-turn-top 1.2s ease-in-out forwards;
   }
-  .capture-turn-top.mirrored .capture-turn-cube {
-    animation-name: capture-turn-top-mirrored;
-  }
   /* Face 5 -> Side 4 takes one full turn (1.2 s), pauses 300 ms, then
      Side 4 -> Face 6 (1.2 s): 2.7 s, with the pause at 1.2/2.7 and 1.5/2.7
      in the keyframes below. The final pose remains while detection waits. */
   .capture-turn-bottom .capture-turn-cube {
     animation: capture-turn-bottom 2.7s ease-in-out forwards;
-  }
-  .capture-turn-bottom.mirrored .capture-turn-cube {
-    animation-name: capture-turn-bottom-mirrored;
   }
 }
 
@@ -519,17 +502,6 @@
   }
 }
 
-@keyframes capture-turn-top-mirrored {
-  0%,
-  14% {
-    transform: translateZ(calc(-1 * var(--turn-depth)));
-  }
-  80%,
-  100% {
-    transform: translateZ(calc(-1 * var(--turn-depth))) rotateX(90deg);
-  }
-}
-
 @keyframes capture-turn-bottom {
   0% {
     transform: translateZ(calc(-1 * var(--turn-depth)));
@@ -540,18 +512,5 @@
   }
   100% {
     transform: translateZ(calc(-1 * var(--turn-depth))) rotateX(180deg);
-  }
-}
-
-@keyframes capture-turn-bottom-mirrored {
-  0% {
-    transform: translateZ(calc(-1 * var(--turn-depth)));
-  }
-  44.4444%,
-  55.5556% {
-    transform: translateZ(calc(-1 * var(--turn-depth))) rotateX(-90deg);
-  }
-  100% {
-    transform: translateZ(calc(-1 * var(--turn-depth))) rotateX(-180deg);
   }
 }
