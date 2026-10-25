@@ -38,6 +38,7 @@ Before opening a pull request, run the same checks as CI:
 npm run typecheck
 npm run lint
 npm run format:check   # npm run format fixes it
+typos                  # spell check; install with `brew install typos-cli`, configured in _typos.toml
 npm run build
 npm test
 ```
