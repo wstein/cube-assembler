@@ -6,8 +6,9 @@
 // in this order - slot U is Side 1, R Side 2, ...
 //
 // The guided order: three quarter turns sideways show four sides, then step
-// 4 tips the top toward you (shows U) and step 5 tips back through Side 4 to
-// the bottom, a half turn the other way (shows D). Without Mirror, with the
+// 4 tips the top toward you (shows U) and step 5 keeps tipping the same way
+// past one more side to the bottom (shows D). The cue never changes the
+// turning direction. Without Mirror, with the
 // cube's F toward the camera and the arrow pointing left, the sides come as
 // F R B L, so the faces are F R B L U D. The arrow always points the same
 // way on screen, so with Mirror the physical sideways turn is the other way
@@ -43,7 +44,7 @@ let captureSteps = [
   {
     label: "Bottom",
     short: "6",
-    instruction: "Bring Side 4 back to the camera, then continue tipping to the opposite face. Top and bottom may be swapped.",
+    instruction: "Keep tipping the cube the same way, past one more side, until the opposite face shows. Top and bottom may be swapped.",
   },
 ]
 
@@ -55,16 +56,9 @@ let stepOf = slot => stepAt(faceOrder->Array.indexOf(slot))
 let captureInstruction = step => stepAt(step).instruction
 
 // The direction of the arrow painted on the front face of the turn hint, in
-// degrees (0 points up): side turns left, the first tip down, the last up.
-// A mirror flips left and right only, so it never changes these.
-let turnHintArrowAngle = step =>
-  if step < 4 {
-    270
-  } else if step == 4 {
-    180
-  } else {
-    0
-  }
+// degrees (0 points up): side turns left, both tips down. The cue never
+// changes the turning direction, and a mirror flips left and right only.
+let turnHintArrowAngle = step => step < 4 ? 270 : 180
 
 // Saved with fixtures captured this way, so they can be put together (and
 // regression-tested) with the guided search again later.

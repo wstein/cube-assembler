@@ -386,14 +386,11 @@
   &.capture-turn-direction-side {
     --arrow-angle: 270deg;
   }
-  &.capture-turn-direction-bottom {
-    --arrow-angle: 0deg;
-  }
 }
 
 /* The back face is upside down after the second half turn. */
 .capture-turn-back .capture-turn-direction-bottom {
-  --arrow-angle: 180deg;
+  --arrow-angle: 0deg;
 }
 
 .capture-turn-arrow-body {
@@ -430,8 +427,8 @@
   .capture-turn-top .capture-turn-cube {
     animation: capture-turn-top 1.2s ease-in-out forwards;
   }
-  /* Face 5 -> Side 4 takes one full turn (1.2 s), pauses 300 ms, then
-     Side 4 -> Face 6 (1.2 s): 2.7 s, with the pause at 1.2/2.7 and 1.5/2.7
+  /* Face 5 -> one more side takes a quarter turn (1.2 s), pauses 300 ms,
+     then -> Face 6 (1.2 s), tipping the same way as step 4: 2.7 s, with the pause at 1.2/2.7 and 1.5/2.7
      in the keyframes below. The final pose remains while detection waits. */
   .capture-turn-bottom .capture-turn-cube {
     animation: capture-turn-bottom 2.7s ease-in-out forwards;
@@ -466,9 +463,9 @@
   }
   44.4444%,
   55.5556% {
-    transform: translateZ(calc(-1 * var(--turn-depth))) rotateX(90deg);
+    transform: translateZ(calc(-1 * var(--turn-depth))) rotateX(-90deg);
   }
   100% {
-    transform: translateZ(calc(-1 * var(--turn-depth))) rotateX(180deg);
+    transform: translateZ(calc(-1 * var(--turn-depth))) rotateX(-180deg);
   }
 }

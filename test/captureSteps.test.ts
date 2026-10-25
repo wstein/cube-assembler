@@ -35,10 +35,10 @@ describe('capture steps', () => {
     })
   })
 
-  it('paints the turn hint arrow left, then down, then up', () => {
+  it('paints the turn hint arrow left, then down for both tips', () => {
     expect([1, 2, 3].map(turnHintArrowAngle)).toEqual([270, 270, 270])
     expect(turnHintArrowAngle(4)).toBe(180)
-    expect(turnHintArrowAngle(5)).toBe(0)
+    expect(turnHintArrowAngle(5)).toBe(180)
   })
 
   it('describes center issues by step name', () => {
