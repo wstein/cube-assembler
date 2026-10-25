@@ -853,6 +853,22 @@ test.describe('locked layer moves', () => {
     ).toBeDisabled()
   })
 
+  test('a sticker drag shows the locked hint, then stays quiet for a while', async ({
+    page,
+  }) => {
+    const hint = page.getByText('Locked - tap the lock to move layers')
+    const front = page.getByRole('button', { name: 'Front (F)' })
+    await expect(hint).toHaveCount(0)
+    await swipeFrontFace(page)
+    await expect(hint).toBeVisible()
+    await expect(hint).toHaveCount(0)
+    await front.click()
+    await waitForCubeIdle(page)
+    await swipeFrontFace(page)
+    await page.waitForTimeout(500)
+    await expect(hint).toHaveCount(0)
+  })
+
   test('the keyboard still changes the view while locked', async ({ page }) => {
     const canvas = page.locator('.cube-3d-canvas')
     await waitForCubeIdle(page)

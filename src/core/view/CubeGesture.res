@@ -483,6 +483,16 @@ let gestureWhenLayerMovesLocked = (pointerType, touches, onCube, current) =>
     gestureForPointerDown(pointerType, touches, (Nullable.null: Nullable.t<surfaceHit>), current)
   }
 
+let lockedHintGapMs = 5000.0
+
+// Whether a drag on a locked sticker may show its hint again: not twice
+// within the gap, so a long orbit does not nag.
+let lockedHintDue = (lastShown, now) =>
+  switch Null.toOption(lastShown) {
+  | Some(shown) => now -. shown >= lockedHintGapMs
+  | None => true
+  }
+
 let gestureWhenSwipeTurnsNothing = pointerType => pointerType == "touch" ? NoGesture : Camera
 
 // Lifting one of two fingers must not start a layer turn with the

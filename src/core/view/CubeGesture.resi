@@ -81,6 +81,9 @@ let gestureForPointerDown: (
   Nullable.t<surfaceHit>,
   Nullable.t<cubeGesture>,
 ) => cubeGesture
+// How long a locked drag's hint stays away once shown (milliseconds).
+@genType let lockedHintGapMs: float
+@genType let lockedHintDue: (Null.t<float>, float) => bool
 @genType
 let gestureWhenLayerMovesLocked: (string, int, bool, Nullable.t<cubeGesture>) => cubeGesture
 @genType let gestureWhenSwipeTurnsNothing: string => cubeGesture

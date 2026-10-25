@@ -21,6 +21,8 @@ export {
   gestureAfterPointerUp,
   gestureForPointerDown,
   gestureWhenLayerMovesLocked,
+  lockedHintDue,
+  lockedHintGapMs as LOCKED_HINT_GAP_MS,
   gestureWhenSwipeTurnsNothing,
   pickCubeSurface,
   pickStickerSurface,

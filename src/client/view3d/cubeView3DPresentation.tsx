@@ -41,6 +41,8 @@ interface CubeView3DPresentationProps {
   // Whether a drag turns a layer; off, a drag only orbits the view.
   layerMoves: boolean
   onToggleLayerMoves: () => void
+  // Shown briefly after a drag on a sticker while layer moves are locked.
+  lockedHint: boolean
   // The X/Y/Z gizmo, drawn over the canvas's corner.
   gizmo: ComponentChildren
 }
@@ -71,6 +73,7 @@ export function CubeView3DPresentation({
   onToggleAutoRotate,
   layerMoves,
   onToggleLayerMoves,
+  lockedHint,
   gizmo,
 }: CubeView3DPresentationProps) {
   const showFace = (face: ViewFace) => {
@@ -121,6 +124,11 @@ export function CubeView3DPresentation({
             {pressMode && pressMode !== 'layer' && (
               <div class="cube-3d-press-mode" role="status">
                 Wide turn: drag to turn the touched layers
+              </div>
+            )}
+            {lockedHint && (
+              <div class="cube-3d-press-mode" role="status">
+                Locked - tap the lock to move layers
               </div>
             )}
             {help.visible && (

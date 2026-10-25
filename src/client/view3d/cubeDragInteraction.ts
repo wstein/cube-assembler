@@ -38,6 +38,9 @@ export interface CubePointerGesture {
   // A seam swipe whose lean may still change its side: until the pointer
   // leaves the face it started on.
   seamOpen?: boolean
+  // Layer moves are locked and the press landed on a sticker: dragging it
+  // past the swipe distance shows the locked hint once.
+  lockedSticker?: boolean
 }
 
 interface DragInteractionOptions {

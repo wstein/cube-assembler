@@ -12,6 +12,8 @@ import {
   gestureForPointerDown,
   gestureWhenSwipeTurnsNothing,
   gestureWhenLayerMovesLocked,
+  lockedHintDue,
+  LOCKED_HINT_GAP_MS,
   twoFingerLock,
   pickCubeSurface,
   pickStickerSurface,
@@ -786,5 +788,13 @@ describe('locked layer moves', () => {
           expect(
             gestureWhenLayerMovesLocked(type, touches, onCube, null),
           ).not.toBe('pending')
+  })
+})
+
+describe('locked hint', () => {
+  it('shows on the first locked drag, then at most once per gap', () => {
+    expect(lockedHintDue(null, 1000)).toBe(true)
+    expect(lockedHintDue(1000, 1000 + LOCKED_HINT_GAP_MS - 1)).toBe(false)
+    expect(lockedHintDue(1000, 1000 + LOCKED_HINT_GAP_MS)).toBe(true)
   })
 })

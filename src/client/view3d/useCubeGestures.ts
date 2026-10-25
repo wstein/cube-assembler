@@ -70,6 +70,8 @@ interface CubeGesturesOptions {
   >
   // What a wheel does that turns no cube: zoom, or tilt the view.
   handleViewWheel: (e: WheelEvent) => void
+  // A drag on a sticker while layer moves are locked.
+  onLockedDrag?: () => void
 }
 
 // Turning the 3D cube by hand: one finger or the mouse swipes stickers,
@@ -91,6 +93,7 @@ export function useCubeGestures({
   },
   turns: { dragTurnRef, setIsTurning, busy, finishSettlingTurn, settleDrag },
   handleViewWheel,
+  onLockedDrag,
 }: CubeGesturesOptions) {
   const gestureRef = useRef<CubePointerGesture | null>(null)
   const [pressMode, setPressMode] = useState<PressLevel | null>(null)
@@ -305,6 +308,15 @@ export function useCubeGestures({
       level,
       tuning: readSwipeTuning(document.cookie),
       seamWideEnabled: readPreference(document.cookie, SEAM_WIDE_COOKIE),
+      lockedSticker:
+        !layerMoves &&
+        rect !== undefined &&
+        surface !== null &&
+        pickStickerSurface(
+          e.clientX - rect.left,
+          e.clientY - rect.top,
+          gestureCamera(rect),
+        ) !== null,
     }
     gestureRef.current = gesture
     if (gesture.mode !== 'pending') return
@@ -427,6 +439,14 @@ export function useCubeGestures({
       }
       gesture.mode = gestureWhenSwipeTurnsNothing(gesture.pointerType)
       if (gesture.mode !== 'camera') return
+    }
+    if (
+      gesture.lockedSticker &&
+      Math.hypot(e.clientX - gesture.x, e.clientY - gesture.y) >=
+        gesture.tuning.startPx
+    ) {
+      gesture.lockedSticker = false
+      onLockedDrag?.()
     }
     rotateView(
       e.clientX - lastPointerRef.current.x,

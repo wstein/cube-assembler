@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'preact/hooks'
 import '../../../web/cube3d.css'
+import { lockedHintDue } from './cubeGesture'
 import {
   LAYER_MOVES_COOKIE,
   STICKERLESS_COOKIE,
@@ -34,6 +35,8 @@ export interface CubeView3DProps {
   stickerless?: boolean
   onClose?: () => void
 }
+
+const LOCKED_HINT_VISIBLE_MS = 2500
 
 export function CubeView3D({
   cube,
@@ -112,6 +115,29 @@ export function CubeView3D({
   const [layerMoves, setLayerMoves] = useState<boolean>(() =>
     layerMovesOn(document.cookie),
   )
+  // Dragging a sticker while locked explains the lock, at most once per gap.
+  const [lockedHint, setLockedHint] = useState(false)
+  const lockedHintShownAtRef = useRef<number | null>(null)
+  const lockedHintTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const showLockedHint = () => {
+    const now = Date.now()
+    if (!lockedHintDue(lockedHintShownAtRef.current, now)) return
+    lockedHintShownAtRef.current = now
+    setLockedHint(true)
+    if (lockedHintTimerRef.current !== null)
+      clearTimeout(lockedHintTimerRef.current)
+    lockedHintTimerRef.current = setTimeout(
+      () => setLockedHint(false),
+      LOCKED_HINT_VISIBLE_MS,
+    )
+  }
+  useEffect(
+    () => () => {
+      if (lockedHintTimerRef.current !== null)
+        clearTimeout(lockedHintTimerRef.current)
+    },
+    [],
+  )
   useEffect(() => {
     document.cookie = preferenceCookie(LAYER_MOVES_COOKIE, layerMoves)
   }, [layerMoves])
@@ -159,6 +185,7 @@ export function CubeView3D({
     },
     turns: { dragTurnRef, setIsTurning, busy, finishSettlingTurn, settleDrag },
     handleViewWheel,
+    onLockedDrag: showLockedHint,
   })
 
   return (
@@ -190,6 +217,7 @@ export function CubeView3D({
       isRotating={isRotating}
       onToggleAutoRotate={toggleAutoRotate}
       layerMoves={layerMoves}
+      lockedHint={lockedHint && !layerMoves}
       onToggleLayerMoves={() => setLayerMoves((value) => !value)}
     />
   )
