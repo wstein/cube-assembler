@@ -4,6 +4,13 @@
 // the capture slots keep the neutral U..B keys of faceOrder (fixtures,
 // uploads and the review key off them) and only their meaning is a step
 // in this order - slot U is Side 1, R Side 2, ...
+//
+// The guided order is fixed: three quarter turns about the vertical axis
+// (y y y) show four sides, then two tips about the camera's left-right axis
+// show the last two faces. Starting with the cube's F toward the camera, the
+// clockwise turns bring R, B and L to the front, and tipping the top toward
+// you shows U, then D. The faces seen are therefore F R B L U D. The
+// solver does not require this: a capture in any order is still accepted.
 let faceOrder = ["U", "R", "F", "D", "L", "B"]
 
 type captureStep = {label: string, short: string, instruction: string}
@@ -40,19 +47,9 @@ let captureSteps = [
 let stepAt = i => captureSteps->Array.getUnsafe(i)
 let stepOf = slot => stepAt(faceOrder->Array.indexOf(slot))
 
-// The instruction for a step; side turns read the other way round in a
-// mirrored view. A mirror flips left and right only, so tipping up or down
-// reads the same.
-let captureInstruction = (step, mirrored) =>
-  if !mirrored || step == 0 || step >= 4 {
-    stepAt(step).instruction
-  } else {
-    switch step {
-    | 1 => "Keep the same row on top and turn the whole cube counterclockwise in the mirrored view. Either direction works."
-    | 2 => "Keep turning counterclockwise in the mirrored view. Other directions still work."
-    | _ => "Turn counterclockwise in the mirrored view one more quarter turn. Any remaining side still works."
-    }
-  }
+// The instruction for a step. It is the same with or without Mirror: the
+// cube is turned the same way in the same order either way.
+let captureInstruction = step => stepAt(step).instruction
 
 // The direction of the arrow painted on the front face of the turn hint, in
 // degrees (0 points up): side turns left, the first tip down, the last up.

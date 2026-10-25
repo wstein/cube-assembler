@@ -564,10 +564,7 @@ export function ScannerAppView({ model }: { model: ScannerAppModel }) {
           instruction={
             centerRoutingActive
               ? 'Show any uncaptured face. Its center color will place it in the capture net.'
-              : captureInstruction(
-                  FACE_ORDER.indexOf(webcamFace),
-                  mirrorPreview,
-                )
+              : captureInstruction(FACE_ORDER.indexOf(webcamFace))
           }
           predictedCenter={predictedCenter}
           predictedCenters={predictedCenters}

@@ -26,7 +26,11 @@ flowchart TD
 2. Open the camera and show one face near the dashed guide. **Detect face**
    finds and straightens it. If that fails, choose **Guide grid** to read the
    fixed square on screen. Neither mode downloads a model.
-3. Capture four sides while turning the cube, then its top and bottom. Auto
+3. Capture four sides while turning the cube, then its top and bottom. The
+   guided order is three clockwise quarter turns (y y y) for the sides, then
+   two tips toward you (the top, then the bottom), which shows the faces F R B
+   L U D. The turns are the same with or without Mirror; only the on-screen
+   picture is flipped. Any other order is still accepted. Auto
    capture waits for five matching good readings. A matching earlier pattern
    warns you but does not prevent capture: even cubes can have identical faces.
 4. Review the six faces. The app recalibrates colors across all six photos.

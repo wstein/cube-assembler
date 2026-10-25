@@ -21,8 +21,8 @@ export const CAPTURE_STEPS: Array<{
   instruction: string
 }> = captureSteps
 
-export function captureInstruction(step: number, mirrored: boolean): string {
-  return captureInstructionRes(step, mirrored)
+export function captureInstruction(step: number): string {
+  return captureInstructionRes(step)
 }
 
 export function turnHintArrowAngle(step: number): number {

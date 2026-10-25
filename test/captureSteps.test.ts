@@ -20,13 +20,13 @@ describe('capture steps', () => {
     expect(FACE_DISPLAY_LABEL.B).toBe('Bottom')
   })
 
-  it('turns the other way, but tips the same, in a mirrored view', () => {
-    expect(captureInstruction(0, true)).toBe(CAPTURE_STEPS[0].instruction)
-    expect(captureInstruction(1, false)).toBe(CAPTURE_STEPS[1].instruction)
-    expect(captureInstruction(1, true)).toContain('counterclockwise')
-    // A webcam mirror flips left and right only, never up and down.
-    expect(captureInstruction(4, true)).toBe(CAPTURE_STEPS[4].instruction)
-    expect(captureInstruction(5, true)).toBe(CAPTURE_STEPS[5].instruction)
+  it('gives the same instruction with or without Mirror', () => {
+    // The cube is turned the same way in the same order either way.
+    expect(captureInstruction.length).toBe(1)
+    CAPTURE_STEPS.forEach((step, i) => {
+      expect(captureInstruction(i)).toBe(step.instruction)
+      expect(step.instruction).not.toMatch(/mirror/i)
+    })
   })
 
   it('paints the turn hint arrow left, then down, then up', () => {
