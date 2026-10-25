@@ -10,6 +10,8 @@ extend-exclude = [
 ]
 
 [default]
+# US English: flags British spellings such as colour or centre.
+locale = "en-us"
 # Cube notation such as URFDLB is not a word.
 extend-ignore-re = ["\\b[URFDLB]{3,6}\\b"]
 
