@@ -1,4 +1,4 @@
-import type { JSX } from 'preact'
+import type { TargetedKeyboardEvent } from 'preact'
 import type { OrientedCandidate } from '../../cube/cubeAssembly'
 import {
   rejectAlternatives,
@@ -16,7 +16,7 @@ interface OrientationApprovalDialogProps {
   mirrorPreview: boolean
   stickerColors: Record<string, string>
   focusDialog: (element: HTMLElement | null) => void
-  onDialogKeyDown: (event: JSX.TargetedKeyboardEvent<HTMLDivElement>) => void
+  onDialogKeyDown: (event: TargetedKeyboardEvent<HTMLDivElement>) => void
   onClose: () => void
   onCheckFace: (candidate: OrientedCandidate, face: string) => void
   onChoose: (candidate: OrientedCandidate) => void

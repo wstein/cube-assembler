@@ -1,4 +1,4 @@
-import type { JSX } from 'preact'
+import type { TargetedKeyboardEvent } from 'preact'
 import type { FaceCaptureData } from './captureTypes'
 
 interface CaptureReviewDialogProps {
@@ -18,7 +18,7 @@ interface CaptureReviewDialogProps {
   mixedUpColors: string[]
   confidenceTier: (confidence: number) => 'high' | 'medium' | 'low'
   focusDialog: (element: HTMLElement | null) => void
-  onDialogKeyDown: (event: JSX.TargetedKeyboardEvent<HTMLDivElement>) => void
+  onDialogKeyDown: (event: TargetedKeyboardEvent<HTMLDivElement>) => void
   onClose: () => void
   onStepChange: (step: number) => void
   onEditCell: (face: string, row: number, col: number) => void

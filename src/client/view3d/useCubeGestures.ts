@@ -1,4 +1,5 @@
-import { useRef, useState, type MutableRef } from 'preact/hooks'
+import type { RefObject } from 'preact'
+import { useRef, useState } from 'preact/hooks'
 import {
   clampZoom,
   followDrag,
@@ -44,7 +45,7 @@ type Camera = ReturnType<typeof useCubeCamera>
 type Turns = ReturnType<typeof useCubeTurns>
 
 interface CubeGesturesOptions {
-  canvasRef: MutableRef<HTMLCanvasElement | null>
+  canvasRef: RefObject<HTMLCanvasElement | null>
   puzzleSize: number
   camera: Pick<
     Camera,

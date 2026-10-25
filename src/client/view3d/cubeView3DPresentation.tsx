@@ -16,7 +16,7 @@ import { useCubeHelpHint } from './useCubeHelpHint'
 
 interface CubeView3DPresentationProps {
   isSupported: boolean
-  canvasRef: RefObject<HTMLCanvasElement>
+  canvasRef: RefObject<HTMLCanvasElement | null>
   handleKeyDown: (event: KeyboardEvent) => void
   handlePointerDown: (event: PointerEvent) => void
   handlePointerMove: (event: PointerEvent) => void

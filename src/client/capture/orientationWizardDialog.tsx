@@ -1,4 +1,4 @@
-import type { JSX } from 'preact'
+import type { TargetedKeyboardEvent } from 'preact'
 import type { FaceKey, OrientedCandidate } from '../../cube/cubeAssembly'
 import {
   WIZARD_FACE_ORDER,
@@ -20,7 +20,7 @@ interface OrientationWizardDialogProps {
   stickerColors: Record<string, string>
   morphing: boolean
   focusDialog: (element: HTMLElement | null) => void
-  onDialogKeyDown: (event: JSX.TargetedKeyboardEvent<HTMLDivElement>) => void
+  onDialogKeyDown: (event: TargetedKeyboardEvent<HTMLDivElement>) => void
   onClose: () => void
   onChoose: (candidate: OrientedCandidate) => void
   onPick: (

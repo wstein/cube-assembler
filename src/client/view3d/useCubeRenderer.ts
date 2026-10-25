@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState, type MutableRef } from 'preact/hooks'
+import type { RefObject } from 'preact'
+import { useEffect, useRef, useState } from 'preact/hooks'
 import type { CubeState } from '../../cube/cubeAssembly'
 import { createShadowRenderer } from './cubeShadow'
 import { buildCubeMesh } from './cubeMesh'
@@ -14,14 +15,14 @@ import {
 import type { MeshUpdate } from './useCubeTurns'
 
 interface CubeRendererOptions {
-  canvasRef: MutableRef<HTMLCanvasElement | null>
-  cubeRef: MutableRef<CubeState>
+  canvasRef: RefObject<HTMLCanvasElement | null>
+  cubeRef: RefObject<CubeState>
   // Starts the renderer over when it changes, like the other settings.
   resetKey: unknown
   puzzleSize: number
   palette: Record<string, string>
   isStickerless: boolean
-  viewRef: MutableRef<{ pitch: number; yaw: number; zoom: number }>
+  viewRef: RefObject<{ pitch: number; yaw: number; zoom: number }>
   // Advances the view by `elapsed` ms and says what the mesh must show.
   onFrame: (time: number, elapsed: number) => MeshUpdate | null
   isIdle: (time: number) => boolean

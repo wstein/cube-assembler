@@ -1,4 +1,4 @@
-import type { JSX } from 'preact'
+import type { TargetedKeyboardEvent } from 'preact'
 import type { FaceCaptureData } from './captureTypes'
 import { colorConfidences } from './captureRecalibration'
 import { type RGB } from '../vision/stickerColorGeometry'
@@ -12,7 +12,7 @@ interface CaptureColorPickerProps {
   stickerColors: Record<string, string>
   colorNames: Record<string, string>
   focusDialog: (element: HTMLElement | null) => void
-  onDialogKeyDown: (event: JSX.TargetedKeyboardEvent<HTMLDivElement>) => void
+  onDialogKeyDown: (event: TargetedKeyboardEvent<HTMLDivElement>) => void
   onFixColor: (face: string, row: number, col: number, color: string) => void
   onClose: () => void
 }

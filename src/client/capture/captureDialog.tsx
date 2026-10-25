@@ -1,4 +1,4 @@
-import type { ComponentChildren, JSX } from 'preact'
+import type { ComponentChildren, TargetedKeyboardEvent } from 'preact'
 import type { CaptureMode } from './capturePhoto'
 import { CaptureNet } from './captureNet'
 import { TurnHint } from './captureTurnCue'
@@ -7,7 +7,7 @@ interface CaptureDialogProps {
   liveView: ComponentChildren
   settings: ComponentChildren
   focusDialog: (element: HTMLElement | null) => void
-  onDialogKeyDown: (event: JSX.TargetedKeyboardEvent<HTMLDivElement>) => void
+  onDialogKeyDown: (event: TargetedKeyboardEvent<HTMLDivElement>) => void
   onClose: () => void
   face: string
   faceOrder: readonly string[]
