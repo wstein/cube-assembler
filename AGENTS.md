@@ -29,6 +29,10 @@ Use two-space indentation, single quotes, and semicolons only when needed in Typ
 
 Use test-driven development for behavior changes: write a focused failing test, implement the smallest fix, then refactor with the test passing. Use synthetic cases for edge conditions and saved photos for regressions. Relevant suites include `test/gridAlignment.test.ts`, `test/gridAlignmentRealCrops.test.ts`, `test/liveAnalysis.test.ts`, and `test/autoCapture.test.ts`. Browser upload tests live in `e2e/upload.spec.ts`; the 3D view tests are split across `e2e/cubeView3D-controls.spec.ts`, `e2e/cubeView3D-gestures.spec.ts`, and `e2e/cubeView3D-view.spec.ts`. Property tests of the cube model are written in ReScript with fast-check in `test/properties/` (`*_test.res`, compiled to `*_test.res.mjs`, which Vitest runs with the other tests); use them for invariants that must hold on every scramble. Run a targeted suite, for example `npx vitest run test/gridAlignment.test.ts`, then `npm test`; run `npm run test:e2e` for upload UI changes. Include no-cube scenes when changing live face detection. Follow `test/fixtures/README.md` before adding capture images.
 
+## Language
+
+The project is written in US English: code, identifiers, comments, UI text, docs, tests, commit messages and pull requests use US spelling (`color`, `center`, `gray`). The dialog with the maintainer may be in German; nothing from that dialog goes into the repository in German.
+
 ## Commit & Pull Request Guidelines
 
 Make multiple atomic, focused commits when a task has distinct changes; keep each commit independently reviewable and avoid mixing unrelated work. Follow Conventional Commit messages such as `feat(capture): ...`, `fix(capture): ...`, and `docs(capture): ...`. In pull requests, explain the user-visible change, link an issue when applicable, list test results, and attach before-and-after screenshots for scanner or UI changes.
