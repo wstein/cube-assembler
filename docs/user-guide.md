@@ -59,7 +59,11 @@ Within 3D View, **Stickerless / Stickered** and **Auto-rotate / Pause** are
 remembered too. The gesture hint hides 10 seconds after the first touch and
 returns after 20 seconds without touch. It turns off after 30 minutes of active
 play; **Show 3D help** in Settings can turn it back on. Whole-cube x/y/z
-gestures also count as touching the cube. Swipe a sticker in the 3D view to turn its row or column,
+gestures also count as touching the cube. The 3D view starts locked: a drag or
+swipe only orbits the view. Tap **Move layers** in the 3D toolbar (or turn on
+**Move layers** in Settings) to unlock layer turns; the choice is remembered.
+While locked, a short hint explains this when you drag a sticker. Once
+unlocked, swipe a sticker in the 3D view to turn its row or column,
 including inner slices on larger cubes. The layer follows your finger: let
 go early and it springs back, keep dragging for two or three quarter turns,
 or drag back to turn the other way. A quick flick finishes one turn, and a
