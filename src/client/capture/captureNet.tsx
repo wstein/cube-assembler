@@ -59,7 +59,6 @@ export function CaptureNet({
   liveMatchingFace,
   size,
   predictedCenters,
-  mirrored,
   onSelect,
   faceOrder,
   faceLabels,
@@ -73,7 +72,6 @@ export function CaptureNet({
   liveMatchingFace: string | null
   size: number
   predictedCenters: Array<string | null>
-  mirrored: boolean
   onSelect: (slot: string) => void
   faceOrder: readonly string[]
   faceLabels: Record<string, string>
@@ -114,11 +112,7 @@ export function CaptureNet({
   }
   const [s1, s2, s3, s4, top, bottom] = faceOrder
   return (
-    <div
-      class={`capture-net ${mirrored ? 'mirrored' : ''}`}
-      role="group"
-      aria-label="Captured faces"
-    >
+    <div class="capture-net" role="group" aria-label="Captured faces">
       {slot(s1, '2 / 1')}
       {slot(s2, '2 / 2')}
       {slot(s3, '2 / 3')}
