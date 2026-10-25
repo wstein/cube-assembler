@@ -37,22 +37,19 @@ export function TurnHint({
   )
 }
 
+// The cue cube is a neutral 3x3 whatever the cube size.
+const STICKERS = 3
+
 // A visual cue between successful captures. The turn shown is only an
 // example: the guided solver determines the real face orientation afterward.
 export function CaptureTurnOverlay({
   step,
-  startColors,
-  viaColors,
   mirrored,
   onContinue,
-  stickerColors,
 }: {
   step: number
-  startColors: string[][]
-  viaColors?: string[][]
   mirrored: boolean
   onContinue: () => void
-  stickerColors: Record<string, string>
 }) {
   const kind = step < 4 ? 'side' : step === 4 ? 'top' : 'bottom'
   const title =
@@ -63,17 +60,12 @@ export function CaptureTurnOverlay({
         : 'Show the last face'
   const detail =
     kind === 'side'
-      ? mirrored
-        ? 'Counterclockwise in the mirrored view is suggested; either direction works.'
-        : 'Clockwise is suggested; either direction works.'
+      ? 'Clockwise is suggested; either direction works.'
       : kind === 'top'
         ? 'Tip the cube up or down.'
         : 'Move through Side 4 to the opposite face.'
   const nextFace = kind === 'side' ? 'right' : kind === 'top' ? 'up' : 'back'
   const viaFace = 'down'
-  const size = startColors.length
-  const startStickers = startColors.flat()
-  const viaStickers = viaColors?.flat()
   const directionArrow = () => (
     <svg
       class={`capture-turn-direction capture-turn-direction-${kind}`}
@@ -90,28 +82,10 @@ export function CaptureTurnOverlay({
     <div class={`capture-turn-face capture-turn-${name}`}>
       <div
         class="capture-turn-stickers"
-        style={{ gridTemplateColumns: `repeat(${size}, minmax(0, 1fr))` }}
+        style={{ gridTemplateColumns: `repeat(${STICKERS}, minmax(0, 1fr))` }}
       >
-        {Array.from({ length: size * size }, (_, i) => (
-          <span
-            key={i}
-            class={`capture-turn-sticker${name === nextFace || (name === 'front' && !startStickers[i]) ? ' capture-turn-sticker-next' : ''}`}
-            style={
-              name === 'front'
-                ? startStickers[i]
-                  ? {
-                      backgroundColor:
-                        stickerColors[startStickers[i]] ?? '#888',
-                    }
-                  : undefined
-                : kind === 'bottom' &&
-                    name === viaFace &&
-                    viaStickers &&
-                    viaStickers[i]
-                  ? { backgroundColor: stickerColors[viaStickers[i]] ?? '#888' }
-                  : undefined
-            }
-          />
+        {Array.from({ length: STICKERS * STICKERS }, (_, i) => (
+          <span key={i} class="capture-turn-sticker" />
         ))}
       </div>
       {(name === 'front' ||

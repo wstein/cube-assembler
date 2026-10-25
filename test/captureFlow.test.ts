@@ -117,20 +117,14 @@ describe('guided face capture', () => {
     })
   })
 
-  it('cues the next turn, by way of Side 4 for the bottom', () => {
+  it('cues the next turn by its step, without previewing colors', () => {
     const faces: Record<string, FaceCaptureData> = {
       D: { colors: grid(3, 'R'), confidence: 1, timestamp: 0 },
     }
-    expect(nextTurnCue(faces, 'R', grid(3, 'G'))).toEqual({
-      step: 1,
-      startColors: grid(3, 'G'),
-      viaColors: undefined,
-    })
-    expect(nextTurnCue(faces, 'B', grid(3, 'W'))?.viaColors).toEqual(
-      grid(3, 'R'),
-    )
+    expect(nextTurnCue(faces, 'R')).toEqual({ step: 1 })
+    expect(nextTurnCue(faces, 'B')).toEqual({ step: 5 })
     faces.D.outOfOrder = true
-    expect(nextTurnCue(faces, 'R', grid(3, 'G'))).toBeNull()
+    expect(nextTurnCue(faces, 'R')).toBeNull()
   })
 
   it('counts a camera capture in order, or a fixture that recorded it, as guided', () => {

@@ -25,11 +25,7 @@ interface CaptureLiveViewProps {
   autoCapturePaused: boolean
   captureFlash: boolean
   captureSound: boolean
-  turnOverlay: {
-    step: number
-    startColors: string[][]
-    viaColors?: string[][]
-  } | null
+  turnOverlay: { step: number } | null
   sampling: SamplingGeometry
   stickerColors: Record<string, string>
   faceLabels: Record<string, string>
@@ -174,10 +170,7 @@ export function CaptureLiveView({
         {captureFlash && <div class="capture-flash" aria-hidden="true" />}
         {turnOverlay && (
           <CaptureTurnOverlay
-            stickerColors={stickerColors}
             step={turnOverlay.step}
-            startColors={turnOverlay.startColors}
-            viaColors={turnOverlay.viaColors}
             mirrored={mirrorPreview}
             onContinue={onContinueTurn}
           />

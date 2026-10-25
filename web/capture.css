@@ -383,15 +383,6 @@
   background: #aeb4b9;
 }
 
-.capture-turn-sticker-next {
-  background: repeating-linear-gradient(
-    135deg,
-    #bbc0c4 0 10px,
-    #f1f3f5 10px 20px
-  );
-  opacity: 0.75;
-}
-
 .capture-turn-direction {
   --arrow-angle: 180deg;
   position: absolute;

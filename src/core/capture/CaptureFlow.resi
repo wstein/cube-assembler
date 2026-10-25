@@ -80,10 +80,10 @@ let placeFaceCapture: (
 @genType let turnCuePose: option<crop> => Null.t<AutoCapture.turnCuePose>
 
 @genType
-type turnCue = {step: int, startColors: array<array<string>>, viaColors?: array<array<string>>}
+type turnCue = {step: int}
 
 @genType
-let nextTurnCue: (Dict.t<faceCaptureData>, string, array<array<string>>) => Null.t<turnCue>
+let nextTurnCue: (Dict.t<faceCaptureData>, string) => Null.t<turnCue>
 @genType let isGuidedCapture: (Dict.t<faceCaptureData>, Null.t<string>) => bool
 
 @genType

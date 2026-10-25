@@ -221,7 +221,7 @@ let turnCuePose = (crop: option<crop>): Null.t<AutoCapture.turnCuePose> =>
   | None => Null.null
   }
 
-type turnCue = {step: int, startColors: array<array<string>>, viaColors?: array<array<string>>}
+type turnCue = {step: int}
 
 let outOfOrder = (faces: Dict.t<faceCaptureData>) =>
   faceOrder->Array.some(face =>
@@ -229,24 +229,12 @@ let outOfOrder = (faces: Dict.t<faceCaptureData>) =>
   )
 
 // The turn to show before the next face: none once a face landed out of
-// order, since the step hint then says what to do. The bottom face comes
-// by way of Side 4.
-let nextTurnCue = (faces: Dict.t<faceCaptureData>, nextFace, startColors) =>
+// order, since the step hint then says what to do.
+let nextTurnCue = (faces: Dict.t<faceCaptureData>, nextFace) =>
   if outOfOrder(faces) {
     Null.null
   } else {
-    let step = faceOrder->Array.indexOf(nextFace)
-    Null.make(
-      step == 5
-        ? {
-            step,
-            startColors,
-            viaColors: ?(
-              faces->Dict.get(faceOrder->Array.getUnsafe(3))->Option.map(data => data.colors)
-            ),
-          }
-        : {step, startColors},
-    )
+    Null.make({step: faceOrder->Array.indexOf(nextFace)})
   }
 
 let sourceOf = (faces: Dict.t<faceCaptureData>, face) =>
