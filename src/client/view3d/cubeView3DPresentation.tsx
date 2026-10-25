@@ -38,6 +38,9 @@ interface CubeView3DPresentationProps {
   onToggleStickerless: () => void
   isRotating: boolean
   onToggleAutoRotate: () => void
+  // Whether a drag turns a layer; off, a drag only orbits the view.
+  layerMoves: boolean
+  onToggleLayerMoves: () => void
   // The X/Y/Z gizmo, drawn over the canvas's corner.
   gizmo: ComponentChildren
 }
@@ -66,6 +69,8 @@ export function CubeView3DPresentation({
   onToggleStickerless,
   isRotating,
   onToggleAutoRotate,
+  layerMoves,
+  onToggleLayerMoves,
   gizmo,
 }: CubeView3DPresentationProps) {
   const showFace = (face: ViewFace) => {
@@ -273,6 +278,33 @@ export function CubeView3DPresentation({
                 onClick={onToggleAutoRotate}
               >
                 {isRotating ? 'Pause' : 'Auto-rotate'}
+              </button>
+              <button
+                type="button"
+                class={`cube-3d-btn ${layerMoves ? 'cube-3d-btn-active' : ''}`}
+                aria-pressed={layerMoves}
+                onClick={onToggleLayerMoves}
+              >
+                <svg
+                  class="cube-3d-lock"
+                  viewBox="0 0 16 16"
+                  width="14"
+                  height="14"
+                  aria-hidden="true"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.6"
+                >
+                  <rect x="3" y="7" width="10" height="7" rx="1.5" />
+                  <path
+                    d={
+                      layerMoves
+                        ? 'M5.5 7V5a2.5 2.5 0 0 1 5 0'
+                        : 'M5 7V5a3 3 0 0 1 6 0v2'
+                    }
+                  />
+                </svg>{' '}
+                Move layers
               </button>
             </div>
           </div>

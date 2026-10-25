@@ -25,9 +25,11 @@ import {
   TURN_MS_RANGE,
   TURN_OVERSHOOT_COOKIE,
   TURN_SOUND_COOKIE,
+  LAYER_MOVES_COOKIE,
   VIBRATION_COOKIE,
   VIEW_HELP_COOKIE,
   clearedCookie,
+  layerMovesOn,
   localUploadShown,
   preferenceCookie,
   readPreference,
@@ -160,6 +162,12 @@ export function SettingsPage({ onClose }: Props) {
           hint="Show gesture tips at first and after 20 seconds idle. Turns off automatically after 30 minutes of active play."
           checked={readPreference(cookies, VIEW_HELP_COOKIE, true)}
           onChange={(on) => write(preferenceCookie(VIEW_HELP_COOKIE, on))}
+        />
+        <ToggleSetting
+          label="Move layers"
+          hint="Let a drag or swipe in the 3D view turn a layer. Off, a drag only orbits the view."
+          checked={layerMovesOn(cookies)}
+          onChange={(on) => write(preferenceCookie(LAYER_MOVES_COOKIE, on))}
         />
         <ToggleSetting
           label="Turn sound"

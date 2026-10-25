@@ -864,3 +864,64 @@ test.describe('locked layer moves', () => {
       .toBe(false)
   })
 })
+
+test.describe('the Move layers toggle', () => {
+  test.beforeEach(async ({ context }) => {
+    await setLayerMoves(context, false)
+  })
+
+  const open3D = async (page: Page) => {
+    await page.goto('/')
+    await page.getByRole('button', { name: 'Solved cube' }).click()
+    await page.getByRole('button', { name: '3D View' }).click()
+    await page.getByRole('button', { name: 'Front (F)' }).click()
+  }
+
+  test('is locked at first, unlocks to turn layers, locks again and persists', async ({
+    page,
+  }) => {
+    await open3D(page)
+    const toggle = page.getByRole('button', { name: 'Move layers' })
+    const undo = page.getByRole('button', { name: 'Undo', exact: true })
+    await expect(toggle).toHaveAttribute('aria-pressed', 'false')
+    await waitForCubeIdle(page)
+    await swipeFrontFace(page)
+    await waitForCubeIdle(page)
+    await expect(undo).toBeDisabled()
+
+    await toggle.click()
+    await expect(toggle).toHaveAttribute('aria-pressed', 'true')
+    // The locked swipe orbited the view; face the front again.
+    await page.getByRole('button', { name: 'Front (F)' }).click()
+    await waitForCubeIdle(page)
+    await swipeFrontFace(page)
+    await expect(undo).toBeEnabled()
+    await undo.click()
+    await waitForCubeIdle(page)
+    await expect(undo).toBeDisabled()
+
+    await page.reload()
+    await open3D(page)
+    await expect(toggle).toHaveAttribute('aria-pressed', 'true')
+
+    await toggle.click()
+    await expect(toggle).toHaveAttribute('aria-pressed', 'false')
+    await waitForCubeIdle(page)
+    await swipeFrontFace(page)
+    await waitForCubeIdle(page)
+    await expect(undo).toBeDisabled()
+  })
+
+  test('shares its cookie with the Move layers setting', async ({ page }) => {
+    await page.goto('/#settings')
+    const setting = page.getByRole('switch', { name: /Move layers/ })
+    await expect(setting).not.toBeChecked()
+    await setting.check()
+    await page.goto('/')
+    await page.getByRole('button', { name: 'Solved cube' }).click()
+    await page.getByRole('button', { name: '3D View' }).click()
+    await expect(
+      page.getByRole('button', { name: 'Move layers' }),
+    ).toHaveAttribute('aria-pressed', 'true')
+  })
+})

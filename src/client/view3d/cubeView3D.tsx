@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState } from 'preact/hooks'
 import '../../../web/cube3d.css'
 import {
+  LAYER_MOVES_COOKIE,
   STICKERLESS_COOKIE,
+  layerMovesOn,
   preferenceCookie,
   readPreference,
 } from '../preferences'
@@ -107,6 +109,13 @@ export function CubeView3D({
     isIdle: (time) => !busy() && isCameraIdle(time),
   })
 
+  const [layerMoves, setLayerMoves] = useState<boolean>(() =>
+    layerMovesOn(document.cookie),
+  )
+  useEffect(() => {
+    document.cookie = preferenceCookie(LAYER_MOVES_COOKIE, layerMoves)
+  }, [layerMoves])
+
   useEffect(() => {
     document.cookie = preferenceCookie(STICKERLESS_COOKIE, isStickerless)
   }, [isStickerless])
@@ -180,6 +189,8 @@ export function CubeView3D({
       onToggleStickerless={() => setIsStickerless((value) => !value)}
       isRotating={isRotating}
       onToggleAutoRotate={toggleAutoRotate}
+      layerMoves={layerMoves}
+      onToggleLayerMoves={() => setLayerMoves((value) => !value)}
     />
   )
 }
