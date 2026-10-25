@@ -40,18 +40,6 @@ export function CaptureTurnOverlay({
   onContinue: () => void
 }) {
   const kind = step < 4 ? 'side' : step === 4 ? 'top' : 'bottom'
-  const title =
-    kind === 'side'
-      ? 'Turn to another side'
-      : kind === 'top'
-        ? 'Show a remaining face'
-        : 'Show the last face'
-  const detail =
-    kind === 'side'
-      ? 'Turn sideways in the direction of the arrow as you see it in the camera picture; either direction works.'
-      : kind === 'top'
-        ? 'Tip the cube up or down.'
-        : 'Move through Side 4 to the opposite face.'
   const nextFace = kind === 'side' ? 'right' : kind === 'top' ? 'up' : 'back'
   const viaFace = 'down'
   const directionArrow = () => (
@@ -86,7 +74,7 @@ export function CaptureTurnOverlay({
     <div
       class={`capture-turn-overlay capture-turn-${kind}`}
       role="status"
-      aria-label={`${title}. ${detail}`}
+      aria-label="Turn the cube"
     >
       <div class="capture-turn-scene" aria-hidden="true">
         <div class="capture-turn-cube">
@@ -97,10 +85,6 @@ export function CaptureTurnOverlay({
           {face('up')}
           {face('down')}
         </div>
-      </div>
-      <div class="capture-turn-copy">
-        <strong>{title}</strong>
-        <span>{detail}</span>
       </div>
       <button type="button" class="capture-turn-continue" onClick={onContinue}>
         Continue

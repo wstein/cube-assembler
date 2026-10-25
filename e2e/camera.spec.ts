@@ -209,3 +209,19 @@ test('the turn cue is never flipped in mirror mode', async ({ page }) => {
   expect(await flipped('.capture-turn-scene')).toBe(false)
   expect(await flipped('.turn-hint')).toBe(false)
 })
+
+test('the turn cue shows the arrow and Continue, no instruction text', async ({
+  page,
+}) => {
+  await installStubCamera(page)
+  await page.goto('/')
+  await page.getByRole('button', { name: 'Capture faces' }).click()
+  const capture = page.locator('.capture-modal-content')
+  await expect(capture.locator('.capture-live-badge')).toContainText('Live')
+  await capture.getByRole('button', { name: 'Capture side 1' }).click()
+  const cue = capture.locator('.capture-turn-overlay')
+  await expect(cue).toBeVisible()
+  await expect(cue.locator('.capture-turn-direction').first()).toBeVisible()
+  await expect(cue.getByRole('button', { name: 'Continue' })).toBeVisible()
+  await expect(cue).toHaveText(/^\s*Continue\s*$/)
+})
