@@ -167,7 +167,6 @@ export function CaptureDialog({
               liveMatchingFace={liveCapturedFace}
               size={size}
               predictedCenters={predictedCenters}
-              mirrored={mirrorPreview}
               onSelect={onSelectFace}
             />
           </div>
