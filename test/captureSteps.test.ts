@@ -27,6 +27,12 @@ describe('capture steps', () => {
       expect(captureInstruction(i)).toBe(step.instruction)
       expect(step.instruction).not.toMatch(/mirror/i)
     })
+    // The arrow always points the same way on screen, so side turns are
+    // described by the picture, never by a physical direction.
+    ;[1, 2, 3].forEach((i) => {
+      expect(CAPTURE_STEPS[i].instruction).not.toMatch(/clockwise/i)
+      expect(CAPTURE_STEPS[i].instruction).toMatch(/arrow.*picture/i)
+    })
   })
 
   it('paints the turn hint arrow left, then down, then up', () => {

@@ -27,10 +27,13 @@ flowchart TD
    finds and straightens it. If that fails, choose **Guide grid** to read the
    fixed square on screen. Neither mode downloads a model.
 3. Capture four sides while turning the cube, then its top and bottom. The
-   guided order is three clockwise quarter turns (y y y) for the sides, then
-   two tips toward you (the top, then the bottom), which shows the faces F R B
-   L U D. The turns are the same with or without Mirror; only the on-screen
-   picture is flipped. Any other order is still accepted. Auto
+   guided order is three quarter turns sideways for the sides, then step 4
+   tips the top toward you (it shows U) and step 5 tips back through Side 4 to
+   the bottom, a half turn the other way (it shows D). Without Mirror this
+   shows the faces F R B L U D. Mirror flips only the camera picture; the
+   arrows always point the same way on screen. With Mirror the physical
+   sideways turn is therefore the other way round, so the side faces come in
+   the opposite physical order. Any order is still accepted. Auto
    capture waits for five matching good readings. A matching earlier pattern
    warns you but does not prevent capture: even cubes can have identical faces.
 4. Review the six faces. The app recalibrates colors across all six photos.

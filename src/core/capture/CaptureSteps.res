@@ -5,12 +5,15 @@
 // uploads and the review key off them) and only their meaning is a step
 // in this order - slot U is Side 1, R Side 2, ...
 //
-// The guided order is fixed: three quarter turns about the vertical axis
-// (y y y) show four sides, then two tips about the camera's left-right axis
-// show the last two faces. Starting with the cube's F toward the camera, the
-// clockwise turns bring R, B and L to the front, and tipping the top toward
-// you shows U, then D. The faces seen are therefore F R B L U D. The
-// solver does not require this: a capture in any order is still accepted.
+// The guided order: three quarter turns sideways show four sides, then step
+// 4 tips the top toward you (shows U) and step 5 tips back through Side 4 to
+// the bottom, a half turn the other way (shows D). Without Mirror, with the
+// cube's F toward the camera and the arrow pointing left, the sides come as
+// F R B L, so the faces are F R B L U D. The arrow always points the same
+// way on screen, so with Mirror the physical sideways turn is the other way
+// round and the side faces come in the opposite physical order; the tips are
+// unaffected. The solver does not require any of this: a capture in any
+// order is still accepted.
 let faceOrder = ["U", "R", "F", "D", "L", "B"]
 
 type captureStep = {label: string, short: string, instruction: string}
@@ -20,17 +23,17 @@ let captureSteps = [
   {
     label: "Side 2",
     short: "2",
-    instruction: "Keep the same row on top and turn the whole cube clockwise a quarter turn. Either way works.",
+    instruction: "Keep the same row on top and turn the whole cube a quarter turn sideways, in the direction of the arrow as you see it in the camera picture. Either way works.",
   },
   {
     label: "Side 3",
     short: "3",
-    instruction: "Keep turning clockwise another quarter turn. Other directions still work.",
+    instruction: "Keep turning in the direction of the arrow in the camera picture, another quarter turn. Other directions still work.",
   },
   {
     label: "Side 4",
     short: "4",
-    instruction: "Turn clockwise one more quarter turn. Any remaining side still works.",
+    instruction: "Turn one more quarter turn in the direction of the arrow in the camera picture. Any remaining side still works.",
   },
   {
     label: "Top",
