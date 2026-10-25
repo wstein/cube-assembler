@@ -54,6 +54,18 @@ let captureInstruction = (step, mirrored) =>
     }
   }
 
+// The direction of the arrow painted on the front face of the turn hint, in
+// degrees (0 points up): side turns left, the first tip down, the last up.
+// A mirror flips left and right only, so it never changes these.
+let turnHintArrowAngle = step =>
+  if step < 4 {
+    270
+  } else if step == 4 {
+    180
+  } else {
+    0
+  }
+
 // Saved with fixtures captured this way, so they can be put together (and
 // regression-tested) with the guided search again later.
 let guidedProtocol = "sides-then-top-bottom/v1"

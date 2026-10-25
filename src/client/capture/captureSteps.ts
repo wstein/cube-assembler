@@ -8,6 +8,7 @@ import {
   faceOrder,
   faceShortLabel,
   glareFacesToWarn as glareFacesToWarnRes,
+  turnHintArrowAngle as turnHintArrowAngleRes,
 } from '../../core/capture/CaptureSteps.gen'
 import type { GuidedCenterIssue } from '../../cube/cubeAssembly'
 
@@ -22,6 +23,10 @@ export const CAPTURE_STEPS: Array<{
 
 export function captureInstruction(step: number, mirrored: boolean): string {
   return captureInstructionRes(step, mirrored)
+}
+
+export function turnHintArrowAngle(step: number): number {
+  return turnHintArrowAngleRes(step)
 }
 
 // A capture mistake read from odd-size centers, in words.

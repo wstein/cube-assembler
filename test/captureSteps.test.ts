@@ -7,6 +7,7 @@ import {
   captureInstruction,
   describeCenterIssue,
   glareFacesToWarn,
+  turnHintArrowAngle,
 } from '../src/client/capture/captureSteps'
 import { GLARE_WARNING_STICKERS } from '../src/client/vision/stickerLearning'
 
@@ -26,6 +27,12 @@ describe('capture steps', () => {
     // A webcam mirror flips left and right only, never up and down.
     expect(captureInstruction(4, true)).toBe(CAPTURE_STEPS[4].instruction)
     expect(captureInstruction(5, true)).toBe(CAPTURE_STEPS[5].instruction)
+  })
+
+  it('paints the turn hint arrow left, then down, then up', () => {
+    expect([1, 2, 3].map(turnHintArrowAngle)).toEqual([270, 270, 270])
+    expect(turnHintArrowAngle(4)).toBe(180)
+    expect(turnHintArrowAngle(5)).toBe(0)
   })
 
   it('describes center issues by step name', () => {
