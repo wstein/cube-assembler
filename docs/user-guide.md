@@ -28,8 +28,9 @@ flowchart TD
    fixed square on screen. Neither mode downloads a model.
 3. Capture four sides while turning the cube, then its top and bottom. The
    guided order is three quarter turns sideways for the sides, then step 4
-   tips the top toward you (it shows U) and step 5 tips back through Side 4 to
-   the bottom, a half turn the other way (it shows D). Without Mirror this
+   tips the top toward you (it shows U) and step 5 keeps tipping the same way,
+   past one more side, to the bottom (it shows D). The animations never change
+   the turning direction. Without Mirror this
    shows the faces F R B L U D. Mirror flips only the camera picture; the
    arrows always point the same way on screen. With Mirror the physical
    sideways turn is therefore the other way round, so the side faces come in
