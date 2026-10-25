@@ -1,25 +1,7 @@
 @genType let autoCaptureStableFrames: int
 @genType let autoCaptureMinConfidence: float
-@genType let turnCueClearFrames: int
-
-@genType
-type turnCuePose = {centerX: float, centerY: float, size: float, angle: float}
-
-@genType let turnPoseChanged: (turnCuePose, turnCuePose) => bool
-@genType let turnCueAbsentFrames: int
-
-@genType
-type turnCueState = {departed: int, missing: int}
-
-@genType let turnCueStart: turnCueState
-@genType
-let nextTurnCue: (
-  turnCueState,
-  Nullable.t<array<array<string>>>,
-  array<array<string>>,
-  bool,
-) => turnCueState
-@genType let turnCueCleared: turnCueState => bool
+@genType let turnCueCooldownMs: float
+@genType let autoCaptureHeld: (Nullable.t<float>, float) => bool
 
 @genType
 type autoCaptureSample = {

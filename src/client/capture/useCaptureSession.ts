@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'preact/hooks'
-import type { TurnCuePose } from './autoCapture'
+import { TURN_CUE_COOLDOWN_MS } from './autoCapture'
 import {
   captureStep,
   isGuidedCapture,
@@ -35,17 +35,15 @@ export function useCaptureSession({
   >([])
   // capture.protocol of the last uploaded fixture (see isGuidedCapture).
   const [uploadedProtocol, setUploadedProtocol] = useState<string | null>(null)
-  // The last camera capture, which the live analysis must see the cube turn
-  // away from before it captures again.
-  const lastCapturedColors = useRef<string[][] | null>(null)
-  const lastCapturedPose = useRef<TurnCuePose | null>(null)
+  // When the last camera capture was made: auto capture waits a moment for
+  // the cube to be turned (see autoCaptureHeld), or until Continue.
+  const lastCaptureAt = useRef<number | null>(null)
   // A face just captured, to fly from the scan square into its net slot
   // once the slot has rendered it (see CaptureNet / flyInto).
   const pendingFlyIn = useRef<{ slot: string; from: DOMRect } | null>(null)
 
   const forgetLastCapture = () => {
-    lastCapturedColors.current = null
-    lastCapturedPose.current = null
+    lastCaptureAt.current = null
   }
 
   const dismissTurnOverlay = () => {
@@ -53,8 +51,7 @@ export function useCaptureSession({
   }
 
   const continueTurnOverlay = () => {
-    // An identical-looking side cannot be told apart by sticker letters.
-    // Continue explicitly confirms that the cube has been turned.
+    // Nothing in the picture is checked: Continue says the cube was turned.
     forgetLastCapture()
     dismissTurnOverlay()
   }
@@ -69,6 +66,13 @@ export function useCaptureSession({
   useEffect(() => {
     if (!webcamOpen) dismissTurnOverlay()
   }, [webcamOpen])
+
+  // The cue goes away by itself once the cube has had time to be turned.
+  useEffect(() => {
+    if (turnOverlay === null) return
+    const timer = setTimeout(dismissTurnOverlay, TURN_CUE_COOLDOWN_MS)
+    return () => clearTimeout(timer)
+  }, [turnOverlay])
 
   useEffect(() => {
     const fly = pendingFlyIn.current
@@ -108,8 +112,7 @@ export function useCaptureSession({
     if (pendingFlyIn.current) pendingFlyIn.current.slot = step.assignedFace
 
     setCapturedFaces(step.faces)
-    lastCapturedColors.current = step.lastColors
-    lastCapturedPose.current = step.lastPose
+    lastCaptureAt.current = source === 'camera' ? Date.now() : null
     setCaptureMessage(step.message)
 
     if (step.nextFace === null) {
@@ -149,8 +152,7 @@ export function useCaptureSession({
     continueTurnOverlay,
     setDismissedCaptureWarnings,
     setUploadedProtocol,
-    lastCapturedColors,
-    lastCapturedPose,
+    lastCaptureAt,
     pendingFlyIn,
     forgetLastCapture,
     selectFace,

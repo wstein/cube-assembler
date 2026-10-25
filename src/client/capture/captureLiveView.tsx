@@ -14,7 +14,6 @@ interface CaptureLiveViewProps {
   liveDetection: ColorDetectionResult | null
   liveFaceVisible: boolean
   liveNeedsRecentering: boolean
-  liveCapturedFace: string | null
   liveAutoColorProfileName?: string
   liveMedianWB: boolean
   automaticColors: boolean
@@ -28,7 +27,6 @@ interface CaptureLiveViewProps {
   turnOverlay: { step: number } | null
   sampling: SamplingGeometry
   stickerColors: Record<string, string>
-  faceLabels: Record<string, string>
   onContinueTurn: () => void
   onMirrorChange: (enabled: boolean) => void
   onAutoCaptureChange: (enabled: boolean) => void
@@ -42,7 +40,6 @@ export function CaptureLiveView({
   liveDetection,
   liveFaceVisible,
   liveNeedsRecentering,
-  liveCapturedFace,
   liveAutoColorProfileName,
   liveMedianWB,
   automaticColors,
@@ -55,7 +52,6 @@ export function CaptureLiveView({
   turnOverlay,
   sampling,
   stickerColors,
-  faceLabels,
   onContinueTurn,
   onMirrorChange,
   onAutoCaptureChange,
@@ -139,7 +135,7 @@ export function CaptureLiveView({
         {/* Guide mode frames the exact sample square. Detect face shows
         the wider seam search area; its moving grid marks the crop. */}
         <div
-          class={`capture-scan-frame ${captureMode === 'cv' ? 'cv-search-frame' : ''} ${liveCapturedFace ? 'pattern-match' : ''} ${autoCapture && autoCaptureFrames > 0 ? 'capture-holding' : ''} ${captureFlash ? 'capture-flashed' : ''}`}
+          class={`capture-scan-frame ${captureMode === 'cv' ? 'cv-search-frame' : ''} ${autoCapture && autoCaptureFrames > 0 ? 'capture-holding' : ''} ${captureFlash ? 'capture-flashed' : ''}`}
         >
           <span class="capture-scan-label">
             {captureMode === 'cv'
@@ -174,23 +170,18 @@ export function CaptureLiveView({
             onContinue={onContinueTurn}
           />
         )}
-        <span
-          class={`capture-live-badge ${liveCapturedFace ? 'pattern-match' : ''}`}
-          role="status"
-        >
+        <span class="capture-live-badge" role="status">
           <span class="capture-live-dot" />
           Live ·{' '}
-          {liveCapturedFace
-            ? `Looks like ${faceLabels[liveCapturedFace]} · capture allowed`
-            : captureMode === 'cv' && liveNeedsRecentering
-              ? 'Move face toward center'
-              : liveDetection
-                ? liveFaceVisible
-                  ? `${(liveDetection.confidence * 100).toFixed(0)}% color match`
-                  : captureMode === 'cv'
-                    ? 'Align face in view'
-                    : 'Align face in guide'
-                : '—'}
+          {captureMode === 'cv' && liveNeedsRecentering
+            ? 'Move face toward center'
+            : liveDetection
+              ? liveFaceVisible
+                ? `${(liveDetection.confidence * 100).toFixed(0)}% color match`
+                : captureMode === 'cv'
+                  ? 'Align face in view'
+                  : 'Align face in guide'
+              : '—'}
           {automaticColors &&
             liveAutoColorProfileName &&
             ` · ${liveAutoColorProfileName}`}

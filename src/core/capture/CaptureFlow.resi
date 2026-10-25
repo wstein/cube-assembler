@@ -77,7 +77,6 @@ let placeFaceCapture: (
   float,
 ) => placed
 @genType let capturedFaceMessage: (string, float, bool) => string
-@genType let turnCuePose: option<crop> => Null.t<AutoCapture.turnCuePose>
 
 @genType
 type turnCue = {step: int}

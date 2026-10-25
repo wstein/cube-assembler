@@ -2,7 +2,6 @@
 type frameState = {
   progress: Null.t<AutoCapture.autoCaptureProgress>,
   hold: LiveHold.liveHold<Recalibration.colorDetection>,
-  turnCue: AutoCapture.turnCueState,
 }
 
 @genType let startState: unit => frameState
@@ -23,18 +22,14 @@ type context = {
   captureBusy: bool,
   stableFrames: int,
   turnCueShowing: bool,
+  autoCaptureHeld: bool,
   provisionalProfileId: Nullable.t<string>,
-  lastCapturedColors: Nullable.t<array<array<string>>>,
-  lastCapturedPose: Nullable.t<AutoCapture.turnCuePose>,
-  capturedColors: array<Nullable.t<array<array<string>>>>,
-  faceIndex: int,
 }
 
 @genType
 type view = {
   detection: Recalibration.colorDetection,
   visible: bool,
-  matchedSlot: Null.t<int>,
 }
 
 @genType type autoCaptureView = {frames: int, paused: bool}
@@ -45,7 +40,6 @@ type step = {
   needsRecentering: bool,
   medianWhiteBalance: bool,
   autoColorProfileId: Null.t<string>,
-  turnCueCleared: bool,
   view: Null.t<view>,
   autoCaptureView: Null.t<autoCaptureView>,
   capture: bool,

@@ -1,57 +1,23 @@
-// Auto capture waits for matching good live detections, and the turn cue
-// for the old face to leave: typed entry point for
+// Auto capture waits for matching good live detections, then holds while
+// the person turns the cube: typed entry point for
 // src/core/capture/AutoCapture.res.
 import {
+  autoCaptureHeld as autoCaptureHeldRes,
   autoCaptureStableFrames,
   nextAutoCaptureProgress as nextAutoCaptureProgressRes,
-  nextTurnCue as nextTurnCueRes,
-  turnCueAbsentFrames,
-  turnCueClearFrames,
-  turnCueCleared as turnCueClearedRes,
-  turnCueStart,
-  turnPoseChanged as turnPoseChangedRes,
+  turnCueCooldownMs,
 } from '../../core/capture/AutoCapture.gen'
 
 export const AUTO_CAPTURE_STABLE_FRAMES = autoCaptureStableFrames
-export const TURN_CUE_CLEAR_FRAMES = turnCueClearFrames
+export const TURN_CUE_COOLDOWN_MS = turnCueCooldownMs
 
-export interface TurnCuePose {
-  centerX: number
-  centerY: number
-  size: number
-  angle: number
-}
-
-// Only a substantial change of where the face sits counts as a turn.
-export function turnPoseChanged(
-  anchor: TurnCuePose,
-  current: TurnCuePose,
+// Whether auto capture still waits for the cube to be turned after a
+// capture made at `lastCaptureAt` (null: none, or Continue was pressed).
+export function autoCaptureHeld(
+  lastCaptureAt: number | null,
+  now: number,
 ): boolean {
-  return turnPoseChangedRes(anchor, current)
-}
-
-export const TURN_CUE_ABSENT_FRAMES = turnCueAbsentFrames
-
-export interface TurnCueState {
-  // Frames showing a different face since the old one was last seen.
-  departed: number
-  // Consecutive frames without a usable face.
-  missing: number
-}
-
-export const TURN_CUE_START: TurnCueState = turnCueStart
-
-export function nextTurnCue(
-  state: TurnCueState,
-  visibleColors: string[][] | null,
-  lastCapturedColors: string[][],
-  poseChanged = false,
-): TurnCueState {
-  return nextTurnCueRes(state, visibleColors, lastCapturedColors, poseChanged)
-}
-
-export function turnCueCleared(state: TurnCueState): boolean {
-  return turnCueClearedRes(state)
+  return autoCaptureHeldRes(lastCaptureAt, now)
 }
 
 export interface AutoCaptureSample {

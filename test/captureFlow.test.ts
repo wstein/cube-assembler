@@ -17,7 +17,6 @@ import {
   parseCubeInput,
   placeFaceCapture,
   solvedCaptureFaces,
-  turnCuePose,
 } from '../src/client/capture/captureFlow'
 import type { FaceCaptureData } from '../src/client/capture/captureTypes'
 
@@ -105,16 +104,6 @@ describe('guided face capture', () => {
     expect(capturedFaceMessage('U', 0.84, false)).toBe(
       '✓ Side 1 captured (84% confidence)',
     )
-  })
-
-  it('remembers where the face sat for the turn cue', () => {
-    expect(turnCuePose(undefined)).toBeNull()
-    expect(turnCuePose(reading('G').crop)).toEqual({
-      centerX: 60,
-      centerY: 70,
-      size: 100,
-      angle: Math.PI / 2,
-    })
   })
 
   it('cues the next turn by its step, without previewing colors', () => {

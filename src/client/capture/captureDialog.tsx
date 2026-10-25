@@ -24,7 +24,6 @@ interface CaptureDialogProps {
   predictedCenters: Array<string | null>
   faces: Record<string, string[][] | undefined>
   matchingNetFaces: Set<string>
-  liveCapturedFace: string | null
   onSelectFace: (face: string) => void
   cameraBlurOn: boolean
   captureWarning: { text: string; key: string; retake: number } | null
@@ -58,7 +57,6 @@ export function CaptureDialog({
   predictedCenters,
   faces,
   matchingNetFaces,
-  liveCapturedFace,
   onSelectFace,
   cameraBlurOn,
   captureWarning,
@@ -159,7 +157,6 @@ export function CaptureDialog({
               faces={faces}
               current={face}
               matchingFaces={matchingNetFaces}
-              liveMatchingFace={liveCapturedFace}
               size={size}
               predictedCenters={predictedCenters}
               onSelect={onSelectFace}

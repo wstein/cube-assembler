@@ -5,8 +5,6 @@ type captureStep =
       faces: Dict.t<CaptureFlow.faceCaptureData>,
       assignedFace: string,
       message: string,
-      lastColors: Null.t<array<array<string>>>,
-      lastPose: Null.t<AutoCapture.turnCuePose>,
       nextFace: Null.t<string>,
       turnCue: Null.t<CaptureFlow.turnCue>,
     })

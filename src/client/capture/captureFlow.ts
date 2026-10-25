@@ -29,7 +29,6 @@ export {
   nextTurnCue,
   parityStatus,
   parseCubeInput,
-  turnCuePose,
 } from '../../core/capture/CaptureFlow.gen'
 export { sessionView } from '../../core/capture/CaptureSession.gen'
 

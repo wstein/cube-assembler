@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'preact/hooks'
 import { liveFrameStep, startState } from '../../core/capture/LiveCapture.gen'
-import type { TurnCuePose } from './autoCapture'
+import { autoCaptureHeld } from './autoCapture'
 import { scaleBounds, type LiveAnalysisRequest } from './liveAnalysis'
 import type { LiveFrameMessage, LiveResultMessage } from './liveAnalysis.worker'
 import {
@@ -40,8 +40,7 @@ interface LiveCaptureOptions {
     { colors: string[][]; backgroundColor?: RGB | null }
   >
   videoRef: { current: HTMLVideoElement | null }
-  lastCapturedColors: { current: string[][] | null }
-  lastCapturedPose: { current: TurnCuePose | null }
+  lastCaptureAt: { current: number | null }
   pendingFlyIn: { current: { slot: string; from: DOMRect } | null }
   setAutoCaptureFrames: (frames: number) => void
   setAutoCapturePaused: (paused: boolean) => void
@@ -50,9 +49,7 @@ interface LiveCaptureOptions {
   setLiveNeedsRecentering: (needed: boolean) => void
   setLiveMedianWB: (available: boolean) => void
   setLiveAutoColorProfileId: (id: string | null) => void
-  setLiveCapturedFace: (face: string | null) => void
   setCaptureMessage: (message: string) => void
-  onTurnCueCleared: () => void
   onCaptureSignal: () => void
   onAutoCapture: (
     result: FaceCaptureResult,
@@ -66,12 +63,10 @@ export function useLiveCaptureAnalysis(options: LiveCaptureOptions) {
   const autoCaptureInFlight = useRef(false)
   // Callbacks read the latest app state without resetting the five-frame hold.
   const actions = useRef({
-    onTurnCueCleared: options.onTurnCueCleared,
     onCaptureSignal: options.onCaptureSignal,
     onAutoCapture: options.onAutoCapture,
   })
   actions.current = {
-    onTurnCueCleared: options.onTurnCueCleared,
     onCaptureSignal: options.onCaptureSignal,
     onAutoCapture: options.onAutoCapture,
   }
@@ -100,8 +95,7 @@ export function useLiveCaptureAnalysis(options: LiveCaptureOptions) {
     stableFrames,
     capturedFaces,
     videoRef,
-    lastCapturedColors,
-    lastCapturedPose,
+    lastCaptureAt,
     pendingFlyIn,
     setAutoCaptureFrames,
     setAutoCapturePaused,
@@ -110,7 +104,6 @@ export function useLiveCaptureAnalysis(options: LiveCaptureOptions) {
     setLiveNeedsRecentering,
     setLiveMedianWB,
     setLiveAutoColorProfileId,
-    setLiveCapturedFace,
     setCaptureMessage,
   } = options
 
@@ -123,7 +116,6 @@ export function useLiveCaptureAnalysis(options: LiveCaptureOptions) {
       setLiveNeedsRecentering(false)
       setLiveMedianWB(false)
       setLiveAutoColorProfileId(null)
-      setLiveCapturedFace(null)
       return
     }
     if (loading) return
@@ -171,29 +163,16 @@ export function useLiveCaptureAnalysis(options: LiveCaptureOptions) {
             stableFrames,
             turnCueShowing,
             provisionalProfileId,
-            lastCapturedColors: lastCapturedColors.current,
-            lastCapturedPose: lastCapturedPose.current,
-            capturedColors: faceOrder.map((key) => capturedFaces[key]?.colors),
-            faceIndex: faceOrder.indexOf(face),
+            autoCaptureHeld: autoCaptureHeld(lastCaptureAt.current, Date.now()),
           },
         )
         state = step.state
         setLiveNeedsRecentering(step.needsRecentering)
         setLiveMedianWB(step.medianWhiteBalance)
         setLiveAutoColorProfileId(step.autoColorProfileId)
-        if (step.turnCueCleared) {
-          lastCapturedColors.current = null
-          lastCapturedPose.current = null
-          if (turnCueShowing) actions.current.onTurnCueCleared()
-        }
         if (step.view) {
           setLiveDetection(step.view.detection)
           setLiveFaceVisible(step.view.visible)
-          setLiveCapturedFace(
-            step.view.matchedSlot === null
-              ? null
-              : faceOrder[step.view.matchedSlot],
-          )
         }
         if (step.autoCaptureView) {
           setAutoCaptureFrames(step.autoCaptureView.frames)
@@ -244,7 +223,6 @@ export function useLiveCaptureAnalysis(options: LiveCaptureOptions) {
         setLiveDetection(null)
         setLiveFaceVisible(false)
         setLiveMedianWB(false)
-        setLiveCapturedFace(null)
         setAutoCapturePaused(state.progress !== null)
       } finally {
         full.close()

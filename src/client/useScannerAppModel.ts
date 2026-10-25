@@ -89,8 +89,7 @@ export function useScannerAppModel() {
     continueTurnOverlay,
     setDismissedCaptureWarnings,
     setUploadedProtocol,
-    lastCapturedColors,
-    lastCapturedPose,
+    lastCaptureAt,
     pendingFlyIn,
     forgetLastCapture,
     selectFace,
@@ -317,7 +316,6 @@ export function useScannerAppModel() {
     liveNeedsRecentering,
     liveMedianWB,
     liveAutoColorProfile,
-    liveCapturedFace,
     handleCapturePhoto,
     handleImportImage,
   } = useCameraCapture({
@@ -325,7 +323,6 @@ export function useScannerAppModel() {
     loading,
     setLoading,
     turnOverlay,
-    dismissTurnOverlay,
     webcamFace,
     puzzleSize,
     captureMode,
@@ -338,8 +335,7 @@ export function useScannerAppModel() {
     stableFrames,
     capturedFaces,
     webcamRef,
-    lastCapturedColors,
-    lastCapturedPose,
+    lastCaptureAt,
     pendingFlyIn,
     setCaptureMessage,
     signalCapture,
@@ -448,7 +444,6 @@ export function useScannerAppModel() {
   }
 
   const matchingNetFaces = new Set(repeatedNetFaces)
-  if (liveCapturedFace) matchingNetFaces.add(liveCapturedFace)
 
   // Finishes assembly once the orientation wizard has narrowed down to a
   // single candidate - mirrors handleConfirmReview's tail end exactly,
@@ -583,7 +578,6 @@ export function useScannerAppModel() {
     ignoreFixtureCorrections,
     learnedPalette,
     liveAutoColorProfile,
-    liveCapturedFace,
     liveDetection,
     liveFaceVisible,
     liveMedianWB,

@@ -207,20 +207,6 @@ let capturedFaceMessage = (face, confidence, unexpectedCenter) =>
     unexpectedCenter ? " - its center isn't the suggested one; check it in the review" : ""
   )
 
-// Where the captured face sat in the camera frame, so the turn cue can tell
-// a turned cube from one still showing the same face.
-let turnCuePose = (crop: option<crop>): Null.t<AutoCapture.turnCuePose> =>
-  switch crop {
-  | Some(crop) =>
-    Null.make({
-      AutoCapture.centerX: crop.x +. crop.width /. 2.0,
-      centerY: crop.y +. crop.height /. 2.0,
-      size: crop.width,
-      angle: crop.angle->Option.getOr(0.0) *. Math.Constants.pi /. 180.0,
-    })
-  | None => Null.null
-  }
-
 type turnCue = {step: int}
 
 let outOfOrder = (faces: Dict.t<faceCaptureData>) =>

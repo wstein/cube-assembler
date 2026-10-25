@@ -119,7 +119,6 @@ export function ScannerAppView({ model }: { model: ScannerAppModel }) {
     ignoreFixtureCorrections,
     learnedPalette,
     liveAutoColorProfile,
-    liveCapturedFace,
     liveDetection,
     liveFaceVisible,
     liveMedianWB,
@@ -486,7 +485,6 @@ export function ScannerAppView({ model }: { model: ScannerAppModel }) {
               liveDetection={liveDetection}
               liveFaceVisible={liveFaceVisible}
               liveNeedsRecentering={liveNeedsRecentering}
-              liveCapturedFace={liveCapturedFace}
               liveAutoColorProfileName={liveAutoColorProfile?.name}
               liveMedianWB={liveMedianWB}
               automaticColors={automaticColors}
@@ -499,7 +497,6 @@ export function ScannerAppView({ model }: { model: ScannerAppModel }) {
               turnOverlay={turnOverlay}
               sampling={sampling}
               stickerColors={STICKER_HEX}
-              faceLabels={FACE_DISPLAY_LABEL}
               onContinueTurn={continueTurnOverlay}
               onMirrorChange={(enabled) =>
                 changePreference(MIRROR_COOKIE, setMirrorPreview, enabled)
@@ -571,7 +568,6 @@ export function ScannerAppView({ model }: { model: ScannerAppModel }) {
             FACE_ORDER.map((f) => [f, capturedFaces[f]?.colors]),
           )}
           matchingNetFaces={matchingNetFaces}
-          liveCapturedFace={liveCapturedFace}
           onSelectFace={selectFace}
           cameraBlurOn={cameraInfo?.granted.backgroundBlur === true}
           captureWarning={warning}

@@ -56,7 +56,6 @@ export function CaptureNet({
   faces,
   current,
   matchingFaces,
-  liveMatchingFace,
   size,
   predictedCenters,
   onSelect,
@@ -69,7 +68,6 @@ export function CaptureNet({
   faces: Record<string, string[][] | undefined>
   current: string
   matchingFaces: Set<string>
-  liveMatchingFace: string | null
   size: number
   predictedCenters: Array<string | null>
   onSelect: (slot: string) => void
@@ -94,7 +92,7 @@ export function CaptureNet({
         class={`capture-net-slot${matchingFaces.has(key) ? ' pattern-match' : ''}`}
         style={{ gridArea }}
         data-slot={key}
-        aria-label={`${faceLabels[key]}: ${colors ? (matchingFaces.has(key) ? `captured, pattern looks like ${key === liveMatchingFace ? 'the live face' : 'another captured face'}; tap to retake` : 'captured, tap to retake') : suggested ? `suggested ${colorNames[suggested]} center, not captured yet` : 'not captured yet'}`}
+        aria-label={`${faceLabels[key]}: ${colors ? (matchingFaces.has(key) ? 'captured, pattern looks like another captured face; tap to retake' : 'captured, tap to retake') : suggested ? `suggested ${colorNames[suggested]} center, not captured yet` : 'not captured yet'}`}
         aria-current={key === current ? 'step' : undefined}
         onClick={() => onSelect(key)}
       >

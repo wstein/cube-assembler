@@ -77,8 +77,9 @@ test('captures and re-detects a face from a live camera stream', async ({
   await page.evaluate(() => window.setTestCameraFace(1))
   await expect.poll(previewColors).not.toBe(firstPreview)
   await page.evaluate(() => window.setTestCameraFace(0))
-  await expect(capture.locator('.capture-live-badge')).toContainText(
-    'Looks like Side 1',
+  // The live view never compares the cube with faces already captured.
+  await expect(capture.locator('.capture-live-badge')).not.toContainText(
+    'Looks like',
   )
   await capture.locator('.capture-net [data-slot="U"]').click()
   await expect(capture).toContainText('Step 1 of 6')

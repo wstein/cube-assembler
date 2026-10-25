@@ -1,65 +1,18 @@
 // Matching good live detections must agree before the camera captures a
-// face, and the turn cue must see the old face leave before the next one.
+// face.
 let autoCaptureStableFrames = 5
 let autoCaptureMinConfidence = 0.6
-let turnCueClearFrames = 3
 
-type turnCuePose = {centerX: float, centerY: float, size: float, angle: float}
+// After a camera capture auto capture waits for the person to turn the
+// cube (they press Continue, or this long passes); nothing in the live
+// frames is compared with the last capture.
+let turnCueCooldownMs = 3000.0
 
-// A same-colored side can still be a new side. Only a substantial change
-// counts; small framing jitter while holding the old face does not.
-let turnPoseChanged = (anchor: turnCuePose, current: turnCuePose) => {
-  let angle = Math.abs(
-    Math.atan2(
-      ~y=Math.sin(current.angle -. anchor.angle),
-      ~x=Math.cos(current.angle -. anchor.angle),
-    ),
-  )
-  Math.hypot(current.centerX -. anchor.centerX, current.centerY -. anchor.centerY) >
-  anchor.size *. 0.12 ||
-  Math.abs(current.size -. anchor.size) > anchor.size *. 0.15 ||
-  angle > Math.Constants.pi /. 9.0
-}
-
-// The turn cue stays up while the captured pattern is still in view. It
-// clears on evidence that the face left: turnCueClearFrames frames showing
-// a confidently detected different face (or the same letters after a real
-// turn, see turnPoseChanged), or turnCueAbsentFrames frames in a row
-// without any usable face, as while the cube is being turned. Detector
-// flicker never clears it, or the same face could be captured again.
-let turnCueAbsentFrames = 5
-
-type turnCueState = {
-  // Frames showing a different face since the old one was last seen.
-  departed: int,
-  // Consecutive frames without a usable face.
-  missing: int,
-}
-
-let turnCueStart = {departed: 0, missing: 0}
-
-let nextTurnCue = (
-  state,
-  visibleColors: Nullable.t<array<array<string>>>,
-  lastCapturedColors,
-  poseChanged,
-) =>
-  switch Nullable.toOption(visibleColors) {
-  | None => {...state, missing: state.missing + 1}
-  | Some(colors) =>
-    let stillLastFace =
-      CapturedFaceMatching.findCapturedFaceMatch(
-        [Some({colors: lastCapturedColors})],
-        {colors: colors},
-        -1,
-      )
-      ->Null.toOption
-      ->Option.isSome
-    stillLastFace && !poseChanged ? turnCueStart : {departed: state.departed + 1, missing: 0}
+let autoCaptureHeld = (lastCaptureAt: Nullable.t<float>, now: float) =>
+  switch Nullable.toOption(lastCaptureAt) {
+  | Some(at) => now -. at < turnCueCooldownMs
+  | None => false
   }
-
-let turnCueCleared = state =>
-  state.departed >= turnCueClearFrames || state.missing >= turnCueAbsentFrames
 
 type autoCaptureSample = {
   colors: array<array<string>>,

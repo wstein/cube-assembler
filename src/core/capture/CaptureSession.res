@@ -3,7 +3,6 @@
 // turn cue shows), and what the session shows around the captured faces.
 // The hook keeps the state, refs and effects.
 type faces = Dict.t<CaptureFlow.faceCaptureData>
-type grid = array<array<string>>
 
 @send external toFixed: (float, int) => string = "toFixed"
 
@@ -16,8 +15,6 @@ type captureStep =
       message: string,
       // The last camera capture, which the cube must turn away from before
       // live analysis captures again; null for other sources.
-      lastColors: Null.t<grid>,
-      lastPose: Null.t<AutoCapture.turnCuePose>,
       // The next face to capture; null once all six are in.
       nextFace: Null.t<string>,
       // The turn to show before it, when the camera took this one.
@@ -63,8 +60,6 @@ let captureStep = (
         reading.confidence,
         placed.unexpectedCenter,
       ),
-      lastColors: camera ? Null.make(reading.colors) : Null.null,
-      lastPose: camera ? CaptureFlow.turnCuePose(reading.crop) : Null.null,
       nextFace: Null.fromOption(nextFace),
       // The cue blocks capturing while the cube turns; without the turn it
       // would only be a wait, and the step hint already says what to do.

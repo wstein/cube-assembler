@@ -18,7 +18,6 @@ interface CameraCaptureOptions {
   loading: boolean
   setLoading: (value: boolean) => void
   turnOverlay: Session['turnOverlay']
-  dismissTurnOverlay: Session['dismissTurnOverlay']
   webcamFace: string
   puzzleSize: number
   captureMode: Preferences['captureMode']
@@ -31,8 +30,7 @@ interface CameraCaptureOptions {
   stableFrames: number
   capturedFaces: Session['capturedFaces']
   webcamRef: ReturnType<typeof useCameraStream>['videoRef']
-  lastCapturedColors: Session['lastCapturedColors']
-  lastCapturedPose: Session['lastCapturedPose']
+  lastCaptureAt: Session['lastCaptureAt']
   pendingFlyIn: Session['pendingFlyIn']
   setCaptureMessage: Session['setCaptureMessage']
   signalCapture: ReturnType<typeof useCaptureFeedback>['signalCapture']
@@ -47,7 +45,6 @@ export function useCameraCapture({
   loading,
   setLoading,
   turnOverlay,
-  dismissTurnOverlay,
   webcamFace,
   puzzleSize,
   captureMode,
@@ -60,8 +57,7 @@ export function useCameraCapture({
   stableFrames,
   capturedFaces,
   webcamRef,
-  lastCapturedColors,
-  lastCapturedPose,
+  lastCaptureAt,
   pendingFlyIn,
   setCaptureMessage,
   signalCapture,
@@ -78,7 +74,6 @@ export function useCameraCapture({
   const [liveAutoColorProfileId, setLiveAutoColorProfileId] = useState<
     string | null
   >(null)
-  const [liveCapturedFace, setLiveCapturedFace] = useState<string | null>(null)
   const liveAutoColorProfile = autoColorProfiles.find(
     (candidate) => candidate.id === liveAutoColorProfileId,
   )
@@ -100,8 +95,7 @@ export function useCameraCapture({
     stableFrames,
     capturedFaces,
     videoRef: webcamRef,
-    lastCapturedColors,
-    lastCapturedPose,
+    lastCaptureAt,
     pendingFlyIn,
     setAutoCaptureFrames,
     setAutoCapturePaused,
@@ -110,9 +104,7 @@ export function useCameraCapture({
     setLiveNeedsRecentering,
     setLiveMedianWB,
     setLiveAutoColorProfileId,
-    setLiveCapturedFace,
     setCaptureMessage,
-    onTurnCueCleared: dismissTurnOverlay,
     onCaptureSignal: signalCapture,
     onAutoCapture: async (result, profileId) => {
       const track = (
@@ -224,7 +216,6 @@ export function useCameraCapture({
     liveNeedsRecentering,
     liveMedianWB,
     liveAutoColorProfile,
-    liveCapturedFace,
     handleCapturePhoto,
     handleImportImage,
   }
