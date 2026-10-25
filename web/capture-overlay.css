@@ -19,11 +19,6 @@
     box-shadow: 0 0 0 2000px rgba(0, 0, 0, 0.2);
   }
 
-  &.pattern-match {
-    border: 3px solid #e6a23c;
-    box-shadow: 0 0 0 2000px rgba(151, 91, 15, 0.3);
-  }
-
   &.capture-holding {
     border-color: #e6a23c;
   }

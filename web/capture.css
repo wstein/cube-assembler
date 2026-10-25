@@ -43,14 +43,6 @@
   background: rgba(255, 255, 255, 0.12);
   color: #ffffff;
   font: 500 0.8rem var(--font-mono);
-
-  &.pattern-match {
-    background: rgba(120, 72, 12, 0.94);
-
-    .capture-live-dot {
-      background: #ffd36b;
-    }
-  }
 }
 
 .capture-live-dot {
