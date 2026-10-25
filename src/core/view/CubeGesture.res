@@ -420,7 +420,7 @@ let followDrag = (previous: dragMotion, angle, time) => {
   time,
 }
 
-// What a swipe from a sticker starts once it has travelled startPx: the
+// What a swipe from a sticker starts once it has traveled startPx: the
 // layers it turns - a seam block, Shift's standard wide move, or the one
 // touched layer - whether a seam keeps the choice open, and whether a
 // seam block was picked. A diagonal swipe turns nothing.

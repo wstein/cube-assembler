@@ -3,7 +3,7 @@ type largeTables = {
   corner: array<array<int>>,
   midge: array<array<int>>,
   wings: array<array<array<int>>>,
-  centres: array<array<int>>,
+  centers: array<array<int>>,
 }
 
 // The 6x6 or 7x7 slot tables, derived from the 4x4 and 5x5 ones.

@@ -462,9 +462,9 @@ let standardLookScore = (faces: faceSet<grid>) => {
       grid->Array.reduce(0, (count, row) =>
         row->Array.reduce(count, (count, sticker) => sticker == color ? count + 1 : count)
       )
-    let centre =
+    let center =
       mod(n, 2) == 1 && grid->Array.getUnsafe(mid)->Array.getUnsafe(mid) == color ? 1000 : 0
-    score + stickers + centre
+    score + stickers + center
   })
 }
 

@@ -85,7 +85,7 @@ let wingFacelet4 = [
   [88, 27],
   [94, 61],
 ]
-let centreFacelet4 = [
+let centerFacelet4 = [
   5,
   6,
   9,
@@ -111,7 +111,7 @@ let centreFacelet4 = [
   89,
   90,
 ]
-let wingColour4 = [
+let wingColor4 = [
   [0, 5],
   [0, 1],
   [0, 4],

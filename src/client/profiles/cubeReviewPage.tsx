@@ -1,5 +1,5 @@
 // The Cubes tab of the profiles page: saved cube definitions by size (tick
-// or delete them), their duplicates (merge or delete in favour of Generic), and each cube's sampled
+// or delete them), their duplicates (merge or delete in favor of Generic), and each cube's sampled
 // sticker area drawn on the last captured face. Logic: cubeProfileReview.ts.
 import { useState } from 'preact/hooks'
 import {

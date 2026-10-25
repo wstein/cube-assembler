@@ -34,7 +34,7 @@ describe('Orbit64 state tokens', () => {
         ...tables.corner.flat(),
         ...tables.midge.flat(),
         ...tables.wings.flat(2),
-        ...tables.centres.flat(),
+        ...tables.centers.flat(),
         ...(size === 7
           ? Array.from({ length: 6 }, (_, face) => face * 49 + 24)
           : []),
@@ -42,7 +42,7 @@ describe('Orbit64 state tokens', () => {
       expect(written).toHaveLength(6 * size * size)
       expect(new Set(written).size).toBe(written.length)
       expect(tables.wings).toHaveLength(2)
-      expect(tables.centres).toHaveLength(size === 6 ? 4 : 6)
+      expect(tables.centers).toHaveLength(size === 6 ? 4 : 6)
     },
   )
   it.each(vectors)('encodes published %s vector', (token, facelets) => {

@@ -106,7 +106,7 @@ function frame(face: Face, dx: number, dy: number, scale: number, tilt = 0) {
   return { data, width, guide }
 }
 
-// Nearest-neighbour: each frame pixel looks up the untilted face.
+// Nearest-neighbor: each frame pixel looks up the untilted face.
 function tiltedFrame(
   face: Face,
   dx: number,

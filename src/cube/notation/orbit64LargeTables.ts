@@ -6,7 +6,7 @@ export function largeTables(n: 6 | 7): {
   corner: number[][]
   midge: number[][]
   wings: number[][][]
-  centres: number[][]
+  centers: number[][]
 } {
   return largeTablesRes(n)
 }
