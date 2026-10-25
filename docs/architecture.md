@@ -26,7 +26,6 @@ reviewed colors; it does not bypass review.
 
 The 3D viewer uses a transparent WebGL canvas; `web/style.css` supplies its
 dark gray gradient and soft shadow behind the cube.
-
 1. [`index.tsx`](../src/client/index.tsx) mounts the app;
    [`useScannerAppModel.ts`](../src/client/useScannerAppModel.ts) coordinates capture and review state.
    [`cubeNetView.tsx`](../src/client/cubeNetView.tsx) draws the 2D cube and its

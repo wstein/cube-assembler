@@ -2,7 +2,7 @@
 
 The capture dialog has two modes. **Detect face** estimates the cube outline,
 aligns sticker seams, straightens the face, and reads it. It waits with
-*Align face in view* if no face is found. **Guide grid** reads the fixed square
+_Align face in view_ if no face is found. **Guide grid** reads the fixed square
 on screen. Neither mode needs a downloaded model. Choose the cube size first;
 the detector does not change it. Live analysis runs every 200 ms.
 

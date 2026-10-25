@@ -4,7 +4,7 @@ name: Release
 # publishes a GitHub release with the built client as a zip.
 on:
   push:
-    tags: ['v*.*.*']
+    tags: ["v*.*.*"]
 
 permissions:
   contents: write
@@ -18,7 +18,7 @@ jobs:
           lfs: true
       - uses: actions/setup-node@v7
         with:
-          node-version: '22'
+          node-version: "22"
           cache: npm
       - name: Check the tag matches package.json
         run: |

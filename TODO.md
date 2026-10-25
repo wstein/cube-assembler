@@ -57,6 +57,7 @@ to the original real-fixture testing discussion. See
   move in further tested steps.
 
 ## Later
+
 - **#4 Learn color centroids from confirmed fixtures.** Wait until the corpus
   spans more cubes and lighting conditions, then compare before/after on all
   fixtures.

@@ -8,7 +8,6 @@ with the photos.
 ## 3×3 checks
 
 For a 3×3, four conditions are necessary and sufficient:
-
 1. Each color appears exactly nine times.
 2. Corner orientation sums to zero modulo 3.
 3. Edge orientation sums to zero modulo 2.

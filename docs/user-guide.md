@@ -123,7 +123,6 @@ the dev server or the published app. See the [fixture guide](../test/fixtures/RE
 ## Enter or copy facelets
 
 **Type colors** and the notation output panel share a format switch:
-
 - **WRG facelets:** six space-separated blocks of N² color letters (W/O/G/R/B/Y)
   in U R F D L B order. A solved 3×3 starts `WWWWWWWWW RRRRRRRRR`.
 - **URF facelets:** the same structure using U/R/F/D/L/B for the face whose
