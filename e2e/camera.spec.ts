@@ -226,3 +226,26 @@ test('the turn cue shows the arrow and Continue, no instruction text', async ({
   await expect(cue.getByRole('button', { name: 'Continue' })).toBeVisible()
   await expect(cue).toHaveText(/^\s*Continue\s*$/)
 })
+
+test('the turn cue shows after each of the first five captures', async ({
+  page,
+}) => {
+  test.setTimeout(120_000)
+  await installStubCamera(page)
+  await page.goto('/')
+  await page.getByRole('button', { name: 'Capture faces' }).click()
+  const capture = page.locator('.capture-modal-content')
+  await expect(capture.locator('.capture-live-badge')).toContainText('Live')
+  const kinds = ['side', 'side', 'side', 'top', 'bottom']
+  for (let index = 0; index < kinds.length; index++) {
+    await page.evaluate((face) => window.setTestCameraFace(face), index)
+    await capture
+      .getByRole('button', { name: /^Capture (side|top|bottom)/i })
+      .click()
+    await expect(
+      capture.locator(`.capture-turn-overlay.capture-turn-${kinds[index]}`),
+    ).toBeVisible()
+    await capture.getByRole('button', { name: 'Continue' }).click()
+    await expect(capture.locator('.capture-turn-overlay')).toHaveCount(0)
+  }
+})
