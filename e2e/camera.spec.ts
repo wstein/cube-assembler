@@ -185,6 +185,8 @@ test('net thumbnails stay unflipped in mirror mode, also after the fly-in', asyn
     })
   // During the fly-in and once it has settled.
   expect(await flipped()).toBe(false)
-  await page.waitForTimeout(900)
+  await face.evaluate((el) =>
+    Promise.all(el.getAnimations().map((animation) => animation.finished)),
+  )
   expect(await flipped()).toBe(false)
 })
