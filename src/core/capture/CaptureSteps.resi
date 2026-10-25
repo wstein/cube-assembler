@@ -5,6 +5,7 @@ type captureStep = {label: string, short: string, instruction: string}
 
 @genType let captureSteps: array<captureStep>
 @genType let captureInstruction: (int, bool) => string
+@genType let turnHintArrowAngle: int => int
 @genType let guidedProtocol: string
 @genType let describeCenterIssue: CapturedFaceMatching.guidedCenterIssue => string
 @genType let faceDisplayLabel: Dict.t<string>

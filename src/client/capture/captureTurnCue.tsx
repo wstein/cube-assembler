@@ -1,3 +1,5 @@
+import { turnHintArrowAngle } from './captureSteps'
+
 // Small drawing next to a capture step's instruction. The arrow is painted
 // on the front face in the same direction as the larger capture cue.
 export function TurnHint({
@@ -8,8 +10,7 @@ export function TurnHint({
   mirrored: boolean
 }) {
   if (step === 0) return null
-  const kind = step < 4 ? 'turn' : step === 4 ? 'tip-top' : 'tip-bottom'
-  const arrowAngle = kind === 'turn' ? 270 : kind === 'tip-top' ? 180 : 0
+  const arrowAngle = turnHintArrowAngle(step)
   return (
     <svg
       class={`turn-hint ${mirrored ? 'mirrored' : ''}`}
