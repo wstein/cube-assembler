@@ -25,17 +25,17 @@ describe('the turn cue never changes the turning direction', () => {
     expect(top.length).toBeGreaterThan(0)
     expect(bottom.length).toBeGreaterThan(0)
     for (const angle of [...top, ...bottom])
-      expect(angle).toBeLessThanOrEqual(0)
+      expect(angle).toBeGreaterThanOrEqual(0)
   })
 
   it('keeps going the same way within the bottom step', () => {
     const bottom = rotations('capture-turn-bottom', 'X')
-    expect([...bottom].sort((a, b) => b - a)).toEqual(bottom)
+    expect([...bottom].sort((a, b) => a - b)).toEqual(bottom)
   })
 
-  it('points the hint arrow down for both tips', () => {
-    expect(turnHintArrowAngle(4)).toBe(180)
-    expect(turnHintArrowAngle(5)).toBe(180)
+  it('points the hint arrow up for both tips', () => {
+    expect(turnHintArrowAngle(4)).toBe(0)
+    expect(turnHintArrowAngle(5)).toBe(0)
   })
 
   it('does not tell the person to tip back', () => {

@@ -6,11 +6,11 @@
 // in this order - slot U is Side 1, R Side 2, ...
 //
 // The guided order: three quarter turns sideways show four sides, then step
-// 4 tips the top toward you (shows U) and step 5 keeps tipping the same way
-// past one more side to the bottom (shows D). The cue never changes the
-// turning direction. Without Mirror, with the
+// 4 tips the cube away from you (shows D) and step 5 keeps tipping the same
+// way past one more side to the opposite face (shows U). The cue never
+// changes the turning direction. Without Mirror, with the
 // cube's F toward the camera and the arrow pointing left, the sides come as
-// F R B L, so the faces are F R B L U D. The arrow always points the same
+// F R B L, so the faces are F R B L D U. The arrow always points the same
 // way on screen, so with Mirror the physical sideways turn is the other way
 // round and the side faces come in the opposite physical order; the tips are
 // unaffected. The solver does not require any of this: a capture in any
@@ -39,7 +39,7 @@ let captureSteps = [
   {
     label: "Top",
     short: "5",
-    instruction: "Tip the cube towards you so its top faces the camera - any angle is fine.",
+    instruction: "Tip the cube away from you so its bottom faces the camera - any angle is fine.",
   },
   {
     label: "Bottom",
@@ -56,9 +56,9 @@ let stepOf = slot => stepAt(faceOrder->Array.indexOf(slot))
 let captureInstruction = step => stepAt(step).instruction
 
 // The direction of the arrow painted on the front face of the turn hint, in
-// degrees (0 points up): side turns left, both tips down. The cue never
+// degrees (0 points up): side turns left, both tips up. The cue never
 // changes the turning direction, and a mirror flips left and right only.
-let turnHintArrowAngle = step => step < 4 ? 270 : 180
+let turnHintArrowAngle = step => step < 4 ? 270 : 0
 
 // Saved with fixtures captured this way, so they can be put together (and
 // regression-tested) with the guided search again later.

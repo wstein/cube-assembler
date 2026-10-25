@@ -40,8 +40,8 @@ export function CaptureTurnOverlay({
   onContinue: () => void
 }) {
   const kind = step < 4 ? 'side' : step === 4 ? 'top' : 'bottom'
-  const nextFace = kind === 'side' ? 'right' : kind === 'top' ? 'up' : 'back'
-  const viaFace = 'up'
+  const nextFace = kind === 'side' ? 'right' : kind === 'top' ? 'down' : 'back'
+  const viaFace = 'down'
   const directionArrow = () => (
     <svg
       class={`capture-turn-direction capture-turn-direction-${kind}`}
