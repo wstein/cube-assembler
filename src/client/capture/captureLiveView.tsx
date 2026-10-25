@@ -30,7 +30,6 @@ interface CaptureLiveViewProps {
     startColors: string[][]
     viaColors?: string[][]
   } | null
-  capturedColors: string[][][]
   sampling: SamplingGeometry
   stickerColors: Record<string, string>
   faceLabels: Record<string, string>
@@ -58,7 +57,6 @@ export function CaptureLiveView({
   captureFlash,
   captureSound,
   turnOverlay,
-  capturedColors,
   sampling,
   stickerColors,
   faceLabels,
@@ -180,7 +178,6 @@ export function CaptureLiveView({
             step={turnOverlay.step}
             startColors={turnOverlay.startColors}
             viaColors={turnOverlay.viaColors}
-            capturedColors={capturedColors}
             mirrored={mirrorPreview}
             onContinue={onContinueTurn}
           />

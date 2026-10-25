@@ -19,12 +19,13 @@ describe('capture steps', () => {
     expect(FACE_DISPLAY_LABEL.B).toBe('Bottom')
   })
 
-  it('turns the other way and swaps top and bottom in a mirrored view', () => {
+  it('turns the other way, but tips the same, in a mirrored view', () => {
     expect(captureInstruction(0, true)).toBe(CAPTURE_STEPS[0].instruction)
     expect(captureInstruction(1, false)).toBe(CAPTURE_STEPS[1].instruction)
     expect(captureInstruction(1, true)).toContain('counterclockwise')
-    expect(captureInstruction(4, true)).toContain('shows the bottom face')
-    expect(captureInstruction(5, true)).toContain('shows the top face')
+    // A webcam mirror flips left and right only, never up and down.
+    expect(captureInstruction(4, true)).toBe(CAPTURE_STEPS[4].instruction)
+    expect(captureInstruction(5, true)).toBe(CAPTURE_STEPS[5].instruction)
   })
 
   it('describes center issues by step name', () => {

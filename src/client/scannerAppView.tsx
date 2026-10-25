@@ -497,9 +497,6 @@ export function ScannerAppView({ model }: { model: ScannerAppModel }) {
               captureFlash={captureFlash}
               captureSound={captureSound}
               turnOverlay={turnOverlay}
-              capturedColors={Object.values(capturedFaces).map(
-                (entry) => entry.colors,
-              )}
               sampling={sampling}
               stickerColors={STICKER_HEX}
               faceLabels={FACE_DISPLAY_LABEL}
