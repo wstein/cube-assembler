@@ -312,10 +312,6 @@ label.capture-size-label {
   outline-offset: 2px;
 }
 
-.capture-net.mirrored .orientation-net-face {
-  transform: scaleX(-1);
-}
-
 .capture-net-slot:focus-visible {
   outline: 2px solid var(--color-accent-dark);
   outline-offset: 2px;

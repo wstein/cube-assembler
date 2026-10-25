@@ -164,3 +164,27 @@ test('reads a photo file for the current capture step', async ({ page }) => {
     /captured/,
   )
 })
+
+test('net thumbnails stay unflipped in mirror mode, also after the fly-in', async ({
+  page,
+}) => {
+  await installStubCamera(page)
+  await page.goto('/')
+  await page.getByRole('button', { name: 'Capture faces' }).click()
+  const capture = page.locator('.capture-modal-content')
+  await expect(capture.locator('.capture-live-badge')).toContainText('Live')
+  await capture.getByLabel('Mirror').check()
+  await capture.getByRole('button', { name: 'Capture side 1' }).click()
+  const face = capture.locator(
+    '.capture-net [data-slot="U"] .orientation-net-face',
+  )
+  const flipped = () =>
+    face.evaluate((el) => {
+      const transform = getComputedStyle(el).transform
+      return transform !== 'none' && new DOMMatrix(transform).a < 0
+    })
+  // During the fly-in and once it has settled.
+  expect(await flipped()).toBe(false)
+  await page.waitForTimeout(900)
+  expect(await flipped()).toBe(false)
+})
