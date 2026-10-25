@@ -18,6 +18,7 @@ Reader guides live in `docs/`; use `CONTRIBUTING.md` for setup and deployment, a
 - `npm test` builds ReScript before running Vitest once; `npm run test:watch` reruns tests during edits.
 - `npm run test:e2e` runs the Playwright browser suite in Chromium; install its browser once with `npx playwright install chromium`.
 - `npm run lint` runs type-aware typescript-eslint, selected Biome checks, and ReScript compiler warnings as errors.
+- `typos` spell-checks the repository (CI runs it too); allow-lists live in `_typos.toml`.
 - `npm run format:check` checks Biome and ReScript formatting; `npm run format` applies it.
 
 ## Coding Style & Naming Conventions

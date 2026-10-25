@@ -1,0 +1,18 @@
+[files]
+extend-exclude = [
+  "package-lock.json",
+  "test/fixtures/**",
+  "public/**",
+  "*.res.mjs",
+  "*.gen.tsx",
+  # Base64 Orbit64 codes, not words.
+  "test/cube/notation/orbit64*",
+]
+
+[default]
+# Cube notation such as URFDLB is not a word.
+extend-ignore-re = ["\\b[URFDLB]{3,6}\\b"]
+
+[default.extend-identifiers]
+# Pixel coordinates (ix, iy) in the grid alignment code.
+iy = "iy"
