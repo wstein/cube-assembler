@@ -26,6 +26,8 @@ let autoCaptureFramesCookie = "cube-assembler-auto-capture-frames"
 // How long scrambles are, and whether they turn inner layers.
 let scrambleLengthCookie = "cube-assembler-scramble-length"
 let scrambleInnerCookie = "cube-assembler-scramble-inner"
+// The 3D view turns layers only when this is on; until set it is locked.
+let layerMovesCookie = "cube-assembler-layer-moves"
 // A short vibration when a held sticker switches to a wide turn.
 let vibrationCookie = "cube-assembler-vibration"
 // How long that vibration lasts (milliseconds).
@@ -133,6 +135,7 @@ let settingCookies = [
   autoCaptureFramesCookie,
   scrambleLengthCookie,
   scrambleInnerCookie,
+  layerMovesCookie,
   vibrationCookie,
   vibrationMsCookie,
   fixtureServerUrlCookie,
@@ -198,6 +201,8 @@ let readScrambleOptions = cookies => {
   },
   innerLayers: readPreference(cookies, scrambleInnerCookie, true),
 }
+
+let layerMovesOn = cookies => readPreference(cookies, layerMovesCookie, false)
 
 let vibrationOn = cookies => readPreference(cookies, vibrationCookie, true)
 

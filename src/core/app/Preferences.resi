@@ -17,6 +17,8 @@
 @genType let autoCaptureFramesCookie: string
 @genType let scrambleLengthCookie: string
 @genType let scrambleInnerCookie: string
+@genType let layerMovesCookie: string
+@genType let layerMovesOn: string => bool
 @genType let vibrationCookie: string
 @genType let vibrationMsCookie: string
 @genType let fixtureServerUrlCookie: string

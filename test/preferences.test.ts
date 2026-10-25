@@ -27,6 +27,8 @@ import {
   readFixtureServer,
   VIBRATION_COOKIE,
   vibrationOn,
+  LAYER_MOVES_COOKIE,
+  layerMovesOn,
   SCRAMBLE_INNER_COOKIE,
   SCRAMBLE_LENGTH_COOKIE,
   readScrambleOptions,
@@ -296,5 +298,14 @@ describe('theme setting', () => {
     expect(selectedTheme(`${THEME_COOKIE}=dark`)).toBe('dark')
     expect(selectedTheme(`${THEME_COOKIE}=sepia`)).toBe('system')
     expect(SETTING_COOKIES).toContain(THEME_COOKIE)
+  })
+})
+
+describe('layer moves setting', () => {
+  it('is locked by default and follows its cookie', () => {
+    expect(layerMovesOn('')).toBe(false)
+    expect(layerMovesOn(`${LAYER_MOVES_COOKIE}=1`)).toBe(true)
+    expect(layerMovesOn(`${LAYER_MOVES_COOKIE}=0`)).toBe(false)
+    expect(SETTING_COOKIES).toContain(LAYER_MOVES_COOKIE)
   })
 })

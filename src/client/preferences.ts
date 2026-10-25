@@ -33,6 +33,8 @@ export {
   fixtureServerCookie as FIXTURE_SERVER_COOKIE,
   fixtureServerUrlCookie as FIXTURE_SERVER_URL_COOKIE,
   localUploadCookie as LOCAL_UPLOAD_COOKIE,
+  layerMovesCookie as LAYER_MOVES_COOKIE,
+  layerMovesOn,
   localUploadShown,
   mirrorCookie as MIRROR_COOKIE,
   notationCookie as NOTATION_COOKIE,
