@@ -1,5 +1,12 @@
 # Synthetic Face Generator: Implementation Specification
 
+Ownership: the Rust generator project owns the canonical specification. This
+copy describes what the TypeScript/ReScript reference in this repository
+renders, and `test/syntheticFaceSpec.test.ts` keeps it true to the code. It
+is maintained here independently for as long as the function exists; when the
+two differ, the Rust specification decides and this generator and copy follow.
+Check the Rust specification before changing the generator or this text.
+
 Status: normative, language independent. Reference implementation:
 `src/core/vision/SyntheticFace.res` (ReScript, compiled to JavaScript on V8).
 A port is correct when it reproduces the **test vectors in section 11**.
