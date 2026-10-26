@@ -374,6 +374,11 @@ test('the hue scatter names a dot on hover, and says when it sits with another c
     .hover({ force: true })
   await expect(dialog.locator('.hue-scatter-hovered')).toHaveCount(1)
   await expect(info).toContainText(/row \d+, column \d+/)
+  // The face's photo shows, ringed at the sticker.
+  await expect(dialog.locator('.orientation-net-photo-mark')).toHaveCount(1)
+  await expect(
+    dialog.locator('.orientation-net-photo-shown .orientation-net-photo'),
+  ).toHaveCSS('opacity', '1')
   await dialog.locator('.hue-scatter-misplaced').first().hover({ force: true })
   await expect(info).toContainText('not with its own color')
 })

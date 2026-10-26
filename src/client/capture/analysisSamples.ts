@@ -32,5 +32,17 @@ export function analysisSamples(
   const netFaces = cellsBySlot
     ? Object.fromEntries(items.map((item) => [item.key, item.colors]))
     : null
-  return { samples, cells, netFaces }
+  // The photo behind each net face, upright in its place.
+  const photos = cellsBySlot
+    ? Object.fromEntries(
+        items.map((item) => [
+          item.key,
+          {
+            image: captured[order[item.slot]]?.croppedImage,
+            turns: item.turns,
+          },
+        ]),
+      )
+    : undefined
+  return { samples, cells, netFaces, photos }
 }

@@ -65,6 +65,31 @@ describe('the analysis samples', () => {
     )
   })
 
+  it('gives each net face the photo of its capture', () => {
+    const captured = load()
+    for (const key of ORDER) {
+      Object.assign(captured[key], { croppedImage: `photo-${key}` })
+      captured[key].cellColors = Array.from({ length: 5 }, (_, r) =>
+        captured[key].cellColors.slice(r * 5, r * 5 + 5),
+      )
+    }
+    const { photos, netFaces } = analysisSamples(
+      captured as never,
+      ORDER,
+      5,
+      (key) => key,
+    )
+    expect(Object.keys(photos!).sort()).toEqual(Object.keys(netFaces!).sort())
+    // Every capture's photo shows up exactly once, with a quarter-turn count.
+    expect(
+      Object.values(photos!)
+        .map((photo) => photo.image)
+        .sort(),
+    ).toEqual(ORDER.map((key) => `photo-${key}`).sort())
+    for (const photo of Object.values(photos!))
+      expect([0, 1, 2, 3]).toContain(photo.turns)
+  })
+
   it('has no net while a face is missing', () => {
     const captured = load()
     delete (captured as Record<string, unknown>).D

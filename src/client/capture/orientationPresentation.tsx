@@ -91,8 +91,35 @@ export function OrientationNetPreview({
       }
     />
   )
+  // Without a click handler the photo shows while a sticker of the face is
+  // pointed at, ringed where that sticker is.
+  const photoGrid = (face: string) => {
+    const on = hoveredSticker?.face === face ? hoveredSticker : null
+    const n = faces[face].length
+    return (
+      <div
+        class={`orientation-net-photo-wrap${on ? ' orientation-net-photo-shown' : ''}`}
+      >
+        {faceGrid(face)}
+        <PhotoOverlay photo={photos?.[face]} label={`${face} face`} />
+        {on && photos?.[face]?.image && (
+          <div
+            class="orientation-net-photo-mark"
+            style={{
+              left: `${((on.col + 0.5) / n) * 100}%`,
+              top: `${((on.row + 0.5) / n) * 100}%`,
+              width: `${100 / n}%`,
+              height: `${100 / n}%`,
+            }}
+          />
+        )}
+      </div>
+    )
+  }
   const grid = (face: string) =>
-    onFaceClick ? (
+    !onFaceClick && photos ? (
+      photoGrid(face)
+    ) : onFaceClick ? (
       <button
         type="button"
         class={`orientation-net-face-button${flaggedFaces?.has(face) ? ' orientation-net-face-flagged' : ''}`}

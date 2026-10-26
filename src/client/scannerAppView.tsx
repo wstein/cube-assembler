@@ -259,6 +259,7 @@ export function ScannerAppView({ model }: { model: ScannerAppModel }) {
       samples={analysis.samples}
       cells={analysis.cells}
       netFaces={analysis.netFaces}
+      photos={analysis.photos}
       stickerColors={STICKER_HEX}
       standard={STICKER_COLORS}
       readWith={readWithProfile(capturedFaces, FACE_ORDER)}

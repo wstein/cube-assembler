@@ -108,6 +108,7 @@ export function ColorAnalysisDialog({
   samples,
   cells,
   netFaces,
+  photos,
   stickerColors,
   standard,
   readWith,
@@ -120,6 +121,8 @@ export function ColorAnalysisDialog({
   // The net cell of each sample, and the net's faces (null without a net).
   cells: Array<NetCell | undefined>
   netFaces: Record<string, string[][]> | null
+  // The photo behind each net face, shown while a sticker of it is pointed at.
+  photos?: Record<string, { image?: string; turns: number }>
   stickerColors: Record<string, string>
   standard: Record<string, RGB>
   readWith: { name: string; colors: Record<string, RGB> } | null
@@ -202,6 +205,7 @@ export function ColorAnalysisDialog({
               <div class="analysis-net">
                 <OrientationNetPreview
                   faces={netFaces}
+                  photos={photos}
                   stickerColors={stickerColors}
                   hoveredSticker={
                     hovered === null ? null : (cells[hovered] ?? null)
