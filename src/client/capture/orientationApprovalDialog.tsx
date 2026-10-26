@@ -4,7 +4,13 @@ import {
   repeatedText,
 } from '../../core/capture/CaptureDiagnosis.gen'
 import { FaceGrid } from './captureNet'
-import { capturePhotos, captureStats, netPhotos } from './approvalPhotos'
+import {
+  capturePhotos,
+  captureStats,
+  NET_FACE_NAME,
+  netPhotos,
+  REVIEW_NET_ORDER,
+} from './approvalPhotos'
 import type { FaceCaptureData } from './captureTypes'
 import type { OrientedCandidate } from '../../cube/cubeAssembly'
 import {
@@ -275,15 +281,25 @@ function CubeCheck({
       total + (photo?.changed.flat().filter(Boolean).length ?? 0),
     0,
   )
-  const sureLine = stats.sureness
-    .map((sure, i) =>
-      sure === undefined ? null : `${photoNames[i]} ${Math.round(sure)}%`,
-    )
-    .filter(Boolean)
+  // Left, Front, Right, Back, Up, Down like the color review once the faces
+  // fit together; the order taken otherwise.
+  const rows: { slot: number; name: string }[] = inNet
+    ? REVIEW_NET_ORDER.flatMap((face) => {
+        const photo = inNet[face]
+        return photo ? [{ slot: photo.slot, name: NET_FACE_NAME[face] }] : []
+      })
+    : photoNames.map((name, slot) => ({ slot, name }))
+  const sureLine = rows
+    .flatMap(({ slot, name }) => {
+      const sure = stats.sureness[slot]
+      return sure === undefined ? [] : [`${name} ${Math.round(sure)}%`]
+    })
     .join(' · ')
-  const unsureLine = stats.unsure
-    .map((count, i) => (count ? `${photoNames[i]}: ${count}` : null))
-    .filter(Boolean)
+  const unsureLine = rows
+    .flatMap(({ slot, name }) => {
+      const count = stats.unsure[slot]
+      return count ? [`${name}: ${count}`] : []
+    })
     .join(' · ')
   return (
     <>
