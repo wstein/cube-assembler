@@ -72,12 +72,47 @@ let startsWith = (data, at, text) => {
 let isFingerprint = (data, segment) =>
   segment.marker == 0xfe && startsWith(data, segment.bodyStart, marker)
 
+let pngKey = "cube-assembler\u0000"
+let isPng = data => byteAt(data, 0) == 0x89 && startsWith(data, 1, "PNG\r\n")
+
+// The text of the PNG's "cube-assembler" tEXt chunk, which is how the Rust
+// generator writes its fingerprint.
+let pngFingerprint = (data: bytes): option<string> => {
+  let found = ref(None)
+  let pos = ref(8)
+  let stop = ref(false)
+  while !stop.contents && found.contents == None && pos.contents + 12 <= length(data) {
+    let p = pos.contents
+    let size = Float.toInt(
+      Int.toFloat(byteAt(data, p)) *. 16777216.0 +.
+      Int.toFloat(byteAt(data, p + 1)) *. 65536.0 +.
+      Int.toFloat(byteAt(data, p + 2)) *. 256.0 +.
+      Int.toFloat(byteAt(data, p + 3)),
+    )
+    let bodyStart = p + 8
+    let end = bodyStart + size
+    if size > length(data) || end + 4 > length(data) {
+      stop := true
+    } else {
+      if startsWith(data, p + 4, "tEXt") && startsWith(data, bodyStart, pngKey) {
+        found := Some(decode(makeDecoder(), subarray(data, bodyStart + String.length(pngKey), end)))
+      }
+      pos := end + 4
+    }
+  }
+  found.contents
+}
+
 let readFingerprint = (data: bytes): option<string> =>
-  segments(data)
-  ->Array.find(segment => isFingerprint(data, segment))
-  ->Option.map(segment =>
-    decode(makeDecoder(), subarray(data, segment.bodyStart + String.length(marker), segment.stop))
-  )
+  if isPng(data) {
+    pngFingerprint(data)
+  } else {
+    segments(data)
+    ->Array.find(segment => isFingerprint(data, segment))
+    ->Option.map(segment =>
+      decode(makeDecoder(), subarray(data, segment.bodyStart + String.length(marker), segment.stop))
+    )
+  }
 
 // The photo with the fingerprint as its first segment; one it carried
 // already is dropped.

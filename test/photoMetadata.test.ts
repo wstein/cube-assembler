@@ -161,6 +161,78 @@ describe('photo fingerprint', () => {
   })
 })
 
+describe('photo fingerprint in a PNG', () => {
+  const json = '{"v":1,"renderer":"rust/v1","preset":"clean"}'
+  const be32 = (n: number) => [
+    (n >>> 24) & 255,
+    (n >>> 16) & 255,
+    (n >>> 8) & 255,
+    n & 255,
+  ]
+  // The reader does not check the CRC, so a chunk carries zeros for it.
+  const chunk = (type: string, body: number[]) => [
+    ...be32(body.length),
+    ...Array.from(enc.encode(type)),
+    ...body,
+    0,
+    0,
+    0,
+    0,
+  ]
+  const text = (key: string, value: string) =>
+    chunk('tEXt', [
+      ...Array.from(enc.encode(key)),
+      0,
+      ...Array.from(enc.encode(value)),
+    ])
+  const png = (...chunks: number[][]) =>
+    bytes(
+      [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a],
+      ...chunks,
+      chunk('IEND', []),
+    )
+  const header = chunk('IHDR', [0, 0, 0, 1, 0, 0, 0, 1, 8, 2, 0, 0, 0])
+
+  it('reads the tEXt chunk the Rust generator writes', () => {
+    expect(readFingerprint(png(header, text('cube-assembler', json)))).toBe(
+      json,
+    )
+  })
+
+  it('skips other text chunks and other chunks', () => {
+    expect(
+      readFingerprint(
+        png(
+          header,
+          text('Software', 'gen'),
+          chunk('IDAT', [1, 2, 3]),
+          text('cube-assembler', json),
+        ),
+      ),
+    ).toBe(json)
+  })
+
+  it('only takes tEXt chunks, not other chunks that start the same way', () => {
+    const body = [...Array.from(enc.encode('cube-assembler\0')), 123, 125]
+    expect(readFingerprint(png(header, chunk('iTXt', body)))).toBeUndefined()
+  })
+
+  it('does not return text from a chunk cut off in its body', () => {
+    const whole = png(header, text('cube-assembler', json), chunk('IDAT', []))
+    // Cut inside the tEXt chunk's text, with the chunk's length still within
+    // the file.
+    expect(readFingerprint(whole.slice(0, 33 + 8 + 20))).toBeUndefined()
+  })
+
+  it('reads nothing from a PNG without it or one that is cut off', () => {
+    expect(readFingerprint(png(header, text('Software', 'gen')))).toBe(
+      undefined,
+    )
+    const whole = png(header, text('cube-assembler', json))
+    expect(readFingerprint(whole.slice(0, 50))).toBeUndefined()
+  })
+})
+
 describe('photo EXIF', () => {
   for (const little of [true, false]) {
     it(`reads the camera from a ${little ? 'little' : 'big'}-endian block`, () => {
