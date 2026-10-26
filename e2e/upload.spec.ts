@@ -1,5 +1,5 @@
 import { readFileSync } from 'node:fs'
-import { basename, resolve } from 'node:path'
+import { resolve } from 'node:path'
 import { expect, test, type Page } from '@playwright/test'
 
 const fixture = resolve('test/fixtures/cube-3x3-2026-09-27T09-00-11')
@@ -112,11 +112,12 @@ test('goes straight to how the faces fit after uploading a fixture with meta.jso
   await page
     .locator('.capture-alternatives input[type="file"]')
     .setInputFiles([...photos, resolve(fixture, 'meta.json')])
-  // Its colors were reviewed when it was saved, and they fit together one
-  // way only, so the cube is assembled without asking.
+  // Its colors and orientation were saved, so the only question is whether
+  // the cube is the user's.
   await expect(
-    page.getByRole('status').filter({ hasText: 'Valid cube' }),
+    page.getByRole('heading', { name: 'Does this match your cube?' }),
   ).toBeVisible()
+  await expect(page.locator('.orientation-picker')).toHaveCount(0)
   await expect(page.locator('.review-modal-content')).toHaveCount(0)
 })
 
@@ -144,6 +145,7 @@ test('shows the fixture contents before downloading and closes with Escape', asy
   await page
     .locator('.capture-alternatives input[type="file"]')
     .setInputFiles([...photos, resolve(fixture, 'meta.json')])
+  await page.getByRole('button', { name: 'Yes, this is my cube' }).click()
   await expect(
     page.getByRole('status').filter({ hasText: 'Valid cube' }),
   ).toBeVisible()
@@ -186,39 +188,4 @@ test('opens sticker review from a face in the orientation approval', async ({
     .getByRole('button', { name: 'Check colors for U face' })
     .click()
   await expect(review).toBeVisible()
-})
-
-test('asks about an ambiguous face after uploading a fixture', async ({
-  page,
-}) => {
-  const ambiguousFacelets = [
-    'GWGOWOBYB',
-    'OGRWRYOGR',
-    'YGYOGOYGY',
-    'GWGRYRBYB',
-    'OBRWOYOBR',
-    'WRWBBBWRW',
-  ].join(' ')
-  const ambiguousMeta = {
-    ...JSON.parse(readFileSync(resolve(fixture, 'meta.json'), 'utf8')),
-    colorsURFDLB: ambiguousFacelets,
-  }
-  await page.goto('/')
-  await page.locator('.capture-alternatives input[type="file"]').setInputFiles([
-    ...photos.map((photo) => ({
-      name: basename(photo),
-      mimeType: 'image/jpeg',
-      buffer: readFileSync(photo),
-    })),
-    {
-      name: 'meta.json',
-      mimeType: 'application/json',
-      buffer: Buffer.from(JSON.stringify(ambiguousMeta)),
-    },
-  ])
-  const wizard = page.locator('.orientation-picker')
-  await expect(wizard).toBeVisible({ timeout: 5_000 })
-  await expect(
-    wizard.getByRole('button', { name: /Option 1 of/ }),
-  ).toBeVisible()
 })
