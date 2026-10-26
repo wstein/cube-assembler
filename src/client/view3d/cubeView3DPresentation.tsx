@@ -12,6 +12,7 @@ import {
   VIEW_HELP_COOKIE,
   SEAM_WIDE_COOKIE,
 } from '../preferences'
+import { CUBELAB_MOVES_ID, cubeLabMovesJson } from '../cubeLabFingerprint'
 import { useCubeHelpHint } from './useCubeHelpHint'
 
 interface CubeView3DPresentationProps {
@@ -270,6 +271,14 @@ export function CubeView3DPresentation({
                     .join(' ')
                 : 'None'}
             </div>
+            <script
+              type="application/json"
+              id={CUBELAB_MOVES_ID}
+              // Escaped JSON (no "<"), so it cannot end the element early.
+              dangerouslySetInnerHTML={{
+                __html: cubeLabMovesJson(moves, puzzleSize),
+              }}
+            />
 
             <div class="cube-3d-actions">
               <button
