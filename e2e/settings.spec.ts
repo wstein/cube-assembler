@@ -118,22 +118,26 @@ test('the notation format is remembered, and the settings page sets it', async (
   page,
 }) => {
   await page.goto('/')
-  await page.getByRole('button', { name: 'Faces (URF)' }).click()
-  await expect
-    .poll(() => page.evaluate(() => document.cookie))
-    .toContain('cube-assembler-notation=urf')
-  await page.reload()
+  // Faces are the default; choosing colors is what gets remembered.
   await expect(
     page.getByRole('button', { name: 'Faces (URF)' }),
+  ).toHaveAttribute('aria-pressed', 'true')
+  await page.getByRole('button', { name: 'Colors (WRG)' }).click()
+  await expect
+    .poll(() => page.evaluate(() => document.cookie))
+    .toContain('cube-assembler-notation=wrg')
+  await page.reload()
+  await expect(
+    page.getByRole('button', { name: 'Colors (WRG)' }),
   ).toHaveAttribute('aria-pressed', 'true')
   await page.getByRole('link', { name: 'Settings' }).click()
   await openAdvanced(page)
   const format = page.getByRole('combobox', { name: 'Write the cube as' })
-  await expect(format).toHaveValue('urf')
-  await format.selectOption('wrg')
+  await expect(format).toHaveValue('wrg')
+  await format.selectOption('urf')
   await page.getByRole('button', { name: '← Back to the scanner' }).click()
   await expect(
-    page.getByRole('button', { name: 'Colors (WRG)' }),
+    page.getByRole('button', { name: 'Faces (URF)' }),
   ).toHaveAttribute('aria-pressed', 'true')
 })
 
