@@ -55,7 +55,7 @@ const HIT_RADIUS = 8
 const MAGNET_LENS_PX = 8
 // The brake: the lens point follows this share of the pointer's movement,
 // and lags the pointer by this many chart units at most.
-const BRAKE = 1 / 3
+const BRAKE = 1 / 2
 const BRAKE_REACH = 30
 // Thickness of the color bars along the axes.
 const BAR = 5

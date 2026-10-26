@@ -840,6 +840,9 @@
   fill: var(--color-text-secondary);
   /* The lens may reach past the chart's edges. */
   overflow: visible;
+  /* The lens crosshair is the pointer: with the brake it is not where the
+     cursor is. */
+  cursor: none;
 }
 
 /* No fill: white stickers must stand out against the page, not a tint. */

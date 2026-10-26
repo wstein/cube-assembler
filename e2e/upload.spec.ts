@@ -531,7 +531,9 @@ test('the hue scatter names a dot on hover and links it with the net', async ({
   await frames()
   const [fx] = await center()
   expect(fx).toBeCloseTo((svgBox.width - 4) * unit, 1)
-  // The brake: the lens point moves a third of what the pointer moves.
+  // The brake: the lens point moves half of what the pointer moves, and the
+  // mouse cursor is hidden over the chart, as the lens crosshair replaces it.
+  await expect(svg).toHaveCSS('cursor', 'none')
   await leave()
   const sparse = { x: svgBox.x + svgBox.width * 0.75, y: svgBox.y + 20 }
   await page.mouse.move(sparse.x, sparse.y)
@@ -539,7 +541,7 @@ test('the hue scatter names a dot on hover and links it with the net', async ({
   const before = (await center())[0]
   await page.mouse.move(sparse.x + 9, sparse.y)
   await frames()
-  expect(((await center())[0] - before) / (9 * unit)).toBeCloseTo(1 / 3, 1)
+  expect(((await center())[0] - before) / (9 * unit)).toBeCloseTo(1 / 2, 1)
   await leave()
   await dialog.locator('.hue-scatter-dot').first().hover({ force: true })
   await expect(info).toContainText(
