@@ -1,0 +1,50 @@
+{
+  "$schema": "https://wstein.github.io/cube-assembler/schemas/fixture-meta-v1.schema.json",
+  "gridSize": 7,
+  "colorsURFDLB": "BBGWWOOBBGWWOORRWOOOOOOBWYRROOBYYRRGGOBBOOGGOBBOO YRRYYYWWWWWBBWWWWWBBWGRRROOWWRRBOOBWRRBOOBGBBGWWG WYYWOOBRGGORRBRGGORRBGYYGBBYYBBYRRGYBBYRRGYYYBRRW RGGYGGOBYYRGGOBYYRGGORYYYGGOWYYWWWOWYYWWWOYYYYRRR YGGGWWGRWWGOOGRWWGOOGBOOOWWORYGRBBYRGGRBBYBGGWBBB BYYBWWRBRRBYYGBRRBYYGBWWBGGRYGGYOORYGGYOORWWWROOO",
+  "tags": [
+    "synthetic",
+    "software-rendered",
+    "preset:clean",
+    "invalid-state"
+  ],
+  "faces": {
+    "u": {
+      "photo": "face-u.jpg",
+      "source": "synthetic"
+    },
+    "r": {
+      "photo": "face-r.jpg",
+      "source": "synthetic"
+    },
+    "f": {
+      "photo": "face-f.jpg",
+      "source": "synthetic"
+    },
+    "d": {
+      "photo": "face-d.jpg",
+      "source": "synthetic"
+    },
+    "l": {
+      "photo": "face-l.jpg",
+      "source": "synthetic"
+    },
+    "b": {
+      "photo": "face-b.jpg",
+      "source": "synthetic"
+    }
+  },
+  "capture": {
+    "capturedAt": "2026-10-26T12:02:52.410Z",
+    "app": {
+      "version": "0.1.0",
+      "commit": "13c0379-dirty"
+    },
+    "synthetic": {
+      "renderer": "parametric/v1",
+      "preset": "clean",
+      "seed": 1,
+      "invalid": "Unknown corner color triplet"
+    }
+  }
+}
