@@ -848,9 +848,15 @@
   stroke-width: 1.2;
 }
 
-.hue-scatter-grid {
+.hue-scatter-grid,
+.hue-scatter-hue-grid {
   stroke: rgb(0 0 0 / 8%);
   stroke-width: 0.5;
+}
+
+/* The ticks of both hue axes, 30 degrees apart: small enough not to touch. */
+.hue-scatter-hue-tick {
+  font-size: 7px;
 }
 
 .hue-scatter-label {

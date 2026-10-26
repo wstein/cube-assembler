@@ -361,6 +361,26 @@ test('the hue scatter names a dot on hover and links it with the net', async ({
   await page.getByRole('button', { name: 'Analyze colors' }).click()
   const dialog = page.getByRole('dialog', { name: 'Color analysis' })
   const info = dialog.locator('.hue-scatter-info')
+  // Hue ticks every 30 degrees from 0 to 360 on both panels, lightness ticks
+  // every 0.1, and a thin grid for each on both.
+  const hueTicks = Array.from({ length: 13 }, (_, i) => `${i * 30}°`)
+  // The gray panel's ticks are bare numbers, to fit side by side.
+  await expect(dialog.locator('.hue-scatter-hue-tick')).toHaveText([
+    ...hueTicks,
+    ...hueTicks.map((tick) => tick.replace('°', '')),
+  ])
+  await expect(dialog.locator('.hue-scatter-l-tick')).toHaveText([
+    '1',
+    '0.9',
+    '0.8',
+    '0.7',
+    '0.6',
+    '0.5',
+    '0.4',
+    '0.3',
+  ])
+  await expect(dialog.locator('line.hue-scatter-hue-grid')).toHaveCount(26)
+  await expect(dialog.locator('line.hue-scatter-grid')).toHaveCount(16)
   await expect(info).toContainText('Point at a dot')
   await dialog.locator('.hue-scatter-dot').first().hover({ force: true })
   await expect(info).toContainText(

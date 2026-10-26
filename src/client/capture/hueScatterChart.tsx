@@ -1,4 +1,4 @@
-import { HUE_CUT, hueAxis, hueScatter, type LocatedSample } from './hueScatter'
+import { HUE_CUT, hueScatter, type LocatedSample } from './hueScatter'
 
 const NAME: Record<string, string> = {
   W: 'white',
@@ -12,22 +12,21 @@ const name = (label: string) => NAME[label] ?? label
 
 const WIDTH = 360
 const HEIGHT = 150
-const GRAY_WIDTH = 110
+const GRAY_WIDTH = 190
 const GAP = 14
 const LEFT = 30
 const TOP = 22
-const BOTTOM = 30
+const BOTTOM = 32
 // Lightness shown: below this no sticker sits, above 1 nothing can.
 const L_MIN = 0.3
-const HUE_TICKS = [0, 60, 120, 180, 240, 300]
-// The gray column's own small hue axis, in true degrees.
-const GRAY_HUE_TICKS = [90, 180, 270]
+// Both panels show the true hue, 0 to 360 degrees in steps of 30.
+const HUE_TICKS = Array.from({ length: 13 }, (_, i) => i * 30)
+// Lightness from 1 down to L_MIN in steps of 0.1.
+const L_TICKS = Array.from({ length: 8 }, (_, i) => 1 - i / 10)
 const trueHue = (axisHue: number) => (axisHue + HUE_CUT) % 360
-const grayX = (hue: number) =>
-  LEFT + WIDTH + GAP + 6 + (hue / 360) * (GRAY_WIDTH - 12)
-const L_TICKS = [0.4, 0.6, 0.8, 1]
 
 const x = (hue: number) => LEFT + (hue / 360) * WIDTH
+const grayX = (hue: number) => LEFT + WIDTH + GAP + (hue / 360) * GRAY_WIDTH
 const y = (l: number) => TOP + ((1 - l) / (1 - L_MIN)) * HEIGHT
 
 // A dot is drawn in the sticker's own measured color, so its lightness,
@@ -92,41 +91,69 @@ export function HueScatterChart({
               y1={y(l)}
               y2={y(l)}
             />
-            <text x={LEFT - 4} y={y(l) + 3} text-anchor="end">
-              {l}
+            <line
+              class="hue-scatter-grid"
+              x1={grayLeft}
+              x2={grayLeft + GRAY_WIDTH}
+              y1={y(l)}
+              y2={y(l)}
+            />
+            <text
+              class="hue-scatter-l-tick"
+              x={LEFT - 4}
+              y={y(l) + 3}
+              text-anchor="end"
+            >
+              {Number(l.toFixed(1))}
             </text>
           </g>
         ))}
-        {HUE_TICKS.map((hue) => (
-          <text
-            key={hue}
-            x={x(hueAxis(hue))}
-            y={TOP + HEIGHT + 11}
-            text-anchor="middle"
-          >
-            {hue}°
-          </text>
-        ))}
-        {points.map((point, i) => {
-          const cx = point.neutral ? grayX(trueHue(point.hue)) : x(point.hue)
-          return (
-            <circle
-              key={i}
-              class={`hue-scatter-dot${hovered === i ? ' hue-scatter-hovered' : ''}`}
-              cx={cx}
-              cy={y(point.l)}
-              r={hovered === i ? 4 : 3}
-              onMouseEnter={() => onHover(i)}
-              onMouseLeave={() => onHover(null)}
-              fill={css(samples[i].rgb)}
-            />
-          )
-        })}
+        {[x, grayX].map((position, panel) =>
+          HUE_TICKS.map((hue) => (
+            <g key={`${panel}-${hue}`}>
+              <line
+                class="hue-scatter-hue-grid"
+                x1={position(hue)}
+                x2={position(hue)}
+                y1={TOP}
+                y2={TOP + HEIGHT}
+              />
+              <text
+                class={`hue-scatter-hue-tick${panel === 1 ? ' hue-scatter-gray-tick' : ''}`}
+                x={position(hue)}
+                y={TOP + HEIGHT + 11}
+                text-anchor="middle"
+              >
+                {panel === 1 ? hue : `${hue}°`}
+              </text>
+            </g>
+          )),
+        )}
+        {[...points.keys()]
+          .sort((a, b) => Number(a === hovered) - Number(b === hovered))
+          .map((i) => {
+            const point = points[i]
+            const cx = point.neutral
+              ? grayX(trueHue(point.hue))
+              : x(trueHue(point.hue))
+            return (
+              <circle
+                key={i}
+                class={`hue-scatter-dot${hovered === i ? ' hue-scatter-hovered' : ''}`}
+                cx={cx}
+                cy={y(point.l)}
+                r={hovered === i ? 5 : 3}
+                onMouseEnter={() => onHover(i)}
+                onMouseLeave={() => onHover(null)}
+                fill={css(samples[i].rgb)}
+              />
+            )
+          })}
         {Object.entries(sums).map(([label, sum]) => (
           <text
             key={label}
             class="hue-scatter-label"
-            x={x(sum.hue / sum.n)}
+            x={x(trueHue(sum.hue / sum.n))}
             y={y(sum.l / sum.n) - 22}
             text-anchor="middle"
           >
@@ -143,30 +170,19 @@ export function HueScatterChart({
             W {counts.W}
           </text>
         )}
-        <text x={LEFT + WIDTH / 2} y={TOP + HEIGHT + 22} text-anchor="middle">
+        <text x={LEFT + WIDTH / 2} y={TOP + HEIGHT + 24} text-anchor="middle">
           hue
         </text>
-        <text x={4} y={TOP - 2}>
+        <text x={4} y={TOP - 10}>
           lighter ↑
         </text>
         <text
           x={grayLeft + GRAY_WIDTH / 2}
-          y={TOP + HEIGHT + 22}
+          y={TOP + HEIGHT + 24}
           text-anchor="middle"
         >
           gray
         </text>
-        {GRAY_HUE_TICKS.map((hue) => (
-          <text
-            key={hue}
-            class="hue-scatter-gray-tick"
-            x={grayX(hue)}
-            y={TOP + HEIGHT + 11}
-            text-anchor="middle"
-          >
-            {hue}°
-          </text>
-        ))}
       </svg>
       <p class="hue-scatter-info" role="status">
         {hovered === null
