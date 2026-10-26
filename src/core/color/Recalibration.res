@@ -45,29 +45,28 @@ let colorConfidences = (rgb, palette: Dict.t<rgb>) =>
   )
 
 // The equal share of stickers per color can push a sticker onto a color it
-// hardly matches: an orange one onto a white that lacks stickers. Below this
-// confidence in its assigned color, a sticker that some other color matches
-// at least `clearMinConfidence` keeps that color instead, and the
-// color-balance check then reports the missing stickers. Across the saved
-// captures no valid cube had a sticker moved by this.
-let forcedMaxConfidence = 0.6
-let clearMinConfidence = 0.9
+// hardly matches: an orange one onto a white that lacks stickers. The share
+// may only move a sticker to a color that matches nearly as well as its best
+// one, within `maxShareGap` of confidence; past that the sticker keeps its
+// best color, and the color-balance check reports the missing stickers.
+// Across the saved captures a valid cube needed a gap of up to 0.25 (a 2x2,
+// whose few stickers per color blur the learned colors), a misread one
+// 0.36 and more.
+let maxShareGap = 0.3
 
 let unforcedColor = (rgb, label, palette: Dict.t<rgb>) => {
   let confidence = color =>
-    palette->Dict.get(color)->Option.mapOr(0.0, centroid => confidenceOf(clusterDistance(rgb, centroid)))
-  if confidence(label) >= forcedMaxConfidence {
-    Null.null
-  } else {
-    let (best, bestConfidence) =
-      palette
-      ->Dict.keysToArray
-      ->Array.reduce(("", 0.0), ((best, bestConfidence), color) => {
-        let own = confidence(color)
-        own > bestConfidence ? (color, own) : (best, bestConfidence)
-      })
-    best != label && bestConfidence >= clearMinConfidence ? Null.make(best) : Null.null
-  }
+    palette
+    ->Dict.get(color)
+    ->Option.mapOr(0.0, centroid => confidenceOf(clusterDistance(rgb, centroid)))
+  let (best, bestConfidence) =
+    palette
+    ->Dict.keysToArray
+    ->Array.reduce(("", 0.0), ((best, bestConfidence), color) => {
+      let own = confidence(color)
+      own > bestConfidence ? (color, own) : (best, bestConfidence)
+    })
+  best != label && bestConfidence -. confidence(label) > maxShareGap ? Null.make(best) : Null.null
 }
 
 // How different two palettes are: the mean distance between their
@@ -298,10 +297,24 @@ let classifyAcrossFaces = (
       let location = locations->Array.getUnsafe(i)
       let detection = reclassified->Dict.getUnsafe(location.face)
       let label = detection.colors->Array.getUnsafe(location.row)->Array.getUnsafe(location.col)
-      let isCenter = fixedCenters && location.row == (gridSize - 1) / 2 && location.col == (gridSize - 1) / 2
-      switch (isCenter, Null.toOption(unforcedColor(sample.rgb, label, learned.colors))) {
+      let isCenter =
+        fixedCenters && location.row == (gridSize - 1) / 2 && location.col == (gridSize - 1) / 2
+      // An even cube has no center, and a logo sits on one of the four (or
+      // more) stickers around the middle: it reads as the logo's color, so
+      // the equal share has to stay free to hand it back.
+      let inMiddle = (index: int) =>
+        gridSize >= 4 &&
+        mod(gridSize, 2) == 0 &&
+        (index == gridSize / 2 - 1 || index == gridSize / 2)
+      let isLogoZone = inMiddle(location.row) && inMiddle(location.col)
+      switch (
+        isCenter || isLogoZone,
+        Null.toOption(unforcedColor(sample.rgb, label, learned.colors)),
+      ) {
       | (false, Some(color)) =>
-        let confidence = confidenceOf(clusterDistance(sample.rgb, learned.colors->Dict.getUnsafe(color)))
+        let confidence = confidenceOf(
+          clusterDistance(sample.rgb, learned.colors->Dict.getUnsafe(color)),
+        )
         let before =
           detection.cellConfidences->Array.getUnsafe(location.row)->Array.getUnsafe(location.col)
         set(location, color, confidence, lookalike(sample.rgb, color, learned.colors))

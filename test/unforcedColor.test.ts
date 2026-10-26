@@ -15,13 +15,15 @@ describe('a sticker the equal color share forced', () => {
     expect(unforcedColor(STICKER_COLORS.O, 'O', STICKER_COLORS)).toBeNull()
   })
 
-  it('leaves a sticker that no color clearly claims', () => {
-    // Halfway between orange and yellow: neither is 90% sure.
+  it('moves a sticker onto another color only within 30 points of its best match', () => {
+    // Halfway between orange and yellow: both match about equally well, so
+    // the share may put it on either.
     const between = {
       r: (STICKER_COLORS.O.r + STICKER_COLORS.Y.r) / 2,
       g: (STICKER_COLORS.O.g + STICKER_COLORS.Y.g) / 2,
       b: (STICKER_COLORS.O.b + STICKER_COLORS.Y.b) / 2,
     }
-    expect(unforcedColor(between, 'W', STICKER_COLORS)).toBeNull()
+    expect(unforcedColor(between, 'O', STICKER_COLORS)).toBeNull()
+    expect(unforcedColor(between, 'Y', STICKER_COLORS)).toBeNull()
   })
 })
