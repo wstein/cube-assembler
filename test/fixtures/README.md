@@ -95,7 +95,10 @@ SYNTHETIC strip, `meta.json` a `preset:<name>` tag and `capture.synthetic`
 (renderer, preset, photo size, the seed of each face and the generator
 options, so the photos can be rendered again from the metadata alone);
 a state that is no cube is saved too, tagged `invalid-state` with the reason.
-A preset the color pipeline misreads is a finding: keep it as a regression
+A cube that is no cube (a layer turned during the capture, so some colors are missing)
+is saved with its colors as photographed and the tag `invalid-state`; the
+fixture tests then expect the guided search to report that no arrangement is
+valid. A preset the color pipeline misreads is a finding: keep it as a regression
 target with `expectedFail`, or fix the pipeline. The local server logs ping and upload status with
 elapsed time, plus the saved fixture name for successful uploads; it does not
 log photo or metadata contents. The button stays disabled until `GET /ping`

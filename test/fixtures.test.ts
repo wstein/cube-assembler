@@ -260,7 +260,27 @@ describe('guided-capture fixtures reassemble into the approved cube', () => {
     it.skip('no guided-capture fixtures saved yet', () => {})
     return
   }
-  for (const { name, meta } of guided) {
+  // A cube the user twisted during the capture is no cube: the photos show
+  // what they show, and the guided search has to say that no arrangement is
+  // valid instead of inventing one.
+  for (const { name, meta } of guided.filter(({ meta }) =>
+    meta.tags?.includes('invalid-state'),
+  )) {
+    it(`"${name}" is no valid cube, and the guided search says so`, () => {
+      const slots = readFixtureColors(meta)!.colors
+      const [s1, s2, s3, s4, cap1, cap2] = ['U', 'R', 'F', 'D', 'L', 'B'].map(
+        (k) => slots[k],
+      )
+      const solution = solveGuidedCapture({
+        sides: [s1, s2, s3, s4],
+        caps: [cap1, cap2],
+      })
+      expect(solution?.fullyValid).toBe(false)
+    }, 120_000)
+  }
+  for (const { name, meta } of guided.filter(
+    ({ meta }) => !meta.tags?.includes('invalid-state'),
+  )) {
     it(`"${name}"`, () => {
       const slots = readFixtureColors(meta)!.colors
       const [s1, s2, s3, s4, cap1, cap2] = ['U', 'R', 'F', 'D', 'L', 'B'].map(
