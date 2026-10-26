@@ -18,18 +18,28 @@ const colorNames: Record<string, string> = {
   Y: 'Yellow',
 }
 
-// The sticker color review, opened from Edit colors when the capture went
-// straight on to assembly.
+// The sticker color review: "No, check the colors" in the cube check, which
+// opens by itself after a valid capture or from Edit colors.
 async function openColorReview(page: Page) {
   await expect(page.getByText('All 6 captured', { exact: true })).toBeVisible()
-  if (!(await page.locator('.review-modal-content').isVisible())) {
-    const dialog = page.getByRole('dialog')
-    if (await dialog.isVisible())
-      await dialog.getByRole('button', { name: 'Close' }).click()
-    await page.getByRole('button', { name: 'Edit colors' }).click()
-  }
   const review = page.locator('.review-modal-content')
-  await expect(review).toBeVisible()
+  const toColors = page.getByRole('button', {
+    name: /No, check the colors|Back to the colors/,
+  })
+  await expect
+    .poll(async () => {
+      if (await review.isVisible()) return true
+      if (await toColors.isVisible()) {
+        await toColors.click()
+        return await review.isVisible()
+      }
+      const edit = page.getByRole('button', { name: 'Edit colors' })
+      // A dialog may open under the click; the next round handles it.
+      if (await edit.isVisible())
+        await edit.click({ timeout: 1000 }).catch(() => {})
+      return false
+    })
+    .toBe(true)
   return review
 }
 

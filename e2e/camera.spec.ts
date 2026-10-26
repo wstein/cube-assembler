@@ -113,7 +113,7 @@ test('captures and re-detects a face from a live camera stream', async ({
       const editColors = page.getByRole('button', { name: 'Edit colors' })
       if (await editColors.isVisible()) {
         await editColors.click()
-        return await review.isVisible()
+        return false
       }
       return false
     })

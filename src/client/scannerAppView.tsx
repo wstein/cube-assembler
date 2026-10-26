@@ -408,10 +408,9 @@ export function ScannerAppView({ model }: { model: ScannerAppModel }) {
             showColorInput={showColorInput}
             ignoreFixtureCorrections={ignoreFixtureCorrections}
             onOpenCapture={handleOpenCapture}
-            onEditColors={() => {
-              setReviewStep(0)
-              setShowReviewDialog(true)
-            }}
+            // The overview first: the photos, the detection and the
+            // question whether it is the user's cube.
+            onEditColors={() => handleConfirmReview()}
             onUploadFiles={handleUploadFiles}
             onToggleColorInput={() => setShowColorInput(!showColorInput)}
             onApplySolved={handleApplySolved}
