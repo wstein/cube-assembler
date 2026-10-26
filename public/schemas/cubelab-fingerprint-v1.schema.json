@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://wstein.github.io/cube-assembler/schemas/cubelab-fingerprint-v1.schema.json",
+  "title": "CubeAssembler CubeLab moves block v1",
+  "description": "The JSON inside <script type=\"application/json\" id=\"cubelab-moves\"> on the 3D cube view: the cube size and the move history exactly as the Moves line shows it. Fields may be added without a new spec version, so readers ignore unknown fields.",
+  "type": "object",
+  "required": ["size", "moves", "format"],
+  "properties": {
+    "size": { "type": "integer", "minimum": 2, "maximum": 7 },
+    "moves": {
+      "description": "Space-separated turns, empty when there are none.",
+      "type": "string",
+      "pattern": "^(([2-7]-[2-7]|[2-7])?[URFDLB]w?['2]?|[xyz]'?)( (([2-7]-[2-7]|[2-7])?[URFDLB]w?['2]?|[xyz]'?))*$|^$"
+    },
+    "format": { "const": "layer-prefix/v1" }
+  }
+}
