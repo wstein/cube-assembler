@@ -411,6 +411,15 @@ test('the hue scatter names a dot on hover and links it with the net', async ({
   await expect.poll(scale).toBeGreaterThan(5)
   await page.mouse.wheel(0, 400)
   await expect.poll(scale).toBeLessThan(5)
+  // It stays between 3 and 8 times.
+  await page.mouse.wheel(0, 5000)
+  await expect.poll(scale).toBe(3)
+  await page.mouse.wheel(0, -9000)
+  await expect.poll(scale).toBe(8)
+  await page.mouse.wheel(0, 9000)
+  await expect.poll(scale).toBe(3)
+  await page.mouse.wheel(0, -300)
+  await expect.poll(scale).toBeGreaterThan(3)
   // The lens is drawn toward a dot near the pointer, but not locked onto
   // it: its center sits between the pointer and the dot, nearer the dot the
   // closer the pointer is.

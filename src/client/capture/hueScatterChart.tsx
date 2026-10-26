@@ -41,8 +41,8 @@ const TICK_SHIFT = 7
 const LENS_R = 62
 // The lens magnification starts here and follows the wheel or a pinch.
 const LENS_ZOOM_START = 5
-const LENS_ZOOM_MIN = 4
-const LENS_ZOOM_MAX = 10
+const LENS_ZOOM_MIN = 3
+const LENS_ZOOM_MAX = 8
 // A wheel step of 100 units changes the magnification by this factor.
 const LENS_ZOOM_STEP = 1.25
 // Dots keep their on-screen size in the lens, so overlapping ones part.
