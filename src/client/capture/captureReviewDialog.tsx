@@ -1,10 +1,10 @@
 import type { TargetedKeyboardEvent } from 'preact'
+import { FaceGrid } from './captureNet'
 import type { FaceCaptureData } from './captureTypes'
 
 interface CaptureReviewDialogProps {
   faceOrder: readonly string[]
   faceLabels: Record<string, string>
-  shortLabels: Record<string, string>
   colorNames: Record<string, string>
   stickerColors: Record<string, string>
   colorOrder: readonly string[]
@@ -26,12 +26,14 @@ interface CaptureReviewDialogProps {
   onConfirm: () => void
 }
 
+// Grid areas of the faces in capture order (see CaptureNet).
+const MINI_NET_AREAS = ['2 / 1', '2 / 2', '2 / 3', '2 / 4', '1 / 2', '3 / 2']
+
 // Show each original photo beside the detected stickers so corrections stay
 // tied to the source image.
 export function CaptureReviewDialog({
   faceOrder,
   faceLabels,
-  shortLabels,
   colorNames,
   stickerColors,
   colorOrder,
@@ -53,6 +55,9 @@ export function CaptureReviewDialog({
   onConfirm,
 }: CaptureReviewDialogProps) {
   const face = faceOrder[step]
+  const emptyFace = Array.from({ length: size }, () =>
+    Array<string>(size).fill(''),
+  )
   const data = faces[face]
   const isLast = step === faceOrder.length - 1
   return (
@@ -73,17 +78,26 @@ export function CaptureReviewDialog({
             </span>
             <h2 id="review-title">{faceLabels[face]}</h2>
           </div>
-          <div class="review-progress-dots" role="group" aria-label="Faces">
+          <div class="review-mini-net" role="group" aria-label="Faces">
             {faceOrder.map((f, i) => (
               <button
                 type="button"
                 key={f}
-                class={`progress-dot ${i < step ? 'done' : ''} ${i === step ? 'current' : ''}`}
+                class="review-mini-face"
+                // The capture net's layout: the four sides in a row, Top
+                // above and Bottom below Side 2.
+                style={{ gridArea: MINI_NET_AREAS[i] }}
                 aria-current={i === step ? 'step' : undefined}
                 aria-label={faceLabels[f]}
+                title={faceLabels[f]}
                 onClick={() => onStepChange(i)}
               >
-                {shortLabels[f]}
+                <FaceGrid
+                  colors={faces[f]?.colors ?? emptyFace}
+                  stickerColors={stickerColors}
+                  undecided={!faces[f]}
+                  current={i === step}
+                />
               </button>
             ))}
           </div>

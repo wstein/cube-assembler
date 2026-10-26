@@ -590,7 +590,6 @@ export function ScannerAppView({ model }: { model: ScannerAppModel }) {
         <CaptureReviewDialog
           faceOrder={FACE_ORDER}
           faceLabels={FACE_DISPLAY_LABEL}
-          shortLabels={FACE_SHORT_LABEL}
           colorNames={COLOR_NAME}
           stickerColors={STICKER_HEX}
           colorOrder={COLOR_ORDER}

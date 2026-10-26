@@ -246,3 +246,22 @@ test('a capture that cannot be put together shows an error, not silence', async 
   )
   await expect(dialog).toContainText('shot twice')
 })
+
+test('the color review picks a face from a mini net, not numbered dots', async ({
+  page,
+}) => {
+  await page.goto('/')
+  await page
+    .locator('.capture-alternatives input[type="file"]')
+    .setInputFiles([...photos, resolve(fixture, 'meta.json')])
+  const review = await openColorReview(page)
+  const net = review.getByRole('group', { name: 'Faces' })
+  await expect(net.locator('.orientation-net-face')).toHaveCount(6)
+  await expect(net.locator('.progress-dot')).toHaveCount(0)
+  await net.getByRole('button', { name: 'Bottom', exact: true }).click()
+  await expect(review.getByRole('heading', { name: 'Bottom' })).toBeVisible()
+  await expect(net.getByRole('button', { name: 'Bottom' })).toHaveAttribute(
+    'aria-current',
+    'step',
+  )
+})
