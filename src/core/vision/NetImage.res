@@ -5,8 +5,12 @@
 // centers (odd cubes) or by the nearest standard color (even cubes).
 
 @genType
+type box = {x: int, y: int, width: int, height: int}
+
+// `faces` holds each face's rectangle in the picture, in U R F D L B order.
+@genType
 type netRead =
-  | @as("read") Read({size: int, facelets: string})
+  | @as("read") Read({size: int, facelets: string, faces: array<box>})
   | @as("unreadable") Unreadable({message: string})
 
 type ints
@@ -257,6 +261,44 @@ let faceAt = (blockColumn, blockRow) =>
   | _ => None
   }
 
+// Each face's rectangle: its stickers' boxes, with a margin of up to a
+// quarter sticker (never past the gap to the next face, so touching faces
+// stay apart), kept inside the picture.
+let faceBoxes = (stickers, slots: array<option<(int, int)>>, width, height, area) => {
+  let boxes = Array.fromInitializer(~length=6, _ => {
+    area: 0,
+    minX: width,
+    maxX: 0,
+    minY: height,
+    maxY: 0,
+  })
+  stickers->Array.forEachWithIndex((c, i) =>
+    switch slots->Array.getUnsafe(i) {
+    | Some((face, _)) =>
+      let box = boxes->Array.getUnsafe(face)
+      box.minX = Math.Int.min(box.minX, c.minX)
+      box.maxX = Math.Int.max(box.maxX, c.maxX)
+      box.minY = Math.Int.min(box.minY, c.minY)
+      box.maxY = Math.Int.max(box.maxY, c.maxY)
+    | None => ()
+    }
+  )
+  let front = boxes->Array.getUnsafe(2)
+  let right = boxes->Array.getUnsafe(1)
+  let gap = Int.toFloat(Math.Int.max(0, right.minX - front.maxX - 1))
+  let margin = Float.toInt(Math.floor(Math.min(Math.sqrt(area) *. 0.25, gap /. 2.0)))
+  boxes->Array.map(box => {
+    let x = Math.Int.max(0, box.minX - margin)
+    let y = Math.Int.max(0, box.minY - margin)
+    {
+      x,
+      y,
+      width: Math.Int.min(width - 1, box.maxX + margin) - x + 1,
+      height: Math.Int.min(height - 1, box.maxY + margin) - y + 1,
+    }
+  })
+}
+
 let unreadable = message => Unreadable({message: message})
 
 let readNetImage = (data: Uint8ClampedArray.t, width: int, height: int): netRead => {
@@ -350,7 +392,7 @@ let readNetImage = (data: Uint8ClampedArray.t, width: int, height: int): netRead
               )->Array.join("")
             )
             ->Array.join(" ")
-          Read({size, facelets})
+          Read({size, facelets, faces: faceBoxes(stickers, slots, width, height, area)})
         }
       }
     }

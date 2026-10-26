@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import { parseCubeInput } from '../src/client/capture/captureFlow'
 import type { CubeState } from '../src/cube/cubeAssembly'
+import { classifyAcrossFaces } from '../src/client/capture/captureRecalibration'
+import { NEUTRAL_GAINS } from '../src/client/vision/colorMath'
+import { extractColorsFromImageData } from '../src/client/vision/faceDetection'
+import { DEFAULT_SAMPLING } from '../src/client/vision/stickerColorGeometry'
 import { randomCube } from '../src/cube/randomState'
 import { readNetImage } from '../src/core/vision/NetImage.gen'
 
@@ -263,5 +267,92 @@ describe('reading a net image', () => {
       }
     const read = readNetImage(data, width, height)
     expect(read.TAG).toBe('unreadable')
+  })
+})
+
+describe('splitting a net into six face pictures', () => {
+  const ORDER = ['u', 'r', 'f', 'd', 'l', 'b'] as const
+  const crop = (
+    data: Uint8ClampedArray,
+    width: number,
+    box: { x: number; y: number; width: number; height: number },
+  ) => {
+    const out = new Uint8ClampedArray(box.width * box.height * 4)
+    for (let y = 0; y < box.height; y++)
+      for (let x = 0; x < box.width; x++) {
+        const from = ((box.y + y) * width + box.x + x) * 4
+        out.set(data.subarray(from, from + 4), (y * box.width + x) * 4)
+      }
+    return out
+  }
+
+  const styles: Array<[string, NetStyle]> = [
+    ['dark with gaps and titles', DARK_GAPPED],
+    ['light with black lines', LIGHT_LINES],
+    ['dark and tight', DARK_TIGHT],
+    ['light panels with titles', LIGHT_PANELS],
+  ]
+  for (const [name, style] of styles)
+    for (const size of [3, 4, 5])
+      it(`gives six faces the pipeline reads, ${size}x${size}, ${name}`, () => {
+        const cube = randomCube(size, 30 + size)
+        const { data, width, height } = renderNet(cube, style)
+        const read = readNetImage(data, width, height)
+        if (read.TAG !== 'read') throw new Error(read.message)
+        expect(read.faces).toHaveLength(6)
+        const measured: Record<
+          string,
+          ReturnType<typeof extractColorsFromImageData>
+        > = {}
+        ORDER.forEach((face, i) => {
+          const box = read.faces[i]
+          expect(box.x).toBeGreaterThanOrEqual(0)
+          expect(box.y).toBeGreaterThanOrEqual(0)
+          expect(box.x + box.width).toBeLessThanOrEqual(width)
+          expect(box.y + box.height).toBeLessThanOrEqual(height)
+          measured[face] = extractColorsFromImageData(
+            crop(data, width, box),
+            box.width,
+            box.height,
+            size,
+            NEUTRAL_GAINS,
+            DEFAULT_SAMPLING,
+          )
+        })
+        const classified = classifyAcrossFaces(measured)
+        ORDER.forEach((face) => {
+          const grid = cube[face]
+          const got = classified.faces[face].colors.flat().join('')
+          expect(got).toBe(grid.join(''))
+        })
+      })
+
+  it('keeps the face pictures inside a picture that ends at the stickers', () => {
+    const cube = randomCube(3, 6)
+    const { data, width, height } = renderNet(cube, {
+      ...DARK_GAPPED,
+      margin: 0,
+      labels: false,
+      panel: false,
+    })
+    const read = readNetImage(data, width, height)
+    if (read.TAG !== 'read') throw new Error(read.message)
+    for (const box of read.faces) {
+      expect(box.x).toBeGreaterThanOrEqual(0)
+      expect(box.y).toBeGreaterThanOrEqual(0)
+      expect(box.x + box.width).toBeLessThanOrEqual(width)
+      expect(box.y + box.height).toBeLessThanOrEqual(height)
+    }
+  })
+
+  it('keeps the face pictures apart, even where the faces touch', () => {
+    const cube = randomCube(3, 2)
+    const { data, width, height } = renderNet(cube, DARK_TIGHT)
+    const read = readNetImage(data, width, height)
+    if (read.TAG !== 'read') throw new Error(read.message)
+    const [, right, front, , left, back] = read.faces
+    expect(left.x + left.width).toBeLessThanOrEqual(front.x)
+    expect(front.x + front.width).toBeLessThanOrEqual(right.x)
+    expect(right.x + right.width).toBeLessThanOrEqual(back.x)
   })
 })
