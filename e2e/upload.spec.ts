@@ -364,7 +364,7 @@ test('the hue scatter names a dot on hover, and says when it sits with another c
   await expect(info).toContainText('Point at a dot')
   await dialog.locator('.hue-scatter-dot').first().hover({ force: true })
   await expect(info).toContainText(
-    /row \d+, column \d+: \w+ \(.+\) - sits with/,
+    /row \d+, column \d+: \w+ \(L [\d.]+, C [\d.]+, h \d+°\) - sits with/,
   )
   await dialog.locator('.hue-scatter-misplaced').first().hover({ force: true })
   await expect(info).toContainText('not with its own color')
