@@ -838,14 +838,20 @@
   margin: 0 auto;
   font-size: 9px;
   fill: var(--color-text-secondary);
+  /* The lens may reach past the chart's edges. */
+  overflow: visible;
 }
 
+/* No fill: white stickers must stand out against the page, not a tint. */
 .hue-scatter-gray {
-  fill: var(--color-bg-secondary);
+  fill: none;
 }
 
 .hue-scatter-dot {
+  r: var(--hue-dot-r, 3px);
+  pointer-events: none;
   stroke-width: 1.2;
+  vector-effect: non-scaling-stroke;
 }
 
 .hue-scatter-grid,
@@ -899,7 +905,8 @@
 
 .hue-scatter-hovered {
   stroke: var(--color-text-primary);
-  stroke-width: 2;
+  stroke-width: 1.5;
+  vector-effect: non-scaling-stroke;
 }
 
 .orientation-net-sticker-hover {

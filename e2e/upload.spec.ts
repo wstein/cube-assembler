@@ -362,8 +362,7 @@ test('the hue scatter names a dot on hover and links it with the net', async ({
   const dialog = page.getByRole('dialog', { name: 'Color analysis' })
   const info = dialog.locator('.hue-scatter-info')
   // Both panels are cut at 330 degrees, so each edge is the 330 tick: every
-  // 30 degrees on the main panel, every 90 on the small gray one (bare
-  // numbers, to fit). Lightness ticks every 0.1, a thin grid for each, and a
+  // 30 degrees on the main panel, every 90 on the small gray one . Lightness ticks every 0.1, a thin grid for each, and a
   // color bar along each axis.
   const hueTicks = Array.from(
     { length: 13 },
@@ -371,11 +370,11 @@ test('the hue scatter names a dot on hover and links it with the net', async ({
   )
   await expect(dialog.locator('.hue-scatter-hue-tick')).toHaveText([
     ...hueTicks,
-    '330',
-    '60',
-    '150',
-    '240',
-    '330',
+    '330°',
+    '60°',
+    '150°',
+    '240°',
+    '330°',
   ])
   await expect(dialog.locator('rect.hue-scatter-hue-bar')).toHaveCount(2)
   await expect(dialog.locator('rect.hue-scatter-l-bar')).toHaveCount(1)

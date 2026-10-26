@@ -34,9 +34,15 @@ const HUE_TICKS = Array.from({ length: 13 }, (_, i) => i * 30)
 const GRAY_TICKS = [0, 90, 180, 270, 360]
 // Hue tick labels are turned by this many degrees so they never touch.
 const TICK_ANGLE = 45
+// The turned labels end a little right of their tick, so each ends under it.
+const TICK_SHIFT = 7
 // The lens: radius and magnification, in chart units.
-const LENS_R = 30
-const LENS_ZOOM = 4
+const LENS_R = 62
+const LENS_ZOOM = 3.5
+// Dots keep their on-screen size in the lens, so overlapping ones part.
+const LENS_DOT = 3 / LENS_ZOOM
+// How near the pointer must be to a dot to point at it.
+const HIT_RADIUS = 8
 // Thickness of the color bars along the axes.
 const BAR = 5
 const BAR_GAP = 2
@@ -70,18 +76,19 @@ const L_STOPS = Array.from({ length: 8 }, (_, i) => ({
 const L_TICKS = Array.from({ length: 8 }, (_, i) => 1 - i / 10)
 const trueHue = (axisHue: number) => (axisHue + HUE_CUT) % 360
 
-// The lens sits up and to the right of the pointer so it does not cover the
-// dot being pointed at, and flips left near the right edge.
+// The lens always sits up and to the right of the pointer, so it is where
+// the eye expects it; the chart lets it reach past its own edges.
 const CHART_WIDTH = LEFT + WIDTH + GAP + GRAY_WIDTH + RIGHT
-const lensX = (p: { x: number }) =>
-  p.x + LENS_R + 14 + LENS_R > CHART_WIDTH
-    ? p.x - LENS_R - 14
-    : p.x + LENS_R + 14
-const lensY = (p: { y: number }) => Math.max(LENS_R + 2, p.y - LENS_R - 14)
+const CHART_HEIGHT = TOP + HEIGHT + BOTTOM
+const LENS_OFFSET = LENS_R + 12
+const lensX = (p: { x: number }) => p.x + LENS_OFFSET
+const lensY = (p: { y: number }) => p.y - LENS_OFFSET
 
 // Positions take the hue on the cut axis, 0 to 360.
 const x = (axis: number) => LEFT + (axis / 360) * WIDTH
 const grayX = (axis: number) => LEFT + WIDTH + GAP + (axis / 360) * GRAY_WIDTH
+const dotX = (point: { neutral: boolean; hue: number }) =>
+  point.neutral ? grayX(point.hue) : x(point.hue)
 // A sticker darker than the lowest tick stays at the panel's floor.
 const y = (l: number) => TOP + Math.min(1, (1 - l) / (1 - L_MIN)) * HEIGHT
 
@@ -128,7 +135,7 @@ export function HueScatterChart({
     <>
       <svg
         class="hue-scatter"
-        viewBox={`0 0 ${CHART_WIDTH} ${TOP + HEIGHT + BOTTOM}`}
+        viewBox={`0 0 ${CHART_WIDTH} ${CHART_HEIGHT}`}
         role="img"
         aria-label="Stickers by hue and lightness"
         onMouseMove={(e) => {
@@ -140,8 +147,23 @@ export function HueScatterChart({
           at.y = e.clientY
           const p = at.matrixTransform(m.inverse())
           setLens({ x: p.x, y: p.y })
+          // The dot nearest the pointer is the one pointed at, however
+          // many dots overlap there.
+          let nearest: number | null = null
+          let best = HIT_RADIUS ** 2
+          points.forEach((point, i) => {
+            const d = (dotX(point) - p.x) ** 2 + (y(point.l) - p.y) ** 2
+            if (d <= best) {
+              best = d
+              nearest = i
+            }
+          })
+          if (nearest !== hovered) onHover(nearest)
         }}
-        onMouseLeave={() => setLens(null)}
+        onMouseLeave={() => {
+          setLens(null)
+          onHover(null)
+        }}
       >
         <g id="hue-scatter-plot">
           <rect
@@ -242,12 +264,12 @@ export function HueScatterChart({
                     />
                     <text
                       class={`hue-scatter-hue-tick${panel === 0 && axis % 60 !== 0 ? ' hue-scatter-tick-minor' : ''}`}
-                      x={position(axis)}
+                      x={position(axis) + TICK_SHIFT}
                       y={TOP + HEIGHT + BAR_GAP + BAR + 10}
                       text-anchor="end"
-                      transform={`rotate(${-TICK_ANGLE} ${position(axis)} ${TOP + HEIGHT + BAR_GAP + BAR + 10})`}
+                      transform={`rotate(${-TICK_ANGLE} ${position(axis) + TICK_SHIFT} ${TOP + HEIGHT + BAR_GAP + BAR + 10})`}
                     >
-                      {panel === 1 ? hue : `${hue}°`}
+                      {`${hue}°`}
                     </text>
                   </g>
                 )
@@ -258,16 +280,14 @@ export function HueScatterChart({
             .sort((a, b) => Number(a === hovered) - Number(b === hovered))
             .map((i) => {
               const point = points[i]
-              const cx = point.neutral ? grayX(point.hue) : x(point.hue)
+              const cx = dotX(point)
               return (
                 <circle
                   key={i}
                   class={`hue-scatter-dot${hovered === i ? ' hue-scatter-hovered' : ''}`}
                   cx={cx}
                   cy={y(point.l)}
-                  r={hovered === i ? 5 : 3}
-                  onMouseEnter={() => onHover(i)}
-                  onMouseLeave={() => onHover(null)}
+                  r={3}
                   fill={css(samples[i].rgb)}
                 />
               )
@@ -322,7 +342,10 @@ export function HueScatterChart({
               <g
                 transform={`translate(${lensX(lens)} ${lensY(lens)}) scale(${LENS_ZOOM}) translate(${-lens.x} ${-lens.y})`}
               >
-                <use href="#hue-scatter-plot" />
+                <use
+                  href="#hue-scatter-plot"
+                  style={`--hue-dot-r: ${LENS_DOT}px`}
+                />
               </g>
             </g>
             <circle
