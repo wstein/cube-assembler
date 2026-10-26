@@ -235,3 +235,35 @@ export function miniNet(
     turns: 0,
   }))
 }
+
+// Where a photo sticker sits in the net.
+export interface NetCell {
+  face: string
+  row: number
+  col: number
+}
+
+// For every photo (by capture slot) the net cell of each of its stickers,
+// row by row as photographed; null while the photos do not fit together and
+// there is no net.
+export function netCells(
+  items: MiniNetItem[],
+  size: number,
+): NetCell[][] | null {
+  if (items.some((item) => !item.name)) return null
+  const indexes = Array.from({ length: size }, (_, r) =>
+    Array.from({ length: size }, (_, c) => String(r * size + c)),
+  )
+  const cells: NetCell[][] = []
+  for (const item of items) {
+    const turned = rotateGrid(indexes, item.turns)
+    const own: NetCell[] = []
+    turned.forEach((row, r) =>
+      row.forEach((index, c) => {
+        own[Number(index)] = { face: item.key, row: r, col: c }
+      }),
+    )
+    cells[item.slot] = own
+  }
+  return cells
+}

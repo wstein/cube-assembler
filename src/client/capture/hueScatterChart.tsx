@@ -1,4 +1,3 @@
-import { useState } from 'preact/hooks'
 import { HUE_CUT, hueAxis, hueScatter, type LocatedSample } from './hueScatter'
 
 const NAME: Record<string, string> = {
@@ -36,8 +35,16 @@ const css = (c: { r: number; g: number; b: number }) =>
 // clouds. Each cloud is named with its sticker count; a ringed dot sits with another color's
 // stickers than the one it ended up as. Gray stickers (white) have no hue
 // and stand in their own column.
-export function HueScatterChart({ samples }: { samples: LocatedSample[] }) {
-  const [hovered, setHovered] = useState<number | null>(null)
+export function HueScatterChart({
+  samples,
+  hovered,
+  onHover,
+}: {
+  samples: LocatedSample[]
+  // The sticker pointed at, here or in the net: a sample index.
+  hovered: number | null
+  onHover: (index: number | null) => void
+}) {
   const grayLeft = LEFT + WIDTH + GAP
   const points = hueScatter(samples)
   const counts: Record<string, number> = {}
@@ -108,12 +115,12 @@ export function HueScatterChart({ samples }: { samples: LocatedSample[] }) {
           return (
             <circle
               key={i}
-              class={`hue-scatter-dot${point.misplaced ? ' hue-scatter-misplaced' : ''}`}
+              class={`hue-scatter-dot${point.misplaced ? ' hue-scatter-misplaced' : ''}${hovered === i ? ' hue-scatter-hovered' : ''}`}
               cx={cx}
               cy={y(point.l)}
-              r={point.misplaced ? 4 : 3}
-              onMouseEnter={() => setHovered(i)}
-              onMouseLeave={() => setHovered(null)}
+              r={point.misplaced || hovered === i ? 4 : 3}
+              onMouseEnter={() => onHover(i)}
+              onMouseLeave={() => onHover(null)}
               fill={css(samples[i].rgb)}
             />
           )

@@ -2,8 +2,13 @@ import { describe, expect, it } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { wrgFaceletsToGrids } from '../src/cube/notation/NotationOutput.gen'
+import { rotateGrid } from '../src/cube/cubeGeometry'
 import { readFixtureColors } from '../src/client/fixtures/fixtureFormat'
-import { miniNet, reviewNetLayout } from '../src/client/capture/approvalPhotos'
+import {
+  miniNet,
+  netCells,
+  reviewNetLayout,
+} from '../src/client/capture/approvalPhotos'
 
 const ORDER = ['U', 'R', 'F', 'D', 'L', 'B']
 
@@ -80,5 +85,64 @@ describe('the mini net', () => {
     const { captured } = load(good)
     for (const item of miniNet(captured as never, ORDER, 5))
       expect([0, 1, 2, 3]).toContain(item.turns)
+  })
+})
+
+describe('the net cell of every sticker, turned', () => {
+  const photo = [
+    ['a', 'b', 'c'],
+    ['d', 'e', 'f'],
+    ['g', 'h', 'i'],
+  ]
+  for (const turns of [0, 1, 2, 3]) {
+    it(`follows a photo turned ${turns} quarter turns clockwise`, () => {
+      const turned = rotateGrid(photo, turns)
+      const [cells] = netCells(
+        [
+          {
+            key: 'F',
+            slot: 0,
+            area: '2 / 2',
+            colors: turned,
+            captured: true,
+            turns,
+            name: 'Front',
+          },
+        ],
+        3,
+      )!
+      cells.forEach((cell, index) =>
+        expect(turned[cell.row][cell.col]).toBe(
+          photo[Math.floor(index / 3)][index % 3],
+        ),
+      )
+    })
+  }
+})
+
+describe('the net cell of every sticker', () => {
+  it('puts each photo sticker on the net cell showing the same color', () => {
+    const { captured } = load('cube-5x5-2026-10-25T23-50-58')
+    const items = miniNet(captured as never, ORDER, 5)
+    const cells = netCells(items, 5)!
+    for (const item of items) {
+      const photo = captured[ORDER[item.slot]].colors
+      const seen = new Set<string>()
+      cells[item.slot].forEach((cell, index) => {
+        const r = Math.floor(index / 5)
+        const c = index % 5
+        expect(cell.face).toBe(item.key)
+        expect(item.colors[cell.row][cell.col]).toBe(photo[r][c])
+        seen.add(`${cell.row},${cell.col}`)
+      })
+      // Every cell of the face is taken once.
+      expect(seen.size).toBe(25)
+    }
+  })
+
+  it('gives no cells while the photos do not fit together', () => {
+    const { captured } = load('cube-5x5-2026-10-25T23-50-58')
+    delete (captured as Record<string, unknown>).D
+    expect(netCells(miniNet(captured as never, ORDER, 5), 5)).toBeNull()
   })
 })

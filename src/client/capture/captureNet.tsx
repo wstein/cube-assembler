@@ -17,6 +17,8 @@ export function FaceGrid({
   auto,
   changed,
   unsure,
+  hovered,
+  onStickerHover,
   stickerColors,
 }: {
   colors: string[][]
@@ -27,6 +29,10 @@ export function FaceGrid({
   changed?: boolean[][]
   // Stickers the camera was unsure of, ringed.
   unsure?: boolean[][]
+  // A sticker to highlight, and a callback for the pointer moving over one
+  // (null when it leaves).
+  hovered?: { row: number; col: number } | null
+  onStickerHover?: (cell: { row: number; col: number } | null) => void
   stickerColors: Record<string, string>
 }) {
   // On odd sizes the center sticker never moves when a face is turned, so
@@ -41,7 +47,13 @@ export function FaceGrid({
       {colors.flat().map((color, i) => (
         <div
           key={i}
-          class={`orientation-net-sticker${changed?.[Math.floor(i / n)]?.[i % n] ? ' orientation-net-sticker-changed' : ''}${unsure?.[Math.floor(i / n)]?.[i % n] ? ' orientation-net-sticker-unsure' : ''}`}
+          class={`orientation-net-sticker${changed?.[Math.floor(i / n)]?.[i % n] ? ' orientation-net-sticker-changed' : ''}${unsure?.[Math.floor(i / n)]?.[i % n] ? ' orientation-net-sticker-unsure' : ''}${hovered && hovered.row === Math.floor(i / n) && hovered.col === i % n ? ' orientation-net-sticker-hover' : ''}`}
+          onMouseEnter={
+            onStickerHover
+              ? () => onStickerHover({ row: Math.floor(i / n), col: i % n })
+              : undefined
+          }
+          onMouseLeave={onStickerHover ? () => onStickerHover(null) : undefined}
           style={
             (undecided && i !== centerIndex) || !color
               ? undefined

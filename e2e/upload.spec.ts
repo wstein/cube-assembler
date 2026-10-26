@@ -366,6 +366,14 @@ test('the hue scatter names a dot on hover, and says when it sits with another c
   await expect(info).toContainText(
     /row \d+, column \d+: \w+ \(L [\d.]+, C [\d.]+, h \d+°\) - sits with/,
   )
+  // A dot lights its sticker in the net, and a sticker its dot.
+  await expect(dialog.locator('.orientation-net-sticker-hover')).toHaveCount(1)
+  await dialog
+    .locator('.analysis-net .orientation-net-sticker')
+    .nth(30)
+    .hover({ force: true })
+  await expect(dialog.locator('.hue-scatter-hovered')).toHaveCount(1)
+  await expect(info).toContainText(/row \d+, column \d+/)
   await dialog.locator('.hue-scatter-misplaced').first().hover({ force: true })
   await expect(info).toContainText('not with its own color')
 })

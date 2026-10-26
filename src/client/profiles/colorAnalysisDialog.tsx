@@ -2,7 +2,9 @@
 // balance did, where the stickers sit around the hue circle, and how the
 // final colors differ from the standard and the learned ones.
 import { useState } from 'preact/hooks'
+import type { NetCell } from '../capture/approvalPhotos'
 import { HueScatterChart } from '../capture/hueScatterChart'
+import { OrientationNetPreview } from '../capture/orientationPresentation'
 import {
   colorDelta,
   meansByLabel,
@@ -104,6 +106,9 @@ export function ColorAnalysisDialog({
   backdrop,
   reference,
   samples,
+  cells,
+  netFaces,
+  stickerColors,
   standard,
   readWith,
   onClose,
@@ -112,11 +117,17 @@ export function ColorAnalysisDialog({
   backdrop: BackdropFace[] | null
   reference: RGB | null
   samples: LocatedSample[]
+  // The net cell of each sample, and the net's faces (null without a net).
+  cells: Array<NetCell | undefined>
+  netFaces: Record<string, string[][]> | null
+  stickerColors: Record<string, string>
   standard: Record<string, RGB>
   readWith: { name: string; colors: Record<string, RGB> } | null
   onClose: () => void
 }) {
   const [tab, setTab] = useState<Tab>('hues')
+  // The sticker pointed at, in the scatter or in the net.
+  const [hovered, setHovered] = useState<number | null>(null)
   const tabs: Array<{ id: Tab; label: string }> = [
     { id: 'backdrop', label: 'Backdrop' },
     { id: 'hues', label: 'Hues' },
@@ -178,10 +189,38 @@ export function ColorAnalysisDialog({
               Every sticker by hue (across) and lightness (up) after the white
               balance, in its own measured color. Each cloud is named with its
               sticker count; a dot with a dark ring sits with another color's
-              stickers than the one it ended up as. Red and orange share hues,
+              stickers than the one it ended up as. Point at a dot or at a
+              sticker in the net to find the other. Red and orange share hues,
               but orange is lighter: two clouds, not one.
             </p>
-            <HueScatterChart samples={samples} />
+            <HueScatterChart
+              samples={samples}
+              hovered={hovered}
+              onHover={setHovered}
+            />
+            {netFaces && (
+              <div class="analysis-net">
+                <OrientationNetPreview
+                  faces={netFaces}
+                  stickerColors={stickerColors}
+                  hoveredSticker={
+                    hovered === null ? null : (cells[hovered] ?? null)
+                  }
+                  onStickerHover={(cell) =>
+                    setHovered(
+                      cell
+                        ? cells.findIndex(
+                            (own) =>
+                              own?.face === cell.face &&
+                              own.row === cell.row &&
+                              own.col === cell.col,
+                          )
+                        : null,
+                    )
+                  }
+                />
+              </div>
+            )}
           </>
         )}
         {tab === 'final' && (

@@ -52,6 +52,8 @@ export function OrientationNetPreview({
   photos,
   flaggedFaces,
   onFaceClick,
+  hoveredSticker,
+  onStickerHover,
   stickerColors,
 }: {
   faces: Record<string, string[][]>
@@ -65,6 +67,11 @@ export function OrientationNetPreview({
   // Faces to mark (for example a photo shot twice).
   flaggedFaces?: Set<string>
   onFaceClick?: (face: string) => void
+  // A sticker to highlight and the pointer moving over one, by net face.
+  hoveredSticker?: { face: string; row: number; col: number } | null
+  onStickerHover?: (
+    cell: { face: string; row: number; col: number } | null,
+  ) => void
   stickerColors: Record<string, string>
 }) {
   const faceGrid = (face: string) => (
@@ -76,6 +83,12 @@ export function OrientationNetPreview({
       auto={autoFaces?.has(face)}
       changed={changedFaces?.[face]}
       unsure={unsureFaces?.[face]}
+      hovered={hoveredSticker?.face === face ? hoveredSticker : null}
+      onStickerHover={
+        onStickerHover
+          ? (cell) => onStickerHover(cell && { face, ...cell })
+          : undefined
+      }
     />
   )
   const grid = (face: string) =>
