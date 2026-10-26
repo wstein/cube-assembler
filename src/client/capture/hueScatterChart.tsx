@@ -16,12 +16,15 @@ const GRAY_WIDTH = 110
 const GAP = 14
 const LEFT = 30
 const TOP = 22
-const BOTTOM = 24
+const BOTTOM = 30
 // Lightness shown: below this no sticker sits, above 1 nothing can.
 const L_MIN = 0.3
 const HUE_TICKS = [0, 60, 120, 180, 240, 300]
-// Chroma at the right edge of the gray column.
-const GRAY_CHROMA = 0.1
+// The gray column's own small hue axis, in true degrees.
+const GRAY_HUE_TICKS = [90, 180, 270]
+const trueHue = (axisHue: number) => (axisHue + HUE_CUT) % 360
+const grayX = (hue: number) =>
+  LEFT + WIDTH + GAP + 6 + (hue / 360) * (GRAY_WIDTH - 12)
 const L_TICKS = [0.4, 0.6, 0.8, 1]
 
 const x = (hue: number) => LEFT + (hue / 360) * WIDTH
@@ -61,7 +64,7 @@ export function HueScatterChart({
   const info = (i: number) => {
     const point = points[i]
     const where = samples[i].where ? `${samples[i].where}: ` : ''
-    const hue = Math.round((point.hue + HUE_CUT) % 360)
+    const hue = Math.round(trueHue(point.hue))
     const kind = `L ${point.l.toFixed(2)}, C ${point.chroma.toFixed(2)}, h ${hue}°`
     return `${where}${name(point.label)} (${kind})`
   }
@@ -105,11 +108,7 @@ export function HueScatterChart({
           </text>
         ))}
         {points.map((point, i) => {
-          const cx = point.neutral
-            ? grayLeft +
-              6 +
-              Math.min(point.chroma / GRAY_CHROMA, 1) * (GRAY_WIDTH - 12)
-            : x(point.hue)
+          const cx = point.neutral ? grayX(trueHue(point.hue)) : x(point.hue)
           return (
             <circle
               key={i}
@@ -155,8 +154,19 @@ export function HueScatterChart({
           y={TOP + HEIGHT + 11}
           text-anchor="middle"
         >
-          gray, by chroma →
+          gray
         </text>
+        {GRAY_HUE_TICKS.map((hue) => (
+          <text
+            key={hue}
+            class="hue-scatter-gray-tick"
+            x={grayX(hue)}
+            y={TOP + HEIGHT + 22}
+            text-anchor="middle"
+          >
+            {hue}°
+          </text>
+        ))}
       </svg>
       <p class="hue-scatter-info" role="status">
         {hovered === null
