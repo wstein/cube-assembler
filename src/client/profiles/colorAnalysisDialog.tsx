@@ -103,6 +103,25 @@ function FinalColors({
   )
 }
 
+// The net cells of the selected samples, face by face, to ring in the net.
+function selectedCells(
+  netFaces: Record<string, string[][]>,
+  cells: Array<NetCell | undefined>,
+  selected: number[],
+) {
+  const faces: Record<string, boolean[][]> = {}
+  for (const i of selected) {
+    const cell = cells[i]
+    if (!cell) continue
+    const n = netFaces[cell.face].length
+    faces[cell.face] ??= Array.from({ length: n }, () =>
+      Array.from({ length: n }, () => false),
+    )
+    faces[cell.face][cell.row][cell.col] = true
+  }
+  return faces
+}
+
 export function ColorAnalysisDialog({
   backdrop,
   reference,
@@ -132,6 +151,8 @@ export function ColorAnalysisDialog({
   const [tab, setTab] = useState<Tab>('hues')
   // The sticker pointed at, in the scatter or in the net.
   const [hovered, setHovered] = useState<number | null>(null)
+  // The stickers a lasso in the scatter picked.
+  const [selected, setSelected] = useState<number[]>([])
   const tabs: Array<{ id: Tab; label: string }> = [
     { id: 'backdrop', label: 'Backdrop' },
     { id: 'hues', label: 'Hues' },
@@ -203,6 +224,8 @@ export function ColorAnalysisDialog({
               samples={samples}
               hovered={hovered}
               onHover={setHovered}
+              selected={selected}
+              onSelect={setSelected}
             />
             {netFaces && (
               <div class="analysis-net">
@@ -210,6 +233,7 @@ export function ColorAnalysisDialog({
                   faces={netFaces}
                   photos={photos}
                   stickerColors={stickerColors}
+                  selectedFaces={selectedCells(netFaces, cells, selected)}
                   hoveredSticker={
                     hovered === null ? null : (cells[hovered] ?? null)
                   }

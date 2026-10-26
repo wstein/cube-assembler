@@ -569,3 +569,75 @@ test('the hue scatter names a dot on hover and links it with the net', async ({
     dialog.locator('.orientation-net-photo-shown .orientation-net-photo'),
   ).toHaveCSS('opacity', '1')
 })
+
+test('a lasso around dots counts them by color and rings them in the net', async ({
+  page,
+}) => {
+  const dir = resolve('test/fixtures/cube-5x5-2026-10-26T00-04-11')
+  await page.goto('/')
+  await page
+    .locator('.capture-alternatives input[type="file"]')
+    .setInputFiles([
+      ...faceKeys.map((face) => resolve(dir, `face-${face}.jpg`)),
+      resolve(dir, 'meta.json'),
+    ])
+  await page.getByRole('button', { name: 'Yes, this is my cube' }).click()
+  await page.goto('/#profiles')
+  await page.getByRole('button', { name: 'Analyze colors' }).click()
+  const dialog = page.getByRole('dialog', { name: 'Color analysis' })
+  const chart = dialog.locator('.hue-scatter')
+  const selection = dialog.locator('.hue-scatter-selection')
+  await expect(selection).toHaveCount(0)
+  const lasso = async (box: {
+    x: number
+    y: number
+    width: number
+    height: number
+  }) => {
+    const { x, y, width, height } = box
+    await page.mouse.move(x, y)
+    await page.mouse.down()
+    await page.mouse.move(x + width, y, { steps: 4 })
+    await page.mouse.move(x + width, y + height, { steps: 4 })
+    await page.mouse.move(x, y + height, { steps: 4 })
+    await page.mouse.move(x, y + 1, { steps: 4 })
+    await page.mouse.up()
+  }
+  // Around the whole chart: every sticker, 25 of each color.
+  const all = (await chart.boundingBox())!
+  await lasso({
+    x: all.x + 2,
+    y: all.y + 2,
+    width: all.width - 4,
+    height: all.height - 4,
+  })
+  await expect(selection).toContainText('150 stickers selected')
+  await expect(selection).toContainText('white 25 of 25')
+  await expect(selection).toContainText('blue 25 of 25')
+  await expect(dialog.locator('.orientation-net-sticker-selected')).toHaveCount(
+    150,
+  )
+  // Around one dot: the few stickers of that cloud, as many as it is ringed
+  // in the net.
+  const dot = (await dialog.locator('.hue-scatter-dot').first().boundingBox())!
+  await lasso({
+    x: dot.x - 3,
+    y: dot.y - 3,
+    width: dot.width + 6,
+    height: dot.height + 6,
+  })
+  await expect(selection).toContainText(
+    /^\d+ stickers? selected: \w+ \d+ of 25\.$/,
+  )
+  const picked = Number((await selection.innerText()).split(' ')[0])
+  expect(picked).toBeLessThan(25)
+  await expect(dialog.locator('.orientation-net-sticker-selected')).toHaveCount(
+    picked,
+  )
+  // A click without drawing clears it.
+  await chart.click({ position: { x: 2, y: 2 } })
+  await expect(selection).toHaveCount(0)
+  await expect(dialog.locator('.orientation-net-sticker-selected')).toHaveCount(
+    0,
+  )
+})

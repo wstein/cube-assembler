@@ -898,6 +898,31 @@
   vector-effect: non-scaling-stroke;
 }
 
+.orientation-net-sticker-selected {
+  outline: 2px solid var(--color-accent);
+  outline-offset: -2px;
+}
+
+.hue-scatter-lasso {
+  fill: rgb(59 91 219 / 12%);
+  stroke: var(--color-accent);
+  stroke-width: 1.5;
+  stroke-dasharray: 4 3;
+  vector-effect: non-scaling-stroke;
+}
+
+.hue-scatter-selected {
+  stroke: var(--color-accent);
+  stroke-width: 2;
+  vector-effect: non-scaling-stroke;
+}
+
+.hue-scatter-selection {
+  margin: 4px 0 0;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
 .orientation-net-sticker-hover {
   outline: 3px solid var(--color-text-primary);
   outline-offset: -3px;

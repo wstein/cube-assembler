@@ -5,6 +5,8 @@ import {
   hueBarColor,
   hueScatter,
   type LocatedSample,
+  pointsInPolygon,
+  selectionCounts,
 } from './hueScatter'
 
 const NAME: Record<string, string> = {
@@ -118,12 +120,23 @@ export function HueScatterChart({
   samples,
   hovered,
   onHover,
+  selected,
+  onSelect,
 }: {
   samples: LocatedSample[]
   // The sticker pointed at, here or in the net: a sample index.
   hovered: number | null
   onHover: (index: number | null) => void
+  // The stickers inside the outline drawn by hand: sample indices.
+  selected: number[]
+  onSelect: (indices: number[]) => void
 }) {
+  // The outline being drawn, in chart units; null when none is.
+  const [outline, setOutline] = useState<Array<{
+    x: number
+    y: number
+  }> | null>(null)
+  const drawing = useRef<Array<{ x: number; y: number }> | null>(null)
   const [zoom, setZoom] = useState(LENS_ZOOM_START)
   const [lens, setLens] = useState<{
     x: number
@@ -136,6 +149,24 @@ export function HueScatterChart({
   const grayLeft = LEFT + WIDTH + GAP
   const points = hueScatter(samples)
   const deviations = countDeviations(samples)
+  // Lifting the button closes the outline and selects the dots inside it; a
+  // click without drawing clears the selection.
+  const finishOutline = () => {
+    const path = drawing.current
+    drawing.current = null
+    setOutline(null)
+    if (!path) return
+    onSelect(
+      path.length < 4
+        ? []
+        : pointsInPolygon(
+            path,
+            points.map((point) => ({ x: dotX(point), y: y(point.l) })),
+          ),
+    )
+  }
+  const counts = selectionCounts(samples, selected)
+  const selectedSet = new Set(selected)
   const info = (i: number) => {
     const point = points[i]
     const where = samples[i].where ? `${samples[i].where}: ` : ''
@@ -158,6 +189,16 @@ export function HueScatterChart({
           at.x = e.clientX
           at.y = e.clientY
           const raw = at.matrixTransform(m.inverse())
+          // While the button is down the pointer draws the outline.
+          const path = drawing.current
+          const tail = path?.[path.length - 1]
+          if (
+            path &&
+            (!tail || Math.hypot(raw.x - tail.x, raw.y - tail.y) >= 1)
+          ) {
+            path.push({ x: raw.x, y: raw.y })
+            setOutline([...path])
+          }
           // The brake: the lens point moves only BRAKE of what the pointer
           // moves, so one pixel of hand is a fraction of a pixel in the
           // lens. It may trail the pointer by BRAKE_REACH at most, and
@@ -214,6 +255,18 @@ export function HueScatterChart({
           const picked = target !== null && best <= hit ? target : null
           if (picked !== hovered) onHover(picked)
         }}
+        onMouseDown={(e) => {
+          if (e.button !== 0) return
+          const svg = e.currentTarget
+          const m = svg.getScreenCTM()
+          if (!m) return
+          const at = svg.createSVGPoint()
+          at.x = e.clientX
+          at.y = e.clientY
+          const start = at.matrixTransform(m.inverse())
+          drawing.current = [{ x: start.x, y: start.y }]
+        }}
+        onMouseUp={finishOutline}
         onWheel={(e) => {
           // The wheel (or a pinch, which arrives as a wheel with ctrl) sets
           // the magnification while the lens is open.
@@ -226,6 +279,7 @@ export function HueScatterChart({
           )
         }}
         onMouseLeave={() => {
+          finishOutline()
           lastPointer.current = null
           brakeOffset.current = { x: 0, y: 0 }
           setLens(null)
@@ -351,7 +405,7 @@ export function HueScatterChart({
               return (
                 <circle
                   key={i}
-                  class={`hue-scatter-dot${hovered === i ? ' hue-scatter-hovered' : ''}`}
+                  class={`hue-scatter-dot${hovered === i ? ' hue-scatter-hovered' : ''}${selectedSet.has(i) ? ' hue-scatter-selected' : ''}`}
                   cx={cx}
                   cy={y(point.l)}
                   r={3}
@@ -373,6 +427,13 @@ export function HueScatterChart({
             gray
           </text>
         </g>
+        {outline && (
+          <path
+            class="hue-scatter-lasso"
+            pointer-events="none"
+            d={`M${outline.map((p) => `${p.x} ${p.y}`).join('L')}Z`}
+          />
+        )}
         {lens && (
           <path
             class="hue-scatter-lens-cross hue-scatter-brake-mark"
@@ -422,9 +483,21 @@ export function HueScatterChart({
       )}
       <p class="hue-scatter-info" role="status">
         {hovered === null
-          ? 'Point at a dot to see which sticker it is.'
+          ? 'Point at a dot to see which sticker it is. Drag around dots to count them.'
           : info(hovered)}
       </p>
+      {selected.length > 0 && (
+        <p class="hue-scatter-selection">
+          {selected.length} sticker{selected.length === 1 ? '' : 's'} selected:{' '}
+          {counts
+            .map(
+              (c) =>
+                `${name(c.label)} ${c.count}${c.expected ? ` of ${c.expected}` : ''}`,
+            )
+            .join(', ')}
+          .
+        </p>
+      )}
     </>
   )
 }

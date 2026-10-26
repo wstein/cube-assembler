@@ -66,7 +66,13 @@ describe('lasso selection', () => {
   it('has no expected share unless the stickers divide into six colors', () => {
     const rgb = { r: 0, g: 0, b: 0 }
     expect(
-      selectionCounts([{ rgb, label: 'W' }, { rgb, label: 'W' }], [0, 1]),
+      selectionCounts(
+        [
+          { rgb, label: 'W' },
+          { rgb, label: 'W' },
+        ],
+        [0, 1],
+      ),
     ).toEqual([{ label: 'W', count: 2, expected: 0 }])
   })
 })
