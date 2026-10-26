@@ -38,7 +38,10 @@ const captures = existsSync(root)
       .filter(
         (name) =>
           /^(?:capture-|cube-\d+x\d+-)/.test(name) &&
-          existsSync(join(root, name, 'meta.json')),
+          existsSync(join(root, name, 'meta.json')) &&
+          // Negative examples have no human-verified colors to grade against.
+          !JSON.parse(readFileSync(join(root, name, 'meta.json'), 'utf8'))
+            .expectedFail,
       )
       .sort()
   : []
