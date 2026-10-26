@@ -208,8 +208,6 @@ let readingsGrid = (face: option<JSON.t>, size) =>
   | _ => None
   }
 
-let photoNames = ["Side 1", "Side 2", "Side 3", "Side 4", "Top", "Bottom"]
-
 // How sure the camera was of a photo's stickers, in percent (older
 // fixtures saved 0-1).
 let photoSureness = (face: option<JSON.t>) => {
@@ -226,45 +224,25 @@ let photoSureness = (face: option<JSON.t>) => {
 
 // Tells a face photographed twice from poor photos, for the summary.
 let captureCheck = (face: string => option<JSON.t>, size) => {
-  let rows = []
   let grids = faceKeys->Array.map(key => readingsGrid(face(key), size))
   if grids->Array.some(grid => grid->Option.isSome) {
-    let repeats = if mod(size, 2) == 0 {
-      rows->Array.push(("Repeated face", "not checked on even cubes"))
-      []
-    } else {
-      let repeats =
-        RepeatedFace.findRepeatShots(grids)->Array.map(((a, b)) =>
-          `${photoNames->Array.getUnsafe(a)} and ${photoNames->Array.getUnsafe(b)}`
-        )
-      rows->Array.push((
-        "Repeated face",
-        Array.length(repeats) == 0 ? "none" : repeats->Array.join("; "),
-      ))
-      repeats
-    }
-    let weakest = ref(None)
-    faceKeys->Array.forEachWithIndex((key, i) =>
-      switch photoSureness(face(key)) {
-      | Some(sure) =>
-        switch weakest.contents {
-        | Some((_, best)) if best <= sure => ()
-        | _ => weakest := Some((i, sure))
-        }
-      | None => ()
-      }
+    let diagnosis = CaptureDiagnosis.diagnose(
+      size,
+      grids,
+      faceKeys->Array.map(key => photoSureness(face(key))),
     )
-    let cause = switch (Array.length(repeats) > 0, weakest.contents) {
-    | (true, _) => "a face was shot twice - the photos themselves are fine"
-    | (false, Some((i, sure))) if sure < 60.0 =>
-      `the ${photoNames->Array.getUnsafe(i)} photo is poor (${sure->toFixed(
-          0,
-        )}% sure) - retake it in better light`
-    | _ => "none found"
-    }
-    rows->Array.push(("Likely cause", cause))
+    [
+      (
+        "Repeated face",
+        diagnosis.repeatsChecked
+          ? CaptureDiagnosis.repeatedText(diagnosis)
+          : "not checked on even cubes",
+      ),
+      ("Likely cause", diagnosis.cause),
+    ]
+  } else {
+    []
   }
-  rows
 }
 
 let summarizeMeta = (meta: JSON.t) => {
