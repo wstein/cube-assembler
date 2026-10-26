@@ -83,6 +83,8 @@ export function CubeView3D({
     finishSettlingTurn,
     settleDrag,
     toggleScramble,
+    randomState,
+    takeSpinYaw,
     resetCube,
     undoLastTurn,
     isInitialCube,
@@ -106,6 +108,8 @@ export function CubeView3D({
     viewRef: stateRef,
     onFrame: (time, elapsed) => {
       const update = advance(time)
+      const spin = takeSpinYaw()
+      if (spin) setYaw((prev) => prev + spin)
       stepCamera(time, elapsed)
       return update
     },
@@ -206,6 +210,7 @@ export function CubeView3D({
       resetView={resetView}
       isScrambling={isScrambling}
       toggleScramble={toggleScramble}
+      randomState={randomState}
       undoLastTurn={undoLastTurn}
       moves={moves}
       isTurning={isTurning}

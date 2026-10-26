@@ -10,7 +10,9 @@ import {
   type activeTurn as ActiveTurn,
   type queuedTurn as QueuedTurn,
 } from '../../core/view/TurnAnimation.gen'
+import { spinFrame } from '../../core/view/RandomSpin.gen'
 import type { CubeState, FaceKey } from '../../cube/cubeAssembly'
+import { randomCube } from '../../cube/randomState'
 import {
   advanceColorFrame,
   initialColorFrame,
@@ -82,6 +84,15 @@ export function useCubeTurns({
   const turnQueueRef = useRef<QueuedTurn[]>([])
   const currentTurnRef = useRef<ActiveTurn | null>(null)
   const dragTurnRef = useRef<DragTurn | null>(null)
+  // The Random State spin: the cube it swaps in at the midpoint, and the
+  // turn of the view not yet handed to the camera.
+  const spinRef = useRef<{
+    startedAt: number | null
+    cube: CubeState
+    swapped: boolean
+    angle: number
+  } | null>(null)
+  const spinYawRef = useRef(0)
   const forceUpdateMeshRef = useRef(false)
   // Read once per view: the settings page is a page of its own.
   const [magnetic] = useState(() => readTurnFeel(document.cookie).overshoot)
@@ -99,6 +110,7 @@ export function useCubeTurns({
     turnQueueRef.current = []
     currentTurnRef.current = null
     dragTurnRef.current = null
+    spinRef.current = null
     setIsScrambling(false)
     setIsTurning(false)
     forceUpdateMeshRef.current = true
@@ -146,6 +158,7 @@ export function useCubeTurns({
 
   // Whether a turn plays, waits or follows the finger.
   const busy = () =>
+    spinRef.current !== null ||
     currentTurnRef.current !== null ||
     dragTurnRef.current !== null ||
     turnQueueRef.current.length > 0
@@ -187,7 +200,68 @@ export function useCubeTurns({
     }
   }
 
+  // Swaps in a cube with no history: the colors are those of a solved cube
+  // turned into it, so the view's axes keep theirs.
+  const showCube = (next: CubeState) => {
+    currentCubeRef.current = next
+    setCurrentCube(next)
+    movesRef.current = []
+    setMoves([])
+    const nextFrame = initialColorFrame(next, puzzleSize)
+    frameRef.current = nextFrame
+    setFrame(nextFrame)
+    onTurnStateChangeRef.current?.(next, [], nextFrame)
+    forceUpdateMeshRef.current = true
+  }
+
+  // A random valid cube at once: the cube spins once and its stickers change
+  // at the midpoint. Turns in progress are dropped.
+  const randomState = () => {
+    pauseAutoRotation()
+    turnQueueRef.current = []
+    currentTurnRef.current = null
+    dragTurnRef.current = null
+    setIsScrambling(false)
+    setIsTurning(true)
+    spinRef.current = {
+      startedAt: null,
+      cube: randomCube(puzzleSize, Math.floor(Math.random() * 0x7fffffff)),
+      swapped: false,
+      angle: 0,
+    }
+  }
+
+  // One frame of the spin: swaps the cube at the midpoint and keeps what the
+  // view has yet to turn.
+  const advanceSpin = (
+    spin: NonNullable<typeof spinRef.current>,
+    time: number,
+  ): MeshUpdate | null => {
+    spin.startedAt ??= time
+    const step = spinFrame(time - spin.startedAt)
+    spinYawRef.current += step.angle - spin.angle
+    spin.angle = step.angle
+    if (step.finished) {
+      spinRef.current = null
+      setIsTurning(false)
+    }
+    if (!step.swapped || spin.swapped) return null
+    spin.swapped = true
+    showCube(spin.cube)
+    forceUpdateMeshRef.current = false
+    return { colors: true }
+  }
+
+  // The turn of the view since the last call, for the camera to add to its
+  // yaw.
+  const takeSpinYaw = () => {
+    const yaw = spinYawRef.current
+    spinYawRef.current = 0
+    return yaw
+  }
+
   const resetCube = () => {
+    spinRef.current = null
     turnQueueRef.current = []
     currentTurnRef.current = null
     dragTurnRef.current = null
@@ -234,6 +308,8 @@ export function useCubeTurns({
   // unchanged. Queued turns wait until the finger lets go of a layer; with
   // the magnetic snap each quarter turn holds a dragged layer like a magnet.
   const advance = (time: number): MeshUpdate | null => {
+    const spin = spinRef.current
+    if (spin) return advanceSpin(spin, time)
     if (forceUpdateMeshRef.current) {
       forceUpdateMeshRef.current = false
       return { colors: true }
@@ -308,6 +384,8 @@ export function useCubeTurns({
     finishSettlingTurn,
     settleDrag,
     toggleScramble,
+    randomState,
+    takeSpinYaw,
     resetCube,
     undoLastTurn,
     isInitialCube: isInitialCubeOf(currentCube, cube),

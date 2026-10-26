@@ -29,6 +29,7 @@ interface CubeView3DPresentationProps {
   resetView: (back?: boolean) => void
   isScrambling: boolean
   toggleScramble: () => void
+  randomState: () => void
   undoLastTurn: () => void
   moves: CubeTurn[]
   isTurning: boolean
@@ -62,6 +63,7 @@ export function CubeView3DPresentation({
   resetView,
   isScrambling,
   toggleScramble,
+  randomState,
   undoLastTurn,
   moves,
   isTurning,
@@ -237,6 +239,14 @@ export function CubeView3DPresentation({
                   title={isScrambling ? 'Stop scramble' : 'Scramble cube'}
                 >
                   {isScrambling ? 'Stop' : 'Scramble'}
+                </button>
+                <button
+                  type="button"
+                  class="cube-3d-btn"
+                  onClick={randomState}
+                  title="Mix the cube at once into a random valid state"
+                >
+                  Random State
                 </button>
                 <button
                   type="button"

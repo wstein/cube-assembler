@@ -108,6 +108,11 @@ facelet notation, and Orbit64 token. The move list records completed turns;
 **Undo** reverses the last one, and **Reset** returns to the captured state.
 **Scramble** uses more moves for larger cubes and turns inner layers on 4×4–7×7,
 while leaving the fixed middle layer alone on odd cubes.
+**Random State** mixes the cube at once into a random valid state, as speed
+cubers do for practice: the cube spins once and its stickers change at the
+midpoint. On 4×4 and larger, centers and wings are mixed too. It leaves no move
+history (the move list shows None, Undo is off), and **Reset** returns to the
+starting cube. It is only in the 3D view.
 The face buttons show one side head-on; **Isometric** and **Iso-back** show
 the cube from its front corner or the opposite back corner. With the view
 focused, the arrow keys tilt and turn it.

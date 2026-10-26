@@ -286,3 +286,91 @@ test('Iso-back reveals the Down face', async ({ page }) => {
   }, screenshot.toString('base64'))
   expect(yellowPixels).toBeGreaterThan(1_000)
 })
+
+test('Random State is only in the 3D view', async ({ page }) => {
+  await page.goto('/')
+  await page.getByRole('button', { name: 'Solved cube' }).click()
+  await expect(page.getByRole('button', { name: 'Random State' })).toHaveCount(
+    0,
+  )
+  await page.getByRole('button', { name: '3D View' }).click()
+  await expect(page.getByRole('button', { name: 'Random State' })).toBeVisible()
+})
+
+for (const size of ['3×3', '4×4', '5×5']) {
+  test(`Random State mixes a ${size} at once, clears the history and resets`, async ({
+    page,
+  }) => {
+    await page.goto('/')
+    await page
+      .getByRole('combobox', { name: 'Cube' })
+      .selectOption({ label: size })
+    await page.getByRole('button', { name: 'Solved cube' }).click()
+    await page.getByRole('button', { name: '3D View' }).click()
+    const history = page.getByRole('status', { name: 'Move history' })
+    const undo = page.getByRole('button', { name: 'Undo', exact: true })
+    const reset = page.getByRole('button', { name: 'Reset', exact: true })
+    const z = page.locator('.cube-3d-gizmo [data-axis="z"]')
+    const green = await z.evaluate((el) => getComputedStyle(el).color)
+    await expect(reset).toBeDisabled()
+
+    // Some turns first, so there is a history to clear.
+    await page.getByRole('button', { name: 'Scramble', exact: true }).click()
+    await expect(history).not.toContainText('None')
+    await expect(
+      page.getByRole('button', { name: 'Scramble', exact: true }),
+    ).toBeVisible({ timeout: 30_000 })
+    await waitForCubeIdle(page)
+    await expect(undo).toBeEnabled()
+
+    await page.getByRole('button', { name: 'Random State' }).click()
+    await waitForCubeIdle(page)
+    await expect(history).toContainText('None')
+    await expect(undo).toBeDisabled()
+    await expect(reset).toBeEnabled()
+    // The mixed cube keeps its colors on the same axes.
+    expect(await z.evaluate((el) => getComputedStyle(el).color)).toBe(green)
+
+    await reset.click()
+    await expect(reset).toBeDisabled()
+    await expect(history).toContainText('None')
+  })
+}
+
+test('Random State spins the view once and ends where it began', async ({
+  page,
+}) => {
+  await page.goto('/')
+  await page.getByRole('button', { name: 'Solved cube' }).click()
+  await page.getByRole('button', { name: '3D View' }).click()
+  await waitForCubeIdle(page)
+  const gizmo = page.locator('.cube-3d-gizmo')
+  // To two decimals: a full turn returns to the start up to rounding noise.
+  const look = () =>
+    gizmo.evaluate((el) =>
+      el.innerHTML.replace(/\d+\.\d+/g, (n) => Number(n).toFixed(1)),
+    )
+  const before = await look()
+  // Sample the gizmo every frame for a second after the click.
+  const seen = await page.evaluate(
+    () =>
+      new Promise<string[]>((resolve) => {
+        const gizmo = document.querySelector('.cube-3d-gizmo')
+        const button = [...document.querySelectorAll('button')].find(
+          (b) => b.textContent?.trim() === 'Random State',
+        )
+        const looks = new Set<string>()
+        button?.click()
+        const start = performance.now()
+        const sample = () => {
+          looks.add(gizmo?.innerHTML ?? '')
+          if (performance.now() - start < 1000) requestAnimationFrame(sample)
+          else resolve([...looks])
+        }
+        sample()
+      }),
+  )
+  expect(seen.length).toBeGreaterThan(3)
+  await waitForCubeIdle(page)
+  expect(await look()).toBe(before)
+})
