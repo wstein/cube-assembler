@@ -20,12 +20,6 @@
   border-radius: var(--radius-md);
 }
 
-.notation-format-toggle {
-  display: flex;
-  gap: var(--spacing-xs);
-  margin-bottom: var(--spacing-sm);
-}
-
 .color-input-panel textarea {
   font-family: var(--font-mono);
   font-size: 0.85rem;
