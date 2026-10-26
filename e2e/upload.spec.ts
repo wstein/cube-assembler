@@ -50,8 +50,8 @@ async function reviewFaces(page: Page): Promise<string[]> {
     await review
       .getByRole('group', { name: 'Faces' })
       .getByRole('button', {
-        name: label,
-        exact: true,
+        // Named by net face with the capture slot in parentheses.
+        name: new RegExp(`^${label}$|\\(${label}\\)$`),
       })
       .click()
     await expect(review.locator('.review-face-image')).toBeVisible()
@@ -247,21 +247,40 @@ test('a capture that cannot be put together shows an error, not silence', async 
   await expect(dialog).toContainText('shot twice')
 })
 
-test('the color review picks a face from a mini net, not numbered dots', async ({
+test('the color review follows the cube net: Left, Front, Right, Back, Up, Down', async ({
   page,
 }) => {
+  const dir = resolve('test/fixtures/cube-5x5-2026-10-25T23-50-58')
   await page.goto('/')
   await page
+    .getByRole('combobox', { name: 'Cube' })
+    .selectOption('builtin-generic-5')
+  await page
     .locator('.capture-alternatives input[type="file"]')
-    .setInputFiles([...photos, resolve(fixture, 'meta.json')])
-  const review = await openColorReview(page)
+    .setInputFiles([
+      ...faceKeys.map((face) => resolve(dir, `face-${face}.jpg`)),
+      resolve(dir, 'meta.json'),
+    ])
+  await page.getByRole('button', { name: 'No, check the colors' }).click()
+  const review = page.locator('.review-modal-content')
   const net = review.getByRole('group', { name: 'Faces' })
   await expect(net.locator('.orientation-net-face')).toHaveCount(6)
   await expect(net.locator('.progress-dot')).toHaveCount(0)
-  await net.getByRole('button', { name: 'Bottom', exact: true }).click()
-  await expect(review.getByRole('heading', { name: 'Bottom' })).toBeVisible()
-  await expect(net.getByRole('button', { name: 'Bottom' })).toHaveAttribute(
-    'aria-current',
-    'step',
-  )
+  // The picker is the net; the review starts at Left and walks L F R B U D.
+  for (const [i, name] of [
+    'Left',
+    'Front',
+    'Right',
+    'Back',
+    'Up',
+    'Down',
+  ].entries()) {
+    await expect(review.getByRole('heading', { name })).toBeVisible()
+    await expect(review).toContainText(`${i + 1} of 6`)
+    await expect(net.locator('[aria-current="step"]')).toHaveCount(1)
+    if (i < 5) await review.getByRole('button', { name: /next side/ }).click()
+  }
+  // The net picks a face directly.
+  await net.getByRole('button', { name: /^Front/ }).click()
+  await expect(review.getByRole('heading', { name: 'Front' })).toBeVisible()
 })

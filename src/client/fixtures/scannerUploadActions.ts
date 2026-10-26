@@ -3,6 +3,7 @@ import { readPhotoUploads } from './readPhotoUploads'
 import { readFixtureAssembled } from './fixtureFormat'
 import { readFixtureUpload } from './readFixtureUpload'
 import { unzipUploadFiles } from './fixtureZip'
+import { reviewStartSlot } from '../capture/approvalPhotos'
 import { FACE_ORDER } from '../capture/captureSteps'
 import { runGlobalWhiteBalance } from '../capture/captureRecalibration'
 import { BACKGROUND_WB_METHOD } from '../vision/faceSampling'
@@ -144,7 +145,7 @@ export function createScannerUploadActions({
         fixtureLoadedMessage(mismatches, ignoreFixtureCorrections),
       )
       if (ignoreFixtureCorrections) {
-        setReviewStep(0)
+        setReviewStep(reviewStartSlot(newEntries, FACE_ORDER))
         setShowReviewDialog(true)
       } else {
         routeReview({

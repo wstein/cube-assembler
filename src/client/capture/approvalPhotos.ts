@@ -126,6 +126,27 @@ export function captureStats(
   return { sureness, unsure, diagnosis }
 }
 
+// The order the color review walks the faces in once they fit together, and
+// what it calls them.
+export const REVIEW_NET_ORDER = ['L', 'F', 'R', 'B', 'U', 'D']
+export const NET_FACE_NAME: Record<string, string> = {
+  L: 'Left',
+  F: 'Front',
+  R: 'Right',
+  B: 'Back',
+  U: 'Up',
+  D: 'Down',
+}
+
+// The capture slot the review starts at: Left when the photos fit together,
+// else the first photo.
+export function reviewStartSlot(
+  captured: Record<string, FaceCaptureData>,
+  order: string[],
+): number {
+  return reviewNetLayout(captured, order)?.L.slot ?? 0
+}
+
 // Where each photo sits in the cube net (U above, L F R B in a row, D
 // below) for the review's face picker: the closest arrangement of the
 // photos as they are now - the review happens before the customer approves

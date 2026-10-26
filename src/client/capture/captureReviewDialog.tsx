@@ -1,6 +1,10 @@
 import type { TargetedKeyboardEvent } from 'preact'
 import { useMemo } from 'preact/hooks'
-import { reviewNetLayout } from './approvalPhotos'
+import {
+  NET_FACE_NAME,
+  REVIEW_NET_ORDER,
+  reviewNetLayout,
+} from './approvalPhotos'
 import { stickerMark } from './captureSteps'
 import { FaceGrid } from './captureNet'
 import type { FaceCaptureData } from './captureTypes'
@@ -72,12 +76,32 @@ export function CaptureReviewDialog({
     Array<string>(size).fill(''),
   )
   const data = faces[face]
-  const isLast = step === faceOrder.length - 1
   // The face picker is the cube net while the photos fit together.
   const netLayout = useMemo(
     () => reviewNetLayout(faces, [...faceOrder]),
     [faces, faceOrder],
   )
+  // Then the review walks it as Left, Front, Right, Back, Up, Down and names
+  // the faces so; the photos' capture labels are kept in brackets.
+  const stepSlots = netLayout
+    ? REVIEW_NET_ORDER.map((netFace) => netLayout[netFace].slot)
+    : faceOrder.map((_, i) => i)
+  const position = Math.max(0, stepSlots.indexOf(step))
+  const isLast = position === stepSlots.length - 1
+  const netNameOf = (slot: number) => {
+    const netFace = netLayout
+      ? REVIEW_NET_ORDER.find((f) => netLayout[f].slot === slot)
+      : undefined
+    return netFace ? NET_FACE_NAME[netFace] : undefined
+  }
+  const nameOf = (slot: number) =>
+    netNameOf(slot) ?? faceLabels[faceOrder[slot]]
+  const labelOf = (slot: number) => {
+    const net = netNameOf(slot)
+    return net
+      ? `${net} (${faceLabels[faceOrder[slot]]})`
+      : faceLabels[faceOrder[slot]]
+  }
   const pickers = netLayout
     ? Object.entries(netLayout).map(([netFace, place]) => ({
         key: netFace,
@@ -105,9 +129,9 @@ export function CaptureReviewDialog({
         <div class="review-header">
           <div class="capture-side-title">
             <span class="capture-step-kicker">
-              Check colors · {step + 1} of {faceOrder.length}
+              Check colors · {position + 1} of {faceOrder.length}
             </span>
-            <h2 id="review-title">{faceLabels[face]}</h2>
+            <h2 id="review-title">{nameOf(step)}</h2>
           </div>
           <div class="review-mini-net" role="group" aria-label="Faces">
             {pickers.map(({ key, slot, area, colors }) => (
@@ -117,8 +141,8 @@ export function CaptureReviewDialog({
                 class="review-mini-face"
                 style={{ gridArea: area }}
                 aria-current={slot === step ? 'step' : undefined}
-                aria-label={faceLabels[faceOrder[slot]]}
-                title={faceLabels[faceOrder[slot]]}
+                aria-label={labelOf(slot)}
+                title={labelOf(slot)}
                 onClick={() => onStepChange(slot)}
               >
                 <FaceGrid
@@ -332,14 +356,16 @@ export function CaptureReviewDialog({
                 class="btn btn-secondary"
                 onClick={() => onRetake(face)}
               >
-                Retake {faceLabels[face].toLowerCase()}
+                Retake {nameOf(step).toLowerCase()}
               </button>
               <div class="review-wizard-nav-spacer" />
               <button
                 type="button"
                 class="btn btn-secondary"
-                onClick={() => onStepChange(Math.max(0, step - 1))}
-                disabled={step === 0}
+                onClick={() =>
+                  onStepChange(stepSlots[Math.max(0, position - 1)])
+                }
+                disabled={position === 0}
               >
                 Previous
               </button>
@@ -355,7 +381,7 @@ export function CaptureReviewDialog({
                 <button
                   type="button"
                   class="btn btn-primary btn-review-next"
-                  onClick={() => onStepChange(step + 1)}
+                  onClick={() => onStepChange(stepSlots[position + 1])}
                 >
                   Looks right — next side
                 </button>

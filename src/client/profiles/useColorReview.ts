@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'preact/hooks'
 import type { OrientationSolution } from '../../cube/cubeAssembly'
 import { readyAssemblyAfterCapture } from '../capture/captureReviewRouting'
+import { reviewStartSlot } from '../capture/approvalPhotos'
 import { FACE_ORDER } from '../capture/captureSteps'
 import type { FaceCaptureData } from '../capture/captureTypes'
 import type { useCaptureSession } from '../capture/useCaptureSession'
@@ -74,7 +75,7 @@ export function useColorReview({
       return
     }
     const showColorReview = () => {
-      setReviewStep(0)
+      setReviewStep(reviewStartSlot(capturedFaces, FACE_ORDER))
       setShowReviewDialog(true)
     }
     const ready = readyAssemblyAfterCapture(capturedFaces, FACE_ORDER)

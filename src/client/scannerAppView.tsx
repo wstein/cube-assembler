@@ -7,6 +7,7 @@ import { CaptureColorPicker } from './capture/captureColorPicker'
 import { CaptureSettings, CubeSelectOptions } from './capture/captureSettings'
 import type { ReviewCapture } from './profiles/colorReviewPage'
 import { BackdropDialog } from './profiles/backdropDialog'
+import { reviewStartSlot } from './capture/approvalPhotos'
 import { withPaletteSuspects } from './capture/paletteSuspects'
 import { FixtureDownloadDialog } from './fixtures/fixtureDownloadDialog'
 import { localUploadShown } from './preferences'
@@ -642,7 +643,7 @@ export function ScannerAppView({ model }: { model: ScannerAppModel }) {
           onClose={() => setOrientationApproval(null)}
           onBackToColors={() => {
             setOrientationApproval(null)
-            setReviewStep(0)
+            setReviewStep(reviewStartSlot(capturedFaces, FACE_ORDER))
             setShowReviewDialog(true)
           }}
           onCheckFace={(candidate, face) => {
