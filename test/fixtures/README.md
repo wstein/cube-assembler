@@ -95,6 +95,7 @@ SYNTHETIC strip, `meta.json` a `preset:<name>` tag and `capture.synthetic`
 (renderer, preset, photo size, the seed of each face and the generator
 options, so the photos can be rendered again from the metadata alone);
 a state that is no cube is saved too, tagged `invalid-state` with the reason.
+Every rendered photo also carries a fingerprint (a JPEG comment or PNG `tEXt` chunk, see section 13 of the generator spec); importing photos reads it, so six fingerprinted photos save as a synthetic fixture again, and a camera photo's EXIF is saved as `capture.camera` (`source: "exif"`) and `faces.<f>.exif`.
 A cube that is no cube (a layer turned during the capture, so some colors are missing)
 is saved with its colors as photographed and the tag `invalid-state`; the
 fixture tests then expect the guided search to report that no arrangement is

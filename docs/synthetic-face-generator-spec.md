@@ -572,3 +572,37 @@ Random indices in use, by function:
 `gauss(i)` consumes `unit(2i)` and `unit(2i + 1)`, so index ranges of the two
 functions overlap numerically; the streams are used for unrelated purposes,
 and the rule above only keeps them apart _within_ one purpose.
+
+## 13. Fingerprint (image metadata)
+
+Every rendered photo says how it was made, so an importer can tell it from
+a camera photo and render it again. The pixels are identical with and
+without it. The text is one JSON object with these fields, in this order:
+
+| Field      | Type   | Meaning                                                    |
+| ---------- | ------ | ---------------------------------------------------------- |
+| `v`        | int    | schema version, `1`                                        |
+| `renderer` | string | `parametric/v1` (this reference), `rust/v1` (Rust)         |
+| `preset`   | string | the preset name                                            |
+| `seed`     | int    | the seed of **this** face's photo (base seed + face index) |
+| `face`     | string | `u`, `r`, `f`, `d`, `l` or `b`                             |
+| `size`     | int    | side of the photo in pixels                                |
+| `options`  | object | the options as in section 8, with defaults left out        |
+| `app`      | object | `{ "version": string }`; no commit, so output is stable    |
+
+Containers: a JPEG carries it in a comment segment (marker `FFFE`) right
+after SOI, as the text `cube-assembler:` followed by the JSON (UTF-8, at most
+65533 bytes in all). A PNG carries it in a `tEXt` chunk whose key is
+`cube-assembler`. The app reads both. The Rust generator writes PNG; this
+reference writes JPEG.
+
+The app saves the fingerprint per face as `faces.<f>.fingerprint`. When all
+six photos of a capture have one, agree on renderer, preset, size and options,
+and each names its own face, the fixture is saved as synthetic: a `synt-`
+name, the `synthetic` tags and `capture.synthetic`. A camera photo's EXIF
+(make, model, orientation, exposure time, f-number, ISO, focal length, white
+balance, date) is saved as `faces.<f>.exif` and, for the capture, as
+`capture.camera` with `"source": "exif"`.
+
+The normative home of this schema is the CubeLab repository
+(`wstein/cubelab`); the text here follows it.
