@@ -29,6 +29,9 @@ let colorConfidences: (StickerGeometry.rgb, Dict.t<StickerGeometry.rgb>) => Dict
 @genType let paletteDistance: (Dict.t<StickerGeometry.rgb>, Dict.t<StickerGeometry.rgb>) => float
 
 @genType
+let unforcedColor: (StickerGeometry.rgb, string, Dict.t<StickerGeometry.rgb>) => Null.t<string>
+
+@genType
 type nearest = {color: string, ratio: float}
 
 @genType

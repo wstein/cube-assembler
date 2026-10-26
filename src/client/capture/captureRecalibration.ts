@@ -6,6 +6,8 @@ import {
   colorConfidences as colorConfidencesRes,
   type classified,
 } from '../../core/color/Recalibration.gen'
+
+export { unforcedColor } from '../../core/color/Recalibration.gen'
 import {
   DEFAULT_SAMPLING,
   STICKER_COLORS,

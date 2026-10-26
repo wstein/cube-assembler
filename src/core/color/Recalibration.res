@@ -44,6 +44,32 @@ let colorConfidences = (rgb, palette: Dict.t<rgb>) =>
     ->Array.map(((color, centroid)) => (color, confidenceOf(clusterDistance(rgb, centroid)))),
   )
 
+// The equal share of stickers per color can push a sticker onto a color it
+// hardly matches: an orange one onto a white that lacks stickers. Below this
+// confidence in its assigned color, a sticker that some other color matches
+// at least `clearMinConfidence` keeps that color instead, and the
+// color-balance check then reports the missing stickers. Across the saved
+// captures no valid cube had a sticker moved by this.
+let forcedMaxConfidence = 0.6
+let clearMinConfidence = 0.9
+
+let unforcedColor = (rgb, label, palette: Dict.t<rgb>) => {
+  let confidence = color =>
+    palette->Dict.get(color)->Option.mapOr(0.0, centroid => confidenceOf(clusterDistance(rgb, centroid)))
+  if confidence(label) >= forcedMaxConfidence {
+    Null.null
+  } else {
+    let (best, bestConfidence) =
+      palette
+      ->Dict.keysToArray
+      ->Array.reduce(("", 0.0), ((best, bestConfidence), color) => {
+        let own = confidence(color)
+        own > bestConfidence ? (color, own) : (best, bestConfidence)
+      })
+    best != label && bestConfidence >= clearMinConfidence ? Null.make(best) : Null.null
+  }
+}
+
 // How different two palettes are: the mean distance between their
 // same-named colors, in the clustering metric.
 let paletteDistance = (a: Dict.t<rgb>, b: Dict.t<rgb>) => {
@@ -266,6 +292,24 @@ let classifyAcrossFaces = (
         }
       })
     }
+
+    // Nothing the equal share forced onto a color the sticker clearly is not.
+    samples->Array.forEachWithIndex((sample, i) => {
+      let location = locations->Array.getUnsafe(i)
+      let detection = reclassified->Dict.getUnsafe(location.face)
+      let label = detection.colors->Array.getUnsafe(location.row)->Array.getUnsafe(location.col)
+      let isCenter = fixedCenters && location.row == (gridSize - 1) / 2 && location.col == (gridSize - 1) / 2
+      switch (isCenter, Null.toOption(unforcedColor(sample.rgb, label, learned.colors))) {
+      | (false, Some(color)) =>
+        let confidence = confidenceOf(clusterDistance(sample.rgb, learned.colors->Dict.getUnsafe(color)))
+        let before =
+          detection.cellConfidences->Array.getUnsafe(location.row)->Array.getUnsafe(location.col)
+        set(location, color, confidence, lookalike(sample.rgb, color, learned.colors))
+        let (sum, _) = totals->Dict.getUnsafe(location.face)
+        sum := sum.contents +. confidence -. before
+      | _ => ()
+      }
+    })
 
     let faces = Dict.fromArray(
       reclassified
