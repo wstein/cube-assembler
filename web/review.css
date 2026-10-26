@@ -894,10 +894,11 @@
   fill: none;
 }
 
-.hue-scatter-label {
-  font-size: 10px;
-  font-weight: 600;
-  fill: var(--color-text-primary);
+.hue-scatter-counts {
+  margin: var(--spacing-sm) 0 0;
+  text-align: center;
+  color: var(--color-danger, #c0392b);
+  font-size: 0.9rem;
 }
 
 .hue-scatter-info {

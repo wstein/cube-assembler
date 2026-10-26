@@ -1,5 +1,6 @@
 export {
   colorDelta,
+  countDeviations,
   hueAxis,
   hueBarColor,
   hueCut as HUE_CUT,

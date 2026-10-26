@@ -10,6 +10,10 @@ type point = {
   neutral: bool,
 }
 
+@genType
+type deviation = {label: string, count: int, expected: int}
+
+@genType let countDeviations: array<sample> => array<deviation>
 @genType let neutralChroma: float
 @genType let hueCut: float
 @genType let hueAxis: float => float

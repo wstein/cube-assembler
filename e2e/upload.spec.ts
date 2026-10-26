@@ -391,6 +391,8 @@ test('the hue scatter names a dot on hover and links it with the net', async ({
   await expect(dialog.locator('line.hue-scatter-hue-grid')).toHaveCount(18)
   await expect(dialog.locator('line.hue-scatter-grid')).toHaveCount(16)
   await expect(info).toContainText('Point at a dot')
+  // A valid cube has the same count of every color: no warning.
+  await expect(dialog.locator('.hue-scatter-counts')).toHaveCount(0)
   // A lens magnifies the chart around the pointer, like a color picker.
   await expect(dialog.locator('.hue-scatter-lens')).toHaveCount(0)
   await dialog.locator('.hue-scatter').hover({ position: { x: 200, y: 60 } })

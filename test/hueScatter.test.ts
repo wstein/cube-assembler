@@ -5,6 +5,7 @@ import {
   hueBarColor,
   hueScatter,
   colorDelta,
+  countDeviations,
   meansByLabel,
   NEUTRAL_CHROMA,
 } from '../src/client/capture/hueScatter'
@@ -44,6 +45,28 @@ describe('the hue scatter', () => {
       const off = Math.abs(((color.h - hue + 540) % 360) - 180)
       expect(off).toBeLessThan(3)
     }
+  })
+
+  it('names the colors whose sticker count is not the same as the others', () => {
+    const grey = rgb(128, 128, 128)
+    const cube = (counts: Record<string, number>) =>
+      Object.entries(counts).flatMap(([label, n]) =>
+        Array.from({ length: n }, () => ({ rgb: grey, label })),
+      )
+    const even = { W: 4, Y: 4, O: 4, R: 4, G: 4, B: 4 }
+    expect(countDeviations(cube(even))).toEqual([])
+    expect(countDeviations(cube({ ...even, W: 3, B: 5 }))).toEqual([
+      { label: 'B', count: 5, expected: 4 },
+      { label: 'W', count: 3, expected: 4 },
+    ])
+    // A color that is missing altogether is a deviation too.
+    expect(countDeviations(cube({ ...even, G: 0, R: 8 }))).toEqual([
+      { label: 'R', count: 8, expected: 4 },
+      { label: 'G', count: 0, expected: 4 },
+    ])
+    // Without a whole number of stickers per color there is nothing to say.
+    expect(countDeviations(cube({ W: 3, Y: 4 }))).toEqual([])
+    expect(countDeviations([])).toEqual([])
   })
 
   it('has one point per sticker, with its lightness and final color', () => {

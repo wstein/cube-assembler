@@ -191,10 +191,9 @@ export function ColorAnalysisDialog({
           <>
             <p class="backdrop-intro">
               Every sticker by hue (across) and lightness (up) after the white
-              balance, in its own measured color. Each cloud is named with its
-              sticker count. Point at a dot or at a sticker in the net to find
-              the other. Red and orange share hues, but orange is lighter: two
-              clouds, not one.
+              balance, in its own measured color. Point at a dot or at a sticker
+              in the net to find the other. Red and orange share hues, but
+              orange is lighter: two clouds, not one.
             </p>
             <HueScatterChart
               samples={samples}

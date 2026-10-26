@@ -63,6 +63,25 @@ let hueBarColor = (hue, l) => {
   ColorMath.oklabToRgb({l, a: lo.contents *. Math.cos(rad), b: lo.contents *. Math.sin(rad)})
 }
 
+type deviation = {label: string, count: int, expected: int}
+
+// A whole cube has the same number of stickers of each of the six colors.
+// The colors whose count differs, most stickers first; empty when the
+// stickers do not divide into six equal shares.
+let countDeviations = (samples: array<sample>) => {
+  let total = Array.length(samples)
+  if total == 0 || mod(total, 6) != 0 {
+    []
+  } else {
+    let expected = total / 6
+    let count = label => samples->Array.filter(sample => sample.label == label)->Array.length
+    ["W", "Y", "O", "R", "G", "B"]
+    ->Array.map(label => {label, count: count(label), expected})
+    ->Array.filter(deviation => deviation.count != expected)
+    ->Array.toSorted((a, b) => Int.toFloat(b.count - a.count))
+  }
+}
+
 // Where each sticker sits: hue against lightness. Red and orange overlap in
 // hue alone but orange is lighter, so the two clouds stay apart.
 let hueScatter = (samples: array<sample>) => {

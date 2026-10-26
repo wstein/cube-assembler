@@ -1,5 +1,6 @@
 import { useState } from 'preact/hooks'
 import {
+  countDeviations,
   HUE_CUT,
   hueBarColor,
   hueScatter,
@@ -104,7 +105,7 @@ const css = (c: { r: number; g: number; b: number }) =>
 
 // Each sticker as a dot by hue (across) and lightness (up), in its own
 // color. Red and orange share hues but orange is lighter, so they form two
-// clouds. Each cloud is named with its sticker count. Gray stickers (white) have no hue
+// clouds. Gray stickers (white) have no hue
 // and stand in their own column.
 export function HueScatterChart({
   samples,
@@ -120,14 +121,7 @@ export function HueScatterChart({
   const [lens, setLens] = useState<{ x: number; y: number } | null>(null)
   const grayLeft = LEFT + WIDTH + GAP
   const points = hueScatter(samples)
-  const sums: Record<string, { hue: number; l: number; n: number }> = {}
-  for (const point of points) {
-    if (point.neutral) continue
-    const sum = (sums[point.label] ??= { hue: 0, l: 0, n: 0 })
-    sum.hue += point.hue
-    sum.l += point.l
-    sum.n++
-  }
+  const deviations = countDeviations(samples)
   const info = (i: number) => {
     const point = points[i]
     const where = samples[i].where ? `${samples[i].where}: ` : ''
@@ -307,27 +301,6 @@ export function HueScatterChart({
                 />
               )
             })}
-          {Object.entries(sums).map(([label, sum]) => (
-            <text
-              key={label}
-              class="hue-scatter-label"
-              x={x(sum.hue / sum.n)}
-              y={y(sum.l / sum.n) - 22}
-              text-anchor="middle"
-            >
-              {label}
-            </text>
-          ))}
-          {points.some((point) => point.label === 'W') && (
-            <text
-              class="hue-scatter-label"
-              x={grayLeft + GRAY_WIDTH / 2}
-              y={TOP + 8}
-              text-anchor="middle"
-            >
-              W
-            </text>
-          )}
           <text x={LEFT + WIDTH / 2} y={TOP + HEIGHT + 54} text-anchor="middle">
             hue
           </text>
@@ -376,6 +349,12 @@ export function HueScatterChart({
           </g>
         )}
       </svg>
+      {deviations.length > 0 && (
+        <p class="hue-scatter-counts">
+          ⚠ Not {deviations[0].expected} stickers of each color:{' '}
+          {deviations.map((d) => `${name(d.label)} ${d.count}`).join(', ')}.
+        </p>
+      )}
       <p class="hue-scatter-info" role="status">
         {hovered === null
           ? 'Point at a dot to see which sticker it is.'
