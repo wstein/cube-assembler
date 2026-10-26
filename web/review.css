@@ -841,7 +841,7 @@
 }
 
 .hue-scatter-gray {
-  fill: rgb(0 0 0 / 4%);
+  fill: var(--color-bg-secondary);
 }
 
 .hue-scatter-dot {
@@ -850,13 +850,21 @@
 
 .hue-scatter-grid,
 .hue-scatter-hue-grid {
-  stroke: rgb(0 0 0 / 8%);
+  stroke: var(--color-border);
   stroke-width: 0.5;
 }
 
 /* The ticks of both hue axes, 30 degrees apart: small enough not to touch. */
 .hue-scatter-hue-tick {
-  font-size: 7px;
+  font-size: 8px;
+}
+
+/* On a narrow screen the 30 degree labels would touch: keep the grid lines
+   and label every 60 degrees. */
+@media (max-width: 640px) {
+  .hue-scatter-tick-minor {
+    display: none;
+  }
 }
 
 .hue-scatter-label {
@@ -874,12 +882,12 @@
 }
 
 .hue-scatter-hovered {
-  stroke: #1b1b1f;
+  stroke: var(--color-text-primary);
   stroke-width: 2;
 }
 
 .orientation-net-sticker-hover {
-  outline: 3px solid #1b1b1f;
+  outline: 3px solid var(--color-text-primary);
   outline-offset: -3px;
   position: relative;
   z-index: 1;

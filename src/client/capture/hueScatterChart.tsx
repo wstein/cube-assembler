@@ -17,6 +17,8 @@ const GAP = 14
 const LEFT = 30
 const TOP = 22
 const BOTTOM = 32
+// Room right of the gray panel, so its last tick label is not cut off.
+const RIGHT = 14
 // Lightness shown: below this no sticker sits, above 1 nothing can.
 const L_MIN = 0.3
 // Both panels show the true hue, 0 to 360 degrees in steps of 30.
@@ -27,7 +29,8 @@ const trueHue = (axisHue: number) => (axisHue + HUE_CUT) % 360
 
 const x = (hue: number) => LEFT + (hue / 360) * WIDTH
 const grayX = (hue: number) => LEFT + WIDTH + GAP + (hue / 360) * GRAY_WIDTH
-const y = (l: number) => TOP + ((1 - l) / (1 - L_MIN)) * HEIGHT
+// A sticker darker than the lowest tick stays at the panel's floor.
+const y = (l: number) => TOP + Math.min(1, (1 - l) / (1 - L_MIN)) * HEIGHT
 
 // A dot is drawn in the sticker's own measured color, so its lightness,
 // chroma and hue are what the picture shows.
@@ -63,7 +66,7 @@ export function HueScatterChart({
   const info = (i: number) => {
     const point = points[i]
     const where = samples[i].where ? `${samples[i].where}: ` : ''
-    const hue = Math.round(trueHue(point.hue))
+    const hue = Math.round(trueHue(point.hue)) % 360
     const kind = `L ${point.l.toFixed(2)}, C ${point.chroma.toFixed(2)}, h ${hue}°`
     return `${where}${name(point.label)} (${kind})`
   }
@@ -71,7 +74,7 @@ export function HueScatterChart({
     <>
       <svg
         class="hue-scatter"
-        viewBox={`0 0 ${LEFT + WIDTH + GAP + GRAY_WIDTH} ${TOP + HEIGHT + BOTTOM}`}
+        viewBox={`0 0 ${LEFT + WIDTH + GAP + GRAY_WIDTH + RIGHT} ${TOP + HEIGHT + BOTTOM}`}
         role="img"
         aria-label="Stickers by hue and lightness"
       >
@@ -119,7 +122,7 @@ export function HueScatterChart({
                 y2={TOP + HEIGHT}
               />
               <text
-                class={`hue-scatter-hue-tick${panel === 1 ? ' hue-scatter-gray-tick' : ''}`}
+                class={`hue-scatter-hue-tick${hue % 60 === 0 ? '' : ' hue-scatter-tick-minor'}`}
                 x={position(hue)}
                 y={TOP + HEIGHT + 11}
                 text-anchor="middle"
