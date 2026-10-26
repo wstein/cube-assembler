@@ -124,6 +124,15 @@ let classifyAcrossFaces = (
     )
   )
   let points = samples->Array.map(sample => sample.rgb)
+  // The colors are learned expecting each color on equally many stickers,
+  // which a face photographed twice (and one never photographed) breaks:
+  // the palette then drifts onto the wrong stickers. The baseline reading
+  // is the better bet.
+  let repeatedShot =
+    Array.length(entries) == 6 &&
+      RepeatedFace.findRepeatShots(
+        entries->Array.map(((_, detection)) => Some(detection.cellColors)),
+      )->Array.length > 0
   // Pinned only against a real cube's colors (the idealized swatches put
   // real yellows nearer orange), and never where a logo can sit - a blue
   // logo on a 4x4's white center read as a clear blue.
@@ -143,7 +152,7 @@ let classifyAcrossFaces = (
     referencePalette->Option.getOr(stickerColors),
     clearLabels,
   )
-  switch Null.toOption(learned) {
+  switch Null.toOption(repeatedShot ? Null.null : learned) {
   | None => {learned: Null.null, applied: false, faces: baselineFaces, glare: []}
   | Some(learned) =>
     // Every sticker's color comes from the balanced assignment itself, not
