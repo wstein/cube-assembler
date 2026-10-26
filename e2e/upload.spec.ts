@@ -277,16 +277,12 @@ test('an error names the stickers the equal color share moved, in one sentence',
   await expect(note).toContainText('were moved to')
   await expect(note).toContainText('outlined below')
   expect(await page.locator('.net-cell-highlighted').count()).toBeGreaterThan(2)
-  // Each moved sticker also shows what it read as on its own; that dot (like
-  // the pencil of a corrected sticker) opens the color analysis on Backdrop.
-  expect(await page.locator('.net-cell-guess').count()).toBeGreaterThan(2)
-  await page.locator('button.net-cell-guess').first().click()
-  const analysis = page.getByRole('dialog', { name: 'Color analysis' })
-  await expect(
-    analysis.getByRole('button', { name: 'Backdrop' }),
-  ).toHaveAttribute('aria-current', 'page')
-  await expect(analysis.getByText('First guess').first()).toBeVisible()
-  expect(await analysis.locator('.backdrop-moved').count()).toBeGreaterThan(2)
+  // A moved sticker is split along the diagonal and links to the color edit
+  // dialog, open on that sticker's face with its color picker.
+  expect(await page.locator('.net-cell-edit').count()).toBeGreaterThan(2)
+  await page.locator('.net-cell-edit').first().click()
+  await expect(page.locator('.review-modal-content')).toBeVisible()
+  await expect(page.locator('.color-picker-content')).toBeVisible()
 })
 
 test('the color review follows the cube net: Left, Front, Right, Back, Up, Down', async ({

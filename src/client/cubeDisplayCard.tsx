@@ -35,7 +35,7 @@ interface CubeDisplayCardProps {
   initialMoves: CubeTurn[]
   initialFrame?: ColorFrame
   onViewModeChange: (mode: 'net' | '3d') => void
-  onAnalyze?: () => void
+  onEditSticker?: (face: string, row: number, col: number) => void
   onTurnStateChange: (
     cube: CubeState,
     moves: CubeTurn[],
@@ -56,7 +56,7 @@ export function CubeDisplayCard({
   initialMoves,
   initialFrame,
   onViewModeChange,
-  onAnalyze,
+  onEditSticker,
   onTurnStateChange,
 }: CubeDisplayCardProps) {
   return (
@@ -121,7 +121,7 @@ export function CubeDisplayCard({
           faceOrder={faceOrder}
           stickerColors={stickerColors}
           colorNames={colorNames}
-          onAnalyze={onAnalyze}
+          onEditSticker={onEditSticker}
         />
       )}
       {parity && (

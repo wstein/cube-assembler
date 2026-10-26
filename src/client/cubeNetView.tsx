@@ -16,8 +16,8 @@ interface CubeNetViewProps {
   faceOrder: readonly string[]
   stickerColors: Record<string, string>
   colorNames: Record<string, string>
-  // Opens the color analysis, from a sticker the color balance moved.
-  onAnalyze?: () => void
+  // Opens the color edit dialog on a marked sticker of a captured face.
+  onEditSticker?: (face: string, row: number, col: number) => void
 }
 
 // Face names shown on the net, keyed by CubeIR face.
@@ -60,7 +60,7 @@ export function CubeNetView({
   faceOrder,
   stickerColors,
   colorNames,
-  onAnalyze,
+  onEditSticker,
 }: CubeNetViewProps) {
   const [hoveredHighlightGroup, setHoveredHighlightGroup] = useState<
     string | null
@@ -280,33 +280,13 @@ export function CubeNetView({
                         setHoveredHighlightGroup(group ?? null)
                       }}
                     >
-                      {mark === 'corrected' &&
-                        (onAnalyze ? (
-                          <button
-                            type="button"
-                            class="net-cell-mark corrected"
-                            aria-label="Show the color analysis"
-                            title="Show the color analysis"
-                            onClick={onAnalyze}
-                          >
-                            ✎
-                          </button>
-                        ) : (
-                          <span
-                            class="net-cell-mark corrected"
-                            aria-hidden="true"
-                          >
-                            ✎
-                          </span>
-                        ))}
-                      {moved && mark !== 'corrected' && onAnalyze && (
-                        <button
-                          type="button"
-                          class="net-cell-mark net-cell-guess"
-                          aria-label={`First guess ${colorNames[first] ?? first}: show the color analysis`}
-                          title="Show the color analysis"
-                          onClick={onAnalyze}
-                        />
+                      {mark === 'corrected' && (
+                        <span
+                          class="net-cell-mark corrected"
+                          aria-hidden="true"
+                        >
+                          ✎
+                        </span>
                       )}
                       {mark === 'flagged' && (
                         <span
@@ -314,9 +294,18 @@ export function CubeNetView({
                           aria-hidden="true"
                           style={
                             lookalike
-                              ? { background: stickerColors[lookalike] }
+                              ? { '--look-alike': stickerColors[lookalike] }
                               : undefined
                           }
+                        />
+                      )}
+                      {(mark !== null || moved) && onEditSticker && source && (
+                        <button
+                          type="button"
+                          class="net-cell-edit"
+                          aria-label="Edit this sticker"
+                          title="Edit this sticker"
+                          onClick={() => onEditSticker(source.slot, r, c)}
                         />
                       )}
                     </div>

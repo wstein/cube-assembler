@@ -7,10 +7,7 @@ import { CaptureColorPicker } from './capture/captureColorPicker'
 import { CaptureSettings, CubeSelectOptions } from './capture/captureSettings'
 import type { ReviewCapture } from './profiles/colorReviewPage'
 import { readWithProfile } from './capture/readWithProfile'
-import {
-  ColorAnalysisDialog,
-  type Tab as AnalysisTab,
-} from './profiles/colorAnalysisDialog'
+import { ColorAnalysisDialog } from './profiles/colorAnalysisDialog'
 import { forcedReading } from './capture/forcedStickers'
 import { analysisSamples } from './capture/analysisSamples'
 import { reviewStartSlot } from './capture/approvalPhotos'
@@ -25,7 +22,7 @@ import { ManualFaceletInput } from './manualFaceletInput'
 import { CaptureCard } from './capture/captureCard'
 import { ColorProfileControls } from './profiles/colorProfileControls'
 import { lazy, Suspense } from 'preact/compat'
-import { useMemo, useState } from 'preact/hooks'
+import { useMemo } from 'preact/hooks'
 
 const ProfilesPage = lazy(() =>
   import('./profiles/profilesPage').then((m) => ({ default: m.ProfilesPage })),
@@ -204,9 +201,6 @@ export function ScannerAppView({ model }: { model: ScannerAppModel }) {
   } = model
   // The review and the cube check also flag stickers the reference palette
   // reads differently (see withPaletteSuspects).
-  // The tab the color analysis opens on: Hues from the profiles page, Backdrop
-  // from a sticker of the net.
-  const [analysisTab, setAnalysisTab] = useState<AnalysisTab>('hues')
   const checkedFaces = useMemo(
     () => withPaletteSuspects(capturedFaces, FACE_ORDER),
     [capturedFaces],
@@ -250,7 +244,6 @@ export function ScannerAppView({ model }: { model: ScannerAppModel }) {
     : {}
   const analysisDialog = showBackdropDialog && (
     <ColorAnalysisDialog
-      initialTab={analysisTab}
       backdrop={
         appliedBackgroundGains
           ? FACE_ORDER.filter((f) => capturedFaces[f]?.croppedImage).map(
@@ -333,10 +326,7 @@ export function ScannerAppView({ model }: { model: ScannerAppModel }) {
           fileMessage={samplingFileMessage}
           onAnalyze={
             reviewCapture.faces.length
-              ? () => {
-                  setAnalysisTab('hues')
-                  setShowBackdropDialog(true)
-                }
+              ? () => setShowBackdropDialog(true)
               : null
           }
           captureColors={
@@ -447,9 +437,11 @@ export function ScannerAppView({ model }: { model: ScannerAppModel }) {
               turnedCube?.source === baseCube ? turnedCube.frame : undefined
             }
             onViewModeChange={setCubeViewMode}
-            onAnalyze={() => {
-              setAnalysisTab('backdrop')
-              setShowBackdropDialog(true)
+            onEditSticker={(face, row, col) => {
+              setReviewStep(FACE_ORDER.indexOf(face))
+              setReviewNotice(null)
+              setShowReviewDialog(true)
+              setReviewEditingCell({ face, row, col })
             }}
             onTurnStateChange={(value, moves, frame) =>
               setTurnedCube({ source: baseCube, value, moves, frame })
@@ -514,7 +506,6 @@ export function ScannerAppView({ model }: { model: ScannerAppModel }) {
           />
         </div>
       </main>
-      {analysisDialog}
       <footer class="app-footer">
         <a
           href={repositoryLink(__APP_COMMIT__).href}
