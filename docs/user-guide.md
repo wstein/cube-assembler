@@ -132,6 +132,19 @@ Full photos use the selected **Detect face** or **Guide grid** mode; cropped
 face images are read directly. In Guide grid mode, select **Cropped face** for
 an image that is already cropped but does not use a `face-*.jpg` filename.
 
+**One picture of a cube net** works too: a screenshot or export of the cross
+(U above F, L F R B in a row, D below) of a 2×2 to 7×7 cube, on a dark or
+light background, with or without gaps, lines or face titles. The app finds the
+stickers and the size, cuts the picture into six face images and goes on as with
+six photos, so you see the order preview and the cube check as usual. Odd cubes
+are read by their centers, so any color scheme works; even cubes need the
+standard colors (white, orange, green, red, blue, yellow).
+
+You can also **paste** (Ctrl/Cmd+V) or **drop** files on the page instead of
+using the button: a net picture, six photos, a fixture ZIP, or `meta.json` with
+its six photos (copy the files in your file manager, then paste). Facelets
+pasted outside a field open **Type colors** with the text ready to apply.
+
 After confirming a cube, **Save as test fixture** downloads its six photos and
 reviewed colors as a ZIP. With `npm run fixture:server` running on the same
 computer, **Upload to localhost** saves it straight into `test/fixtures/`, from
