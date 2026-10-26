@@ -100,7 +100,6 @@ export function ColorAnalysisDialog({
   backdrop,
   reference,
   samples,
-  stickerColors,
   standard,
   readWith,
   onClose,
@@ -109,7 +108,6 @@ export function ColorAnalysisDialog({
   backdrop: BackdropFace[] | null
   reference: RGB | null
   samples: HueSample[]
-  stickerColors: Record<string, string>
   standard: Record<string, RGB>
   readWith: { name: string; colors: Record<string, RGB> } | null
   onClose: () => void
@@ -174,12 +172,11 @@ export function ColorAnalysisDialog({
           <>
             <p class="backdrop-intro">
               Every sticker by hue (across) and lightness (up) after the white
-              balance, in its measured color and outlined in the color it ended
-              up as. The dashed rings mark where the standard palette expects
-              each color. Red and orange share hues, but orange is lighter: two
-              clouds, not one.
+              balance, in the pure color of its hue. Pointing at a dot names the
+              color it ended up as. Red and orange share hues, but orange is
+              lighter: two clouds, not one.
             </p>
-            <HueScatterChart samples={samples} stickerColors={stickerColors} />
+            <HueScatterChart samples={samples} />
           </>
         )}
         {tab === 'final' && (

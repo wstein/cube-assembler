@@ -255,7 +255,6 @@ export function ScannerAppView({ model }: { model: ScannerAppModel }) {
           row.map((rgb, c) => ({ rgb, label: face.colors[r][c] })),
         )
       })}
-      stickerColors={STICKER_HEX}
       standard={STICKER_COLORS}
       readWith={readWithProfile(capturedFaces, FACE_ORDER)}
       onClose={() => setShowBackdropDialog(false)}

@@ -830,8 +830,7 @@
   outline-offset: -2px;
 }
 
-/* The color analysis' hue-lightness scatter: a dot per sticker, a ring per
-   standard color. */
+/* The color analysis' hue-lightness scatter: a dot per sticker. */
 .hue-scatter {
   display: block;
   width: 100%;
@@ -847,10 +846,4 @@
 
 .hue-scatter-dot {
   stroke-width: 1.2;
-}
-
-.hue-scatter-ring {
-  stroke: #1b1b1f;
-  stroke-width: 1;
-  stroke-dasharray: 2 1.5;
 }
