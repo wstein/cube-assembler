@@ -7,6 +7,7 @@
 import { useEffect, useState } from 'preact/hooks'
 import { applyGainsToPixels, removeGains } from '../vision/colorMath'
 import { type RGB } from '../vision/stickerColorGeometry'
+import { diagonalSplit } from '../capture/stickerSplit'
 import { loadPhotoPixels } from '../fixtures/photoPixels'
 
 export interface BackdropFace {
@@ -101,7 +102,7 @@ function GuessGrid({
               class={moved ? 'backdrop-moved' : ''}
               style={{
                 background: moved
-                  ? `linear-gradient(135deg, ${hex(color)} 50%, ${hex(first)} 50%)`
+                  ? diagonalSplit(hex(color), hex(first))
                   : hex(color),
               }}
               title={moved ? `${first} → ${color}` : color}

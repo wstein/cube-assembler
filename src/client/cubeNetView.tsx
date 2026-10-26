@@ -3,6 +3,7 @@ import type { CubeState } from '../cube/cubeAssembly'
 import type { ParityResult } from '../cube/parity'
 import { miniNet, netCells } from './capture/approvalPhotos'
 import { stickerMark } from './capture/captureSteps'
+import { diagonalSplit } from './capture/stickerSplit'
 import { forcedReading, forcedSentence } from './capture/forcedStickers'
 import type { FaceCaptureData } from './capture/captureTypes'
 import { faceSources, pieceKey, sourceIndex } from './netPresentation'
@@ -264,7 +265,12 @@ export function CubeNetView({
                       class={`net-cell ${group !== undefined ? 'net-cell-highlighted' : ''} ${isHoverRelated ? 'net-cell-hover-related' : ''} ${samePiece ? 'net-cell-piece' : ''}`}
                       key={i}
                       style={{
-                        background: stickerColors[color] || '#888',
+                        background: moved
+                          ? diagonalSplit(
+                              stickerColors[color] || '#888',
+                              stickerColors[first] || '#888',
+                            )
+                          : stickerColors[color] || '#888',
                       }}
                       onMouseEnter={() => {
                         setHoveredNetCell({
@@ -293,26 +299,15 @@ export function CubeNetView({
                             ✎
                           </span>
                         ))}
-                      {moved &&
-                        (onAnalyze ? (
-                          <button
-                            type="button"
-                            class="net-cell-guess"
-                            aria-label={`First guess ${colorNames[first] ?? first}: show the color analysis`}
-                            style={{
-                              background: stickerColors[first] || '#888',
-                            }}
-                            onClick={onAnalyze}
-                          />
-                        ) : (
-                          <span
-                            class="net-cell-guess"
-                            aria-hidden="true"
-                            style={{
-                              background: stickerColors[first] || '#888',
-                            }}
-                          />
-                        ))}
+                      {moved && mark !== 'corrected' && onAnalyze && (
+                        <button
+                          type="button"
+                          class="net-cell-mark net-cell-guess"
+                          aria-label={`First guess ${colorNames[first] ?? first}: show the color analysis`}
+                          title="Show the color analysis"
+                          onClick={onAnalyze}
+                        />
+                      )}
                       {mark === 'flagged' && (
                         <span
                           class="net-cell-mark flagged"

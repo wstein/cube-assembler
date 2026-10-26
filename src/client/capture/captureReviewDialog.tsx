@@ -1,3 +1,4 @@
+import { diagonalSplit } from './stickerSplit'
 import type { TargetedKeyboardEvent } from 'preact'
 import { useMemo } from 'preact/hooks'
 import {
@@ -268,7 +269,13 @@ export function CaptureReviewDialog({
                           key={`${r}-${c}`}
                           class={`review-detected-cell ${flagged ? 'review-detected-cell-flagged' : ''} ${corrected ? 'review-detected-cell-corrected' : ''}`}
                           style={{
-                            background: stickerColors[color] || '#888',
+                            background:
+                              corrected && detected !== undefined
+                                ? diagonalSplit(
+                                    stickerColors[color] || '#888',
+                                    stickerColors[detected] || '#888',
+                                  )
+                                : stickerColors[color] || '#888',
                           }}
                           onClick={() => onEditCell(face, r, c)}
                           title={[
@@ -290,17 +297,6 @@ export function CaptureReviewDialog({
                               aria-hidden="true"
                             >
                               !
-                            </span>
-                          )}
-                          {corrected && (
-                            <span
-                              class="review-detected-cell-was"
-                              style={{
-                                background: stickerColors[detected] || '#888',
-                              }}
-                              aria-hidden="true"
-                            >
-                              {detected}
                             </span>
                           )}
                         </button>

@@ -517,8 +517,8 @@
   }
 
   /* A sticker whose final color was set by hand, differing from what
-     detection produced: the cell shows the human choice, and this corner
-     swatch (labeled with its letter) records what was detected instead. */
+     detection produced: the cell shows the human choice in its upper left
+     half and what was detected in its lower right half. */
   &.review-detected-cell-corrected {
     box-shadow:
       inset 0 0 0 3px #8b5cf6,
@@ -558,26 +558,6 @@
     font-size: clamp(0.7rem, calc(13cqi / var(--grid-n, 3)), 1.3rem);
     font-weight: 700;
     line-height: 1;
-    pointer-events: none;
-  }
-
-  .review-detected-cell-was {
-    position: absolute;
-    right: 2px;
-    bottom: 2px;
-    min-width: 1.1rem;
-    height: 1.1rem;
-    padding: 0 2px;
-    border: 1.5px solid #fff;
-    border-radius: 3px;
-    box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.6);
-    font-size: 0.6rem;
-    font-weight: 700;
-    line-height: 1rem;
-    text-align: center;
-    color: #000;
-    text-shadow: 0 0 2px #fff;
-    box-sizing: border-box;
     pointer-events: none;
   }
 }
