@@ -15,6 +15,8 @@ interface CubeNetViewProps {
   faceOrder: readonly string[]
   stickerColors: Record<string, string>
   colorNames: Record<string, string>
+  // Opens the color analysis, from a sticker the color balance moved.
+  onAnalyze?: () => void
 }
 
 // Face names shown on the net, keyed by CubeIR face.
@@ -57,6 +59,7 @@ export function CubeNetView({
   faceOrder,
   stickerColors,
   colorNames,
+  onAnalyze,
 }: CubeNetViewProps) {
   const [hoveredHighlightGroup, setHoveredHighlightGroup] = useState<
     string | null
@@ -151,6 +154,7 @@ export function CubeNetView({
     const r = Math.floor(index / puzzleSize),
       c = index % puzzleSize
     const detected = photo?.detectedColors?.[r]?.[c]
+    const first = source ? reading.faces[source.slot]?.guess[r]?.[c] : undefined
     const color = visibleCube[hoveredNetCell.face as keyof CubeState][
       hoveredNetCell.index
     ] as string
@@ -165,11 +169,13 @@ export function CubeNetView({
       photo: photo?.croppedImage,
       turns: source?.turns ?? 0,
       note:
-        mark === 'corrected'
-          ? `Detected ${colorNames[detected!] ?? detected}, you changed it to ${colorNames[color] ?? color}.`
-          : mark === 'flagged'
-            ? 'Detection was unsure about this sticker.'
-            : null,
+        first && photo && first !== photo.colors[r]?.[c]
+          ? `First guess ${colorNames[first] ?? first}, moved to ${colorNames[color] ?? color} by the equal color share.`
+          : mark === 'corrected'
+            ? `Detected ${colorNames[detected!] ?? detected}, you changed it to ${colorNames[color] ?? color}.`
+            : mark === 'flagged'
+              ? 'Detection was unsure about this sticker.'
+              : null,
     }
   })()
   return (
@@ -238,6 +244,21 @@ export function CubeNetView({
                           sourceIndex(puzzleSize, source.turns, i),
                         )
                       : null
+                  const index = source
+                    ? sourceIndex(puzzleSize, source.turns, i)
+                    : -1
+                  const r = Math.floor(index / puzzleSize)
+                  const c = index % puzzleSize
+                  // What the sticker read as on its own, when the equal color
+                  // share moved it to another color.
+                  const first = source
+                    ? reading.faces[source.slot]?.guess[r]?.[c]
+                    : undefined
+                  const moved =
+                    first !== undefined &&
+                    photo !== undefined &&
+                    first !== photo.colors[r]?.[c]
+                  const lookalike = photo?.cellLookalikes?.[r]?.[c]
                   return (
                     <div
                       class={`net-cell ${group !== undefined ? 'net-cell-highlighted' : ''} ${isHoverRelated ? 'net-cell-hover-related' : ''} ${samePiece ? 'net-cell-piece' : ''}`}
@@ -253,18 +274,54 @@ export function CubeNetView({
                         setHoveredHighlightGroup(group ?? null)
                       }}
                     >
-                      {mark === 'corrected' && (
-                        <span
-                          class="net-cell-mark corrected"
-                          aria-hidden="true"
-                        >
-                          ✎
-                        </span>
-                      )}
+                      {mark === 'corrected' &&
+                        (onAnalyze ? (
+                          <button
+                            type="button"
+                            class="net-cell-mark corrected"
+                            aria-label="Show the color analysis"
+                            title="Show the color analysis"
+                            onClick={onAnalyze}
+                          >
+                            ✎
+                          </button>
+                        ) : (
+                          <span
+                            class="net-cell-mark corrected"
+                            aria-hidden="true"
+                          >
+                            ✎
+                          </span>
+                        ))}
+                      {moved &&
+                        (onAnalyze ? (
+                          <button
+                            type="button"
+                            class="net-cell-guess"
+                            aria-label={`First guess ${colorNames[first] ?? first}: show the color analysis`}
+                            style={{
+                              background: stickerColors[first] || '#888',
+                            }}
+                            onClick={onAnalyze}
+                          />
+                        ) : (
+                          <span
+                            class="net-cell-guess"
+                            aria-hidden="true"
+                            style={{
+                              background: stickerColors[first] || '#888',
+                            }}
+                          />
+                        ))}
                       {mark === 'flagged' && (
                         <span
                           class="net-cell-mark flagged"
                           aria-hidden="true"
+                          style={
+                            lookalike
+                              ? { background: stickerColors[lookalike] }
+                              : undefined
+                          }
                         />
                       )}
                     </div>

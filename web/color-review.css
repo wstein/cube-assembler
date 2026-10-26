@@ -566,10 +566,7 @@
 }
 .backdrop-row {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 0.9fr) minmax(
-      0,
-      1.1fr
-    );
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1.9fr);
   gap: var(--spacing-sm) var(--spacing-md);
   align-items: start;
   padding-bottom: var(--spacing-md);
@@ -598,8 +595,11 @@
   color: var(--color-text-secondary);
 }
 .backdrop-details {
-  display: grid;
-  gap: 6px;
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px var(--spacing-md);
   font-size: 0.85rem;
 }
 .backdrop-details p {
@@ -636,8 +636,9 @@
   color: var(--color-warning);
   font-size: 0.8rem;
 }
-.backdrop-sticker-pair {
+.backdrop-sticker-set {
   display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: var(--spacing-sm);
 }
 .backdrop-stickers {
@@ -652,10 +653,12 @@
   background: #1b1b1f;
   border-radius: 4px;
   aspect-ratio: 1;
-  max-width: 110px;
 }
 .backdrop-sticker-grid span {
   border-radius: 2px;
+}
+.backdrop-sticker-grid .backdrop-moved {
+  box-shadow: inset 0 0 0 1.5px #e5484d;
 }
 .backdrop-stickers figcaption {
   font-size: 0.78rem;
@@ -665,11 +668,7 @@
   .backdrop-row {
     grid-template-columns: 1fr 1fr;
   }
-  .backdrop-sticker-pair {
-    grid-auto-flow: column;
-    justify-content: start;
-  }
-  .backdrop-details {
+  .backdrop-sticker-set {
     grid-column: 1 / -1;
   }
 }

@@ -24,7 +24,7 @@ const COLOR_NAME: Record<string, string> = {
   B: 'Blue',
 }
 
-type Tab = 'backdrop' | 'hues' | 'final'
+export type Tab = 'backdrop' | 'hues' | 'final'
 
 const css = (c: RGB) =>
   `rgb(${Math.round(c.r)} ${Math.round(c.g)} ${Math.round(c.b)})`
@@ -113,6 +113,7 @@ export function ColorAnalysisDialog({
   stickerColors,
   standard,
   readWith,
+  initialTab,
   onClose,
 }: {
   // Null when no backdrop adjustment was applied to this capture.
@@ -127,9 +128,10 @@ export function ColorAnalysisDialog({
   stickerColors: Record<string, string>
   standard: Record<string, RGB>
   readWith: { name: string; colors: Record<string, RGB> } | null
+  initialTab?: Tab
   onClose: () => void
 }) {
-  const [tab, setTab] = useState<Tab>('hues')
+  const [tab, setTab] = useState<Tab>(initialTab ?? 'hues')
   // The sticker pointed at, in the scatter or in the net.
   const [hovered, setHovered] = useState<number | null>(null)
   const tabs: Array<{ id: Tab; label: string }> = [
@@ -181,7 +183,11 @@ export function ColorAnalysisDialog({
         </nav>
         {tab === 'backdrop' &&
           (backdrop ? (
-            <BackdropPanel faces={backdrop} reference={reference} />
+            <BackdropPanel
+              faces={backdrop}
+              reference={reference}
+              stickerColors={stickerColors}
+            />
           ) : (
             <p class="backdrop-intro">
               No backdrop adjustment was applied to this capture.
