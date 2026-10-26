@@ -737,6 +737,11 @@
   overflow: hidden;
 }
 
+.approval-detected .orientation-net-sticker,
+.approval-strip .orientation-net-sticker {
+  border-radius: 3px;
+}
+
 .approval-detected .orientation-net {
   display: flex;
   flex-direction: column;
