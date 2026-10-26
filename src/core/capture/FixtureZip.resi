@@ -4,6 +4,7 @@ type fixtureRequest = {
   gridSize: float,
   colorsURFDLB: JSON.t,
   detectedURFDLB?: JSON.t,
+  tags?: array<string>,
   faces: Nullable.t<Dict.t<Dict.t<JSON.t>>>,
   meta?: JSON.t,
 }

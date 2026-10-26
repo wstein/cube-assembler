@@ -1,0 +1,63 @@
+// A fixture of a cube state that has no camera photos: its faces rendered
+// (see src/core/vision/SyntheticFace.res) and saved like a capture. The
+// request itself is built in src/core/capture/SyntheticFixture.res.
+import type { CubeState } from '../../cube/cubeAssembly'
+import type { ParityResult } from '../../cube/parity'
+import {
+  toWRGFacelets,
+  wrgFaceletsToGrids,
+} from '../../cube/notation/NotationOutput.gen'
+import { syntheticRequest } from '../../core/capture/SyntheticFixture.gen'
+import { renderFace } from '../vision/syntheticFace'
+import { buildFixture, type Fixture, type FixtureRequest } from './fixtureZip'
+
+// Side of each rendered photo, like the crops of real captures.
+const PHOTO_PIXELS = 600
+const FACES = ['u', 'r', 'f', 'd', 'l', 'b']
+
+export interface SyntheticFixtureInput {
+  cube: CubeState
+  parity: ParityResult | null
+  preset: string
+  seed: number
+  version: string
+  commit: string
+}
+
+// Turns a photo's RGBA pixels into a JPEG/PNG data URL (a canvas in the
+// browser).
+export type EncodePhoto = (rgba: Uint8ClampedArray, size: number) => string
+
+export function buildSyntheticFixture(
+  input: SyntheticFixtureInput,
+  encode: EncodePhoto,
+  now = new Date(),
+): Fixture {
+  const colors = toWRGFacelets(input.cube)
+  const grids = wrgFaceletsToGrids(colors)
+  if (!grids) throw new Error('The cube state has no six square faces')
+  const photos: Record<string, string> = {}
+  FACES.forEach((face, i) => {
+    photos[face] = encode(
+      renderFace(
+        grids[face.toUpperCase()],
+        input.preset,
+        input.seed + i,
+        PHOTO_PIXELS,
+      ),
+      PHOTO_PIXELS,
+    )
+  })
+  const request = syntheticRequest({
+    colors,
+    size: Math.sqrt(input.cube.u.length),
+    preset: input.preset,
+    seed: input.seed,
+    invalid: input.parity?.valid === false ? input.parity.result : undefined,
+    version: input.version,
+    commit: input.commit,
+    photos,
+    now: now.toISOString(),
+  })
+  return buildFixture(request as FixtureRequest, now)
+}

@@ -30,6 +30,8 @@ type fixtureRequest = {
   // hand correction.
   colorsURFDLB: JSON.t,
   detectedURFDLB?: JSON.t,
+  // Labels for the test titles (for example synthetic).
+  tags?: array<string>,
   // Each face's photo as a JPEG/PNG data URL; any other per-face fields
   // are informational and stored as-is.
   faces: Nullable.t<Dict.t<Dict.t<JSON.t>>>,
@@ -138,6 +140,10 @@ let fixtureLayout = (request: fixtureRequest, now: string) => {
   | Some(detected) => meta->Dict.set("detectedURFDLB", detected)
   | None => ()
   }
+  switch request.tags {
+  | Some(tags) => meta->Dict.set("tags", JSON.Array(tags->Array.map(tag => JSON.String(tag))))
+  | None => ()
+  }
   meta->Dict.set("faces", JSON.Object(faces))
   meta->Dict.set(
     "capture",
@@ -160,6 +166,7 @@ let sourceNames = Dict.fromArray([
   ("camera", "camera"),
   ("image-file", "image files"),
   ("fixture", "an uploaded fixture"),
+  ("synthetic", "software rendering (synthetic)"),
 ])
 
 @send external toFixed: (float, int) => string = "toFixed"
@@ -304,6 +311,15 @@ let summarizeMeta = (meta: JSON.t) => {
         }
       )
       ->Array.join(", "),
+    ))
+  }
+  let synthetic = field(capture, "synthetic")
+  if truthy(synthetic) {
+    rows->Array.push(("Lighting", show(field(synthetic, "preset"))))
+    let invalid = field(synthetic, "invalid")
+    rows->Array.push((
+      "State",
+      truthy(invalid) ? `invalid: ${show(invalid)}` : "a valid cube",
     ))
   }
   let camera = field(capture, "camera")
