@@ -1,4 +1,6 @@
 import { createScannerUploadActions } from './fixtures/scannerUploadActions'
+import { usePasteAndDrop } from './fixtures/usePasteAndDrop'
+import { parseCubeInput } from './capture/captureFlow'
 import { useRef, useState } from 'preact/hooks'
 import { parityStatus } from './capture/captureFlow'
 import {
@@ -414,29 +416,42 @@ export function useScannerAppModel() {
     })
   }
 
-  const { handleUploadFiles, handleUploadPhotos } = createScannerUploadActions({
-    setLoading,
-    setCaptureMessage,
-    setProfileLearningOffer,
-    setUploadedProtocol,
-    applyFixtureCalibration,
-    setPuzzleSize,
-    setCapturedFaces,
-    setReviewStep,
-    setShowReviewDialog,
-    routeReview,
-    ignoreFixtureCorrections,
-    selectPhotos,
-    photoUpload,
-    loading,
-    puzzleSize,
-    captureMode,
-    sampling,
-    automaticColors,
-    profileStore,
-    setDismissedCaptureWarnings,
-    closePhotoUpload,
-    finalizeAllFacesCaptured,
+  const { handleUploadFiles, importFiles, handleUploadPhotos } =
+    createScannerUploadActions({
+      setLoading,
+      setCaptureMessage,
+      setProfileLearningOffer,
+      setUploadedProtocol,
+      applyFixtureCalibration,
+      setPuzzleSize,
+      setCapturedFaces,
+      setReviewStep,
+      setShowReviewDialog,
+      routeReview,
+      ignoreFixtureCorrections,
+      selectPhotos,
+      photoUpload,
+      loading,
+      puzzleSize,
+      captureMode,
+      sampling,
+      automaticColors,
+      profileStore,
+      setDismissedCaptureWarnings,
+      closePhotoUpload,
+      finalizeAllFacesCaptured,
+    })
+
+  // Paste and drop take what the Upload files button takes; pasted facelets
+  // open the typed input, ready to apply.
+  usePasteAndDrop({
+    enabled: !webcamOpen && !showReviewDialog && !loading,
+    onFiles: (files) => void importFiles(files),
+    onText: (text) => {
+      if (!parseCubeInput(text, notationFormat).ok) return
+      setManualColorInput(text)
+      setShowColorInput(true)
+    },
   })
 
   const handleRetakeFace = (face: string) => {
