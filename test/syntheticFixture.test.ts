@@ -69,7 +69,7 @@ describe('synthetic fixtures', () => {
         face,
         size: 600,
         options: { shadow: { strength: 0.2 } },
-        app: { version: '0.1.0', commit: 'abc1234' },
+        app: { version: '0.1.0' },
       })
     }
   })

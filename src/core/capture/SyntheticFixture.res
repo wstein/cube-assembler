@@ -28,7 +28,9 @@ type input = {
 let renderer = "parametric/v1"
 
 // What one photo says about itself (see PhotoMetadata): how it was rendered,
-// by whom, as JSON text.
+// by which app version, as JSON text. No commit: like the Rust generator's
+// fingerprint, it only names the version, so the same input renders to the
+// same bytes.
 type fingerprintInput = {
   preset: string,
   // The seed of this face's photo.
@@ -37,7 +39,6 @@ type fingerprintInput = {
   size: int,
   options: JSON.t,
   version: string,
-  commit: string,
 }
 
 let fingerprintJson = (input: fingerprintInput) =>
@@ -51,15 +52,7 @@ let fingerprintJson = (input: fingerprintInput) =>
         ("face", JSON.String(input.face)),
         ("size", JSON.Number(Int.toFloat(input.size))),
         ("options", input.options),
-        (
-          "app",
-          JSON.Object(
-            Dict.fromArray([
-              ("version", JSON.String(input.version)),
-              ("commit", JSON.String(input.commit)),
-            ]),
-          ),
-        ),
+        ("app", JSON.Object(Dict.fromArray([("version", JSON.String(input.version))]))),
       ]),
     ),
   )

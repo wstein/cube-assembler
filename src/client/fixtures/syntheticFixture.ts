@@ -92,7 +92,6 @@ export function buildSyntheticFixture(
         size: PHOTO_PIXELS,
         options,
         version: input.version,
-        commit: input.commit,
       }),
     )
   })

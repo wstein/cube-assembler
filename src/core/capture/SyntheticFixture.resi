@@ -24,7 +24,6 @@ type fingerprintInput = {
   size: int,
   options: JSON.t,
   version: string,
-  commit: string,
 }
 
 // The fingerprint JSON a rendered photo carries.
