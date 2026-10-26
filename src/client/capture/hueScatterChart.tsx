@@ -1,4 +1,4 @@
-import { useRef, useState } from 'preact/hooks'
+import { useState } from 'preact/hooks'
 import {
   countDeviations,
   HUE_CUT,
@@ -49,8 +49,11 @@ const LENS_ZOOM_STEP = 1.25
 const DOT_RADIUS = 3
 // How near the pointer must be to a dot to point at it.
 const HIT_RADIUS = 8
-// A dot already held keeps the lens until the pointer is this far from it.
-const HOLD_RADIUS = 11
+// The lens magnet reaches this far in lens pixels (so a smaller distance in
+// the chart the more the lens magnifies), and pulls at most this share of
+// the way to the dot.
+const MAGNET_LENS_PX = 8
+const MAGNET_MAX = 0.5
 // Thickness of the color bars along the axes.
 const BAR = 5
 const BAR_GAP = 2
@@ -126,7 +129,6 @@ export function HueScatterChart({
     cx: number
     cy: number
   } | null>(null)
-  const snapped = useRef<number | null>(null)
   const grayLeft = LEFT + WIDTH + GAP
   const points = hueScatter(samples)
   const deviations = countDeviations(samples)
@@ -156,26 +158,30 @@ export function HueScatterChart({
           // many dots overlap there.
           const dist = (i: number) =>
             Math.hypot(dotX(points[i]) - p.x, y(points[i].l) - p.y)
-          // A dot holds the lens until the pointer is clearly away from it,
-          // so neighbors in a crowd do not take over on every pixel.
-          let target = snapped.current
-          if (target !== null && dist(target) > HOLD_RADIUS) target = null
-          if (target === null) {
-            let best = HIT_RADIUS
-            points.forEach((_, i) => {
-              if (dist(i) <= best) {
-                best = dist(i)
-                target = i
-              }
-            })
-          }
-          snapped.current = target
-          // The lens centers on the dot it holds, else on the pointer.
+          let target: number | null = null
+          let best = HIT_RADIUS
+          points.forEach((_, i) => {
+            if (dist(i) <= best) {
+              best = dist(i)
+              target = i
+            }
+          })
+          // A micro magnet: within a few pixels of the lens, whatever its
+          // magnification, the lens leans toward the nearest dot, up to
+          // MAGNET_MAX of the way. The pull grows smoothly from nothing at
+          // the edge, so the lens is nudged, never locked.
+          const reach = MAGNET_LENS_PX / zoom
+          const pull =
+            target === null || best >= reach
+              ? 0
+              : MAGNET_MAX * (1 - best / reach) ** 2
+          const cx = target === null ? p.x : dotX(points[target])
+          const cy = target === null ? p.y : y(points[target].l)
           setLens({
             x: p.x,
             y: p.y,
-            cx: target === null ? p.x : dotX(points[target]),
-            cy: target === null ? p.y : y(points[target].l),
+            cx: p.x + (cx - p.x) * pull,
+            cy: p.y + (cy - p.y) * pull,
           })
           if (target !== hovered) onHover(target)
         }}
@@ -191,7 +197,6 @@ export function HueScatterChart({
           )
         }}
         onMouseLeave={() => {
-          snapped.current = null
           setLens(null)
           onHover(null)
         }}

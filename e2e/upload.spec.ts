@@ -411,8 +411,13 @@ test('the hue scatter names a dot on hover and links it with the net', async ({
   await expect.poll(scale).toBeGreaterThan(5)
   await page.mouse.wheel(0, 400)
   await expect.poll(scale).toBeLessThan(5)
-  // The lens is pulled to a dot near the pointer and holds it: it centers on
-  // a dot, not on the pointer between dots.
+  // The lens is drawn toward a dot near the pointer, but not locked onto
+  // it: its center sits between the pointer and the dot, nearer the dot the
+  // closer the pointer is.
+  const svg = dialog.locator('.hue-scatter')
+  const svgBox = (await svg.boundingBox())!
+  const viewBox = (await svg.getAttribute('viewBox'))!.split(' ').map(Number)
+  const unit = viewBox[2] / svgBox.width
   const dots = await dialog
     .locator('.hue-scatter-dot')
     .evaluateAll((all) =>
@@ -421,9 +426,7 @@ test('the hue scatter names a dot on hover and links it with the net', async ({
         Number(d.getAttribute('cy')),
       ]),
     )
-  const dot = dialog.locator('.hue-scatter-dot').nth(60)
-  const box = (await dot.boundingBox())!
-  await page.mouse.move(box.x + box.width / 2 + 3, box.y + box.height / 2 + 2)
+  const [dx, dy] = dots[60]
   const center = async () => {
     const t = await dialog
       .locator('.hue-scatter-lens g[clip-path] > g')
@@ -431,14 +434,55 @@ test('the hue scatter names a dot on hover and links it with the net', async ({
     const m = t!.match(/translate\(([-\d.]+) ([-\d.]+)\)$/)!
     return [-Number(m[1]), -Number(m[2])]
   }
-  const onADot = async () => {
-    const [x, y] = await center()
-    return dots.some(([dx, dy]) => Math.hypot(dx - x, dy - y) < 0.001)
+  // Lets the chart draw the lens for the last pointer move.
+  const frames = () =>
+    page.evaluate(
+      () =>
+        new Promise((done) =>
+          requestAnimationFrame(() => requestAnimationFrame(done)),
+        ),
+    )
+  const gap = async (offsetPx: number) => {
+    // A pointer this many pixels to the right of the dot's center.
+    await page.mouse.move(
+      svgBox.x + ((dx + offsetPx * unit) / viewBox[2]) * svgBox.width,
+      svgBox.y + (dy / viewBox[3]) * svgBox.height,
+    )
+    await frames()
+    // The lens ring sits a fixed step up and right of the pointer.
+    const ring = dialog.locator('.hue-scatter-lens-ring')
+    const [rx, ry, r] = await Promise.all(
+      ['cx', 'cy', 'r'].map((name) => ring.getAttribute(name).then(Number)),
+    )
+    const pointer = [rx - (r + 12), ry + (r + 12)]
+    const at = await center()
+    const nearest = dots.reduce((best, dot) =>
+      Math.hypot(dot[0] - pointer[0], dot[1] - pointer[1]) <
+      Math.hypot(best[0] - pointer[0], best[1] - pointer[1])
+        ? dot
+        : best,
+    )
+    const pointerToDot = Math.hypot(
+      nearest[0] - pointer[0],
+      nearest[1] - pointer[1],
+    )
+    return {
+      // How far toward the nearest dot the lens center was drawn.
+      pull: Math.hypot(at[0] - pointer[0], at[1] - pointer[1]) / pointerToDot,
+    }
   }
-  await expect.poll(onADot).toBe(true)
-  // Far from every dot, the lens follows the pointer again.
-  await dialog.locator('.hue-scatter').hover({ position: { x: 560, y: 100 } })
-  await expect.poll(onADot).toBe(false)
+  const near = await gap(0.5)
+  const away = await gap(8)
+  // A micro magnet: from very close the lens leans toward the nearest dot,
+  // at most half the way, and not at all further off.
+  expect(near.pull).toBeGreaterThan(0.2)
+  expect(near.pull).toBeLessThan(0.55)
+  expect(away.pull).toBeLessThan(0.02)
+  // Far from every dot, the lens follows the pointer exactly.
+  await page.mouse.move(svgBox.x + svgBox.width - 4, svgBox.y + 100)
+  await frames()
+  const [fx] = await center()
+  expect(fx).toBeCloseTo((svgBox.width - 4) * unit, 1)
   await dialog.locator('.hue-scatter-dot').first().hover({ force: true })
   await expect(info).toContainText(
     /row \d+, column \d+: \w+ \(L [\d.]+, C [\d.]+, h \d+°\)$/,
