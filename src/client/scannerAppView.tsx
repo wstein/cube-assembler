@@ -627,7 +627,6 @@ export function ScannerAppView({ model }: { model: ScannerAppModel }) {
       {orientationApproval && !orientationWizard && (
         <OrientationApprovalDialog
           approval={orientationApproval}
-          puzzleSize={puzzleSize}
           mirrorPreview={mirrorPreview}
           stickerColors={STICKER_HEX}
           focusDialog={focusModalOnOpen}
@@ -637,6 +636,11 @@ export function ScannerAppView({ model }: { model: ScannerAppModel }) {
             )
           }
           onClose={() => setOrientationApproval(null)}
+          onBackToColors={() => {
+            setOrientationApproval(null)
+            setReviewStep(0)
+            setShowReviewDialog(true)
+          }}
           onCheckFace={(candidate, face) => {
             const slot = findCaptureSlotForOrientedFace(
               FACE_ORDER.map((key) => capturedFaces[key]?.colors),

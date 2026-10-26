@@ -12,12 +12,13 @@ import {
 
 interface OrientationApprovalDialogProps {
   approval: CaptureApproval
-  puzzleSize: number
   mirrorPreview: boolean
   stickerColors: Record<string, string>
   focusDialog: (element: HTMLElement | null) => void
   onDialogKeyDown: (event: TargetedKeyboardEvent<HTMLDivElement>) => void
   onClose: () => void
+  // "No": start the color review.
+  onBackToColors: () => void
   onCheckFace: (candidate: OrientedCandidate, face: string) => void
   onChoose: (candidate: OrientedCandidate) => void
   onReject: () => void
@@ -26,18 +27,18 @@ interface OrientationApprovalDialogProps {
 
 export function OrientationApprovalDialog({
   approval,
-  puzzleSize,
   mirrorPreview,
   stickerColors,
   focusDialog,
   onDialogKeyDown,
   onClose,
+  onBackToColors,
   onCheckFace,
   onChoose,
   onReject,
   onPageChange,
 }: OrientationApprovalDialogProps) {
-  const { candidates, arrangements, valid, note, suggestedFrom } = approval
+  const { candidates, arrangements, valid, note } = approval
   const single = candidates.length === 1
   const page = Math.min(
     approval.page ?? 0,
@@ -83,15 +84,6 @@ export function OrientationApprovalDialog({
         <p class="orientation-approval-note">
           Tap any face to check its colors or retake that photo.
         </p>
-        {!note && single && valid && (
-          <p class="orientation-approval-note">
-            {suggestedFrom && suggestedFrom > 1
-              ? 'This is the likely fit if you followed the turning guide. If it looks wrong, choose each side.'
-              : 'The photos fit together one way.'}
-            {puzzleSize % 2 === 1 &&
-              ' Hold your cube with white on top and green in front to compare.'}
-          </p>
-        )}
         {!single && valid && (
           <p class="orientation-approval-note">
             The photos fit your cube in {candidates.length} different ways.
@@ -107,43 +99,6 @@ export function OrientationApprovalDialog({
                 onFaceClick={(face) => onCheckFace(candidates[0], face)}
               />
             </div>
-            {arrangements?.[0] && (
-              <div class="approval-changes">
-                <span class="approval-changes-title">
-                  How the photos were put together
-                </span>
-                <ul class="approval-checklist">
-                  {describeArrangement(arrangements[0], mirrorPreview).map(
-                    (line) => (
-                      <li key={line}>
-                        <svg
-                          width="18"
-                          height="18"
-                          viewBox="0 0 18 18"
-                          aria-hidden="true"
-                        >
-                          <circle
-                            cx="9"
-                            cy="9"
-                            r="8"
-                            fill="var(--color-accent-soft)"
-                          />
-                          <path
-                            d="m5.5 9.2 2.3 2.3 4.7-4.8"
-                            fill="none"
-                            stroke="var(--color-accent)"
-                            stroke-width="1.8"
-                            stroke-linecap="round"
-                            stroke-linejoin="round"
-                          />
-                        </svg>
-                        {line}
-                      </li>
-                    ),
-                  )}
-                </ul>
-              </div>
-            )}
           </div>
         ) : (
           <>
@@ -207,8 +162,12 @@ export function OrientationApprovalDialog({
           </>
         )}
         <div class="orientation-approval-actions">
-          <button type="button" class="btn btn-secondary" onClick={onClose}>
-            Back to the colors
+          <button
+            type="button"
+            class="btn btn-secondary"
+            onClick={onBackToColors}
+          >
+            {single && valid ? 'No, check the colors' : 'Back to the colors'}
           </button>
           <div class="header-spacer" />
           {rejectAlternatives(approval).length > 0 && (

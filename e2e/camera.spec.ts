@@ -14,7 +14,7 @@ const photos = faceKeys.map((face) =>
   readFileSync(resolve(fixture, `face-${face}.jpg`)).toString('base64'),
 )
 
-async function installStubCamera(page: Page) {
+async function installStubCamera(page: Page, frames = photos) {
   await page.addInitScript(
     ({ frames }) => {
       const canvas = document.createElement('canvas')
@@ -43,7 +43,7 @@ async function installStubCamera(page: Page) {
       })
       window.setTestCameraFace = setFace
     },
-    { frames: photos },
+    { frames },
   )
 }
 
@@ -100,7 +100,7 @@ test('captures and re-detects a face from a live camera stream', async ({
     .poll(async () => {
       if (await review.isVisible()) return true
       const backToColors = page.getByRole('button', {
-        name: 'Back to the colors',
+        name: /Back to the colors|No, check the colors/,
       })
       if (await backToColors.isVisible()) {
         await backToColors.click()
@@ -248,4 +248,63 @@ test('the turn cue shows after each of the first five captures', async ({
     await capture.getByRole('button', { name: 'Continue' }).click()
     await expect(capture.locator('.capture-turn-overlay')).toHaveCount(0)
   }
+})
+
+test('a valid cube never starts the color review after the last capture', async ({
+  page,
+}) => {
+  test.setTimeout(120_000)
+  await page.emulateMedia({ reducedMotion: 'reduce' })
+  await installStubCamera(page)
+  await page.goto('/')
+  await page.getByRole('button', { name: 'Capture faces' }).click()
+  const capture = page.locator('.capture-modal-content')
+  await expect(capture.locator('.capture-live-badge')).toContainText('Live')
+  for (let index = 0; index < photos.length; index++) {
+    await page.evaluate((face) => window.setTestCameraFace(face), index)
+    await capture
+      .getByRole('button', { name: /^Capture (side|top|bottom)/i })
+      .click()
+  }
+  await expect(capture).not.toBeVisible()
+  await expect(
+    page
+      .getByRole('heading', { name: 'Does this match your cube?' })
+      .or(page.getByRole('status').filter({ hasText: 'Valid cube' })),
+  ).toBeVisible()
+  await expect(page.locator('.review-modal-content')).toHaveCount(0)
+})
+
+test('a mirrored 5x5 capture asks only whether it is your cube', async ({
+  page,
+}) => {
+  test.setTimeout(120_000)
+  const folder = resolve('test/fixtures/cube-5x5-2026-10-25T23-50-58')
+  const frames = faceKeys.map((face) =>
+    readFileSync(resolve(folder, `face-${face}.jpg`)).toString('base64'),
+  )
+  await page.emulateMedia({ reducedMotion: 'reduce' })
+  await installStubCamera(page, frames)
+  await page.goto('/')
+  await page
+    .getByRole('combobox', { name: 'Cube' })
+    .selectOption('builtin-generic-5')
+  await page.getByRole('button', { name: 'Capture faces' }).click()
+  const capture = page.locator('.capture-modal-content')
+  await expect(capture.locator('.capture-live-badge')).toContainText('Live')
+  await capture.getByLabel('Mirror').check()
+  for (let index = 0; index < frames.length; index++) {
+    await page.evaluate((face) => window.setTestCameraFace(face), index)
+    await capture
+      .getByRole('button', { name: /^Capture (side|top|bottom)/i })
+      .click()
+  }
+  await expect(capture).not.toBeVisible()
+  await expect(
+    page.getByRole('heading', { name: 'Does this match your cube?' }),
+  ).toBeVisible()
+  await expect(page.locator('.review-modal-content')).toHaveCount(0)
+  // "No" starts the color review.
+  await page.getByRole('button', { name: 'No, check the colors' }).click()
+  await expect(page.locator('.review-modal-content')).toBeVisible()
 })
