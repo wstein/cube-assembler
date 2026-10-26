@@ -7,6 +7,7 @@ import { CaptureColorPicker } from './capture/captureColorPicker'
 import { CaptureSettings, CubeSelectOptions } from './capture/captureSettings'
 import type { ReviewCapture } from './profiles/colorReviewPage'
 import { BackdropDialog } from './profiles/backdropDialog'
+import { withPaletteSuspects } from './capture/paletteSuspects'
 import { FixtureDownloadDialog } from './fixtures/fixtureDownloadDialog'
 import { localUploadShown } from './preferences'
 import { CubeDisplayCard } from './cubeDisplayCard'
@@ -194,6 +195,12 @@ export function ScannerAppView({ model }: { model: ScannerAppModel }) {
     webcamRef,
     wizardMorphing,
   } = model
+  // The review and the cube check also flag stickers the reference palette
+  // reads differently (see withPaletteSuspects).
+  const checkedFaces = useMemo(
+    () => withPaletteSuspects(capturedFaces, FACE_ORDER),
+    [capturedFaces],
+  )
   // Render
   // ─────────────────────────────────────────────────────────────────────────
 
@@ -592,7 +599,7 @@ export function ScannerAppView({ model }: { model: ScannerAppModel }) {
           colorNames={COLOR_NAME}
           stickerColors={STICKER_HEX}
           colorOrder={COLOR_ORDER}
-          faces={capturedFaces}
+          faces={checkedFaces}
           size={puzzleSize}
           step={reviewStep}
           captureProfileName={captureProfile?.name}
@@ -657,7 +664,7 @@ export function ScannerAppView({ model }: { model: ScannerAppModel }) {
             setReviewNotice(null)
             setShowReviewDialog(true)
           }}
-          captured={capturedFaces}
+          captured={checkedFaces}
           faceOrder={FACE_ORDER}
           puzzleSize={puzzleSize}
           paletteFar={automaticResolution?.reason === 'far'}
