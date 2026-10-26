@@ -31,7 +31,6 @@ interface CubeDisplayCardProps {
   faceOrder: readonly string[]
   stickerColors: Record<string, string>
   colorNames: Record<string, string>
-  confidenceTier: (confidence: number) => 'high' | 'medium' | 'low'
   viewMode: 'net' | '3d'
   initialMoves: CubeTurn[]
   initialFrame?: ColorFrame
@@ -52,7 +51,6 @@ export function CubeDisplayCard({
   faceOrder,
   stickerColors,
   colorNames,
-  confidenceTier,
   viewMode,
   initialMoves,
   initialFrame,
@@ -121,7 +119,6 @@ export function CubeDisplayCard({
           faceOrder={faceOrder}
           stickerColors={stickerColors}
           colorNames={colorNames}
-          confidenceTier={confidenceTier}
         />
       )}
       {parity && (

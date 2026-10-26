@@ -2,6 +2,7 @@ import { diagnose } from '../../core/capture/CaptureDiagnosis.gen'
 import { findCaptureForOrientedFace } from '../../cube/capturedFaceMatching'
 import { solveFaceOrientations } from '../../cube/cubeAssembly'
 import { rotateGrid } from '../../cube/cubeGeometry'
+import { stickerMark } from './captureSteps'
 import type { FaceCaptureData } from './captureTypes'
 
 // What the cube check shows of a captured photo: the picture, how it turns
@@ -12,20 +13,32 @@ export interface ApprovalPhoto {
   image?: string
   turns: number
   changed: boolean[][]
+  // Stickers the review would mark "to double-check".
+  unsure: boolean[][]
 }
 
 const NO_TURNS = (n: number) =>
   Array.from({ length: n }, () => Array<boolean>(n).fill(false))
 
-// Cells where the colors differ from the detection, turned `turns` quarter
-// turns clockwise like the photo.
-function changedCells(
+// Cells carrying `wanted` (see stickerMark), turned `turns` quarter turns
+// clockwise like the photo.
+function markedCells(
   face: FaceCaptureData | undefined,
   turns: number,
+  wanted: 'corrected' | 'flagged',
 ): boolean[][] {
-  if (!face?.detectedColors) return NO_TURNS(face?.colors.length ?? 0)
+  if (!face) return NO_TURNS(0)
   const marks = face.colors.map((row, r) =>
-    row.map((color, c) => (color === face.detectedColors![r][c] ? '' : 'x')),
+    row.map((color, c) =>
+      stickerMark(
+        face.detectedColors?.[r]?.[c],
+        color,
+        face.cellConfidences?.[r]?.[c] ?? 1,
+        face.cellLookalikes?.[r]?.[c],
+      ) === wanted
+        ? 'x'
+        : '',
+    ),
   )
   return rotateGrid(marks, turns).map((row) => row.map((mark) => mark === 'x'))
 }
@@ -49,7 +62,8 @@ export function netPhotos(
           slot: found.slot,
           image: data?.croppedImage,
           turns: found.turns,
-          changed: changedCells(data, found.turns),
+          changed: markedCells(data, found.turns, 'corrected'),
+          unsure: markedCells(data, found.turns, 'flagged'),
         },
       ]
     }),
@@ -67,7 +81,8 @@ export function capturePhotos(
           slot,
           image: captured[key].croppedImage,
           turns: 0,
-          changed: changedCells(captured[key], 0),
+          changed: markedCells(captured[key], 0, 'corrected'),
+          unsure: markedCells(captured[key], 0, 'flagged'),
         }
       : null,
   )
@@ -88,9 +103,23 @@ export function captureStats(
     order.map((key) => captured[key]?.cellColors),
     sureness,
   )
+  // The same stickers the color review marks "to double-check".
   const unsure = order.map((key) => {
-    const cells = captured[key]?.cellConfidences?.flat()
-    return cells ? cells.filter((c) => c < 0.6).length : undefined
+    const face = captured[key]
+    if (!face) return undefined
+    let count = 0
+    face.colors.forEach((row, r) =>
+      row.forEach((color, c) => {
+        const mark = stickerMark(
+          face.detectedColors?.[r]?.[c],
+          color,
+          face.cellConfidences?.[r]?.[c] ?? 1,
+          face.cellLookalikes?.[r]?.[c],
+        )
+        if (mark === 'flagged') count++
+      }),
+    )
+    return count
   })
   return { sureness, unsure, diagnosis }
 }

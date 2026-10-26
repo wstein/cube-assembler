@@ -367,7 +367,6 @@ export function ScannerAppView({ model }: { model: ScannerAppModel }) {
             faceOrder={FACE_ORDER}
             stickerColors={STICKER_HEX}
             colorNames={COLOR_NAME}
-            confidenceTier={confidenceTier}
             viewMode={cubeViewMode}
             initialMoves={
               turnedCube?.source === baseCube ? turnedCube.moves : []

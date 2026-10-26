@@ -1,6 +1,7 @@
 import type { TargetedKeyboardEvent } from 'preact'
 import { useMemo } from 'preact/hooks'
 import { reviewNetLayout } from './approvalPhotos'
+import { stickerMark } from './captureSteps'
 import { FaceGrid } from './captureNet'
 import type { FaceCaptureData } from './captureTypes'
 
@@ -211,15 +212,14 @@ export function CaptureReviewDialog({
                   let correctedCount = 0
                   for (let r = 0; r < data.colors.length; r++) {
                     for (let c = 0; c < data.colors[r].length; c++) {
-                      const detected = data.detectedColors?.[r]?.[c]
-                      const corrected =
-                        detected !== undefined && detected !== data.colors[r][c]
-                      const lowConfidence =
-                        confidenceTier(data.cellConfidences?.[r]?.[c] ?? 1) ===
-                        'low'
-                      const lookalike = data.cellLookalikes?.[r]?.[c]
-                      if (corrected) correctedCount++
-                      else if (lowConfidence || lookalike) flaggedCount++
+                      const mark = stickerMark(
+                        data.detectedColors?.[r]?.[c],
+                        data.colors[r][c],
+                        data.cellConfidences?.[r]?.[c] ?? 1,
+                        data.cellLookalikes?.[r]?.[c],
+                      )
+                      if (mark === 'corrected') correctedCount++
+                      else if (mark === 'flagged') flaggedCount++
                     }
                   }
                   return (

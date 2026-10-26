@@ -1,6 +1,7 @@
 import { useState } from 'preact/hooks'
 import type { CubeState } from '../cube/cubeAssembly'
 import type { ParityResult } from '../cube/parity'
+import { stickerMark } from './capture/captureSteps'
 import type { FaceCaptureData } from './capture/captureTypes'
 import { faceSources, pieceKey, sourceIndex } from './netPresentation'
 
@@ -12,7 +13,6 @@ interface CubeNetViewProps {
   faceOrder: readonly string[]
   stickerColors: Record<string, string>
   colorNames: Record<string, string>
-  confidenceTier: (confidence: number) => 'high' | 'medium' | 'low'
 }
 
 // Face names shown on the net, keyed by CubeIR face.
@@ -27,7 +27,7 @@ const NET_FACE_NAMES: Record<string, string> = {
 
 // The review mark for sticker `index` (row-major) of a captured face: hand
 // corrected, or flagged as unsure (low confidence or close to another color).
-function stickerMark(
+function netStickerMark(
   face: {
     colors: string[][]
     detectedColors?: string[][]
@@ -35,20 +35,16 @@ function stickerMark(
     cellLookalikes?: (string | null)[][]
   },
   index: number,
-  confidenceTier: (confidence: number) => 'high' | 'medium' | 'low',
 ): 'corrected' | 'flagged' | null {
   const n = face.colors.length,
     r = Math.floor(index / n),
     c = index % n
-  const detected = face.detectedColors?.[r]?.[c]
-  if (detected !== undefined && detected !== face.colors[r]?.[c])
-    return 'corrected'
-  if (
-    confidenceTier(face.cellConfidences?.[r]?.[c] ?? 1) === 'low' ||
-    face.cellLookalikes?.[r]?.[c]
+  return stickerMark(
+    face.detectedColors?.[r]?.[c],
+    face.colors[r]?.[c],
+    face.cellConfidences?.[r]?.[c] ?? 1,
+    face.cellLookalikes?.[r]?.[c],
   )
-    return 'flagged'
-  return null
 }
 
 export function CubeNetView({
@@ -59,7 +55,6 @@ export function CubeNetView({
   faceOrder,
   stickerColors,
   colorNames,
-  confidenceTier,
 }: CubeNetViewProps) {
   const [hoveredHighlightGroup, setHoveredHighlightGroup] = useState<
     string | null
@@ -122,7 +117,7 @@ export function CubeNetView({
     const index = source
       ? sourceIndex(puzzleSize, source.turns, hoveredNetCell.index)
       : -1
-    const mark = photo ? stickerMark(photo, index, confidenceTier) : null
+    const mark = photo ? netStickerMark(photo, index) : null
     const r = Math.floor(index / puzzleSize),
       c = index % puzzleSize
     const detected = photo?.detectedColors?.[r]?.[c]
@@ -203,10 +198,9 @@ export function CubeNetView({
                     pieceKey(puzzleSize, faceKey, i) === hoveredPiece
                   const mark =
                     photo && source
-                      ? stickerMark(
+                      ? netStickerMark(
                           photo,
                           sourceIndex(puzzleSize, source.turns, i),
-                          confidenceTier,
                         )
                       : null
                   return (

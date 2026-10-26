@@ -819,3 +819,10 @@
   outline: 3px solid var(--color-danger, #c0392b);
   outline-offset: 1px;
 }
+
+/* Stickers the camera was unsure of: ringed like the color review's
+   double-check marks. */
+.orientation-net-sticker-unsure {
+  outline: 2px solid #e0a040;
+  outline-offset: -2px;
+}

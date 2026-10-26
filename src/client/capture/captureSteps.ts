@@ -8,6 +8,7 @@ import {
   faceOrder,
   faceShortLabel,
   glareFacesToWarn as glareFacesToWarnRes,
+  stickerMark as stickerMarkRes,
   turnHintArrowAngle as turnHintArrowAngleRes,
 } from '../../core/capture/CaptureSteps.gen'
 import type { GuidedCenterIssue } from '../../cube/cubeAssembly'
@@ -23,6 +24,17 @@ export const CAPTURE_STEPS: Array<{
 
 export function captureInstruction(step: number): string {
   return captureInstructionRes(step)
+}
+
+// How a sticker is marked in the review and the overview: corrected from
+// the detection, or flagged as unsure or a look-alike of another color.
+export function stickerMark(
+  detected: string | null | undefined,
+  color: string,
+  confidence: number,
+  lookalike: string | null | undefined,
+): 'corrected' | 'flagged' | null {
+  return stickerMarkRes(detected, color, confidence, lookalike)
 }
 
 export function turnHintArrowAngle(step: number): number {

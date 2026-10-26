@@ -48,6 +48,7 @@ export function OrientationNetPreview({
   currentFace,
   autoFaces,
   changedFaces,
+  unsureFaces,
   photos,
   flaggedFaces,
   onFaceClick,
@@ -58,6 +59,7 @@ export function OrientationNetPreview({
   currentFace?: string
   autoFaces?: Set<string>
   changedFaces?: Record<string, boolean[][] | undefined>
+  unsureFaces?: Record<string, boolean[][] | undefined>
   // The original photo of each face, swapped in on hover.
   photos?: Record<string, { image?: string; turns: number } | null | undefined>
   // Faces to mark (for example a photo shot twice).
@@ -73,6 +75,7 @@ export function OrientationNetPreview({
       current={face === currentFace}
       auto={autoFaces?.has(face)}
       changed={changedFaces?.[face]}
+      unsure={unsureFaces?.[face]}
     />
   )
   const grid = (face: string) =>

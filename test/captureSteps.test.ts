@@ -7,6 +7,7 @@ import {
   captureInstruction,
   describeCenterIssue,
   glareFacesToWarn,
+  stickerMark,
   turnHintArrowAngle,
 } from '../src/client/capture/captureSteps'
 import { GLARE_WARNING_STICKERS } from '../src/client/vision/stickerLearning'
@@ -56,5 +57,22 @@ describe('capture steps', () => {
     }))
     expect(glareFacesToWarn(few)).toEqual([])
     expect(glareFacesToWarn([...few, { face: 'U' }])).toEqual(['U', 'R'])
+  })
+})
+
+describe('sticker marks', () => {
+  it('marks a sticker the colors were changed on as corrected', () => {
+    expect(stickerMark('R', 'O', 0.9, null)).toBe('corrected')
+  })
+
+  it('flags low confidence and look-alikes, whatever the confidence', () => {
+    expect(stickerMark('R', 'R', 0.4, null)).toBe('flagged')
+    expect(stickerMark('R', 'R', 0.9, 'O')).toBe('flagged')
+    expect(stickerMark(undefined, 'R', 0.88, 'O')).toBe('flagged')
+  })
+
+  it('leaves a confident, clear sticker alone', () => {
+    expect(stickerMark('R', 'R', 0.9, null)).toBeNull()
+    expect(stickerMark(undefined, 'R', 0.5, undefined)).toBeNull()
   })
 })

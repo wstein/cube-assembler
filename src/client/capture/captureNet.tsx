@@ -16,6 +16,7 @@ export function FaceGrid({
   current,
   auto,
   changed,
+  unsure,
   stickerColors,
 }: {
   colors: string[][]
@@ -24,6 +25,8 @@ export function FaceGrid({
   auto?: boolean
   // Stickers the saved colors changed from the detection, outlined.
   changed?: boolean[][]
+  // Stickers the camera was unsure of, ringed.
+  unsure?: boolean[][]
   stickerColors: Record<string, string>
 }) {
   // On odd sizes the center sticker never moves when a face is turned, so
@@ -38,7 +41,7 @@ export function FaceGrid({
       {colors.flat().map((color, i) => (
         <div
           key={i}
-          class={`orientation-net-sticker${changed?.[Math.floor(i / n)]?.[i % n] ? ' orientation-net-sticker-changed' : ''}`}
+          class={`orientation-net-sticker${changed?.[Math.floor(i / n)]?.[i % n] ? ' orientation-net-sticker-changed' : ''}${unsure?.[Math.floor(i / n)]?.[i % n] ? ' orientation-net-sticker-unsure' : ''}`}
           style={
             (undecided && i !== centerIndex) || !color
               ? undefined

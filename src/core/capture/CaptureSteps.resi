@@ -21,3 +21,9 @@ type glareSticker = {face: string}
 type tier = | @as("high") High | @as("medium") Medium | @as("low") Low
 
 @genType let confidenceTier: float => tier
+
+@genType
+type mark = | @as("corrected") Corrected | @as("flagged") Flagged
+
+@genType
+let stickerMark: (Nullable.t<string>, string, float, Nullable.t<string>) => Null.t<mark>

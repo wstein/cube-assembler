@@ -98,3 +98,22 @@ let colorOrder = ["W", "O", "G", "R", "B", "Y"]
 type tier = | @as("high") High | @as("medium") Medium | @as("low") Low
 
 let confidenceTier = c => c >= 0.8 ? High : c >= 0.5 ? Medium : Low
+
+type mark = | @as("corrected") Corrected | @as("flagged") Flagged
+
+// How the review and the overview mark a sticker: corrected when its color
+// was changed from the detection, flagged when the camera was unsure of it
+// (low confidence) or it sits close to another color (a look-alike).
+let stickerMark = (
+  detected: Nullable.t<string>,
+  color: string,
+  confidence: float,
+  lookalike: Nullable.t<string>,
+) =>
+  switch Nullable.toOption(detected) {
+  | Some(detected) if detected != color => Null.make(Corrected)
+  | _ =>
+    confidenceTier(confidence) == Low || Nullable.toOption(lookalike)->Option.isSome
+      ? Null.make(Flagged)
+      : Null.null
+  }

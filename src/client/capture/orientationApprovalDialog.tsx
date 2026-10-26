@@ -246,6 +246,11 @@ function CubeCheck({
         Object.entries(inNet).map(([face, photo]) => [face, photo?.changed]),
       )
     : undefined
+  const unsureFaces = inNet
+    ? Object.fromEntries(
+        Object.entries(inNet).map(([face, photo]) => [face, photo?.unsure]),
+      )
+    : undefined
   const flaggedFaces = inNet
     ? new Set(
         Object.entries(inNet)
@@ -281,6 +286,7 @@ function CubeCheck({
             faces={candidate.faces}
             stickerColors={stickerColors}
             changedFaces={changedFaces}
+            unsureFaces={unsureFaces}
             photos={inNet ?? undefined}
             flaggedFaces={flaggedFaces}
             onFaceClick={(face) => onCheckFace(candidate, face)}
@@ -300,6 +306,7 @@ function CubeCheck({
                       stickerColors={stickerColors}
                       colors={captured[key].colors}
                       changed={inOrder[slot]?.changed}
+                      unsure={inOrder[slot]?.unsure}
                     />
                     <PhotoOverlay
                       photo={inOrder[slot]}
@@ -316,7 +323,7 @@ function CubeCheck({
       <dl class="approval-stats">
         <dt>Camera was sure of</dt>
         <dd>{sureLine || 'not recorded'}</dd>
-        <dt>Unsure stickers</dt>
+        <dt>To double-check</dt>
         <dd>{unsureLine || 'none'}</dd>
         {stats.diagnosis.repeatsChecked && (
           <>
