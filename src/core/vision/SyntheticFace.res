@@ -99,15 +99,58 @@ let setPixel = (data, size, x, y, c: rgb) => {
   Pixels.set(data, i + 3, 255)
 }
 
+// A logo on one sticker: a round patch of a palette color on sticker (row,
+// col), `size` (default 0.5) of the sticker's half width across its radius.
+type logo = {row: int, col: int, color: string, size?: float}
+
+// The face's shape as fractions: the border around it and, of a sticker,
+// the gap between stickers and the corner radius.
+type geometry = {gap?: float, radius?: float, margin?: float}
+
+// What the generator can be told beyond the grid, preset and seed; every
+// field is optional, so options can be added without touching the callers.
+// - scatter: scales the hue and chroma spread of stickers of one color; 0 is
+//   none, 1 the spread measured in the saved captures. Defaults to 1 for the
+//   scatter preset and 0 for all others, so clean stays clear.
+// - lightness: scales the brightness scatter between stickers (default 1).
+// - palette: sticker colors by letter, replacing the default ones.
+// - logo: see above.
+// - noise: Gaussian noise (sigma in 0-255 levels) on top of the preset.
+// - blur: a box blur of this radius in pixels on top of the preset.
+// - brightness: multiplies the light on every pixel (default 1).
+// - geometry: see above.
+type options = {
+  scatter?: float,
+  lightness?: float,
+  palette?: Dict.t<rgb>,
+  logo?: logo,
+  noise?: float,
+  blur?: float,
+  brightness?: float,
+  geometry?: geometry,
+}
+
 // The face itself, before any lighting: stickers by their color.
-let drawFace = (data, grid: array<array<string>>, seed, size, scatter) => {
+let drawFace = (
+  data,
+  grid: array<array<string>>,
+  seed,
+  size,
+  ~scatter,
+  ~lightness,
+  ~colors,
+  ~logo,
+  ~margin as marginShare,
+  ~gap as gapShare,
+  ~radius as radiusShare,
+) => {
   let n = Array.length(grid)
   let side = Int.toFloat(size)
-  let margin = Math.round(side *. marginFraction)
+  let margin = Math.round(side *. marginShare)
   let inner = side -. 2.0 *. margin
   let cell = inner /. Int.toFloat(n)
-  let gap = Math.max(2.0, cell *. gapFraction)
-  let radius = cell *. radiusFraction
+  let gap = Math.max(2.0, cell *. gapShare)
+  let radius = cell *. radiusShare
   let half = cell /. 2.0 -. gap /. 2.0
   let corner = half -. radius
   for y in 0 to size - 1 {
@@ -131,17 +174,29 @@ let drawFace = (data, grid: array<array<string>>, seed, size, scatter) => {
         let coverage = clamp(0.5 -. distance, 0.0, 1.0)
         let label = grid->Array.getUnsafe(row)->Array.getUnsafe(col)
         let base = scatterColor(
-          palette->Dict.get(label)->Option.getOr(unknownSticker),
+          colors->Dict.get(label)->Option.getOr(unknownSticker),
           label,
           seed,
           row * n + col,
           scatter,
         )
+        // A logo patch takes the palette color of the logo.
+        let base = switch logo {
+        | Some({row: logoRow, col: logoCol, color: logoColor, ?size})
+          if logoRow == row && logoCol == col =>
+          let reach = size->Option.getOr(0.5) *. half
+          if Math.sqrt(dx *. dx +. dy *. dy) <= reach {
+            colors->Dict.get(logoColor)->Option.getOr(unknownSticker)
+          } else {
+            base
+          }
+        | _ => base
+        }
         // Darker toward the rim, a little lighter toward one corner, and each
         // sticker a touch different from the next.
         let rim = 1.0 -. 0.1 *. clamp(1.0 -. -.distance /. (cell *. 0.08), 0.0, 1.0)
         let slope = 1.0 +. 0.04 *. (-.(dx +. dy) /. cell)
-        let jitter = 1.0 +. (unit(seed, row * n + col + 1000) -. 0.5) *. 0.05
+        let jitter = 1.0 +. (unit(seed, row * n + col + 1000) -. 0.5) *. 0.05 *. lightness
         let shade = rim *. slope *. jitter
         {
           r: backdrop.r *. (1.0 -. coverage) +. base.r *. shade *. coverage,
@@ -236,9 +291,9 @@ let applyGlare = (data, size, seed) => {
   })
 }
 
-// A soft lens: a box blur, as wide as half a percent of the photo.
-let blur = (data, size) => {
-  let radius = Math.max(1.0, Math.round(Int.toFloat(size) *. 0.006))->Float.toInt
+// A soft lens: a box blur of the given radius in pixels.
+// The bad-camera preset uses half a percent of the photo.
+let blur = (data, size, radius) => {
   let source = Pixels.make(Pixels.length(data))
   Pixels.setFrom(source, data, 0)
   let pass = (from, into, horizontal) =>
@@ -272,9 +327,9 @@ let blur = (data, size) => {
 }
 
 // SYNTHETIC and the preset's name, light on the dark bottom border.
-let drawLabel = (data, size, preset) => {
+let drawLabel = (data, size, preset, marginShare) => {
   let side = Int.toFloat(size)
-  let margin = Float.toInt(Math.round(side *. marginFraction))
+  let margin = Float.toInt(Math.round(side *. marginShare))
   let scale = Math.Int.max(1, (margin - 4) / 7)
   let text = `SYNTHETIC ${String.toUpperCase(preset)}`
   let lettering = {r: 170.0, g: 170.0, b: 176.0}
@@ -311,12 +366,7 @@ let drawLabel = (data, size, preset) => {
 
 // The photo of one face, size x size RGBA pixels, in the given lighting.
 // The same grid, preset and seed always make the same photo.
-// What the generator can be told beyond the grid, preset and seed; every
-// field is optional, so options can be added without touching the callers.
-// `scatter` scales the hue and chroma spread of stickers of one color: 0 is
-// none, 1 the spread measured in the saved captures. It defaults to 1 for
-// the scatter preset and to 0 for all others, so clean stays clear.
-type options = {scatter?: float}
+let defaultBlurRadius = size => Math.max(1.0, Math.round(Int.toFloat(size) *. 0.006))->Float.toInt
 
 let renderFace = (
   grid: array<array<string>>,
@@ -328,8 +378,26 @@ let renderFace = (
   if !(presets->Array.includes(preset)) {
     JsError.throwWithMessage(`Unknown synthetic preset: ${preset}`)
   }
+  let geometry = options.geometry->Option.getOr({})
+  let marginShare = geometry.margin->Option.getOr(marginFraction)
+  let colors = switch options.palette {
+  | None => palette
+  | Some(own) => Dict.fromArray(Array.concat(palette->Dict.toArray, own->Dict.toArray))
+  }
   let data = Pixels.make(size * size * 4)
-  drawFace(data, grid, seed, size, options.scatter->Option.getOr(preset == "scatter" ? 1.0 : 0.0))
+  drawFace(
+    data,
+    grid,
+    seed,
+    size,
+    ~scatter=options.scatter->Option.getOr(preset == "scatter" ? 1.0 : 0.0),
+    ~lightness=options.lightness->Option.getOr(1.0),
+    ~colors,
+    ~logo=options.logo,
+    ~margin=marginShare,
+    ~gap=geometry.gap->Option.getOr(gapFraction),
+    ~radius=geometry.radius->Option.getOr(radiusFraction),
+  )
   switch preset {
   | "gradient" => applyGradient(data, size)
   | "shadow" => applyShadow(data, size)
@@ -339,10 +407,28 @@ let renderFace = (
   | "glare" => applyGlare(data, size, seed)
   | "noise" => addNoise(data, size, seed, 20.0)
   | "bad-camera" =>
-    blur(data, size)
+    blur(data, size, defaultBlurRadius(size))
     addNoise(data, size, seed, 15.0)
   | _ => ()
   }
-  drawLabel(data, size, preset)
+  // On top of the preset: more light or less, a lens, noise.
+  switch options.brightness {
+  | Some(factor) =>
+    eachPixel(data, size, (_, _, r, g, b, _) => (
+      Int.toFloat(r) *. factor,
+      Int.toFloat(g) *. factor,
+      Int.toFloat(b) *. factor,
+    ))
+  | None => ()
+  }
+  switch options.blur {
+  | Some(radius) if radius >= 1.0 => blur(data, size, Float.toInt(Math.round(radius)))
+  | _ => ()
+  }
+  switch options.noise {
+  | Some(sigma) if sigma > 0.0 => addNoise(data, size, seed + 7919, sigma)
+  | _ => ()
+  }
+  drawLabel(data, size, preset, marginShare)
   data
 }
