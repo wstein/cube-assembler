@@ -926,3 +926,9 @@
   outline: 2px solid #000;
   pointer-events: none;
 }
+
+/* Over the photo only the ring marks the sticker, so the photo stays visible. */
+.orientation-net-photo-shown .orientation-net-sticker-hover {
+  background: transparent !important;
+  outline: none;
+}
