@@ -171,7 +171,7 @@ export function CubeNetView({
       turns: source?.turns ?? 0,
       note:
         first && photo && first !== photo.colors[r]?.[c]
-          ? `First guess ${colorNames[first] ?? first}, moved to ${colorNames[color] ?? color} by the equal color share.`
+          ? `First guess ${colorNames[first] ?? first}, moved to ${colorNames[color] ?? color}.`
           : mark === 'corrected'
             ? `Detected ${colorNames[detected!] ?? detected}, you changed it to ${colorNames[color] ?? color}.`
             : mark === 'flagged'

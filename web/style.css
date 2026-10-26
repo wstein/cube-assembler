@@ -483,6 +483,7 @@ h3 {
   gap: 2px;
   max-width: 600px;
   margin: 0 auto;
+  position: relative;
 }
 
 .net-u {
@@ -579,14 +580,26 @@ h3 {
 }
 
 .net-info {
+  /* Out of flow, in the grid area right of the top face: whatever it shows,
+     the net never moves when a sticker is pointed at. */
+  position: absolute;
   grid-column: 3 / span 2;
   grid-row: 1;
-  align-self: end;
+  inset: 0;
+  overflow: hidden;
   display: grid;
-  gap: 4px;
-  justify-items: start;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-content: end;
+  align-items: end;
+  gap: 2px var(--spacing-md);
   padding: 0 0 var(--spacing-sm) var(--spacing-md);
   font-size: 0.85rem;
+}
+.net-info > p {
+  grid-column: 1 / -1;
+}
+.net-info-photo ~ p {
+  grid-column: 2;
 }
 
 p {
@@ -597,8 +610,9 @@ p {
   color: var(--color-text-secondary);
 }
 .net-info-photo {
-  width: 96px;
-  height: 96px;
+  grid-row: 1 / span 2;
+  width: 72px;
+  height: 72px;
   object-fit: cover;
   border-radius: var(--radius-sm);
 }
