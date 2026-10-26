@@ -1,5 +1,6 @@
 import { diagnose } from '../../core/capture/CaptureDiagnosis.gen'
 import { findCaptureForOrientedFace } from '../../cube/capturedFaceMatching'
+import { solveFaceOrientations } from '../../cube/cubeAssembly'
 import { rotateGrid } from '../../cube/cubeGeometry'
 import type { FaceCaptureData } from './captureTypes'
 
@@ -92,4 +93,32 @@ export function captureStats(
     return cells ? cells.filter((c) => c < 0.6).length : undefined
   })
   return { sureness, unsure, diagnosis }
+}
+
+// Where each photo sits in the cube net (U above, L F R B in a row, D
+// below) for the review's face picker: the closest arrangement of the
+// photos as they are now - the review happens before the customer approves
+// one, and a sticker may still be wrong. Null when the faces do not fit
+// together at all, or two net places would show the same photo.
+export function reviewNetLayout(
+  captured: Record<string, FaceCaptureData>,
+  order: string[],
+): Record<string, { slot: number; colors: string[][] }> | null {
+  if (!order.every((key) => captured[key])) return null
+  const solution = solveFaceOrientations(
+    Object.fromEntries(order.map((key) => [key, captured[key].colors])),
+  )
+  const candidate = solution?.alternatives[0]
+  if (!candidate) return null
+  const photos = order.map((key) => captured[key].colors)
+  const layout: Record<string, { slot: number; colors: string[][] }> = {}
+  for (const [face, colors] of Object.entries(candidate.faces)) {
+    const found = findCaptureForOrientedFace(photos, colors)
+    if (!found) return null
+    layout[face] = { slot: found.slot, colors }
+  }
+  return new Set(Object.values(layout).map((place) => place.slot)).size ===
+    order.length
+    ? layout
+    : null
 }

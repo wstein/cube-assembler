@@ -1,4 +1,6 @@
 import type { TargetedKeyboardEvent } from 'preact'
+import { useMemo } from 'preact/hooks'
+import { reviewNetLayout } from './approvalPhotos'
 import { FaceGrid } from './captureNet'
 import type { FaceCaptureData } from './captureTypes'
 
@@ -26,8 +28,18 @@ interface CaptureReviewDialogProps {
   onConfirm: () => void
 }
 
-// Grid areas of the faces in capture order (see CaptureNet).
+// Grid areas of the faces in capture order (see CaptureNet), used while the
+// photos do not fit together.
 const MINI_NET_AREAS = ['2 / 1', '2 / 2', '2 / 3', '2 / 4', '1 / 2', '3 / 2']
+// The cube net: U above, L F R B in a row, D below.
+const CUBE_NET_AREAS: Record<string, string> = {
+  U: '1 / 2',
+  L: '2 / 1',
+  F: '2 / 2',
+  R: '2 / 3',
+  B: '2 / 4',
+  D: '3 / 2',
+}
 
 // Show each original photo beside the detected stickers so corrections stay
 // tied to the source image.
@@ -60,6 +72,24 @@ export function CaptureReviewDialog({
   )
   const data = faces[face]
   const isLast = step === faceOrder.length - 1
+  // The face picker is the cube net while the photos fit together.
+  const netLayout = useMemo(
+    () => reviewNetLayout(faces, [...faceOrder]),
+    [faces, faceOrder],
+  )
+  const pickers = netLayout
+    ? Object.entries(netLayout).map(([netFace, place]) => ({
+        key: netFace,
+        slot: place.slot,
+        area: CUBE_NET_AREAS[netFace],
+        colors: place.colors,
+      }))
+    : faceOrder.map((f, i) => ({
+        key: f,
+        slot: i,
+        area: MINI_NET_AREAS[i],
+        colors: faces[f]?.colors ?? emptyFace,
+      }))
   return (
     <div class="modal open">
       <div
@@ -79,24 +109,22 @@ export function CaptureReviewDialog({
             <h2 id="review-title">{faceLabels[face]}</h2>
           </div>
           <div class="review-mini-net" role="group" aria-label="Faces">
-            {faceOrder.map((f, i) => (
+            {pickers.map(({ key, slot, area, colors }) => (
               <button
                 type="button"
-                key={f}
+                key={key}
                 class="review-mini-face"
-                // The capture net's layout: the four sides in a row, Top
-                // above and Bottom below Side 2.
-                style={{ gridArea: MINI_NET_AREAS[i] }}
-                aria-current={i === step ? 'step' : undefined}
-                aria-label={faceLabels[f]}
-                title={faceLabels[f]}
-                onClick={() => onStepChange(i)}
+                style={{ gridArea: area }}
+                aria-current={slot === step ? 'step' : undefined}
+                aria-label={faceLabels[faceOrder[slot]]}
+                title={faceLabels[faceOrder[slot]]}
+                onClick={() => onStepChange(slot)}
               >
                 <FaceGrid
-                  colors={faces[f]?.colors ?? emptyFace}
+                  colors={colors}
                   stickerColors={stickerColors}
-                  undecided={!faces[f]}
-                  current={i === step}
+                  undecided={!faces[faceOrder[slot]]}
+                  current={slot === step}
                 />
               </button>
             ))}
