@@ -67,6 +67,8 @@ for browser tests, lint and formatting, fixture uploads, and Pages deployment.
   and what a failed check highlights.
 - [Architecture](docs/architecture.md) — modules, worker, data flow, storage,
   and test layout.
+- [CubeLab fingerprint](docs/cubelab-fingerprint.md) — the invisible marker
+  and moves block for the CubeLab browser extension.
 - [Regression fixtures](test/fixtures/README.md) — save, upload, tag, and
   test real and synthetic captures.
 - [Contributing](CONTRIBUTING.md) — development, CI, Pages, Git LFS, and pull
