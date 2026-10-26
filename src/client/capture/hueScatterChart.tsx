@@ -1,5 +1,5 @@
 import { useState } from 'preact/hooks'
-import { HUE_CUT, hueAxis, hueScatter, type LocatedSample } from './hueScatter'
+import { hueAxis, hueScatter, type LocatedSample } from './hueScatter'
 
 const NAME: Record<string, string> = {
   W: 'white',
@@ -26,14 +26,14 @@ const L_TICKS = [0.4, 0.6, 0.8, 1]
 const x = (hue: number) => LEFT + (hue / 360) * WIDTH
 const y = (l: number) => TOP + ((1 - l) / (1 - L_MIN)) * HEIGHT
 
-// A dot is drawn in the pure color of its hue at the sticker's own
-// saturation, so a washed-out sticker looks washed out.
-const hueColor = (axis: number, chroma: number) =>
-  `oklch(0.7 ${Math.min(chroma, 0.2).toFixed(3)} ${(axis + HUE_CUT) % 360})`
+// A dot is drawn in the sticker's own measured color, so its lightness,
+// chroma and hue are what the picture shows.
+const css = (c: { r: number; g: number; b: number }) =>
+  `rgb(${Math.round(c.r)} ${Math.round(c.g)} ${Math.round(c.b)})`
 
-// Each sticker as a dot by hue (across) and lightness (up). Red and orange
-// share hues but orange is lighter, so they form two clouds. Each cloud is
-// named with its sticker count; a ringed dot sits with another color's
+// Each sticker as a dot by hue (across) and lightness (up), in its own
+// color. Red and orange share hues but orange is lighter, so they form two
+// clouds. Each cloud is named with its sticker count; a ringed dot sits with another color's
 // stickers than the one it ended up as. Gray stickers (white) have no hue
 // and stand in their own column.
 export function HueScatterChart({ samples }: { samples: LocatedSample[] }) {
@@ -113,12 +113,8 @@ export function HueScatterChart({ samples }: { samples: LocatedSample[] }) {
               r={point.misplaced ? 4 : 3}
               onMouseEnter={() => setHovered(i)}
               onMouseLeave={() => setHovered(null)}
-              fill={
-                point.neutral ? '#9a9a9f' : hueColor(point.hue, point.chroma)
-              }
-            >
-              <title>{info(i)}</title>
-            </circle>
+              fill={css(samples[i].rgb)}
+            />
           )
         })}
         {Object.entries(sums).map(([label, sum]) => (
