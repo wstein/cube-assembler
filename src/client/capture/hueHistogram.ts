@@ -1,4 +1,5 @@
 export {
+  colorDelta,
   hueBin,
   hueHistogram,
   meansByLabel,

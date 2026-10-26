@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   hueBin,
   hueHistogram,
+  colorDelta,
   meansByLabel,
   NEUTRAL_CHROMA,
 } from '../src/client/capture/hueHistogram'
@@ -55,5 +56,20 @@ describe('the final colors', () => {
 
   it('has no entry for a color without stickers', () => {
     expect(Object.keys(meansByLabel([]))).toEqual([])
+  })
+})
+
+describe('the color delta', () => {
+  it('is zero for the same color and symmetric otherwise', () => {
+    const a = rgb(200, 30, 40)
+    const b = rgb(30, 60, 200)
+    expect(colorDelta(a, a)).toBe(0)
+    expect(colorDelta(a, b)).toBeCloseTo(colorDelta(b, a), 10)
+  })
+
+  it('grows with the difference: a shade is small, another color is large', () => {
+    const red = rgb(200, 30, 40)
+    expect(colorDelta(red, rgb(205, 32, 42))).toBeLessThan(3)
+    expect(colorDelta(red, rgb(30, 60, 200))).toBeGreaterThan(30)
   })
 })

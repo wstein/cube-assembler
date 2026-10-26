@@ -6,6 +6,7 @@ import { OrientationWizardDialog } from './capture/orientationWizardDialog'
 import { CaptureColorPicker } from './capture/captureColorPicker'
 import { CaptureSettings, CubeSelectOptions } from './capture/captureSettings'
 import type { ReviewCapture } from './profiles/colorReviewPage'
+import { readWithProfile } from './capture/readWithProfile'
 import { ColorAnalysisDialog } from './profiles/colorAnalysisDialog'
 import { reviewStartSlot } from './capture/approvalPhotos'
 import { withPaletteSuspects } from './capture/paletteSuspects'
@@ -256,7 +257,7 @@ export function ScannerAppView({ model }: { model: ScannerAppModel }) {
       })}
       stickerColors={STICKER_HEX}
       standard={STICKER_COLORS}
-      learned={learnedPalette}
+      readWith={readWithProfile(capturedFaces, FACE_ORDER)}
       onClose={() => setShowBackdropDialog(false)}
     />
   )

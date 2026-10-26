@@ -58,3 +58,14 @@ let meansByLabel = (samples: array<sample>) => {
   })
   ->Dict.fromArray
 }
+
+// How far apart two colors look, as the Oklab distance times 100: a shade
+// is a point or two, another color tens.
+let colorDelta = (a: rgb, b: rgb) => {
+  let x = ColorMath.rgbToOklab(a)
+  let y = ColorMath.rgbToOklab(b)
+  let dl = x.l -. y.l
+  let da = x.a -. y.a
+  let db = x.b -. y.b
+  100.0 *. Math.sqrt(dl *. dl +. da *. da +. db *. db)
+}

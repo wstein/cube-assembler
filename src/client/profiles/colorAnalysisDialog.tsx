@@ -3,7 +3,11 @@
 // final colors differ from the standard and the learned ones.
 import { useState } from 'preact/hooks'
 import { HueHistogramChart } from '../capture/hueHistogramChart'
-import { meansByLabel, type HueSample } from '../capture/hueHistogram'
+import {
+  colorDelta,
+  meansByLabel,
+  type HueSample,
+} from '../capture/hueHistogram'
 import { type RGB } from '../vision/stickerColorGeometry'
 import { BackdropPanel, type BackdropFace } from './backdropDialog'
 
@@ -37,11 +41,12 @@ function Swatch({ color, label }: { color: RGB | undefined; label: string }) {
 function FinalColors({
   samples,
   standard,
-  learned,
+  readWith,
 }: {
   samples: HueSample[]
   standard: Record<string, RGB>
-  learned: Record<string, RGB> | null
+  // The profile that read the faces live; null when none did.
+  readWith: { name: string; colors: Record<string, RGB> } | null
 }) {
   const final = meansByLabel(samples)
   const counts = samples.reduce<Record<string, number>>((all, sample) => {
@@ -51,17 +56,20 @@ function FinalColors({
   return (
     <>
       <p class="backdrop-intro">
-        Each color as the standard palette expects it, as it was learned from
-        this capture, and as the stickers ended up (their mean after the white
-        balance and your corrections).
+        Each color as the standard palette expects it, as the faces were read
+        live{readWith ? ` (${readWith.name})` : ''}, and as the stickers ended
+        up (their mean after the white balance and your corrections). Delta is
+        how far the live palette was from the final color: a point or two is a
+        shade, tens are another color.
       </p>
       <table class="color-analysis-table">
         <thead>
           <tr>
             <th scope="col">Color</th>
             <th scope="col">Standard</th>
-            <th scope="col">Learned</th>
+            <th scope="col">Read with</th>
             <th scope="col">Final</th>
+            <th scope="col">Delta</th>
             <th scope="col">Stickers</th>
           </tr>
         </thead>
@@ -73,10 +81,15 @@ function FinalColors({
                 <Swatch color={standard[label]} label="Standard" />
               </td>
               <td>
-                <Swatch color={learned?.[label]} label="Learned" />
+                <Swatch color={readWith?.colors[label]} label="Read with" />
               </td>
               <td>
                 <Swatch color={final[label]} label="Final" />
+              </td>
+              <td>
+                {readWith?.colors[label] && final[label]
+                  ? colorDelta(readWith.colors[label], final[label]).toFixed(1)
+                  : '-'}
               </td>
               <td>{counts[label] ?? 0}</td>
             </tr>
@@ -93,7 +106,7 @@ export function ColorAnalysisDialog({
   samples,
   stickerColors,
   standard,
-  learned,
+  readWith,
   onClose,
 }: {
   // Null when no backdrop adjustment was applied to this capture.
@@ -102,7 +115,7 @@ export function ColorAnalysisDialog({
   samples: HueSample[]
   stickerColors: Record<string, string>
   standard: Record<string, RGB>
-  learned: Record<string, RGB> | null
+  readWith: { name: string; colors: Record<string, RGB> } | null
   onClose: () => void
 }) {
   const [tab, setTab] = useState<Tab>('hues')
@@ -179,7 +192,7 @@ export function ColorAnalysisDialog({
           <FinalColors
             samples={samples}
             standard={standard}
-            learned={learned}
+            readWith={readWith}
           />
         )}
       </div>

@@ -334,6 +334,12 @@ test('palettes live on the profiles page: no color text on the first screen', as
   await expect(dialog.locator('.hue-histogram')).toBeVisible()
   await dialog.getByRole('button', { name: 'Final colors' }).click()
   await expect(dialog.locator('.color-analysis-table tbody tr')).toHaveCount(6)
+  await expect(dialog.locator('.color-analysis-table thead')).toContainText(
+    /Standard.*Read with.*Final.*Delta/,
+  )
+  await expect(dialog.locator('.color-analysis-table')).not.toContainText(
+    'Learned',
+  )
   await dialog.getByRole('button', { name: 'Backdrop' }).click()
   await dialog.press('Escape')
   await expect(dialog).toHaveCount(0)
