@@ -1,4 +1,4 @@
-import { useState } from 'preact/hooks'
+import { useRef, useState } from 'preact/hooks'
 import {
   countDeviations,
   HUE_CUT,
@@ -49,6 +49,8 @@ const LENS_ZOOM_STEP = 1.25
 const DOT_RADIUS = 3
 // How near the pointer must be to a dot to point at it.
 const HIT_RADIUS = 8
+// A dot already held keeps the lens until the pointer is this far from it.
+const HOLD_RADIUS = 11
 // Thickness of the color bars along the axes.
 const BAR = 5
 const BAR_GAP = 2
@@ -118,7 +120,13 @@ export function HueScatterChart({
   onHover: (index: number | null) => void
 }) {
   const [zoom, setZoom] = useState(LENS_ZOOM_START)
-  const [lens, setLens] = useState<{ x: number; y: number } | null>(null)
+  const [lens, setLens] = useState<{
+    x: number
+    y: number
+    cx: number
+    cy: number
+  } | null>(null)
+  const snapped = useRef<number | null>(null)
   const grayLeft = LEFT + WIDTH + GAP
   const points = hueScatter(samples)
   const deviations = countDeviations(samples)
@@ -144,19 +152,32 @@ export function HueScatterChart({
           at.x = e.clientX
           at.y = e.clientY
           const p = at.matrixTransform(m.inverse())
-          setLens({ x: p.x, y: p.y })
           // The dot nearest the pointer is the one pointed at, however
           // many dots overlap there.
-          let nearest: number | null = null
-          let best = HIT_RADIUS ** 2
-          points.forEach((point, i) => {
-            const d = (dotX(point) - p.x) ** 2 + (y(point.l) - p.y) ** 2
-            if (d <= best) {
-              best = d
-              nearest = i
-            }
+          const dist = (i: number) =>
+            Math.hypot(dotX(points[i]) - p.x, y(points[i].l) - p.y)
+          // A dot holds the lens until the pointer is clearly away from it,
+          // so neighbors in a crowd do not take over on every pixel.
+          let target = snapped.current
+          if (target !== null && dist(target) > HOLD_RADIUS) target = null
+          if (target === null) {
+            let best = HIT_RADIUS
+            points.forEach((_, i) => {
+              if (dist(i) <= best) {
+                best = dist(i)
+                target = i
+              }
+            })
+          }
+          snapped.current = target
+          // The lens centers on the dot it holds, else on the pointer.
+          setLens({
+            x: p.x,
+            y: p.y,
+            cx: target === null ? p.x : dotX(points[target]),
+            cy: target === null ? p.y : y(points[target].l),
           })
-          if (nearest !== hovered) onHover(nearest)
+          if (target !== hovered) onHover(target)
         }}
         onWheel={(e) => {
           // The wheel (or a pinch, which arrives as a wheel with ctrl) sets
@@ -170,6 +191,7 @@ export function HueScatterChart({
           )
         }}
         onMouseLeave={() => {
+          snapped.current = null
           setLens(null)
           onHover(null)
         }}
@@ -328,7 +350,7 @@ export function HueScatterChart({
             />
             <g clip-path="url(#hue-scatter-lens-clip)">
               <g
-                transform={`translate(${lensX(lens)} ${lensY(lens)}) scale(${zoom}) translate(${-lens.x} ${-lens.y})`}
+                transform={`translate(${lensX(lens)} ${lensY(lens)}) scale(${zoom}) translate(${-lens.cx} ${-lens.cy})`}
               >
                 <use
                   href="#hue-scatter-plot"

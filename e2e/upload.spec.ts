@@ -411,6 +411,34 @@ test('the hue scatter names a dot on hover and links it with the net', async ({
   await expect.poll(scale).toBeGreaterThan(5)
   await page.mouse.wheel(0, 400)
   await expect.poll(scale).toBeLessThan(5)
+  // The lens is pulled to a dot near the pointer and holds it: it centers on
+  // a dot, not on the pointer between dots.
+  const dots = await dialog
+    .locator('.hue-scatter-dot')
+    .evaluateAll((all) =>
+      all.map((d) => [
+        Number(d.getAttribute('cx')),
+        Number(d.getAttribute('cy')),
+      ]),
+    )
+  const dot = dialog.locator('.hue-scatter-dot').nth(60)
+  const box = (await dot.boundingBox())!
+  await page.mouse.move(box.x + box.width / 2 + 3, box.y + box.height / 2 + 2)
+  const center = async () => {
+    const t = await dialog
+      .locator('.hue-scatter-lens g[clip-path] > g')
+      .getAttribute('transform')
+    const m = t!.match(/translate\(([-\d.]+) ([-\d.]+)\)$/)!
+    return [-Number(m[1]), -Number(m[2])]
+  }
+  const onADot = async () => {
+    const [x, y] = await center()
+    return dots.some(([dx, dy]) => Math.hypot(dx - x, dy - y) < 0.001)
+  }
+  await expect.poll(onADot).toBe(true)
+  // Far from every dot, the lens follows the pointer again.
+  await dialog.locator('.hue-scatter').hover({ position: { x: 560, y: 100 } })
+  await expect.poll(onADot).toBe(false)
   await dialog.locator('.hue-scatter-dot').first().hover({ force: true })
   await expect(info).toContainText(
     /row \d+, column \d+: \w+ \(L [\d.]+, C [\d.]+, h \d+°\)$/,
