@@ -1,4 +1,5 @@
 import { uploadKind } from './photoUpload'
+import { isSinglePicture, splitNetPicture } from './netImport'
 import { readPhotoUploads } from './readPhotoUploads'
 import { readFixtureAssembled } from './fixtureFormat'
 import { readFixtureUpload } from './readFixtureUpload'
@@ -172,9 +173,10 @@ export function createScannerUploadActions({
     }
   }
 
-  const handleUploadFiles = async (e: Event) => {
-    const input = e.currentTarget as HTMLInputElement
-    const selected = Array.from(input.files ?? [])
+  // Files from the Upload files button, a paste or a drop: a fixture (ZIP or
+  // meta.json with photos), six photos, or one picture of a cube net, which
+  // is cut into six face pictures and goes on as six photos.
+  const importFiles = async (selected: File[]) => {
     if (selected.length === 0) return
     try {
       const files: File[] = []
@@ -188,11 +190,31 @@ export function createScannerUploadActions({
         else files.push(file)
       }
       if (uploadKind(files) === 'fixture') await handleUploadFixture(files)
-      else handleSelectPhotos(files)
+      else if (isSinglePicture(files)) {
+        setLoading(true)
+        setCaptureMessage('Reading the net picture...')
+        const split = await splitNetPicture(files[0]).finally(() =>
+          setLoading(false),
+        )
+        if (split.ok) {
+          setPuzzleSize(split.size)
+          handleSelectPhotos(split.files)
+        } else
+          setCaptureMessage(
+            `❌ ${split.message} Select six photos, a fixture ZIP, meta.json with its six photos, or one picture of a cube net.`,
+          )
+      } else handleSelectPhotos(files)
     } catch (err) {
       setCaptureMessage(
         `❌ Could not open files: ${err instanceof Error ? err.message : String(err)}`,
       )
+    }
+  }
+
+  const handleUploadFiles = async (e: Event) => {
+    const input = e.currentTarget as HTMLInputElement
+    try {
+      await importFiles(Array.from(input.files ?? []))
     } finally {
       input.value = ''
     }
@@ -226,5 +248,5 @@ export function createScannerUploadActions({
     }
   }
 
-  return { handleUploadFiles, handleUploadPhotos }
+  return { handleUploadFiles, importFiles, handleUploadPhotos }
 }

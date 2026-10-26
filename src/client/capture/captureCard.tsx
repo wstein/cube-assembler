@@ -139,7 +139,7 @@ export function CaptureCard({
       <div class="capture-alternatives">
         <label
           class={`btn btn-secondary btn-sm ${loading ? 'btn-disabled' : ''}`}
-          title="Select six photos, a fixture ZIP, or meta.json with its six photos"
+          title="Select six photos, a fixture ZIP, meta.json with its six photos, or one picture of a cube net. You can also paste or drop them."
         >
           Upload files
           <input
