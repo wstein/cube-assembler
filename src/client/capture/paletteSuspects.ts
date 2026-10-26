@@ -2,7 +2,7 @@ import { suspectLabels } from '../../core/color/PaletteDisagreement.gen'
 import type { FaceCaptureData } from './captureTypes'
 
 // The captured faces with the stickers the reference palette reads
-// differently (see PaletteDisagreement) added as look-alikes, so the color
+// differently (see PaletteDisagreement) added as lookalikes, so the color
 // review and the cube check flag them like any other doubtful sticker. The
 // faces are returned untouched unless the disagreement is widespread.
 export function withPaletteSuspects(

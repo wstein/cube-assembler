@@ -65,7 +65,7 @@ describe('sticker marks', () => {
     expect(stickerMark('R', 'O', 0.9, null)).toBe('corrected')
   })
 
-  it('flags low confidence and look-alikes, whatever the confidence', () => {
+  it('flags low confidence and lookalikes, whatever the confidence', () => {
     expect(stickerMark('R', 'R', 0.4, null)).toBe('flagged')
     expect(stickerMark('R', 'R', 0.9, 'O')).toBe('flagged')
     expect(stickerMark(undefined, 'R', 0.88, 'O')).toBe('flagged')

@@ -13,7 +13,7 @@ const palette: Record<string, Rgb> = {
 }
 const names = Object.keys(palette)
 
-// A 3x3 face whose readings are the palette colors, labelled `labels`.
+// A 3x3 face whose readings are the palette colors, labeled `labels`.
 function face(readingOf: string[], labels: string[]) {
   const grid = (items: string[]) =>
     [0, 1, 2].map((r) => items.slice(r * 3, r * 3 + 3))
@@ -37,7 +37,7 @@ describe('stickers the reference palette reads differently', () => {
   it('flags them when the palettes disagree on a large share', () => {
     const suspects = suspectLabels(six(3))
     expect(suspects).toHaveLength(6)
-    // The first three stickers of face 0 are labelled Y but read W.
+    // The first three stickers of face 0 are labeled Y but read W.
     expect(suspects[0]![0].slice(0)).toEqual(['W', 'W', 'W'])
     expect(suspects[0]![1]).toEqual([null, null, null])
   })
