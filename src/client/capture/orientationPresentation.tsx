@@ -95,19 +95,20 @@ export function OrientationNetPreview({
   // pointed at, ringed where that sticker is.
   const photoGrid = (face: string) => {
     const on = hoveredSticker?.face === face ? hoveredSticker : null
+    const shown = on && photos?.[face]?.image ? on : null
     const n = faces[face].length
     return (
       <div
-        class={`orientation-net-photo-wrap${on ? ' orientation-net-photo-shown' : ''}`}
+        class={`orientation-net-photo-wrap${shown ? ' orientation-net-photo-shown' : ''}`}
       >
         {faceGrid(face)}
         <PhotoOverlay photo={photos?.[face]} label={`${face} face`} />
-        {on && photos?.[face]?.image && (
+        {shown && (
           <div
             class="orientation-net-photo-mark"
             style={{
-              left: `${((on.col + 0.5) / n) * 100}%`,
-              top: `${((on.row + 0.5) / n) * 100}%`,
+              left: `${((shown.col + 0.5) / n) * 100}%`,
+              top: `${((shown.row + 0.5) / n) * 100}%`,
               width: `${100 / n}%`,
               height: `${100 / n}%`,
             }}
