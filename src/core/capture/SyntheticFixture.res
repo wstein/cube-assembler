@@ -9,6 +9,12 @@ type input = {
   size: int,
   preset: string,
   seed: int,
+  // What it takes to render the photos again: the seed of each face's photo
+  // (u, r, f, d, l, b), their side in pixels and the generator options (see
+  // SyntheticFace) as plain data.
+  seeds: Dict.t<int>,
+  photoSize: int,
+  options: JSON.t,
   // Why the state is no cube, when it is none; it is saved all the same.
   invalid?: string,
   version: string,
@@ -28,6 +34,9 @@ let syntheticRequest = (input: input): FixtureZip.fixtureRequest => {
     ("renderer", JSON.String(renderer)),
     ("preset", JSON.String(input.preset)),
     ("seed", JSON.Number(Int.toFloat(input.seed))),
+    ("size", JSON.Number(Int.toFloat(input.photoSize))),
+    ("seeds", JSON.Object(input.seeds->Dict.mapValues(seed => JSON.Number(Int.toFloat(seed))))),
+    ("options", input.options),
   ])
   switch input.invalid {
   | Some(reason) => synthetic->Dict.set("invalid", JSON.String(reason))

@@ -9,6 +9,11 @@ import { parityStatus } from '../src/client/capture/captureFlow'
 import { readFixtureColors } from '../src/client/fixtures/fixtureFormat'
 import { summarizeFixture } from '../src/client/fixtures/fixtureZip'
 import { buildSyntheticFixture } from '../src/client/fixtures/syntheticFixture'
+import {
+  renderFace,
+  type SyntheticOptions,
+} from '../src/client/vision/syntheticFace'
+import { wrgFaceletsToGrids } from '../src/cube/notation/NotationOutput.gen'
 import { extractColorsFromImageData } from '../src/client/vision/faceDetection'
 import { NEUTRAL_GAINS } from '../src/client/vision/colorMath'
 import { DEFAULT_SAMPLING } from '../src/client/vision/stickerColorGeometry'
@@ -23,13 +28,18 @@ const encode = (rgba: Uint8ClampedArray, size: number) =>
 const NOW = new Date('2026-10-27T12:30:45.000Z')
 const decoder = new TextDecoder()
 
-function build(cube = createSolvedCube(3), preset = 'clean') {
+function build(
+  cube = createSolvedCube(3),
+  preset = 'clean',
+  options?: SyntheticOptions,
+) {
   return buildSyntheticFixture(
     {
       cube,
       parity: parityStatus(cube, 3),
       preset,
       seed: 3,
+      options,
       version: '0.1.0',
       commit: 'abc1234',
     },
@@ -127,5 +137,59 @@ describe('synthetic fixtures', () => {
     const meta = metaOf(build())
     expect(meta.tags).not.toContain('invalid-state')
     expect(meta.capture.synthetic.invalid).toBeUndefined()
+  })
+
+  describe('can be rendered again from its metadata', () => {
+    const FACES = ['u', 'r', 'f', 'd', 'l', 'b']
+
+    // The photo the metadata alone asks for, as the file's bytes.
+    function rerender(
+      fixture: { files: Record<string, Uint8Array> },
+      face: string,
+    ) {
+      const meta = metaOf(fixture)
+      const { preset, seeds, size, options } = meta.capture.synthetic
+      const grid = wrgFaceletsToGrids(meta.colorsURFDLB)![face.toUpperCase()]
+      const photo = encode(
+        renderFace(grid, preset, seeds[face], size, options),
+        size,
+      )
+      return Buffer.from(photo.split(',')[1], 'base64')
+    }
+
+    it('names the size, the seed of every face and the options', () => {
+      const synthetic = metaOf(build()).capture.synthetic
+      expect(synthetic.size).toBe(600)
+      expect(synthetic.seeds).toEqual({ u: 3, r: 4, f: 5, d: 6, l: 7, b: 8 })
+      expect(synthetic.options).toEqual({})
+      const own = {
+        scatter: 1,
+        tone: 0.5,
+        logo: { row: 1, col: 1, color: 'B' },
+      }
+      expect(
+        metaOf(build(createSolvedCube(3), 'real', own)).capture.synthetic
+          .options,
+      ).toEqual(own)
+    })
+
+    it.each([
+      ['clean', undefined],
+      ['bad-camera', undefined],
+      ['real', { shading: 0.5, noise: 6 }],
+    ])(
+      'renders the %s photos byte for byte',
+      (preset, options) => {
+        const fixture = build(createSolvedCube(3), preset, options)
+        for (const face of FACES)
+          expect(
+            rerender(fixture, face).equals(
+              Buffer.from(fixture.files[`face-${face}.jpg`]),
+            ),
+            `${preset} ${face}`,
+          ).toBe(true)
+      },
+      120_000,
+    )
   })
 })

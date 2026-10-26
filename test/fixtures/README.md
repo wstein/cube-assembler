@@ -91,7 +91,9 @@ the brightness spread tied to hue and chroma, a plane of light across the
 face and a shift each photo shares, all measured in the saved captures of
 valid cubes and switchable one by one through the `tone`, `shading` and
 `faceShift` options). The photos carry a
-SYNTHETIC strip, `meta.json` a `preset:<name>` tag and `capture.synthetic`;
+SYNTHETIC strip, `meta.json` a `preset:<name>` tag and `capture.synthetic`
+(renderer, preset, photo size, the seed of each face and the generator
+options, so the photos can be rendered again from the metadata alone);
 a state that is no cube is saved too, tagged `invalid-state` with the reason.
 A preset the color pipeline misreads is a finding: keep it as a regression
 target with `expectedFail`, or fix the pipeline. The local server logs ping and upload status with

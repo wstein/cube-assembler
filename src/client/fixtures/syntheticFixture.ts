@@ -8,7 +8,7 @@ import {
   wrgFaceletsToGrids,
 } from '../../cube/notation/NotationOutput.gen'
 import { syntheticRequest } from '../../core/capture/SyntheticFixture.gen'
-import { renderFace } from '../vision/syntheticFace'
+import { renderFace, type SyntheticOptions } from '../vision/syntheticFace'
 import { buildFixture, type Fixture, type FixtureRequest } from './fixtureZip'
 
 // Side of each rendered photo, like the crops of real captures.
@@ -20,6 +20,9 @@ export interface SyntheticFixtureInput {
   parity: ParityResult | null
   preset: string
   seed: number
+  // Generator options (see SyntheticOptions), saved in the metadata so the
+  // photos can be rendered again.
+  options?: SyntheticOptions
   version: string
   commit: string
 }
@@ -47,14 +50,18 @@ export function buildSyntheticFixture(
   const colors = toWRGFacelets(input.cube)
   const grids = wrgFaceletsToGrids(colors)
   if (!grids) throw new Error('The cube state has no six square faces')
+  const options = input.options ?? {}
   const photos: Record<string, string> = {}
+  const seeds: Record<string, number> = {}
   FACES.forEach((face, i) => {
+    seeds[face] = input.seed + i
     photos[face] = encode(
       renderFace(
         grids[face.toUpperCase()],
         input.preset,
-        input.seed + i,
+        seeds[face],
         PHOTO_PIXELS,
+        options,
       ),
       PHOTO_PIXELS,
     )
@@ -64,6 +71,9 @@ export function buildSyntheticFixture(
     size: Math.sqrt(input.cube.u.length),
     preset: input.preset,
     seed: input.seed,
+    seeds,
+    photoSize: PHOTO_PIXELS,
+    options,
     invalid: input.parity?.valid === false ? input.parity.result : undefined,
     version: input.version,
     commit: input.commit,
