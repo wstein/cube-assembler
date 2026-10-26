@@ -239,7 +239,6 @@ export function useScannerAppModel() {
     puzzleSize,
     setPuzzleSize,
     notationFormat,
-    setNotationFormat,
     setCapturedFaces,
     forgetResolvedProfile,
     setLoading,

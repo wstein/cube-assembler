@@ -38,7 +38,7 @@ test('saves a state that is no cube, marked invalid', async ({ page }) => {
     'LLLLLLLLL',
     'BBBBBBBBB',
   ].join(' ')
-  await page.getByRole('textbox', { name: /Enter .*facelets/ }).fill(facelets)
+  await page.getByRole('textbox', { name: /facelets/i }).fill(facelets)
   await page.getByRole('button', { name: 'Apply Facelets' }).click()
   await page.getByRole('button', { name: 'Save as test fixture' }).click()
   const dialog = page.getByRole('dialog', { name: 'Save as test fixture' })

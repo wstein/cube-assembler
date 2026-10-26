@@ -29,9 +29,36 @@ test('detects pasted URF facelets and applies them', async ({ page }) => {
   const facelets = ['U', 'R', 'F', 'D', 'L', 'B']
     .map((face) => face.repeat(9))
     .join(' ')
-  await page.getByRole('textbox', { name: /Enter facelets/ }).fill(facelets)
+  await page.getByRole('textbox', { name: /facelets/i }).fill(facelets)
   await page.getByRole('button', { name: 'Apply Facelets' }).click()
   await expect(page.getByRole('textbox', { name: 'Notation' })).toHaveValue(
     facelets,
+  )
+})
+
+test('typing colors does not change the saved notation format', async ({
+  page,
+}) => {
+  await page.goto('/')
+  await page.getByRole('button', { name: 'Type colors' }).click()
+  const solved = [
+    'WWWWWWWWW',
+    'RRRRRRRRR',
+    'GGGGGGGGG',
+    'YYYYYYYYY',
+    'OOOOOOOOO',
+    'BBBBBBBBB',
+  ].join(' ')
+  await page.getByRole('textbox', { name: /facelets/i }).fill(solved)
+  await page.getByRole('button', { name: 'Apply Facelets' }).click()
+  // The colors are read as colors, and the output keeps the saved format.
+  await expect(page.getByRole('textbox', { name: 'Notation' })).toHaveValue(
+    'UUUUUUUUU RRRRRRRRR FFFFFFFFF DDDDDDDDD LLLLLLLLL BBBBBBBBB',
+  )
+  await expect(
+    page.getByRole('button', { name: 'Faces (URF)' }),
+  ).toHaveAttribute('aria-pressed', 'true')
+  expect(await page.evaluate(() => document.cookie)).not.toContain(
+    'cube-assembler-notation=wrg',
   )
 })

@@ -484,10 +484,8 @@ export function ScannerAppView({ model }: { model: ScannerAppModel }) {
               showColorInput && (
                 <ManualFaceletInput
                   size={puzzleSize}
-                  format={notationFormat}
                   value={manualColorInput}
                   loading={loading}
-                  onFormatChange={setNotationFormat}
                   onValueChange={setManualColorInput}
                   onApply={handleApplyFacelets}
                 />

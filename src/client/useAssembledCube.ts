@@ -15,7 +15,6 @@ interface AssembledCubeOptions {
   puzzleSize: number
   setPuzzleSize: (size: number) => void
   notationFormat: 'wrg' | 'urf'
-  setNotationFormat: (format: 'wrg' | 'urf') => void
   setCapturedFaces: Session['setCapturedFaces']
   forgetResolvedProfile: () => void
   setLoading: (value: boolean) => void
@@ -27,7 +26,6 @@ export function useAssembledCube({
   puzzleSize,
   setPuzzleSize,
   notationFormat,
-  setNotationFormat,
   setCapturedFaces,
   forgetResolvedProfile,
   setLoading,
@@ -58,17 +56,15 @@ export function useAssembledCube({
 
     setLoading(true)
     try {
-      // The textarea's onInput already keeps notationFormat in sync with
-      // pasted content via detectNotationFormat, but fall back to it here
-      // too in case content ever reaches this handler without going
-      // through that path (e.g. a fast paste-and-submit).
+      // The format is detected from the text; only input that fits both
+      // (R and B letters alone) is read in the saved notation format. Typing
+      // facelets never changes that setting.
       const parsed = parseCubeInput(manualColorInput, notationFormat)
       if (!parsed.ok) {
         alert(parsed.message)
         return
       }
-      const { cube: newCube, format: effectiveFormat } = parsed
-      if (effectiveFormat !== notationFormat) setNotationFormat(effectiveFormat)
+      const { cube: newCube } = parsed
 
       const size = Math.sqrt(newCube.u.length)
       setPuzzleSize(size)
