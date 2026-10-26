@@ -11,6 +11,7 @@ import {
   netPhotos,
   REVIEW_NET_ORDER,
 } from './approvalPhotos'
+import { HueHistogramChart } from './hueHistogramChart'
 import type { FaceCaptureData } from './captureTypes'
 import type { OrientedCandidate } from '../../cube/cubeAssembly'
 import {
@@ -277,6 +278,13 @@ function CubeCheck({
         return photo ? [{ slot: photo.slot, name: NET_FACE_NAME[face] }] : []
       })
     : photoNames.map((name, slot) => ({ slot, name }))
+  // Every sticker's white-balanced reading with the color it ended up as.
+  const hueSamples = faceOrder.flatMap((key) => {
+    const face = captured[key]
+    return (face?.cellColors ?? []).flatMap((row, r) =>
+      row.map((rgb, c) => ({ rgb, label: face.colors[r][c] })),
+    )
+  })
   const sureLine = rows
     .flatMap(({ slot, name }) => {
       const sure = stats.sureness[slot]
@@ -336,6 +344,17 @@ function CubeCheck({
           </div>
         )}
       </section>
+      {hueSamples.length > 0 && (
+        <section class="approval-section">
+          <h3 class="approval-section-title">
+            Sticker hues - lines mark the standard colors
+          </h3>
+          <HueHistogramChart
+            samples={hueSamples}
+            stickerColors={stickerColors}
+          />
+        </section>
+      )}
       <dl class="approval-stats">
         <dt>Camera was sure of</dt>
         <dd>{sureLine || 'not recorded'}</dd>

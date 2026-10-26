@@ -221,6 +221,8 @@ test('the cube check shows the detected net and swaps in a photo on hover', asyn
   await expect(photo).toHaveCSS('opacity', '0')
   await face.hover()
   await expect(photo).toHaveCSS('opacity', '1')
+  await expect(dialog.locator('.hue-histogram')).toBeVisible()
+  await expect(dialog.locator('.hue-histogram-stroke')).toHaveCount(5)
   await expect(dialog.locator('.approval-stats')).toContainText(
     /Left \d+% · Front \d+% · Right \d+% · Back \d+% · Up \d+% · Down \d+%/,
   )
