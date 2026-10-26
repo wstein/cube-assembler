@@ -4,12 +4,7 @@ import {
   repeatedText,
 } from '../../core/capture/CaptureDiagnosis.gen'
 import { FaceGrid } from './captureNet'
-import {
-  capturePhotos,
-  captureStats,
-  netPhotos,
-  type ApprovalPhoto,
-} from './approvalPhotos'
+import { capturePhotos, captureStats, netPhotos } from './approvalPhotos'
 import type { FaceCaptureData } from './captureTypes'
 import type { OrientedCandidate } from '../../cube/cubeAssembly'
 import {
@@ -19,6 +14,7 @@ import {
 import {
   describeArrangement,
   OrientationNetPreview,
+  PhotoOverlay,
   ORIENTATION_CHOICES_PER_PAGE,
 } from './orientationPresentation'
 
@@ -219,41 +215,9 @@ export function OrientationApprovalDialog({
   )
 }
 
-function Photo({
-  photo,
-  label,
-  repeated,
-  onClick,
-}: {
-  photo: ApprovalPhoto | null
-  label: string
-  repeated?: boolean
-  onClick: () => void
-}) {
-  return (
-    <div class="approval-strip-item">
-      <button
-        type="button"
-        class={`approval-photo${repeated ? ' approval-photo-repeated' : ''}`}
-        aria-label={`Check the ${label} photo`}
-        onClick={onClick}
-      >
-        {photo?.image && (
-          <img
-            src={photo.image}
-            alt={`${label} photo`}
-            style={{ transform: `rotate(${photo.turns * 90}deg)` }}
-          />
-        )}
-      </button>
-      <span class="approval-photo-label">{label}</span>
-    </div>
-  )
-}
-
-// The cube check: the photos above, what was detected below, and the stats.
-// Without an arrangement (an error) both are shown in the order the photos
-// were taken.
+// The cube check: the detected cube with the stats. Hovering a face shows
+// its original photo instead. Without an arrangement (an error) the faces
+// are shown in the order they were taken.
 function CubeCheck({
   candidate,
   captured,
@@ -277,24 +241,16 @@ function CubeCheck({
     ? netPhotos(captured, faceOrder, candidate.faces)
     : null
   const inOrder = capturePhotos(captured, faceOrder)
-  const tile = (face: string) => {
-    const photo = inNet?.[face] ?? null
-    return (
-      <Photo
-        key={face}
-        photo={photo}
-        label={`${face} face`}
-        repeated={photo ? repeatedSlots.has(photo.slot) : false}
-        onClick={() => candidate && onCheckFace(candidate, face)}
-      />
-    )
-  }
-  const spacer = (key: string) => (
-    <div key={key} class="approval-photo-spacer" />
-  )
   const changedFaces = inNet
     ? Object.fromEntries(
         Object.entries(inNet).map(([face, photo]) => [face, photo?.changed]),
+      )
+    : undefined
+  const flaggedFaces = inNet
+    ? new Set(
+        Object.entries(inNet)
+          .filter(([, photo]) => photo && repeatedSlots.has(photo.slot))
+          .map(([face]) => face),
       )
     : undefined
   const changedCount = inOrder.reduce(
@@ -314,52 +270,19 @@ function CubeCheck({
     .join(' · ')
   return (
     <>
-      <section class="approval-section approval-photos">
-        <h3 class="approval-section-title">Your photos</h3>
-        {candidate ? (
-          <div class="approval-photo-net">
-            <div class="approval-photo-row">
-              {spacer('a')}
-              {tile('U')}
-              {spacer('b')}
-              {spacer('c')}
-            </div>
-            <div class="approval-photo-row">
-              {tile('L')}
-              {tile('F')}
-              {tile('R')}
-              {tile('B')}
-            </div>
-            <div class="approval-photo-row">
-              {spacer('d')}
-              {tile('D')}
-              {spacer('e')}
-              {spacer('f')}
-            </div>
-          </div>
-        ) : (
-          <div class="approval-strip">
-            {inOrder.map((photo, slot) => (
-              <Photo
-                key={slot}
-                photo={photo}
-                label={photoNames[slot]}
-                repeated={repeatedSlots.has(slot)}
-                onClick={() => onCheckSlot(slot)}
-              />
-            ))}
-          </div>
-        )}
-      </section>
       <section class="approval-section approval-detected">
         <h3 class="approval-section-title">
-          {candidate ? 'Detected cube' : 'Detected colors, in the order taken'}
+          {candidate
+            ? 'Detected cube - point at a face to see its photo'
+            : 'Detected colors in the order taken - point at a face to see its photo'}
         </h3>
         {candidate ? (
           <OrientationNetPreview
             faces={candidate.faces}
             stickerColors={stickerColors}
             changedFaces={changedFaces}
+            photos={inNet ?? undefined}
+            flaggedFaces={flaggedFaces}
             onFaceClick={(face) => onCheckFace(candidate, face)}
           />
         ) : (
@@ -367,11 +290,22 @@ function CubeCheck({
             {faceOrder.map((key, slot) =>
               captured[key] ? (
                 <div key={key} class="approval-strip-item">
-                  <FaceGrid
-                    stickerColors={stickerColors}
-                    colors={captured[key].colors}
-                    changed={inOrder[slot]?.changed}
-                  />
+                  <button
+                    type="button"
+                    class={`orientation-net-face-button${repeatedSlots.has(slot) ? ' orientation-net-face-flagged' : ''}`}
+                    aria-label={`Check the ${photoNames[slot]} photo`}
+                    onClick={() => onCheckSlot(slot)}
+                  >
+                    <FaceGrid
+                      stickerColors={stickerColors}
+                      colors={captured[key].colors}
+                      changed={inOrder[slot]?.changed}
+                    />
+                    <PhotoOverlay
+                      photo={inOrder[slot]}
+                      label={photoNames[slot]}
+                    />
+                  </button>
                   <span class="approval-photo-label">{photoNames[slot]}</span>
                 </div>
               ) : null,

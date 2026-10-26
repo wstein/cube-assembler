@@ -200,7 +200,7 @@ test('opens sticker review from a face in the orientation approval', async ({
   await expect(review).toBeVisible()
 })
 
-test('the cube check shows the photos and the detection side by side', async ({
+test('the cube check shows the detected net and swaps in a photo on hover', async ({
   page,
 }) => {
   await page.goto('/')
@@ -211,13 +211,16 @@ test('the cube check shows the photos and the detection side by side', async ({
     name: 'Does this match your cube?',
   })
   await expect(dialog).toBeVisible()
-  // Upper net: the six photos; lower net: the detected colors.
-  await expect(dialog.locator('.approval-photos .approval-photo')).toHaveCount(
-    6,
-  )
   await expect(
     dialog.locator('.approval-detected .orientation-net'),
   ).toBeVisible()
+  await expect(dialog.locator('.approval-photos')).toHaveCount(0)
+  const face = dialog.getByRole('button', { name: 'Check colors for F face' })
+  const photo = face.locator('.orientation-net-photo')
+  await expect(photo).toHaveCount(1)
+  await expect(photo).toHaveCSS('opacity', '0')
+  await face.hover()
+  await expect(photo).toHaveCSS('opacity', '1')
   await expect(dialog.locator('.approval-stats')).toContainText('Side 1')
 })
 
@@ -237,9 +240,7 @@ test('a capture that cannot be put together shows an error, not silence', async 
     ])
   const dialog = page.getByRole('dialog', { name: 'Error detected' })
   await expect(dialog).toBeVisible()
-  await expect(dialog.locator('.approval-photos .approval-photo')).toHaveCount(
-    6,
-  )
+  await expect(dialog.locator('.orientation-net-photo')).toHaveCount(6)
   await expect(dialog.locator('.approval-stats')).toContainText(
     'Side 4 and Top',
   )

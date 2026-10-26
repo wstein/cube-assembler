@@ -654,7 +654,7 @@
   }
 }
 
-/* The cube check: the photos above, what was detected below. */
+/* The cube check: the detected cube, with a photo on hover. */
 .approval-section {
   margin-bottom: var(--spacing-md);
   padding: var(--spacing-md);
@@ -669,63 +669,19 @@
   color: var(--color-text-secondary);
 }
 
-.approval-photo-net,
-.approval-strip {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 5px;
-}
-
-.approval-photo-row,
-.approval-strip {
-  display: flex;
-  flex-direction: row;
-  justify-content: center;
-  flex-wrap: wrap;
-  gap: 5px;
-}
-
-.approval-photo,
-.approval-photo-spacer {
-  position: relative;
-  width: 96px;
-  height: 96px;
-}
-
-.approval-photo {
-  display: block;
-  padding: 0;
-  overflow: hidden;
-  border: 2px solid #1b1b1f;
-  border-radius: 8px;
-  background: #1b1b1f;
-  cursor: pointer;
-}
-
-.approval-photo img {
-  display: block;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-.approval-photo:hover,
-.approval-photo:focus-visible {
-  outline: 3px solid var(--color-accent);
-  outline-offset: 2px;
-}
-
-.approval-photo-repeated {
-  border-color: var(--color-danger, #c0392b);
-}
-
 .approval-photo-label {
   display: block;
   margin-top: 2px;
   font-size: 0.75rem;
   text-align: center;
   color: var(--color-text-secondary);
+}
+
+.approval-strip {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 5px;
 }
 
 .approval-strip-item {
@@ -800,12 +756,37 @@
 }
 
 @media (max-width: 700px) {
-  .approval-photo,
-  .approval-photo-spacer,
   .approval-detected .orientation-net-face,
   .approval-detected .orientation-net-spacer,
   .approval-strip .orientation-net-face {
     width: 56px;
     height: 56px;
   }
+}
+
+/* The original photo over a face's detected colors while it is pointed at. */
+.orientation-net-face-button {
+  position: relative;
+}
+
+.orientation-net-photo {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 8px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.1s;
+}
+
+.orientation-net-face-button:hover .orientation-net-photo,
+.orientation-net-face-button:focus-visible .orientation-net-photo {
+  opacity: 1;
+}
+
+.orientation-net-face-flagged .orientation-net-face {
+  outline: 3px solid var(--color-danger, #c0392b);
+  outline-offset: 1px;
 }

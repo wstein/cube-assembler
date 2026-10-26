@@ -22,12 +22,34 @@ export function describeArrangement(
     ...(bottomFix ? [`The bottom was held ${HELD_WORDS[bottomFix]}.`] : []),
   ]
 }
+// The original photo of a face, shown over its detected colors while the
+// pointer (or keyboard focus) is on the face.
+export function PhotoOverlay({
+  photo,
+  label,
+}: {
+  photo: { image?: string; turns: number } | null | undefined
+  label: string
+}) {
+  if (!photo?.image) return null
+  return (
+    <img
+      class="orientation-net-photo"
+      src={photo.image}
+      alt={`${label} photo`}
+      style={{ transform: `rotate(${photo.turns * 90}deg)` }}
+    />
+  )
+}
+
 export function OrientationNetPreview({
   faces,
   undecidedFaces,
   currentFace,
   autoFaces,
   changedFaces,
+  photos,
+  flaggedFaces,
   onFaceClick,
   stickerColors,
 }: {
@@ -36,6 +58,10 @@ export function OrientationNetPreview({
   currentFace?: string
   autoFaces?: Set<string>
   changedFaces?: Record<string, boolean[][] | undefined>
+  // The original photo of each face, swapped in on hover.
+  photos?: Record<string, { image?: string; turns: number } | null | undefined>
+  // Faces to mark (for example a photo shot twice).
+  flaggedFaces?: Set<string>
   onFaceClick?: (face: string) => void
   stickerColors: Record<string, string>
 }) {
@@ -53,11 +79,12 @@ export function OrientationNetPreview({
     onFaceClick ? (
       <button
         type="button"
-        class="orientation-net-face-button"
+        class={`orientation-net-face-button${flaggedFaces?.has(face) ? ' orientation-net-face-flagged' : ''}`}
         aria-label={`Check colors for ${face} face`}
         onClick={() => onFaceClick(face)}
       >
         {faceGrid(face)}
+        <PhotoOverlay photo={photos?.[face]} label={`${face} face`} />
       </button>
     ) : (
       faceGrid(face)
