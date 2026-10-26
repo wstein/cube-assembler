@@ -221,9 +221,8 @@ test('the cube check shows the detected net and swaps in a photo on hover', asyn
   await expect(photo).toHaveCSS('opacity', '0')
   await face.hover()
   await expect(photo).toHaveCSS('opacity', '1')
-  await expect(dialog.locator('.approval-stats')).toContainText(
-    /Left \d+% · Front \d+% · Right \d+% · Back \d+% · Up \d+% · Down \d+%/,
-  )
+  // No figures to read: a valid cube has nothing to explain.
+  await expect(dialog.locator('.approval-stats')).toHaveCount(0)
 })
 
 test('a capture that cannot be put together shows an error, not silence', async ({
@@ -244,9 +243,40 @@ test('a capture that cannot be put together shows an error, not silence', async 
   await expect(dialog).toBeVisible()
   await expect(dialog.locator('.orientation-net-photo')).toHaveCount(6)
   await expect(dialog.locator('.approval-stats')).toContainText(
-    'Side 4 and Top',
+    'Repeated face: Side 4 and Top',
   )
   await expect(dialog).toContainText('shot twice')
+})
+
+test('an error names the stickers the equal color share moved, in one sentence', async ({
+  page,
+}) => {
+  // Two different cubes mixed: many stickers only fit their color by force.
+  const mixed = resolve('test/fixtures/cube-5x5-2026-10-26T01-30-18')
+  await page.goto('/')
+  await page
+    .getByRole('combobox', { name: 'Cube' })
+    .selectOption('builtin-generic-5')
+  await page
+    .locator('.capture-alternatives input[type="file"]')
+    .setInputFiles([
+      ...faceKeys.map((face) => resolve(mixed, `face-${face}.jpg`)),
+      resolve(mixed, 'meta.json'),
+    ])
+  const dialog = page.getByRole('dialog', { name: 'Error detected' })
+  await expect(dialog).toBeVisible()
+  await expect(dialog.locator('.approval-stats')).toContainText(
+    /\d+ stickers were moved to \w+; on their own they read as/,
+  )
+  // No figures: no percentages, no counts per face.
+  await expect(dialog).not.toContainText('Camera was sure')
+  await expect(dialog).not.toContainText('To double-check')
+  // The net shows the same stickers, outlined, with the same sentence.
+  await dialog.getByRole('button', { name: 'Use it anyway' }).click()
+  const note = page.locator('.net-highlight-note')
+  await expect(note).toContainText('were moved to')
+  await expect(note).toContainText('outlined below')
+  expect(await page.locator('.net-cell-highlighted').count()).toBeGreaterThan(2)
 })
 
 test('the color review follows the cube net: Left, Front, Right, Back, Up, Down', async ({

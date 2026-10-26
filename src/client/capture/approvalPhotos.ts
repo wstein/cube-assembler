@@ -2,6 +2,7 @@ import { diagnose } from '../../core/capture/CaptureDiagnosis.gen'
 import { findCaptureForOrientedFace } from '../../cube/capturedFaceMatching'
 import { solveFaceOrientations } from '../../cube/cubeAssembly'
 import { rotateGrid } from '../../cube/cubeGeometry'
+import { forcedReading } from './forcedStickers'
 import { stickerMark } from './captureSteps'
 import type { FaceCaptureData } from './captureTypes'
 
@@ -13,7 +14,9 @@ export interface ApprovalPhoto {
   image?: string
   turns: number
   changed: boolean[][]
-  // Stickers the review would mark "to double-check".
+  // Stickers to check: the ones the equal color share forced when there are
+  // enough of them to be a misread (see forcedReading), else the ones the
+  // review would mark "to double-check".
   unsure: boolean[][]
 }
 
@@ -43,6 +46,22 @@ function markedCells(
   return rotateGrid(marks, turns).map((row) => row.map((mark) => mark === 'x'))
 }
 
+// The stickers of a face to check, turned `turns` quarter turns clockwise.
+function unsureCells(
+  reading: ReturnType<typeof forcedReading>,
+  key: string,
+  face: FaceCaptureData | undefined,
+  turns: number,
+): boolean[][] {
+  const forced = reading.faces[key]?.forced
+  return reading.warn && forced
+    ? rotateGrid(
+        forced.map((row) => row.map((on) => (on ? 'x' : ''))),
+        turns,
+      ).map((row) => row.map((mark) => mark === 'x'))
+    : markedCells(face, turns, 'flagged')
+}
+
 // The photo behind each face of an approved arrangement, by the stickers
 // that match (see findCaptureForOrientedFace).
 export function netPhotos(
@@ -51,6 +70,7 @@ export function netPhotos(
   net: Record<string, string[][]>,
 ): Record<string, ApprovalPhoto | null> {
   const colors = order.map((key) => captured[key]?.colors)
+  const reading = forcedReading(captured, order)
   return Object.fromEntries(
     Object.entries(net).map(([face, grid]) => {
       const found = findCaptureForOrientedFace(colors, grid)
@@ -63,7 +83,7 @@ export function netPhotos(
           image: data?.croppedImage,
           turns: found.turns,
           changed: markedCells(data, found.turns, 'corrected'),
-          unsure: markedCells(data, found.turns, 'flagged'),
+          unsure: unsureCells(reading, order[found.slot], data, found.turns),
         },
       ]
     }),
@@ -75,6 +95,7 @@ export function capturePhotos(
   captured: Record<string, FaceCaptureData>,
   order: string[],
 ): Array<ApprovalPhoto | null> {
+  const reading = forcedReading(captured, order)
   return order.map((key, slot) =>
     captured[key]
       ? {
@@ -82,7 +103,7 @@ export function capturePhotos(
           image: captured[key].croppedImage,
           turns: 0,
           changed: markedCells(captured[key], 0, 'corrected'),
-          unsure: markedCells(captured[key], 0, 'flagged'),
+          unsure: unsureCells(reading, key, captured[key], 0),
         }
       : null,
   )

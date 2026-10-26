@@ -4,13 +4,9 @@ import {
   repeatedText,
 } from '../../core/capture/CaptureDiagnosis.gen'
 import { FaceGrid } from './captureNet'
-import {
-  capturePhotos,
-  captureStats,
-  NET_FACE_NAME,
-  netPhotos,
-  REVIEW_NET_ORDER,
-} from './approvalPhotos'
+import { forcedReading, forcedSentence } from './forcedStickers'
+import { COLOR_NAME } from '../vision/stickerDisplay'
+import { capturePhotos, captureStats, netPhotos } from './approvalPhotos'
 import type { FaceCaptureData } from './captureTypes'
 import type { OrientedCandidate } from '../../cube/cubeAssembly'
 import {
@@ -242,6 +238,19 @@ function CubeCheck({
   onCheckSlot: (slot: number) => void
 }) {
   const stats = captureStats(captured, faceOrder, puzzleSize)
+  const reading = forcedReading(captured, faceOrder)
+  // One sentence about the stickers the equal color share moved, the face
+  // shot twice, and the likely cause: no figures to read.
+  const sentence = reading.warn
+    ? forcedSentence(reading.result.forced, COLOR_NAME)
+    : ''
+  const repeated = stats.diagnosis.repeated.length
+    ? repeatedText(stats.diagnosis)
+    : ''
+  const cause =
+    stats.diagnosis.cause !== 'none found' || !candidate
+      ? stats.diagnosis.cause
+      : ''
   const repeatedSlots = new Set(stats.diagnosis.repeated.flat())
   const inNet = candidate
     ? netPhotos(captured, faceOrder, candidate.faces)
@@ -264,31 +273,6 @@ function CubeCheck({
           .map(([face]) => face),
       )
     : undefined
-  const changedCount = inOrder.reduce(
-    (total, photo) =>
-      total + (photo?.changed.flat().filter(Boolean).length ?? 0),
-    0,
-  )
-  // Left, Front, Right, Back, Up, Down like the color review once the faces
-  // fit together; the order taken otherwise.
-  const rows: { slot: number; name: string }[] = inNet
-    ? REVIEW_NET_ORDER.flatMap((face) => {
-        const photo = inNet[face]
-        return photo ? [{ slot: photo.slot, name: NET_FACE_NAME[face] }] : []
-      })
-    : photoNames.map((name, slot) => ({ slot, name }))
-  const sureLine = rows
-    .flatMap(({ slot, name }) => {
-      const sure = stats.sureness[slot]
-      return sure === undefined ? [] : [`${name} ${Math.round(sure)}%`]
-    })
-    .join(' · ')
-  const unsureLine = rows
-    .flatMap(({ slot, name }) => {
-      const count = stats.unsure[slot]
-      return count ? [`${name}: ${count}`] : []
-    })
-    .join(' · ')
   return (
     <>
       <section class="approval-section approval-detected">
@@ -336,32 +320,13 @@ function CubeCheck({
           </div>
         )}
       </section>
-      <dl class="approval-stats">
-        <dt>Camera was sure of</dt>
-        <dd>{sureLine || 'not recorded'}</dd>
-        <dt>To double-check</dt>
-        <dd>{unsureLine || 'none'}</dd>
-        {stats.diagnosis.repeatsChecked && (
-          <>
-            <dt>Repeated face</dt>
-            <dd>{repeatedText(stats.diagnosis)}</dd>
-          </>
-        )}
-        {changedCount > 0 && (
-          <>
-            <dt>Differs from detection</dt>
-            <dd>
-              {changedCount} sticker{changedCount === 1 ? '' : 's'} (outlined)
-            </dd>
-          </>
-        )}
-        {(stats.diagnosis.cause !== 'none found' || !candidate) && (
-          <>
-            <dt>Likely cause</dt>
-            <dd>{stats.diagnosis.cause}</dd>
-          </>
-        )}
-      </dl>
+      {(sentence || repeated || cause) && (
+        <div class="approval-stats">
+          {sentence && <p>{sentence}</p>}
+          {repeated && <p>Repeated face: {repeated}</p>}
+          {cause && <p>{cause}</p>}
+        </div>
+      )}
     </>
   )
 }

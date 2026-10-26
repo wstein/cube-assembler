@@ -1,7 +1,9 @@
 import { useState } from 'preact/hooks'
 import type { CubeState } from '../cube/cubeAssembly'
 import type { ParityResult } from '../cube/parity'
+import { miniNet, netCells } from './capture/approvalPhotos'
 import { stickerMark } from './capture/captureSteps'
+import { forcedReading, forcedSentence } from './capture/forcedStickers'
 import type { FaceCaptureData } from './capture/captureTypes'
 import { faceSources, pieceKey, sourceIndex } from './netPresentation'
 
@@ -70,10 +72,38 @@ export function CubeNetView({
   // wing that matched an over-represented pair - which is exactly
   // the set to cross-highlight on hover, since they're the
   // candidates for "which of these is actually the misread one".
+  // When the equal color share moved enough stickers to hide a misread
+  // (see forcedReading), those are the stickers to look at instead.
+  const reading = forcedReading(capturedFaces, [...faceOrder])
+  const slotCells = reading.warn
+    ? netCells(miniNet(capturedFaces, [...faceOrder], puzzleSize), puzzleSize)
+    : null
+  const forcedFacelets: { face: string; index: number }[] = []
+  if (slotCells) {
+    faceOrder.forEach((key, slot) => {
+      reading.faces[key]?.forced.forEach((row, r) =>
+        row.forEach((forced, c) => {
+          const cell = slotCells[slot]?.[r * puzzleSize + c]
+          if (forced && cell)
+            forcedFacelets.push({
+              face: cell.face.toLowerCase(),
+              index: cell.row * puzzleSize + cell.col,
+            })
+        }),
+      )
+    })
+  }
+  const forcedNote =
+    forcedFacelets.length > 0
+      ? forcedSentence(reading.result.forced, colorNames)
+      : ''
   const highlightGroups: Array<{
     group: string
     facelets: { face: string; index: number }[]
-  }> = parity?.highlight ?? []
+  }> =
+    forcedFacelets.length > 0
+      ? [{ group: 'moved', facelets: forcedFacelets }]
+      : (parity?.highlight ?? [])
   const totalHighlighted = highlightGroups.reduce(
     (n, g) => n + g.facelets.length,
     0,
@@ -144,7 +174,12 @@ export function CubeNetView({
   })()
   return (
     <div class="net-region">
-      {totalHighlighted > 0 && (
+      {forcedNote && (
+        <p class="net-highlight-note">
+          ⚠ {forcedNote} Those stickers are outlined below.
+        </p>
+      )}
+      {!forcedNote && totalHighlighted > 0 && (
         <p class="net-highlight-note">
           ⚠ {totalHighlighted} sticker
           {totalHighlighted === 1 ? '' : 's'} outlined below may be involved in
