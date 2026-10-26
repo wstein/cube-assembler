@@ -3,10 +3,11 @@ import { useMemo } from 'preact/hooks'
 import {
   NET_FACE_NAME,
   REVIEW_NET_ORDER,
+  miniNet,
   reviewNetLayout,
 } from './approvalPhotos'
+import { FaceNet } from './faceNet'
 import { stickerMark } from './captureSteps'
-import { FaceGrid } from './captureNet'
 import type { FaceCaptureData } from './captureTypes'
 
 interface CaptureReviewDialogProps {
@@ -31,19 +32,6 @@ interface CaptureReviewDialogProps {
   onEditCell: (face: string, row: number, col: number) => void
   onRetake: (face: string) => void
   onConfirm: () => void
-}
-
-// Grid areas of the faces in capture order (see CaptureNet), used while the
-// photos do not fit together.
-const MINI_NET_AREAS = ['2 / 1', '2 / 2', '2 / 3', '2 / 4', '1 / 2', '3 / 2']
-// The cube net: U above, L F R B in a row, D below.
-const CUBE_NET_AREAS: Record<string, string> = {
-  U: '1 / 2',
-  L: '2 / 1',
-  F: '2 / 2',
-  R: '2 / 3',
-  B: '2 / 4',
-  D: '3 / 2',
 }
 
 // Show each original photo beside the detected stickers so corrections stay
@@ -72,9 +60,6 @@ export function CaptureReviewDialog({
   onConfirm,
 }: CaptureReviewDialogProps) {
   const face = faceOrder[step]
-  const emptyFace = Array.from({ length: size }, () =>
-    Array<string>(size).fill(''),
-  )
   const data = faces[face]
   // The face picker is the cube net while the photos fit together.
   const netLayout = useMemo(
@@ -102,19 +87,7 @@ export function CaptureReviewDialog({
       ? `${net} (${faceLabels[faceOrder[slot]]})`
       : faceLabels[faceOrder[slot]]
   }
-  const pickers = netLayout
-    ? Object.entries(netLayout).map(([netFace, place]) => ({
-        key: netFace,
-        slot: place.slot,
-        area: CUBE_NET_AREAS[netFace],
-        colors: place.colors,
-      }))
-    : faceOrder.map((f, i) => ({
-        key: f,
-        slot: i,
-        area: MINI_NET_AREAS[i],
-        colors: faces[f]?.colors ?? emptyFace,
-      }))
+  const pickers = miniNet(faces, [...faceOrder], size)
   return (
     <div class="modal open">
       <div
@@ -133,27 +106,15 @@ export function CaptureReviewDialog({
             </span>
             <h2 id="review-title">{nameOf(step)}</h2>
           </div>
-          <div class="review-mini-net" role="group" aria-label="Faces">
-            {pickers.map(({ key, slot, area, colors }) => (
-              <button
-                type="button"
-                key={key}
-                class="review-mini-face"
-                style={{ gridArea: area }}
-                aria-current={slot === step ? 'step' : undefined}
-                aria-label={labelOf(slot)}
-                title={labelOf(slot)}
-                onClick={() => onStepChange(slot)}
-              >
-                <FaceGrid
-                  colors={colors}
-                  stickerColors={stickerColors}
-                  undecided={!faces[faceOrder[slot]]}
-                  current={slot === step}
-                />
-              </button>
-            ))}
-          </div>
+          <FaceNet
+            items={pickers}
+            label="Faces"
+            current={step}
+            images={faceOrder.map((f) => faces[f]?.croppedImage)}
+            stickerColors={stickerColors}
+            itemLabel={(item) => labelOf(item.slot)}
+            onSelect={onStepChange}
+          />
           <button
             type="button"
             class="modal-close"

@@ -370,24 +370,30 @@
   border-radius: var(--radius-sm);
 }
 
-/* Face picker of the color review: the capture net in miniature. */
-.review-mini-net {
+/* The faces captured so far as a net in miniature: the color review's face
+   picker and the capture card's progress. */
+.face-net {
   display: grid;
-  grid-template-columns: repeat(4, 34px);
-  grid-template-rows: repeat(3, 34px);
+  grid-template-columns: repeat(4, var(--face-net-size, 34px));
+  grid-template-rows: repeat(3, var(--face-net-size, 34px));
   gap: 3px;
 }
 
-.review-mini-face {
+.face-net-face {
+  position: relative;
   padding: 0;
   border: 0;
   background: transparent;
   cursor: pointer;
 }
 
-.review-mini-face .orientation-net-face {
-  width: 34px;
-  height: 34px;
+.face-net-face-static {
+  cursor: default;
+}
+
+.face-net-face .orientation-net-face {
+  width: var(--face-net-size, 34px);
+  height: var(--face-net-size, 34px);
   gap: 1px;
   padding: 1px;
   background: #1b1b1f;
@@ -395,15 +401,28 @@
   overflow: hidden;
 }
 
-.review-mini-face:hover .orientation-net-face,
-.review-mini-face:focus-visible .orientation-net-face {
+.face-net-face .orientation-net-photo {
+  border-radius: 5px;
+}
+
+.face-net-face:hover .orientation-net-photo,
+.face-net-face:focus-visible .orientation-net-photo {
+  opacity: 1;
+}
+
+.face-net-face:hover .orientation-net-face,
+.face-net-face:focus-visible .orientation-net-face {
   outline: 2px solid var(--color-accent);
   outline-offset: 1px;
 }
 
-.review-mini-face[aria-current="step"] .orientation-net-face {
+.face-net-face[aria-current="step"] .orientation-net-face {
   outline: 3px solid var(--color-accent);
   outline-offset: 1px;
+}
+
+.capture-card .face-net {
+  --face-net-size: 44px;
 }
 
 /* Side-by-side wizard step: a clean, undecorated photo on the left so

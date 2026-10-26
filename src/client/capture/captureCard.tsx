@@ -1,14 +1,15 @@
 import type { ComponentChildren } from 'preact'
-import {
-  FACE_DISPLAY_LABEL,
-  FACE_ORDER,
-  FACE_SHORT_LABEL,
-} from './captureSteps'
+import { FACE_DISPLAY_LABEL, FACE_ORDER } from './captureSteps'
+import { miniNet } from './approvalPhotos'
 import type { FaceCaptureData } from './captureTypes'
+import { FaceNet } from './faceNet'
 import type { UsedColorProfile } from '../profiles/profileSettings'
 
 interface CaptureCardProps {
   capturedFaces: Record<string, FaceCaptureData>
+  // Stickers per cube edge and the colors to draw them in.
+  size: number
+  stickerColors: Record<string, string>
   loading: boolean
   // The cube and colors the last complete capture was read with.
   captureProfileName?: string
@@ -34,6 +35,8 @@ interface CaptureCardProps {
 // Getting a cube in: guided capture, file uploads, typed colors.
 export function CaptureCard({
   capturedFaces,
+  size,
+  stickerColors,
   loading,
   captureProfileName,
   resolvedColorProfile,
@@ -124,17 +127,15 @@ export function CaptureCard({
         Four sides while turning the cube, then top and bottom — about a minute.
       </p>
       <div class="face-status-row">
-        <div class="face-status-dots">
-          {FACE_ORDER.map((face) => (
-            <span
-              key={face}
-              class={`progress-dot ${capturedFaces[face] ? 'done' : ''}`}
-              title={`${FACE_DISPLAY_LABEL[face]}${capturedFaces[face] ? ' (captured)' : ' (not captured)'}`}
-            >
-              {FACE_SHORT_LABEL[face]}
-            </span>
-          ))}
-        </div>
+        <FaceNet
+          items={miniNet(capturedFaces, [...FACE_ORDER], size)}
+          label="Captured faces"
+          images={FACE_ORDER.map((f) => capturedFaces[f]?.croppedImage)}
+          stickerColors={stickerColors}
+          itemLabel={(item) =>
+            `${item.name ? `${item.name} (${FACE_DISPLAY_LABEL[FACE_ORDER[item.slot]]})` : FACE_DISPLAY_LABEL[FACE_ORDER[item.slot]]}${item.captured ? ' (captured)' : ' (not captured)'}`
+          }
+        />
         <span class="card-hint">
           {FACE_ORDER.every((f) => f in capturedFaces)
             ? 'All 6 captured'

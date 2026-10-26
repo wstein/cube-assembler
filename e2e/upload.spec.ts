@@ -286,3 +286,25 @@ test('the color review follows the cube net: Left, Front, Right, Back, Up, Down'
   await net.getByRole('button', { name: /^Front/ }).click()
   await expect(review.getByRole('heading', { name: 'Front' })).toBeVisible()
 })
+
+test('the capture card shows the captured faces as a net with hover photos', async ({
+  page,
+}) => {
+  await page.goto('/')
+  const net = page.locator('.capture-card').getByRole('group', {
+    name: 'Captured faces',
+  })
+  await expect(net.locator('.orientation-net-face')).toHaveCount(6)
+  await expect(net.locator('.orientation-net-photo')).toHaveCount(0)
+  await page
+    .locator('.capture-alternatives input[type="file"]')
+    .setInputFiles([...photos, resolve(fixture, 'meta.json')])
+  await page.getByRole('button', { name: 'Yes, this is my cube' }).click()
+  await expect(net.getByRole('button', { name: /^Left \(/ })).toBeVisible()
+  const photo = net
+    .getByRole('button', { name: /^Front \(/ })
+    .locator('.orientation-net-photo')
+  await expect(photo).toHaveCSS('opacity', '0')
+  await net.getByRole('button', { name: /^Front \(/ }).hover()
+  await expect(photo).toHaveCSS('opacity', '1')
+})

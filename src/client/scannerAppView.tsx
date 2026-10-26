@@ -403,6 +403,8 @@ export function ScannerAppView({ model }: { model: ScannerAppModel }) {
         <div class="side-column">
           <CaptureCard
             capturedFaces={capturedFaces}
+            size={puzzleSize}
+            stickerColors={STICKER_HEX}
             loading={loading}
             captureProfileName={captureProfile?.name}
             resolvedColorProfile={cube ? resolvedColorProfile : null}
