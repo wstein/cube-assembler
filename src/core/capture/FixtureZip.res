@@ -171,6 +171,102 @@ let isNumber = value =>
   | _ => false
   }
 
+let numbers = (value: option<JSON.t>) =>
+  switch value {
+  | Some(JSON.Array(items)) =>
+    items->Array.filterMap(item =>
+      switch item {
+      | JSON.Number(n) => Some(n)
+      | _ => None
+      }
+    )
+  | _ => []
+  }
+
+// The sticker readings of one photo as a size x size grid, when saved.
+let readingsGrid = (face: option<JSON.t>, size) =>
+  switch field(face, "readings") {
+  | Some(JSON.Array(items)) if Array.length(items) == size * size =>
+    let cells = items->Array.map(item => numbers(Some(item)))
+    cells->Array.every(cell => Array.length(cell) == 3)
+      ? Some(
+          Array.fromInitializer(~length=size, r =>
+            Array.fromInitializer(~length=size, c => {
+              let cell = cells->Array.getUnsafe(r * size + c)
+
+              (
+                {
+                  r: cell->Array.getUnsafe(0),
+                  g: cell->Array.getUnsafe(1),
+                  b: cell->Array.getUnsafe(2),
+                }: StickerGeometry.rgb
+              )
+            })
+          ),
+        )
+      : None
+  | _ => None
+  }
+
+let photoNames = ["Side 1", "Side 2", "Side 3", "Side 4", "Top", "Bottom"]
+
+// How sure the camera was of a photo's stickers, in percent (older
+// fixtures saved 0-1).
+let photoSureness = (face: option<JSON.t>) => {
+  let confidences = numbers(field(face, "confidences"))
+  Array.length(confidences) == 0
+    ? None
+    : {
+        let mean =
+          confidences->Array.reduce(0.0, (total, c) => total +. c) /.
+            Int.toFloat(Array.length(confidences))
+        Some(mean <= 1.0 ? mean *. 100.0 : mean)
+      }
+}
+
+// Tells a face photographed twice from poor photos, for the summary.
+let captureCheck = (face: string => option<JSON.t>, size) => {
+  let rows = []
+  let grids = faceKeys->Array.map(key => readingsGrid(face(key), size))
+  if grids->Array.some(grid => grid->Option.isSome) {
+    let repeats = if mod(size, 2) == 0 {
+      rows->Array.push(("Repeated face", "not checked on even cubes"))
+      []
+    } else {
+      let repeats =
+        RepeatedFace.findRepeatShots(grids)->Array.map(((a, b)) =>
+          `${photoNames->Array.getUnsafe(a)} and ${photoNames->Array.getUnsafe(b)}`
+        )
+      rows->Array.push((
+        "Repeated face",
+        Array.length(repeats) == 0 ? "none" : repeats->Array.join("; "),
+      ))
+      repeats
+    }
+    let weakest = ref(None)
+    faceKeys->Array.forEachWithIndex((key, i) =>
+      switch photoSureness(face(key)) {
+      | Some(sure) =>
+        switch weakest.contents {
+        | Some((_, best)) if best <= sure => ()
+        | _ => weakest := Some((i, sure))
+        }
+      | None => ()
+      }
+    )
+    let cause = switch (Array.length(repeats) > 0, weakest.contents) {
+    | (true, _) => "a face was shot twice - the photos themselves are fine"
+    | (false, Some((i, sure))) if sure < 60.0 =>
+      `the ${photoNames->Array.getUnsafe(i)} photo is poor (${sure->toFixed(
+          0,
+        )}% sure) - retake it in better light`
+    | _ => "none found"
+    }
+    rows->Array.push(("Likely cause", cause))
+  }
+  rows
+}
+
 let summarizeMeta = (meta: JSON.t) => {
   let meta = Some(meta)
   let capture = switch field(meta, "capture") {
@@ -298,6 +394,9 @@ let summarizeMeta = (meta: JSON.t) => {
     ))
   | _ => ()
   }
+  captureCheck(face, size->Int.fromString->Option.getOr(0))->Array.forEach(row =>
+    rows->Array.push(row)
+  )
   let calibration = field(capture, "colorCalibration")
   if truthy(calibration) {
     rows->Array.push((

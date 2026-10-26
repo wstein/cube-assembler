@@ -9,6 +9,7 @@ import {
   zipFixture,
   type FixtureRequest,
 } from '../src/client/fixtures/fixtureZip'
+import { summarizeMeta } from '../src/core/capture/FixtureZip.gen'
 
 const DIR = join(__dirname, 'fixtures', 'synthetic-sanity-check')
 const saved = JSON.parse(readFileSync(join(DIR, 'meta.json'), 'utf8'))
@@ -218,5 +219,37 @@ describe('fixture zips', () => {
       'Profile color fit': '92%',
       'Sticker RGB': 'W 245,244,238 · R 190,38,44',
     })
+  })
+})
+
+describe('the capture check in the fixture summary', () => {
+  const load = (name: string) =>
+    JSON.parse(
+      readFileSync(join(__dirname, 'fixtures', name, 'meta.json'), 'utf8'),
+    )
+  const row = (meta: unknown, label: string) =>
+    summarizeMeta(meta).rows.find(([key]) => key === label)?.[1]
+
+  it('blames a face shot twice, not the photos', () => {
+    const meta = load('cube-5x5-2026-10-26T00-18-58')
+    expect(row(meta, 'Repeated face')).toBe('Side 4 and Top')
+    expect(row(meta, 'Likely cause')).toMatch(/shot twice/)
+  })
+
+  it('finds nothing wrong with a clean odd capture', () => {
+    const meta = load('cube-5x5-2026-10-26T00-04-11')
+    expect(row(meta, 'Repeated face')).toBe('none')
+    expect(row(meta, 'Likely cause')).toBe('none found')
+  })
+
+  it('does not look for repeats on an even cube', () => {
+    const meta = load('cube-2x2-2026-09-27T09-04-54')
+    expect(row(meta, 'Repeated face')).toBe('not checked on even cubes')
+  })
+
+  it('names the weakest photo when the photos themselves are poor', () => {
+    const meta = load('cube-5x5-2026-10-26T00-04-11')
+    meta.faces.r.confidences = meta.faces.r.confidences.map(() => 30)
+    expect(row(meta, 'Likely cause')).toMatch(/Side 2.*photo/)
   })
 })
