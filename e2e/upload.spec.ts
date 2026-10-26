@@ -288,8 +288,21 @@ test('an error names the stickers the equal color share moved, in one sentence',
   await expect(page.locator('.review-detected-cell-target')).toHaveCount(1)
   await expect(page.getByRole('button', { name: /Looks right/ })).toHaveCount(0)
   await expect(page.getByRole('button', { name: 'OK' })).toBeVisible()
-  await page.getByRole('button', { name: 'Cancel' }).click()
-  await expect(page.locator('.review-modal-content')).toHaveCount(0)
+  // A color changed in the dialog is undone by Cancel, as is closing it.
+  for (const close of ['Cancel', 'Close']) {
+    await page.locator('.review-detected-cell-target').click()
+    await page
+      .locator('.color-picker-content')
+      .getByRole('button', { name: /^Red/ })
+      .click()
+    await expect(page.locator('.color-picker-content')).toHaveCount(0)
+    await page
+      .locator('.review-modal-content')
+      .getByRole('button', { name: close, exact: true })
+      .click()
+    await expect(page.locator('.review-modal-content')).toHaveCount(0)
+    if (close === 'Cancel') await page.locator('.net-cell-edit').first().click()
+  }
 })
 
 test('the color review follows the cube net: Left, Front, Right, Back, Up, Down', async ({
