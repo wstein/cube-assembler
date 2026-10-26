@@ -194,6 +194,9 @@ type logo = {row: int, col: int, color: string, size?: float}
 // the gap between stickers and the corner radius.
 type geometry = {gap?: float, radius?: float, margin?: float}
 
+// How a shadow lies on the face (see applyShadow).
+type shadow = {strength?: float, shape?: string, softness?: float}
+
 // What the generator can be told beyond the grid, preset and seed; every
 // field is optional, so options can be added without touching the callers.
 // - scatter: scales the hue and chroma spread of stickers of one color; 0 is
@@ -207,6 +210,8 @@ type geometry = {gap?: float, radius?: float, margin?: float}
 // - faceShift: scales a brightness, chroma and hue shift shared by all
 //   stickers of the photo, as each photo of a cube is lit a little
 //   differently (default 1 for the real preset, else 0).
+// - shadow: the strength, shape and edge of a shadow (see shadow); the shadow
+//   preset takes it, any other preset gets a shadow when it is given.
 // - lightness: scales the brightness scatter between stickers (default 1).
 // - palette: sticker colors by letter, replacing the default ones.
 // - logo: see above.
@@ -226,6 +231,7 @@ type options = {
   blur?: float,
   brightness?: float,
   geometry?: geometry,
+  shadow?: shadow,
 }
 
 // The face itself, before any lighting: stickers by their color.
@@ -365,14 +371,42 @@ let applyGradient = (data, size) =>
     Int.toFloat(b) *. (1.3 -. 0.6 *. t),
   ))
 
-// A soft-edged diagonal band, dimmer than its surroundings.
-let applyShadow = (data, size) =>
+// How a shadow lies on the face. strength is how much light it takes (0.15
+// is a soft real shadow), softness the width of its edge as a share of the
+// photo, and shape one of the names below.
+let shadowShapes = ["band", "half", "spot", "corner"]
+let defaultShadowStrength = 0.15
+let defaultShadowSoftness = 0.03
+
+// A shadow: dimmer than its surroundings, in the given shape.
+// - band: a diagonal band across the face.
+// - half: everything below the diagonal through the middle.
+// - spot: a round patch toward the upper right.
+// - corner: a round patch around the lower right corner.
+let applyShadow = (data, size, shadow: shadow) => {
+  let shape = shadow.shape->Option.getOr("band")
+  if !(shadowShapes->Array.includes(shape)) {
+    JsError.throwWithMessage(`Unknown shadow shape: ${shape}`)
+  }
+  let strength = shadow.strength->Option.getOr(defaultShadowStrength)
+  let width = Math.max(shadow.softness->Option.getOr(defaultShadowSoftness), 1e-6)
   eachPixel(data, size, (tx, ty, r, g, b, _) => {
-    let t = (tx +. ty) /. 2.0
-    let inside = clamp((t -. 0.4) /. 0.03, 0.0, 1.0) *. clamp((0.65 -. t) /. 0.03, 0.0, 1.0)
-    let factor = 1.0 -. 0.15 *. inside
+    let inside = switch shape {
+    | "half" => clamp(((tx +. ty) /. 2.0 -. 0.5) /. width +. 0.5, 0.0, 1.0)
+    | "spot" =>
+      let d = Math.sqrt((tx -. 0.65) *. (tx -. 0.65) +. (ty -. 0.35) *. (ty -. 0.35))
+      clamp((0.25 -. d) /. width, 0.0, 1.0)
+    | "corner" =>
+      let d = Math.sqrt((tx -. 1.0) *. (tx -. 1.0) +. (ty -. 1.0) *. (ty -. 1.0))
+      clamp((0.7 -. d) /. width, 0.0, 1.0)
+    | _ =>
+      let t = (tx +. ty) /. 2.0
+      clamp((t -. 0.4) /. width, 0.0, 1.0) *. clamp((0.65 -. t) /. width, 0.0, 1.0)
+    }
+    let factor = 1.0 -. strength *. inside
     (Int.toFloat(r) *. factor, Int.toFloat(g) *. factor, Int.toFloat(b) *. factor)
   })
+}
 
 // Little light, and a warm one: blue is hit hardest.
 let applyDimWarm = (data, size) =>
@@ -513,7 +547,7 @@ let renderFace = (
   )
   switch preset {
   | "gradient" => applyGradient(data, size)
-  | "shadow" => applyShadow(data, size)
+  | "shadow" => applyShadow(data, size, options.shadow->Option.getOr({}))
   | "dim-warm" =>
     applyDimWarm(data, size)
     addNoise(data, size, seed, 8.0)
@@ -524,7 +558,11 @@ let renderFace = (
     addNoise(data, size, seed, 15.0)
   | _ => ()
   }
-  // On top of the preset: more light or less, a lens, noise.
+  // On top of the preset: a shadow, more light or less, a lens, noise.
+  switch options.shadow {
+  | Some(shadow) if preset != "shadow" => applyShadow(data, size, shadow)
+  | _ => ()
+  }
   switch options.brightness {
   | Some(factor) =>
     eachPixel(data, size, (_, _, r, g, b, _) => (

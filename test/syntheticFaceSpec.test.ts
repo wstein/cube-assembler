@@ -46,6 +46,10 @@ const CASES: [string, SyntheticOptions][] = [
   ['clean', { tone: 1 }],
   ['clean', { shading: 1 }],
   ['clean', { faceShift: 1 }],
+  ['shadow', { shadow: { shape: 'half', strength: 0.3, softness: 0.2 } }],
+  ['shadow', { shadow: { shape: 'spot', strength: 0.25, softness: 0.05 } }],
+  ['shadow', { shadow: { shape: 'corner', strength: 0.2, softness: 0.3 } }],
+  ['clean', { shadow: { shape: 'band', strength: 0.3, softness: 0.1 } }],
   ['clean', { geometry: { gap: 0.2, radius: 0.3, margin: 0.06 } }],
   ['real', { tone: 0.5, shading: 2, faceShift: 0.3, noise: 6 }],
 ]

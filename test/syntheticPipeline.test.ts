@@ -6,7 +6,11 @@ import { NEUTRAL_GAINS } from '../src/client/vision/colorMath'
 import { extractColorsFromImageData } from '../src/client/vision/faceDetection'
 import { readFixtureColors } from '../src/client/fixtures/fixtureFormat'
 import { DEFAULT_SAMPLING } from '../src/client/vision/stickerColorGeometry'
-import { PRESETS, renderFace } from '../src/client/vision/syntheticFace'
+import {
+  PRESETS,
+  renderFace,
+  type SyntheticOptions,
+} from '../src/client/vision/syntheticFace'
 
 // All six faces of valid cubes, rendered in every preset, through the app's
 // own pipeline: each face read on its own, then the cross-face step that
@@ -30,7 +34,7 @@ function colorsOf(name: string) {
 }
 
 // The stickers of the cube the pipeline gets wrong, in every seed.
-function misreads(preset: string) {
+function misreads(preset: string, options: SyntheticOptions = {}) {
   const wrong: string[] = []
   for (const name of CUBES) {
     const { n, colors } = colorsOf(name)
@@ -41,7 +45,7 @@ function misreads(preset: string) {
       > = {}
       FACES.forEach((face, i) => {
         measured[face.toLowerCase()] = extractColorsFromImageData(
-          renderFace(colors[face], preset, seed * 10 + i, SIZE),
+          renderFace(colors[face], preset, seed * 10 + i, SIZE, options),
           SIZE,
           SIZE,
           n,
@@ -82,4 +86,26 @@ describe('synthetic presets through the six-face pipeline', () => {
       },
       240_000,
     )
+})
+
+// Shadows of every shape, from a hard to a soft edge, up to 30 percent. A
+// grid of 4 shapes x 3 edges x 4 strengths (15, 20, 25 and 30 percent) read
+// every sticker but one corner: a half face 30 percent dimmer, with an edge
+// no softer than a tenth of the photo, on 5x5 (24 stickers moved).
+describe('shadows of different shapes and edges through the six-face pipeline', () => {
+  const edges = [0.02, 0.3]
+  for (const shape of ['band', 'half', 'spot', 'corner'])
+    for (const softness of edges)
+      for (const strength of [0.15, 0.3]) {
+        const hard = shape === 'half' && strength === 0.3 && softness === 0.02
+        ;(hard ? it.fails : it)(
+          `reads a ${shape} shadow of ${strength * 100} percent with an edge of ${softness}${hard ? ' [known failure: 24 stickers of the 5x5 move]' : ''}`,
+          () => {
+            expect(
+              misreads('shadow', { shadow: { shape, strength, softness } }),
+            ).toEqual([])
+          },
+          240_000,
+        )
+      }
 })

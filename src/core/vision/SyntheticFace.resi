@@ -7,6 +7,9 @@ type logo = {row: int, col: int, color: string, size?: float}
 type geometry = {gap?: float, radius?: float, margin?: float}
 
 @genType
+type shadow = {strength?: float, shape?: string, softness?: float}
+
+@genType
 type options = {
   scatter?: float,
   tone?: float,
@@ -19,6 +22,7 @@ type options = {
   blur?: float,
   brightness?: float,
   geometry?: geometry,
+  shadow?: shadow,
 }
 
 @genType
