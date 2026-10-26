@@ -277,6 +277,10 @@ test('an error names the stickers the equal color share moved, in one sentence',
   await expect(note).toContainText('were moved to')
   await expect(note).toContainText('outlined below')
   expect(await page.locator('.net-cell-highlighted').count()).toBeGreaterThan(2)
+  // Every outlined sticker is a candidate, so each one links to the editor.
+  expect(
+    await page.locator('.net-cell-highlighted .net-cell-edit').count(),
+  ).toBe(await page.locator('.net-cell-highlighted').count())
   // A moved sticker is split along the diagonal and links to the color edit
   // dialog, open on that sticker's face.
   expect(await page.locator('.net-cell-edit').count()).toBeGreaterThan(2)

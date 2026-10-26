@@ -265,9 +265,11 @@ export function CubeNetView({
                     photo !== undefined &&
                     first !== photo.colors[r]?.[c]
                   const lookalike = photo?.cellLookalikes?.[r]?.[c]
-                  // A marked or moved sticker links to the color edit dialog.
+                  // A marked, moved or outlined sticker links to the color edit
+                  // dialog.
                   const editable =
-                    onEditSticker !== undefined && (mark !== null || moved)
+                    onEditSticker !== undefined &&
+                    (mark !== null || moved || group !== undefined)
                   return (
                     <div
                       class={`net-cell ${group !== undefined ? 'net-cell-highlighted' : ''} ${isHoverRelated ? 'net-cell-hover-related' : ''} ${samePiece ? 'net-cell-piece' : ''}`}
