@@ -30,6 +30,7 @@ export {
   checkGuidedCenters,
   findCapturedFaceMatch,
   findCaptureSlotForOrientedFace,
+  findCaptureForOrientedFace,
   findRepeatedFaces,
   validateFaceColors,
   createSolvedCube,

@@ -3,6 +3,7 @@
 import {
   checkGuidedCenters as checkGuidedCentersRes,
   createSolvedCube as createSolvedCubeRes,
+  findCaptureForOrientedFace as findCaptureForOrientedFaceRes,
   findCaptureSlotForOrientedFace as findCaptureSlotForOrientedFaceRes,
   findCapturedFaceMatch as findCapturedFaceMatchRes,
   findRepeatedFaces as findRepeatedFacesRes,
@@ -42,6 +43,15 @@ export function findCaptureSlotForOrientedFace(
   face: string[][],
 ): number | null {
   return findCaptureSlotForOrientedFaceRes(captures, face)
+}
+
+// Like findCaptureSlotForOrientedFace, with the quarter turns clockwise that
+// bring the photo to the approval face's orientation.
+export function findCaptureForOrientedFace(
+  captures: Photos,
+  face: string[][],
+): { slot: number; turns: number } | null {
+  return findCaptureForOrientedFaceRes(captures, face)
 }
 
 // Pairs of photos that look like the same face taken twice.

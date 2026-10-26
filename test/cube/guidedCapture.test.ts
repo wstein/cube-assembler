@@ -23,6 +23,7 @@ import {
   findRepeatedFaces,
   findCapturedFaceMatch,
   findCaptureSlotForOrientedFace,
+  findCaptureForOrientedFace,
   predictGuidedCenters,
   captureCenterSlots,
   captureSlotForCenter,
@@ -525,5 +526,13 @@ describe('captured face lookup', () => {
     expect(
       findCaptureSlotForOrientedFace(photos, rotateGrid(photos[4], 3)),
     ).toBe(4)
+  })
+
+  it('also says how far the photo turns to become the approval face', () => {
+    const capture = photograph(scramble(4, 40, rng(74)), 'left', true, [0, 0])
+    const photos = [...capture.sides, ...capture.caps]
+    expect(
+      findCaptureForOrientedFace(photos, rotateGrid(photos[4], 3)),
+    ).toEqual({ slot: 4, turns: 3 })
   })
 })

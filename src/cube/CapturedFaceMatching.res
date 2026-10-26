@@ -104,7 +104,10 @@ let findCapturedFaceMatch = (
 // An approval net is in cube orientation, whereas Check colors is in photo
 // order. Find the photo behind a net face even when it was rotated in
 // assembly: the fewest differing stickers at any turn, earliest first.
-let findCaptureSlotForOrientedFace = (captures: array<option<grid>>, face: grid) => {
+@genType
+type orientedFaceMatch = {slot: int, turns: int}
+
+let findCaptureForOrientedFace = (captures: array<option<grid>>, face: grid) => {
   let n = Array.length(face)
   let best = ref(None)
   let bestDistance = ref(Int.Constants.maxValue)
@@ -115,7 +118,7 @@ let findCaptureSlotForOrientedFace = (captures: array<option<grid>>, face: grid)
         let distance = n * n - matchingStickers(CubeGeometry.rotateGrid(saved, turn), face)
         if distance < bestDistance.contents {
           bestDistance := distance
-          best := Some(i)
+          best := Some({slot: i, turns: turn})
         }
       }
     | _ => ()
@@ -123,6 +126,12 @@ let findCaptureSlotForOrientedFace = (captures: array<option<grid>>, face: grid)
   )
   Null.fromOption(best.contents)
 }
+
+let findCaptureSlotForOrientedFace = (captures: array<option<grid>>, face: grid) =>
+  findCaptureForOrientedFace(captures, face)
+  ->Null.toOption
+  ->Option.map(found => found.slot)
+  ->Null.fromOption
 
 let findRepeatedFaces = (photos: array<option<grid>>) => {
   let repeats = []

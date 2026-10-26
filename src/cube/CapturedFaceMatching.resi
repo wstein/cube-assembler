@@ -12,6 +12,15 @@ type faceMatchSample = {colors: CubeTypes.grid}
 @genType
 let findCapturedFaceMatch: (array<option<faceMatchSample>>, faceMatchSample, int) => Null.t<int>
 @genType
+type orientedFaceMatch = {slot: int, turns: int}
+// The photo behind an approval face and the quarter turns clockwise that
+// bring it to the face's orientation.
+@genType
+let findCaptureForOrientedFace: (
+  array<option<CubeTypes.grid>>,
+  CubeTypes.grid,
+) => Null.t<orientedFaceMatch>
+@genType
 let findCaptureSlotForOrientedFace: (array<option<CubeTypes.grid>>, CubeTypes.grid) => Null.t<int>
 @genType let findRepeatedFaces: array<option<CubeTypes.grid>> => array<(int, int)>
 @genType let validateFaceColors: (CubeTypes.grid, int) => bool
