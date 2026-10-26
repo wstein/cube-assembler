@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { wrgFaceletsToGrids } from '../src/cube/notation/NotationOutput.gen'
 import { rotateGrid } from '../src/cube/cubeGeometry'
+import { sourceIndex } from '../src/client/netPresentation'
 import { readFixtureColors } from '../src/client/fixtures/fixtureFormat'
 import {
   miniNet,
@@ -49,6 +50,23 @@ describe('the review mini net', () => {
       }
     })
   }
+
+  it('shows a photo turned as the net does: sticker i of a face is photo sticker sourceIndex', () => {
+    for (const name of [
+      'cube-5x5-2026-10-25T23-50-58',
+      'cube-7x7-2026-10-22T19-26-13',
+    ]) {
+      const { captured } = load(name)
+      const layout = reviewNetLayout(captured as never, ORDER)!
+      for (const place of Object.values(layout)) {
+        const photo = captured[ORDER[place.slot]].colors.flat()
+        const n = place.colors.length
+        expect(
+          photo.map((_, i) => photo[sourceIndex(n, place.turns, i)]),
+        ).toEqual(place.colors.flat())
+      }
+    }
+  })
 
   it('gives no layout when the faces cannot be put together', () => {
     const { captured } = load('cube-5x5-2026-10-26T00-18-58')

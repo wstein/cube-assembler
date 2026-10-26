@@ -278,11 +278,18 @@ test('an error names the stickers the equal color share moved, in one sentence',
   await expect(note).toContainText('outlined below')
   expect(await page.locator('.net-cell-highlighted').count()).toBeGreaterThan(2)
   // A moved sticker is split along the diagonal and links to the color edit
-  // dialog, open on that sticker's face with its color picker.
+  // dialog, open on that sticker's face.
   expect(await page.locator('.net-cell-edit').count()).toBeGreaterThan(2)
   await page.locator('.net-cell-edit').first().click()
   await expect(page.locator('.review-modal-content')).toBeVisible()
-  await expect(page.locator('.color-picker-content')).toBeVisible()
+  // The picker waits for a tap; a direct edit ends with OK or Cancel, not
+  // the wizard's next side.
+  await expect(page.locator('.color-picker-content')).toHaveCount(0)
+  await expect(page.locator('.review-detected-cell-target')).toHaveCount(1)
+  await expect(page.getByRole('button', { name: /Looks right/ })).toHaveCount(0)
+  await expect(page.getByRole('button', { name: 'OK' })).toBeVisible()
+  await page.getByRole('button', { name: 'Cancel' }).click()
+  await expect(page.locator('.review-modal-content')).toHaveCount(0)
 })
 
 test('the color review follows the cube net: Left, Front, Right, Back, Up, Down', async ({

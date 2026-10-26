@@ -9,6 +9,7 @@ import {
 } from './approvalPhotos'
 import { FaceNet } from './faceNet'
 import { stickerMark } from './captureSteps'
+import { sourceIndex } from '../netPresentation'
 import type { FaceCaptureData } from './captureTypes'
 
 interface CaptureReviewDialogProps {
@@ -33,6 +34,11 @@ interface CaptureReviewDialogProps {
   onEditCell: (face: string, row: number, col: number) => void
   onRetake: (face: string) => void
   onConfirm: () => void
+  // Set when a marked sticker of the net was opened for a direct edit: its
+  // place. The dialog then offers OK and Cancel in place of the wizard's
+  // steps.
+  direct?: { face: string; row: number; col: number } | null
+  onOk?: () => void
 }
 
 // Show each original photo beside the detected stickers so corrections stay
@@ -59,6 +65,8 @@ export function CaptureReviewDialog({
   onEditCell,
   onRetake,
   onConfirm,
+  direct,
+  onOk,
 }: CaptureReviewDialogProps) {
   const face = faceOrder[step]
   const data = faces[face]
@@ -88,6 +96,13 @@ export function CaptureReviewDialog({
       ? `${net} (${faceLabels[faceOrder[slot]]})`
       : faceLabels[faceOrder[slot]]
   }
+  // A direct edit shows the face turned as in the cube net it came from; the
+  // wizard shows the photo as it was taken.
+  const turns =
+    direct && netLayout
+      ? (Object.values(netLayout).find((place) => place.slot === step)?.turns ??
+        0)
+      : 0
   const pickers = miniNet(faces, [...faceOrder], size)
   return (
     <div class="modal open">
@@ -180,6 +195,7 @@ export function CaptureReviewDialog({
                     <img
                       src={data.croppedImage}
                       class="review-face-image"
+                      style={{ transform: `rotate(${turns * 90}deg)` }}
                       alt={`Captured photo of ${faceLabels[face]}`}
                     />
                   )}
@@ -232,118 +248,140 @@ export function CaptureReviewDialog({
                     '--grid-n': String(data.colors.length),
                   }}
                 >
-                  {data.colors.map((row, r) =>
-                    row.map((color, c) => {
-                      // The final color stays the human choice; the badge only
-                      // records what automatic detection had said instead. A
-                      // human-set sticker is settled: detection's confidence and
-                      // lookalike were about the color it saw, not this one.
-                      const detected = data.detectedColors?.[r]?.[c]
-                      const corrected =
-                        detected !== undefined && detected !== color
-                      const confidence = corrected
-                        ? undefined
-                        : data.cellConfidences?.[r]?.[c]
-                      const tier = confidenceTier(confidence ?? 1)
-                      const lookalike = corrected
-                        ? null
-                        : (data.cellLookalikes?.[r]?.[c] ?? null)
-                      const flagged = tier === 'low' || lookalike !== null
-                      const name = colorNames[color] ?? color
-                      const sure =
-                        confidence !== undefined
-                          ? `, ${Math.round(confidence * 100)}% sure`
-                          : ''
-                      const notes = [
-                        corrected
-                          ? `We saw ${colorNames[detected] ?? detected}, you picked ${name}.`
-                          : null,
-                        tier === 'low' ? 'Not sure about this one.' : null,
-                        lookalike
-                          ? `It looks a lot like ${colorNames[lookalike] ?? lookalike}.`
-                          : null,
-                      ].filter(Boolean)
-                      return (
-                        <button
-                          type="button"
-                          key={`${r}-${c}`}
-                          class={`review-detected-cell ${flagged ? 'review-detected-cell-flagged' : ''} ${corrected ? 'review-detected-cell-corrected' : ''}`}
-                          style={{
-                            background:
-                              corrected && detected !== undefined
-                                ? diagonalSplit(
-                                    stickerColors[color] || '#888',
-                                    stickerColors[detected] || '#888',
-                                  )
-                                : stickerColors[color] || '#888',
-                          }}
-                          onClick={() => onEditCell(face, r, c)}
-                          title={[
-                            `Row ${r + 1}, column ${c + 1}: ${name}${sure}.`,
-                            ...notes,
-                            'Tap to change.',
-                          ].join(' ')}
-                        >
-                          {confidence !== undefined && (
-                            <span class="review-detected-confidence">
-                              {Math.round(confidence * 100)}%
-                            </span>
-                          )}
-                          {/* Cells on bigger grids are too small for the badge next
+                  {data.colors.flat().map((_, i) => {
+                    const source = sourceIndex(data.colors.length, turns, i)
+                    const r = Math.floor(source / data.colors.length)
+                    const c = source % data.colors.length
+                    const color = data.colors[r][c]
+                    // The final color stays the human choice; the badge only
+                    // records what automatic detection had said instead. A
+                    // human-set sticker is settled: detection's confidence and
+                    // lookalike were about the color it saw, not this one.
+                    const detected = data.detectedColors?.[r]?.[c]
+                    const corrected =
+                      detected !== undefined && detected !== color
+                    const confidence = corrected
+                      ? undefined
+                      : data.cellConfidences?.[r]?.[c]
+                    const tier = confidenceTier(confidence ?? 1)
+                    const lookalike = corrected
+                      ? null
+                      : (data.cellLookalikes?.[r]?.[c] ?? null)
+                    const flagged = tier === 'low' || lookalike !== null
+                    const name = colorNames[color] ?? color
+                    const sure =
+                      confidence !== undefined
+                        ? `, ${Math.round(confidence * 100)}% sure`
+                        : ''
+                    const notes = [
+                      corrected
+                        ? `We saw ${colorNames[detected] ?? detected}, you picked ${name}.`
+                        : null,
+                      tier === 'low' ? 'Not sure about this one.' : null,
+                      lookalike
+                        ? `It looks a lot like ${colorNames[lookalike] ?? lookalike}.`
+                        : null,
+                    ].filter(Boolean)
+                    return (
+                      <button
+                        type="button"
+                        key={`${r}-${c}`}
+                        class={`review-detected-cell ${flagged ? 'review-detected-cell-flagged' : ''} ${corrected ? 'review-detected-cell-corrected' : ''}${direct && direct.face === face && direct.row === r && direct.col === c ? ' review-detected-cell-target' : ''}`}
+                        style={{
+                          background:
+                            corrected && detected !== undefined
+                              ? diagonalSplit(
+                                  stickerColors[color] || '#888',
+                                  stickerColors[detected] || '#888',
+                                )
+                              : stickerColors[color] || '#888',
+                        }}
+                        onClick={() => onEditCell(face, r, c)}
+                        title={[
+                          `Row ${r + 1}, column ${c + 1}: ${name}${sure}.`,
+                          ...notes,
+                          'Tap to change.',
+                        ].join(' ')}
+                      >
+                        {confidence !== undefined && (
+                          <span class="review-detected-confidence">
+                            {Math.round(confidence * 100)}%
+                          </span>
+                        )}
+                        {/* Cells on bigger grids are too small for the badge next
                         to the percentage - the amber ring alone marks them. */}
-                          {flagged && data.colors.length <= 4 && (
-                            <span
-                              class="review-detected-cell-flag"
-                              aria-hidden="true"
-                            >
-                              !
-                            </span>
-                          )}
-                        </button>
-                      )
-                    }),
-                  )}
+                        {flagged && data.colors.length <= 4 && (
+                          <span
+                            class="review-detected-cell-flag"
+                            aria-hidden="true"
+                          >
+                            !
+                          </span>
+                        )}
+                      </button>
+                    )
+                  })}
                 </div>
                 <div class="review-pane-hint">Tap a sticker to fix it</div>
               </div>
             </div>
-            <div class="review-wizard-nav">
-              <button
-                type="button"
-                class="btn btn-secondary"
-                onClick={() => onRetake(face)}
-              >
-                Retake {nameOf(step).toLowerCase()}
-              </button>
-              <div class="review-wizard-nav-spacer" />
-              <button
-                type="button"
-                class="btn btn-secondary"
-                onClick={() =>
-                  onStepChange(stepSlots[Math.max(0, position - 1)])
-                }
-                disabled={position === 0}
-              >
-                Previous
-              </button>
-              {isLast ? (
+            {direct ? (
+              <div class="review-wizard-nav">
+                <div class="review-wizard-nav-spacer" />
+                <button
+                  type="button"
+                  class="btn btn-secondary"
+                  onClick={onClose}
+                >
+                  Cancel
+                </button>
                 <button
                   type="button"
                   class="btn btn-primary btn-review-next"
-                  onClick={onConfirm}
+                  onClick={onOk}
                 >
-                  Looks right — put the cube together
+                  OK
                 </button>
-              ) : (
+              </div>
+            ) : (
+              <div class="review-wizard-nav">
                 <button
                   type="button"
-                  class="btn btn-primary btn-review-next"
-                  onClick={() => onStepChange(stepSlots[position + 1])}
+                  class="btn btn-secondary"
+                  onClick={() => onRetake(face)}
                 >
-                  Looks right — next side
+                  Retake {nameOf(step).toLowerCase()}
                 </button>
-              )}
-            </div>
+                <div class="review-wizard-nav-spacer" />
+                <button
+                  type="button"
+                  class="btn btn-secondary"
+                  onClick={() =>
+                    onStepChange(stepSlots[Math.max(0, position - 1)])
+                  }
+                  disabled={position === 0}
+                >
+                  Previous
+                </button>
+                {isLast ? (
+                  <button
+                    type="button"
+                    class="btn btn-primary btn-review-next"
+                    onClick={onConfirm}
+                  >
+                    Looks right — put the cube together
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    class="btn btn-primary btn-review-next"
+                    onClick={() => onStepChange(stepSlots[position + 1])}
+                  >
+                    Looks right — next side
+                  </button>
+                )}
+              </div>
+            )}
           </>
         )}
       </div>

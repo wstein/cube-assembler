@@ -653,6 +653,7 @@ export function useScannerAppModel() {
     samplingFileMessage,
     selectFace,
     setAutoCapture,
+    setCapturedFaces,
     setCaptureMessage,
     setCaptureMode,
     setCaptureSound,

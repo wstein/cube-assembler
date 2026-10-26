@@ -22,7 +22,7 @@ import { ManualFaceletInput } from './manualFaceletInput'
 import { CaptureCard } from './capture/captureCard'
 import { ColorProfileControls } from './profiles/colorProfileControls'
 import { lazy, Suspense } from 'preact/compat'
-import { useMemo } from 'preact/hooks'
+import { useEffect, useMemo, useState } from 'preact/hooks'
 
 const ProfilesPage = lazy(() =>
   import('./profiles/profilesPage').then((m) => ({ default: m.ProfilesPage })),
@@ -160,6 +160,7 @@ export function ScannerAppView({ model }: { model: ScannerAppModel }) {
     samplingFileMessage,
     selectFace,
     setAutoCapture,
+    setCapturedFaces,
     setCaptureMessage,
     setCaptureMode,
     setCaptureSound,
@@ -201,6 +202,17 @@ export function ScannerAppView({ model }: { model: ScannerAppModel }) {
   } = model
   // The review and the cube check also flag stickers the reference palette
   // reads differently (see withPaletteSuspects).
+  // A sticker opened from the net for a direct edit: its place, and the
+  // faces as they were, to put back on Cancel. Null in the review wizard.
+  const [directEdit, setDirectEdit] = useState<{
+    face: string
+    row: number
+    col: number
+    before: typeof capturedFaces
+  } | null>(null)
+  useEffect(() => {
+    if (!showReviewDialog) setDirectEdit(null)
+  }, [showReviewDialog])
   const checkedFaces = useMemo(
     () => withPaletteSuspects(capturedFaces, FACE_ORDER),
     [capturedFaces],
@@ -233,6 +245,12 @@ export function ScannerAppView({ model }: { model: ScannerAppModel }) {
     )
   }
   // The color analysis of the last capture, opened from the profiles page.
+  // Closing a direct edit puts the faces back as they were; the wizard keeps
+  // its corrections.
+  const closeReview = () => {
+    if (directEdit) setCapturedFaces(directEdit.before)
+    setShowReviewDialog(false)
+  }
   const analysis = analysisSamples(
     showBackdropDialog ? capturedFaces : {},
     FACE_ORDER,
@@ -439,9 +457,10 @@ export function ScannerAppView({ model }: { model: ScannerAppModel }) {
             onViewModeChange={setCubeViewMode}
             onEditSticker={(face, row, col) => {
               setReviewStep(FACE_ORDER.indexOf(face))
+              setReviewEditingCell(null)
               setReviewNotice(null)
+              setDirectEdit({ face, row, col, before: capturedFaces })
               setShowReviewDialog(true)
-              setReviewEditingCell({ face, row, col })
             }}
             onTurnStateChange={(value, moves, frame) =>
               setTurnedCube({ source: baseCube, value, moves, frame })
@@ -652,11 +671,16 @@ export function ScannerAppView({ model }: { model: ScannerAppModel }) {
           confidenceTier={confidenceTier}
           focusDialog={focusModalOnOpen}
           onDialogKeyDown={(event) =>
-            handleModalKeyDown(event, event.currentTarget, () =>
-              setShowReviewDialog(false),
-            )
+            handleModalKeyDown(event, event.currentTarget, () => closeReview())
           }
-          onClose={() => setShowReviewDialog(false)}
+          onClose={closeReview}
+          direct={directEdit}
+          onOk={() =>
+            // Corrections change the cube, so put it together again.
+            directEdit && capturedFaces !== directEdit.before
+              ? handleConfirmReview()
+              : setShowReviewDialog(false)
+          }
           onStepChange={setReviewStep}
           onEditCell={(face, row, col) =>
             setReviewEditingCell({ face, row, col })

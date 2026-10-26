@@ -519,6 +519,12 @@
   /* A sticker whose final color was set by hand, differing from what
      detection produced: the cell shows the human choice in its upper left
      half and what was detected in its lower right half. */
+  /* The sticker a direct edit came from. */
+  &.review-detected-cell-target {
+    outline: 3px solid var(--color-accent);
+    outline-offset: 2px;
+  }
+
   &.review-detected-cell-corrected {
     box-shadow:
       inset 0 0 0 3px #8b5cf6,
