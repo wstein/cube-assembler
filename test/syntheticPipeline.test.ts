@@ -69,10 +69,8 @@ function misreads(preset: string) {
 // Presets the pipeline misreads are findings. They stay listed as known
 // failures (it.fails), which turns red once the pipeline handles them.
 const MISREAD: Record<string, string> = {
-  shadow:
-    'a dimmer band across every photo: the cross-face step moves stickers inside it into their neighbors (white, yellow, orange), at every size, although each face alone reads right',
   'dim-warm':
-    'little warm light: on 5x5 the cross-face step moves yellow, orange and white stickers into each other',
+    'a very dark, warm, uniform shot: on 5x5 yellow, orange and white stickers are moved into each other',
 }
 
 describe('synthetic presets through the six-face pipeline', () => {

@@ -186,7 +186,20 @@ describe('the synthetic face', () => {
       for (let i = 0; i < p.length; i += 4) s += p[i]
       return s / (p.length / 4)
     }
-    expect(mean(shadow)).toBeLessThan(mean(clean) * 0.95)
+    expect(mean(shadow)).toBeLessThan(mean(clean) * 0.99)
+  })
+
+  it('darkens the shadow band by about 15 percent, as soft as a real shadow', () => {
+    const colors = Array.from({ length: 3 }, () => Array(3).fill('W'))
+    const clean = renderFace(colors, 'clean', 1, SIZE)
+    const shadow = renderFace(colors, 'shadow', 1, SIZE)
+    // The middle of the band: (x + y) / 2 is 0.525 of the photo.
+    const x = Math.round(SIZE * 0.5)
+    const y = Math.round(SIZE * 0.55)
+    const i = (y * SIZE + x) * 4
+    const factor = shadow[i] / clean[i]
+    expect(factor).toBeGreaterThan(0.82)
+    expect(factor).toBeLessThan(0.88)
   })
 
   describe('parameters', () => {

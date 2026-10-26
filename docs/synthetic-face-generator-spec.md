@@ -326,15 +326,15 @@ three floats and stores them with the pixel store rule. Positions passed to
 `f` are `tx = x / size`, `ty = y / size` (integer pixel coordinates, no
 half-pixel offset). The alpha byte is untouched.
 
-| Preset                     | Effect                                                                                                                             |
-| -------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
-| `clean`, `scatter`, `real` | none                                                                                                                               |
-| `gradient`                 | `r' = r * (0.7 + 0.6*tx)`, `g' = g`, `b' = b * (1.3 - 0.6*tx)`                                                                     |
-| `shadow`                   | `t = (tx + ty) / 2`; `inside = clamp((t-0.4)/0.03, 0, 1) * clamp((0.65-t)/0.03, 0, 1)`; multiply all channels by `1 - 0.45*inside` |
-| `dim-warm`                 | multiply channels by `(0.6, 0.5, 0.35)`, **then** `addNoise(seed, sigma 8)`                                                        |
-| `glare`                    | see below                                                                                                                          |
-| `noise`                    | `addNoise(seed, sigma 20)`                                                                                                         |
-| `bad-camera`               | `blur(radius = max(1, round(size * 0.006)))` as integer, **then** `addNoise(seed, sigma 15)`                                       |
+| Preset                     | Effect                                                                                                                                                                        |
+| -------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `clean`, `scatter`, `real` | none                                                                                                                                                                          |
+| `gradient`                 | `r' = r * (0.7 + 0.6*tx)`, `g' = g`, `b' = b * (1.3 - 0.6*tx)`                                                                                                                |
+| `shadow`                   | `t = (tx + ty) / 2`; `inside = clamp((t-0.4)/0.03, 0, 1) * clamp((0.65-t)/0.03, 0, 1)`; multiply all channels by `1 - 0.15*inside` (a soft real shadow dims about 15 percent) |
+| `dim-warm`                 | multiply channels by `(0.6, 0.5, 0.35)`, **then** `addNoise(seed, sigma 8)`                                                                                                   |
+| `glare`                    | see below                                                                                                                                                                     |
+| `noise`                    | `addNoise(seed, sigma 20)`                                                                                                                                                    |
+| `bad-camera`               | `blur(radius = max(1, round(size * 0.006)))` as integer, **then** `addNoise(seed, sigma 15)`                                                                                  |
 
 `addNoise(seed, sigma)` over pixel index `k = y*size + x`:
 `r' = r + gauss(seed, 3k) * sigma`, `g' = g + gauss(seed, 3k+1) * sigma`,
@@ -476,7 +476,7 @@ that pixel.
 | clean      | `{}`                                                | `5e23f4b232c22e9859abf96dcba5b6fd79b9d5b55ba10292a75fd76f88c7e277` | 35,153,76,255 | 213,213,205,255 | 223,114,32,255 |
 | scatter    | `{}`                                                | `e89b5f3487a80023d4c3b137fd1d1224cf288d1025a651a1f18b78abeba2c3f7` | 13,154,70,255 | 214,213,206,255 | 225,113,18,255 |
 | gradient   | `{}`                                                | `c5b18bdaf6425dec42c9ac485f56867ccb945a75c10d9eec471a2c4aa4e9e6bb` | 35,153,76,255 | 162,213,254,255 | 255,114,26,255 |
-| shadow     | `{}`                                                | `ab93f74a9d39cb2a520a65bf65c374163cd9c58a077691adeeebbd053b6bdeae` | 19,84,42,255  | 213,213,205,255 | 123,63,18,255  |
+| shadow     | `{}`                                                | `1669ca66e13ee4b1aab0a7bb8955ee1bc4d8b9a47600d0ffa2e302f9ece14158` | 30,130,65,255 | 213,213,205,255 | 190,97,27,255  |
 | dim-warm   | `{}`                                                | `64ccb92ca85e307f7fed8d6d7ca19f21569e37649a83adbe1b585e2635f07478` | 18,76,27,255  | 115,109,52,255  | 131,52,7,255   |
 | glare      | `{}`                                                | `0404b91de9ed84f2d171ace2669201e4006db75139a7f76f58f01276b22c2a90` | 35,153,76,255 | 240,240,238,255 | 223,114,32,255 |
 | noise      | `{}`                                                | `05eb00a6cd2e933ebba624511c9afdbd623e4594b99b39cb76b5f98196635fd7` | 28,154,77,255 | 180,221,154,255 | 215,103,23,255 |

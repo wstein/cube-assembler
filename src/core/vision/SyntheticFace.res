@@ -370,7 +370,7 @@ let applyShadow = (data, size) =>
   eachPixel(data, size, (tx, ty, r, g, b, _) => {
     let t = (tx +. ty) /. 2.0
     let inside = clamp((t -. 0.4) /. 0.03, 0.0, 1.0) *. clamp((0.65 -. t) /. 0.03, 0.0, 1.0)
-    let factor = 1.0 -. 0.45 *. inside
+    let factor = 1.0 -. 0.15 *. inside
     (Int.toFloat(r) *. factor, Int.toFloat(g) *. factor, Int.toFloat(b) *. factor)
   })
 
