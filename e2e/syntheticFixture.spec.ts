@@ -26,6 +26,22 @@ test('saves a solved cube as a synthetic fixture and switches the lighting', asy
   await expect(dialog).toHaveCount(0)
 })
 
+test('offers the real lighting and renders the photos in it', async ({
+  page,
+}) => {
+  await page.goto('/')
+  await page.getByRole('button', { name: 'Solved cube' }).click()
+  await page.getByRole('button', { name: 'Save as test fixture' }).click()
+  const dialog = page.getByRole('dialog', { name: 'Save as test fixture' })
+  const lighting = dialog.getByRole('combobox', { name: 'Lighting' })
+  await expect(lighting.getByRole('option', { name: 'real' })).toHaveCount(1)
+  await lighting.selectOption('real')
+  await expect(dialog.locator('dd', { hasText: /^real$/ })).toBeVisible()
+  await expect(
+    dialog.getByRole('list', { name: 'Photos in the zip' }).locator('li'),
+  ).toHaveCount(6)
+})
+
 test('saves a state that is no cube, marked invalid', async ({ page }) => {
   await page.goto('/')
   await page.getByRole('button', { name: 'Type colors' }).click()
