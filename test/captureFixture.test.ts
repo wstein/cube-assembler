@@ -116,6 +116,114 @@ describe('capture fixtures', () => {
     })
   })
 
+  describe('what the photo files said about themselves', () => {
+    const exif = { make: 'ACME', model: 'PhoneCam 9', iso: 400 }
+    const fingerprint = (face: string, seed: number) => ({
+      v: 1,
+      renderer: 'parametric/v1',
+      preset: 'dim-warm',
+      seed,
+      face,
+      size: 600,
+      options: { shadow: { strength: 0.2 } },
+      app: { version: '0.1.0', commit: 'abc1234' },
+    })
+    const withInfo = (
+      info: (face: string, index: number) => FaceCaptureData['photoInfo'],
+    ) =>
+      Object.fromEntries(
+        Object.entries(faces('image-file')).map(([face, data], index) => [
+          face,
+          { ...data, photoInfo: info(face.toLowerCase(), index) },
+        ]),
+      )
+
+    it('records the camera of imported photos from their EXIF', () => {
+      const meta = metaOf(
+        buildCaptureFixture(
+          input({ capturedFaces: withInfo(() => ({ exif })) }),
+        ),
+      )
+      expect(meta.capture.camera).toEqual({ source: 'exif', ...exif })
+      expect(meta.faces.u.exif).toEqual(exif)
+    })
+
+    it('has no camera when no photo had EXIF', () => {
+      const meta = metaOf(buildCaptureFixture(input()))
+      expect(meta.capture.camera).toBeNull()
+      expect(meta.faces.u.exif).toBeUndefined()
+    })
+
+    it('saves six fingerprinted photos as a synthetic fixture', () => {
+      const fixture = buildCaptureFixture(
+        input({
+          capturedFaces: withInfo((face, i) => ({
+            fingerprint: fingerprint(face, 7 + i),
+          })),
+        }),
+        new Date('2026-09-28T10:00:00Z'),
+      )
+      const meta = metaOf(fixture)
+      expect(fixture.name).toBe('synt-2x2-2026-09-28T10-00-00')
+      expect(meta.tags).toEqual([
+        'synthetic',
+        'software-rendered',
+        'preset:dim-warm',
+      ])
+      expect(meta.capture.synthetic).toEqual({
+        renderer: 'parametric/v1',
+        preset: 'dim-warm',
+        seed: 7,
+        size: 600,
+        seeds: { u: 7, r: 8, f: 9, d: 10, l: 11, b: 12 },
+        options: { shadow: { strength: 0.2 } },
+      })
+      expect(meta.faces.u.fingerprint.seed).toBe(7)
+    })
+
+    it('does not call a capture synthetic unless all six photos say so', () => {
+      const fixture = buildCaptureFixture(
+        input({
+          capturedFaces: withInfo((face, i) =>
+            i === 3 ? undefined : { fingerprint: fingerprint(face, 7 + i) },
+          ),
+        }),
+      )
+      expect(fixture.name).toMatch(/^cube-/)
+      expect(metaOf(fixture).capture.synthetic).toBeUndefined()
+      expect(metaOf(fixture).tags).toBeUndefined()
+    })
+
+    it('does not trust a photo whose fingerprint names another face', () => {
+      const meta = metaOf(
+        buildCaptureFixture(
+          input({
+            capturedFaces: withInfo((face, i) => ({
+              fingerprint: fingerprint(i === 2 ? 'u' : face, 7 + i),
+            })),
+          }),
+        ),
+      )
+      expect(meta.capture.synthetic).toBeUndefined()
+    })
+
+    it('does not call photos from different renders one synthetic cube', () => {
+      const meta = metaOf(
+        buildCaptureFixture(
+          input({
+            capturedFaces: withInfo((face, i) => ({
+              fingerprint: {
+                ...fingerprint(face, 7 + i),
+                preset: i === 0 ? 'clean' : 'dim-warm',
+              },
+            })),
+          }),
+        ),
+      )
+      expect(meta.capture.synthetic).toBeUndefined()
+    })
+  })
+
   it('keeps the camera and cube profile only for camera captures', () => {
     const cameraInfo = { label: 'Webcam' } as CaptureFixtureInput['cameraInfo']
     const uploaded = metaOf(buildCaptureFixture(input({ cameraInfo })))

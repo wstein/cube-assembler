@@ -74,7 +74,86 @@ let faceRecord = (face: faceCaptureData) => {
   add("sharpness", face.sharpness->Option.map(sharpness => JSON.Number(round1(sharpness))))
   add("camera", face.cameraSettings->Option.map(json))
   add("previewColorProfile", face.previewColorProfile->Option.map(json))
+  add("fingerprint", face.photoInfo->Option.flatMap(info => info.fingerprint))
+  add("exif", face.photoInfo->Option.flatMap(info => info.exif)->Option.map(json))
   record
+}
+
+external toDict: 'a => Dict.t<JSON.t> = "%identity"
+
+let fingerprintOf = (face: faceCaptureData) =>
+  face.photoInfo->Option.flatMap(info => info.fingerprint)
+let fieldOf = (json, key) =>
+  switch json {
+  | JSON.Object(fields) => fields->Dict.get(key)
+  | _ => None
+  }
+
+// The camera of imported photos: the first photo's EXIF, marked as such.
+let exifCamera = (faces: array<faceCaptureData>) =>
+  switch faces->Array.findMap(face => face.photoInfo->Option.flatMap(info => info.exif)) {
+  | Some(exif) =>
+    let camera = Dict.fromArray([("source", JSON.String("exif"))])
+    JSON.Object(Dict.assign(camera, toDict(exif)))
+  | None => JSON.Null
+  }
+
+// What the six photos' fingerprints say when they all come from one render:
+// the same renderer, preset, size and options, and each photo the seed of
+// its own face. None when any photo lacks it or they disagree.
+let syntheticOf = (faces: array<faceCaptureData>) => {
+  let fingerprints = faces->Array.map(fingerprintOf)
+  let all = fingerprints->Array.every(Option.isSome)
+  switch (all, fingerprints->Array.getUnsafe(0)) {
+  | (true, Some(first)) =>
+    let shared = key => fieldOf(first, key)
+    let agrees = fingerprint =>
+      ["renderer", "preset", "size", "options"]->Array.every(key =>
+        JSON.stringify(fieldOf(fingerprint, key)->Option.getOr(JSON.Null)) ==
+          JSON.stringify(shared(key)->Option.getOr(JSON.Null))
+      )
+    let same =
+      fingerprints->Array.every(fingerprint => fingerprint->Option.map(agrees)->Option.getOr(false))
+    // The fingerprints name faces in lower case (u, r, f, d, l, b).
+    let seeds = CaptureSteps.faceOrder->Array.mapWithIndex((name, i) => {
+      let face = String.toLowerCase(name)
+      let fingerprint = fingerprints->Array.getUnsafe(i)
+      switch (
+        fingerprint->Option.flatMap(f => fieldOf(f, "seed")),
+        fingerprint->Option.flatMap(f => fieldOf(f, "face")),
+      ) {
+      | (Some(JSON.Number(seed)), Some(JSON.String(named))) if named == face =>
+        Some((face, JSON.Number(seed)))
+      | _ => None
+      }
+    })
+    switch (
+      same,
+      shared("renderer"),
+      shared("preset"),
+      shared("size"),
+      seeds->Array.every(Option.isSome),
+    ) {
+    | (true, Some(JSON.String(_) as renderer), Some(JSON.String(preset)), Some(size), true) =>
+      let seeds = seeds->Array.filterMap(x => x)
+      let (_, firstSeed) = seeds->Array.getUnsafe(0)
+      Some((
+        preset,
+        JSON.Object(
+          Dict.fromArray([
+            ("renderer", renderer),
+            ("preset", JSON.String(preset)),
+            ("seed", firstSeed),
+            ("size", size),
+            ("seeds", JSON.Object(Dict.fromArray(seeds))),
+            ("options", shared("options")->Option.getOr(JSON.Object(Dict.make()))),
+          ]),
+        ),
+      ))
+    | _ => None
+    }
+  | _ => None
+  }
 }
 
 let nullable = (value, f) =>
@@ -93,6 +172,8 @@ let captureFixtureRequest = (input: captureFixtureInput): FixtureZip.fixtureRequ
     order->Array.map(face => (face, faceRecord(capturedFaces->faceOf(face)))),
   )
   let fromCamera = order->Array.some(face => (capturedFaces->faceOf(face)).source == Some(Camera))
+  let faceList = order->Array.map(face => capturedFaces->faceOf(face))
+  let synthetic = syntheticOf(faceList)
   let meta = Dict.fromArray([
     ("capturedAt", JSON.String(Date.make()->toISOString)),
     (
@@ -118,7 +199,8 @@ let captureFixtureRequest = (input: captureFixtureInput): FixtureZip.fixtureRequ
     ("mirrored", JSON.Boolean(input.mirrored)),
     // Only meaningful when at least one face was shot with it - not for a
     // re-saved uploaded fixture or imported image files.
-    ("camera", fromCamera ? input.cameraInfo : JSON.Null),
+    // For imported photos it is what their EXIF says.
+    ("camera", fromCamera ? input.cameraInfo : exifCamera(faceList)),
     // The cube profile the capture was taken with - same condition as
     // camera, since a re-saved upload wasn't shot with the current one.
     ("profile", fromCamera ? input.captureProfile : JSON.Null),
@@ -195,6 +277,12 @@ let captureFixtureRequest = (input: captureFixtureInput): FixtureZip.fixtureRequ
     // problem against this exact fixture.
     ("colorStats", json(ColorStats.computeColorStats(Obj.magic(capturedFaces), input.puzzleSize))),
   ])
+  // Photos a generator rendered, all six from one render, are a synthetic
+  // fixture whatever the app was told: it says so in its name, tags and meta.
+  switch synthetic {
+  | Some((_, summary)) => meta->Dict.set("synthetic", summary)
+  | None => ()
+  }
   let grids = pick =>
     NotationOutput.gridsToWRGFacelets(
       Dict.fromArray(order->Array.map(face => (face, pick(capturedFaces->faceOf(face))))),
@@ -204,6 +292,14 @@ let captureFixtureRequest = (input: captureFixtureInput): FixtureZip.fixtureRequ
     colorsURFDLB: JSON.String(grids((face: faceCaptureData) => face.colors)),
     faces: Nullable.make(faces),
     meta: JSON.Object(meta),
+  }
+  let request = switch synthetic {
+  | Some((preset, _)) => {
+      ...request,
+      namePrefix: "synt",
+      tags: ["synthetic", "software-rendered", `preset:${preset}`],
+    }
+  | None => request
   }
   // What detection said before any hand correction - the diff against
   // colorsURFDLB is exactly what a human had to fix.

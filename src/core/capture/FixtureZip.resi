@@ -1,6 +1,9 @@
 @genType
 type fixtureRequest = {
   name?: string,
+  // What the default name starts with in place of `cube` (synt for synthetic
+  // photos); ignored when a name is given.
+  namePrefix?: string,
   gridSize: float,
   colorsURFDLB: JSON.t,
   detectedURFDLB?: JSON.t,

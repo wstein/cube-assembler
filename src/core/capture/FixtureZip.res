@@ -23,6 +23,9 @@ let field = (value: option<JSON.t>, key) =>
 
 type fixtureRequest = {
   name?: string,
+  // What the default name starts with in place of `cube` (synt for synthetic
+  // photos); ignored when a name is given.
+  namePrefix?: string,
   gridSize: float,
   // Human-verified colors of all 6 faces as one WRG facelets string in
   // U R F D L B order (each face row-major, as photographed).
@@ -100,7 +103,10 @@ let fixtureLayout = (request: fixtureRequest, now: string) => {
   // The zip's folder name, and so the fixture's directory name: whole UTC
   // seconds.
   let timestamp = now->String.slice(~start=0, ~end=19)->String.replaceRegExp(colons, "-")
-  let rawName = request.name->Option.getOr(`cube-${size}x${size}-${timestamp}`)
+  let rawName =
+    request.name->Option.getOr(
+      `${request.namePrefix->Option.getOr("cube")}-${size}x${size}-${timestamp}`,
+    )
   let name = rawName->String.replaceRegExp(unsafeName, "-")->String.slice(~start=0, ~end=80)
   if name == "" {
     fail("Invalid fixture name")
@@ -317,10 +323,7 @@ let summarizeMeta = (meta: JSON.t) => {
   if truthy(synthetic) {
     rows->Array.push(("Lighting", show(field(synthetic, "preset"))))
     let invalid = field(synthetic, "invalid")
-    rows->Array.push((
-      "State",
-      truthy(invalid) ? `invalid: ${show(invalid)}` : "a valid cube",
-    ))
+    rows->Array.push(("State", truthy(invalid) ? `invalid: ${show(invalid)}` : "a valid cube"))
   }
   let camera = field(capture, "camera")
   if truthy(camera) {

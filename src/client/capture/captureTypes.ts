@@ -1,4 +1,5 @@
 import type { FaceCaptureResult } from '../vision/faceDetection'
+import type { exif as CameraExif } from '../../core/capture/PhotoMetadata.gen'
 import type { RGB } from '../vision/stickerColorGeometry'
 
 export interface PreviewColorProfile {
@@ -40,6 +41,9 @@ export interface FaceCaptureData {
   // The color profile that read this face at capture time: Automatic's
   // preview choice (or the selected profile); absent when none was used.
   previewColorProfile?: PreviewColorProfile
+  // What the imported photo file said about itself: the fingerprint a
+  // generator wrote into it and the camera's EXIF. Absent for live shots.
+  photoInfo?: { fingerprint?: unknown; exif?: CameraExif }
   // Where the photo came from: the live camera, an imported image file, or
   // an uploaded fixture. Absent for faces without a photo (manual input).
   source?: 'camera' | 'image-file' | 'fixture'

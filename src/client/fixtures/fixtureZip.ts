@@ -12,6 +12,8 @@ const decoder = new TextDecoder()
 
 export interface FixtureRequest {
   name?: string
+  // What the default name starts with in place of `cube`.
+  namePrefix?: string
   gridSize: number
   // Human-verified colors of all 6 faces as one WRG facelets string in
   // U R F D L B order (each face row-major, as photographed), e.g.

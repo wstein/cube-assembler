@@ -18,7 +18,12 @@ type source = | @as("camera") Camera | @as("image-file") ImageFile | @as("fixtur
 @genType
 type previewColorProfile = {id: string, name: string, colors: Dict.t<StickerGeometry.rgb>}
 
-@genType
+// What the photo file said about itself when it was imported (see
+// PhotoMetadata): the generator's fingerprint and the camera's EXIF.
+
+@genType @genType
+type photoInfo = {fingerprint?: JSON.t, exif?: PhotoMetadata.exif}
+
 type faceCaptureData = {
   colors: array<array<string>>,
   detectedColors?: array<array<string>>,
@@ -33,6 +38,7 @@ type faceCaptureData = {
   sharpness?: float,
   cameraSettings?: cameraSettings,
   previewColorProfile?: previewColorProfile,
+  photoInfo?: photoInfo,
   source?: source,
   outOfOrder?: bool,
   timestamp: float,
