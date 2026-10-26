@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   HUE_CUT,
   hueAxis,
+  hueBarColor,
   hueScatter,
   colorDelta,
   meansByLabel,
@@ -28,6 +29,21 @@ describe('the hue scatter', () => {
     expect(HUE_CUT).toBe(330)
     expect(hueAxis(330)).toBe(0)
     expect(hueAxis(329.9)).toBeGreaterThan(359)
+  })
+
+  it('colors the hue bar with the most saturated color each hue allows', () => {
+    for (let hue = 0; hue < 360; hue += 30) {
+      const rgbColor = hueBarColor(hue, 0.65)
+      const color = rgbToOKLCH(rgbColor)
+      // Not pastel: a channel sits at the edge of the sRGB cube.
+      const channels = [rgbColor.r, rgbColor.g, rgbColor.b]
+      expect(Math.min(...channels) <= 2 || Math.max(...channels) >= 253).toBe(
+        true,
+      )
+      expect(color.l).toBeCloseTo(0.65, 1)
+      const off = Math.abs(((color.h - hue + 540) % 360) - 180)
+      expect(off).toBeLessThan(3)
+    }
   })
 
   it('has one point per sticker, with its lightness and final color', () => {

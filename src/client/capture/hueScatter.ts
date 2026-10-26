@@ -1,6 +1,7 @@
 export {
   colorDelta,
   hueAxis,
+  hueBarColor,
   hueCut as HUE_CUT,
   hueScatter,
   meansByLabel,

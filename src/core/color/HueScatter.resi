@@ -13,6 +13,7 @@ type point = {
 @genType let neutralChroma: float
 @genType let hueCut: float
 @genType let hueAxis: float => float
+@genType let hueBarColor: (float, float) => StickerGeometry.rgb
 @genType let hueScatter: array<sample> => array<point>
 @genType let meansByLabel: array<sample> => Dict.t<StickerGeometry.rgb>
 @genType let colorDelta: (StickerGeometry.rgb, StickerGeometry.rgb) => float

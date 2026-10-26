@@ -33,6 +33,36 @@ let hueAxis = hue => {
   shifted < 0.0 ? shifted +. 360.0 : shifted
 }
 
+// Whether an OKLCH color fits the sRGB cube (checked before any clamping).
+let inGamut = (l, c, hue) => {
+  let rad = hue *. Math.Constants.pi /. 180.0
+  let a = c *. Math.cos(rad)
+  let b = c *. Math.sin(rad)
+  let l_ = l +. 0.3963377774 *. a +. 0.2158037573 *. b
+  let m_ = l -. 0.1055613458 *. a -. 0.0638541728 *. b
+  let s_ = l -. 0.0894841775 *. a -. 1.291485548 *. b
+  let l3 = l_ *. l_ *. l_
+  let m3 = m_ *. m_ *. m_
+  let s3 = s_ *. s_ *. s_
+  let fits = v => v >= -1e-4 && v <= 1.0001
+  fits(4.0767416621 *. l3 -. 3.3077115913 *. m3 +. 0.2309699292 *. s3) &&
+  fits(-1.2684380046 *. l3 +. 2.6097574011 *. m3 -. 0.3413193965 *. s3) &&
+  fits(-0.0041960863 *. l3 -. 0.7034186147 *. m3 +. 1.707614701 *. s3)
+}
+
+// The most saturated color of a true hue at lightness `l`: the chroma
+// grows until the color leaves the sRGB cube. For the hue axis' color bar.
+let hueBarColor = (hue, l) => {
+  let lo = ref(0.0)
+  let hi = ref(0.4)
+  for _ in 1 to 30 {
+    let mid = (lo.contents +. hi.contents) /. 2.0
+    inGamut(l, mid, hue) ? lo := mid : hi := mid
+  }
+  let rad = hue *. Math.Constants.pi /. 180.0
+  ColorMath.oklabToRgb({l, a: lo.contents *. Math.cos(rad), b: lo.contents *. Math.sin(rad)})
+}
+
 // Where each sticker sits: hue against lightness. Red and orange overlap in
 // hue alone but orange is lighter, so the two clouds stay apart.
 let hueScatter = (samples: array<sample>) => {

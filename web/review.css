@@ -867,6 +867,22 @@
   }
 }
 
+.hue-scatter-lens-glass {
+  fill: var(--color-bg-primary, #fff);
+}
+
+.hue-scatter-lens-ring {
+  fill: none;
+  stroke: var(--color-text-primary);
+  stroke-width: 1.5;
+}
+
+.hue-scatter-lens-cross {
+  stroke: var(--color-text-primary);
+  stroke-width: 0.6;
+  fill: none;
+}
+
 .hue-scatter-label {
   font-size: 10px;
   font-weight: 600;

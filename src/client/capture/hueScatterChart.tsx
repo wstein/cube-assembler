@@ -1,5 +1,10 @@
-import { oklabToRgb } from '../../core/color/ColorMath.gen'
-import { HUE_CUT, hueScatter, type LocatedSample } from './hueScatter'
+import { useState } from 'preact/hooks'
+import {
+  HUE_CUT,
+  hueBarColor,
+  hueScatter,
+  type LocatedSample,
+} from './hueScatter'
 
 const NAME: Record<string, string> = {
   W: 'white',
@@ -17,7 +22,7 @@ const GRAY_WIDTH = 100
 const GAP = 14
 const LEFT = 38
 const TOP = 22
-const BOTTOM = 42
+const BOTTOM = 58
 // Room right of the gray panel, so its last tick label is not cut off.
 const RIGHT = 14
 // Lightness shown: below this no sticker sits, above 1 nothing can.
@@ -27,28 +32,52 @@ const L_MIN = 0.3
 // degrees, the small gray one every 90.
 const HUE_TICKS = Array.from({ length: 13 }, (_, i) => i * 30)
 const GRAY_TICKS = [0, 90, 180, 270, 360]
+// Hue tick labels are turned by this many degrees so they never touch.
+const TICK_ANGLE = 45
+// The lens: radius and magnification, in chart units.
+const LENS_R = 30
+const LENS_ZOOM = 4
 // Thickness of the color bars along the axes.
 const BAR = 5
 const BAR_GAP = 2
-const clamp = (v: number) => Math.max(0, Math.min(255, Math.round(v)))
-const bar = (l: number, c: number, hue: number) => {
-  const rad = (hue * Math.PI) / 180
-  const rgb = oklabToRgb({ l, a: c * Math.cos(rad), b: c * Math.sin(rad) })
-  return `rgb(${clamp(rgb.r)} ${clamp(rgb.g)} ${clamp(rgb.b)})`
+// The bar shows each hue at its most saturated, at a middle lightness.
+const bar = (hue: number) => {
+  const c = hueBarColor(hue, 0.65)
+  return `rgb(${c.r} ${c.g} ${c.b})`
+}
+// Gray at OKLCH lightness l: the sRGB value is the cube of l, gamma encoded.
+const grayBar = (l: number) => {
+  const linear = l ** 3
+  const v = Math.round(
+    255 *
+      (linear <= 0.0031308
+        ? linear * 12.92
+        : 1.055 * linear ** (1 / 2.4) - 0.055),
+  )
+  return `rgb(${v} ${v} ${v})`
 }
 // The hue bar: each stop is the true hue at its axis position.
 const HUE_STOPS = Array.from({ length: 25 }, (_, i) => ({
   offset: i / 24,
-  color: bar(0.75, 0.12, (i * 15 + HUE_CUT) % 360),
+  color: bar((i * 15 + HUE_CUT) % 360),
 }))
 // The lightness bar, gray from L 1 at the top down to L_MIN.
 const L_STOPS = Array.from({ length: 8 }, (_, i) => ({
   offset: i / 7,
-  color: bar(1 - ((1 - L_MIN) * i) / 7, 0, 0),
+  color: grayBar(1 - ((1 - L_MIN) * i) / 7),
 }))
 // Lightness from 1 down to L_MIN in steps of 0.1.
 const L_TICKS = Array.from({ length: 8 }, (_, i) => 1 - i / 10)
 const trueHue = (axisHue: number) => (axisHue + HUE_CUT) % 360
+
+// The lens sits up and to the right of the pointer so it does not cover the
+// dot being pointed at, and flips left near the right edge.
+const CHART_WIDTH = LEFT + WIDTH + GAP + GRAY_WIDTH + RIGHT
+const lensX = (p: { x: number }) =>
+  p.x + LENS_R + 14 + LENS_R > CHART_WIDTH
+    ? p.x - LENS_R - 14
+    : p.x + LENS_R + 14
+const lensY = (p: { y: number }) => Math.max(LENS_R + 2, p.y - LENS_R - 14)
 
 // Positions take the hue on the cut axis, 0 to 360.
 const x = (axis: number) => LEFT + (axis / 360) * WIDTH
@@ -75,6 +104,7 @@ export function HueScatterChart({
   hovered: number | null
   onHover: (index: number | null) => void
 }) {
+  const [lens, setLens] = useState<{ x: number; y: number } | null>(null)
   const grayLeft = LEFT + WIDTH + GAP
   const points = hueScatter(samples)
   const counts: Record<string, number> = {}
@@ -98,165 +128,215 @@ export function HueScatterChart({
     <>
       <svg
         class="hue-scatter"
-        viewBox={`0 0 ${LEFT + WIDTH + GAP + GRAY_WIDTH + RIGHT} ${TOP + HEIGHT + BOTTOM}`}
+        viewBox={`0 0 ${CHART_WIDTH} ${TOP + HEIGHT + BOTTOM}`}
         role="img"
         aria-label="Stickers by hue and lightness"
+        onMouseMove={(e) => {
+          const svg = e.currentTarget
+          const m = svg.getScreenCTM()
+          if (!m) return
+          const at = svg.createSVGPoint()
+          at.x = e.clientX
+          at.y = e.clientY
+          const p = at.matrixTransform(m.inverse())
+          setLens({ x: p.x, y: p.y })
+        }}
+        onMouseLeave={() => setLens(null)}
       >
-        <rect
-          class="hue-scatter-gray"
-          x={grayLeft}
-          y={TOP}
-          width={GRAY_WIDTH}
-          height={HEIGHT}
-        />
-        {L_TICKS.map((l) => (
-          <g key={l}>
-            <line
-              class="hue-scatter-grid"
-              x1={LEFT}
-              x2={LEFT + WIDTH}
-              y1={y(l)}
-              y2={y(l)}
-            />
-            <line
-              class="hue-scatter-grid"
-              x1={grayLeft}
-              x2={grayLeft + GRAY_WIDTH}
-              y1={y(l)}
-              y2={y(l)}
-            />
-            <text
-              class="hue-scatter-l-tick"
-              x={LEFT - BAR - BAR_GAP - 3}
-              y={y(l) + 3}
-              text-anchor="end"
+        <g id="hue-scatter-plot">
+          <rect
+            class="hue-scatter-gray"
+            x={grayLeft}
+            y={TOP}
+            width={GRAY_WIDTH}
+            height={HEIGHT}
+          />
+          {L_TICKS.map((l) => (
+            <g key={l}>
+              <line
+                class="hue-scatter-grid"
+                x1={LEFT}
+                x2={LEFT + WIDTH}
+                y1={y(l)}
+                y2={y(l)}
+              />
+              <line
+                class="hue-scatter-grid"
+                x1={grayLeft}
+                x2={grayLeft + GRAY_WIDTH}
+                y1={y(l)}
+                y2={y(l)}
+              />
+              <text
+                class="hue-scatter-l-tick"
+                x={LEFT - BAR - BAR_GAP - 3}
+                y={y(l) + 3}
+                text-anchor="end"
+              >
+                {Number(l.toFixed(1))}
+              </text>
+            </g>
+          ))}
+          <defs>
+            <linearGradient
+              id="hue-scatter-hue-bar"
+              x1="0"
+              x2="1"
+              y1="0"
+              y2="0"
             >
-              {Number(l.toFixed(1))}
-            </text>
-          </g>
-        ))}
-        <defs>
-          <linearGradient id="hue-scatter-hue-bar" x1="0" x2="1" y1="0" y2="0">
-            {HUE_STOPS.map((stop) => (
-              <stop
-                key={stop.offset}
-                offset={stop.offset}
-                stop-color={stop.color}
+              {HUE_STOPS.map((stop) => (
+                <stop
+                  key={stop.offset}
+                  offset={stop.offset}
+                  stop-color={stop.color}
+                />
+              ))}
+            </linearGradient>
+            <linearGradient id="hue-scatter-l-bar" x1="0" x2="0" y1="0" y2="1">
+              {L_STOPS.map((stop) => (
+                <stop
+                  key={stop.offset}
+                  offset={stop.offset}
+                  stop-color={stop.color}
+                />
+              ))}
+            </linearGradient>
+          </defs>
+          <rect
+            class="hue-scatter-bar hue-scatter-l-bar"
+            x={LEFT - BAR - BAR_GAP}
+            y={TOP}
+            width={BAR}
+            height={HEIGHT}
+            fill="url(#hue-scatter-l-bar)"
+          />
+          {[
+            { position: x, ticks: HUE_TICKS, left: LEFT, width: WIDTH },
+            {
+              position: grayX,
+              ticks: GRAY_TICKS,
+              left: grayLeft,
+              width: GRAY_WIDTH,
+            },
+          ].map(({ position, ticks, left, width }, panel) => (
+            <g key={panel}>
+              <rect
+                class="hue-scatter-bar hue-scatter-hue-bar"
+                x={left}
+                y={TOP + HEIGHT + BAR_GAP}
+                width={width}
+                height={BAR}
+                fill="url(#hue-scatter-hue-bar)"
               />
-            ))}
-          </linearGradient>
-          <linearGradient id="hue-scatter-l-bar" x1="0" x2="0" y1="0" y2="1">
-            {L_STOPS.map((stop) => (
-              <stop
-                key={stop.offset}
-                offset={stop.offset}
-                stop-color={stop.color}
-              />
-            ))}
-          </linearGradient>
-        </defs>
-        <rect
-          class="hue-scatter-bar hue-scatter-l-bar"
-          x={LEFT - BAR - BAR_GAP}
-          y={TOP}
-          width={BAR}
-          height={HEIGHT}
-          fill="url(#hue-scatter-l-bar)"
-        />
-        {[
-          { position: x, ticks: HUE_TICKS, left: LEFT, width: WIDTH },
-          {
-            position: grayX,
-            ticks: GRAY_TICKS,
-            left: grayLeft,
-            width: GRAY_WIDTH,
-          },
-        ].map(({ position, ticks, left, width }, panel) => (
-          <g key={panel}>
-            <rect
-              class="hue-scatter-bar hue-scatter-hue-bar"
-              x={left}
-              y={TOP + HEIGHT + BAR_GAP}
-              width={width}
-              height={BAR}
-              fill="url(#hue-scatter-hue-bar)"
-            />
-            {ticks.map((axis) => {
-              const hue = (axis + HUE_CUT) % 360
+              {ticks.map((axis) => {
+                const hue = (axis + HUE_CUT) % 360
+                return (
+                  <g key={axis}>
+                    <line
+                      class="hue-scatter-hue-grid"
+                      x1={position(axis)}
+                      x2={position(axis)}
+                      y1={TOP}
+                      y2={TOP + HEIGHT + BAR_GAP + BAR}
+                    />
+                    <text
+                      class={`hue-scatter-hue-tick${panel === 0 && axis % 60 !== 0 ? ' hue-scatter-tick-minor' : ''}`}
+                      x={position(axis)}
+                      y={TOP + HEIGHT + BAR_GAP + BAR + 10}
+                      text-anchor="end"
+                      transform={`rotate(${-TICK_ANGLE} ${position(axis)} ${TOP + HEIGHT + BAR_GAP + BAR + 10})`}
+                    >
+                      {panel === 1 ? hue : `${hue}°`}
+                    </text>
+                  </g>
+                )
+              })}
+            </g>
+          ))}
+          {[...points.keys()]
+            .sort((a, b) => Number(a === hovered) - Number(b === hovered))
+            .map((i) => {
+              const point = points[i]
+              const cx = point.neutral ? grayX(point.hue) : x(point.hue)
               return (
-                <g key={axis}>
-                  <line
-                    class="hue-scatter-hue-grid"
-                    x1={position(axis)}
-                    x2={position(axis)}
-                    y1={TOP}
-                    y2={TOP + HEIGHT + BAR_GAP + BAR}
-                  />
-                  <text
-                    class={`hue-scatter-hue-tick${panel === 0 && axis % 60 !== 0 ? ' hue-scatter-tick-minor' : ''}`}
-                    x={position(axis)}
-                    y={TOP + HEIGHT + BAR_GAP + BAR + 10}
-                    text-anchor="middle"
-                  >
-                    {panel === 1 ? hue : `${hue}°`}
-                  </text>
-                </g>
+                <circle
+                  key={i}
+                  class={`hue-scatter-dot${hovered === i ? ' hue-scatter-hovered' : ''}`}
+                  cx={cx}
+                  cy={y(point.l)}
+                  r={hovered === i ? 5 : 3}
+                  onMouseEnter={() => onHover(i)}
+                  onMouseLeave={() => onHover(null)}
+                  fill={css(samples[i].rgb)}
+                />
               )
             })}
-          </g>
-        ))}
-        {[...points.keys()]
-          .sort((a, b) => Number(a === hovered) - Number(b === hovered))
-          .map((i) => {
-            const point = points[i]
-            const cx = point.neutral ? grayX(point.hue) : x(point.hue)
-            return (
-              <circle
-                key={i}
-                class={`hue-scatter-dot${hovered === i ? ' hue-scatter-hovered' : ''}`}
-                cx={cx}
-                cy={y(point.l)}
-                r={hovered === i ? 5 : 3}
-                onMouseEnter={() => onHover(i)}
-                onMouseLeave={() => onHover(null)}
-                fill={css(samples[i].rgb)}
-              />
-            )
-          })}
-        {Object.entries(sums).map(([label, sum]) => (
-          <text
-            key={label}
-            class="hue-scatter-label"
-            x={x(sum.hue / sum.n)}
-            y={y(sum.l / sum.n) - 22}
-            text-anchor="middle"
-          >
-            {label} {counts[label]}
+          {Object.entries(sums).map(([label, sum]) => (
+            <text
+              key={label}
+              class="hue-scatter-label"
+              x={x(sum.hue / sum.n)}
+              y={y(sum.l / sum.n) - 22}
+              text-anchor="middle"
+            >
+              {label} {counts[label]}
+            </text>
+          ))}
+          {counts.W && (
+            <text
+              class="hue-scatter-label"
+              x={grayLeft + GRAY_WIDTH / 2}
+              y={TOP + 8}
+              text-anchor="middle"
+            >
+              W {counts.W}
+            </text>
+          )}
+          <text x={LEFT + WIDTH / 2} y={TOP + HEIGHT + 54} text-anchor="middle">
+            hue
           </text>
-        ))}
-        {counts.W && (
+          <text x={4} y={TOP - 10}>
+            lighter ↑
+          </text>
           <text
-            class="hue-scatter-label"
             x={grayLeft + GRAY_WIDTH / 2}
-            y={TOP + 8}
+            y={TOP + HEIGHT + 54}
             text-anchor="middle"
           >
-            W {counts.W}
+            gray
           </text>
+        </g>
+        {lens && (
+          <g class="hue-scatter-lens" pointer-events="none">
+            <clipPath id="hue-scatter-lens-clip">
+              <circle cx={lensX(lens)} cy={lensY(lens)} r={LENS_R} />
+            </clipPath>
+            <circle
+              class="hue-scatter-lens-glass"
+              cx={lensX(lens)}
+              cy={lensY(lens)}
+              r={LENS_R}
+            />
+            <g clip-path="url(#hue-scatter-lens-clip)">
+              <g
+                transform={`translate(${lensX(lens)} ${lensY(lens)}) scale(${LENS_ZOOM}) translate(${-lens.x} ${-lens.y})`}
+              >
+                <use href="#hue-scatter-plot" />
+              </g>
+            </g>
+            <circle
+              class="hue-scatter-lens-ring"
+              cx={lensX(lens)}
+              cy={lensY(lens)}
+              r={LENS_R}
+            />
+            <path
+              class="hue-scatter-lens-cross"
+              d={`M${lensX(lens) - 5} ${lensY(lens)}h10M${lensX(lens)} ${lensY(lens) - 5}v10`}
+            />
+          </g>
         )}
-        <text x={LEFT + WIDTH / 2} y={TOP + HEIGHT + 38} text-anchor="middle">
-          hue
-        </text>
-        <text x={4} y={TOP - 10}>
-          lighter ↑
-        </text>
-        <text
-          x={grayLeft + GRAY_WIDTH / 2}
-          y={TOP + HEIGHT + 38}
-          text-anchor="middle"
-        >
-          gray
-        </text>
       </svg>
       <p class="hue-scatter-info" role="status">
         {hovered === null
