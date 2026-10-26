@@ -14,12 +14,6 @@ type point = {
   chroma: float,
   // Too gray to have a usable hue (white stickers).
   neutral: bool,
-  // Sits with another color's stickers than the one it ended up as (see
-  // hueScatter).
-  misplaced: bool,
-  // The color whose cloud it sits in: its own unless misplaced. White has no
-  // hue, so a colored sticker is never "in" the whites.
-  sitsWith: string,
 }
 
 // The hue circle is cut at this angle, between blue and red, so that red
@@ -38,18 +32,8 @@ let hueAxis = hue => {
   shifted < 0.0 ? shifted +. 360.0 : shifted
 }
 
-// How far apart two stickers sit on the chart, in units where 20 degrees of
-// hue and 0.15 of lightness count the same.
-let chartDistance = (a: point, b: point) => {
-  let dh = (a.hue -. b.hue) /. 20.0
-  let dl = (a.l -. b.l) /. 0.15
-  Math.sqrt(dh *. dh +. dl *. dl)
-}
-
 // Where each sticker sits: hue against lightness. Red and orange overlap in
-// hue alone but orange is lighter, so the two clouds stay apart. A sticker
-// is misplaced when it sits nearer another color's cloud than its own (a
-// gray one when it isn't white, a colored one when it is).
+// hue alone but orange is lighter, so the two clouds stay apart.
 let hueScatter = (samples: array<sample>) => {
   let lch = samples->Array.map(sample => ColorMath.rgbToOKLCH(sample.rgb))
   let count = Array.length(samples)
@@ -70,7 +54,7 @@ let hueScatter = (samples: array<sample>) => {
     | Some(limit) => c <= limit
     | None => c < neutralChroma
     }
-  let base = samples->Array.mapWithIndex((sample, i) => {
+  samples->Array.mapWithIndex((sample, i) => {
     let lch = lch->Array.getUnsafe(i)
     {
       label: sample.label,
@@ -78,47 +62,8 @@ let hueScatter = (samples: array<sample>) => {
       l: lch.l,
       chroma: lch.c,
       neutral: isNeutral(lch.c),
-      misplaced: false,
-      sitsWith: sample.label,
     }
   })
-  // Each color's cloud center, from its colored stickers (white has none).
-  let sums: Dict.t<(float, float, int)> = Dict.make()
-  base->Array.forEach(point =>
-    if !point.neutral && point.label != "W" {
-      let (h, l, n) = sums->Dict.get(point.label)->Option.getOr((0.0, 0.0, 0))
-      sums->Dict.set(point.label, (h +. point.hue, l +. point.l, n + 1))
-    }
-  )
-  let centers =
-    sums
-    ->Dict.toArray
-    ->Array.map(((label, (h, l, n))) => {
-      let count = Int.toFloat(n)
-      {
-        label,
-        hue: h /. count,
-        l: l /. count,
-        chroma: 0.0,
-        neutral: false,
-        misplaced: false,
-        sitsWith: label,
-      }
-    })
-  base->Array.map(point =>
-    if point.neutral {
-      {...point, misplaced: point.label != "W", sitsWith: "W"}
-    } else {
-      let nearest = centers->Array.reduce(None, (best, center) =>
-        switch best {
-        | Some((_, distance)) if distance <= chartDistance(point, center) => best
-        | _ => Some((center.label, chartDistance(point, center)))
-        }
-      )
-      let sitsWith = nearest->Option.mapOr(point.label, ((label, _)) => label)
-      {...point, misplaced: point.label == "W" || sitsWith != point.label, sitsWith}
-    }
-  )
 }
 
 // The mean sticker color per final color: the palette the corrected capture

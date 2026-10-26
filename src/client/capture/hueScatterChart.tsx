@@ -32,8 +32,7 @@ const css = (c: { r: number; g: number; b: number }) =>
 
 // Each sticker as a dot by hue (across) and lightness (up), in its own
 // color. Red and orange share hues but orange is lighter, so they form two
-// clouds. Each cloud is named with its sticker count; a ringed dot sits with another color's
-// stickers than the one it ended up as. Gray stickers (white) have no hue
+// clouds. Each cloud is named with its sticker count. Gray stickers (white) have no hue
 // and stand in their own column.
 export function HueScatterChart({
   samples,
@@ -63,11 +62,7 @@ export function HueScatterChart({
     const where = samples[i].where ? `${samples[i].where}: ` : ''
     const hue = Math.round((point.hue + HUE_CUT) % 360)
     const kind = `L ${point.l.toFixed(2)}, C ${point.chroma.toFixed(2)}, h ${hue}°`
-    return `${where}${name(point.label)} (${kind}) - ${
-      point.misplaced
-        ? `sits with ${point.neutral ? 'the whites' : `the ${name(point.sitsWith)} stickers`}, not with its own color`
-        : 'sits with its own color'
-    }`
+    return `${where}${name(point.label)} (${kind})`
   }
   return (
     <>
@@ -115,10 +110,10 @@ export function HueScatterChart({
           return (
             <circle
               key={i}
-              class={`hue-scatter-dot${point.misplaced ? ' hue-scatter-misplaced' : ''}${hovered === i ? ' hue-scatter-hovered' : ''}`}
+              class={`hue-scatter-dot${hovered === i ? ' hue-scatter-hovered' : ''}`}
               cx={cx}
               cy={y(point.l)}
-              r={point.misplaced || hovered === i ? 4 : 3}
+              r={hovered === i ? 4 : 3}
               onMouseEnter={() => onHover(i)}
               onMouseLeave={() => onHover(null)}
               fill={css(samples[i].rgb)}

@@ -51,41 +51,6 @@ describe('the hue scatter', () => {
     expect(a.chroma).toBeGreaterThan(b.chroma)
   })
 
-  it('flags a sticker that sits with another color than its own', () => {
-    const orange = (g: number) => rgb(235, g, 40)
-    const red = (g: number) => rgb(190, g, 45)
-    const points = hueScatter([
-      ...[100, 105, 110, 115, 120, 125].map((g) => ({
-        rgb: orange(g),
-        label: 'O',
-      })),
-      ...[20, 25, 30, 35, 40, 45].map((g) => ({ rgb: red(g), label: 'R' })),
-      // Orange in the picture, red in the final colors.
-      { rgb: orange(112), label: 'R' },
-    ])
-    expect(points.map((p) => p.misplaced)).toEqual([
-      ...Array(12).fill(false),
-      true,
-    ])
-    // It names the cloud it sits with; the others sit with their own.
-    expect(points[12].sitsWith).toBe('O')
-    expect(points[0].sitsWith).toBe('O')
-    expect(points[6].sitsWith).toBe('R')
-  })
-
-  it('flags a gray sticker that is not white, and a colored white', () => {
-    const points = hueScatter([
-      { rgb: rgb(245, 245, 240), label: 'W' },
-      { rgb: rgb(128, 128, 128), label: 'R' },
-      { rgb: rgb(200, 30, 40), label: 'W' },
-      { rgb: rgb(190, 40, 45), label: 'R' },
-    ])
-    expect(points.map((p) => p.misplaced)).toEqual([false, true, true, false])
-    // A gray one sits with the whites, a colored white with the nearest cloud.
-    expect(points[1].sitsWith).toBe('W')
-    expect(points[2].sitsWith).toBe('R')
-  })
-
   describe('the whites are the least saturated stickers, as many as a color has', () => {
     // One sticker per color (a 1x1 cube): the least saturated one is white.
     const vivid = [
@@ -108,7 +73,6 @@ describe('the hue scatter', () => {
         false,
         true,
       ])
-      expect(points[5].misplaced).toBe(false)
     })
 
     it('leaves a pale yellow among the colors while a paler white is there', () => {

@@ -345,7 +345,7 @@ test('palettes live on the profiles page: no color text on the first screen', as
   await expect(dialog).toHaveCount(0)
 })
 
-test('the hue scatter names a dot on hover, and says when it sits with another color', async ({
+test('the hue scatter names a dot on hover and links it with the net', async ({
   page,
 }) => {
   const dir = resolve('test/fixtures/cube-5x5-2026-10-26T00-04-11')
@@ -364,7 +364,7 @@ test('the hue scatter names a dot on hover, and says when it sits with another c
   await expect(info).toContainText('Point at a dot')
   await dialog.locator('.hue-scatter-dot').first().hover({ force: true })
   await expect(info).toContainText(
-    /row \d+, column \d+: \w+ \(L [\d.]+, C [\d.]+, h \d+°\) - sits with/,
+    /row \d+, column \d+: \w+ \(L [\d.]+, C [\d.]+, h \d+°\)$/,
   )
   // A dot lights its sticker in the net, and a sticker its dot.
   await expect(dialog.locator('.orientation-net-sticker-hover')).toHaveCount(1)
@@ -379,6 +379,4 @@ test('the hue scatter names a dot on hover, and says when it sits with another c
   await expect(
     dialog.locator('.orientation-net-photo-shown .orientation-net-photo'),
   ).toHaveCSS('opacity', '1')
-  await dialog.locator('.hue-scatter-misplaced').first().hover({ force: true })
-  await expect(info).toContainText('not with its own color')
 })

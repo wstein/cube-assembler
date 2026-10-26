@@ -859,11 +859,6 @@
   fill: var(--color-text-primary);
 }
 
-.hue-scatter-misplaced {
-  stroke: #1b1b1f;
-  stroke-width: 1.5;
-}
-
 .hue-scatter-info {
   min-height: 1.4em;
   margin: var(--spacing-sm) 0 0;
