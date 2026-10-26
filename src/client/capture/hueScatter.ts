@@ -7,6 +7,8 @@ export {
   hueScatter,
   meansByLabel,
   neutralChroma as NEUTRAL_CHROMA,
+  pointsInPolygon,
+  selectionCounts,
 } from '../../core/color/HueScatter.gen'
 export type {
   point as HuePoint,

@@ -13,6 +13,9 @@ type point = {
 @genType
 type deviation = {label: string, count: int, expected: int}
 
+@genType
+type xy = {x: float, y: float}
+
 @genType let countDeviations: array<sample> => array<deviation>
 @genType let neutralChroma: float
 @genType let hueCut: float
@@ -21,3 +24,5 @@ type deviation = {label: string, count: int, expected: int}
 @genType let hueScatter: array<sample> => array<point>
 @genType let meansByLabel: array<sample> => Dict.t<StickerGeometry.rgb>
 @genType let colorDelta: (StickerGeometry.rgb, StickerGeometry.rgb) => float
+@genType let pointsInPolygon: (array<xy>, array<xy>) => array<int>
+@genType let selectionCounts: (array<sample>, array<int>) => array<deviation>

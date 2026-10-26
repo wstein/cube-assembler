@@ -64,6 +64,7 @@ let hueBarColor = (hue, l) => {
 }
 
 type deviation = {label: string, count: int, expected: int}
+type xy = {x: float, y: float}
 
 // A whole cube has the same number of stickers of each of the six colors.
 // The colors whose count differs, most stickers first; empty when the
@@ -142,4 +143,45 @@ let colorDelta = (a: rgb, b: rgb) => {
   let da = x.a -. y.a
   let db = x.b -. y.b
   100.0 *. Math.sqrt(dl *. dl +. da *. da +. db *. db)
+}
+
+// The indices of the points inside a hand-drawn outline (even-odd rule),
+// so it does not matter which way the outline was drawn or whether it
+// crosses itself. An outline of fewer than three points holds nothing.
+let pointsInPolygon = (polygon: array<xy>, points: array<xy>) =>
+  if Array.length(polygon) < 3 {
+    []
+  } else {
+    let n = Array.length(polygon)
+    let inside = (p: xy) => {
+      let result = ref(false)
+      for i in 0 to n - 1 {
+        let a = polygon->Array.getUnsafe(i)
+        let b = polygon->Array.getUnsafe(mod(i + n - 1, n))
+        if a.y > p.y != (b.y > p.y) && p.x < (b.x -. a.x) *. (p.y -. a.y) /. (b.y -. a.y) +. a.x {
+          result := !result.contents
+        }
+      }
+      result.contents
+    }
+    points
+    ->Array.mapWithIndex((p, i) => (p, i))
+    ->Array.filter(((p, _)) => inside(p))
+    ->Array.map(((_, i)) => i)
+  }
+
+// How many of the chosen stickers have each color, most first, with the
+// share a whole cube has of each color (0 unless the stickers divide into
+// six equal shares).
+let selectionCounts = (samples: array<sample>, chosen: array<int>) => {
+  let total = Array.length(samples)
+  let expected = total > 0 && mod(total, 6) == 0 ? total / 6 : 0
+  let count = label =>
+    chosen
+    ->Array.filter(i => (samples->Array.getUnsafe(i)).label == label)
+    ->Array.length
+  ["W", "Y", "O", "R", "G", "B"]
+  ->Array.map(label => {label, count: count(label), expected})
+  ->Array.filter(deviation => deviation.count > 0)
+  ->Array.toSorted((a, b) => Int.toFloat(b.count - a.count))
 }
