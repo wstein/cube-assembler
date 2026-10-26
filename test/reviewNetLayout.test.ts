@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { wrgFaceletsToGrids } from '../src/cube/notation/NotationOutput.gen'
 import { readFixtureColors } from '../src/client/fixtures/fixtureFormat'
-import { reviewNetLayout } from '../src/client/capture/approvalPhotos'
+import { miniNet, reviewNetLayout } from '../src/client/capture/approvalPhotos'
 
 const ORDER = ['U', 'R', 'F', 'D', 'L', 'B']
 
@@ -48,5 +48,37 @@ describe('the review mini net', () => {
   it('gives no layout when the faces cannot be put together', () => {
     const { captured } = load('cube-5x5-2026-10-26T00-18-58')
     expect(reviewNetLayout(captured as never, ORDER)).toBeNull()
+  })
+})
+
+describe('the mini net', () => {
+  const good = 'cube-5x5-2026-10-25T23-50-58'
+
+  it('is the cube net, named Left to Down, once the photos fit', () => {
+    const { captured } = load(good)
+    const items = miniNet(captured as never, ORDER, 5)
+    expect(items.map((item) => item.area).sort()).toEqual(
+      ['1 / 2', '2 / 1', '2 / 2', '2 / 3', '2 / 4', '3 / 2'].sort(),
+    )
+    expect(items.find((item) => item.area === '2 / 1')?.name).toBe('Left')
+    expect(items.find((item) => item.area === '3 / 2')?.name).toBe('Down')
+    expect(new Set(items.map((item) => item.slot)).size).toBe(6)
+  })
+
+  it('is the capture net while faces are missing, empty ones undecided', () => {
+    const { captured } = load(good)
+    delete (captured as Record<string, unknown>).D
+    const items = miniNet(captured as never, ORDER, 5)
+    expect(items).toHaveLength(6)
+    const bottom = items.find((item) => item.slot === 3)!
+    expect(bottom.captured).toBe(false)
+    expect(bottom.colors).toHaveLength(5)
+    expect(items.find((item) => item.slot === 0)?.area).toBe('2 / 1')
+  })
+
+  it('carries how far a photo turns to sit in the net', () => {
+    const { captured } = load(good)
+    for (const item of miniNet(captured as never, ORDER, 5))
+      expect([0, 1, 2, 3]).toContain(item.turns)
   })
 })

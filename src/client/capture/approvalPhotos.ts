@@ -155,7 +155,7 @@ export function reviewStartSlot(
 export function reviewNetLayout(
   captured: Record<string, FaceCaptureData>,
   order: string[],
-): Record<string, { slot: number; colors: string[][] }> | null {
+): Record<string, { slot: number; colors: string[][]; turns: number }> | null {
   if (!order.every((key) => captured[key])) return null
   const solution = solveFaceOrientations(
     Object.fromEntries(order.map((key) => [key, captured[key].colors])),
@@ -163,14 +163,75 @@ export function reviewNetLayout(
   const candidate = solution?.alternatives[0]
   if (!candidate) return null
   const photos = order.map((key) => captured[key].colors)
-  const layout: Record<string, { slot: number; colors: string[][] }> = {}
+  const layout: Record<
+    string,
+    { slot: number; colors: string[][]; turns: number }
+  > = {}
   for (const [face, colors] of Object.entries(candidate.faces)) {
     const found = findCaptureForOrientedFace(photos, colors)
     if (!found) return null
-    layout[face] = { slot: found.slot, colors }
+    layout[face] = { slot: found.slot, colors, turns: found.turns }
   }
   return new Set(Object.values(layout).map((place) => place.slot)).size ===
     order.length
     ? layout
     : null
+}
+
+// Grid areas (row / column) of the faces in capture order (see CaptureNet):
+// Side 1-4 in a row, Top above and Bottom below Side 2.
+const CAPTURE_NET_AREAS = ['2 / 1', '2 / 2', '2 / 3', '2 / 4', '1 / 2', '3 / 2']
+// The cube net: U above, L F R B in a row, D below.
+const CUBE_NET_AREAS: Record<string, string> = {
+  U: '1 / 2',
+  L: '2 / 1',
+  F: '2 / 2',
+  R: '2 / 3',
+  B: '2 / 4',
+  D: '3 / 2',
+}
+
+// One face of the mini net.
+export interface MiniNetItem {
+  // Net face (U, L, ...) while the photos fit together, else the capture
+  // key.
+  key: string
+  // The photo's place in capture order.
+  slot: number
+  area: string
+  colors: string[][]
+  captured: boolean
+  // Quarter turns that put the photo upright in its place.
+  turns: number
+  // Left, Front, ... once the photos fit together.
+  name?: string
+}
+
+// The faces captured so far as a mini net: the cube net once all six fit
+// together, else the capture net with empty places for what is missing.
+export function miniNet(
+  captured: Record<string, FaceCaptureData>,
+  order: string[],
+  size: number,
+): MiniNetItem[] {
+  const layout = reviewNetLayout(captured, order)
+  if (layout)
+    return Object.entries(layout).map(([face, place]) => ({
+      key: face,
+      slot: place.slot,
+      area: CUBE_NET_AREAS[face],
+      colors: place.colors,
+      captured: true,
+      turns: place.turns,
+      name: NET_FACE_NAME[face],
+    }))
+  const empty = Array.from({ length: size }, () => Array<string>(size).fill(''))
+  return order.map((key, slot) => ({
+    key,
+    slot,
+    area: CAPTURE_NET_AREAS[slot],
+    colors: captured[key]?.colors ?? empty,
+    captured: Boolean(captured[key]),
+    turns: 0,
+  }))
 }
