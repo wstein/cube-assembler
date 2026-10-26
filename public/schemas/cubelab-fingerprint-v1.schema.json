@@ -10,7 +10,7 @@
     "moves": {
       "description": "Space-separated turns, empty when there are none.",
       "type": "string",
-      "pattern": "^(([2-7]-[2-7]|[2-7])?[URFDLB]w?['2]?|[xyz]'?)( (([2-7]-[2-7]|[2-7])?[URFDLB]w?['2]?|[xyz]'?))*$|^$"
+      "pattern": "^(([2-7]-[2-7]|[2-7])?[URFDLB]w?['2]?|[xyz]['2]?)( (([2-7]-[2-7]|[2-7])?[URFDLB]w?['2]?|[xyz]['2]?))*$|^$"
     },
     "format": { "const": "layer-prefix/v1" }
   }

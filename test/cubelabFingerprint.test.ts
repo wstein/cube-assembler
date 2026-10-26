@@ -59,7 +59,12 @@ describe('CubeLab moves block', () => {
   })
 
   it('accepts wide, ranged and whole-cube notation', () => {
-    for (const moves of ["3Rw 2-3Uw' x y'", "Fw2 2B2 B'"]) {
+    for (const moves of [
+      "3Rw 2-3Uw' x y'",
+      "Fw2 2B2 B'",
+      // Half turns of the whole cube, as formatCubeTurn writes them.
+      "x2 y2 z2 x' y z'",
+    ]) {
       expect(validate({ size: 7, moves, format: 'layer-prefix/v1' })).toBe(true)
     }
   })
