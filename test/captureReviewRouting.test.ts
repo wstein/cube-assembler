@@ -10,73 +10,45 @@ const ORDER = ['U', 'R', 'F', 'D', 'L', 'B']
 // The tests adjust one face at a time.
 type Face = { -readonly [K in keyof CaptureReviewFace]: CaptureReviewFace[K] }
 
-function cleanFaces(): Record<string, Face> {
+function solvedFaces(confidence = 0.9): Record<string, Face> {
   return Object.fromEntries(
-    ORDER.map((face) => [
-      face,
+    ['W', 'R', 'G', 'Y', 'O', 'B'].map((color, index) => [
+      ORDER[index],
       {
-        colors: [[face]],
-        detectedColors: [[face]],
-        cellConfidences: [[0.9]],
-        cellLookalikes: [[null]],
-        confidence: 0.9,
+        colors: Array.from({ length: 3 }, () => Array<string>(3).fill(color)),
+        detectedColors: Array.from({ length: 3 }, () =>
+          Array<string>(3).fill(color),
+        ),
+        cellConfidences: Array.from({ length: 3 }, () =>
+          Array<number>(3).fill(confidence),
+        ),
+        cellLookalikes: Array.from({ length: 3 }, () => Array(3).fill(null)),
+        confidence,
       },
     ]),
   )
 }
 
 describe('automatic color review routing', () => {
-  it('skips review for a high-confidence valid assembly', () => {
-    expect(canSkipColorReview(cleanFaces(), ORDER, true, [], [])).toBe(true)
-  })
-
-  it('keeps review for an invalid assembly or any uncertain face', () => {
-    expect(canSkipColorReview(cleanFaces(), ORDER, false, [], [])).toBe(false)
-    const faces = cleanFaces()
-    faces.B.confidence = 0.79
-    expect(canSkipColorReview(faces, ORDER, true, [], [])).toBe(false)
-    faces.B.confidence = 0.9
-    faces.B.cellConfidences = [[0.79]]
-    expect(canSkipColorReview(faces, ORDER, true, [], [])).toBe(false)
-  })
-
-  it('keeps review for missing evidence, corrected stickers, or lookalikes', () => {
-    const faces = cleanFaces()
-    delete faces.B.cellConfidences
-    expect(canSkipColorReview(faces, ORDER, true, [], [])).toBe(false)
-    faces.B.cellConfidences = [[0.9]]
-    faces.B.colors = [['W']]
-    expect(canSkipColorReview(faces, ORDER, true, [], [])).toBe(false)
-    faces.B.colors = [['B']]
-    faces.B.cellLookalikes = [['W']]
-    expect(canSkipColorReview(faces, ORDER, true, [], [])).toBe(false)
-  })
-
-  it('keeps review when glare or color-mix warnings remain', () => {
-    expect(canSkipColorReview(cleanFaces(), ORDER, true, ['U'], [])).toBe(false)
-    expect(canSkipColorReview(cleanFaces(), ORDER, true, [], ['R/B'])).toBe(
-      false,
-    )
+  it('skips the color review for a valid cube and keeps it for an invalid one', () => {
+    expect(canSkipColorReview(true)).toBe(true)
+    expect(canSkipColorReview(false)).toBe(false)
   })
 
   it('continues to assembly only when the actual cube state is valid', () => {
-    const solved = Object.fromEntries(
-      ['W', 'R', 'G', 'Y', 'O', 'B'].map((color, index) => [
-        ORDER[index],
-        {
-          colors: Array.from({ length: 3 }, () => Array(3).fill(color)),
-          detectedColors: Array.from({ length: 3 }, () => Array(3).fill(color)),
-          cellConfidences: Array.from({ length: 3 }, () => Array(3).fill(0.9)),
-          cellLookalikes: Array.from({ length: 3 }, () => Array(3).fill(null)),
-          confidence: 0.9,
-        },
-      ]),
-    ) as Record<string, CaptureReviewFace>
-    expect(readyAssemblyAfterCapture(solved, ORDER, [], [])?.fullyValid).toBe(
-      true,
-    )
+    const solved = solvedFaces()
+    expect(readyAssemblyAfterCapture(solved, ORDER)?.fullyValid).toBe(true)
     solved.B.colors[0][0] = 'W'
     solved.B.detectedColors![0][0] = 'W'
-    expect(readyAssemblyAfterCapture(solved, ORDER, [], [])).toBeNull()
+    expect(readyAssemblyAfterCapture(solved, ORDER)).toBeNull()
+  })
+
+  it('trusts people: shaky readings, corrections and lookalikes do not matter for a valid cube', () => {
+    const faces = solvedFaces(0.3)
+    faces.B.cellLookalikes = Array.from({ length: 3 }, () => Array(3).fill('W'))
+    // A sticker the person corrected in the color review.
+    faces.U.detectedColors![1][1] = 'R'
+    delete faces.R.cellConfidences
+    expect(readyAssemblyAfterCapture(faces, ORDER)?.fullyValid).toBe(true)
   })
 })

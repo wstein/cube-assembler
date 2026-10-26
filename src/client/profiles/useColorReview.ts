@@ -72,12 +72,7 @@ export function useColorReview({
       setReviewStep(0)
       setShowReviewDialog(true)
     }
-    const ready = readyAssemblyAfterCapture(
-      capturedFaces,
-      FACE_ORDER,
-      reviewRouting.glare,
-      reviewRouting.mixedUp,
-    )
+    const ready = readyAssemblyAfterCapture(capturedFaces, FACE_ORDER)
     if (!ready) {
       showColorReview()
       return

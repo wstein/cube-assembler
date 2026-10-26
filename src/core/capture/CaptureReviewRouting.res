@@ -10,8 +10,6 @@ type captureReviewFace = {
   confidence: float,
 }
 
-let highConfidence = 0.8
-
 type captureApproval = {
   candidates: array<orientedCandidate>,
   arrangements?: array<guidedArrangement>,
@@ -43,9 +41,6 @@ type captureReviewPlan =
   | @as("wizard") Wizard({remaining: array<orientedCandidate>, truncated: bool})
   | @as("choose") Choose({candidate: orientedCandidate})
   | @as("notice") Notice({message: string})
-
-// A face of a candidate by its capture slot letter.
-let faceBySlot = (faces: faceSet<grid>, slot): grid => Obj.magic(faces)->Dict.getUnsafe(slot)
 
 let asSolution = (solution: guidedSolution): orientationSolution => {
   faces: solution.faces,
@@ -83,23 +78,6 @@ let planCaptureReview = (
     | Some(solution) if solution.fullyValid =>
       let preferred = OrientationWizard.preferredGuidedArrangementIndex(solution.arrangements)
       let suggestion = solution.alternatives->Array.getUnsafe(preferred)
-      // Keep every guided fit available after "No" even if the free search
-      // stopped before reaching it.
-      let seen = []
-      let alternatives = [
-        suggestion,
-        ...solution.alternatives,
-        ...free->Option.mapOr([], free => free.alternatives),
-      ]->Array.filter(candidate => {
-        let key =
-          order
-          ->Array.map(face => OrientationWizard.faceContentKey(faceBySlot(candidate.faces, face)))
-          ->Array.join("|")
-        let fresh = !(seen->Array.includes(key))
-        seen->Array.push(key)
-        fresh
-      })
-      let base = free->Option.getOr(asSolution(solution))
       Some(
         Approval({
           approval: {
@@ -107,11 +85,7 @@ let planCaptureReview = (
             arrangements: [solution.arrangements->Array.getUnsafe(preferred)],
             valid: true,
             suggestedFrom: Array.length(solution.alternatives),
-            fallback: Null.make({
-              ...base,
-              alternatives,
-              truncated: free->Option.mapOr(false, free => free.truncated) || solution.truncated,
-            }),
+            fallback: Null.null,
           },
         }),
       )
@@ -123,9 +97,8 @@ let planCaptureReview = (
         Some(
           Approval({
             approval: {
-              candidates: free.alternatives,
+              candidates: [free.alternatives->Array.getUnsafe(0)],
               valid: true,
-              note: `${why} They do fit together another way:`,
               fallback: Null.null,
             },
           }),
@@ -161,74 +134,29 @@ let planCaptureReview = (
         fallback: Null.make(free),
       },
     })
-  | (None, Some(free)) if Array.length(free.alternatives) > 1 =>
-    Wizard({remaining: free.alternatives, truncated: free.truncated})
-  | (None, Some(free)) => Choose({candidate: free.alternatives->Array.getUnsafe(0)})
+  | (None, Some(free)) =>
+    Approval({
+      approval: {
+        candidates: [free.alternatives->Array.getUnsafe(0)],
+        valid: true,
+        fallback: Null.null,
+      },
+    })
   }
 }
 
-let highConfidenceColorReadings = (
-  faces: Dict.t<captureReviewFace>,
-  order: array<string>,
-  glareFaces: array<string>,
-  mixedUpColors: array<string>,
-) =>
-  Array.length(glareFaces) == 0 &&
-  Array.length(mixedUpColors) == 0 && {
-    let size =
-      order[0]
-      ->Option.flatMap(key => faces->Dict.get(key))
-      ->Option.mapOr(0, face => Array.length(face.colors))
-    size > 0 &&
-      order->Array.every(key =>
-        switch faces->Dict.get(key) {
-        | Some({colors, confidence, ?detectedColors, ?cellConfidences, ?cellLookalikes}) =>
-          let sized = grid => grid->Option.mapOr(false, grid => Array.length(grid) == size)
-          confidence >= highConfidence &&
-          Array.length(colors) == size &&
-          sized(detectedColors) &&
-          sized(cellConfidences) &&
-          sized(cellLookalikes) &&
-          colors->Array.everyWithIndex((row, r) => {
-            let detected = detectedColors->Option.flatMap(grid => grid[r])
-            let confidences = cellConfidences->Option.flatMap(grid => grid[r])
-            let lookalikes = cellLookalikes->Option.flatMap(grid => grid[r])
-            let rowSized = row => row->Option.mapOr(false, row => Array.length(row) == size)
-            Array.length(row) == size &&
-            rowSized(detected) &&
-            rowSized(confidences) &&
-            rowSized(lookalikes) &&
-            row->Array.everyWithIndex(
-              (color, c) =>
-                detected->Option.flatMap(row => row[c]) == Some(color) &&
-                confidences->Option.flatMap(row => row[c])->Option.getOr(0.0) >= highConfidence &&
-                lookalikes->Option.mapOr(false, row => row->Array.getUnsafe(c) === Null.null),
-            )
-          })
-        | None => false
-        }
-      )
-  }
+// A valid cube needs no color review: how sure the camera was of a sticker
+// does not matter, people know their cube.
+let canSkipColorReview = assembledValid => assembledValid
 
-let canSkipColorReview = (faces, order, assembledValid, glareFaces, mixedUpColors) =>
-  assembledValid && highConfidenceColorReadings(faces, order, glareFaces, mixedUpColors)
-
-let readyAssemblyAfterCapture = (
-  faces: Dict.t<captureReviewFace>,
-  order,
-  glareFaces,
-  mixedUpColors,
-) =>
-  if !highConfidenceColorReadings(faces, order, glareFaces, mixedUpColors) {
-    Null.null
-  } else {
-    let faceData = Dict.fromArray(
-      order->Array.map(face => (face, (faces->Dict.getUnsafe(face)).colors)),
-    )
-    let solution = CubeAssembly.solveFaceOrientations(faceData)
-    let valid = solution->Null.toOption->Option.mapOr(false, solution => solution.fullyValid)
-    canSkipColorReview(faces, order, valid, glareFaces, mixedUpColors) ? solution : Null.null
-  }
+let readyAssemblyAfterCapture = (faces: Dict.t<captureReviewFace>, order) => {
+  let faceData = Dict.fromArray(
+    order->Array.map(face => (face, (faces->Dict.getUnsafe(face)).colors)),
+  )
+  let solution = CubeAssembly.solveFaceOrientations(faceData)
+  let valid = solution->Null.toOption->Option.mapOr(false, solution => solution.fullyValid)
+  canSkipColorReview(valid) ? solution : Null.null
+}
 
 // The "Which way is your ... face?" wizard: the arrangements still
 // possible, whether the solver dropped some, and the faces the customer

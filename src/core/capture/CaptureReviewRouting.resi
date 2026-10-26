@@ -35,19 +35,10 @@ let planCaptureReview: (
   CapturedFaceMatching.guidedCenterIssue => string,
   option<Null.t<CubeTypes.orientationSolution>>,
 ) => captureReviewPlan
-@genType
-let canSkipColorReview: (
-  Dict.t<captureReviewFace>,
-  array<string>,
-  bool,
-  array<string>,
-  array<string>,
-) => bool
+@genType let canSkipColorReview: bool => bool
 @genType
 let readyAssemblyAfterCapture: (
   Dict.t<captureReviewFace>,
-  array<string>,
-  array<string>,
   array<string>,
 ) => Null.t<CubeTypes.orientationSolution>
 
