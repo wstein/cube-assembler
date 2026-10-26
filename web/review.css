@@ -211,6 +211,8 @@
   padding: 2px;
   background: #1b1b1f;
   border-radius: 8px;
+  /* The corner stickers follow the frame's rounded corners. */
+  overflow: hidden;
 }
 
 .approval-net .orientation-net-sticker {
@@ -697,6 +699,8 @@
   padding: 2px;
   background: #1b1b1f;
   border-radius: 8px;
+  /* The corner stickers follow the frame's rounded corners. */
+  overflow: hidden;
 }
 
 .approval-detected .orientation-net-face {
@@ -706,6 +710,8 @@
   padding: 2px;
   background: #1b1b1f;
   border-radius: 8px;
+  /* The corner stickers follow the frame's rounded corners. */
+  overflow: hidden;
 }
 
 .approval-detected .orientation-net {
