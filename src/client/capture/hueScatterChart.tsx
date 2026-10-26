@@ -38,7 +38,7 @@ const TICK_ANGLE = 45
 const TICK_SHIFT = 7
 // The lens: radius and magnification, in chart units.
 const LENS_R = 62
-const LENS_ZOOM = 3.5
+const LENS_ZOOM = 10.5
 // Dots keep their on-screen size in the lens, so overlapping ones part.
 const LENS_DOT = 3 / LENS_ZOOM
 // How near the pointer must be to a dot to point at it.
