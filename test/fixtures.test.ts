@@ -149,7 +149,7 @@ describe('real-capture regression fixtures', () => {
     const tags = fixtureTags(meta)
     const tagSuffix = tags.length > 0 ? ` [${tags.join(', ')}]` : ''
     const title = meta.expectedFail
-      ? `"${name}"${tagSuffix} [known-hard: ${meta.expectedFail.reason}]`
+      ? `"${name}"${tagSuffix} [invalid example: ${meta.expectedFail.reason}]`
       : `"${name}"${tagSuffix} reproduces the human-verified colors through the full pipeline`
     // Known-hard fixtures run via it.fails: they're expected to keep
     // failing for the stated reason, and it.fails itself fails the suite

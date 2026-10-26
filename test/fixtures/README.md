@@ -109,7 +109,7 @@ face with neutral gains, pools every sticker across all 6 faces, runs
 `meta.json`. With zero fixtures saved, this reports "no fixtures saved yet"
 rather than failing - fixtures are opt-in, not required.
 
-## Tagging and known-hard fixtures
+## Tagging and invalid-example fixtures
 
 As the corpus grows, two optional `meta.json` fields keep the suite
 readable and honest instead of it turning into a flat, noisy pass/fail list
@@ -132,6 +132,9 @@ readable and honest instead of it turning into a flat, noisy pass/fail list
   itself reports a failure ("expected test to fail but it passed") -
   forcing a human to notice and remove the flag, rather than the fix going
   unnoticed and the fixture just quietly turning green.
+  Use it for invalid examples, captures no one can read correctly (a face
+  shot twice, photos of two different cubes mixed): they guard that the app
+  rejects them, and are no yardstick for color measurement.
 
 ## `synthetic-sanity-check/`
 
