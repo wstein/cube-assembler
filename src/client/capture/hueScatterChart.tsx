@@ -1,5 +1,5 @@
 import { useState } from 'preact/hooks'
-import { hueAxis, hueScatter, type LocatedSample } from './hueScatter'
+import { HUE_CUT, hueAxis, hueScatter, type LocatedSample } from './hueScatter'
 
 const NAME: Record<string, string> = {
   W: 'white',
@@ -54,7 +54,8 @@ export function HueScatterChart({ samples }: { samples: LocatedSample[] }) {
   const info = (i: number) => {
     const point = points[i]
     const where = samples[i].where ? `${samples[i].where}: ` : ''
-    const kind = `chroma ${point.chroma.toFixed(2)}`
+    const hue = Math.round((point.hue + HUE_CUT) % 360)
+    const kind = `L ${point.l.toFixed(2)}, C ${point.chroma.toFixed(2)}, h ${hue}°`
     return `${where}${name(point.label)} (${kind}) - ${
       point.misplaced
         ? `sits with ${point.neutral ? 'the whites' : `the ${name(point.sitsWith)} stickers`}, not with its own color`
