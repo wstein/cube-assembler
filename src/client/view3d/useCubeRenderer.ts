@@ -16,7 +16,7 @@ import type { MeshUpdate } from './useCubeTurns'
 
 interface CubeRendererOptions {
   canvasRef: RefObject<HTMLCanvasElement | null>
-  cubeRef: RefObject<CubeState>
+  cubeRef: RefObject<CubeState | null>
   // Starts the renderer over when it changes, like the other settings.
   resetKey: unknown
   puzzleSize: number
@@ -51,7 +51,7 @@ export function useCubeRenderer({
 
   useEffect(() => {
     const canvas = canvasRef.current
-    if (!canvas) return
+    if (!canvas || !cubeRef.current) return
 
     const gl =
       (canvas.getContext('webgl2', {
@@ -141,7 +141,7 @@ export function useCubeRenderer({
       lastFrameTimeRef.current = time
 
       const update = onFrameRef.current(time, elapsed)
-      if (update) {
+      if (update && cubeRef.current) {
         const next = buildCubeMesh(
           cubeRef.current,
           puzzleSize,
