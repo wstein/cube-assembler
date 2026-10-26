@@ -673,3 +673,39 @@
     grid-column: 1 / -1;
   }
 }
+
+/* Tabs of the color analysis dialog. */
+.backdrop-dialog .profiles-tabs {
+  margin-bottom: var(--spacing-md);
+}
+
+.color-analysis-tab {
+  padding: var(--spacing-sm) var(--spacing-md);
+  font: inherit;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  background: transparent;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  cursor: pointer;
+}
+
+.color-analysis-tab:hover,
+.color-analysis-tab[aria-current="page"] {
+  color: var(--color-text-primary);
+}
+
+.color-analysis-tab[aria-current="page"] {
+  border-bottom-color: var(--color-accent);
+}
+
+.color-analysis-table {
+  border-collapse: collapse;
+}
+
+.color-analysis-table th,
+.color-analysis-table td {
+  padding: var(--spacing-xs) var(--spacing-md);
+  text-align: left;
+}

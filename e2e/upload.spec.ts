@@ -221,8 +221,6 @@ test('the cube check shows the detected net and swaps in a photo on hover', asyn
   await expect(photo).toHaveCSS('opacity', '0')
   await face.hover()
   await expect(photo).toHaveCSS('opacity', '1')
-  await expect(dialog.locator('.hue-histogram')).toBeVisible()
-  await expect(dialog.locator('.hue-histogram-stroke')).toHaveCount(5)
   await expect(dialog.locator('.approval-stats')).toContainText(
     /Left \d+% · Front \d+% · Right \d+% · Back \d+% · Up \d+% · Down \d+%/,
   )
@@ -309,4 +307,34 @@ test('the capture card shows the captured faces as a net with hover photos', asy
   await expect(photo).toHaveCSS('opacity', '0')
   await net.getByRole('button', { name: /^Front \(/ }).hover()
   await expect(photo).toHaveCSS('opacity', '1')
+})
+
+test('palettes live on the profiles page: no color text on the first screen', async ({
+  page,
+}) => {
+  await page.goto('/')
+  await page
+    .locator('.capture-alternatives input[type="file"]')
+    .setInputFiles([...photos, resolve(fixture, 'meta.json')])
+  await page.getByRole('button', { name: 'Yes, this is my cube' }).click()
+  const card = page.locator('.capture-card')
+  await expect(card).toContainText('Cube:')
+  await expect(card).not.toContainText('Colors:')
+  await expect(card).not.toContainText('Compare backdrop')
+  await expect(
+    page.getByRole('button', { name: /Create sticker color profile/ }),
+  ).toHaveCount(0)
+
+  await page.goto('/#profiles')
+  await expect(
+    page.getByRole('button', { name: /Create sticker color profile/ }),
+  ).toBeVisible()
+  await page.getByRole('button', { name: 'Analyze colors' }).click()
+  const dialog = page.getByRole('dialog', { name: 'Color analysis' })
+  await expect(dialog.locator('.hue-histogram')).toBeVisible()
+  await dialog.getByRole('button', { name: 'Final colors' }).click()
+  await expect(dialog.locator('.color-analysis-table tbody tr')).toHaveCount(6)
+  await dialog.getByRole('button', { name: 'Backdrop' }).click()
+  await dialog.press('Escape')
+  await expect(dialog).toHaveCount(0)
 })

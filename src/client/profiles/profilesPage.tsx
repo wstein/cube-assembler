@@ -2,6 +2,7 @@
 import '../../../web/profiles.css'
 import { ColorReviewTab, type ReviewCapture } from './colorReviewPage'
 import { CubeReviewTab, type ReviewPhoto } from './cubeReviewPage'
+import type { ComponentChildren } from 'preact'
 import type { ProfileSettings } from './profileSettings'
 import { profilesHash, type ProfilesTab } from './profilesRoute'
 
@@ -15,6 +16,10 @@ interface Props {
   onExport: () => void
   onImport: (event: Event) => void
   fileMessage: string
+  // Opens the color analysis of the last capture; null without one.
+  onAnalyze: (() => void) | null
+  // Saving the last capture's colors as a profile.
+  captureColors?: ComponentChildren
 }
 
 const TABS: Array<{ tab: ProfilesTab; label: string }> = [
@@ -32,6 +37,8 @@ export function ProfilesPage({
   onExport,
   onImport,
   fileMessage,
+  onAnalyze,
+  captureColors,
 }: Props) {
   return (
     <div class="color-review">
@@ -83,11 +90,38 @@ export function ProfilesPage({
         {fileMessage && <span role="status">{fileMessage}</span>}
       </div>
       {tab === 'colors' && (
-        <ColorReviewTab
-          settings={settings}
-          onChange={onChange}
-          capture={capture}
-        />
+        <>
+          <section class="card color-review-capture">
+            <h2>Last capture</h2>
+            {capture ? (
+              <>
+                <p class="color-review-muted">
+                  Save the colors of the last capture as a profile, or look at
+                  how its stickers were read.
+                </p>
+                {captureColors}
+                {onAnalyze && (
+                  <button
+                    type="button"
+                    class="btn btn-secondary btn-sm"
+                    onClick={onAnalyze}
+                  >
+                    Analyze colors
+                  </button>
+                )}
+              </>
+            ) : (
+              <p class="color-review-muted">
+                Capture a cube to save its colors or analyze them here.
+              </p>
+            )}
+          </section>
+          <ColorReviewTab
+            settings={settings}
+            onChange={onChange}
+            capture={capture}
+          />
+        </>
       )}
       {tab === 'cubes' && (
         <CubeReviewTab settings={settings} onChange={onChange} photo={photo} />

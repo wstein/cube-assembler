@@ -41,3 +41,20 @@ let hueHistogram = (samples: array<sample>, binCount) => {
   )
   {bins, neutral}
 }
+
+// The mean sticker color per final color: the palette the corrected capture
+// itself shows, for comparing with the standard and the learned colors.
+let meansByLabel = (samples: array<sample>) => {
+  let sums: Dict.t<(float, float, float, int)> = Dict.make()
+  samples->Array.forEach(({rgb, label}) => {
+    let (r, g, b, n) = sums->Dict.get(label)->Option.getOr((0.0, 0.0, 0.0, 0))
+    sums->Dict.set(label, (r +. rgb.r, g +. rgb.g, b +. rgb.b, n + 1))
+  })
+  sums
+  ->Dict.toArray
+  ->Array.map(((label, (r, g, b, n))) => {
+    let count = Int.toFloat(n)
+    (label, {r: r /. count, g: g /. count, b: b /. count})
+  })
+  ->Dict.fromArray
+}

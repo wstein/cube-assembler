@@ -1,6 +1,7 @@
 export {
   hueBin,
   hueHistogram,
+  meansByLabel,
   neutralChroma as NEUTRAL_CHROMA,
 } from '../../core/color/HueHistogram.gen'
 export type {

@@ -3,7 +3,6 @@ import { FACE_DISPLAY_LABEL, FACE_ORDER } from './captureSteps'
 import { miniNet } from './approvalPhotos'
 import type { FaceCaptureData } from './captureTypes'
 import { FaceNet } from './faceNet'
-import type { UsedColorProfile } from '../profiles/profileSettings'
 
 interface CaptureCardProps {
   capturedFaces: Record<string, FaceCaptureData>
@@ -11,12 +10,8 @@ interface CaptureCardProps {
   size: number
   stickerColors: Record<string, string>
   loading: boolean
-  // The cube and colors the last complete capture was read with.
+  // The cube the last complete capture was read with.
   captureProfileName?: string
-  resolvedColorProfile: UsedColorProfile | null
-  profileFinding: string | null
-  calibrationUnavailable: boolean
-  onCompareBackdrop: (() => void) | null
   // Upload and bulk-action feedback; empty while the capture dialog shows it.
   message: string
   showColorInput: boolean
@@ -27,7 +22,6 @@ interface CaptureCardProps {
   onToggleColorInput: () => void
   onApplySolved: () => void
   onIgnoreFixtureCorrectionsChange: (ignore: boolean) => void
-  profileControls?: ComponentChildren
   photoUpload?: ComponentChildren
   manualInput?: ComponentChildren
 }
@@ -39,10 +33,6 @@ export function CaptureCard({
   stickerColors,
   loading,
   captureProfileName,
-  resolvedColorProfile,
-  profileFinding,
-  calibrationUnavailable,
-  onCompareBackdrop,
   message,
   showColorInput,
   ignoreFixtureCorrections,
@@ -52,7 +42,6 @@ export function CaptureCard({
   onToggleColorInput,
   onApplySolved,
   onIgnoreFixtureCorrectionsChange,
-  profileControls,
   photoUpload,
   manualInput,
 }: CaptureCardProps) {
@@ -144,41 +133,8 @@ export function CaptureCard({
       </div>
       {captureProfileName &&
         FACE_ORDER.every((f) => capturedFaces[f]?.croppedImage) && (
-          <span class="capture-profile-used">
-            Cube: {captureProfileName}
-            {resolvedColorProfile && (
-              <>
-                {' · '}Colors: {resolvedColorProfile.name}
-                {resolvedColorProfile.selection === 'automatic' &&
-                  ' (Automatic)'}
-                {resolvedColorProfile.colorFitPercent !== undefined &&
-                  ` · ${resolvedColorProfile.colorFitPercent}% color fit`}
-                {(profileFinding ||
-                  calibrationUnavailable ||
-                  onCompareBackdrop) && (
-                  <span class="capture-profile-used-detail">
-                    {profileFinding}
-                    {calibrationUnavailable &&
-                      `${profileFinding ? ' · ' : ''}Six-face calibration unavailable`}
-                    {onCompareBackdrop && (
-                      <>
-                        {profileFinding || calibrationUnavailable ? ' · ' : ''}
-                        <button
-                          type="button"
-                          class="color-review-link"
-                          onClick={onCompareBackdrop}
-                        >
-                          Compare backdrop adjustment
-                        </button>
-                      </>
-                    )}
-                  </span>
-                )}
-              </>
-            )}
-          </span>
+          <span class="capture-profile-used">Cube: {captureProfileName}</span>
         )}
-      {profileControls}
       <div class="card-divider" />
       <div class="capture-alternatives">
         <label

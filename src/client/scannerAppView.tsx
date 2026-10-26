@@ -6,7 +6,7 @@ import { OrientationWizardDialog } from './capture/orientationWizardDialog'
 import { CaptureColorPicker } from './capture/captureColorPicker'
 import { CaptureSettings, CubeSelectOptions } from './capture/captureSettings'
 import type { ReviewCapture } from './profiles/colorReviewPage'
-import { BackdropDialog } from './profiles/backdropDialog'
+import { ColorAnalysisDialog } from './profiles/colorAnalysisDialog'
 import { reviewStartSlot } from './capture/approvalPhotos'
 import { withPaletteSuspects } from './capture/paletteSuspects'
 import { FixtureDownloadDialog } from './fixtures/fixtureDownloadDialog'
@@ -42,7 +42,6 @@ import {
   cubeGroupName,
   selectColorProfile,
 } from './profiles/profileSettings'
-import { captureProfileFinding } from './profiles/colorProfileLearning'
 import {
   FACE_DISPLAY_LABEL,
   FACE_ORDER,
@@ -69,7 +68,6 @@ export function ScannerAppView({ model }: { model: ScannerAppModel }) {
     autoCaptureFrames,
     autoCapturePaused,
     automaticColors,
-    automaticResolution,
     cameraInfo,
     captureFlash,
     captureMessage,
@@ -149,7 +147,6 @@ export function ScannerAppView({ model }: { model: ScannerAppModel }) {
     profileStore,
     provisionalColorProfile,
     puzzleSize,
-    resolvedColorProfile,
     reviewEditingCell,
     reviewNotice,
     reviewStep,
@@ -229,6 +226,40 @@ export function ScannerAppView({ model }: { model: ScannerAppModel }) {
       </Suspense>
     )
   }
+  // The color analysis of the last capture, opened from the profiles page.
+  const analysisDialog = showBackdropDialog && (
+    <ColorAnalysisDialog
+      backdrop={
+        appliedBackgroundGains
+          ? FACE_ORDER.filter((f) => capturedFaces[f]?.croppedImage).map(
+              (f) => ({
+                face: f,
+                label: FACE_DISPLAY_LABEL[f],
+                photo: capturedFaces[f].croppedImage!,
+                gains: appliedBackgroundGains[f] ?? NEUTRAL_GAINS,
+                background: capturedFaces[f].backgroundColor ?? null,
+                stickers: capturedFaces[f].cellColors,
+              }),
+            )
+          : null
+      }
+      reference={backdropReference(
+        Object.fromEntries(
+          FACE_ORDER.map((f) => [f, capturedFaces[f]?.backgroundColor ?? null]),
+        ),
+      )}
+      samples={FACE_ORDER.flatMap((f) => {
+        const face = capturedFaces[f]
+        return (face?.cellColors ?? []).flatMap((row, r) =>
+          row.map((rgb, c) => ({ rgb, label: face.colors[r][c] })),
+        )
+      })}
+      stickerColors={STICKER_HEX}
+      standard={STICKER_COLORS}
+      learned={learnedPalette}
+      onClose={() => setShowBackdropDialog(false)}
+    />
+  )
   const profilesPageTab = profilesTab(page)
   if (profilesPageTab) {
     // The last capture's faces that kept their measured sticker colors.
@@ -278,21 +309,29 @@ export function ScannerAppView({ model }: { model: ScannerAppModel }) {
           onExport={handleDownloadSampling}
           onImport={handleUploadSampling}
           fileMessage={samplingFileMessage}
+          onAnalyze={
+            reviewCapture.faces.length
+              ? () => setShowBackdropDialog(true)
+              : null
+          }
+          captureColors={
+            cube &&
+            FACE_ORDER.every((face) => capturedFaces[face]?.croppedImage) && (
+              <ColorProfileControls
+                offer={profileLearningOffer}
+                updatableName={updatableName}
+                newName={newColorName}
+                onNewNameChange={setNewColorName}
+                onCreate={handleCreateColors}
+                onUpdate={handleUpdateColors}
+              />
+            )
+          }
         />
+        {analysisDialog}
       </Suspense>
     )
   }
-
-  const profileFinding =
-    resolvedColorProfile?.selection === 'automatic'
-      ? captureProfileFinding(
-          FACE_ORDER.map((face) => capturedFaces[face])
-            .sort((a, b) => (a?.timestamp ?? 0) - (b?.timestamp ?? 0))
-            .map((face) => face?.previewColorProfile?.name),
-          resolvedColorProfile.name,
-          automaticResolution?.reason ?? null,
-        )
-      : null
 
   return (
     <div class="app-layout">
@@ -407,12 +446,6 @@ export function ScannerAppView({ model }: { model: ScannerAppModel }) {
             stickerColors={STICKER_HEX}
             loading={loading}
             captureProfileName={captureProfile?.name}
-            resolvedColorProfile={cube ? resolvedColorProfile : null}
-            profileFinding={profileFinding}
-            calibrationUnavailable={!learnedPalette}
-            onCompareBackdrop={
-              appliedBackgroundGains ? () => setShowBackdropDialog(true) : null
-            }
             message={webcamOpen ? '' : captureMessage}
             showColorInput={showColorInput}
             ignoreFixtureCorrections={ignoreFixtureCorrections}
@@ -424,20 +457,6 @@ export function ScannerAppView({ model }: { model: ScannerAppModel }) {
             onToggleColorInput={() => setShowColorInput(!showColorInput)}
             onApplySolved={handleApplySolved}
             onIgnoreFixtureCorrectionsChange={setIgnoreFixtureCorrections}
-            profileControls={
-              cube &&
-              FACE_ORDER.every((face) => capturedFaces[face]?.croppedImage) &&
-              !showReviewDialog && (
-                <ColorProfileControls
-                  offer={profileLearningOffer}
-                  updatableName={updatableName}
-                  newName={newColorName}
-                  onNewNameChange={setNewColorName}
-                  onCreate={handleCreateColors}
-                  onUpdate={handleUpdateColors}
-                />
-              )
-            }
             photoUpload={
               photoUpload && (
                 <PhotoUploadReview
@@ -731,29 +750,6 @@ export function ScannerAppView({ model }: { model: ScannerAppModel }) {
           onDownload={downloadFixture}
           focusModalOnOpen={focusModalOnOpen}
           onModalKeyDown={handleModalKeyDown}
-        />
-      )}
-      {showBackdropDialog && appliedBackgroundGains && (
-        <BackdropDialog
-          faces={FACE_ORDER.filter((f) => capturedFaces[f]?.croppedImage).map(
-            (f) => ({
-              face: f,
-              label: FACE_DISPLAY_LABEL[f],
-              photo: capturedFaces[f].croppedImage!,
-              gains: appliedBackgroundGains[f] ?? NEUTRAL_GAINS,
-              background: capturedFaces[f].backgroundColor ?? null,
-              stickers: capturedFaces[f].cellColors,
-            }),
-          )}
-          reference={backdropReference(
-            Object.fromEntries(
-              FACE_ORDER.map((f) => [
-                f,
-                capturedFaces[f]?.backgroundColor ?? null,
-              ]),
-            ),
-          )}
-          onClose={() => setShowBackdropDialog(false)}
         />
       )}
     </div>

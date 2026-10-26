@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   hueBin,
   hueHistogram,
+  meansByLabel,
   NEUTRAL_CHROMA,
 } from '../src/client/capture/hueHistogram'
 import { rgbToOKLCH } from '../src/client/vision/colorMath'
@@ -36,5 +37,23 @@ describe('the sticker hue histogram', () => {
   it('treats a gray as neutral and a vivid color as not', () => {
     expect(rgbToOKLCH(rgb(128, 128, 128)).c).toBeLessThan(NEUTRAL_CHROMA)
     expect(rgbToOKLCH(rgb(200, 30, 40)).c).toBeGreaterThan(NEUTRAL_CHROMA)
+  })
+})
+
+describe('the final colors', () => {
+  it('averages the stickers of each final color', () => {
+    const means = meansByLabel([
+      { rgb: rgb(200, 20, 30), label: 'R' },
+      { rgb: rgb(220, 40, 50), label: 'R' },
+      { rgb: rgb(10, 20, 200), label: 'B' },
+    ])
+    expect(means).toEqual({
+      R: { r: 210, g: 30, b: 40 },
+      B: { r: 10, g: 20, b: 200 },
+    })
+  })
+
+  it('has no entry for a color without stickers', () => {
+    expect(Object.keys(meansByLabel([]))).toEqual([])
   })
 })
