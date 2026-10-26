@@ -11,7 +11,7 @@ test('shows a solved cube on first load without marking faces as captured', asyn
   await page.goto('/')
   await expect(page.locator('.cube-net')).toBeVisible()
   await expect(page.getByRole('textbox', { name: 'Notation' })).toHaveValue(
-    /^W{9} R{9} G{9} Y{9} O{9} B{9}$/,
+    /^U{9} R{9} F{9} D{9} L{9} B{9}$/,
   )
   await expect(
     page.getByRole('button', { name: 'Save as test fixture' }),
