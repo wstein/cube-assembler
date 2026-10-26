@@ -33,6 +33,7 @@ export interface FixtureUploadMetadata {
     } | null
     colorReference?: Record<string, RGB> | null
     protocol?: string | null
+    assembledURFDLB?: string | null
   }
 }
 

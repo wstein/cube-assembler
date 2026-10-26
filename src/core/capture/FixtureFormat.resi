@@ -5,3 +5,4 @@ type fixtureColors = {
 }
 
 @genType let readFixtureColors: 'a => Null.t<fixtureColors>
+@genType let readFixtureAssembled: 'a => Null.t<Dict.t<array<array<string>>>>

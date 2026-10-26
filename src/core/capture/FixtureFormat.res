@@ -66,6 +66,21 @@ let fromString = (value: option<Untrusted.t>, n) =>
     grids->Dict.get("U")->Option.mapOr(false, grid => Int.toFloat(Array.length(grid)) == n)
   )
 
+// The cube the photos were approved as (capture.assembledURFDLB), as grids
+// keyed U..B; null when absent, unreadable or of the wrong size.
+let readFixtureAssembled = meta => {
+  let meta = Untrusted.fromAny(meta)
+  switch meta->Untrusted.field("gridSize")->Option.flatMap(Untrusted.number) {
+  | None => Null.null
+  | Some(n) =>
+    meta
+    ->Untrusted.field("capture")
+    ->Option.flatMap(capture => capture->Untrusted.field("assembledURFDLB"))
+    ->fromString(n)
+    ->Null.fromOption
+  }
+}
+
 // Null when the meta has neither format (or colors of the wrong size).
 let readFixtureColors = meta => {
   let meta = Untrusted.fromAny(meta)
