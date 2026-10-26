@@ -2,7 +2,14 @@
 type sample = {rgb: StickerGeometry.rgb, label: string}
 
 @genType
-type point = {label: string, hue: float, l: float, neutral: bool}
+type point = {
+  label: string,
+  hue: float,
+  l: float,
+  chroma: float,
+  neutral: bool,
+  misplaced: bool,
+}
 
 @genType let neutralChroma: float
 @genType let hueCut: float

@@ -36,6 +36,49 @@ describe('the hue scatter', () => {
     expect(points[0].hue).toBeCloseTo(hueAxis(rgbToOKLCH(red).h), 10)
   })
 
+  it('draws the line between gray and colored where production stops trusting hue', () => {
+    expect(NEUTRAL_CHROMA).toBe(0.07)
+  })
+
+  it('carries the sticker chroma, so a washed-out color can look washed out', () => {
+    const vivid = rgb(200, 30, 40)
+    const dull = rgb(150, 110, 115)
+    const [a, b] = hueScatter([
+      { rgb: vivid, label: 'R' },
+      { rgb: dull, label: 'R' },
+    ])
+    expect(a.chroma).toBeCloseTo(rgbToOKLCH(vivid).c, 10)
+    expect(a.chroma).toBeGreaterThan(b.chroma)
+  })
+
+  it('flags a sticker that sits with another color than its own', () => {
+    const orange = (g: number) => rgb(235, g, 40)
+    const red = (g: number) => rgb(190, g, 45)
+    const points = hueScatter([
+      ...[100, 105, 110, 115, 120, 125].map((g) => ({
+        rgb: orange(g),
+        label: 'O',
+      })),
+      ...[20, 25, 30, 35, 40, 45].map((g) => ({ rgb: red(g), label: 'R' })),
+      // Orange in the picture, red in the final colors.
+      { rgb: orange(112), label: 'R' },
+    ])
+    expect(points.map((p) => p.misplaced)).toEqual([
+      ...Array(12).fill(false),
+      true,
+    ])
+  })
+
+  it('flags a gray sticker that is not white, and a colored white', () => {
+    const points = hueScatter([
+      { rgb: rgb(245, 245, 240), label: 'W' },
+      { rgb: rgb(128, 128, 128), label: 'R' },
+      { rgb: rgb(200, 30, 40), label: 'W' },
+      { rgb: rgb(190, 40, 45), label: 'R' },
+    ])
+    expect(points.map((p) => p.misplaced)).toEqual([false, true, true, false])
+  })
+
   it('marks a gray as neutral and a vivid color as not', () => {
     expect(rgbToOKLCH(rgb(128, 128, 128)).c).toBeLessThan(NEUTRAL_CHROMA)
     expect(rgbToOKLCH(rgb(200, 30, 40)).c).toBeGreaterThan(NEUTRAL_CHROMA)

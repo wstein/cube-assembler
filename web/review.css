@@ -847,3 +847,19 @@
 .hue-scatter-dot {
   stroke-width: 1.2;
 }
+
+.hue-scatter-grid {
+  stroke: rgb(0 0 0 / 8%);
+  stroke-width: 0.5;
+}
+
+.hue-scatter-label {
+  font-size: 10px;
+  font-weight: 600;
+  fill: var(--color-text-primary);
+}
+
+.hue-scatter-misplaced {
+  stroke: #1b1b1f;
+  stroke-width: 1.5;
+}

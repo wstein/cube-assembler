@@ -9,10 +9,14 @@ type point = {
   label: string,
   // Position on the hue axis (see hueAxis); meaningless when neutral.
   hue: float,
-  // OKLCH lightness, 0-1.
+  // OKLCH lightness, 0-1, and chroma (how saturated).
   l: float,
+  chroma: float,
   // Too gray to have a usable hue (white stickers).
   neutral: bool,
+  // Sits with another color's stickers than the one it ended up as (see
+  // hueScatter).
+  misplaced: bool,
 }
 
 // The hue circle is cut at this angle, between blue and red, so that red
@@ -20,11 +24,9 @@ type point = {
 // follows it.
 let hueCut = 340.0
 
-// Below this chroma a sticker has no usable hue: nearly all whites, while
-// the dullest colored stickers (a washed-out yellow) stay above 0.03 and
-// all but a few above 0.08. A tinted white lands among the hues, which is
-// what the chart is there to show.
-let neutralChroma = 0.05
+// Below this chroma a sticker is drawn as gray, with no hue: where the
+// production clustering stops trusting hue too (see ColorMath).
+let neutralChroma = ColorMath.clusterChromaThreshold
 
 // Hue in degrees on the cut axis: 0 at hueCut, going around.
 let hueAxis = hue => {
@@ -32,13 +34,61 @@ let hueAxis = hue => {
   shifted < 0.0 ? shifted +. 360.0 : shifted
 }
 
+// How far apart two stickers sit on the chart, in units where 20 degrees of
+// hue and 0.15 of lightness count the same.
+let chartDistance = (a: point, b: point) => {
+  let dh = (a.hue -. b.hue) /. 20.0
+  let dl = (a.l -. b.l) /. 0.15
+  Math.sqrt(dh *. dh +. dl *. dl)
+}
+
 // Where each sticker sits: hue against lightness. Red and orange overlap in
-// hue alone but orange is lighter, so the two clouds stay apart.
-let hueScatter = (samples: array<sample>) =>
-  samples->Array.map(sample => {
+// hue alone but orange is lighter, so the two clouds stay apart. A sticker
+// is misplaced when it sits nearer another color's cloud than its own (a
+// gray one when it isn't white, a colored one when it is).
+let hueScatter = (samples: array<sample>) => {
+  let base = samples->Array.map(sample => {
     let lch = ColorMath.rgbToOKLCH(sample.rgb)
-    {label: sample.label, hue: hueAxis(lch.h), l: lch.l, neutral: lch.c < neutralChroma}
+    {
+      label: sample.label,
+      hue: hueAxis(lch.h),
+      l: lch.l,
+      chroma: lch.c,
+      neutral: lch.c < neutralChroma,
+      misplaced: false,
+    }
   })
+  // Each color's cloud center, from its colored stickers.
+  let sums: Dict.t<(float, float, int)> = Dict.make()
+  base->Array.forEach(point =>
+    if !point.neutral {
+      let (h, l, n) = sums->Dict.get(point.label)->Option.getOr((0.0, 0.0, 0))
+      sums->Dict.set(point.label, (h +. point.hue, l +. point.l, n + 1))
+    }
+  )
+  let centers =
+    sums
+    ->Dict.toArray
+    ->Array.map(((label, (h, l, n))) => {
+      let count = Int.toFloat(n)
+      {label, hue: h /. count, l: l /. count, chroma: 0.0, neutral: false, misplaced: false}
+    })
+  base->Array.map(point =>
+    if point.neutral {
+      {...point, misplaced: point.label != "W"}
+    } else if point.label == "W" {
+      {...point, misplaced: true}
+    } else {
+      let nearest = centers->Array.reduce(None, (best, center) =>
+        switch best {
+        | Some((_, distance)) if distance <= chartDistance(point, center) => best
+        | _ => Some((center.label, chartDistance(point, center)))
+        }
+      )
+      {...point, misplaced: nearest->Option.mapOr(false, ((label, _)) => label != point.label)}
+    }
+  )
+}
 
 // The mean sticker color per final color: the palette the corrected capture
 // itself shows, for comparing with the standard and the learned colors.

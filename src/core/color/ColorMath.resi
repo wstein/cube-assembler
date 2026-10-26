@@ -31,3 +31,6 @@ let classifySticker: (StickerGeometry.rgb, option<Dict.t<StickerGeometry.rgb>>) 
 @genType let clusterOklabDistance: (oklab, oklab) => float
 @genType let clusterDistance: (StickerGeometry.rgb, StickerGeometry.rgb) => float
 @genType let confidenceDistanceScale: float
+
+// Below this chroma a color's hue is not trusted when clustering.
+let clusterChromaThreshold: float
