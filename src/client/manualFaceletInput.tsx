@@ -32,26 +32,8 @@ export function ManualFaceletInput({
 
   return (
     <div class="color-input-panel">
-      <div class="notation-format-toggle">
-        <button
-          type="button"
-          class={`wb-btn ${format === 'wrg' ? 'active' : ''}`}
-          onClick={() => onFormatChange('wrg')}
-        >
-          WRG Facelets
-        </button>
-        <button
-          type="button"
-          class={`wb-btn ${format === 'urf' ? 'active' : ''}`}
-          onClick={() => onFormatChange('urf')}
-        >
-          URF / Orbit64 Facelets
-        </button>
-      </div>
       <label htmlFor="manual-facelets">
-        {format === 'wrg'
-          ? `Enter WRG facelets: 6 blocks of ${size * size} colors (W, O, G, R, B, Y), space-separated, in U R F D L B order`
-          : `Enter URF facelets: 6 blocks of ${size * size} letters (U, R, F, D, L, B - the face each sticker's color matches when solved), space-separated, in U R F D L B order`}{' '}
+        {`Enter facelets: 6 blocks of ${size * size} letters in U R F D L B order, space-separated - face letters (U, R, F, D, L, B: the face each sticker's color matches when solved) or colors (W, O, G, R, B, Y). The format is detected.`}{' '}
         You can also paste an Orbit64 2×2–7×7 state token.
       </label>
       <textarea

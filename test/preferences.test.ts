@@ -169,8 +169,8 @@ describe('setting cookies', () => {
 
 describe('remembered choices', () => {
   it('remembers the notation format and the capture mode', () => {
-    expect(selectedNotationFormat('')).toBe('wrg')
-    expect(selectedNotationFormat(`${NOTATION_COOKIE}=urf`)).toBe('urf')
+    expect(selectedNotationFormat('')).toBe('urf')
+    expect(selectedNotationFormat(`${NOTATION_COOKIE}=wrg`)).toBe('wrg')
     expect(selectedCaptureMode('')).toBe('cv')
     expect(selectedCaptureMode(`${CAPTURE_MODE_COOKIE}=guide`)).toBe('guide')
     expect(selectedCaptureMode(`${CAPTURE_MODE_COOKIE}=ml`)).toBe('cv')

@@ -9,6 +9,8 @@ test('switches notation and copies the displayed facelets', async ({
   await page.getByRole('button', { name: 'Solved cube' }).click()
 
   const notation = page.getByRole('textbox', { name: 'Notation' })
+  await expect(notation).toHaveValue(/^U/)
+  await page.getByRole('button', { name: 'Colors (WRG)' }).click()
   await expect(notation).toHaveValue(/^W/)
   await page.getByRole('button', { name: 'Faces (URF)' }).click()
   await expect(notation).toHaveValue(/^U/)
@@ -27,10 +29,7 @@ test('detects pasted URF facelets and applies them', async ({ page }) => {
   const facelets = ['U', 'R', 'F', 'D', 'L', 'B']
     .map((face) => face.repeat(9))
     .join(' ')
-  await page.getByRole('textbox', { name: /Enter WRG facelets/ }).fill(facelets)
-  await expect(
-    page.getByRole('button', { name: 'URF / Orbit64 Facelets' }),
-  ).toHaveClass(/active/)
+  await page.getByRole('textbox', { name: /Enter facelets/ }).fill(facelets)
   await page.getByRole('button', { name: 'Apply Facelets' }).click()
   await expect(page.getByRole('textbox', { name: 'Notation' })).toHaveValue(
     facelets,

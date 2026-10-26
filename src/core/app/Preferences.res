@@ -143,7 +143,7 @@ let settingCookies = [
   themeCookie,
 ]
 
-let selectedNotationFormat = cookies => readChoice(cookies, notationCookie, ["wrg", "urf"], "wrg")
+let selectedNotationFormat = cookies => readChoice(cookies, notationCookie, ["wrg", "urf"], "urf")
 
 let selectedCaptureMode = cookies => readChoice(cookies, captureModeCookie, ["cv", "guide"], "cv")
 
