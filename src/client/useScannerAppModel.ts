@@ -1,5 +1,6 @@
 import { createScannerUploadActions } from './fixtures/scannerUploadActions'
-import { useState } from 'preact/hooks'
+import { useRef, useState } from 'preact/hooks'
+import { parityStatus } from './capture/captureFlow'
 import {
   captureBackgroundGains,
   finishReview,
@@ -484,16 +485,20 @@ export function useScannerAppModel() {
   // when the colors include the review's corrections.
   // Without photos, a cube state saves as a fixture of rendered ones (see
   // buildSyntheticFixture), in the lighting chosen in the dialog.
+  // The cube it renders is the one shown when the button was pressed: the
+  // loaded cube, a solved one, or one with layers turned in the 3D view.
+  const syntheticSource = useRef<CubeState | null>(null)
   const saveSyntheticFixture = async (preset: string) => {
-    if (!cube) return
+    const source = syntheticSource.current ?? cube
+    if (!source) return
     const commit = import.meta.env.DEV
       ? await currentAppCommit(__APP_COMMIT__)
       : __APP_COMMIT__
     try {
       const fixture = buildSyntheticFixture(
         {
-          cube,
-          parity,
+          cube: source,
+          parity: parityStatus(source, Math.sqrt(source.u.length)),
           preset,
           seed: 1,
           version: __APP_VERSION__,
@@ -516,12 +521,14 @@ export function useScannerAppModel() {
     void saveSyntheticFixture(preset)
   }
 
-  const handleSaveFixture = async () => {
+  // Without confirmed photos the state shown (`shown`) saves as rendered ones.
+  const handleSaveFixture = async (shown: CubeState) => {
     if (!canSaveCaptureFixture(capturedFaces)) {
-      if (cube) await saveSyntheticFixture('clean')
-      else setFixtureSaveMessage('❌ Capture and confirm all 6 faces first.')
+      syntheticSource.current = shown
+      await saveSyntheticFixture('clean')
       return
     }
+    syntheticSource.current = null
     const commit = import.meta.env.DEV
       ? await currentAppCommit(__APP_COMMIT__)
       : __APP_COMMIT__

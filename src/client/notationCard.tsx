@@ -16,7 +16,6 @@ type CopyStatus =
 
 interface NotationCardProps {
   cube: CubeState | null
-  canSaveFixture: boolean
   size: number
   format: NotationFormat
   loading: boolean
@@ -27,7 +26,6 @@ interface NotationCardProps {
 
 export function NotationCard({
   cube,
-  canSaveFixture,
   size,
   format,
   loading,
@@ -82,17 +80,15 @@ export function NotationCard({
           </button>
         </div>
         <div class="header-spacer" />
-        {canSaveFixture && (
-          <button
-            type="button"
-            class="btn btn-secondary btn-sm"
-            onClick={onSaveFixture}
-            disabled={loading}
-            title="Download this capture's photos + reviewed colors as a zip - unzipped into test/fixtures/ it becomes a regression test"
-          >
-            Save as test fixture
-          </button>
-        )}
+        <button
+          type="button"
+          class="btn btn-secondary btn-sm"
+          onClick={onSaveFixture}
+          disabled={loading}
+          title="Download this capture's photos + reviewed colors as a zip, or rendered photos of the cube as shown - unzipped into test/fixtures/ it becomes a regression test"
+        >
+          Save as test fixture
+        </button>
         <button
           type="button"
           class="btn btn-primary btn-sm"

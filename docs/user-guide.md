@@ -130,7 +130,10 @@ an image that is already cropped but does not use a `face-*.jpg` filename.
 After confirming a cube, **Save as test fixture** downloads its six photos and
 reviewed colors as a ZIP. With `npm run fixture:server` running on the same
 computer, **Upload to localhost** saves it straight into `test/fixtures/`, from
-the dev server or the published app. See the [fixture guide](../test/fixtures/README.md).
+the dev server or the published app. Without confirmed photos the button is
+there as well: it saves rendered photos of the cube as shown, including layers
+turned in the 3D view, in a lighting chosen in the dialog. See the
+[fixture guide](../test/fixtures/README.md).
 
 ## Enter or copy facelets
 

@@ -471,13 +471,12 @@ export function ScannerAppView({ model }: { model: ScannerAppModel }) {
 
           <NotationCard
             cube={visibleCube}
-            canSaveFixture={cube !== null}
             size={puzzleSize}
             format={notationFormat}
             loading={loading}
             fixtureSaveMessage={fixtureSaveMessage}
             onFormatChange={setNotationFormat}
-            onSaveFixture={handleSaveFixture}
+            onSaveFixture={() => handleSaveFixture(visibleCube)}
           />
         </div>
 

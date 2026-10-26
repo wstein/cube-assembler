@@ -42,6 +42,28 @@ test('offers the real lighting and renders the photos in it', async ({
   ).toHaveCount(6)
 })
 
+test('saves the cube as shown, also before any cube is loaded', async ({
+  page,
+}) => {
+  await page.goto('/')
+  const save = page.getByRole('button', { name: 'Save as test fixture' })
+  await expect(save).toBeVisible()
+  await save.click()
+  const dialog = page.getByRole('dialog', { name: 'Save as test fixture' })
+  await expect(dialog.locator('code').first()).toContainText(/^synt-3x3-/)
+  const up = dialog.getByRole('img', { name: 'Up photo' })
+  const solved = await up.getAttribute('src')
+  await dialog.press('Escape')
+  await expect(dialog).toHaveCount(0)
+  // Turned layers are the state now: the photos show them.
+  await page.getByRole('button', { name: '3D View' }).click()
+  await page.getByRole('button', { name: 'Scramble', exact: true }).click()
+  await save.click()
+  await expect(
+    dialog.getByRole('img', { name: 'Up photo' }),
+  ).not.toHaveAttribute('src', solved ?? '')
+})
+
 test('saves a state that is no cube, marked invalid', async ({ page }) => {
   await page.goto('/')
   await page.getByRole('button', { name: 'Type colors' }).click()
