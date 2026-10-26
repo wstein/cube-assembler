@@ -20,7 +20,7 @@ type point = {
 // The hue circle is cut at this angle, between blue and red, so that red
 // (which sits on both sides of 0 degrees) stays in one piece and orange
 // follows it.
-let hueCut = 340.0
+let hueCut = 330.0
 
 // Without a whole cube, a sticker below this chroma is drawn as gray, with
 // no hue: where the production clustering stops trusting hue (see

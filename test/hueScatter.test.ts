@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  HUE_CUT,
   hueAxis,
   hueScatter,
   colorDelta,
@@ -17,10 +18,16 @@ describe('the hue scatter', () => {
     expect(hueAxis(0.3)).toBeLessThan(hueAxis(25))
     expect(hueAxis(25)).toBeLessThan(hueAxis(40))
     expect(hueAxis(264)).toBeGreaterThan(hueAxis(145))
-    for (const hue of [0, 90, 180, 270, 339.9, 340, 359.9]) {
+    for (const hue of [0, 90, 180, 270, 329.9, 330, 359.9]) {
       expect(hueAxis(hue)).toBeGreaterThanOrEqual(0)
       expect(hueAxis(hue)).toBeLessThan(360)
     }
+  })
+
+  it('cuts at 330 degrees, so the chart edges are both the 330 degree tick', () => {
+    expect(HUE_CUT).toBe(330)
+    expect(hueAxis(330)).toBe(0)
+    expect(hueAxis(329.9)).toBeGreaterThan(359)
   })
 
   it('has one point per sticker, with its lightness and final color', () => {

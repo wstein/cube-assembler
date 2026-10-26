@@ -1,3 +1,4 @@
+import { oklabToRgb } from '../../core/color/ColorMath.gen'
 import { HUE_CUT, hueScatter, type LocatedSample } from './hueScatter'
 
 const NAME: Record<string, string> = {
@@ -12,23 +13,46 @@ const name = (label: string) => NAME[label] ?? label
 
 const WIDTH = 360
 const HEIGHT = 150
-const GRAY_WIDTH = 190
+const GRAY_WIDTH = 100
 const GAP = 14
-const LEFT = 30
+const LEFT = 38
 const TOP = 22
-const BOTTOM = 32
+const BOTTOM = 42
 // Room right of the gray panel, so its last tick label is not cut off.
 const RIGHT = 14
 // Lightness shown: below this no sticker sits, above 1 nothing can.
 const L_MIN = 0.3
-// Both panels show the true hue, 0 to 360 degrees in steps of 30.
+// Both panels are cut at HUE_CUT, so both edges are the same hue tick. The
+// axis runs 0 to 360 degrees past the cut; the main panel ticks every 30
+// degrees, the small gray one every 90.
 const HUE_TICKS = Array.from({ length: 13 }, (_, i) => i * 30)
+const GRAY_TICKS = [0, 90, 180, 270, 360]
+// Thickness of the color bars along the axes.
+const BAR = 5
+const BAR_GAP = 2
+const clamp = (v: number) => Math.max(0, Math.min(255, Math.round(v)))
+const bar = (l: number, c: number, hue: number) => {
+  const rad = (hue * Math.PI) / 180
+  const rgb = oklabToRgb({ l, a: c * Math.cos(rad), b: c * Math.sin(rad) })
+  return `rgb(${clamp(rgb.r)} ${clamp(rgb.g)} ${clamp(rgb.b)})`
+}
+// The hue bar: each stop is the true hue at its axis position.
+const HUE_STOPS = Array.from({ length: 25 }, (_, i) => ({
+  offset: i / 24,
+  color: bar(0.75, 0.12, (i * 15 + HUE_CUT) % 360),
+}))
+// The lightness bar, gray from L 1 at the top down to L_MIN.
+const L_STOPS = Array.from({ length: 8 }, (_, i) => ({
+  offset: i / 7,
+  color: bar(1 - ((1 - L_MIN) * i) / 7, 0, 0),
+}))
 // Lightness from 1 down to L_MIN in steps of 0.1.
 const L_TICKS = Array.from({ length: 8 }, (_, i) => 1 - i / 10)
 const trueHue = (axisHue: number) => (axisHue + HUE_CUT) % 360
 
-const x = (hue: number) => LEFT + (hue / 360) * WIDTH
-const grayX = (hue: number) => LEFT + WIDTH + GAP + (hue / 360) * GRAY_WIDTH
+// Positions take the hue on the cut axis, 0 to 360.
+const x = (axis: number) => LEFT + (axis / 360) * WIDTH
+const grayX = (axis: number) => LEFT + WIDTH + GAP + (axis / 360) * GRAY_WIDTH
 // A sticker darker than the lowest tick stays at the panel's floor.
 const y = (l: number) => TOP + Math.min(1, (1 - l) / (1 - L_MIN)) * HEIGHT
 
@@ -103,7 +127,7 @@ export function HueScatterChart({
             />
             <text
               class="hue-scatter-l-tick"
-              x={LEFT - 4}
+              x={LEFT - BAR - BAR_GAP - 3}
               y={y(l) + 3}
               text-anchor="end"
             >
@@ -111,34 +135,81 @@ export function HueScatterChart({
             </text>
           </g>
         ))}
-        {[x, grayX].map((position, panel) =>
-          HUE_TICKS.map((hue) => (
-            <g key={`${panel}-${hue}`}>
-              <line
-                class="hue-scatter-hue-grid"
-                x1={position(hue)}
-                x2={position(hue)}
-                y1={TOP}
-                y2={TOP + HEIGHT}
+        <defs>
+          <linearGradient id="hue-scatter-hue-bar" x1="0" x2="1" y1="0" y2="0">
+            {HUE_STOPS.map((stop) => (
+              <stop
+                key={stop.offset}
+                offset={stop.offset}
+                stop-color={stop.color}
               />
-              <text
-                class={`hue-scatter-hue-tick${hue % 60 === 0 ? '' : ' hue-scatter-tick-minor'}`}
-                x={position(hue)}
-                y={TOP + HEIGHT + 11}
-                text-anchor="middle"
-              >
-                {panel === 1 ? hue : `${hue}°`}
-              </text>
-            </g>
-          )),
-        )}
+            ))}
+          </linearGradient>
+          <linearGradient id="hue-scatter-l-bar" x1="0" x2="0" y1="0" y2="1">
+            {L_STOPS.map((stop) => (
+              <stop
+                key={stop.offset}
+                offset={stop.offset}
+                stop-color={stop.color}
+              />
+            ))}
+          </linearGradient>
+        </defs>
+        <rect
+          class="hue-scatter-bar hue-scatter-l-bar"
+          x={LEFT - BAR - BAR_GAP}
+          y={TOP}
+          width={BAR}
+          height={HEIGHT}
+          fill="url(#hue-scatter-l-bar)"
+        />
+        {[
+          { position: x, ticks: HUE_TICKS, left: LEFT, width: WIDTH },
+          {
+            position: grayX,
+            ticks: GRAY_TICKS,
+            left: grayLeft,
+            width: GRAY_WIDTH,
+          },
+        ].map(({ position, ticks, left, width }, panel) => (
+          <g key={panel}>
+            <rect
+              class="hue-scatter-bar hue-scatter-hue-bar"
+              x={left}
+              y={TOP + HEIGHT + BAR_GAP}
+              width={width}
+              height={BAR}
+              fill="url(#hue-scatter-hue-bar)"
+            />
+            {ticks.map((axis) => {
+              const hue = (axis + HUE_CUT) % 360
+              return (
+                <g key={axis}>
+                  <line
+                    class="hue-scatter-hue-grid"
+                    x1={position(axis)}
+                    x2={position(axis)}
+                    y1={TOP}
+                    y2={TOP + HEIGHT + BAR_GAP + BAR}
+                  />
+                  <text
+                    class={`hue-scatter-hue-tick${panel === 0 && axis % 60 !== 0 ? ' hue-scatter-tick-minor' : ''}`}
+                    x={position(axis)}
+                    y={TOP + HEIGHT + BAR_GAP + BAR + 10}
+                    text-anchor="middle"
+                  >
+                    {panel === 1 ? hue : `${hue}°`}
+                  </text>
+                </g>
+              )
+            })}
+          </g>
+        ))}
         {[...points.keys()]
           .sort((a, b) => Number(a === hovered) - Number(b === hovered))
           .map((i) => {
             const point = points[i]
-            const cx = point.neutral
-              ? grayX(trueHue(point.hue))
-              : x(trueHue(point.hue))
+            const cx = point.neutral ? grayX(point.hue) : x(point.hue)
             return (
               <circle
                 key={i}
@@ -156,7 +227,7 @@ export function HueScatterChart({
           <text
             key={label}
             class="hue-scatter-label"
-            x={x(trueHue(sum.hue / sum.n))}
+            x={x(sum.hue / sum.n)}
             y={y(sum.l / sum.n) - 22}
             text-anchor="middle"
           >
@@ -173,7 +244,7 @@ export function HueScatterChart({
             W {counts.W}
           </text>
         )}
-        <text x={LEFT + WIDTH / 2} y={TOP + HEIGHT + 24} text-anchor="middle">
+        <text x={LEFT + WIDTH / 2} y={TOP + HEIGHT + 38} text-anchor="middle">
           hue
         </text>
         <text x={4} y={TOP - 10}>
@@ -181,7 +252,7 @@ export function HueScatterChart({
         </text>
         <text
           x={grayLeft + GRAY_WIDTH / 2}
-          y={TOP + HEIGHT + 24}
+          y={TOP + HEIGHT + 38}
           text-anchor="middle"
         >
           gray
