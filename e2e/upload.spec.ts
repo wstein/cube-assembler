@@ -344,3 +344,28 @@ test('palettes live on the profiles page: no color text on the first screen', as
   await dialog.press('Escape')
   await expect(dialog).toHaveCount(0)
 })
+
+test('the hue scatter names a dot on hover, and says when it sits with another color', async ({
+  page,
+}) => {
+  const dir = resolve('test/fixtures/cube-5x5-2026-10-26T00-04-11')
+  await page.goto('/')
+  await page
+    .locator('.capture-alternatives input[type="file"]')
+    .setInputFiles([
+      ...faceKeys.map((face) => resolve(dir, `face-${face}.jpg`)),
+      resolve(dir, 'meta.json'),
+    ])
+  await page.getByRole('button', { name: 'Yes, this is my cube' }).click()
+  await page.goto('/#profiles')
+  await page.getByRole('button', { name: 'Analyze colors' }).click()
+  const dialog = page.getByRole('dialog', { name: 'Color analysis' })
+  const info = dialog.locator('.hue-scatter-info')
+  await expect(info).toContainText('Point at a dot')
+  await dialog.locator('.hue-scatter-dot').first().hover({ force: true })
+  await expect(info).toContainText(
+    /row \d+, column \d+: \w+ \(.+\) - sits with/,
+  )
+  await dialog.locator('.hue-scatter-misplaced').first().hover({ force: true })
+  await expect(info).toContainText('not with its own color')
+})

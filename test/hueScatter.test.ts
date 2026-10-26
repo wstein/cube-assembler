@@ -67,6 +67,10 @@ describe('the hue scatter', () => {
       ...Array(12).fill(false),
       true,
     ])
+    // It names the cloud it sits with; the others sit with their own.
+    expect(points[12].sitsWith).toBe('O')
+    expect(points[0].sitsWith).toBe('O')
+    expect(points[6].sitsWith).toBe('R')
   })
 
   it('flags a gray sticker that is not white, and a colored white', () => {
@@ -77,6 +81,9 @@ describe('the hue scatter', () => {
       { rgb: rgb(190, 40, 45), label: 'R' },
     ])
     expect(points.map((p) => p.misplaced)).toEqual([false, true, true, false])
+    // A gray one sits with the whites, a colored white with the nearest cloud.
+    expect(points[1].sitsWith).toBe('W')
+    expect(points[2].sitsWith).toBe('R')
   })
 
   it('marks a gray as neutral and a vivid color as not', () => {

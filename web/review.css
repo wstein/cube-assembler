@@ -863,3 +863,11 @@
   stroke: #1b1b1f;
   stroke-width: 1.5;
 }
+
+.hue-scatter-info {
+  min-height: 1.4em;
+  margin: var(--spacing-sm) 0 0;
+  text-align: center;
+  color: var(--color-text-secondary);
+  font-size: 0.9rem;
+}

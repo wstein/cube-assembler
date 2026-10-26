@@ -8,7 +8,7 @@ import { CaptureSettings, CubeSelectOptions } from './capture/captureSettings'
 import type { ReviewCapture } from './profiles/colorReviewPage'
 import { readWithProfile } from './capture/readWithProfile'
 import { ColorAnalysisDialog } from './profiles/colorAnalysisDialog'
-import { reviewStartSlot } from './capture/approvalPhotos'
+import { miniNet, reviewStartSlot } from './capture/approvalPhotos'
 import { withPaletteSuspects } from './capture/paletteSuspects'
 import { FixtureDownloadDialog } from './fixtures/fixtureDownloadDialog'
 import { localUploadShown } from './preferences'
@@ -228,6 +228,9 @@ export function ScannerAppView({ model }: { model: ScannerAppModel }) {
     )
   }
   // The color analysis of the last capture, opened from the profiles page.
+  const netPlaces = showBackdropDialog
+    ? miniNet(capturedFaces, [...FACE_ORDER], puzzleSize)
+    : []
   const analysisDialog = showBackdropDialog && (
     <ColorAnalysisDialog
       backdrop={
@@ -249,10 +252,15 @@ export function ScannerAppView({ model }: { model: ScannerAppModel }) {
           FACE_ORDER.map((f) => [f, capturedFaces[f]?.backgroundColor ?? null]),
         ),
       )}
-      samples={FACE_ORDER.flatMap((f) => {
+      samples={FACE_ORDER.flatMap((f, slot) => {
         const face = capturedFaces[f]
+        const place = netPlaces.find((item) => item.slot === slot)
         return (face?.cellColors ?? []).flatMap((row, r) =>
-          row.map((rgb, c) => ({ rgb, label: face.colors[r][c] })),
+          row.map((rgb, c) => ({
+            rgb,
+            label: face.colors[r][c],
+            where: `${place?.name ?? FACE_DISPLAY_LABEL[f]}, row ${r + 1}, column ${c + 1}`,
+          })),
         )
       })}
       standard={STICKER_COLORS}

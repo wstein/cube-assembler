@@ -3,7 +3,11 @@
 // final colors differ from the standard and the learned ones.
 import { useState } from 'preact/hooks'
 import { HueScatterChart } from '../capture/hueScatterChart'
-import { colorDelta, meansByLabel, type HueSample } from '../capture/hueScatter'
+import {
+  colorDelta,
+  meansByLabel,
+  type LocatedSample,
+} from '../capture/hueScatter'
 import { type RGB } from '../vision/stickerColorGeometry'
 import { BackdropPanel, type BackdropFace } from './backdropDialog'
 
@@ -39,7 +43,7 @@ function FinalColors({
   standard,
   readWith,
 }: {
-  samples: HueSample[]
+  samples: LocatedSample[]
   standard: Record<string, RGB>
   // The profile that read the faces live; null when none did.
   readWith: { name: string; colors: Record<string, RGB> } | null
@@ -107,7 +111,7 @@ export function ColorAnalysisDialog({
   // Null when no backdrop adjustment was applied to this capture.
   backdrop: BackdropFace[] | null
   reference: RGB | null
-  samples: HueSample[]
+  samples: LocatedSample[]
   standard: Record<string, RGB>
   readWith: { name: string; colors: Record<string, RGB> } | null
   onClose: () => void

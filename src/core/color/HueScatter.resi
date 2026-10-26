@@ -9,6 +9,7 @@ type point = {
   chroma: float,
   neutral: bool,
   misplaced: bool,
+  sitsWith: string,
 }
 
 @genType let neutralChroma: float

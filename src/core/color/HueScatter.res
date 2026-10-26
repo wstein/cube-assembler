@@ -17,6 +17,9 @@ type point = {
   // Sits with another color's stickers than the one it ended up as (see
   // hueScatter).
   misplaced: bool,
+  // The color whose cloud it sits in: its own unless misplaced. White has no
+  // hue, so a colored sticker is never "in" the whites.
+  sitsWith: string,
 }
 
 // The hue circle is cut at this angle, between blue and red, so that red
@@ -56,12 +59,13 @@ let hueScatter = (samples: array<sample>) => {
       chroma: lch.c,
       neutral: lch.c < neutralChroma,
       misplaced: false,
+      sitsWith: sample.label,
     }
   })
-  // Each color's cloud center, from its colored stickers.
+  // Each color's cloud center, from its colored stickers (white has none).
   let sums: Dict.t<(float, float, int)> = Dict.make()
   base->Array.forEach(point =>
-    if !point.neutral {
+    if !point.neutral && point.label != "W" {
       let (h, l, n) = sums->Dict.get(point.label)->Option.getOr((0.0, 0.0, 0))
       sums->Dict.set(point.label, (h +. point.hue, l +. point.l, n + 1))
     }
@@ -71,13 +75,19 @@ let hueScatter = (samples: array<sample>) => {
     ->Dict.toArray
     ->Array.map(((label, (h, l, n))) => {
       let count = Int.toFloat(n)
-      {label, hue: h /. count, l: l /. count, chroma: 0.0, neutral: false, misplaced: false}
+      {
+        label,
+        hue: h /. count,
+        l: l /. count,
+        chroma: 0.0,
+        neutral: false,
+        misplaced: false,
+        sitsWith: label,
+      }
     })
   base->Array.map(point =>
     if point.neutral {
-      {...point, misplaced: point.label != "W"}
-    } else if point.label == "W" {
-      {...point, misplaced: true}
+      {...point, misplaced: point.label != "W", sitsWith: "W"}
     } else {
       let nearest = centers->Array.reduce(None, (best, center) =>
         switch best {
@@ -85,7 +95,8 @@ let hueScatter = (samples: array<sample>) => {
         | _ => Some((center.label, chartDistance(point, center)))
         }
       )
-      {...point, misplaced: nearest->Option.mapOr(false, ((label, _)) => label != point.label)}
+      let sitsWith = nearest->Option.mapOr(point.label, ((label, _)) => label)
+      {...point, misplaced: point.label == "W" || sitsWith != point.label, sitsWith}
     }
   )
 }
