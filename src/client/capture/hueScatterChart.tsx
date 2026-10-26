@@ -5,7 +5,7 @@ const HEIGHT = 150
 const GRAY_WIDTH = 44
 const GAP = 14
 const LEFT = 30
-const TOP = 12
+const TOP = 22
 const BOTTOM = 24
 // Lightness shown: below this no sticker sits, above 1 nothing can.
 const L_MIN = 0.3
