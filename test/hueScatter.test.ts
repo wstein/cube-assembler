@@ -1,43 +1,46 @@
 import { describe, expect, it } from 'vitest'
 import {
-  hueBin,
-  hueHistogram,
+  hueAxis,
+  hueScatter,
   colorDelta,
   meansByLabel,
   NEUTRAL_CHROMA,
-} from '../src/client/capture/hueHistogram'
+} from '../src/client/capture/hueScatter'
 import { rgbToOKLCH } from '../src/client/vision/colorMath'
 
 const rgb = (r: number, g: number, b: number) => ({ r, g, b })
 
-describe('the sticker hue histogram', () => {
-  it('counts every sticker once, whites apart from the hues', () => {
-    const histogram = hueHistogram(
-      [
-        { rgb: rgb(200, 30, 40), label: 'R' },
-        { rgb: rgb(205, 35, 45), label: 'R' },
-        { rgb: rgb(30, 60, 200), label: 'B' },
-        { rgb: rgb(245, 245, 240), label: 'W' },
-      ],
-      36,
-    )
-    const hued = histogram.bins.flatMap((bin) => Object.values(bin))
-    expect(hued.reduce((a, b) => a + b, 0)).toBe(3)
-    expect(histogram.neutral).toEqual({ W: 1 })
-    expect(histogram.bins).toHaveLength(36)
+describe('the hue scatter', () => {
+  it('cuts the hue circle between blue and red, so red is not split', () => {
+    // Deep reds sit on both sides of 0 degrees; all stay before orange.
+    expect(hueAxis(359.9)).toBeLessThan(hueAxis(0.3))
+    expect(hueAxis(0.3)).toBeLessThan(hueAxis(25))
+    expect(hueAxis(25)).toBeLessThan(hueAxis(40))
+    expect(hueAxis(264)).toBeGreaterThan(hueAxis(145))
+    for (const hue of [0, 90, 180, 270, 339.9, 340, 359.9]) {
+      expect(hueAxis(hue)).toBeGreaterThanOrEqual(0)
+      expect(hueAxis(hue)).toBeLessThan(360)
+    }
   })
 
-  it('puts a sticker in the bin of its hue, labeled as the review has it', () => {
+  it('has one point per sticker, with its lightness and final color', () => {
     const red = rgb(200, 30, 40)
-    const histogram = hueHistogram([{ rgb: red, label: 'O' }], 36)
-    const bin = hueBin(red, 36)
-    expect(histogram.bins[bin]).toEqual({ O: 1 })
-    expect(hueBin(rgb(30, 60, 200), 36)).not.toBe(bin)
+    const points = hueScatter([
+      { rgb: red, label: 'O' },
+      { rgb: rgb(245, 245, 240), label: 'W' },
+    ])
+    expect(points).toHaveLength(2)
+    expect(points[0].label).toBe('O')
+    expect(points[0].l).toBeCloseTo(rgbToOKLCH(red).l, 10)
+    expect(points[0].neutral).toBe(false)
+    expect(points[0].hue).toBeCloseTo(hueAxis(rgbToOKLCH(red).h), 10)
   })
 
-  it('treats a gray as neutral and a vivid color as not', () => {
+  it('marks a gray as neutral and a vivid color as not', () => {
     expect(rgbToOKLCH(rgb(128, 128, 128)).c).toBeLessThan(NEUTRAL_CHROMA)
     expect(rgbToOKLCH(rgb(200, 30, 40)).c).toBeGreaterThan(NEUTRAL_CHROMA)
+    const [gray] = hueScatter([{ rgb: rgb(128, 128, 128), label: 'W' }])
+    expect(gray.neutral).toBe(true)
   })
 })
 

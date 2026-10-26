@@ -2,12 +2,8 @@
 // balance did, where the stickers sit around the hue circle, and how the
 // final colors differ from the standard and the learned ones.
 import { useState } from 'preact/hooks'
-import { HueHistogramChart } from '../capture/hueHistogramChart'
-import {
-  colorDelta,
-  meansByLabel,
-  type HueSample,
-} from '../capture/hueHistogram'
+import { HueScatterChart } from '../capture/hueScatterChart'
+import { colorDelta, meansByLabel, type HueSample } from '../capture/hueScatter'
 import { type RGB } from '../vision/stickerColorGeometry'
 import { BackdropPanel, type BackdropFace } from './backdropDialog'
 
@@ -177,15 +173,13 @@ export function ColorAnalysisDialog({
         {tab === 'hues' && (
           <>
             <p class="backdrop-intro">
-              The stickers by hue after the white balance, colored as they ended
-              up. The dashed lines mark where the standard palette expects each
-              color; a peak off its line is a color the standard palette would
-              misread.
+              Every sticker by hue (across) and lightness (up) after the white
+              balance, in its measured color and outlined in the color it ended
+              up as. The dashed rings mark where the standard palette expects
+              each color. Red and orange share hues, but orange is lighter: two
+              clouds, not one.
             </p>
-            <HueHistogramChart
-              samples={samples}
-              stickerColors={stickerColors}
-            />
+            <HueScatterChart samples={samples} stickerColors={stickerColors} />
           </>
         )}
         {tab === 'final' && (

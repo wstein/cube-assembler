@@ -331,7 +331,7 @@ test('palettes live on the profiles page: no color text on the first screen', as
   ).toBeVisible()
   await page.getByRole('button', { name: 'Analyze colors' }).click()
   const dialog = page.getByRole('dialog', { name: 'Color analysis' })
-  await expect(dialog.locator('.hue-histogram')).toBeVisible()
+  await expect(dialog.locator('.hue-scatter')).toBeVisible()
   await dialog.getByRole('button', { name: 'Final colors' }).click()
   await expect(dialog.locator('.color-analysis-table tbody tr')).toHaveCount(6)
   await expect(dialog.locator('.color-analysis-table thead')).toContainText(
