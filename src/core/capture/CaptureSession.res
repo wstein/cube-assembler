@@ -24,6 +24,21 @@ type captureStep =
 
 let hasFace = (faces, face) => faces->Dict.get(face)->Option.isSome
 
+// The slots (other than `face`, which is being retaken) whose photo this
+// reading repeats: only odd cubes can tell, see RepeatedFace.
+let repeatedSlot = (faces: faces, face, reading: CaptureFlow.faceCaptureReading) =>
+  switch reading.cellColors {
+  | Some(cellColors) =>
+    let others = CaptureSteps.faceOrder->Array.filter(slot => slot != face)
+    let photos =
+      others->Array.map(slot => faces->Dict.get(slot)->Option.flatMap(data => data.cellColors))
+    RepeatedFace.findRepeatShots(Array.concat(photos, [Some(cellColors)]))->Array.some(((
+      _,
+      newest,
+    )) => newest == Array.length(photos))
+  | None => false
+  }
+
 let captureStep = (
   faces,
   face,
@@ -39,6 +54,10 @@ let captureStep = (
     Invalid({
       message: `❌ Invalid colors detected. Confidence: ${(reading.confidence *. 100.0)
           ->toFixed(0)}%`,
+    })
+  } else if repeatedSlot(faces, face, reading) {
+    Invalid({
+      message: "❌ That is the same face as one already captured - turn the cube to the next face.",
     })
   } else {
     let placed = CaptureFlow.placeFaceCapture(

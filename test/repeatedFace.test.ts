@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { captureStep } from '../src/client/capture/captureFlow'
 import {
   faceDistance,
   findRepeatShots,
@@ -97,5 +98,64 @@ describe('the saved capture with a repeated face', () => {
       )
     })
     expect(findRepeatShots(faces)).toEqual([[3, 4]])
+  })
+})
+
+describe('capturing a face that was already shot', () => {
+  const centers = ['W', 'G', 'R', 'B', 'O', 'Y']
+  // A valid color grid; only the center tells the faces apart.
+  const reading = (size: number, seed: number, center: string, noise = 0) => {
+    const mid = (size - 1) / 2
+    const colors = Array.from({ length: size }, (_, r) =>
+      Array.from({ length: size }, (_, c) =>
+        r === mid && c === mid ? center : 'W',
+      ),
+    )
+    return {
+      colors,
+      confidence: 0.9,
+      cellColors: face(size, seed, noise),
+    }
+  }
+  const shoot = (
+    faces: Record<string, never>,
+    slot: string,
+    size: number,
+    seed: number,
+    center: string,
+    noise = 0,
+  ) =>
+    captureStep(
+      faces,
+      slot,
+      reading(size, seed, center, noise),
+      'camera',
+      undefined,
+      undefined,
+      size,
+      true,
+    )
+
+  it('refuses the same face under another slot on an odd cube', () => {
+    const first = shoot({}, 'U', 5, 1, centers[0])
+    if (!first.ok) throw new Error('first capture failed')
+    const second = shoot(first.faces as never, 'R', 5, 2, centers[1])
+    if (!second.ok) throw new Error('second capture failed')
+    // The same face again, its center misread as another color.
+    const again = shoot(second.faces as never, 'F', 5, 1, centers[2], 6)
+    expect(again.ok).toBe(false)
+    expect(again.ok === false && again.message).toMatch(/same face/i)
+  })
+
+  it('still lets a slot be retaken', () => {
+    const first = shoot({}, 'U', 5, 1, centers[0])
+    if (!first.ok) throw new Error('first capture failed')
+    expect(shoot(first.faces as never, 'U', 5, 1, centers[0], 6).ok).toBe(true)
+  })
+
+  it('accepts look-alike faces on an even cube', () => {
+    const first = shoot({}, 'U', 4, 1, 'W')
+    if (!first.ok) throw new Error('first capture failed')
+    expect(shoot(first.faces as never, 'R', 4, 1, 'W', 6).ok).toBe(true)
   })
 })
