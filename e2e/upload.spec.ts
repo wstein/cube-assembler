@@ -395,6 +395,20 @@ test('the hue scatter names a dot on hover and links it with the net', async ({
   await expect(dialog.locator('.hue-scatter-lens')).toHaveCount(0)
   await dialog.locator('.hue-scatter').hover({ position: { x: 200, y: 60 } })
   await expect(dialog.locator('.hue-scatter-lens')).toHaveCount(1)
+  // The wheel (or a pinch) sets the magnification, 5 times to start.
+  const scale = async () =>
+    Number(
+      (
+        await dialog
+          .locator('.hue-scatter-lens g[clip-path] > g')
+          .getAttribute('transform')
+      )?.match(/scale\(([\d.]+)\)/)?.[1],
+    )
+  expect(await scale()).toBe(5)
+  await page.mouse.wheel(0, -100)
+  await expect.poll(scale).toBeGreaterThan(5)
+  await page.mouse.wheel(0, 400)
+  await expect.poll(scale).toBeLessThan(5)
   await dialog.locator('.hue-scatter-dot').first().hover({ force: true })
   await expect(info).toContainText(
     /row \d+, column \d+: \w+ \(L [\d.]+, C [\d.]+, h \d+°\)$/,

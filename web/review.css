@@ -843,6 +843,11 @@
 }
 
 /* No fill: white stickers must stand out against the page, not a tint. */
+.hue-scatter text {
+  /* Hidden inside the lens, where text would be magnified. */
+  display: var(--hue-text-display, inline);
+}
+
 .hue-scatter-gray {
   fill: none;
 }

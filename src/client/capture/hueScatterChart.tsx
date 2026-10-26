@@ -38,9 +38,14 @@ const TICK_ANGLE = 45
 const TICK_SHIFT = 7
 // The lens: radius and magnification, in chart units.
 const LENS_R = 62
-const LENS_ZOOM = 10.5
+// The lens magnification starts here and follows the wheel or a pinch.
+const LENS_ZOOM_START = 5
+const LENS_ZOOM_MIN = 4
+const LENS_ZOOM_MAX = 10
+// A wheel step of 100 units changes the magnification by this factor.
+const LENS_ZOOM_STEP = 1.25
 // Dots keep their on-screen size in the lens, so overlapping ones part.
-const LENS_DOT = 3 / LENS_ZOOM
+const DOT_RADIUS = 3
 // How near the pointer must be to a dot to point at it.
 const HIT_RADIUS = 8
 // Thickness of the color bars along the axes.
@@ -111,13 +116,12 @@ export function HueScatterChart({
   hovered: number | null
   onHover: (index: number | null) => void
 }) {
+  const [zoom, setZoom] = useState(LENS_ZOOM_START)
   const [lens, setLens] = useState<{ x: number; y: number } | null>(null)
   const grayLeft = LEFT + WIDTH + GAP
   const points = hueScatter(samples)
-  const counts: Record<string, number> = {}
   const sums: Record<string, { hue: number; l: number; n: number }> = {}
   for (const point of points) {
-    counts[point.label] = (counts[point.label] ?? 0) + 1
     if (point.neutral) continue
     const sum = (sums[point.label] ??= { hue: 0, l: 0, n: 0 })
     sum.hue += point.hue
@@ -159,6 +163,17 @@ export function HueScatterChart({
             }
           })
           if (nearest !== hovered) onHover(nearest)
+        }}
+        onWheel={(e) => {
+          // The wheel (or a pinch, which arrives as a wheel with ctrl) sets
+          // the magnification while the lens is open.
+          e.preventDefault()
+          setZoom((z) =>
+            Math.min(
+              LENS_ZOOM_MAX,
+              Math.max(LENS_ZOOM_MIN, z * LENS_ZOOM_STEP ** (-e.deltaY / 100)),
+            ),
+          )
         }}
         onMouseLeave={() => {
           setLens(null)
@@ -300,17 +315,17 @@ export function HueScatterChart({
               y={y(sum.l / sum.n) - 22}
               text-anchor="middle"
             >
-              {label} {counts[label]}
+              {label}
             </text>
           ))}
-          {counts.W && (
+          {points.some((point) => point.label === 'W') && (
             <text
               class="hue-scatter-label"
               x={grayLeft + GRAY_WIDTH / 2}
               y={TOP + 8}
               text-anchor="middle"
             >
-              W {counts.W}
+              W
             </text>
           )}
           <text x={LEFT + WIDTH / 2} y={TOP + HEIGHT + 54} text-anchor="middle">
@@ -340,11 +355,11 @@ export function HueScatterChart({
             />
             <g clip-path="url(#hue-scatter-lens-clip)">
               <g
-                transform={`translate(${lensX(lens)} ${lensY(lens)}) scale(${LENS_ZOOM}) translate(${-lens.x} ${-lens.y})`}
+                transform={`translate(${lensX(lens)} ${lensY(lens)}) scale(${zoom}) translate(${-lens.x} ${-lens.y})`}
               >
                 <use
                   href="#hue-scatter-plot"
-                  style={`--hue-dot-r: ${LENS_DOT}px`}
+                  style={`--hue-dot-r: ${DOT_RADIUS / zoom}px; --hue-text-display: none`}
                 />
               </g>
             </g>
