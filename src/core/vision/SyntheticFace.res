@@ -5,9 +5,10 @@
 // word SYNTHETIC so no one mistakes the photo for a camera shot.
 open StickerGeometry
 
-// The lighting a photo can be rendered with: none, or one of the problems
-// the color pipeline has to live with.
-let presets = ["clean", "gradient", "shadow", "dim-warm", "glare", "noise", "bad-camera"]
+// The lighting a photo can be rendered with: none, one of the problems the
+// color pipeline has to live with, or clean light with the sticker-to-sticker
+// scatter of real captures.
+let presets = ["clean", "scatter", "gradient", "shadow", "dim-warm", "glare", "noise", "bad-camera"]
 
 // What real stickers look like in a photo: not the idealized swatches.
 let palette = Dict.fromArray([
@@ -43,6 +44,31 @@ let gauss = (seed, i) => {
 
 let clamp = (v, low, high) => Math.min(high, Math.max(low, v))
 
+// Stickers of one color are not one color: the plastic, its wear and the
+// lamp shift each one's hue and chroma (OKLCH) a little. The spreads are the
+// medians over the saved captures of valid cubes: hue in degrees, chroma as
+// a share of its own mean. White has hardly any chroma, so its hue is all
+// over and its chroma varies by a third.
+let scatters = Dict.fromArray([
+  ("W", (22.0, 0.35)),
+  ("Y", (2.5, 0.045)),
+  ("O", (1.2, 0.034)),
+  ("R", (1.4, 0.043)),
+  ("G", (0.7, 0.063)),
+  ("B", (1.0, 0.08)),
+])
+let defaultScatter = (2.0, 0.05)
+
+let scatterColor = (base: rgb, label, seed, k, scale) => {
+  let (hueSpread, chromaSpread) = scatters->Dict.get(label)->Option.getOr(defaultScatter)
+  let hueScatter = hueSpread *. scale
+  let chromaScatter = chromaSpread *. scale
+  let lch = ColorMath.rgbToOKLCH(base)
+  let hue = (lch.h +. gauss(seed, 6000 + 2 * k) *. hueScatter) *. Math.Constants.pi /. 180.0
+  let chroma = Math.max(0.0, lch.c *. (1.0 +. gauss(seed, 6001 + 2 * k) *. chromaScatter))
+  ColorMath.oklabToRgb({l: lch.l, a: chroma *. Math.cos(hue), b: chroma *. Math.sin(hue)})
+}
+
 // 5x7 lettering for the border strip.
 let glyphs = Dict.fromArray([
   ("A", ["01110", "10001", "10001", "11111", "10001", "10001", "10001"]),
@@ -74,7 +100,7 @@ let setPixel = (data, size, x, y, c: rgb) => {
 }
 
 // The face itself, before any lighting: stickers by their color.
-let drawFace = (data, grid: array<array<string>>, seed, size) => {
+let drawFace = (data, grid: array<array<string>>, seed, size, scatter) => {
   let n = Array.length(grid)
   let side = Int.toFloat(size)
   let margin = Math.round(side *. marginFraction)
@@ -104,7 +130,13 @@ let drawFace = (data, grid: array<array<string>>, seed, size) => {
         let distance = outside +. Math.min(Math.max(qx, qy), 0.0) -. radius
         let coverage = clamp(0.5 -. distance, 0.0, 1.0)
         let label = grid->Array.getUnsafe(row)->Array.getUnsafe(col)
-        let base = palette->Dict.get(label)->Option.getOr(unknownSticker)
+        let base = scatterColor(
+          palette->Dict.get(label)->Option.getOr(unknownSticker),
+          label,
+          seed,
+          row * n + col,
+          scatter,
+        )
         // Darker toward the rim, a little lighter toward one corner, and each
         // sticker a touch different from the next.
         let rim = 1.0 -. 0.1 *. clamp(1.0 -. -.distance /. (cell *. 0.08), 0.0, 1.0)
@@ -256,20 +288,21 @@ let drawLabel = (data, size, preset) => {
       rows->Array.forEachWithIndex((row, gy) =>
         row
         ->String.split("")
-        ->Array.forEachWithIndex((bit, gx) =>
-          if bit == "1" {
-            for dy in 0 to scale - 1 {
-              for dx in 0 to scale - 1 {
-                setPixel(
-                  data,
-                  size,
-                  margin + (index * 6 + gx) * scale + dx,
-                  top + gy * scale + dy,
-                  lettering,
-                )
+        ->Array.forEachWithIndex(
+          (bit, gx) =>
+            if bit == "1" {
+              for dy in 0 to scale - 1 {
+                for dx in 0 to scale - 1 {
+                  setPixel(
+                    data,
+                    size,
+                    margin + (index * 6 + gx) * scale + dx,
+                    top + gy * scale + dy,
+                    lettering,
+                  )
+                }
               }
-            }
-          }
+            },
         )
       )
     }
@@ -278,12 +311,25 @@ let drawLabel = (data, size, preset) => {
 
 // The photo of one face, size x size RGBA pixels, in the given lighting.
 // The same grid, preset and seed always make the same photo.
-let renderFace = (grid: array<array<string>>, preset: string, seed: int, size: int) => {
+// What the generator can be told beyond the grid, preset and seed; every
+// field is optional, so options can be added without touching the callers.
+// `scatter` scales the hue and chroma spread of stickers of one color: 0 is
+// none, 1 the spread measured in the saved captures. It defaults to 1 for
+// the scatter preset and to 0 for all others, so clean stays clear.
+type options = {scatter?: float}
+
+let renderFace = (
+  grid: array<array<string>>,
+  preset: string,
+  seed: int,
+  size: int,
+  options: options,
+) => {
   if !(presets->Array.includes(preset)) {
     JsError.throwWithMessage(`Unknown synthetic preset: ${preset}`)
   }
   let data = Pixels.make(size * size * 4)
-  drawFace(data, grid, seed, size)
+  drawFace(data, grid, seed, size, options.scatter->Option.getOr(preset == "scatter" ? 1.0 : 0.0))
   switch preset {
   | "gradient" => applyGradient(data, size)
   | "shadow" => applyShadow(data, size)

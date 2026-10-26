@@ -84,7 +84,9 @@ seconds. Software-rendered fixtures use `synt-` names and the `synthetic` and
 `software-rendered` tags. **Save as test fixture** on a cube state with no
 photos (typed facelets, a solved cube) renders them: a parametric model of the
 cropped capture photos, with a lighting preset chosen in the dialog (clean,
-gradient, shadow, dim-warm, glare, noise, bad-camera). The photos carry a
+scatter, gradient, shadow, dim-warm, glare, noise, bad-camera; scatter is
+clean light plus the hue and chroma spread between stickers of one color, as
+measured in the saved captures, while clean has none). The photos carry a
 SYNTHETIC strip, `meta.json` a `preset:<name>` tag and `capture.synthetic`;
 a state that is no cube is saved too, tagged `invalid-state` with the reason.
 A preset the color pipeline misreads is a finding: keep it as a regression

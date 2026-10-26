@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { PRESETS, renderFace } from '../src/client/vision/syntheticFace'
 import { extractColorsFromImageData } from '../src/client/vision/faceDetection'
+import { rgbToOKLCH } from '../src/core/color/ColorMath.gen'
 import { NEUTRAL_GAINS } from '../src/client/vision/colorMath'
 import { DEFAULT_SAMPLING } from '../src/client/vision/stickerColorGeometry'
 
@@ -33,6 +34,84 @@ describe('the synthetic face', () => {
     expect(PRESETS[0]).toBe('clean')
     expect(PRESETS).toEqual(
       expect.arrayContaining(['gradient', 'shadow', 'dim-warm', 'glare']),
+    )
+  })
+
+  // Hue spread (degrees) and chroma spread (share of the mean) of the
+  // stickers of one color on a 7x7 face, as measured in the face's photo.
+  function scatterOf(
+    color: string,
+    preset = 'scatter',
+    options: { scatter?: number } = {},
+  ) {
+    const n = 7
+    const face = Array.from({ length: n }, () => Array<string>(n).fill(color))
+    const pixels = renderFace(face, preset, 3, SIZE, options)
+    const margin = Math.round(SIZE * 0.035)
+    const cell = (SIZE - 2 * margin) / n
+    const hues: number[] = []
+    const chromas: number[] = []
+    for (let r = 0; r < n; r++)
+      for (let c = 0; c < n; c++) {
+        const x = Math.floor(margin + (c + 0.5) * cell)
+        const y = Math.floor(margin + (r + 0.5) * cell)
+        const i = (y * SIZE + x) * 4
+        const lch = rgbToOKLCH({
+          r: pixels[i],
+          g: pixels[i + 1],
+          b: pixels[i + 2],
+        })
+        hues.push(lch.h)
+        chromas.push(lch.c)
+      }
+    const mean = (values: number[]) =>
+      values.reduce((a, b) => a + b, 0) / values.length
+    const spread = (values: number[]) =>
+      Math.sqrt(mean(values.map((v) => (v - mean(values)) ** 2)))
+    return { hue: spread(hues), chroma: spread(chromas) / mean(chromas) }
+  }
+
+  it('scatters hue and chroma like the saved captures: a little for colors, a lot for white', () => {
+    // Saved captures (valid cubes, median over captures): color stickers
+    // spread by about 1 to 2.5 degrees of hue and 3 to 8 percent of chroma;
+    // white has hardly any chroma, so its hue is all over and its chroma
+    // varies by a third.
+    for (const color of ['R', 'O', 'Y', 'G', 'B']) {
+      const { hue, chroma } = scatterOf(color)
+      expect(hue, `${color} hue`).toBeGreaterThan(0.4)
+      expect(hue, `${color} hue`).toBeLessThan(4)
+      expect(chroma, `${color} chroma`).toBeGreaterThan(0.02)
+      expect(chroma, `${color} chroma`).toBeLessThan(0.12)
+    }
+    const white = scatterOf('W')
+    expect(white.hue).toBeGreaterThan(8)
+    expect(white.chroma).toBeGreaterThan(0.15)
+    expect(white.chroma).toBeLessThan(0.6)
+  })
+
+  it('keeps clean clear, and scatters only in its own preset', () => {
+    expect(PRESETS).toContain('scatter')
+    // Clean: every sticker of a color has one hue and chroma (brightness
+    // still differs a little).
+    const clean = scatterOf('R', 'clean')
+    expect(clean.hue).toBeLessThan(0.3)
+    expect(clean.chroma).toBeLessThan(0.03)
+    // The scatter preset is clean plus the measured scatter.
+    expect(scatterOf('R', 'scatter')).toEqual(
+      scatterOf('R', 'clean', { scatter: 1 }),
+    )
+    expect(scatterOf('R', 'scatter').hue).toBeGreaterThan(5 * clean.hue)
+  })
+
+  it('takes the scatter as an option, for any preset', () => {
+    const measured = scatterOf('R', 'clean', { scatter: 1 })
+    const double = scatterOf('R', 'clean', { scatter: 2 })
+    // The option scales the measured spread...
+    expect(double.hue).toBeGreaterThan(1.7 * measured.hue)
+    expect(double.chroma).toBeGreaterThan(1.4 * measured.chroma)
+    // ...and off is off, also in the scatter preset.
+    expect(scatterOf('R', 'scatter', { scatter: 0 })).toEqual(
+      scatterOf('R', 'clean'),
     )
   })
 
