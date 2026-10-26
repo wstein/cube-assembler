@@ -55,7 +55,7 @@ enabled. Changing size after a capture asks before clearing saved faces.
 ### Remembered choices
 
 First-party cookies remember the selected cube size and color profile,
-Mirror, Auto capture, capture sound, and the **2D Net / 3D View** choice.
+Mirror, Hands-free capture, capture sound, and the **2D Net / 3D View** choice.
 Within 3D View, **Stickerless / Stickered** and **Auto-rotate / Pause** are
 remembered too. The gesture hint hides 10 seconds after the first touch and
 returns after 20 seconds without touch. It turns off after 30 minutes of active

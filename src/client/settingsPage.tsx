@@ -32,6 +32,8 @@ import {
   layerMovesOn,
   localUploadShown,
   preferenceCookie,
+  readAutoCapture,
+  readCaptureSound,
   readPreference,
   selectedCaptureMode,
   selectedNotationFormat,
@@ -143,15 +145,15 @@ export function SettingsPage({ onClose }: Props) {
           onChange={(on) => write(preferenceCookie(MIRROR_COOKIE, on))}
         />
         <ToggleSetting
-          label="Auto capture"
-          hint="Take the photo once the face holds still."
-          checked={readPreference(cookies, AUTO_CAPTURE_COOKIE)}
+          label="Hands-free capture"
+          hint="Take each photo by itself once the face holds still."
+          checked={readAutoCapture(cookies)}
           onChange={(on) => write(preferenceCookie(AUTO_CAPTURE_COOKIE, on))}
         />
         <ToggleSetting
           label="Capture sound"
           hint="A shutter click and flash for each photo."
-          checked={readPreference(cookies, SOUND_COOKIE)}
+          checked={readCaptureSound(cookies)}
           onChange={(on) => write(preferenceCookie(SOUND_COOKIE, on))}
         />
       </Section>
@@ -182,7 +184,7 @@ export function SettingsPage({ onClose }: Props) {
         <div class="settings-advanced-content">
           <Section id="settings-capture-timing" title="Capture timing">
             <SliderSetting
-              label="Auto capture waits for"
+              label="Hands-free capture waits for"
               hint="Matching frames in a row; more is steadier, fewer is quicker."
               min={AUTO_CAPTURE_FRAMES_RANGE.min}
               max={AUTO_CAPTURE_FRAMES_RANGE.max}

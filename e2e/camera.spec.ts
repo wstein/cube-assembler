@@ -15,6 +15,11 @@ const photos = faceKeys.map((face) =>
 )
 
 async function installStubCamera(page: Page, frames = photos) {
+  // Hands-free capture starts on; these tests press the capture buttons.
+  await page.addInitScript(() => {
+    if (!document.cookie.includes('cube-assembler-auto-capture='))
+      document.cookie = 'cube-assembler-auto-capture=0; Path=/'
+  })
   await page.addInitScript(
     ({ frames }) => {
       const canvas = document.createElement('canvas')
@@ -144,7 +149,7 @@ test('auto capture advances after five stable live frames', async ({
   await page.getByRole('button', { name: 'Capture faces' }).click()
   const capture = page.locator('.capture-modal-content')
   await expect(capture.locator('video')).toHaveJSProperty('videoWidth', 960)
-  await capture.getByRole('checkbox', { name: /Auto capture/ }).check()
+  await capture.getByRole('checkbox', { name: /Hands-free capture/ }).check()
   await expect(capture.locator('.capture-net [data-slot="U"]')).toHaveAttribute(
     'aria-label',
     /captured/,

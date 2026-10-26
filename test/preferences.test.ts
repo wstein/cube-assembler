@@ -50,16 +50,22 @@ import {
   SETTING_COOKIES,
   clearedCookie,
   numberCookie,
+  readAutoCapture,
+  readCaptureSound,
   readChoice,
   readNumber,
 } from '../src/client/preferences'
 
 describe('preference cookies', () => {
-  it('are off without a cookie', () => {
-    for (const name of [MIRROR_COOKIE, AUTO_CAPTURE_COOKIE, SOUND_COOKIE]) {
-      expect(readPreference('', name)).toBe(false)
-      expect(readPreference('theme=dark', name)).toBe(false)
+  it('are off without a cookie, except hands-free capture and its sound', () => {
+    expect(readPreference('', MIRROR_COOKIE)).toBe(false)
+    expect(readPreference('theme=dark', MIRROR_COOKIE)).toBe(false)
+    for (const read of [readAutoCapture, readCaptureSound]) {
+      expect(read('')).toBe(true)
+      expect(read('theme=dark')).toBe(true)
     }
+    expect(readAutoCapture(`${AUTO_CAPTURE_COOKIE}=0`)).toBe(false)
+    expect(readCaptureSound(`${SOUND_COOKIE}=0`)).toBe(false)
   })
 
   it('read each stored choice among other cookies', () => {
@@ -182,7 +188,8 @@ describe('remembered choices', () => {
 
 describe('turn sound', () => {
   it('follows the capture sound until it is set on its own', () => {
-    expect(turnSoundOn('')).toBe(false)
+    expect(turnSoundOn('')).toBe(true)
+    expect(turnSoundOn(`${SOUND_COOKIE}=0`)).toBe(false)
     expect(turnSoundOn(`${SOUND_COOKIE}=1`)).toBe(true)
     expect(turnSoundOn(`${SOUND_COOKIE}=1; ${TURN_SOUND_COOKIE}=0`)).toBe(false)
     expect(turnSoundOn(`${SOUND_COOKIE}=0; ${TURN_SOUND_COOKIE}=1`)).toBe(true)

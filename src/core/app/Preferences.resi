@@ -50,6 +50,8 @@ type cubeView =
 @genType let settingCookies: array<string>
 @genType let selectedNotationFormat: string => string
 @genType let selectedCaptureMode: string => string
+@genType let readAutoCapture: string => bool
+@genType let readCaptureSound: string => bool
 @genType let turnSoundOn: string => bool
 
 @genType let turnMsRange: range

@@ -31,9 +31,11 @@ test('Shift selects a wide turn immediately', async ({ page }) => {
 test('Reset all settings restores the defaults', async ({ page }) => {
   await page.goto('/#settings')
   const sound = page.getByRole('switch', { name: 'Turn sound' })
-  await sound.check()
+  // The turn sound follows the capture sound, which starts on.
+  await expect(sound).toBeChecked()
+  await sound.uncheck()
   await page.getByRole('button', { name: 'Reset all settings' }).click()
-  await expect(sound).not.toBeChecked()
+  await expect(sound).toBeChecked()
   expect(await page.evaluate(() => document.cookie)).not.toContain(
     'cube-assembler-turn-sound',
   )
@@ -44,7 +46,9 @@ test('basic settings are visible while advanced settings open on demand', async 
 }) => {
   await page.goto('/#settings')
   await expect(page.getByRole('combobox', { name: 'Theme' })).toBeVisible()
-  await expect(page.getByRole('switch', { name: 'Auto capture' })).toBeVisible()
+  await expect(
+    page.getByRole('switch', { name: 'Hands-free capture' }),
+  ).toBeVisible()
   const advanced = page.locator('details.settings-advanced')
   await expect(advanced).not.toHaveAttribute('open', '')
   await expect(
@@ -100,18 +104,22 @@ test('capture switches on the settings page reach the scanner', async ({
   page,
 }) => {
   await page.goto('/#settings')
-  const auto = page.getByRole('switch', { name: /Auto capture/ })
-  await expect(auto).not.toBeChecked()
-  await auto.check()
+  const auto = page.getByRole('switch', { name: /Hands-free capture/ })
+  // On by default, like the capture sound.
+  await expect(auto).toBeChecked()
+  await expect(
+    page.getByRole('switch', { name: 'Capture sound' }),
+  ).toBeChecked()
+  await auto.uncheck()
   await page.getByRole('switch', { name: /Mirror the camera preview/ }).check()
   await expect
     .poll(() => page.evaluate(() => document.cookie))
-    .toContain('cube-assembler-auto-capture=1')
+    .toContain('cube-assembler-auto-capture=0')
   await page.getByRole('button', { name: '← Back to the scanner' }).click()
   await page.getByRole('button', { name: 'Capture faces' }).click()
   await expect(
-    page.getByRole('checkbox', { name: /Auto capture/ }),
-  ).toBeChecked()
+    page.getByRole('checkbox', { name: /Hands-free capture/ }),
+  ).not.toBeChecked()
 })
 
 test('the notation format is remembered, and the settings page sets it', async ({

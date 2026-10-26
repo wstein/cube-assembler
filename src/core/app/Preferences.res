@@ -147,8 +147,12 @@ let selectedNotationFormat = cookies => readChoice(cookies, notationCookie, ["wr
 
 let selectedCaptureMode = cookies => readChoice(cookies, captureModeCookie, ["cv", "guide"], "cv")
 
+// Hands-free capture and its sound start on; the viewer's choice is kept.
+let readAutoCapture = cookies => readPreference(cookies, autoCaptureCookie, true)
+let readCaptureSound = cookies => readPreference(cookies, soundCookie, true)
+
 let turnSoundOn = cookies =>
-  readPreference(cookies, turnSoundCookie, readPreference(cookies, soundCookie, false))
+  readPreference(cookies, turnSoundCookie, readCaptureSound(cookies))
 
 let turnMsRange = {min: 60.0, max: 400.0, fallback: TurnFeel.defaultTurnMs}
 

@@ -1,13 +1,13 @@
 import { useEffect, useState } from 'preact/hooks'
 import type { CaptureMode } from './capture/capturePhoto'
 import {
-  AUTO_CAPTURE_COOKIE,
   CAPTURE_MODE_COOKIE,
   CUBE_SIZE_COOKIE,
   CUBE_VIEW_COOKIE,
   MIRROR_COOKIE,
   NOTATION_COOKIE,
-  SOUND_COOKIE,
+  readAutoCapture,
+  readCaptureSound,
   preferenceCookie,
   readAutoCaptureFrames,
   readPreference,
@@ -27,16 +27,16 @@ export function useScannerPreferences(puzzleSize: number) {
   const [captureMode, setCaptureMode] = useState<CaptureMode>(() =>
     selectedCaptureMode(document.cookie),
   )
-  // Auto capture, sound and mirror start off; the viewer's choices are kept
+  // Hands-free capture and its sound start on, mirror off; the viewer's choices are kept
   // in cookies (see preferences.ts).
   const [autoCapture, setAutoCapture] = useState(() =>
-    readPreference(document.cookie, AUTO_CAPTURE_COOKIE),
+    readAutoCapture(document.cookie),
   )
   const [stableFrames, setStableFrames] = useState(() =>
     readAutoCaptureFrames(document.cookie),
   )
   const [captureSound, setCaptureSound] = useState(() =>
-    readPreference(document.cookie, SOUND_COOKIE),
+    readCaptureSound(document.cookie),
   )
   // Most laptop/webcam feeds are shown mirrored by convention (like a
   // physical mirror), which is what most users expect; default on but
@@ -82,8 +82,8 @@ export function useScannerPreferences(puzzleSize: number) {
     if (onSettingsPage) return
     const cookies = document.cookie
     setMirrorPreview(readPreference(cookies, MIRROR_COOKIE))
-    setAutoCapture(readPreference(cookies, AUTO_CAPTURE_COOKIE))
-    setCaptureSound(readPreference(cookies, SOUND_COOKIE))
+    setAutoCapture(readAutoCapture(cookies))
+    setCaptureSound(readCaptureSound(cookies))
     setNotationFormat(selectedNotationFormat(cookies))
     setCaptureMode(selectedCaptureMode(cookies))
     setStableFrames(readAutoCaptureFrames(cookies))

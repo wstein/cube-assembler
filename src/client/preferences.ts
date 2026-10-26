@@ -61,6 +61,8 @@ export {
   turnMsCookie as TURN_MS_COOKIE,
   turnOvershootCookie as TURN_OVERSHOOT_COOKIE,
   turnSoundCookie as TURN_SOUND_COOKIE,
+  readAutoCapture,
+  readCaptureSound,
   turnSoundOn,
   vibrationCookie as VIBRATION_COOKIE,
   vibrationMsCookie as VIBRATION_MS_COOKIE,

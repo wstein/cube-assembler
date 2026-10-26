@@ -210,8 +210,8 @@ export function CaptureLiveView({
               />
               <span>
                 {autoCapture
-                  ? `Auto capture · matching frames ${autoCaptureFrames}/${stableFrames}${autoCapturePaused ? ' · paused' : ''}`
-                  : 'Auto capture'}
+                  ? `Hands-free capture · matching frames ${autoCaptureFrames}/${stableFrames}${autoCapturePaused ? ' · paused' : ''}`
+                  : 'Hands-free capture'}
               </span>
             </label>
             <label class="capture-sound-toggle">
