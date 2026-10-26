@@ -52,6 +52,18 @@ let asSolution = (solution: guidedSolution): orientationSolution => {
   truncated: solution.truncated,
 }
 
+// The alternative that is the saved cube (the cube an uploaded fixture's
+// photos were approved as, however it was held), else the first one.
+let preferAlternative = (alternatives: array<orientedCandidate>, preferred: Null.t<Dict.t<grid>>) =>
+  switch Null.toOption(preferred) {
+  | Some(grids) =>
+    let wanted = CubeAssembly.orientationFreeSignature(Obj.magic(grids))
+    alternatives
+    ->Array.find(candidate => CubeAssembly.orientationFreeSignature(candidate.faces) == wanted)
+    ->Option.getOr(alternatives->Array.getUnsafe(0))
+  | None => alternatives->Array.getUnsafe(0)
+  }
+
 let misfitNote = "These photos don't fit together the way they were taken - the cube may have been turned the other way partway through, or tipped over."
 
 let planCaptureReview = (
@@ -60,6 +72,7 @@ let planCaptureReview = (
   guided,
   describeIssue: CapturedFaceMatching.guidedCenterIssue => string,
   precomputedFree: option<Null.t<orientationSolution>>,
+  saved: Null.t<Dict.t<grid>>,
 ) => {
   let free = switch precomputedFree {
   | Some(free) => Null.toOption(free)
@@ -77,7 +90,14 @@ let planCaptureReview = (
     switch solution {
     | Some(solution) if solution.fullyValid =>
       let preferred = OrientationWizard.preferredGuidedArrangementIndex(solution.arrangements)
-      let suggestion = solution.alternatives->Array.getUnsafe(preferred)
+      let suggestion = switch Null.toOption(saved) {
+      | Some(_) =>
+        preferAlternative(
+          Array.concat(solution.alternatives, free->Option.mapOr([], free => free.alternatives)),
+          saved,
+        )
+      | None => solution.alternatives->Array.getUnsafe(preferred)
+      }
       Some(
         Approval({
           approval: {
@@ -97,7 +117,7 @@ let planCaptureReview = (
         Some(
           Approval({
             approval: {
-              candidates: [free.alternatives->Array.getUnsafe(0)],
+              candidates: [preferAlternative(free.alternatives, saved)],
               valid: true,
               fallback: Null.null,
             },
@@ -137,7 +157,7 @@ let planCaptureReview = (
   | (None, Some(free)) =>
     Approval({
       approval: {
-        candidates: [free.alternatives->Array.getUnsafe(0)],
+        candidates: [preferAlternative(free.alternatives, saved)],
         valid: true,
         fallback: Null.null,
       },

@@ -71,6 +71,8 @@ export function useOrientationReview({
   // wizard with the remaining ones.
   const handleConfirmReview = (
     precomputedFree?: OrientationSolution | null,
+    // The cube an uploaded fixture's photos were approved as: offered first.
+    saved: Record<string, string[][]> | null = null,
   ) => {
     setReviewNotice(null)
     const faceData = Object.fromEntries(
@@ -82,6 +84,7 @@ export function useOrientationReview({
       isGuidedCapture(),
       describeCenterIssue,
       precomputedFree,
+      saved,
     )
     switch (plan.kind) {
       case 'approval':

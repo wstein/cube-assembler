@@ -34,6 +34,7 @@ let planCaptureReview: (
   bool,
   CapturedFaceMatching.guidedCenterIssue => string,
   option<Null.t<CubeTypes.orientationSolution>>,
+  Null.t<Dict.t<CubeTypes.grid>>,
 ) => captureReviewPlan
 @genType let canSkipColorReview: bool => bool
 @genType

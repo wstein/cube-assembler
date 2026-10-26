@@ -1,9 +1,18 @@
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import {
   canSkipColorReview,
+  planCaptureReview,
   readyAssemblyAfterCapture,
   type CaptureReviewFace,
 } from '../src/client/capture/captureReviewRouting'
+import { describeCenterIssue } from '../src/client/capture/captureSteps'
+import {
+  readFixtureAssembled,
+  readFixtureColors,
+} from '../src/client/fixtures/fixtureFormat'
+import { orientationFreeSignature } from '../src/cube/cubeAssembly'
 
 const ORDER = ['U', 'R', 'F', 'D', 'L', 'B']
 
@@ -51,4 +60,35 @@ describe('automatic color review routing', () => {
     delete faces.R.cellConfidences
     expect(readyAssemblyAfterCapture(faces, ORDER)?.fullyValid).toBe(true)
   })
+})
+
+describe('uploaded fixtures keep their approved orientation', () => {
+  const read = (name: string) =>
+    JSON.parse(
+      readFileSync(resolve('test/fixtures', name, 'meta.json'), 'utf8'),
+    )
+
+  for (const name of [
+    'cube-7x7-2026-10-22T19-26-13',
+    'cube-5x5-2026-10-25T23-50-58',
+  ]) {
+    it(`offers the saved cube of ${name} as the one to confirm`, () => {
+      const meta = read(name)
+      const colors = readFixtureColors(meta)!.colors
+      const assembled = readFixtureAssembled(meta)!
+      const plan = planCaptureReview(
+        colors,
+        ORDER,
+        false,
+        describeCenterIssue,
+        undefined,
+        assembled,
+      )
+      if (plan.kind !== 'approval') throw new Error(`got ${plan.kind}`)
+      expect(plan.approval.candidates).toHaveLength(1)
+      expect(orientationFreeSignature(plan.approval.candidates[0].faces)).toBe(
+        orientationFreeSignature(assembled as never),
+      )
+    })
+  }
 })

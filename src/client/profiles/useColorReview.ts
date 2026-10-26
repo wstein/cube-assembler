@@ -10,7 +10,10 @@ type Session = ReturnType<typeof useCaptureSession>
 interface ColorReviewOptions {
   capturedFaces: Session['capturedFaces']
   setCapturedFaces: Session['setCapturedFaces']
-  confirmReview: (ready?: OrientationSolution) => void
+  confirmReview: (
+    ready?: OrientationSolution,
+    saved?: Record<string, string[][]> | null,
+  ) => void
 }
 
 // The sticker color review after all six faces are in: whether it shows,
@@ -34,6 +37,8 @@ export function useColorReview({
     glare: string[]
     mixedUp: string[]
     reviewed?: boolean
+    // The cube an uploaded fixture was approved as (see readFixtureAssembled).
+    saved?: Record<string, string[][]> | null
   } | null>(null)
 
   const handleFixCellColor = (
@@ -65,7 +70,7 @@ export function useColorReview({
     if (!reviewRouting || capturedFaces !== reviewRouting.faces) return
     routeReview(null)
     if (reviewRouting.reviewed) {
-      confirmReview()
+      confirmReview(undefined, reviewRouting.saved)
       return
     }
     const showColorReview = () => {

@@ -1,5 +1,6 @@
 import { uploadKind } from './photoUpload'
 import { readPhotoUploads } from './readPhotoUploads'
+import { readFixtureAssembled } from './fixtureFormat'
 import { readFixtureUpload } from './readFixtureUpload'
 import { unzipUploadFiles } from './fixtureZip'
 import { FACE_ORDER } from '../capture/captureSteps'
@@ -38,6 +39,7 @@ type UploadActions = {
     glare: string[]
     mixedUp: string[]
     reviewed: boolean
+    saved?: Record<string, string[][]> | null
   }) => void
   ignoreFixtureCorrections: boolean
   selectPhotos: Photos['selectPhotos']
@@ -150,6 +152,7 @@ export function createScannerUploadActions({
           glare: [],
           mixedUp: [],
           reviewed: true,
+          saved: readFixtureAssembled(meta),
         })
       }
     } finally {
