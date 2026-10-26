@@ -81,7 +81,14 @@ capture's own colors. Older fixtures without this field replay as before.
 The fixture dialog creates a ZIP with `<name>/meta.json` and six face photos.
 Camera captures default to a `cube-NxN-YYYY-MM-DDTHH-MM-SS` name in whole UTC
 seconds. Software-rendered fixtures use `synt-` names and the `synthetic` and
-`software-rendered` tags. The local server logs ping and upload status with
+`software-rendered` tags. **Save as test fixture** on a cube state with no
+photos (typed facelets, a solved cube) renders them: a parametric model of the
+cropped capture photos, with a lighting preset chosen in the dialog (clean,
+gradient, shadow, dim-warm, glare, noise, bad-camera). The photos carry a
+SYNTHETIC strip, `meta.json` a `preset:<name>` tag and `capture.synthetic`;
+a state that is no cube is saved too, tagged `invalid-state` with the reason.
+A preset the color pipeline misreads is a finding: keep it as a regression
+target with `expectedFail`, or fix the pipeline. The local server logs ping and upload status with
 elapsed time, plus the saved fixture name for successful uploads; it does not
 log photo or metadata contents. The button stays disabled until `GET /ping`
 responds and rechecks while the dialog is open. Production has no upload
