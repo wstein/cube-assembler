@@ -227,6 +227,25 @@ test('the turn cue shows the arrow and Continue, no instruction text', async ({
   await expect(cue).toHaveText(/^\s*Continue\s*$/)
 })
 
+test('the turn cue draws the selected cube size', async ({ page }) => {
+  const folder = resolve('test/fixtures/cube-5x5-2026-10-25T23-50-58')
+  const frames = faceKeys.map((face) =>
+    readFileSync(resolve(folder, `face-${face}.jpg`)).toString('base64'),
+  )
+  await installStubCamera(page, frames)
+  await page.goto('/')
+  await page
+    .getByRole('combobox', { name: 'Cube' })
+    .selectOption('builtin-generic-5')
+  await page.getByRole('button', { name: 'Capture faces' }).click()
+  const capture = page.locator('.capture-modal-content')
+  await expect(capture.locator('.capture-live-badge')).toContainText('Live')
+  await capture.getByRole('button', { name: /^Capture side 1/i }).click()
+  await expect(capture.locator('.capture-turn-overlay')).toBeVisible()
+  const face = capture.locator('.capture-turn-front .capture-turn-sticker')
+  await expect(face).toHaveCount(25)
+})
+
 test('the turn cue shows after each of the first five captures', async ({
   page,
 }) => {
@@ -254,7 +273,6 @@ test('a valid cube never starts the color review after the last capture', async 
   page,
 }) => {
   test.setTimeout(120_000)
-  await page.emulateMedia({ reducedMotion: 'reduce' })
   await installStubCamera(page)
   await page.goto('/')
   await page.getByRole('button', { name: 'Capture faces' }).click()

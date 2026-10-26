@@ -501,6 +501,7 @@ export function ScannerAppView({ model }: { model: ScannerAppModel }) {
               captureFlash={captureFlash}
               captureSound={captureSound}
               turnOverlay={turnOverlay}
+              puzzleSize={puzzleSize}
               sampling={sampling}
               stickerColors={STICKER_HEX}
               onContinueTurn={continueTurnOverlay}

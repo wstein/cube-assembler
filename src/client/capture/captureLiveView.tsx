@@ -25,6 +25,7 @@ interface CaptureLiveViewProps {
   captureFlash: boolean
   captureSound: boolean
   turnOverlay: { step: number } | null
+  puzzleSize: number
   sampling: SamplingGeometry
   stickerColors: Record<string, string>
   onContinueTurn: () => void
@@ -50,6 +51,7 @@ export function CaptureLiveView({
   captureFlash,
   captureSound,
   turnOverlay,
+  puzzleSize,
   sampling,
   stickerColors,
   onContinueTurn,
@@ -167,6 +169,7 @@ export function CaptureLiveView({
         {turnOverlay && (
           <CaptureTurnOverlay
             step={turnOverlay.step}
+            size={puzzleSize}
             onContinue={onContinueTurn}
           />
         )}

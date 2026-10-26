@@ -27,16 +27,16 @@ export function TurnHint({ step }: { step: number }) {
   )
 }
 
-// The cue cube is a neutral 3x3 whatever the cube size.
-const STICKERS = 3
-
 // A visual cue between successful captures. The turn shown is only an
 // example: the guided solver determines the real face orientation afterward.
 export function CaptureTurnOverlay({
   step,
+  size,
   onContinue,
 }: {
   step: number
+  // Stickers per edge: the cue cube is drawn with the selected cube's grid.
+  size: number
   onContinue: () => void
 }) {
   const kind = step < 4 ? 'side' : step === 4 ? 'top' : 'bottom'
@@ -58,9 +58,9 @@ export function CaptureTurnOverlay({
     <div class={`capture-turn-face capture-turn-${name}`}>
       <div
         class="capture-turn-stickers"
-        style={{ gridTemplateColumns: `repeat(${STICKERS}, minmax(0, 1fr))` }}
+        style={{ gridTemplateColumns: `repeat(${size}, minmax(0, 1fr))` }}
       >
-        {Array.from({ length: STICKERS * STICKERS }, (_, i) => (
+        {Array.from({ length: size * size }, (_, i) => (
           <span key={i} class="capture-turn-sticker" />
         ))}
       </div>
