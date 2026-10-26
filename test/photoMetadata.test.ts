@@ -3,6 +3,7 @@ import {
   embedFingerprint,
   readExif,
   readFingerprint,
+  readPhotoInfo,
 } from '../src/client/fixtures/photoMetadata'
 
 const enc = new TextEncoder()
@@ -278,5 +279,31 @@ describe('photo EXIF', () => {
     const marked = embedFingerprint(exifJpeg(true), '{"v":1}')
     expect(readFingerprint(marked)).toBe('{"v":1}')
     expect(readExif(marked)?.make).toBe('ACME')
+  })
+})
+
+describe('reading a picked photo file', () => {
+  const file = (data: Uint8Array) =>
+    new File([data as BlobPart], 'photo.jpg', { type: 'image/jpeg' })
+
+  it('parses the fingerprint and reads the camera', async () => {
+    const marked = embedFingerprint(exifJpeg(true), '{"v":1,"seed":4}')
+    expect(await readPhotoInfo(file(marked))).toEqual({
+      fingerprint: { v: 1, seed: 4 },
+      exif: expect.objectContaining({ make: 'ACME' }),
+    })
+  })
+
+  it('has nothing to say about a plain photo', async () => {
+    expect(await readPhotoInfo(file(jpeg()))).toBeUndefined()
+  })
+
+  it('ignores a fingerprint that is not JSON or not an object', async () => {
+    expect(
+      await readPhotoInfo(file(embedFingerprint(jpeg(), 'not json'))),
+    ).toBeUndefined()
+    expect(
+      await readPhotoInfo(file(embedFingerprint(jpeg(), '[1,2]'))),
+    ).toBeUndefined()
   })
 })

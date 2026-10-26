@@ -13,6 +13,7 @@ import {
   type RGB,
   type SamplingGeometry,
 } from '../vision/stickerColorGeometry'
+import { readPhotoInfo } from './photoMetadata'
 import { photoReadModes, type SelectedPhoto } from './photoUpload'
 
 interface ReadPhotoUploadsOptions {
@@ -146,6 +147,7 @@ export async function readPhotoUploads({
       frame: result.frame,
       crop: result.crop,
       sharpness: result.sharpness,
+      photoInfo: await readPhotoInfo(file),
       source: 'image-file',
       timestamp: Date.now() + index,
     }

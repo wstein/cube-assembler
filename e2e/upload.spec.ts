@@ -683,3 +683,47 @@ test('a lasso around dots counts them by color and rings them in the net', async
     0,
   )
 })
+
+// A JPEG with a "cube-assembler:" comment segment right after its SOI, the
+// way a generator marks the photos it renders.
+function withFingerprint(photo: string, json: string): Buffer {
+  const data = readFileSync(photo)
+  const text = Buffer.from(`cube-assembler:${json}`)
+  const header = Buffer.from([0xff, 0xfe, 0, 0])
+  header.writeUInt16BE(text.length + 2, 2)
+  return Buffer.concat([data.subarray(0, 2), header, text, data.subarray(2)])
+}
+
+test('saves photos that carry a generator fingerprint as a synthetic fixture', async ({
+  page,
+}) => {
+  const marked = faceKeys.map((face, i) => ({
+    name: `face-${face}.jpg`,
+    mimeType: 'image/jpeg',
+    buffer: withFingerprint(
+      photos[i],
+      JSON.stringify({
+        v: 1,
+        renderer: 'parametric/v1',
+        preset: 'clean',
+        seed: 10 + i,
+        face,
+        size: 600,
+        options: {},
+        app: { version: '0.1.0' },
+      }),
+    ),
+  }))
+  await page.goto('/')
+  await page
+    .locator('.capture-alternatives input[type="file"]')
+    .setInputFiles(marked)
+  await page.getByRole('button', { name: 'Read six photos' }).click()
+  await page.getByRole('button', { name: 'Yes, this is my cube' }).click()
+  await expect(
+    page.getByRole('status').filter({ hasText: 'Valid cube' }),
+  ).toBeVisible()
+  await page.getByRole('button', { name: 'Save as test fixture' }).click()
+  const dialog = page.getByRole('dialog', { name: 'Save as test fixture' })
+  await expect(dialog.locator('code').first()).toContainText(/^synt-3x3-/)
+})
