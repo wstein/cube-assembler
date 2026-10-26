@@ -8,6 +8,10 @@ import { toWRGFacelets } from '../src/cube/notation/NotationOutput.gen'
 import { parityStatus } from '../src/client/capture/captureFlow'
 import { readFixtureColors } from '../src/client/fixtures/fixtureFormat'
 import { summarizeFixture } from '../src/client/fixtures/fixtureZip'
+import {
+  embedFingerprint,
+  readFingerprint,
+} from '../src/client/fixtures/photoMetadata'
 import { buildSyntheticFixture } from '../src/client/fixtures/syntheticFixture'
 import {
   renderFace,
@@ -51,6 +55,25 @@ const metaOf = (fixture: { files: Record<string, Uint8Array> }) =>
   JSON.parse(decoder.decode(fixture.files['meta.json']))
 
 describe('synthetic fixtures', () => {
+  it('writes a fingerprint into every photo that says how it was made', () => {
+    const fixture = build(createSolvedCube(3), 'dim-warm', {
+      shadow: { strength: 0.2 },
+    })
+    for (const [i, face] of ['u', 'r', 'f', 'd', 'l', 'b'].entries()) {
+      const text = readFingerprint(fixture.files[`face-${face}.jpg`])
+      expect(JSON.parse(text ?? 'null')).toEqual({
+        v: 1,
+        renderer: 'parametric/v1',
+        preset: 'dim-warm',
+        seed: 3 + i,
+        face,
+        size: 600,
+        options: { shadow: { strength: 0.2 } },
+        app: { version: '0.1.0', commit: 'abc1234' },
+      })
+    }
+  })
+
   it('is named and tagged synthetic, so people and tools both see it', () => {
     const fixture = build()
     const meta = metaOf(fixture)
@@ -181,13 +204,18 @@ describe('synthetic fixtures', () => {
       'renders the %s photos byte for byte',
       (preset, options) => {
         const fixture = build(createSolvedCube(3), preset, options)
-        for (const face of FACES)
+        for (const face of FACES) {
+          // The saved photo is the re-rendered one plus its fingerprint.
+          const saved = fixture.files[`face-${face}.jpg`]
+          const marked = embedFingerprint(
+            Uint8Array.from(rerender(fixture, face)),
+            readFingerprint(saved) ?? '',
+          )
           expect(
-            rerender(fixture, face).equals(
-              Buffer.from(fixture.files[`face-${face}.jpg`]),
-            ),
+            Buffer.from(marked).equals(Buffer.from(saved)),
             `${preset} ${face}`,
           ).toBe(true)
+        }
       },
       120_000,
     )

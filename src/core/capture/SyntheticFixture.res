@@ -26,6 +26,43 @@ type input = {
 }
 
 let renderer = "parametric/v1"
+
+// What one photo says about itself (see PhotoMetadata): how it was rendered,
+// by whom, as JSON text.
+type fingerprintInput = {
+  preset: string,
+  // The seed of this face's photo.
+  seed: int,
+  face: string,
+  size: int,
+  options: JSON.t,
+  version: string,
+  commit: string,
+}
+
+let fingerprintJson = (input: fingerprintInput) =>
+  JSON.stringify(
+    JSON.Object(
+      Dict.fromArray([
+        ("v", JSON.Number(1.0)),
+        ("renderer", JSON.String(renderer)),
+        ("preset", JSON.String(input.preset)),
+        ("seed", JSON.Number(Int.toFloat(input.seed))),
+        ("face", JSON.String(input.face)),
+        ("size", JSON.Number(Int.toFloat(input.size))),
+        ("options", input.options),
+        (
+          "app",
+          JSON.Object(
+            Dict.fromArray([
+              ("version", JSON.String(input.version)),
+              ("commit", JSON.String(input.commit)),
+            ]),
+          ),
+        ),
+      ]),
+    ),
+  )
 let colons = RegExp.fromString(":", ~flags="g")
 
 let syntheticRequest = (input: input): FixtureZip.fixtureRequest => {

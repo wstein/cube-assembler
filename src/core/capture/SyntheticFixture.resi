@@ -15,3 +15,17 @@ type input = {
 }
 
 @genType let syntheticRequest: input => FixtureZip.fixtureRequest
+
+@genType
+type fingerprintInput = {
+  preset: string,
+  seed: int,
+  face: string,
+  size: int,
+  options: JSON.t,
+  version: string,
+  commit: string,
+}
+
+// The fingerprint JSON a rendered photo carries.
+@genType let fingerprintJson: fingerprintInput => string

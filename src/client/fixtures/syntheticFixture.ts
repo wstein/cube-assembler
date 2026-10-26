@@ -7,8 +7,12 @@ import {
   toWRGFacelets,
   wrgFaceletsToGrids,
 } from '../../cube/notation/NotationOutput.gen'
-import { syntheticRequest } from '../../core/capture/SyntheticFixture.gen'
+import {
+  fingerprintJson,
+  syntheticRequest,
+} from '../../core/capture/SyntheticFixture.gen'
 import { renderFace, type SyntheticOptions } from '../vision/syntheticFace'
+import { embedFingerprint } from './photoMetadata'
 import { buildFixture, type Fixture, type FixtureRequest } from './fixtureZip'
 
 // Side of each rendered photo, like the crops of real captures.
@@ -42,6 +46,21 @@ export const encodeCanvasPhoto: EncodePhoto = (rgba, size) => {
   return canvas.toDataURL('image/jpeg', 0.92)
 }
 
+const JPEG_URL = 'data:image/jpeg;base64,'
+
+// A JPEG data URL with the fingerprint in it; other encodings stay as they
+// are.
+function fingerprintPhoto(dataUrl: string, json: string): string {
+  if (!dataUrl.startsWith(JPEG_URL)) return dataUrl
+  const binary = atob(dataUrl.slice(JPEG_URL.length))
+  const bytes = Uint8Array.from(binary, (char) => char.charCodeAt(0))
+  const marked = embedFingerprint(bytes, json)
+  let out = ''
+  for (let i = 0; i < marked.length; i += 0x8000)
+    out += String.fromCharCode(...marked.subarray(i, i + 0x8000))
+  return JPEG_URL + btoa(out)
+}
+
 export function buildSyntheticFixture(
   input: SyntheticFixtureInput,
   encode: EncodePhoto,
@@ -55,15 +74,26 @@ export function buildSyntheticFixture(
   const seeds: Record<string, number> = {}
   FACES.forEach((face, i) => {
     seeds[face] = input.seed + i
-    photos[face] = encode(
-      renderFace(
-        grids[face.toUpperCase()],
-        input.preset,
-        seeds[face],
+    photos[face] = fingerprintPhoto(
+      encode(
+        renderFace(
+          grids[face.toUpperCase()],
+          input.preset,
+          seeds[face],
+          PHOTO_PIXELS,
+          options,
+        ),
         PHOTO_PIXELS,
-        options,
       ),
-      PHOTO_PIXELS,
+      fingerprintJson({
+        preset: input.preset,
+        seed: seeds[face],
+        face,
+        size: PHOTO_PIXELS,
+        options,
+        version: input.version,
+        commit: input.commit,
+      }),
     )
   })
   const request = syntheticRequest({
