@@ -1646,6 +1646,6 @@
     }
   },
   "expectedFail": {
-    "reason": "negative example: the colors learned from this capture drifted (yellow, orange and red swapped) while the camera stayed confident, so no arrangement is a valid cube"
+    "reason": "negative example: photos of two different cubes mixed, so no arrangement is a valid cube"
   }
 }
