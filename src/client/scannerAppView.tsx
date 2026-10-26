@@ -660,6 +660,8 @@ export function ScannerAppView({ model }: { model: ScannerAppModel }) {
           captured={capturedFaces}
           faceOrder={FACE_ORDER}
           puzzleSize={puzzleSize}
+          paletteFar={automaticResolution?.reason === 'far'}
+          paletteFit={automaticResolution?.nearest[0]?.fit ?? null}
           onChoose={handleChooseOrientation}
           onReject={handleRejectOrientation}
           onPageChange={(page) =>

@@ -24,6 +24,8 @@ let diagnose = (
   size,
   readings: array<option<array<array<rgb>>>>,
   sureness: array<option<float>>,
+  // The colors learned from this capture sit far from every known palette.
+  paletteFar: bool,
 ) => {
   let repeatsChecked = mod(size, 2) == 1
   let repeated = repeatsChecked ? RepeatedFace.findRepeatShots(readings) : []
@@ -43,7 +45,10 @@ let diagnose = (
   | (true, _) => "a face was shot twice - the photos themselves are fine"
   | (false, Some((i, sure))) if sure < poorPhotoBelow =>
     `the ${name(i)} photo is poor (${sure->toFixed(0)}% sure) - retake it in better light`
-  | _ => "none found"
+  | _ =>
+    paletteFar
+      ? "the colors learned from this capture are far from every known palette - two similar colors may be swapped"
+      : "none found"
   }
   {repeatsChecked, repeated, weakest: Null.fromOption(weakest.contents), cause}
 }

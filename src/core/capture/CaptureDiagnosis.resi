@@ -14,6 +14,7 @@ let diagnose: (
   int,
   array<option<array<array<StickerGeometry.rgb>>>>,
   array<option<float>>,
+  bool,
 ) => diagnosis
 
 @genType

@@ -237,7 +237,8 @@ describe('the capture check in the fixture summary', () => {
   })
 
   it('finds nothing wrong with a clean odd capture', () => {
-    const meta = load('cube-5x5-2026-10-26T00-04-11')
+    const meta = load('cube-5x5-2026-10-25T23-50-58')
+    meta.capture.colorResolution = { reason: 'clear', nearest: [] }
     expect(row(meta, 'Repeated face')).toBe('none')
     expect(row(meta, 'Likely cause')).toBe('none found')
   })
@@ -247,8 +248,16 @@ describe('the capture check in the fixture summary', () => {
     expect(row(meta, 'Repeated face')).toBe('not checked on even cubes')
   })
 
+  it('blames learned colors that are far from every known palette', () => {
+    const meta = load('cube-5x5-2026-10-25T23-50-58')
+    meta.capture.colorResolution = { reason: 'far', nearest: [] }
+    expect(row(meta, 'Likely cause')).toMatch(/far from every known palette/)
+    meta.capture.colorResolution = { reason: 'clear', nearest: [] }
+    expect(row(meta, 'Likely cause')).toBe('none found')
+  })
+
   it('names the weakest photo when the photos themselves are poor', () => {
-    const meta = load('cube-5x5-2026-10-26T00-04-11')
+    const meta = load('cube-5x5-2026-10-25T23-50-58')
     meta.faces.r.confidences = meta.faces.r.confidences.map(() => 30)
     expect(row(meta, 'Likely cause')).toMatch(/Side 2.*photo/)
   })

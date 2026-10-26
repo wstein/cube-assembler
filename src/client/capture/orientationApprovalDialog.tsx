@@ -33,6 +33,10 @@ interface OrientationApprovalDialogProps {
   captured: Record<string, FaceCaptureData>
   faceOrder: string[]
   puzzleSize: number
+  // The colors learned from this capture are far from every known palette;
+  // `paletteFit` is the best fit (percent) any known palette reached.
+  paletteFar: boolean
+  paletteFit: number | null
   onChoose: (candidate: OrientedCandidate) => void
   onReject: () => void
   onPageChange: (page: number) => void
@@ -51,6 +55,8 @@ export function OrientationApprovalDialog({
   captured,
   faceOrder,
   puzzleSize,
+  paletteFar,
+  paletteFit,
   onChoose,
   onReject,
   onPageChange,
@@ -119,6 +125,8 @@ export function OrientationApprovalDialog({
             captured={captured}
             faceOrder={faceOrder}
             puzzleSize={puzzleSize}
+            paletteFar={paletteFar}
+            paletteFit={paletteFit}
             stickerColors={stickerColors}
             onCheckFace={onCheckFace}
             onCheckSlot={onCheckSlot}
@@ -223,6 +231,8 @@ function CubeCheck({
   captured,
   faceOrder,
   puzzleSize,
+  paletteFar,
+  paletteFit,
   stickerColors,
   onCheckFace,
   onCheckSlot,
@@ -231,11 +241,13 @@ function CubeCheck({
   captured: Record<string, FaceCaptureData>
   faceOrder: string[]
   puzzleSize: number
+  paletteFar: boolean
+  paletteFit: number | null
   stickerColors: Record<string, string>
   onCheckFace: (candidate: OrientedCandidate, face: string) => void
   onCheckSlot: (slot: number) => void
 }) {
-  const stats = captureStats(captured, faceOrder, puzzleSize)
+  const stats = captureStats(captured, faceOrder, puzzleSize, paletteFar)
   const repeatedSlots = new Set(stats.diagnosis.repeated.flat())
   const inNet = candidate
     ? netPhotos(captured, faceOrder, candidate.faces)
@@ -325,6 +337,17 @@ function CubeCheck({
         <dd>{sureLine || 'not recorded'}</dd>
         <dt>To double-check</dt>
         <dd>{unsureLine || 'none'}</dd>
+        {paletteFar && (
+          <>
+            <dt>Learned colors</dt>
+            <dd>
+              far from every known palette
+              {paletteFit === null
+                ? ''
+                : ` (best fit ${Math.round(paletteFit)}%)`}
+            </dd>
+          </>
+        )}
         {stats.diagnosis.repeatsChecked && (
           <>
             <dt>Repeated face</dt>

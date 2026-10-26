@@ -223,13 +223,14 @@ let photoSureness = (face: option<JSON.t>) => {
 }
 
 // Tells a face photographed twice from poor photos, for the summary.
-let captureCheck = (face: string => option<JSON.t>, size) => {
+let captureCheck = (face: string => option<JSON.t>, size, paletteFar) => {
   let grids = faceKeys->Array.map(key => readingsGrid(face(key), size))
   if grids->Array.some(grid => grid->Option.isSome) {
     let diagnosis = CaptureDiagnosis.diagnose(
       size,
       grids,
       faceKeys->Array.map(key => photoSureness(face(key))),
+      paletteFar,
     )
     [
       (
@@ -372,9 +373,11 @@ let summarizeMeta = (meta: JSON.t) => {
     ))
   | _ => ()
   }
-  captureCheck(face, size->Int.fromString->Option.getOr(0))->Array.forEach(row =>
-    rows->Array.push(row)
-  )
+  captureCheck(
+    face,
+    size->Int.fromString->Option.getOr(0),
+    field(field(capture, "colorResolution"), "reason") == Some(String("far")),
+  )->Array.forEach(row => rows->Array.push(row))
   let calibration = field(capture, "colorCalibration")
   if truthy(calibration) {
     rows->Array.push((

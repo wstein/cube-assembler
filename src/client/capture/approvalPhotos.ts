@@ -94,6 +94,7 @@ export function captureStats(
   captured: Record<string, FaceCaptureData>,
   order: string[],
   size: number,
+  paletteFar = false,
 ) {
   const sureness = order.map((key) =>
     captured[key] ? captured[key].confidence * 100 : undefined,
@@ -102,6 +103,7 @@ export function captureStats(
     size,
     order.map((key) => captured[key]?.cellColors),
     sureness,
+    paletteFar,
   )
   // The same stickers the color review marks "to double-check".
   const unsure = order.map((key) => {
