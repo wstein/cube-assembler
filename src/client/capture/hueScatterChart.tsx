@@ -48,7 +48,6 @@ const LENS_ZOOM_STEP = 1.25
 // Dots keep their on-screen size in the lens, so overlapping ones part.
 const DOT_RADIUS = 3
 // How near the pointer must be to a dot to point at it.
-const HIT_RADIUS = 8
 // The lens magnet reaches this far in lens pixels (so a smaller distance in
 // the chart the more the lens magnifies) and nudges the lens by half a dot's
 // diameter, the dot's radius, at most.
@@ -180,8 +179,15 @@ export function HueScatterChart({
           // many dots overlap there.
           const dist = (i: number) =>
             Math.hypot(dotX(points[i]) - p.x, y(points[i].l) - p.y)
+          // What is picked is what the lens shows under its crosshair: the
+          // nearest dot, if the crosshair is on it (a dot's radius as drawn
+          // in the lens). The magnet reaches a little further than that.
+          // Never finer than one screen pixel (1 / m.a chart units), which
+          // is all a pointer can place.
+          const hit = Math.max(DOT_RADIUS / zoom, 1 / m.a)
+          const reach = MAGNET_LENS_PX / zoom
           let target: number | null = null
-          let best = HIT_RADIUS
+          let best = Math.max(hit, reach)
           points.forEach((_, i) => {
             if (dist(i) <= best) {
               best = dist(i)
@@ -192,7 +198,6 @@ export function HueScatterChart({
           // nudged toward it, by half a dot's diameter at most. The nudge
           // grows smoothly from nothing at the edge, and never passes the
           // dot, so the lens is drawn in, never locked.
-          const reach = MAGNET_LENS_PX / zoom
           const shift =
             target === null || best >= reach || best === 0
               ? 0
@@ -206,7 +211,8 @@ export function HueScatterChart({
             cx: p.x + (cx - p.x) * pull,
             cy: p.y + (cy - p.y) * pull,
           })
-          if (target !== hovered) onHover(target)
+          const picked = target !== null && best <= hit ? target : null
+          if (picked !== hovered) onHover(picked)
         }}
         onWheel={(e) => {
           // The wheel (or a pinch, which arrives as a wheel with ctrl) sets

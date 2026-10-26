@@ -531,6 +531,8 @@ test('the hue scatter names a dot on hover and links it with the net', async ({
   await frames()
   const [fx] = await center()
   expect(fx).toBeCloseTo((svgBox.width - 4) * unit, 1)
+  // Nothing is picked unless the crosshair is on a dot.
+  await expect(info).toContainText('Point at a dot')
   // The brake: the lens point moves half of what the pointer moves, and the
   // mouse cursor is hidden over the chart, as the lens crosshair replaces it.
   await expect(svg).toHaveCSS('cursor', 'none')
