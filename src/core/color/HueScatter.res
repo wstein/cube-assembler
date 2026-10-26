@@ -12,7 +12,8 @@ type point = {
   // OKLCH lightness, 0-1, and chroma (how saturated).
   l: float,
   chroma: float,
-  // Too gray to have a usable hue (white stickers).
+  // Has no usable hue: a white sticker, however tinted, or any sticker too
+  // gray to tell its hue.
   neutral: bool,
 }
 
@@ -61,7 +62,7 @@ let hueScatter = (samples: array<sample>) => {
       hue: hueAxis(lch.h),
       l: lch.l,
       chroma: lch.c,
-      neutral: isNeutral(lch.c),
+      neutral: sample.label == "W" || isNeutral(lch.c),
     }
   })
 }

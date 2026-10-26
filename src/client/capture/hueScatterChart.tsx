@@ -12,7 +12,7 @@ const name = (label: string) => NAME[label] ?? label
 
 const WIDTH = 360
 const HEIGHT = 150
-const GRAY_WIDTH = 44
+const GRAY_WIDTH = 110
 const GAP = 14
 const LEFT = 30
 const TOP = 22
@@ -20,6 +20,8 @@ const BOTTOM = 24
 // Lightness shown: below this no sticker sits, above 1 nothing can.
 const L_MIN = 0.3
 const HUE_TICKS = [0, 60, 120, 180, 240, 300]
+// Chroma at the right edge of the gray column.
+const GRAY_CHROMA = 0.1
 const L_TICKS = [0.4, 0.6, 0.8, 1]
 
 const x = (hue: number) => LEFT + (hue / 360) * WIDTH
@@ -56,7 +58,6 @@ export function HueScatterChart({
     sum.l += point.l
     sum.n++
   }
-  let grays = 0
   const info = (i: number) => {
     const point = points[i]
     const where = samples[i].where ? `${samples[i].where}: ` : ''
@@ -105,7 +106,9 @@ export function HueScatterChart({
         ))}
         {points.map((point, i) => {
           const cx = point.neutral
-            ? grayLeft + 6 + ((grays++ * 7) % (GRAY_WIDTH - 12))
+            ? grayLeft +
+              6 +
+              Math.min(point.chroma / GRAY_CHROMA, 1) * (GRAY_WIDTH - 12)
             : x(point.hue)
           return (
             <circle
@@ -152,7 +155,7 @@ export function HueScatterChart({
           y={TOP + HEIGHT + 11}
           text-anchor="middle"
         >
-          gray
+          gray, by chroma →
         </text>
       </svg>
       <p class="hue-scatter-info" role="status">

@@ -51,6 +51,19 @@ describe('the hue scatter', () => {
     expect(a.chroma).toBeGreaterThan(b.chroma)
   })
 
+  it('puts every white in the gray column, however colorful it looks', () => {
+    const [white, gray, red] = hueScatter([
+      { rgb: rgb(170, 200, 250), label: 'W' },
+      { rgb: rgb(128, 128, 128), label: 'R' },
+      { rgb: rgb(200, 30, 40), label: 'R' },
+    ])
+    expect(rgbToOKLCH(rgb(170, 200, 250)).c).toBeGreaterThan(NEUTRAL_CHROMA)
+    expect(white.neutral).toBe(true)
+    // A dull sticker of another color has no hue to place either.
+    expect(gray.neutral).toBe(true)
+    expect(red.neutral).toBe(false)
+  })
+
   describe('the whites are the least saturated stickers, as many as a color has', () => {
     // One sticker per color (a 1x1 cube): the least saturated one is white.
     const vivid = [
