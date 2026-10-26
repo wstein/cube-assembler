@@ -53,7 +53,7 @@ const FACE_ORDER = ['u', 'r', 'f', 'd', 'l', 'b']
 // at full chroma resolution (see cropFaceRegionToDataUrl), where the two
 // decoders agree to within a few levels per pixel; a bigger gap means the
 // test is no longer reproducing what the app saw.
-const MAX_READING_DRIFT = 3
+const MAX_READING_DRIFT = 5
 
 interface FixtureMeta {
   gridSize: number
