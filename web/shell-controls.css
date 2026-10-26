@@ -54,6 +54,21 @@
   flex-wrap: wrap;
 }
 
+.fixture-download-synthetic {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+  margin: var(--spacing-sm) 0;
+}
+
+.fixture-download-synthetic p {
+  margin: 0;
+}
+
+.fixture-download-synthetic select {
+  margin-left: var(--spacing-xs);
+}
+
 .fixture-download-file {
   margin: 0 0 var(--spacing-md);
   color: var(--color-text-secondary);

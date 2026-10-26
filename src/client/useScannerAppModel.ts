@@ -37,6 +37,10 @@ import {
   canSaveCaptureFixture,
   fixtureDownloadFor,
 } from './capture/captureFixture'
+import {
+  buildSyntheticFixture,
+  encodeCanvasPhoto,
+} from './fixtures/syntheticFixture'
 import { useOrientationReview } from './capture/useOrientationReview'
 
 // Injected at build time by Vite.
@@ -479,9 +483,44 @@ export function useScannerAppModel() {
   // Shows what a fixture of this capture holds before downloading it (see
   // buildCaptureFixture). Only meaningful once the cube has been confirmed,
   // when the colors include the review's corrections.
+  // Without photos, a cube state saves as a fixture of rendered ones (see
+  // buildSyntheticFixture), in the lighting chosen in the dialog.
+  const saveSyntheticFixture = async (preset: string) => {
+    if (!cube) return
+    const commit = import.meta.env.DEV
+      ? await currentAppCommit(__APP_COMMIT__)
+      : __APP_COMMIT__
+    try {
+      const fixture = buildSyntheticFixture(
+        {
+          cube,
+          parity,
+          preset,
+          seed: 1,
+          version: __APP_VERSION__,
+          commit,
+        },
+        encodeCanvasPhoto,
+      )
+      setFixtureSaveMessage('')
+      const download = await fixtureDownloadFor(fixture)
+      fixtureDownload?.photoUrls.forEach((url) => URL.revokeObjectURL(url))
+      setFixtureDownload({ ...download, synthetic: { preset } })
+    } catch (err) {
+      setFixtureSaveMessage(
+        `❌ Failed to save fixture: ${err instanceof Error ? err.message : String(err)}`,
+      )
+    }
+  }
+
+  const handleSyntheticPreset = (preset: string) => {
+    void saveSyntheticFixture(preset)
+  }
+
   const handleSaveFixture = async () => {
     if (!canSaveCaptureFixture(capturedFaces)) {
-      setFixtureSaveMessage('❌ Capture and confirm all 6 faces first.')
+      if (cube) await saveSyntheticFixture('clean')
+      else setFixtureSaveMessage('❌ Capture and confirm all 6 faces first.')
       return
     }
     const commit = import.meta.env.DEV
@@ -570,6 +609,7 @@ export function useScannerAppModel() {
     handleRejectOrientation,
     handleRetakeFace,
     handleSaveFixture,
+    handleSyntheticPreset,
     handleUpdateColors,
     handleUploadFiles,
     handleUploadPhotos,

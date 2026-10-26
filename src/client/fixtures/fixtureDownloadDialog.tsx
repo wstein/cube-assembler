@@ -6,6 +6,8 @@ export interface FixtureDownloadData {
   zip: Uint8Array
   summary: FixtureSummary
   photoUrls: string[]
+  // Set for a fixture of rendered photos: the lighting they were made with.
+  synthetic?: { preset: string }
 }
 
 interface Props {
@@ -16,6 +18,9 @@ interface Props {
   serverPolling: boolean
   // Off when the settings page hides Upload to localhost.
   uploadShown: boolean
+  // The lighting choices of a synthetic fixture.
+  syntheticPresets: readonly string[]
+  onSyntheticPreset: (preset: string) => void
   uploading: boolean
   uploadMessage: string
   onClose: () => void
@@ -44,6 +49,8 @@ export function FixtureDownloadDialog({
   serverReachable: fixtureServerReachable,
   serverPolling: fixtureServerPolling,
   uploadShown,
+  syntheticPresets,
+  onSyntheticPreset,
   uploading: fixtureUploading,
   uploadMessage: fixtureUploadMessage,
   onClose,
@@ -77,6 +84,28 @@ export function FixtureDownloadDialog({
         <p class="fixture-download-file">
           <code>{download.name}.zip</code> · {formatBytes(download.zip.length)}
         </p>
+        {download.synthetic && (
+          <div class="fixture-download-synthetic">
+            <p>
+              No camera photos for this cube: the faces are rendered from its
+              state and marked <strong>synthetic</strong> in the photos, the
+              name and the tags.
+            </p>
+            <label>
+              Lighting{' '}
+              <select
+                value={download.synthetic.preset}
+                onChange={(e) => onSyntheticPreset(e.currentTarget.value)}
+              >
+                {syntheticPresets.map((preset) => (
+                  <option key={preset} value={preset}>
+                    {preset}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
+        )}
         <ul class="fixture-download-photos" aria-label="Photos in the zip">
           {download.summary.photos.map((photo, i) => (
             <li key={photo.face}>

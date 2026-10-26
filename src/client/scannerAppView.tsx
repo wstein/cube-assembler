@@ -12,6 +12,8 @@ import { analysisSamples } from './capture/analysisSamples'
 import { reviewStartSlot } from './capture/approvalPhotos'
 import { withPaletteSuspects } from './capture/paletteSuspects'
 import { FixtureDownloadDialog } from './fixtures/fixtureDownloadDialog'
+import { PRESETS } from './vision/syntheticFace'
+import { FACE_LABELS } from './capture/orientationPresentation'
 import { localUploadShown } from './preferences'
 import { CubeDisplayCard } from './cubeDisplayCard'
 import { NotationCard } from './notationCard'
@@ -113,6 +115,7 @@ export function ScannerAppView({ model }: { model: ScannerAppModel }) {
     handleRejectOrientation,
     handleRetakeFace,
     handleSaveFixture,
+    handleSyntheticPreset,
     handleUpdateColors,
     handleUploadFiles,
     handleUploadPhotos,
@@ -744,11 +747,15 @@ export function ScannerAppView({ model }: { model: ScannerAppModel }) {
       {fixtureDownload && (
         <FixtureDownloadDialog
           download={fixtureDownload}
-          faceLabels={FACE_DISPLAY_LABEL}
+          faceLabels={
+            fixtureDownload.synthetic ? FACE_LABELS : FACE_DISPLAY_LABEL
+          }
           serverChecked={fixtureServerChecked}
           serverReachable={fixtureServerReachable}
           serverPolling={fixtureServerPolling}
           uploadShown={localUploadShown(document.cookie)}
+          syntheticPresets={PRESETS}
+          onSyntheticPreset={handleSyntheticPreset}
           uploading={fixtureUploading}
           uploadMessage={fixtureUploadMessage}
           onClose={closeFixtureDownload}

@@ -28,6 +28,17 @@ export interface SyntheticFixtureInput {
 // browser).
 export type EncodePhoto = (rgba: Uint8ClampedArray, size: number) => string
 
+// The browser's encoder: a canvas as JPEG.
+export const encodeCanvasPhoto: EncodePhoto = (rgba, size) => {
+  const canvas = document.createElement('canvas')
+  canvas.width = size
+  canvas.height = size
+  const context = canvas.getContext('2d')
+  if (!context) throw new Error('No canvas to render the synthetic photos on')
+  context.putImageData(new ImageData(rgba as never, size, size), 0, 0)
+  return canvas.toDataURL('image/jpeg', 0.92)
+}
+
 export function buildSyntheticFixture(
   input: SyntheticFixtureInput,
   encode: EncodePhoto,
