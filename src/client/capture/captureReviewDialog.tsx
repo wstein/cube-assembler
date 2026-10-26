@@ -37,7 +37,7 @@ interface CaptureReviewDialogProps {
   // Set when a marked sticker of the net was opened for a direct edit: its
   // place. The dialog then offers OK and Cancel in place of the wizard's
   // steps.
-  direct?: { face: string; row: number; col: number } | null
+  direct?: { face: string; row: number; col: number; turns: number } | null
   onOk?: () => void
 }
 
@@ -98,11 +98,15 @@ export function CaptureReviewDialog({
   }
   // A direct edit shows the face turned as in the cube net it came from; the
   // wizard shows the photo as it was taken.
-  const turns =
-    direct && netLayout
-      ? (Object.values(netLayout).find((place) => place.slot === step)?.turns ??
-        0)
-      : 0
+  const layoutTurns = netLayout
+    ? Object.values(netLayout).find((place) => place.slot === step)?.turns
+    : undefined
+  // The net's own turns for the sticker's face, else the closest layout's.
+  const turns = !direct
+    ? 0
+    : direct.face === face
+      ? direct.turns
+      : (layoutTurns ?? 0)
   const pickers = miniNet(faces, [...faceOrder], size)
   return (
     <div class="modal open">

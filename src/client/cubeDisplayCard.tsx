@@ -35,7 +35,12 @@ interface CubeDisplayCardProps {
   initialMoves: CubeTurn[]
   initialFrame?: ColorFrame
   onViewModeChange: (mode: 'net' | '3d') => void
-  onEditSticker?: (face: string, row: number, col: number) => void
+  onEditSticker?: (
+    face: string,
+    row: number,
+    col: number,
+    turns: number,
+  ) => void
   onTurnStateChange: (
     cube: CubeState,
     moves: CubeTurn[],

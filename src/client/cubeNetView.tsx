@@ -17,7 +17,12 @@ interface CubeNetViewProps {
   stickerColors: Record<string, string>
   colorNames: Record<string, string>
   // Opens the color edit dialog on a marked sticker of a captured face.
-  onEditSticker?: (face: string, row: number, col: number) => void
+  onEditSticker?: (
+    face: string,
+    row: number,
+    col: number,
+    turns: number,
+  ) => void
 }
 
 // Face names shown on the net, keyed by CubeIR face.
@@ -308,7 +313,9 @@ export function CubeNetView({
                           class="net-cell-edit"
                           aria-label="Edit this sticker"
                           title="Edit this sticker"
-                          onClick={() => onEditSticker(source.slot, r, c)}
+                          onClick={() =>
+                            onEditSticker(source.slot, r, c, source.turns)
+                          }
                         />
                       )}
                     </div>

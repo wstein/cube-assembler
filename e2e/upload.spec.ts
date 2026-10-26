@@ -280,8 +280,26 @@ test('an error names the stickers the equal color share moved, in one sentence',
   // A moved sticker is split along the diagonal and links to the color edit
   // dialog, open on that sticker's face.
   expect(await page.locator('.net-cell-edit').count()).toBeGreaterThan(2)
-  await page.locator('.net-cell-edit').first().click()
+  // Every marked sticker is reachable, the last one too.
+  const netFace = page.locator('.net-face:has(.net-cell-edit)').last()
+  // The final color of each sticker, in the order it is drawn.
+  const finalColors = (cells: ReturnType<typeof page.locator>) =>
+    cells.evaluateAll((els) =>
+      els.map((el) => {
+        const style = getComputedStyle(el)
+        return (
+          style.backgroundImage.match(/rgb\([^)]*\)/)?.[0] ??
+          style.backgroundColor
+        )
+      }),
+    )
+  const inNet = await finalColors(netFace.locator('.net-cell'))
+  await page.locator('.net-cell-edit').last().click()
   await expect(page.locator('.review-modal-content')).toBeVisible()
+  // The face is drawn turned as in the net.
+  expect(await finalColors(page.locator('.review-detected-cell'))).toEqual(
+    inNet,
+  )
   // The picker waits for a tap; a direct edit ends with OK or Cancel, not
   // the wizard's next side.
   await expect(page.locator('.color-picker-content')).toHaveCount(0)

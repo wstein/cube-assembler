@@ -208,6 +208,8 @@ export function ScannerAppView({ model }: { model: ScannerAppModel }) {
     face: string
     row: number
     col: number
+    // The quarter turns the net shows this face's photo turned by.
+    turns: number
     before: typeof capturedFaces
   } | null>(null)
   useEffect(() => {
@@ -455,11 +457,11 @@ export function ScannerAppView({ model }: { model: ScannerAppModel }) {
               turnedCube?.source === baseCube ? turnedCube.frame : undefined
             }
             onViewModeChange={setCubeViewMode}
-            onEditSticker={(face, row, col) => {
+            onEditSticker={(face, row, col, turns) => {
               setReviewStep(FACE_ORDER.indexOf(face))
               setReviewEditingCell(null)
               setReviewNotice(null)
-              setDirectEdit({ face, row, col, before: capturedFaces })
+              setDirectEdit({ face, row, col, turns, before: capturedFaces })
               setShowReviewDialog(true)
             }}
             onTurnStateChange={(value, moves, frame) =>
