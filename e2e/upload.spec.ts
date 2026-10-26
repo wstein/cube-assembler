@@ -481,9 +481,12 @@ test('the hue scatter names a dot on hover and links it with the net', async ({
           requestAnimationFrame(() => requestAnimationFrame(done)),
         ),
     )
+  // Leaving the chart closes the lens, so the next one opens on the pointer.
+  const leave = () => page.mouse.move(0, 0)
   const gap = async (lensPx: number) => {
     // A pointer this many lens pixels to the right of the dot's center.
     const offsetPx = lensPx / ((await scale()) * unit)
+    await leave()
     await page.mouse.move(
       svgBox.x + ((dx + offsetPx * unit) / viewBox[2]) * svgBox.width,
       svgBox.y + (dy / viewBox[3]) * svgBox.height,
@@ -523,10 +526,21 @@ test('the hue scatter names a dot on hover and links it with the net', async ({
   expect(mid.shift).toBeGreaterThan(0.1)
   expect(mid.shift).toBeLessThanOrEqual(3.01)
   // Far from every dot, the lens follows the pointer exactly.
+  await leave()
   await page.mouse.move(svgBox.x + svgBox.width - 4, svgBox.y + 100)
   await frames()
   const [fx] = await center()
   expect(fx).toBeCloseTo((svgBox.width - 4) * unit, 1)
+  // The brake: the lens point moves a third of what the pointer moves.
+  await leave()
+  const sparse = { x: svgBox.x + svgBox.width * 0.75, y: svgBox.y + 20 }
+  await page.mouse.move(sparse.x, sparse.y)
+  await frames()
+  const before = (await center())[0]
+  await page.mouse.move(sparse.x + 9, sparse.y)
+  await frames()
+  expect(((await center())[0] - before) / (9 * unit)).toBeCloseTo(1 / 3, 1)
+  await leave()
   await dialog.locator('.hue-scatter-dot').first().hover({ force: true })
   await expect(info).toContainText(
     /row \d+, column \d+: \w+ \(L [\d.]+, C [\d.]+, h \d+°\)$/,

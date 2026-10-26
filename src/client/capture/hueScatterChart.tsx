@@ -1,4 +1,4 @@
-import { useState } from 'preact/hooks'
+import { useRef, useState } from 'preact/hooks'
 import {
   countDeviations,
   HUE_CUT,
@@ -53,6 +53,10 @@ const HIT_RADIUS = 8
 // the chart the more the lens magnifies) and nudges the lens by half a dot's
 // diameter, the dot's radius, at most.
 const MAGNET_LENS_PX = 8
+// The brake: the lens point follows this share of the pointer's movement,
+// and lags the pointer by this many chart units at most.
+const BRAKE = 1 / 3
+const BRAKE_REACH = 30
 // Thickness of the color bars along the axes.
 const BAR = 5
 const BAR_GAP = 2
@@ -128,6 +132,8 @@ export function HueScatterChart({
     cx: number
     cy: number
   } | null>(null)
+  const lastPointer = useRef<{ x: number; y: number } | null>(null)
+  const brakeOffset = useRef({ x: 0, y: 0 })
   const grayLeft = LEFT + WIDTH + GAP
   const points = hueScatter(samples)
   const deviations = countDeviations(samples)
@@ -152,8 +158,25 @@ export function HueScatterChart({
           const at = svg.createSVGPoint()
           at.x = e.clientX
           at.y = e.clientY
-          const p = at.matrixTransform(m.inverse())
-          // The dot nearest the pointer is the one pointed at, however
+          const raw = at.matrixTransform(m.inverse())
+          // The brake: the lens point moves only BRAKE of what the pointer
+          // moves, so one pixel of hand is a fraction of a pixel in the
+          // lens. It may trail the pointer by BRAKE_REACH at most, and
+          // starts on the pointer when the lens opens.
+          const last = lastPointer.current ?? raw
+          const o = brakeOffset.current
+          let ox = o.x + (raw.x - last.x) * (BRAKE - 1)
+          let oy = o.y + (raw.y - last.y) * (BRAKE - 1)
+          const trail = Math.hypot(ox, oy)
+          if (trail > BRAKE_REACH) {
+            ox *= BRAKE_REACH / trail
+            oy *= BRAKE_REACH / trail
+          }
+          lastPointer.current = { x: raw.x, y: raw.y }
+          brakeOffset.current = { x: ox, y: oy }
+          // The point the lens shows and the dot is picked at.
+          const p = { x: raw.x + ox, y: raw.y + oy }
+          // The dot nearest the lens point is the one pointed at, however
           // many dots overlap there.
           const dist = (i: number) =>
             Math.hypot(dotX(points[i]) - p.x, y(points[i].l) - p.y)
@@ -178,8 +201,8 @@ export function HueScatterChart({
           const cx = target === null ? p.x : dotX(points[target])
           const cy = target === null ? p.y : y(points[target].l)
           setLens({
-            x: p.x,
-            y: p.y,
+            x: raw.x,
+            y: raw.y,
             cx: p.x + (cx - p.x) * pull,
             cy: p.y + (cy - p.y) * pull,
           })
@@ -197,6 +220,8 @@ export function HueScatterChart({
           )
         }}
         onMouseLeave={() => {
+          lastPointer.current = null
+          brakeOffset.current = { x: 0, y: 0 }
           setLens(null)
           onHover(null)
         }}
@@ -342,6 +367,13 @@ export function HueScatterChart({
             gray
           </text>
         </g>
+        {lens && (
+          <path
+            class="hue-scatter-lens-cross hue-scatter-brake-mark"
+            pointer-events="none"
+            d={`M${lens.cx - 4} ${lens.cy}h8M${lens.cx} ${lens.cy - 4}v8`}
+          />
+        )}
         {lens && (
           <g class="hue-scatter-lens" pointer-events="none">
             <clipPath id="hue-scatter-lens-clip">
