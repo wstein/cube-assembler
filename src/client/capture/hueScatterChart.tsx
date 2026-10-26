@@ -50,10 +50,9 @@ const DOT_RADIUS = 3
 // How near the pointer must be to a dot to point at it.
 const HIT_RADIUS = 8
 // The lens magnet reaches this far in lens pixels (so a smaller distance in
-// the chart the more the lens magnifies), and pulls at most this share of
-// the way to the dot.
+// the chart the more the lens magnifies) and nudges the lens by half a dot's
+// diameter, the dot's radius, at most.
 const MAGNET_LENS_PX = 8
-const MAGNET_MAX = 0.5
 // Thickness of the color bars along the axes.
 const BAR = 5
 const BAR_GAP = 2
@@ -166,15 +165,16 @@ export function HueScatterChart({
               target = i
             }
           })
-          // A micro magnet: within a few pixels of the lens, whatever its
-          // magnification, the lens leans toward the nearest dot, up to
-          // MAGNET_MAX of the way. The pull grows smoothly from nothing at
-          // the edge, so the lens is nudged, never locked.
+          // A micro magnet: within a few lens pixels of a dot the lens is
+          // nudged toward it, by half a dot's diameter at most. The nudge
+          // grows smoothly from nothing at the edge, and never passes the
+          // dot, so the lens is drawn in, never locked.
           const reach = MAGNET_LENS_PX / zoom
-          const pull =
-            target === null || best >= reach
+          const shift =
+            target === null || best >= reach || best === 0
               ? 0
-              : MAGNET_MAX * (1 - best / reach) ** 2
+              : Math.min(best, (DOT_RADIUS / zoom) * (1 - best / reach) ** 2)
+          const pull = shift / (best || 1)
           const cx = target === null ? p.x : dotX(points[target])
           const cy = target === null ? p.y : y(points[target].l)
           setLens({

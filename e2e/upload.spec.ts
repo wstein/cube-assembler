@@ -451,8 +451,9 @@ test('the hue scatter names a dot on hover and links it with the net', async ({
           requestAnimationFrame(() => requestAnimationFrame(done)),
         ),
     )
-  const gap = async (offsetPx: number) => {
-    // A pointer this many pixels to the right of the dot's center.
+  const gap = async (lensPx: number) => {
+    // A pointer this many lens pixels to the right of the dot's center.
+    const offsetPx = lensPx / ((await scale()) * unit)
     await page.mouse.move(
       svgBox.x + ((dx + offsetPx * unit) / viewBox[2]) * svgBox.width,
       svgBox.y + (dy / viewBox[3]) * svgBox.height,
@@ -475,18 +476,22 @@ test('the hue scatter names a dot on hover and links it with the net', async ({
       nearest[0] - pointer[0],
       nearest[1] - pointer[1],
     )
+    // How far the lens center was drawn off the pointer, in lens pixels.
     return {
-      // How far toward the nearest dot the lens center was drawn.
-      pull: Math.hypot(at[0] - pointer[0], at[1] - pointer[1]) / pointerToDot,
+      shift:
+        Math.hypot(at[0] - pointer[0], at[1] - pointer[1]) * (await scale()),
+      pointerToDot,
     }
   }
-  const near = await gap(0.5)
-  const away = await gap(8)
-  // A micro magnet: from very close the lens leans toward the nearest dot,
-  // at most half the way, and not at all further off.
-  expect(near.pull).toBeGreaterThan(0.2)
-  expect(near.pull).toBeLessThan(0.55)
-  expect(away.pull).toBeLessThan(0.02)
+  const near = await gap(1.5)
+  const mid = await gap(3.5)
+  // A micro magnet: from very close the lens is nudged toward the nearest
+  // dot, by half a dot's diameter (3 lens pixels) at most, and not at all
+  // far from every dot (below).
+  expect(near.shift).toBeGreaterThan(0.2)
+  expect(near.shift).toBeLessThanOrEqual(3.01)
+  expect(mid.shift).toBeGreaterThan(0.1)
+  expect(mid.shift).toBeLessThanOrEqual(3.01)
   // Far from every dot, the lens follows the pointer exactly.
   await page.mouse.move(svgBox.x + svgBox.width - 4, svgBox.y + 100)
   await frames()
