@@ -151,7 +151,7 @@ export function HueScatterChart({
         </text>
         <text
           x={grayLeft + GRAY_WIDTH / 2}
-          y={TOP + HEIGHT + 11}
+          y={TOP + HEIGHT + 22}
           text-anchor="middle"
         >
           gray
@@ -161,7 +161,7 @@ export function HueScatterChart({
             key={hue}
             class="hue-scatter-gray-tick"
             x={grayX(hue)}
-            y={TOP + HEIGHT + 22}
+            y={TOP + HEIGHT + 11}
             text-anchor="middle"
           >
             {hue}°
