@@ -539,9 +539,12 @@ h3 {
 }
 
 .net-cell-piece {
-  outline: 3px solid #ffffff;
-  outline-offset: -3px;
-  box-shadow: 0 0 0 2px var(--color-accent);
+  /* A white band with a dark line inside it, so the frame shows on a white
+     sticker as well as on a dark one. */
+  box-shadow:
+    inset 0 0 0 3px #ffffff,
+    inset 0 0 0 4.5px #17171b,
+    0 0 0 2px var(--color-accent);
   z-index: 3;
 }
 
