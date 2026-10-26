@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest'
-import { firstGuesses, WARN_MOVED } from '../src/client/capture/forcedStickers'
+import {
+  firstGuesses,
+  forcedReading,
+  forcedSentence,
+  WARN_MOVED,
+} from '../src/client/capture/forcedStickers'
 
 const rgb = (r: number, g: number, b: number) => ({ r, g, b })
 const GRAY = rgb(235, 235, 230)
@@ -48,5 +53,46 @@ describe('what the equal share per color hides', () => {
 
   it('warns from three moved stickers, which no valid capture reached', () => {
     expect(WARN_MOVED).toBe(3)
+  })
+})
+
+describe('the forced stickers of a capture', () => {
+  const face = (labels: string[], rgbs: ReturnType<typeof rgb>[]) => ({
+    colors: [labels.slice(0, 2), labels.slice(2)],
+    cellColors: [rgbs.slice(0, 2), rgbs.slice(2)],
+    confidence: 1,
+    timestamp: 0,
+  })
+  const same = (color: ReturnType<typeof rgb>, label: string) =>
+    face(Array(4).fill(label), Array(4).fill(color))
+  const captured = {
+    u: same(GRAY, 'W'),
+    // A white face holding three stickers that are really orange.
+    r: face(['W', 'W', 'W', 'W'], [GRAY, ORANGE, ORANGE, ORANGE]),
+    f: same(ORANGE, 'O'),
+    d: same(rgb(235, 210, 40), 'Y'),
+    l: same(rgb(60, 160, 70), 'G'),
+    b: same(BLUE, 'B'),
+  }
+
+  it('marks them in each photo and reports the warning', () => {
+    const reading = forcedReading(captured, ['u', 'r', 'f', 'd', 'l', 'b'])
+    expect(reading.warn).toBe(true)
+    expect(reading.faces.r.forced).toEqual([
+      [false, true],
+      [true, true],
+    ])
+    expect(reading.faces.r.guess[0]).toEqual(['W', 'O'])
+    expect(reading.faces.u.forced.flat().some(Boolean)).toBe(false)
+  })
+
+  it('says it in one sentence', () => {
+    const reading = forcedReading(captured, ['u', 'r', 'f', 'd', 'l', 'b'])
+    expect(
+      forcedSentence(reading.result.forced, { W: 'White', O: 'Orange' }),
+    ).toBe(
+      '3 stickers were moved to white; on their own they read as 3 orange.',
+    )
+    expect(forcedSentence([], {})).toBe('')
   })
 })
