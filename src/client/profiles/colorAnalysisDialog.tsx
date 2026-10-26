@@ -1,6 +1,7 @@
 // The color analysis of the last capture, in tabs: what the backdrop white
 // balance did, where the stickers sit around the hue circle, and how the
 // final colors differ from the standard and the learned ones.
+import { sampleIndexAt } from '../capture/analysisSamples'
 import { useState } from 'preact/hooks'
 import type { NetCell } from '../capture/approvalPhotos'
 import { HueScatterChart } from '../capture/hueScatterChart'
@@ -210,16 +211,7 @@ export function ColorAnalysisDialog({
                     hovered === null ? null : (cells[hovered] ?? null)
                   }
                   onStickerHover={(cell) =>
-                    setHovered(
-                      cell
-                        ? cells.findIndex(
-                            (own) =>
-                              own?.face === cell.face &&
-                              own.row === cell.row &&
-                              own.col === cell.col,
-                          )
-                        : null,
-                    )
+                    setHovered(sampleIndexAt(cells, cell))
                   }
                 />
               </div>

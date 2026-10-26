@@ -46,3 +46,17 @@ export function analysisSamples(
     : undefined
   return { samples, cells, netFaces, photos }
 }
+
+// The sample that sits in a net cell, or null when none does (a face
+// without readings has none).
+export function sampleIndexAt(
+  cells: Array<NetCell | undefined>,
+  cell: NetCell | null,
+): number | null {
+  if (!cell) return null
+  const index = cells.findIndex(
+    (own) =>
+      own?.face === cell.face && own.row === cell.row && own.col === cell.col,
+  )
+  return index < 0 ? null : index
+}

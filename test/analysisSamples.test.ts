@@ -2,7 +2,10 @@ import { describe, expect, it } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { readFixtureColors } from '../src/client/fixtures/fixtureFormat'
-import { analysisSamples } from '../src/client/capture/analysisSamples'
+import {
+  analysisSamples,
+  sampleIndexAt,
+} from '../src/client/capture/analysisSamples'
 
 const ORDER = ['U', 'R', 'F', 'D', 'L', 'B']
 
@@ -105,5 +108,24 @@ describe('the analysis samples', () => {
     )
     expect(netFaces).toBeNull()
     expect(cells.every((cell) => cell === undefined)).toBe(true)
+  })
+})
+
+describe('finding the sample in a net cell', () => {
+  const cells = [
+    { face: 'U', row: 0, col: 0 },
+    undefined,
+    { face: 'R', row: 1, col: 2 },
+  ]
+
+  it('gives the index of the sample that sits there', () => {
+    expect(sampleIndexAt(cells, { face: 'R', row: 1, col: 2 })).toBe(2)
+    expect(sampleIndexAt(cells, { face: 'U', row: 0, col: 0 })).toBe(0)
+  })
+
+  it('gives null for a cell no sample sits in, not -1', () => {
+    // A face without readings has no samples: pointing at it finds none.
+    expect(sampleIndexAt(cells, { face: 'F', row: 0, col: 0 })).toBeNull()
+    expect(sampleIndexAt(cells, null)).toBeNull()
   })
 })
