@@ -98,7 +98,15 @@ export function useOrientationReview({
         })
         break
       case 'notice':
+        // Nothing fits together: an error dialog, not a message that only
+        // the (closed) color review would show.
         setReviewNotice(plan.message)
+        setOrientationApproval({
+          candidates: [],
+          valid: false,
+          note: plan.message,
+          fallback: null,
+        })
         break
       case 'choose':
         void onChoose(plan.candidate)

@@ -1,4 +1,16 @@
 import type { TargetedKeyboardEvent } from 'preact'
+import {
+  photoNames,
+  repeatedText,
+} from '../../core/capture/CaptureDiagnosis.gen'
+import { FaceGrid } from './captureNet'
+import {
+  capturePhotos,
+  captureStats,
+  netPhotos,
+  type ApprovalPhoto,
+} from './approvalPhotos'
+import type { FaceCaptureData } from './captureTypes'
 import type { OrientedCandidate } from '../../cube/cubeAssembly'
 import {
   rejectAlternatives,
@@ -20,6 +32,11 @@ interface OrientationApprovalDialogProps {
   // "No": start the color review.
   onBackToColors: () => void
   onCheckFace: (candidate: OrientedCandidate, face: string) => void
+  // A photo in the capture-order strip: open its colors.
+  onCheckSlot: (slot: number) => void
+  captured: Record<string, FaceCaptureData>
+  faceOrder: string[]
+  puzzleSize: number
   onChoose: (candidate: OrientedCandidate) => void
   onReject: () => void
   onPageChange: (page: number) => void
@@ -34,6 +51,10 @@ export function OrientationApprovalDialog({
   onClose,
   onBackToColors,
   onCheckFace,
+  onCheckSlot,
+  captured,
+  faceOrder,
+  puzzleSize,
   onChoose,
   onReject,
   onPageChange,
@@ -62,7 +83,7 @@ export function OrientationApprovalDialog({
         <div class="modal-header">
           <h2 id="orientation-approval-title">
             {!valid
-              ? "These faces don't make a valid cube"
+              ? 'Error detected'
               : single
                 ? 'Does this match your cube?'
                 : 'Which of these is your cube?'}
@@ -77,7 +98,13 @@ export function OrientationApprovalDialog({
           </button>
         </div>
         {note && (
-          <p class={valid ? 'orientation-approval-note' : 'capture-warning'}>
+          <p
+            class={
+              valid
+                ? 'orientation-approval-note'
+                : 'approval-error capture-warning'
+            }
+          >
             {note}
           </p>
         )}
@@ -90,16 +117,16 @@ export function OrientationApprovalDialog({
             Compare two at a time.
           </p>
         )}
-        {single ? (
-          <div class="approval-single">
-            <div class="approval-net">
-              <OrientationNetPreview
-                faces={candidates[0].faces}
-                stickerColors={stickerColors}
-                onFaceClick={(face) => onCheckFace(candidates[0], face)}
-              />
-            </div>
-          </div>
+        {single || candidates.length === 0 ? (
+          <CubeCheck
+            candidate={candidates[0]}
+            captured={captured}
+            faceOrder={faceOrder}
+            puzzleSize={puzzleSize}
+            stickerColors={stickerColors}
+            onCheckFace={onCheckFace}
+            onCheckSlot={onCheckSlot}
+          />
         ) : (
           <>
             <div class="orientation-approval-options">
@@ -177,7 +204,7 @@ export function OrientationApprovalDialog({
                 : 'None of these - let me choose each side'}
             </button>
           )}
-          {single && (
+          {single && candidates.length > 0 && (
             <button
               type="button"
               class="btn btn-primary btn-review-next"
@@ -189,5 +216,195 @@ export function OrientationApprovalDialog({
         </div>
       </div>
     </div>
+  )
+}
+
+function Photo({
+  photo,
+  label,
+  repeated,
+  onClick,
+}: {
+  photo: ApprovalPhoto | null
+  label: string
+  repeated?: boolean
+  onClick: () => void
+}) {
+  return (
+    <div class="approval-strip-item">
+      <button
+        type="button"
+        class={`approval-photo${repeated ? ' approval-photo-repeated' : ''}`}
+        aria-label={`Check the ${label} photo`}
+        onClick={onClick}
+      >
+        {photo?.image && (
+          <img
+            src={photo.image}
+            alt={`${label} photo`}
+            style={{ transform: `rotate(${photo.turns * 90}deg)` }}
+          />
+        )}
+      </button>
+      <span class="approval-photo-label">{label}</span>
+    </div>
+  )
+}
+
+// The cube check: the photos above, what was detected below, and the stats.
+// Without an arrangement (an error) both are shown in the order the photos
+// were taken.
+function CubeCheck({
+  candidate,
+  captured,
+  faceOrder,
+  puzzleSize,
+  stickerColors,
+  onCheckFace,
+  onCheckSlot,
+}: {
+  candidate: OrientedCandidate | undefined
+  captured: Record<string, FaceCaptureData>
+  faceOrder: string[]
+  puzzleSize: number
+  stickerColors: Record<string, string>
+  onCheckFace: (candidate: OrientedCandidate, face: string) => void
+  onCheckSlot: (slot: number) => void
+}) {
+  const stats = captureStats(captured, faceOrder, puzzleSize)
+  const repeatedSlots = new Set(stats.diagnosis.repeated.flat())
+  const inNet = candidate
+    ? netPhotos(captured, faceOrder, candidate.faces)
+    : null
+  const inOrder = capturePhotos(captured, faceOrder)
+  const tile = (face: string) => {
+    const photo = inNet?.[face] ?? null
+    return (
+      <Photo
+        key={face}
+        photo={photo}
+        label={`${face} face`}
+        repeated={photo ? repeatedSlots.has(photo.slot) : false}
+        onClick={() => candidate && onCheckFace(candidate, face)}
+      />
+    )
+  }
+  const spacer = (key: string) => (
+    <div key={key} class="approval-photo-spacer" />
+  )
+  const changedFaces = inNet
+    ? Object.fromEntries(
+        Object.entries(inNet).map(([face, photo]) => [face, photo?.changed]),
+      )
+    : undefined
+  const changedCount = inOrder.reduce(
+    (total, photo) =>
+      total + (photo?.changed.flat().filter(Boolean).length ?? 0),
+    0,
+  )
+  const sureLine = stats.sureness
+    .map((sure, i) =>
+      sure === undefined ? null : `${photoNames[i]} ${Math.round(sure)}%`,
+    )
+    .filter(Boolean)
+    .join(' · ')
+  const unsureLine = stats.unsure
+    .map((count, i) => (count ? `${photoNames[i]}: ${count}` : null))
+    .filter(Boolean)
+    .join(' · ')
+  return (
+    <>
+      <section class="approval-section approval-photos">
+        <h3 class="approval-section-title">Your photos</h3>
+        {candidate ? (
+          <div class="approval-photo-net">
+            <div class="approval-photo-row">
+              {spacer('a')}
+              {tile('U')}
+              {spacer('b')}
+              {spacer('c')}
+            </div>
+            <div class="approval-photo-row">
+              {tile('L')}
+              {tile('F')}
+              {tile('R')}
+              {tile('B')}
+            </div>
+            <div class="approval-photo-row">
+              {spacer('d')}
+              {tile('D')}
+              {spacer('e')}
+              {spacer('f')}
+            </div>
+          </div>
+        ) : (
+          <div class="approval-strip">
+            {inOrder.map((photo, slot) => (
+              <Photo
+                key={slot}
+                photo={photo}
+                label={photoNames[slot]}
+                repeated={repeatedSlots.has(slot)}
+                onClick={() => onCheckSlot(slot)}
+              />
+            ))}
+          </div>
+        )}
+      </section>
+      <section class="approval-section approval-detected">
+        <h3 class="approval-section-title">
+          {candidate ? 'Detected cube' : 'Detected colors, in the order taken'}
+        </h3>
+        {candidate ? (
+          <OrientationNetPreview
+            faces={candidate.faces}
+            stickerColors={stickerColors}
+            changedFaces={changedFaces}
+            onFaceClick={(face) => onCheckFace(candidate, face)}
+          />
+        ) : (
+          <div class="approval-strip">
+            {faceOrder.map((key, slot) =>
+              captured[key] ? (
+                <div key={key} class="approval-strip-item">
+                  <FaceGrid
+                    stickerColors={stickerColors}
+                    colors={captured[key].colors}
+                    changed={inOrder[slot]?.changed}
+                  />
+                  <span class="approval-photo-label">{photoNames[slot]}</span>
+                </div>
+              ) : null,
+            )}
+          </div>
+        )}
+      </section>
+      <dl class="approval-stats">
+        <dt>Camera was sure of</dt>
+        <dd>{sureLine || 'not recorded'}</dd>
+        <dt>Unsure stickers</dt>
+        <dd>{unsureLine || 'none'}</dd>
+        {stats.diagnosis.repeatsChecked && (
+          <>
+            <dt>Repeated face</dt>
+            <dd>{repeatedText(stats.diagnosis)}</dd>
+          </>
+        )}
+        {changedCount > 0 && (
+          <>
+            <dt>Differs from detection</dt>
+            <dd>
+              {changedCount} sticker{changedCount === 1 ? '' : 's'} (outlined)
+            </dd>
+          </>
+        )}
+        {(stats.diagnosis.cause !== 'none found' || !candidate) && (
+          <>
+            <dt>Likely cause</dt>
+            <dd>{stats.diagnosis.cause}</dd>
+          </>
+        )}
+      </dl>
+    </>
   )
 }

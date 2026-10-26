@@ -189,3 +189,49 @@ test('opens sticker review from a face in the orientation approval', async ({
     .click()
   await expect(review).toBeVisible()
 })
+
+test('the cube check shows the photos and the detection side by side', async ({
+  page,
+}) => {
+  await page.goto('/')
+  await page
+    .locator('.capture-alternatives input[type="file"]')
+    .setInputFiles([...photos, resolve(fixture, 'meta.json')])
+  const dialog = page.getByRole('dialog', {
+    name: 'Does this match your cube?',
+  })
+  await expect(dialog).toBeVisible()
+  // Upper net: the six photos; lower net: the detected colors.
+  await expect(dialog.locator('.approval-photos .approval-photo')).toHaveCount(
+    6,
+  )
+  await expect(
+    dialog.locator('.approval-detected .orientation-net'),
+  ).toBeVisible()
+  await expect(dialog.locator('.approval-stats')).toContainText('Side 1')
+})
+
+test('a capture that cannot be put together shows an error, not silence', async ({
+  page,
+}) => {
+  const repeated = resolve('test/fixtures/cube-5x5-2026-10-26T00-18-58')
+  await page.goto('/')
+  await page
+    .getByRole('combobox', { name: 'Cube' })
+    .selectOption('builtin-generic-5')
+  await page
+    .locator('.capture-alternatives input[type="file"]')
+    .setInputFiles([
+      ...faceKeys.map((face) => resolve(repeated, `face-${face}.jpg`)),
+      resolve(repeated, 'meta.json'),
+    ])
+  const dialog = page.getByRole('dialog', { name: 'Error detected' })
+  await expect(dialog).toBeVisible()
+  await expect(dialog.locator('.approval-photos .approval-photo')).toHaveCount(
+    6,
+  )
+  await expect(dialog.locator('.approval-stats')).toContainText(
+    'Side 4 and Top',
+  )
+  await expect(dialog).toContainText('shot twice')
+})

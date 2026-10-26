@@ -27,6 +27,7 @@ export function OrientationNetPreview({
   undecidedFaces,
   currentFace,
   autoFaces,
+  changedFaces,
   onFaceClick,
   stickerColors,
 }: {
@@ -34,6 +35,7 @@ export function OrientationNetPreview({
   undecidedFaces?: Set<string>
   currentFace?: string
   autoFaces?: Set<string>
+  changedFaces?: Record<string, boolean[][] | undefined>
   onFaceClick?: (face: string) => void
   stickerColors: Record<string, string>
 }) {
@@ -44,6 +46,7 @@ export function OrientationNetPreview({
       undecided={undecidedFaces?.has(face)}
       current={face === currentFace}
       auto={autoFaces?.has(face)}
+      changed={changedFaces?.[face]}
     />
   )
   const grid = (face: string) =>

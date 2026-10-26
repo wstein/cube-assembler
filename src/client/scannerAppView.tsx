@@ -653,6 +653,16 @@ export function ScannerAppView({ model }: { model: ScannerAppModel }) {
             setReviewNotice(null)
             setShowReviewDialog(true)
           }}
+          onCheckSlot={(slot) => {
+            setOrientationApproval(null)
+            setReviewStep(slot)
+            setReviewEditingCell(null)
+            setReviewNotice(null)
+            setShowReviewDialog(true)
+          }}
+          captured={capturedFaces}
+          faceOrder={FACE_ORDER}
+          puzzleSize={puzzleSize}
           onChoose={handleChooseOrientation}
           onReject={handleRejectOrientation}
           onPageChange={(page) =>

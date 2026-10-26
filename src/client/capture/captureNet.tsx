@@ -15,12 +15,15 @@ export function FaceGrid({
   undecided,
   current,
   auto,
+  changed,
   stickerColors,
 }: {
   colors: string[][]
   undecided?: boolean
   current?: boolean
   auto?: boolean
+  // Stickers the saved colors changed from the detection, outlined.
+  changed?: boolean[][]
   stickerColors: Record<string, string>
 }) {
   // On odd sizes the center sticker never moves when a face is turned, so
@@ -35,7 +38,7 @@ export function FaceGrid({
       {colors.flat().map((color, i) => (
         <div
           key={i}
-          class="orientation-net-sticker"
+          class={`orientation-net-sticker${changed?.[Math.floor(i / n)]?.[i % n] ? ' orientation-net-sticker-changed' : ''}`}
           style={
             (undecided && i !== centerIndex) || !color
               ? undefined
