@@ -9,6 +9,9 @@ type geometry = {gap?: float, radius?: float, margin?: float}
 @genType
 type options = {
   scatter?: float,
+  tone?: float,
+  shading?: float,
+  faceShift?: float,
   lightness?: float,
   palette?: Dict.t<StickerGeometry.rgb>,
   logo?: logo,
