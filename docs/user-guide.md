@@ -134,15 +134,17 @@ the dev server or the published app. See the [fixture guide](../test/fixtures/RE
 
 ## Enter or copy facelets
 
-**Type colors** and the notation output panel share a format switch:
-- **WRG facelets:** six space-separated blocks of N² color letters (W/O/G/R/B/Y)
-  in U R F D L B order. A solved 3×3 starts `WWWWWWWWW RRRRRRRRR`.
-- **URF facelets:** the same structure using U/R/F/D/L/B for the face whose
-  solved color each sticker matches. A solved 3×3 starts
-  `UUUUUUUUU RRRRRRRRR`.
+**Type colors** reads the facelets as typed; the format is detected:
+- **Face letters (URF):** six space-separated blocks of N² letters
+  (U/R/F/D/L/B) in U R F D L B order, each the face whose solved color the
+  sticker matches. A solved 3×3 starts `UUUUUUUUU RRRRRRRRR`.
+- **Colors (WRG):** the same structure using color letters (W/O/G/R/B/Y). A
+  solved 3×3 starts `WWWWWWWWW RRRRRRRRR`.
 
-Pasting text usually selects the matching format. Inputs containing only R and
-B are ambiguous, so the existing switch is kept. The notation panel can also
+Typing facelets never changes the format the notation panel shows: that is the
+**Colors (WRG)** / **Faces (URF)** switch on the panel (faces by default), also
+set on the settings page. Input made only of R and B letters fits both formats
+and is read in that saved format. The notation panel can also
 copy an [Orbit64.Net](https://github.com/wstein/flix-orbit64/blob/main/FORMAT.md#spaced-facelet-reference-vectors)
 compact state token for 2×2–7×7. Paste facelets or a state token into **Type
 colors**; move and algorithm tokens are separate formats and are not accepted.
