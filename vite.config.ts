@@ -37,8 +37,16 @@ function appCommitEndpoint(): Plugin {
   }
 }
 
+// Puts the package version into the static CubeLab marker in index.html.
+function appVersionInHtml(): Plugin {
+  return {
+    name: 'app-version-in-html',
+    transformIndexHtml: (html) => html.replaceAll('%APP_VERSION%', pkg.version),
+  }
+}
+
 export default defineConfig({
-  plugins: [preactPlugin(), appCommitEndpoint()],
+  plugins: [preactPlugin(), appCommitEndpoint(), appVersionInHtml()],
   base: process.env.VITE_BASE_PATH || '/',
   define: {
     __APP_VERSION__: JSON.stringify(pkg.version),
