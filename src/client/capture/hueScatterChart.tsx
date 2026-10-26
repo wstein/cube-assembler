@@ -54,10 +54,10 @@ export function HueScatterChart({ samples }: { samples: LocatedSample[] }) {
   const info = (i: number) => {
     const point = points[i]
     const where = samples[i].where ? `${samples[i].where}: ` : ''
-    const kind = point.neutral ? 'gray' : `chroma ${point.chroma.toFixed(2)}`
+    const kind = `chroma ${point.chroma.toFixed(2)}`
     return `${where}${name(point.label)} (${kind}) - ${
       point.misplaced
-        ? `sits with ${point.neutral ? 'the grays' : `the ${name(point.sitsWith)} stickers`}, not with its own color`
+        ? `sits with ${point.neutral ? 'the whites' : `the ${name(point.sitsWith)} stickers`}, not with its own color`
         : 'sits with its own color'
     }`
   }

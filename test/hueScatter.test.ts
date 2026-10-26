@@ -86,6 +86,44 @@ describe('the hue scatter', () => {
     expect(points[2].sitsWith).toBe('R')
   })
 
+  describe('the whites are the least saturated stickers, as many as a color has', () => {
+    // One sticker per color (a 1x1 cube): the least saturated one is white.
+    const vivid = [
+      { rgb: rgb(200, 30, 40), label: 'R' },
+      { rgb: rgb(240, 120, 20), label: 'O' },
+      { rgb: rgb(230, 210, 30), label: 'Y' },
+      { rgb: rgb(20, 150, 70), label: 'G' },
+      { rgb: rgb(30, 70, 200), label: 'B' },
+    ]
+
+    it('takes a tinted white that a fixed chroma limit would call a color', () => {
+      const tinted = rgb(170, 200, 250)
+      expect(rgbToOKLCH(tinted).c).toBeGreaterThan(NEUTRAL_CHROMA)
+      const points = hueScatter([...vivid, { rgb: tinted, label: 'W' }])
+      expect(points.map((p) => p.neutral)).toEqual([
+        false,
+        false,
+        false,
+        false,
+        false,
+        true,
+      ])
+      expect(points[5].misplaced).toBe(false)
+    })
+
+    it('leaves a pale yellow among the colors while a paler white is there', () => {
+      const pale = rgb(192, 186, 142)
+      expect(rgbToOKLCH(pale).c).toBeLessThan(NEUTRAL_CHROMA)
+      const points = hueScatter([
+        { rgb: pale, label: 'Y' },
+        ...vivid.filter((p) => p.label !== 'Y'),
+        { rgb: rgb(235, 235, 228), label: 'W' },
+      ])
+      expect(points[0].neutral).toBe(false)
+      expect(points[5].neutral).toBe(true)
+    })
+  })
+
   it('marks a gray as neutral and a vivid color as not', () => {
     expect(rgbToOKLCH(rgb(128, 128, 128)).c).toBeLessThan(NEUTRAL_CHROMA)
     expect(rgbToOKLCH(rgb(200, 30, 40)).c).toBeGreaterThan(NEUTRAL_CHROMA)

@@ -27,8 +27,9 @@ type point = {
 // follows it.
 let hueCut = 340.0
 
-// Below this chroma a sticker is drawn as gray, with no hue: where the
-// production clustering stops trusting hue too (see ColorMath).
+// Without a whole cube, a sticker below this chroma is drawn as gray, with
+// no hue: where the production clustering stops trusting hue (see
+// ColorMath).
 let neutralChroma = ColorMath.clusterChromaThreshold
 
 // Hue in degrees on the cut axis: 0 at hueCut, going around.
@@ -50,14 +51,33 @@ let chartDistance = (a: point, b: point) => {
 // is misplaced when it sits nearer another color's cloud than its own (a
 // gray one when it isn't white, a colored one when it is).
 let hueScatter = (samples: array<sample>) => {
-  let base = samples->Array.map(sample => {
-    let lch = ColorMath.rgbToOKLCH(sample.rgb)
+  let lch = samples->Array.map(sample => ColorMath.rgbToOKLCH(sample.rgb))
+  let count = Array.length(samples)
+  // A cube has as many stickers of each color, so the least saturated ones
+  // are the whites, however much a tint or a dull lamp lifts their chroma.
+  // Without a whole cube's six colors, the fixed limit stands in.
+  let cutoff =
+    count > 0 && mod(count, 6) == 0
+      ? Some(
+          lch
+          ->Array.map(l => l.c)
+          ->Array.toSorted((a, b) => a -. b)
+          ->Array.getUnsafe(count / 6 - 1),
+        )
+      : None
+  let isNeutral = c =>
+    switch cutoff {
+    | Some(limit) => c <= limit
+    | None => c < neutralChroma
+    }
+  let base = samples->Array.mapWithIndex((sample, i) => {
+    let lch = lch->Array.getUnsafe(i)
     {
       label: sample.label,
       hue: hueAxis(lch.h),
       l: lch.l,
       chroma: lch.c,
-      neutral: lch.c < neutralChroma,
+      neutral: isNeutral(lch.c),
       misplaced: false,
       sitsWith: sample.label,
     }
