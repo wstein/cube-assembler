@@ -42,3 +42,12 @@ Make multiple atomic, focused commits when a task has distinct changes; keep eac
 Detect face is the default: it searches for sticker seams near the camera guide, aligns the grid for the selected cube size, then reads colors. Guide grid samples the fixed on-screen square when selected manually. Cube size is chosen from the Cube list; changing it after capturing faces asks before clearing them. Both modes use the same color classifier and require no downloaded model. Keep behavior and tests for both modes explicit when changing capture code.
 
 The live analysis effect clears auto-capture progress when its settings change. Keep selected cube sampling and palette references stable across frame-driven renders; a new object each render prevents the auto-capture frame threshold (5 by default, set on the settings page) from being reached.
+
+## Git history and atomic commits
+
+- Keep the history of protected branches strictly linear. Prefer **Rebase and Merge** over Squash and Merge; do not introduce merge commits.
+- Use small, focused, **atomic Conventional Commits**. Each commit should represent one coherent, independently understandable change, with its relevant tests or documentation when applicable.
+- Preserve meaningful individual commits; do not squash merely to reduce the commit count. Clean up only redundant fixups or incomplete intermediate commits when needed.
+- Do not rewrite shared or protected branch history, force-push a shared branch, change branch protection, mark PRs ready, or merge without the required human approval. Coordinate any necessary feature-branch history rewrite with collaborators.
+- For stacked PRs, preserve their dependencies and avoid duplicated commits; verify the resulting diffs and relevant checks after rebasing.
+
