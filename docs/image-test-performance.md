@@ -29,16 +29,16 @@ These are local observations, not a guaranteed CI latency or confidence interval
 Both serial runs passed all 22 tests with the same unique inputs. CI uses Node 22;
 its shared-runner load differs from this local environment.
 
-| Measurement | Baseline | Optimized |
-| --- | ---: | ---: |
-| Selected two-file wall time | 42.03 s | 28.91 s |
-| Fixture file | 31.49 s | 21.78 s |
-| Real-preset file | 8.77 s | 6.24 s |
-| Separate instrumented wall time | 38.76 s | 28.78 s |
-| Real-preset render calls / unique inputs | 904 / 704 | 704 / 704 |
-| Fixture render calls / unique inputs | 90 / 38 | 72 / 38 |
-| Fixture JPEG calls / unique inputs | 90 / 38 | 72 / 38 |
-| Full suite wall time, default parallelism | 108.91 s | 109.00 s |
+| Measurement                               |  Baseline | Optimized |
+| ----------------------------------------- | --------: | --------: |
+| Selected two-file wall time               |   42.03 s |   28.91 s |
+| Fixture file                              |   31.49 s |   21.78 s |
+| Real-preset file                          |    8.77 s |    6.24 s |
+| Separate instrumented wall time           |   38.76 s |   28.78 s |
+| Real-preset render calls / unique inputs  | 904 / 704 | 704 / 704 |
+| Fixture render calls / unique inputs      |   90 / 38 |   72 / 38 |
+| Fixture JPEG calls / unique inputs        |   90 / 38 |   72 / 38 |
+| Full suite wall time, default parallelism |  108.91 s |  109.00 s |
 
 The selected files improved by about 31%, but **no full-suite wall-time improvement
 was measured**. Other end-to-end image-pipeline tests remain on the critical path.
@@ -86,27 +86,27 @@ required; see the follow-up PR checks for its final result.
 
 Same single-worker uninstrumented runs, milliseconds rounded to the nearest unit.
 
-| Test | Baseline ms | Optimized ms |
-| --- | ---: | ---: |
-| the real preset is listed, and is scatter, tone, shading and face shift together | 433 | 151 |
-| the real preset turns each part off on its own | 153 | 110 |
-| shading: the light falls on the face from one side is off unless asked for | 134 | 115 |
-| shading: the light falls on the face from one side is a plane, as steep as in the saved captures (8 percent per width) | 1044 | 1633 |
-| shading: the light falls on the face from one side points a different way for another seed | 7 | 8 |
-| tone: brightness goes with hue and chroma as in the saved captures is off unless asked for | 146 | 143 |
-| tone: brightness goes with hue and chroma as in the saved captures spreads the brightness of a color by a few percent, blue the most | 2018 | 2050 |
-| tone: brightness goes with hue and chroma as in the saved captures makes brighter reds, greens and blues more saturated | 2153 | 849 |
-| tone: brightness goes with hue and chroma as in the saved captures turns the hue with the brightness, the way each color does | 1955 | 275 |
-| face shift: each photo of a cube is lit a little differently is off unless asked for | 110 | 105 |
-| face shift: each photo of a cube is lit a little differently moves blue by 8 percent of its brightness between photos, orange not at all | 606 | 800 |
-| synthetic fixtures writes a fingerprint into every photo that says how it was made | 4557 | 2461 |
-| synthetic fixtures is named and tagged synthetic, so people and tools both see it | 1775 | 1284 |
-| synthetic fixtures validates against the published fixture schema | 1893 | 65 |
-| synthetic fixtures holds the cube's colors, and the app reads its photos back as them | 2167 | 1928 |
-| synthetic fixtures names the lighting preset in the tags and the summary | 1488 | 1312 |
-| synthetic fixtures records an invalid state as such instead of refusing it | 1417 | 1172 |
-| synthetic fixtures marks a valid state as valid, without the invalid tag | 1523 | 1 |
-| synthetic fixtures can be rendered again from its metadata names the size, the seed of every face and the options | 3215 | 1635 |
-| synthetic fixtures can be rendered again from its metadata renders the clean photos byte for byte | 2477 | 2232 |
-| synthetic fixtures can be rendered again from its metadata renders the bad-camera photos byte for byte | 6113 | 4954 |
-| synthetic fixtures can be rendered again from its metadata renders the real photos byte for byte | 4859 | 4729 |
+| Test                                                                                                                                     | Baseline ms | Optimized ms |
+| ---------------------------------------------------------------------------------------------------------------------------------------- | ----------: | -----------: |
+| the real preset is listed, and is scatter, tone, shading and face shift together                                                         |         433 |          151 |
+| the real preset turns each part off on its own                                                                                           |         153 |          110 |
+| shading: the light falls on the face from one side is off unless asked for                                                               |         134 |          115 |
+| shading: the light falls on the face from one side is a plane, as steep as in the saved captures (8 percent per width)                   |        1044 |         1633 |
+| shading: the light falls on the face from one side points a different way for another seed                                               |           7 |            8 |
+| tone: brightness goes with hue and chroma as in the saved captures is off unless asked for                                               |         146 |          143 |
+| tone: brightness goes with hue and chroma as in the saved captures spreads the brightness of a color by a few percent, blue the most     |        2018 |         2050 |
+| tone: brightness goes with hue and chroma as in the saved captures makes brighter reds, greens and blues more saturated                  |        2153 |          849 |
+| tone: brightness goes with hue and chroma as in the saved captures turns the hue with the brightness, the way each color does            |        1955 |          275 |
+| face shift: each photo of a cube is lit a little differently is off unless asked for                                                     |         110 |          105 |
+| face shift: each photo of a cube is lit a little differently moves blue by 8 percent of its brightness between photos, orange not at all |         606 |          800 |
+| synthetic fixtures writes a fingerprint into every photo that says how it was made                                                       |        4557 |         2461 |
+| synthetic fixtures is named and tagged synthetic, so people and tools both see it                                                        |        1775 |         1284 |
+| synthetic fixtures validates against the published fixture schema                                                                        |        1893 |           65 |
+| synthetic fixtures holds the cube's colors, and the app reads its photos back as them                                                    |        2167 |         1928 |
+| synthetic fixtures names the lighting preset in the tags and the summary                                                                 |        1488 |         1312 |
+| synthetic fixtures records an invalid state as such instead of refusing it                                                               |        1417 |         1172 |
+| synthetic fixtures marks a valid state as valid, without the invalid tag                                                                 |        1523 |            1 |
+| synthetic fixtures can be rendered again from its metadata names the size, the seed of every face and the options                        |        3215 |         1635 |
+| synthetic fixtures can be rendered again from its metadata renders the clean photos byte for byte                                        |        2477 |         2232 |
+| synthetic fixtures can be rendered again from its metadata renders the bad-camera photos byte for byte                                   |        6113 |         4954 |
+| synthetic fixtures can be rendered again from its metadata renders the real photos byte for byte                                         |        4859 |         4729 |
