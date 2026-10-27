@@ -7,16 +7,16 @@ const SIZE = 168
 const solid = (n: number, color: string) =>
   Array.from({ length: n }, () => Array<string>(n).fill(color))
 
-const mean = (values: number[]) =>
+const mean = (values: readonly number[]) =>
   values.reduce((a, b) => a + b, 0) / values.length
-const spread = (values: number[]) =>
+const spread = (values: readonly number[]) =>
   Math.sqrt(mean(values.map((v) => (v - mean(values)) ** 2)))
-const correlation = (x: number[], y: number[]) => {
+const correlation = (x: readonly number[], y: readonly number[]) => {
   const mx = mean(x)
   const my = mean(y)
   return mean(x.map((v, i) => (v - mx) * (y[i] - my))) / (spread(x) * spread(y))
 }
-const median = (values: number[]) =>
+const median = (values: readonly number[]) =>
   [...values].sort((a, b) => a - b)[Math.floor(values.length / 2)]
 
 // OKLCH of the center of every sticker of an n x n face, row by row.
@@ -40,7 +40,7 @@ function stickers(pixels: Uint8ClampedArray, n: number, size = SIZE) {
   return out
 }
 
-const seeds = Array.from({ length: 40 }, (_, i) => i + 1)
+const seeds = Object.freeze(Array.from({ length: 40 }, (_, i) => i + 1))
 
 describe('the real preset', () => {
   it('is listed, and is scatter, tone, shading and face shift together', () => {
@@ -133,9 +133,19 @@ describe('shading: the light falls on the face from one side', () => {
 })
 
 describe('tone: brightness goes with hue and chroma as in the saved captures', () => {
+  type Deviations = Readonly<{
+    dl: readonly number[]
+    dc: readonly number[]
+    dh: readonly number[]
+  }>
+  // These inputs are fixed for this describe. Keep cached vectors immutable so
+  // statistical checks can share work without sharing mutable test state.
+  const samples = new Map<string, Deviations>()
   // Deviations of every sticker of one color from its photo's mean, pooled
   // over many photos.
-  function deviations(color: string) {
+  function deviations(color: string): Deviations {
+    const cached = samples.get(color)
+    if (cached) return cached
     const dl: number[] = []
     const dc: number[] = []
     const dh: number[] = []
@@ -159,7 +169,13 @@ describe('tone: brightness goes with hue and chroma as in the saved captures', (
         dh.push(hs[i] - mh)
       })
     }
-    return { dl, dc, dh }
+    const result = Object.freeze({
+      dl: Object.freeze(dl),
+      dc: Object.freeze(dc),
+      dh: Object.freeze(dh),
+    })
+    samples.set(color, result)
+    return result
   }
 
   it('is off unless asked for', () => {

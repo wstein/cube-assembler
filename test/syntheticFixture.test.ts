@@ -54,6 +54,15 @@ function build(
 const metaOf = (fixture: { files: Record<string, Uint8Array> }) =>
   JSON.parse(decoder.decode(fixture.files['meta.json']))
 
+// Only read-only metadata checks reuse this fixed default fixture. Keep the
+// cached bytes private and give every caller independent mutable file buffers.
+// Image-pipeline and byte-for-byte reconstruction cases still call build().
+let cachedMetadataFixture: ReturnType<typeof build> | undefined
+function metadataFixture() {
+  cachedMetadataFixture ??= build()
+  return structuredClone(cachedMetadataFixture)
+}
+
 describe('synthetic fixtures', () => {
   it('writes a fingerprint into every photo that says how it was made', () => {
     const fixture = build(createSolvedCube(3), 'dim-warm', {
@@ -75,7 +84,7 @@ describe('synthetic fixtures', () => {
   })
 
   it('is named and tagged synthetic, so people and tools both see it', () => {
-    const fixture = build()
+    const fixture = metadataFixture()
     const meta = metaOf(fixture)
     expect(fixture.name).toBe('synt-3x3-2026-10-27T12-30-45')
     expect(meta.tags).toEqual(
@@ -105,9 +114,10 @@ describe('synthetic fixtures', () => {
       ),
     )
     const validate = new Ajv2020({ allErrors: true }).compile(schema)
-    expect(validate(metaOf(build())), JSON.stringify(validate.errors)).toBe(
-      true,
-    )
+    expect(
+      validate(metaOf(metadataFixture())),
+      JSON.stringify(validate.errors),
+    ).toBe(true)
   })
 
   it("holds the cube's colors, and the app reads its photos back as them", () => {
@@ -157,7 +167,7 @@ describe('synthetic fixtures', () => {
   })
 
   it('marks a valid state as valid, without the invalid tag', () => {
-    const meta = metaOf(build())
+    const meta = metaOf(metadataFixture())
     expect(meta.tags).not.toContain('invalid-state')
     expect(meta.capture.synthetic.invalid).toBeUndefined()
   })
@@ -180,9 +190,9 @@ describe('synthetic fixtures', () => {
       return Buffer.from(photo.split(',')[1], 'base64')
     }
 
-    // Builds twelve 600px JPEGs; cold or busy CI runners can exceed five seconds.
+    // An isolated run builds twelve 600px JPEGs; allow for cold or busy runners.
     it('names the size, the seed of every face and the options', () => {
-      const synthetic = metaOf(build()).capture.synthetic
+      const synthetic = metaOf(metadataFixture()).capture.synthetic
       expect(synthetic.size).toBe(600)
       expect(synthetic.seeds).toEqual({ u: 3, r: 4, f: 5, d: 6, l: 7, b: 8 })
       expect(synthetic.options).toEqual({})
