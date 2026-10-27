@@ -82,6 +82,18 @@ existing skips. Shuffled selected tests also passed with seed 23030, checking
 that lazy caches do not depend on the default execution order. Fresh CI remains
 required; see the follow-up PR checks for its final result.
 
+## Independent browser blocker
+
+The first full CI verification passed the image tests but exposed an unchanged
+4×4 browser test that assumed a forty-turn scramble finished within ten seconds.
+That failure also reproduced on main without any fixture-upload requests.
+[PR #33](https://github.com/wstein/cube-assembler/pull/33) fixes it separately
+using controlled Playwright animation time, checking an intermediate rendered
+frame, all forty completed moves, Undo and Reset. Its CI passed all 129 browser
+tests before it was merged into main. This optimization PR does not change
+browser code; its checks must run against that updated main. This correction
+changes none of the image-test measurements or full-suite performance claims.
+
 ## Individual test durations
 
 Same single-worker uninstrumented runs, milliseconds rounded to the nearest unit.
