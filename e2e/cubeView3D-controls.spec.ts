@@ -120,23 +120,54 @@ test('the X/Y/Z gizmo follows the view and the faces it points through', async (
 test('a 4x4 scramble and Undo leave the invisible axis colors stable', async ({
   page,
 }) => {
+  await page.clock.install()
   await page.goto('/')
   await page
     .getByRole('combobox', { name: 'Cube' })
     .selectOption({ label: '4×4' })
   await page.getByRole('button', { name: 'Solved cube' }).click()
   await page.getByRole('button', { name: '3D View' }).click()
+  const canvas = page.locator('.cube-3d-canvas')
+  const history = page.getByRole('status', { name: 'Move history' })
+  const undo = page.getByRole('button', { name: 'Undo', exact: true })
   const z = page.locator('.cube-3d-gizmo [data-axis="z"]')
   const color = () => z.evaluate((el) => getComputedStyle(el).color)
   const green = await color()
+  await waitForCubeIdle(page)
+  await page.clock.pauseAt(await page.evaluate(() => Date.now() + 100))
+  const still = await canvas.screenshot()
   await page.getByRole('button', { name: 'Scramble', exact: true }).click()
+  await expect(
+    page.getByRole('button', { name: 'Stop', exact: true }),
+  ).toBeVisible()
+  await expect(undo).toBeDisabled()
+
+  // Run real animation callbacks: the first turn must draw intermediate frames
+  // before it commits. Do not fastForward(), skip frames or reduce the scramble.
+  await page.clock.runFor(48)
+  await expect(canvas).toHaveAttribute('data-idle', 'false')
+  await expect(history).toHaveText('Moves: None')
+  expect((await canvas.screenshot()).equals(still)).toBe(false)
+
+  // Forty default 85ms turns round up to animation frames. Virtual time avoids
+  // assuming the software renderer finishes all forty within 10s of wall time.
+  await page.clock.runFor(4_000)
   await expect(
     page.getByRole('button', { name: 'Scramble', exact: true }),
   ).toBeVisible()
+  await expect(canvas).toHaveAttribute('data-idle', 'true')
+  await expect(undo).toBeEnabled()
+  const moveCount = async () =>
+    (await history.innerText()).trim().split(/\s+/).length - 1
+  await expect.poll(moveCount).toBe(40)
   await expect.poll(color).toBe(green)
-  await page.getByRole('button', { name: 'Undo', exact: true }).click()
+  await undo.click()
+  await page.clock.runFor(200)
+  await expect.poll(moveCount).toBe(39)
   await expect.poll(color).toBe(green)
   await page.getByRole('button', { name: 'Reset', exact: true }).click()
+  await expect(history).toHaveText('Moves: None')
+  await expect(undo).toBeDisabled()
   await expect.poll(color).toBe(green)
 })
 
