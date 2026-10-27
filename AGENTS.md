@@ -51,3 +51,35 @@ The live analysis effect clears auto-capture progress when its settings change. 
 - Do not rewrite shared or protected branch history, force-push a shared branch, change branch protection, mark PRs ready, or merge without the required human approval. Coordinate any necessary feature-branch history rewrite with collaborators.
 - For stacked PRs, preserve their dependencies and avoid duplicated commits; verify the resulting diffs and relevant checks after rebasing.
 
+## Shared cube architecture and migration gates
+
+[PuzWerk already exists](https://github.com/wstein/puzwerk). Its target ownership
+is the shared ReScript cube mechanics, state model, coordinates, cubie/sticker
+identity, orientation/symmetry semantics, notation/codecs and reusable solver
+integration; its viewer boundary uses TypeScript. This does not mean a package
+is released or CubeAssembler already consumes it. See
+[Cubistry #21](https://github.com/wstein/cubistry/issues/21),
+[local tracking #29](https://github.com/wstein/cube-assembler/issues/29),
+[PuzWerk #5](https://github.com/wstein/puzwerk/issues/5) and
+[PuzWerk #6](https://github.com/wstein/puzwerk/issues/6).
+
+The current gated order is: accept Cubistry's 2×2 pilot, migrate the reusable
+2×2 solver into PuzWerk, migrate Cubistry to that API, then extend PuzWerk with
+3×3 Supercube center orientation. Older CubeAssembler-second/CubeLab-third notes
+are historical; they do not authorize an unrelated migration or new solver.
+Each implementation/migration phase needs explicit human approval.
+
+CubeAssembler remains the independent scanning/assembly application. Preserve
+its capture, color review, profiles, assembly, UI, renderer and existing
+2×2–7×7 behavior/tests until an approved replacement and migration plan exist.
+Necessary fixes remain allowed in their authorized scope. Before expanding
+reusable cube or viewer primitives, check PuzWerk ownership and track the
+shared change rather than building a second permanent engine. Do not silently
+move code, add unapproved dependencies or delete working functionality.
+
+Cubacle remains a separate optional Rust solver provider, not Rust code inside
+PuzWerk. Preserve physical identity, exact frames and sticker-up orientation
+when adapting state; color-only codecs cannot carry all printed-sticker data.
+Verify API compatibility, provenance and licensing before reuse: CubeAssembler
+is MIT, and adopting AGPL-covered code requires an explicit license/distribution
+decision, not an assumption that a thin adapter removes obligations.
