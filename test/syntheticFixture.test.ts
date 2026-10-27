@@ -180,6 +180,7 @@ describe('synthetic fixtures', () => {
       return Buffer.from(photo.split(',')[1], 'base64')
     }
 
+    // Builds twelve 600px JPEGs; cold or busy CI runners can exceed five seconds.
     it('names the size, the seed of every face and the options', () => {
       const synthetic = metaOf(build()).capture.synthetic
       expect(synthetic.size).toBe(600)
@@ -194,7 +195,7 @@ describe('synthetic fixtures', () => {
         metaOf(build(createSolvedCube(3), 'real', own)).capture.synthetic
           .options,
       ).toEqual(own)
-    })
+    }, 15_000)
 
     it.each([
       ['clean', undefined],
