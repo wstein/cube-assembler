@@ -193,15 +193,13 @@ describe('tone: brightness goes with hue and chroma as in the saved captures', (
 
   it('turns the hue with the brightness, the way each color does', () => {
     // Saved captures: green +0.44, orange -0.35, blue -0.34.
-    expect(correlation(deviations('G').dl, deviations('G').dh)).toBeGreaterThan(
-      0.2,
-    )
-    expect(correlation(deviations('O').dl, deviations('O').dh)).toBeLessThan(
-      -0.15,
-    )
-    expect(correlation(deviations('B').dl, deviations('B').dh)).toBeLessThan(
-      -0.15,
-    )
+    // Render each deterministic sample set once for both correlated channels.
+    const green = deviations('G')
+    const orange = deviations('O')
+    const blue = deviations('B')
+    expect(correlation(green.dl, green.dh)).toBeGreaterThan(0.2)
+    expect(correlation(orange.dl, orange.dh)).toBeLessThan(-0.15)
+    expect(correlation(blue.dl, blue.dh)).toBeLessThan(-0.15)
   })
 })
 
