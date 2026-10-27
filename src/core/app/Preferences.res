@@ -151,8 +151,7 @@ let selectedCaptureMode = cookies => readChoice(cookies, captureModeCookie, ["cv
 let readAutoCapture = cookies => readPreference(cookies, autoCaptureCookie, true)
 let readCaptureSound = cookies => readPreference(cookies, soundCookie, true)
 
-let turnSoundOn = cookies =>
-  readPreference(cookies, turnSoundCookie, readCaptureSound(cookies))
+let turnSoundOn = cookies => readPreference(cookies, turnSoundCookie, readCaptureSound(cookies))
 
 let turnMsRange = {min: 60.0, max: 400.0, fallback: TurnFeel.defaultTurnMs}
 

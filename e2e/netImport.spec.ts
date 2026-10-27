@@ -83,13 +83,11 @@ test('uploads one net picture and reads the cube it shows', async ({
   page,
 }) => {
   await page.goto('/')
-  await page
-    .locator('.capture-alternatives input[type="file"]')
-    .setInputFiles({
-      name: 'net.png',
-      mimeType: 'image/png',
-      buffer: netPng(NET),
-    })
+  await page.locator('.capture-alternatives input[type="file"]').setInputFiles({
+    name: 'net.png',
+    mimeType: 'image/png',
+    buffer: netPng(NET),
+  })
   await readSixAndCheck(page)
 })
 
