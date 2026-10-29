@@ -63,10 +63,14 @@ is released or CubeAssembler already consumes it. See
 [PuzlWerk #5](https://github.com/wstein/puzlwerk/issues/5) and
 [PuzlWerk #6](https://github.com/wstein/puzlwerk/issues/6).
 
-The current gated order is: accept Cubistry's 2×2 pilot, migrate the reusable
-2×2 solver into PuzlWerk, migrate Cubistry to that API, then extend PuzlWerk with
-3×3 Supercube center orientation. Older CubeAssembler-second/CubeLab-third notes
-are historical; they do not authorize an unrelated migration or new solver.
+The shared 2×2 solver migration ([PuzlWerk #5](https://github.com/wstein/puzlwerk/issues/5))
+and Cubistry's solver consumer issue ([#23](https://github.com/wstein/cubistry/issues/23))
+closed on 2026-10-28; full MVP acceptance remains tracked by Cubistry #18/#21.
+A separately approved, bounded 3×3 picture/calendar pilot is under Draft review
+(CubeLab #27, PuzlWerk #21, Cubistry #70). This pilot is not permission to
+migrate the entire CubeAssembler or CubeLab applications. Cubistry #21 still
+records CubeAssembler M2 before CubeLab M3; how the new 3×3 pilot is prioritized
+against those migrations remains a human decision, not an implicit supersession.
 Each implementation/migration phase needs explicit human approval.
 
 CubeAssembler remains the independent scanning/assembly application. Preserve
