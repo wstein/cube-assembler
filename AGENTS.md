@@ -63,8 +63,9 @@ is released or CubeAssembler already consumes it. See
 [PuzlWerk #5](https://github.com/wstein/puzlwerk/issues/5) and
 [PuzlWerk #6](https://github.com/wstein/puzlwerk/issues/6).
 
-The shared 2×2 solver migration ([PuzlWerk #5](https://github.com/wstein/puzlwerk/issues/5))
-and Cubistry's solver consumer issue ([#23](https://github.com/wstein/cubistry/issues/23))
+The shared 2×2 solver migration
+([PuzlWerk #5](https://github.com/wstein/puzlwerk/issues/5)) and Cubistry's
+solver consumer issue ([#23](https://github.com/wstein/cubistry/issues/23))
 closed on 2026-10-28; full MVP acceptance remains tracked by Cubistry #18/#21.
 A separately approved, bounded 3×3 picture/calendar pilot is under Draft review
 (CubeLab #27, PuzlWerk #21, Cubistry #70). This pilot is not permission to
