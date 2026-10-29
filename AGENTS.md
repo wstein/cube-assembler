@@ -67,11 +67,11 @@ The shared 2×2 solver migration
 ([PuzlWerk #5](https://github.com/wstein/puzlwerk/issues/5)) and Cubistry's
 solver consumer issue ([#23](https://github.com/wstein/cubistry/issues/23))
 closed on 2026-10-28; full MVP acceptance remains tracked by Cubistry #18/#21.
-A separately approved, bounded 3×3 picture/calendar pilot is under Draft review
-(CubeLab #27, PuzlWerk #21, Cubistry #70). PuzlWerk #21 is the Draft
-implementation of PuzlWerk #6 (3×3 Supercube center orientation), which remains
-open. This pilot is not permission to migrate the entire CubeAssembler or
-CubeLab applications. Cubistry #21 still records CubeAssembler M2 before
+A separately approved, bounded 3×3 picture/calendar pilot has merged
+(CubeLab #27, PuzlWerk #21, Cubistry #70). PuzlWerk #21 implemented the pilot
+for PuzlWerk #6 (3×3 Supercube center orientation); that issue stays open until
+its owner closes it. This pilot is not permission to migrate the entire
+CubeAssembler or CubeLab applications. Cubistry #21 still records CubeAssembler M2 before
 CubeLab M3; how the new 3×3 pilot is prioritized against those migrations
 remains a human decision, not an implicit supersession.
 Each implementation/migration phase needs explicit human approval.
