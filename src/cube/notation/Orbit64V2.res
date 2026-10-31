@@ -115,11 +115,21 @@ let allocate = types => {
   })
 }
 
-@genType
-let entries = allocate(initialTypes)
+@scope("Object") @val external freeze: 'a => 'a = "freeze"
+
+// The registry is shared state: frozen, so no caller can change an offset or
+// shorten the list. Functions hand out copies of entries.
+let registry = allocate(initialTypes)->Array.map(entry => freeze(entry))->freeze
 
 @genType
-let entryById = id => entries->Array.find(entry => entry.id == id)
+let entries = registry
+
+let copyEntry = (entry: entry): entry => {...entry, id: entry.id}
+
+let findEntry = id => registry->Array.find(entry => entry.id == id)
+
+@genType
+let entryById = id => findEntry(id)->Option.map(copyEntry)
 
 @genType
 let stateCount = (n, model, pose) => countOf(n, model, pose)
@@ -381,38 +391,70 @@ let unrankState = (n, model, pose, value) => {
 
 let notAV2Token = "not a known V2 state token"
 
+// A copy of the arrays and numbers of a cube, read once and by index, so that
+// holes become undefined (and fail validation) and a getter cannot answer
+// differently between validation and ranking.
+let readArray = values => Array.fromInitializer(~length=Array.length(values), i => values->get(i))
+
+let snapshot = (cube: cube): cube => {
+  let {cornerPieces, cornerTwists, midgePieces, midgeFlips, wings, centers, rotations, frame} = cube
+  {
+    cornerPieces: readArray(cornerPieces),
+    cornerTwists: readArray(cornerTwists),
+    midgePieces: readArray(midgePieces),
+    midgeFlips: readArray(midgeFlips),
+    wings: readArray(wings)->Array.map(readArray),
+    centers: readArray(centers)->Array.map(readArray),
+    rotations: readArray(rotations),
+    frame,
+  }
+}
+
 // Encodes a state of the registry entry `id`. Malformed input is an Error,
 // never an exception.
 @genType
 let encodeOrbit64V2State = (id, cube) =>
-  switch entryById(id) {
-  | None => Error(`unknown registry entry ${Int.toString(id)}`)
-  | Some(entry) =>
-    try rankState(entry.n, entry.model, entry.pose, cube)->Result.map(rank =>
-      Orbit64.toBase64(entry.offset + rank, entry.length)
-    ) catch {
-    | _ => Error("malformed state")
+  try {
+    switch findEntry(id) {
+    | None => Error(`unknown registry entry ${Int.toString(id)}`)
+    | Some(entry) =>
+      rankState(entry.n, entry.model, entry.pose, snapshot(cube))->Result.map(rank =>
+        Orbit64.toBase64(entry.offset + rank, entry.length)
+      )
     }
+  } catch {
+  | _ => Error("malformed state")
   }
 
+let tokenAlphabet = RegExp.fromString("^[A-Za-z0-9_-]*$")
+
 // Decodes a token to its registry entry and state. An unknown token, whether
-// malformed or from a newer registry, is an Error.
+// malformed or from a newer registry, is an Error. The alphabet is checked
+// first, then the length, then the range.
 @genType
 let decodeOrbit64V2State = token =>
   try {
-    let length = String.length(token)
-    if !(entries->Array.some(entry => entry.length == length)) {
+    if Type.typeof(token) != #string {
       Error(notAV2Token)
+    } else if !RegExp.test(tokenAlphabet, token) {
+      Error("token contains a character outside the base64url alphabet")
     } else {
-      switch Orbit64.fromBase64(token) {
-      | None => Error("token contains a character outside the base64url alphabet")
+      let length = String.length(token)
+      // Only a token of a registered length is converted to a number.
+      let value =
+        registry->Array.some(entry => entry.length == length) ? Orbit64.fromBase64(token) : None
+      switch value {
+      | None => Error(notAV2Token)
       | Some(value) =>
-        switch entries->Array.find(entry =>
+        switch registry->Array.find(entry =>
           entry.length == length && entry.offset <= value && value < entry.offset + entry.count
         ) {
         | None => Error(notAV2Token)
         | Some(entry) =>
-          Ok({entry, cube: unrankState(entry.n, entry.model, entry.pose, value - entry.offset)})
+          Ok({
+            entry: copyEntry(entry),
+            cube: unrankState(entry.n, entry.model, entry.pose, value - entry.offset),
+          })
         }
       }
     }
