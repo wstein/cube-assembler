@@ -1,7 +1,11 @@
 import { describe, expect, it } from 'vitest'
 import {
+  decodeOrbit64V2State,
+  encodeOrbit64V2State,
+  type Orbit64V2Cube,
   orbit64V2Entries,
   orbit64V2Entry,
+  orbit64V2Solved,
   orbit64V2StateCount,
 } from '../../../src/cube/notation/orbit64V2'
 import fixture from './orbit64V2Vectors.json'
@@ -116,5 +120,151 @@ describe('Orbit64 V2 registry', () => {
     expect(orbit64V2Entry(-1)).toBeUndefined()
     expect(orbit64V2Entry(54)).toBeUndefined()
     expect(orbit64V2Entry(1.5)).toBeUndefined()
+  })
+})
+
+const alphabet =
+  'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_'
+
+function tokenOf(value: bigint, length: number): string {
+  let out = ''
+  let rest = value
+  for (let i = 0; i < length; i++) {
+    out = alphabet[Number(rest % 64n)] + out
+    rest /= 64n
+  }
+  return out
+}
+
+// "key=v,v,...;key=..." with keys cp ct mp mf w1.. z1.. fr fm.
+function parseCube(text: string): Orbit64V2Cube {
+  const fields = new Map<string, number[]>()
+  for (const field of text.split(';')) {
+    const [key, value] = field.split('=')
+    fields.set(key, value === '' ? [] : value.split(',').map(Number))
+  }
+  const get = (key: string) => fields.get(key) ?? []
+  const numbered = (prefix: string) =>
+    [...fields.keys()]
+      .filter((key) => /^[wz]\d+$/.test(key) && key.startsWith(prefix))
+      .sort((a, b) => Number(a.slice(1)) - Number(b.slice(1)))
+      .map(get)
+  return {
+    cornerPieces: get('cp'),
+    cornerTwists: get('ct'),
+    midgePieces: get('mp'),
+    midgeFlips: get('mf'),
+    wings: numbered('w'),
+    centers: numbered('z'),
+    rotations: get('fr'),
+    frame: get('fm')[0] ?? 0,
+  }
+}
+
+function ok<T>(result: { TAG: 'Ok'; _0: T } | { TAG: 'Error'; _0: string }): T {
+  if (result.TAG !== 'Ok') throw new Error(result._0)
+  return result._0
+}
+
+describe('Orbit64 V2 reference vectors', () => {
+  it('has the 195 rows of the reference repository', () => {
+    expect(fixture.vectors).toHaveLength(195)
+    expect(new Set(fixture.vectors.map((row) => row.id)).size).toBe(54)
+  })
+
+  it('encodes every vector state to its token', () => {
+    for (const { id, state, token } of fixture.vectors) {
+      expect(
+        encodeOrbit64V2State(id, parseCube(state)),
+        `${id} ${token}`,
+      ).toEqual({ TAG: 'Ok', _0: token })
+    }
+  })
+
+  it('decodes every vector token to its entry and state', () => {
+    for (const { id, state, token } of fixture.vectors) {
+      const decoded = ok(decodeOrbit64V2State(token))
+      expect(decoded.entry.id, token).toBe(id)
+      expect(decoded.cube, token).toEqual(parseCube(state))
+    }
+  })
+
+  it('writes every token at the length of its entry', () => {
+    for (const { id, token } of fixture.vectors) {
+      expect(token).toHaveLength(orbit64V2Entries[id].length)
+    }
+  })
+})
+
+describe('Orbit64 V2 ranking', () => {
+  it('writes solved states as the zero rank of their entry', () => {
+    for (const e of orbit64V2Entries) {
+      const solved = orbit64V2Solved(e.n, e.model)
+      const token = tokenOf(e.offset, e.length)
+      expect(encodeOrbit64V2State(e.id, solved)).toEqual({
+        TAG: 'Ok',
+        _0: token,
+      })
+      expect(ok(decodeOrbit64V2State(token))).toEqual({
+        entry: e,
+        cube: solved,
+      })
+    }
+    expect(ok(encodeOrbit64V2State(0, orbit64V2Solved(2, 'Color')))).toBe(
+      'AAAA',
+    )
+    expect(ok(encodeOrbit64V2State(53, orbit64V2Solved(15, 'Picture')))).toBe(
+      tokenOf(orbit64V2Entries[52].count, 639),
+    )
+  })
+
+  it('round-trips the first, last and a middle rank of every entry', () => {
+    for (const e of orbit64V2Entries) {
+      const middle = (e.count * 7919n) / 10007n
+      for (const rank of [0n, 1n, middle, e.count - 1n]) {
+        const token = tokenOf(e.offset + rank, e.length)
+        const decoded = ok(decodeOrbit64V2State(token))
+        expect(decoded.entry.id, token).toBe(e.id)
+        expect(encodeOrbit64V2State(e.id, decoded.cube), token).toEqual({
+          TAG: 'Ok',
+          _0: token,
+        })
+      }
+    }
+  })
+
+  it('does not decode the value just past an entry', () => {
+    for (const e of orbit64V2Entries) {
+      const next = orbit64V2Entries.find(
+        (o) => o.length === e.length && o.offset === e.offset + e.count,
+      )
+      const decoded = decodeOrbit64V2State(
+        tokenOf(e.offset + e.count, e.length),
+      )
+      if (next) expect(ok(decoded).entry.id).toBe(next.id)
+      else if (e.offset + e.count < 64n ** BigInt(e.length)) {
+        expect(decoded.TAG).toBe('Error')
+      }
+    }
+  })
+
+  it('leaves the DBL corner of even canonical cubes out of the rank', () => {
+    const factorial = (k: bigint): bigint =>
+      k <= 1n ? 1n : k * factorial(k - 1n)
+    const colorCenters = factorial(24n) / factorial(4n) ** 6n
+    // 7! corner permutations and 3^6 twists, then the digits of 4x4x4.
+    expect(orbit64V2Entries[0].count).toBe(factorial(7n) * 3n ** 6n)
+    expect(orbit64V2Entries[1].count).toBe(factorial(8n) * 3n ** 7n)
+    expect(orbit64V2Entries[6].count).toBe(
+      factorial(7n) * 3n ** 6n * factorial(24n) * colorCenters,
+    )
+    for (const rank of [12345n, 3000000n]) {
+      const { cube } = ok(decodeOrbit64V2State(tokenOf(rank, 4)))
+      expect(cube.cornerPieces[6]).toBe(6)
+      expect(cube.cornerTwists[6]).toBe(0)
+    }
+    const { cube } = ok(decodeOrbit64V2State(tokenOf(12345n, 26)))
+    expect(cube.cornerPieces[6]).toBe(6)
+    expect(cube.cornerTwists[6]).toBe(0)
   })
 })
