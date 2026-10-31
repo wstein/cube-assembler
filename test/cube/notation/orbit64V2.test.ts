@@ -15,6 +15,47 @@ import fixture from './orbit64V2Vectors.json'
 // The table of FORMAT-V2.md, copied by scripts/orbit64V2Fixture.mjs.
 const table = fixture.registry
 
+const factorial = (k: bigint): bigint => (k <= 1n ? 1n : k * factorial(k - 1n))
+
+// N_i from the digit layout of FORMAT-V2.md, not from the implementation.
+function expectedCount(
+  n: number,
+  model: 'Color' | 'Picture',
+  pose: 'Canonical' | 'Framed',
+): bigint {
+  const odd = n % 2 === 1
+  const centerOrbits = BigInt(Math.floor(((n - 2) * (n - 2)) / 4))
+  const center =
+    model === 'Color'
+      ? factorial(24n) / factorial(4n) ** 6n
+      : factorial(24n) / 2n
+  let count =
+    !odd && pose === 'Canonical'
+      ? factorial(7n) * 3n ** 6n
+      : factorial(8n) * 3n ** 7n
+  if (odd) count *= (factorial(12n) / 2n) * 2n ** 11n
+  count *= factorial(24n) ** BigInt(Math.floor((n - 2) / 2))
+  count *= center ** centerOrbits
+  if (odd && model === 'Picture') count *= 2n ** 11n
+  if (odd && pose === 'Framed') count *= 24n
+  return count
+}
+
+// The allocation rule of FORMAT-V2.md applied to those counts.
+const expectedCounts: bigint[] = []
+const expectedPlacement: { length: number; offset: bigint }[] = []
+{
+  const used = new Map<number, bigint>()
+  for (const e of orbit64V2Entries) {
+    const count = expectedCount(e.n, e.model, e.pose)
+    let length = 1
+    while ((used.get(length) ?? 0n) + count > 64n ** BigInt(length)) length++
+    expectedCounts.push(count)
+    expectedPlacement.push({ length, offset: used.get(length) ?? 0n })
+    used.set(length, (used.get(length) ?? 0n) + count)
+  }
+}
+
 // "d.ddde+XX" of a positive integer, rounded half up like the proof report.
 function scientific(value: bigint): string {
   const digits = value.toString()
@@ -61,7 +102,7 @@ describe('Orbit64 V2 registry', () => {
     for (const [i, e] of orbit64V2Entries.entries()) {
       const after = table[i].offset
       // "N_10": the entry starts after the states of entry 10.
-      const expected = after === 0 ? 0n : orbit64V2Entries[after].count
+      const expected = after === 0 ? 0n : expectedCounts[after]
       expect(e.offset).toBe(expected)
     }
   })
@@ -85,18 +126,12 @@ describe('Orbit64 V2 registry', () => {
     }
   })
 
-  it('gives every entry the shortest length that fits', () => {
-    for (const e of orbit64V2Entries) {
-      const used = (length: number, before: number) =>
-        orbit64V2Entries
-          .filter((o) => o.id < before && o.length === length)
-          .reduce((sum, o) => sum + o.count, 0n)
-      expect(e.offset).toBe(used(e.length, e.id))
-      for (let shorter = 1; shorter < e.length; shorter++) {
-        expect(used(shorter, e.id) + e.count).toBeGreaterThan(
-          64n ** BigInt(shorter),
-        )
-      }
+  it('places every entry by the allocation rule on independent counts', () => {
+    for (const [i, e] of orbit64V2Entries.entries()) {
+      expect(e.count).toBe(expectedCounts[i])
+      expect({ length: e.length, offset: e.offset }).toEqual(
+        expectedPlacement[i],
+      )
     }
   })
 
@@ -118,7 +153,7 @@ describe('Orbit64 V2 registry', () => {
   })
 
   it('looks entries up by ID', () => {
-    expect(orbit64V2Entry(3)).toBe(orbit64V2Entries[3])
+    expect(orbit64V2Entry(3)).toEqual(orbit64V2Entries[3])
     expect(orbit64V2Entry(-1)).toBeUndefined()
     expect(orbit64V2Entry(54)).toBeUndefined()
     expect(orbit64V2Entry(1.5)).toBeUndefined()
@@ -251,8 +286,6 @@ describe('Orbit64 V2 ranking', () => {
   })
 
   it('leaves the DBL corner of even canonical cubes out of the rank', () => {
-    const factorial = (k: bigint): bigint =>
-      k <= 1n ? 1n : k * factorial(k - 1n)
     const colorCenters = factorial(24n) / factorial(4n) ** 6n
     // 7! corner permutations and 3^6 twists, then the digits of 4x4x4.
     expect(orbit64V2Entries[0].count).toBe(factorial(7n) * 3n ** 6n)
@@ -330,7 +363,7 @@ describe('Orbit64 V2 reads V1 state tokens', () => {
     expect([...covered].sort()).toEqual([2, 3, 4, 6, 7])
   })
 
-  it('reads the same corner state as V1', () => {
+  it('has the V1 corner digit of the token as its corner state', () => {
     for (const [width, token] of v1Tokens) {
       if (width === 43) continue
       const e = orbit64V2Entries.find(
@@ -586,5 +619,115 @@ describe('Orbit64 V2 rejects malformed input without throwing', () => {
     expect(encodeOrbit64V2State(2, orbit64V2Solved(3, 'Picture')).TAG).toBe(
       'Error',
     )
+  })
+})
+
+describe('Orbit64 V2 hardening', () => {
+  const alphabetMessage =
+    'token contains a character outside the base64url alphabet'
+
+  it('checks the alphabet before the length', () => {
+    expect(decodeOrbit64V2State('AA!')).toEqual({
+      TAG: 'Error',
+      _0: alphabetMessage,
+    })
+    expect(decodeOrbit64V2State('!'.repeat(100_000))).toEqual({
+      TAG: 'Error',
+      _0: alphabetMessage,
+    })
+    expect(decodeOrbit64V2State('AA')).toEqual({
+      TAG: 'Error',
+      _0: 'not a known V2 state token',
+    })
+    expect(decodeOrbit64V2State('A'.repeat(100_000)).TAG).toBe('Error')
+  })
+
+  it('rejects holes in arrays', () => {
+    const hole = (values: number[], index: number) => {
+      const copy: number[] = new Array(values.length)
+      values.forEach((value, i) => {
+        if (i !== index) copy[i] = value
+      })
+      return copy
+    }
+    const color3 = orbit64V2Solved(3, 'Color')
+    const picture3 = orbit64V2Solved(3, 'Picture')
+    const color2 = orbit64V2Solved(2, 'Color')
+    const cases: [number, Orbit64V2Cube][] = [
+      [2, { ...color3, cornerTwists: hole(color3.cornerTwists, 7) }],
+      [2, { ...color3, midgeFlips: hole(color3.midgeFlips, 11) }],
+      [0, { ...color2, cornerTwists: hole(color2.cornerTwists, 7) }],
+      [4, { ...picture3, rotations: hole(picture3.rotations, 0) }],
+      [4, { ...picture3, rotations: hole(picture3.rotations, 5) }],
+      [2, { ...color3, cornerPieces: hole(color3.cornerPieces, 3) }],
+    ]
+    for (const [id, cube] of cases) {
+      expect(encodeOrbit64V2State(id, cube).TAG, String(id)).toBe('Error')
+    }
+    const four = orbit64V2Solved(4, 'Color')
+    const sparse = { ...four, centers: [hole(four.centers[0], 9)] }
+    expect(encodeOrbit64V2State(6, sparse).TAG).toBe('Error')
+  })
+
+  it('does not let callers change the registry', () => {
+    const decoded = ok(decodeOrbit64V2State('AAAA'))
+    // A copy: changing it affects nothing.
+    ;(decoded.entry as { offset: bigint }).offset = 5n
+    expect(ok(decodeOrbit64V2State('AAAA')).entry.offset).toBe(0n)
+    const copy = orbit64V2Entry(0)
+    ;(copy as { offset: bigint }).offset = 5n
+    expect(orbit64V2Entry(0)?.offset).toBe(0n)
+    expect(orbit64V2Entries[0].offset).toBe(0n)
+    // The shared entries and array are frozen.
+    expect(Object.isFrozen(orbit64V2Entries)).toBe(true)
+    expect(Object.isFrozen(orbit64V2Entries[0])).toBe(true)
+    expect(() => (orbit64V2Entries as unknown[]).splice(0)).toThrow()
+    expect(() => {
+      ;(orbit64V2Entries[0] as { offset: bigint }).offset = 5n
+    }).toThrow()
+    expect(orbit64V2Entries).toHaveLength(54)
+    expect(encodeOrbit64V2State(0, orbit64V2Solved(2, 'Color'))).toEqual({
+      TAG: 'Ok',
+      _0: 'AAAA',
+    })
+    expect(decodeOrbit64V2State('AAAA').TAG).toBe('Ok')
+  })
+
+  it('returns an error for a null or undefined entry ID', () => {
+    const cube = orbit64V2Solved(3, 'Color')
+    for (const id of [undefined, null, '2', {}]) {
+      expect(encodeOrbit64V2State(id as unknown as number, cube).TAG).toBe(
+        'Error',
+      )
+    }
+  })
+
+  it('validates and ranks the same values when a getter answers differently', () => {
+    const solved = orbit64V2Solved(3, 'Color')
+    let reads = 0
+    const hostile = {
+      ...solved,
+      get cornerTwists() {
+        reads++
+        // Valid on the first read, invalid (twist sum 1) afterwards.
+        return reads === 1 ? solved.cornerTwists : [1, 0, 0, 0, 0, 0, 0, 0]
+      },
+    }
+    const token = ok(encodeOrbit64V2State(2, hostile as Orbit64V2Cube))
+    expect(token).toBe(ok(encodeOrbit64V2State(2, solved)))
+    const arrays = {
+      ...solved,
+      cornerPieces: new Proxy(solved.cornerPieces, {
+        get(target, key, receiver) {
+          reads++
+          const value = Reflect.get(target, key, receiver) as unknown
+          return reads > 100 && typeof key === 'string' && /^\d+$/.test(key)
+            ? 7
+            : value
+        },
+      }),
+    }
+    reads = 0
+    expect(encodeOrbit64V2State(2, arrays as Orbit64V2Cube).TAG).toBe('Ok')
   })
 })
