@@ -8,6 +8,8 @@ import {
   orbit64V2Solved,
   orbit64V2StateCount,
 } from '../../../src/cube/notation/orbit64V2'
+import v1Examples from './orbit64Vectors.json'
+import v1LargeExamples from './orbit64LargeVectors.json'
 import fixture from './orbit64V2Vectors.json'
 
 // The table of FORMAT-V2.md, copied by scripts/orbit64V2Fixture.mjs.
@@ -266,5 +268,323 @@ describe('Orbit64 V2 ranking', () => {
     const { cube } = ok(decodeOrbit64V2State(tokenOf(12345n, 26)))
     expect(cube.cornerPieces[6]).toBe(6)
     expect(cube.cornerTwists[6]).toBe(0)
+  })
+})
+
+// V1 corner digit of a V1 state token: the most significant digit of its
+// value, 8! * 3^7 corner states, followed by the other orbits and, on odd
+// cubes, the frame.
+function v1CornerDigit(token: string, restRadix: bigint): bigint {
+  const value = [...token].reduce(
+    (sum, char) => sum * 64n + BigInt(alphabet.indexOf(char)),
+    0n,
+  )
+  return value / restRadix
+}
+
+// 8! * 3^7 corner rank of V2 coordinates: Lehmer code, then little-endian twists.
+function cornerDigit(cube: Orbit64V2Cube): bigint {
+  const lehmer = cube.cornerPieces.reduce(
+    (rank, piece, i) =>
+      rank * BigInt(8 - i) +
+      BigInt(cube.cornerPieces.slice(i + 1).filter((p) => p < piece).length),
+    0n,
+  )
+  const twists = cube.cornerTwists
+    .slice(0, 7)
+    .reduceRight((rank, twist) => rank * 3n + BigInt(twist), 0n)
+  return lehmer * 2187n + twists
+}
+
+const v1Tokens: [number, string][] = [
+  ...v1Examples.map(([token]): [number, string] => [token.length, token]),
+  ...v1LargeExamples.map(([token]): [number, string] => [token.length, token]),
+]
+
+describe('Orbit64 V2 reads V1 state tokens', () => {
+  const sizeOfWidth: Record<number, number> = {
+    5: 2,
+    12: 3,
+    27: 4,
+    66: 6,
+    90: 7,
+  }
+
+  it('reads each V1 token as the color framed entry of its size', () => {
+    const covered = new Set<number>()
+    for (const [width, token] of v1Tokens) {
+      if (width === 43) continue
+      const n = sizeOfWidth[width]
+      const decoded = ok(decodeOrbit64V2State(token))
+      expect(decoded.entry.n, token).toBe(n)
+      expect(decoded.entry.model).toBe('Color')
+      expect(decoded.entry.pose).toBe('Framed')
+      expect(decoded.entry.length).toBe(width)
+      expect(decoded.entry.offset).toBe(0n)
+      expect(encodeOrbit64V2State(decoded.entry.id, decoded.cube)).toEqual({
+        TAG: 'Ok',
+        _0: token,
+      })
+      covered.add(n)
+    }
+    expect([...covered].sort()).toEqual([2, 3, 4, 6, 7])
+  })
+
+  it('reads the same corner state as V1', () => {
+    for (const [width, token] of v1Tokens) {
+      if (width === 43) continue
+      const e = orbit64V2Entries.find(
+        (o) => o.length === width && o.offset === 0n,
+      )
+      if (!e) throw new Error(`no entry of length ${width}`)
+      const cornerRadix = 40320n * 2187n
+      const decoded = ok(decodeOrbit64V2State(token))
+      expect(cornerDigit(decoded.cube), token).toBe(
+        v1CornerDigit(token, e.count / cornerRadix),
+      )
+    }
+  })
+
+  it('rejects the 43-character V1 5x5x5 tokens', () => {
+    const tokens = v1Tokens.filter(([width]) => width === 43)
+    expect(tokens.length).toBeGreaterThan(0)
+    for (const [, token] of tokens) {
+      expect(decodeOrbit64V2State(token).TAG, token).toBe('Error')
+    }
+    expect(decodeOrbit64V2State('A'.repeat(43)).TAG).toBe('Error')
+  })
+})
+
+describe('Orbit64 V2 rejects malformed input without throwing', () => {
+  const malformedTokens = [
+    '',
+    'A',
+    'AAA',
+    'AAAAAA',
+    'A'.repeat(43),
+    'A'.repeat(640),
+    'A'.repeat(100_000),
+    'AAA!A',
+    'AAAA\n',
+    ' AAAA',
+    'AAAÄ',
+    'AAA\u{1f9ca}',
+    '____',
+    '_____',
+    '_'.repeat(42),
+  ]
+
+  it('returns an error for unknown tokens', () => {
+    for (const token of malformedTokens) {
+      expect(decodeOrbit64V2State(token).TAG, JSON.stringify(token)).toBe(
+        'Error',
+      )
+    }
+  })
+
+  it('says why a token is rejected', () => {
+    expect(decodeOrbit64V2State('AAA')).toEqual({
+      TAG: 'Error',
+      _0: 'not a known V2 state token',
+    })
+    expect(decodeOrbit64V2State('AAA!A')).toEqual({
+      TAG: 'Error',
+      _0: 'token contains a character outside the base64url alphabet',
+    })
+  })
+
+  it('returns an error for tokens that are not strings', () => {
+    for (const token of [undefined, null, 5, {}, ['AAAA']]) {
+      expect(decodeOrbit64V2State(token as unknown as string).TAG).toBe('Error')
+    }
+  })
+
+  it('returns an error for an unknown registry entry', () => {
+    const cube = orbit64V2Solved(3, 'Color')
+    for (const id of [
+      -1,
+      54,
+      1000,
+      1.5,
+      Number.NaN,
+      Number.POSITIVE_INFINITY,
+    ]) {
+      expect(encodeOrbit64V2State(id, cube).TAG, String(id)).toBe('Error')
+    }
+  })
+
+  it('returns an error for short, long and missing arrays', () => {
+    const fields = [
+      'cornerPieces',
+      'cornerTwists',
+      'midgePieces',
+      'midgeFlips',
+      'wings',
+      'centers',
+      'rotations',
+    ] as const
+    for (const e of orbit64V2Entries) {
+      const solved = orbit64V2Solved(e.n, e.model)
+      for (const field of fields) {
+        const values = solved[field] as unknown[]
+        // A type lacks some components: only an extra value breaks those.
+        const shorter = values.length > 0 ? values.slice(0, -1) : [0]
+        const longer = [...values, values.length > 0 ? values[0] : 0]
+        for (const changed of [shorter, longer, undefined]) {
+          const cube = {
+            ...solved,
+            [field]: changed,
+          } as unknown as Orbit64V2Cube
+          expect(
+            encodeOrbit64V2State(e.id, cube).TAG,
+            `${e.id} ${field} ${JSON.stringify(changed)?.slice(0, 20)}`,
+          ).toBe('Error')
+        }
+      }
+    }
+  })
+
+  it('returns an error for wrong orbit sizes inside a list', () => {
+    for (const e of orbit64V2Entries.filter((o) => o.n >= 4)) {
+      const solved = orbit64V2Solved(e.n, e.model)
+      for (const field of ['wings', 'centers'] as const) {
+        if (solved[field].length === 0) continue
+        const cube = {
+          ...solved,
+          [field]: [solved[field][0].slice(1), ...solved[field].slice(1)],
+        }
+        expect(encodeOrbit64V2State(e.id, cube).TAG, `${e.id} ${field}`).toBe(
+          'Error',
+        )
+      }
+    }
+  })
+
+  it('returns an error for values outside their range', () => {
+    const base = orbit64V2Solved(3, 'Picture')
+    // Entry 4 is the 3x3x3 picture canonical type.
+    const bad: Partial<Orbit64V2Cube>[] = [
+      { cornerTwists: [3, 0, 0, 0, 0, 0, 0, 0] },
+      { cornerTwists: [-1, 0, 0, 0, 0, 0, 0, 1] },
+      { cornerTwists: [0.5, 0, 0, 0, 0, 0, 0, 0] },
+      { cornerTwists: [Number.NaN, 0, 0, 0, 0, 0, 0, 0] },
+      { midgeFlips: [2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0] },
+      { rotations: [4, 0, 0, 0, 0, 0] },
+      { rotations: [0, 0, 0, 0, 0, Number.NaN] },
+      { cornerPieces: [0, 1, 2, 3, 4, 5, 6, 6] },
+      { cornerPieces: [0, 1, 2, 3, 4, 5, 6, 8] },
+      { midgePieces: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 10] },
+      { frame: 1 },
+    ]
+    for (const change of bad) {
+      expect(
+        encodeOrbit64V2State(4, { ...base, ...change }).TAG,
+        JSON.stringify(change),
+      ).toBe('Error')
+    }
+    // Entry 5 is the 3x3x3 picture framed type: the frame is 0..23.
+    for (const frame of [-1, 24, 0.5, Number.NaN]) {
+      expect(
+        encodeOrbit64V2State(5, { ...base, frame }).TAG,
+        String(frame),
+      ).toBe('Error')
+    }
+    expect(encodeOrbit64V2State(5, { ...base, frame: 23 }).TAG).toBe('Ok')
+    // A center color outside 0..5 or an unbalanced multiset.
+    const colors = orbit64V2Solved(4, 'Color')
+    const unbalanced = colors.centers[0].map((c, i) => (i === 0 ? 5 : c))
+    expect(
+      encodeOrbit64V2State(6, { ...colors, centers: [unbalanced] }).TAG,
+    ).toBe('Error')
+    const outside = colors.centers[0].map((c, i) => (i === 0 ? 6 : c))
+    expect(encodeOrbit64V2State(6, { ...colors, centers: [outside] }).TAG).toBe(
+      'Error',
+    )
+  })
+
+  it('returns an error when an orientation law or parity relation breaks', () => {
+    const swap = (values: number[], i: number, j: number) =>
+      values.map((v, k) => (k === i ? values[j] : k === j ? values[i] : v))
+    const three = orbit64V2Solved(3, 'Color')
+    // Twist sum not 0 mod 3, flip sum odd.
+    expect(
+      encodeOrbit64V2State(2, {
+        ...three,
+        cornerTwists: [1, 0, 0, 0, 0, 0, 0, 0],
+      }).TAG,
+    ).toBe('Error')
+    expect(
+      encodeOrbit64V2State(2, {
+        ...three,
+        midgeFlips: [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      }).TAG,
+    ).toBe('Error')
+    // M = C: two corners swapped with the midges unchanged.
+    expect(
+      encodeOrbit64V2State(2, {
+        ...three,
+        cornerPieces: swap(three.cornerPieces, 0, 1),
+      }).TAG,
+    ).toBe('Error')
+    // Picture, odd: R = C.
+    const picture = orbit64V2Solved(3, 'Picture')
+    expect(
+      encodeOrbit64V2State(4, { ...picture, rotations: [1, 0, 0, 0, 0, 0] })
+        .TAG,
+    ).toBe('Error')
+    // Picture 5x5x5: one swapped pair in a center orbit breaks Z = C + W.
+    const five = orbit64V2Solved(5, 'Picture')
+    expect(
+      encodeOrbit64V2State(12, {
+        ...five,
+        centers: [swap(five.centers[0], 0, 1), five.centers[1]],
+      }).TAG,
+    ).toBe('Error')
+    // Even canonical: the DBL corner must be home with twist 0.
+    const four = orbit64V2Solved(4, 'Color')
+    expect(
+      encodeOrbit64V2State(6, {
+        ...four,
+        cornerPieces: swap(four.cornerPieces, 6, 7),
+      }).TAG,
+    ).toBe('Error')
+    expect(
+      encodeOrbit64V2State(6, {
+        ...four,
+        cornerTwists: [0, 0, 0, 0, 0, 0, 1, 2],
+      }).TAG,
+    ).toBe('Error')
+    // The same two-corner swap with twists 0 is a valid framed 4x4x4.
+    expect(
+      encodeOrbit64V2State(7, {
+        ...four,
+        cornerPieces: swap(four.cornerPieces, 6, 7),
+      }).TAG,
+    ).toBe('Ok')
+  })
+
+  it('returns an error for inputs that are not cubes', () => {
+    for (const cube of [undefined, null, 0, 'cp=0', [], {}]) {
+      for (const id of [0, 3, 5, 6, 53]) {
+        expect(
+          encodeOrbit64V2State(id, cube as unknown as Orbit64V2Cube).TAG,
+        ).toBe('Error')
+      }
+    }
+  })
+
+  it('does not mistake a cube of another type for the entry', () => {
+    expect(encodeOrbit64V2State(0, orbit64V2Solved(3, 'Color')).TAG).toBe(
+      'Error',
+    )
+    expect(encodeOrbit64V2State(2, orbit64V2Solved(2, 'Color')).TAG).toBe(
+      'Error',
+    )
+    expect(encodeOrbit64V2State(4, orbit64V2Solved(3, 'Color')).TAG).toBe(
+      'Error',
+    )
+    expect(encodeOrbit64V2State(2, orbit64V2Solved(3, 'Picture')).TAG).toBe(
+      'Error',
+    )
   })
 })
