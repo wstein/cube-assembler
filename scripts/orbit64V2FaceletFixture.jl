@@ -104,6 +104,26 @@ for line in split(read_text("test/TestV2FaceletData.flix"), '\n')
 end
 isempty(rows) && error("TestV2FaceletData.flix: no rows")
 length(rows) == tuple_lines || error("TestV2FaceletData.flix: $tuple_lines tuple lines, $(length(rows)) parsed as rows")
+# Structure the input already has: every move sequence of a size is written once
+# for each of its two color entries (canonical and framed). A dropped row leaves
+# a sequence with one entry, and an extra one a sequence with three.
+rows_by_sequence = Dict{Tuple{Int,String},Vector{Int}}()
+ids_by_size = Dict{Int,Set{Int}}()
+for r in rows
+    cells = length(replace(r.facelets, " " => ""))
+    n = round(Int, sqrt(cells / 6))
+    6n^2 == cells || error("row of entry $(r.id): $cells facelets are no cube")
+    push!(get!(rows_by_sequence, (n, r.moves), Int[]), r.id)
+    push!(get!(ids_by_size, n, Set{Int}()), r.id)
+end
+for (n, ids) in ids_by_size
+    length(ids) == 2 || error("$(n)x$(n)x$(n): rows of $(length(ids)) entries, expected 2")
+end
+for ((n, moves), ids) in rows_by_sequence
+    sort(ids) == sort(collect(ids_by_size[n])) ||
+        error("$(n)x$(n)x$(n): moves \"$moves\" have rows for entries $(sort(ids)), expected $(sort(collect(ids_by_size[n]))) once each")
+end
+sort(collect(keys(ids_by_size))) == collect(2:15) || error("rows for sizes $(sort(collect(keys(ids_by_size)))), expected 2:15")
 
 # ---- JSON ----------------------------------------------------------------------
 
