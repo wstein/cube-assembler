@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   decodeOrbit64V2State,
+  encodeOrbit64V2State,
   type Orbit64V2Cube,
   type Orbit64V2Pose,
   orbit64V2Entries,
@@ -178,6 +179,36 @@ describe('Orbit64 V2 facelet reference rows', () => {
     expect(new Set(rows.map((row) => row.id))).toEqual(
       new Set(colorEntries.map((e) => e.id)),
     )
+  })
+
+  // The generator checks this too: every move sequence of a size has one row
+  // for each of the two color entries of that size, so a dropped row shows.
+  it('has every move sequence once for each color entry of its size', () => {
+    const entriesOf = new Map<number, Set<number>>()
+    const bySequence = new Map<string, number[]>()
+    for (const { id, moves, facelets } of rows) {
+      const n = orbit64V2Entry(id)?.n ?? 0
+      expect(facelets.replaceAll(' ', '')).toHaveLength(6 * n * n)
+      entriesOf.set(n, (entriesOf.get(n) ?? new Set<number>()).add(id))
+      const key = `${n} ${moves}`
+      bySequence.set(key, [...(bySequence.get(key) ?? []), id])
+    }
+    expect([...entriesOf.keys()]).toEqual(
+      Array.from({ length: 14 }, (_, i) => i + 2),
+    )
+    for (const [n, ids] of entriesOf) {
+      expect(
+        [...ids].sort((a, b) => a - b),
+        `${n}`,
+      ).toEqual(colorEntries.filter((e) => e.n === n).map((e) => e.id))
+    }
+    for (const [key, ids] of bySequence) {
+      const n = Number(key.split(' ')[0])
+      expect(
+        ids.sort((a, b) => a - b),
+        key,
+      ).toEqual(colorEntries.filter((e) => e.n === n).map((e) => e.id))
+    }
   })
 
   it('writes every row at the length of its entry', () => {
@@ -672,7 +703,16 @@ describe('Orbit64 V2 facelet bridge rejects invalid input', () => {
 
   it('returns an error instead of throwing on hostile values', () => {
     const cube = orbit64V2Solved(4, 'Color')
-    const cubes = [
+    const write = (bad: unknown) =>
+      error(
+        orbit64V2ToFacelets(
+          4,
+          'Color',
+          'Framed',
+          bad as unknown as Orbit64V2Cube,
+        ),
+      )
+    for (const bad of [
       undefined,
       null,
       5,
@@ -681,39 +721,111 @@ describe('Orbit64 V2 facelet bridge rejects invalid input', () => {
       { ...cube, wings: undefined },
       { ...cube, centers: [[0]] },
       { ...cube, cornerPieces: 'abcdefgh' },
-    ]
-    for (const bad of cubes) {
-      expect(
-        error(
-          orbit64V2ToFacelets(
-            4,
-            'Color',
-            'Framed',
-            bad as unknown as Orbit64V2Cube,
-          ),
-        ),
-        JSON.stringify(bad),
-      ).not.toBe('accepted')
+    ]) {
+      expect(write(bad), JSON.stringify(bad)).not.toBe('accepted')
     }
+    expect(write(undefined)).toBe('malformed state')
+    expect(write(null)).toBe('malformed state')
+    // Reads that throw: a getter, a Proxy, a thrown primitive, a thrown
+    // Proxy and an error whose message throws too.
+    const thrown = [
+      'a string',
+      42,
+      undefined,
+      new Proxy({}, { get: () => 1 }),
+      {
+        get message(): string {
+          throw new Error('message')
+        },
+      },
+    ]
+    for (const value of thrown) {
+      const getter = {
+        ...cube,
+        get cornerPieces(): number[] {
+          // Throwing a non-error is the point of the case.
+          // eslint-disable-next-line @typescript-eslint/only-throw-error
+          throw value
+        },
+      }
+      expect(write(getter), String(typeof value)).toBe('malformed state')
+    }
+    expect(
+      write(
+        new Proxy(cube, {
+          get() {
+            throw new Error('trap')
+          },
+        }),
+      ),
+    ).toBe('malformed state')
+    expect(write(new Proxy({}, { get: () => undefined }))).toBe(
+      'malformed state',
+    )
+
     for (const bad of [undefined, null, 5, {}, ['U'], new String(solved3)]) {
       expect(
-        orbit64V2FromFacelets(3, 'Color', 'Framed', bad as unknown as string)
-          .TAG,
-      ).toBe('Error')
-      expect(encodeOrbit64V2Facelets(3, bad as unknown as string).TAG).toBe(
-        'Error',
+        error(
+          orbit64V2FromFacelets(3, 'Color', 'Framed', bad as unknown as string),
+        ),
+      ).toBe('facelets must be a string')
+      expect(error(encodeOrbit64V2Facelets(3, bad as unknown as string))).toBe(
+        'facelets must be a string',
       )
     }
     for (const bad of [undefined, null, 5, {}, ['AAAA']]) {
-      expect(decodeOrbit64V2Facelets(bad as unknown as string).TAG).toBe(
-        'Error',
+      expect(error(decodeOrbit64V2Facelets(bad as unknown as string))).toBe(
+        'not a known V2 state token',
       )
-    }
-    for (const id of [Number.NaN, 1.5, Number.POSITIVE_INFINITY, undefined]) {
-      expect(encodeOrbit64V2Facelets(id as number, solved3).TAG).toBe('Error')
     }
     const huge = 'U'.repeat(100_000)
     expect(read(huge)).toBe('expected 54 facelets for the 3x3x3, got 100000')
+  })
+
+  it('names an unknown entry without echoing caller text or running caller code', () => {
+    const notInteger = 'the registry entry is not an integer'
+    const ran: string[] = []
+    const ids: unknown[] = [
+      Number.NaN,
+      1.5,
+      Number.POSITIVE_INFINITY,
+      undefined,
+      null,
+      '<script>alert(1)</script>',
+      'x'.repeat(2_000_000),
+      () => 3,
+      '3',
+      3n,
+      [3],
+      new Number(3),
+      Symbol('3'),
+      Object.create(null),
+      {
+        toString() {
+          ran.push('toString')
+          return '3'
+        },
+        valueOf() {
+          ran.push('valueOf')
+          return 3
+        },
+      },
+    ]
+    for (const id of ids) {
+      const reason = error(encodeOrbit64V2Facelets(id as number, solved3))
+      expect(reason, typeof id).toBe(notInteger)
+      expect(
+        error(encodeOrbit64V2State(id as number, orbit64V2Solved(3, 'Color'))),
+        typeof id,
+      ).toBe(notInteger)
+    }
+    expect(ran).toEqual([])
+    expect(error(encodeOrbit64V2Facelets(54, solved3))).toBe(
+      'unknown registry entry 54',
+    )
+    expect(error(encodeOrbit64V2Facelets(-1, solved3))).toBe(
+      'unknown registry entry -1',
+    )
   })
 })
 
