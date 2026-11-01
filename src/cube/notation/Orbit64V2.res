@@ -1,5 +1,6 @@
 // Orbit64 V2 state tokens for n x n x n cubes, n = 2..15, in coordinates only:
-// registry, state ranking and the token codec. There is no facelet bridge.
+// registry, state ranking and the token codec. The facelet bridge is
+// Orbit64V2Facelets.res.
 // Format: FORMAT-V2.md of flix-orbit64@8dc17fb (Apache-2.0); reference
 // implementation: src/Orbit64/V2/{Registry,State,Codec}.flix there.
 //
