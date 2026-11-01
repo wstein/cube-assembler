@@ -96,3 +96,14 @@ before adding one. The Orbit64 browser codec is adapted from
 `flix-orbit64` under [Apache-2.0](../third_party/flix-orbit64.LICENSE), with
 cross-project vectors in `test/cube/notation/orbit64Vectors.json` and
 `test/cube/notation/orbit64LargeVectors.json`.
+
+The Orbit64 V2 state codec for 2x2-15x15 cubes
+([`Orbit64V2.res`](../src/cube/notation/Orbit64V2.res)) works on orbit
+coordinates. [`Orbit64V2Facelets.res`](../src/cube/notation/Orbit64V2Facelets.res)
+is its facelet bridge for the color model, both poses: slot tables, cube to
+facelets and back, and token to facelets and back, with every failure an error
+value. The picture model has no facelet letters and is an error there. Its
+fixture `test/cube/notation/orbit64V2Facelets.json` (the slot tables of
+`FORMAT-V2-SLOTS.md` and the facelet rows of `TestV2FaceletData.flix`) is written
+by `julia scripts/orbit64V2FaceletFixture.jl <flix-orbit64 dir>` and
+regenerates byte for byte.
