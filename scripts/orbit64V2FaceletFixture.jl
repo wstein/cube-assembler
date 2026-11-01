@@ -153,6 +153,14 @@ picture_tuple_lines = length(collect(eachmatch(r"^\s*\(\d+,"m, picture_text)))
 picture_rows = [Row(parse(Int, m.captures[1]), m.captures[2], m.captures[3], m.captures[4], m.captures[5])
                 for m in eachmatch(picture_pattern, picture_text)]
 isempty(picture_rows) && error("TestV2FaceletPictureData.flix: no rows")
+# Everything that is not a row must be one of the known lines of the file; a
+# stray line (a half row, a note) fails instead of being skipped.
+let rest = replace(picture_text, picture_pattern => "")
+    known = r"^(//.*|mod \w+ \{|\s*///.*|\s*pub def rows\w*\(\): .*|\s*\}\)?|\s*List\.flatten\(.*|\s*rows\w+\(\).*|\s*)$"
+    for line in split(rest, '\n')
+        occursin(known, line) || error("TestV2FaceletPictureData.flix: unexpected line: $line")
+    end
+end
 length(picture_rows) == picture_tuple_lines ||
     error("TestV2FaceletPictureData.flix: $picture_tuple_lines tuple lines, $(length(picture_rows)) parsed as rows")
 # The same structure as the color rows: a picture entry per pose, each move

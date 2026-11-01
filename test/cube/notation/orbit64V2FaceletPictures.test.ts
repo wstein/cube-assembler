@@ -1056,7 +1056,7 @@ describe('Orbit64 V2 picture facelet bridge never throws', () => {
     expect(Date.now() - started).toBeLessThan(5000)
   })
 
-  it('returns an error for every mutated row, a bad pose or a bad size', () => {
+  it('never throws on mutated rows and returns well-formed results', () => {
     // A deterministic walk over the rows with single and double mutations.
     let seed = 12345
     const next = (bound: number): number => {
