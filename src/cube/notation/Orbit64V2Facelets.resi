@@ -23,18 +23,22 @@ type slots = {
 // The facelet string of a cube state of the type (n, model, pose): six face
 // fields in the order U R F D L B, a space between fields. A canonical cube is
 // written in its reference pose; a framed cube of an odd size is that picture
-// rotated by its frame. Only the color model has letters: a picture type is an
-// Error, as is a cube that is no state of the type.
+// rotated by its frame. The color model writes the letters U R F D L B; the
+// picture model (n = 3..15) writes one base64url symbol per facelet, the
+// sticker's index within its class, with the rotation of a fixed center in the
+// symbol of an odd cube. A cube that is no state of the type is an Error.
 @genType
 let toFacelets: (int, Orbit64V2.model, Orbit64V2.pose, Orbit64V2.cube) => result<string, string>
 
 // The cube state a facelet string shows, in the pose of the type. Spaces are
-// ignored; every other character must be one of U R F D L B. A canonical read
-// turns the cube so that its reference is home first (the fixed centers of an
-// odd cube, the DBL corner of an even one) and so accepts any whole-cube
-// orientation. A framed read of an odd cube keeps the orientation as
-// `frame`; of an even cube, in its corners. Anything that is no reachable cube
-// is an Error with its reason, never an exception.
+// ignored; every other character must be one of U R F D L B (color model) or a
+// base64url symbol (picture model). A canonical read turns the cube so that its
+// reference is home first (the fixed centers of an odd cube, the DBL corner of
+// an even one) and so accepts any whole-cube orientation. A framed read of an
+// odd cube keeps the orientation as `frame`; of an even cube, in its corners.
+// Anything that is no reachable cube is an Error with its reason, never an
+// exception. The checks run in the order of FORMAT-V2.md, so the reason is the
+// reference's.
 @genType
 let fromFacelets: (int, Orbit64V2.model, Orbit64V2.pose, string) => result<Orbit64V2.cube, string>
 

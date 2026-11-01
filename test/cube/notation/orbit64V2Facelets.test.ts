@@ -3,6 +3,7 @@ import {
   decodeOrbit64V2State,
   encodeOrbit64V2State,
   type Orbit64V2Cube,
+  type Orbit64V2Model,
   type Orbit64V2Pose,
   orbit64V2Entries,
   orbit64V2Entry,
@@ -367,6 +368,8 @@ describe('Orbit64 V2 facelet reference rows', () => {
 })
 
 const sizeFault = 'the cube size is not an integer in 2..15'
+const noPicture2 =
+  'the 2x2x2 has no picture entry: its picture model is the color model'
 
 describe('Orbit64 V2 facelet bridge rejects an invalid pose', () => {
   const solved3 = solvedFacelets(3)
@@ -433,8 +436,16 @@ describe('Orbit64 V2 facelet bridge rejects an invalid pose', () => {
     expect(error(orbit64V2FromFacelets(16, 'Color', bogus, solved3))).toBe(
       'no V2 type for the 16x16x16',
     )
+    expect(error(orbit64V2FromFacelets(2, 'Picture', bogus, solved3))).toBe(
+      noPicture2,
+    )
+    expect(
+      error(
+        orbit64V2FromFacelets(3, 'Bogus' as Orbit64V2Model, bogus, solved3),
+      ),
+    ).toBe('unknown sticker model')
     expect(error(orbit64V2FromFacelets(3, 'Picture', bogus, solved3))).toBe(
-      'the picture model has no letters',
+      'unknown pose',
     )
   })
 })
@@ -665,9 +676,9 @@ describe('Orbit64 V2 facelet bridge rejects invalid input', () => {
     )
   })
 
-  it('rejects types without letters', () => {
-    expect(error(orbit64V2FromFacelets(3, 'Picture', 'Framed', solved3))).toBe(
-      'the picture model has no letters',
+  it('rejects types without a facelet string', () => {
+    expect(error(orbit64V2FromFacelets(2, 'Picture', 'Framed', solved3))).toBe(
+      noPicture2,
     )
     for (const n of [16, 1, 0, -3]) {
       expect(
@@ -685,27 +696,22 @@ describe('Orbit64 V2 facelet bridge rejects invalid input', () => {
       'no V2 type for the 16x16x16',
     )
     const cube = orbit64V2Solved(3, 'Picture')
-    expect(error(orbit64V2ToFacelets(3, 'Picture', 'Framed', cube))).toBe(
-      'the picture model has no letters',
-    )
+    expect(
+      error(
+        orbit64V2ToFacelets(
+          2,
+          'Picture',
+          'Framed',
+          orbit64V2Solved(2, 'Color'),
+        ),
+      ),
+    ).toBe(noPicture2)
     expect(error(orbit64V2ToFacelets(16, 'Color', 'Framed', cube))).toBe(
       'no V2 type for the 16x16x16',
     )
   })
 
   it('says why an entry or token has no facelets', () => {
-    const picture = orbit64V2Entries.filter((e) => e.model === 'Picture')
-    expect(picture.length).toBeGreaterThan(0)
-    for (const e of picture) {
-      expect(
-        error(encodeOrbit64V2Facelets(e.id, solvedFacelets(e.n))),
-        `${e.id}`,
-      ).toBe('the picture model has no letters')
-      expect(
-        error(decodeOrbit64V2Facelets(tokenOfSolved(e))),
-        `token of ${e.id}`,
-      ).toBe('the picture model has no letters')
-    }
     expect(error(encodeOrbit64V2Facelets(54, solved3))).toBe(
       'unknown registry entry 54',
     )
@@ -812,6 +818,18 @@ describe('Orbit64 V2 facelet bridge rejects invalid input', () => {
     expect(read(huge)).toBe('expected 54 facelets for the 3x3x3, got 100000')
   })
 
+  it('walks a huge string once and reports its first bad letter before its length', () => {
+    const started = Date.now()
+    const huge = 'U'.repeat(3_000_000)
+    expect(read(huge)).toBe('expected 54 facelets for the 3x3x3, got 3000000')
+    expect(read(' '.repeat(3_000_000))).toBe(
+      'expected 54 facelets for the 3x3x3, got 0',
+    )
+    expect(read(`${huge}x`)).toBe("facelet 'x' is not one of U R F D L B")
+    expect(read(`${solved3}${' '.repeat(2_000_000)}`)).toBe('accepted')
+    expect(Date.now() - started).toBeLessThan(5000)
+  })
+
   it('names an unknown entry without echoing caller text or running caller code', () => {
     const notInteger = 'the registry entry is not an integer'
     const ran: string[] = []
@@ -858,14 +876,3 @@ describe('Orbit64 V2 facelet bridge rejects invalid input', () => {
     )
   })
 })
-
-// The token of the solved state of an entry: its offset written at its length.
-function tokenOfSolved(e: { offset: bigint; length: number }): string {
-  const alphabet =
-    'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_'
-  let token = ''
-  for (let v = e.offset, i = 0; i < e.length; i++, v /= 64n) {
-    token = alphabet[Number(v % 64n)] + token
-  }
-  return token
-}

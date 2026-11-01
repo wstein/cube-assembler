@@ -1,11 +1,16 @@
 // The facelet bridge of Orbit64 V2: a cube state to its stickers and back, for
-// n x n x n cubes, n = 2..15, in the color model.
-// Format: FORMAT-V2.md of flix-orbit64@d701008 (Apache-2.0); reference
+// n x n x n cubes, n = 2..15, in the color model, and for n = 3..15 in the
+// picture model.
+// Format: FORMAT-V2.md of flix-orbit64@a046e34 (Apache-2.0); reference
 // implementation: src/Orbit64/V2/Facelets.flix there.
 //
-// A facelet string writes the 6 n^2 stickers as the letters U R F D L B, one
-// per facelet (index `face * n^2 + row * n + col`), six face fields in that
-// order separated by one space. Reading ignores spaces. It does not reuse
+// A facelet string writes the 6 n^2 stickers one per facelet (index
+// `face * n^2 + row * n + col`), six face fields in the order U R F D L B
+// separated by one space. The color model writes the letters U R F D L B. The
+// picture model, where every sticker is distinct, writes one base64url symbol
+// per facelet: the sticker's index within its class (corner `3 p + j`, midge
+// and wing `2 p + j`, center orbit `p`, fixed center `4 p + r`, "Picture
+// facelets" in FORMAT-V2.md). Reading ignores spaces. It does not reuse
 // `NotationOutput`, which also trims and upper-cases, accepts any white space
 // and answers with a warning instead of a reason.
 //
@@ -316,15 +321,85 @@ let unrotate = (n, turn, fs) =>
     fs->get(faceletAt(n, forward(turn, p), forward(turn, q)))
   })
 
+// -------------------------------------------------------- fixed center rotations
+
+let cross = ((ax, ay, az): vec, (bx, by, bz): vec): vec => (
+  ay * bz - az * by,
+  az * bx - ax * bz,
+  ax * by - ay * bx,
+)
+
+// The reference direction of a face: toward row 0, so toward B on U and F on D.
+let reference = (face): vec =>
+  switch face {
+  | 0 => (0, 0, -1)
+  | 3 => (0, 0, 1)
+  | _ => (0, 1, 0)
+  }
+
+// A direction on a face turned k clockwise quarter turns, seen from outside.
+let rec spin = (normal: vec, direction: vec, k) =>
+  k <= 0 ? direction : spin(normal, cross(direction, normal), k - 1)
+
+// The clockwise quarter turns from the reference direction of `face` to `direction`.
+let quarterTurns = (face, direction: vec) =>
+  range(4)
+  ->Array.find(k => spin(normalOf(face), reference(face), k) == direction)
+  ->Option.getOr(0)
+
+// Where the fixed center of `face` with rotation r lands under `move`, and its new rotation.
+let carryFixed = (move: vec => vec, face, r) => {
+  let own = spin(normalOf(face), reference(face), r)
+  let landed = faceOfNormal(move(normalOf(face)))
+  (landed, quarterTurns(landed, move(own)))
+}
+
+// `permuted` is `before` with its facelets moved; carries the fixed centers along.
+let turnFixed = (n, move, before, permuted) => {
+  let out = Array.copy(permuted)
+  let fixed = fixedFacelets(n)
+  range(6)->Array.forEach(face => {
+    let value = before->get(fixed->get(face))
+    let (landed, r) = carryFixed(move, face, mod(value, 4))
+    out->Array.setUnsafe(fixed->get(landed), 4 * (value / 4) + r)
+  })
+  out
+}
+
+// The picture of a cube turned by `turn`: stickers and fixed center rotations.
+let rotatePicture = (n, turn, vs) => turnFixed(n, v => forward(turn, v), vs, rotate(n, turn, vs))
+
+// The picture of a cube turned back by `turn`.
+let unrotatePicture = (n, turn, vs) =>
+  turnFixed(n, v => backward(turn, v), vs, unrotate(n, turn, vs))
+
 // ---------------------------------------------------------------- cube to stickers
 
-let writeOriented = (n, sticker, table, pieces, twists) =>
+let symbols = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_"
+
+// The character of a sticker value: a letter in the color model, a base64url
+// symbol in the picture model.
+let symbolOf = (model: Orbit64V2.model, value) =>
+  model == Picture ? symbols->String.charAt(value) : letters->get(value)
+
+// What sticker k of the piece in slot `piece` of `table` shows: in the color
+// model the face color of its home facelet, in the picture model its index
+// `m piece + k` within its class.
+let stickerValue = (n, model: Orbit64V2.model, table, piece, k) =>
+  model == Picture
+    ? Array.length(table->get(piece)) * piece + k
+    : faceOf(n, table->get(piece)->get(k))
+
+let writeOriented = (n, model, sticker, table, pieces, twists) =>
   table->Array.forEachWithIndex((slotFacelets, slot) => {
     let m = Array.length(slotFacelets)
-    let home = table->get(pieces->get(slot))
+    let piece = pieces->get(slot)
     let twist = twists->get(slot)
     for k in 0 to m - 1 {
-      sticker->Array.setUnsafe(slotFacelets->get(k), faceOf(n, home->get(mod(k - twist + m, m))))
+      sticker->Array.setUnsafe(
+        slotFacelets->get(k),
+        stickerValue(n, model, table, piece, mod(k - twist + m, m)),
+      )
     }
   })
 
@@ -333,16 +408,22 @@ let writeCenters = (sticker, table: array<int>, colors: array<int>) =>
     sticker->Array.setUnsafe(facelet, colors->get(slot))
   )
 
+// A fixed center shows its face color, or in the picture model its piece and rotation.
+let fixedValue = (model: Orbit64V2.model, cube: Orbit64V2.cube, face) =>
+  model == Picture ? 4 * face + cube.rotations->get(face) : face
+
 // The stickers of a canonical-pose cube; fixed centers are home.
-let paint = (n, t, cube: Orbit64V2.cube) => {
+let paint = (n, model, t, cube: Orbit64V2.cube) => {
   let sticker = Array.make(~length=6 * n * n, 0)
-  t.fixed->Array.forEachWithIndex((facelet, face) => sticker->Array.setUnsafe(facelet, face))
-  writeOriented(n, sticker, t.corners, cube.cornerPieces, cube.cornerTwists)
+  t.fixed->Array.forEachWithIndex((facelet, face) =>
+    sticker->Array.setUnsafe(facelet, fixedValue(model, cube, face))
+  )
+  writeOriented(n, model, sticker, t.corners, cube.cornerPieces, cube.cornerTwists)
   if odd(n) {
-    writeOriented(n, sticker, t.midges, cube.midgePieces, cube.midgeFlips)
+    writeOriented(n, model, sticker, t.midges, cube.midgePieces, cube.midgeFlips)
   }
   t.wings->Array.forEachWithIndex((table, i) =>
-    writeOriented(n, sticker, table, cube.wings->get(i), Array.make(~length=24, 0))
+    writeOriented(n, model, sticker, table, cube.wings->get(i), Array.make(~length=24, 0))
   )
   t.centers->Array.forEachWithIndex((table, i) =>
     writeCenters(sticker, table, cube.centers->get(i))
@@ -350,15 +431,15 @@ let paint = (n, t, cube: Orbit64V2.cube) => {
   sticker
 }
 
-// Why a type has no facelet letters, if it has none.
+// Why a type has no facelet string, if it has none.
 let typeFault = (n, model: Orbit64V2.model, pose: Orbit64V2.pose) =>
   if !isInt(n) {
     Some("the cube size is not an integer in 2..15")
   } else if !validSize(n) {
     Some(`no V2 type for the ${Int.toString(n)}x${Int.toString(n)}x${Int.toString(n)}`)
-  } else if model == Picture {
-    Some("the picture model has no letters")
-  } else if model != Color {
+  } else if model == Picture && n == 2 {
+    Some("the 2x2x2 has no picture entry: its picture model is the color model")
+  } else if model != Color && model != Picture {
     Some("unknown sticker model")
   } else if pose != Canonical && pose != Framed {
     Some("unknown pose")
@@ -366,10 +447,10 @@ let typeFault = (n, model: Orbit64V2.model, pose: Orbit64V2.pose) =>
     None
   }
 
-let spell = (n, fs) =>
+let spell = (n, model, fs) =>
   range(6)
   ->Array.map(face =>
-    range(n * n)->Array.map(i => letters->get(fs->get(face * n * n + i)))->Array.join("")
+    range(n * n)->Array.map(i => symbolOf(model, fs->get(face * n * n + i)))->Array.join("")
   )
   ->Array.join(" ")
 
@@ -383,8 +464,15 @@ let toFacelets = (n, model, pose, cube) =>
       switch Orbit64V2.faultOf(n, model, pose, cube) {
       | Some(why) => Error(why)
       | None =>
-        let fs = paint(n, tables(n), cube)
-        Ok(spell(n, odd(n) ? rotate(n, turnOf(cube.frame), fs) : fs))
+        let fs = paint(n, model, tables(n), cube)
+        let turn = turnOf(cube.frame)
+        Ok(
+          spell(
+            n,
+            model,
+            !odd(n) ? fs : model == Picture ? rotatePicture(n, turn, fs) : rotate(n, turn, fs),
+          ),
+        )
       }
     }
   } catch {
@@ -393,14 +481,32 @@ let toFacelets = (n, model, pose, cube) =>
 
 // ---------------------------------------------------------------- stickers to cube
 
-@val external codePoints: string => array<string> = "Array.from"
+// The face index of a facelet letter, by code point; -1 for any other.
+let colorIndex = code =>
+  switch code {
+  | 85 => 0
+  | 82 => 1
+  | 70 => 2
+  | 68 => 3
+  | 76 => 4
+  | 66 => 5
+  | _ => -1
+  }
 
-// The face index of a facelet letter (a whole code point is quoted, where the
-// reference quotes a UTF-16 unit); a tab or newline is a bad letter like any other.
-let letterIndex = letter =>
-  switch faceIndex(letter) {
-  | -1 => Error(`facelet '${letter}' is not one of U R F D L B`)
-  | index => Ok(index)
+// The value of a base64url symbol, by code point; -1 for any other.
+let symbolIndex = code =>
+  if code >= 65 && code <= 90 {
+    code - 65
+  } else if code >= 97 && code <= 122 {
+    code - 71
+  } else if code >= 48 && code <= 57 {
+    code + 4
+  } else if code == 45 {
+    62
+  } else if code == 95 {
+    63
+  } else {
+    -1
   }
 
 let rec traverse = (items, f, index, out) =>
@@ -417,23 +523,45 @@ let rec traverse = (items, f, index, out) =>
 
 let traverseAll = (items, f) => traverse(items, f, 0, [])
 
-// The stickers of a facelet string as face indices, or why it is no string of n^2 per face.
-let parse = (n, text) =>
-  codePoints(text)
-  ->Array.filter(c => c != " ")
-  ->traverseAll((letter, _) => letterIndex(letter))
-  ->Result.flatMap(indices => {
-    let length = Array.length(indices)
-    if length != 6 * n * n {
-      Error(
-        `expected ${Int.toString(6 * n * n)} facelets for the ${Int.toString(n)}x${Int.toString(
-            n,
-          )}x${Int.toString(n)}, got ${Int.toString(length)}`,
-      )
-    } else {
-      Ok(indices)
+// The values of a facelet string, spaces ignored, or why it is no string of n^2
+// per face. A whole code point is quoted where the reference quotes a UTF-16
+// unit; a tab or newline is a bad character like any other. The string is
+// walked once and only the first 6 n^2 values are kept, so a huge string costs
+// time but no memory: its first bad character is reported before its length.
+let parse = (n, text, indexOf, bad) => {
+  let expected = 6 * n * n
+  let values = []
+  let count = ref(0)
+  let at = ref(0)
+  let fault = ref(None)
+  let size = String.length(text)
+  while Option.isNone(fault.contents) && at.contents < size {
+    let code = String.codePointAt(text, at.contents)->Option.getOr(32)
+    // A code point outside the BMP is no symbol, so the walk ends there.
+    at := at.contents + 1
+    if code != 32 {
+      switch indexOf(code) {
+      | -1 => fault := Some(bad(String.fromCodePoint(code)))
+      | index =>
+        if count.contents < expected {
+          values->Array.push(index)
+        }
+        count := count.contents + 1
+      }
     }
-  })
+  }
+  switch fault.contents {
+  | Some(why) => Error(why)
+  | None =>
+    count.contents == expected
+      ? Ok(values)
+      : Error(
+          `expected ${Int.toString(expected)} facelets for the ${Int.toString(n)}x${Int.toString(
+              n,
+            )}x${Int.toString(n)}, got ${Int.toString(count.contents)}`,
+        )
+  }
+}
 
 let checkCounts = (n, fs) =>
   switch range(6)->Array.find(f => fs->Array.filter(x => x == f)->Array.length != n * n) {
@@ -464,10 +592,13 @@ let readPiece = (n, table, seen) => {
   ->Option.flatMap(found => found)
 }
 
-let noPiece = (what, slot, seen) => {
-  let shown = seen->Array.map(f => letters->get(f))->Array.join("")
+let noPiece = (model, what, slot, seen) => {
+  let shown = seen->Array.map(v => symbolOf(model, v))->Array.join("")
   `${what} slot ${Int.toString(slot)} shows ${shown}, which is no ${what} of this cube`
 }
+
+let pieces = found => found->Array.map(((p, _)) => p)
+let twists = found => found->Array.map(((_, o)) => o)
 
 let readOriented = (n, what, table, fs) =>
   range(Array.length(table))
@@ -475,10 +606,10 @@ let readOriented = (n, what, table, fs) =>
     let seen = seenAt(table, slot, fs)
     switch readPiece(n, table, seen) {
     | Some(found) => Ok(found)
-    | None => Error(noPiece(what, slot, seen))
+    | None => Error(noPiece(Color, what, slot, seen))
     }
   })
-  ->Result.map(found => (found->Array.map(((p, _)) => p), found->Array.map(((_, o)) => o)))
+  ->Result.map(found => (pieces(found), twists(found)))
 
 // A wing carries no twist: its two stickers sit in the order of its home slot or not at all.
 let readWingsStrict = (n, table, fs) => {
@@ -487,7 +618,7 @@ let readWingsStrict = (n, table, fs) => {
   range(Array.length(table))->traverseAll((slot, _) => {
     let seen = seenAt(table, slot, fs)
     switch homes->Array.findIndex(home => home == seen) {
-    | -1 => Error(noPiece("wing", slot, seen))
+    | -1 => Error(noPiece(Color, "wing", slot, seen))
     | p => Ok(p)
     }
   })
@@ -514,20 +645,26 @@ let readCube = (n, t, frame, fs): result<Orbit64V2.cube, string> =>
     )
   )
 
-// Rotates an odd cube so that its fixed centers are home; the frame is the one they show.
-let normalizeOdd = (n, t, fs) => {
-  let shown = t.fixed->Array.map(at => fs->get(at))
+// The frame whose faces, in slot order, are `shown`.
+let frameShown = shown =>
   switch range(24)->Array.find(r => facesOfFrame(r) == shown) {
-  | Some(r) => Ok((r, unrotate(n, turnOf(r), fs)))
+  | Some(r) => Ok(r)
   | None => Error("the six fixed centers are not a right-handed whole-cube frame")
   }
-}
 
-// Rotates an even cube so that its DBL corner is in slot DBL with twist 0.
-let normalizeEven = (n, t, fs) =>
+// Rotates an odd cube so that its fixed centers are home; the frame is the one they show.
+let normalizeOdd = (n, t, fs) =>
+  frameShown(t.fixed->Array.map(at => fs->get(at)))->Result.map(r => (
+    r,
+    unrotate(n, turnOf(r), fs),
+  ))
+
+// Rotates an even cube so that its DBL corner is in slot DBL with twist 0;
+// `atHome` says whether a rotated string has it there.
+let normalizeEven = (n, fs, atHome) =>
   switch range(24)->Array.findMap(r => {
     let rotated = unrotate(n, turnOf(r), fs)
-    readPiece(n, t.corners, seenAt(t.corners, 6, rotated)) == Some((6, 0)) ? Some(rotated) : None
+    atHome(rotated) ? Some(rotated) : None
   }) {
   | Some(rotated) => Ok(rotated)
   | None => Error("no whole-cube rotation puts the DBL corner home")
@@ -538,24 +675,148 @@ let posedStickers = (n, pose: Orbit64V2.pose, t, fs) =>
   if odd(n) {
     normalizeOdd(n, t, fs)->Result.map(((r, posed)) => (pose == Framed ? r : 0, posed))
   } else if pose == Canonical {
-    normalizeEven(n, t, fs)->Result.map(posed => (0, posed))
+    normalizeEven(n, fs, rotated =>
+      readPiece(n, t.corners, seenAt(t.corners, 6, rotated)) == Some((6, 0))
+    )->Result.map(posed => (0, posed))
   } else {
     Ok((0, fs))
   }
 
-let readStickers = (n, model, pose, text) => {
+let readColorStickers = (n, pose, text) => {
   let t = tables(n)
-  parse(n, text)
+  parse(n, text, colorIndex, letter => `facelet '${letter}' is not one of U R F D L B`)
   ->Result.flatMap(fs => checkCounts(n, fs)->Result.map(() => fs))
   ->Result.flatMap(fs => posedStickers(n, pose, t, fs))
   ->Result.flatMap(((frame, posed)) => readCube(n, t, frame, posed))
-  ->Result.flatMap(cube =>
+}
+
+// ------------------------------------------------------------ picture to cube
+
+// The stickers of one piece type: where they sit, how many values they can
+// show, and `per`, how many values name the same piece.
+type group = {what: string, facelets: array<int>, limit: int, per: int}
+
+// Every sticker class of a cube, in the order the reference checks them: a
+// sticker never leaves its class.
+let groups = t =>
+  [
+    [{what: "corner", facelets: Array.flat(t.corners), limit: 24, per: 1}],
+    Array.length(t.midges) == 0
+      ? []
+      : [{what: "midge", facelets: Array.flat(t.midges), limit: 24, per: 1}],
+    t.wings->Array.map(table => {what: "wing", facelets: Array.flat(table), limit: 48, per: 1}),
+    t.centers->Array.map(table => {what: "center", facelets: table, limit: 24, per: 1}),
+    Array.length(t.fixed) == 0
+      ? []
+      : [{what: "fixed center", facelets: t.fixed, limit: 24, per: 4}],
+  ]->Array.flat
+
+// A sticker on a facelet of the wrong class, or a piece shown twice; a range
+// error comes before a repeat.
+let checkGroup = (vs, g) =>
+  switch g.facelets->Array.find(at => vs->get(at) >= g.limit) {
+  | Some(at) =>
+    Error(
+      `facelet ${Int.toString(at)} shows '${symbolOf(
+          Picture,
+          vs->get(at),
+        )}', which is no ${g.what} sticker`,
+    )
+  | None =>
+    let values = g.facelets->Array.map(at => vs->get(at))
+    let uses = Array.make(~length=g.limit, 0)
+    values->Array.forEach(v => uses->Array.setUnsafe(v / g.per, uses->get(v / g.per) + 1))
+    switch values->Array.find(v => uses->get(v / g.per) > 1) {
+    | Some(v) => Error(`${g.what} sticker '${symbolOf(Picture, v)}' occurs more than once`)
+    | None => Ok()
+    }
+  }
+
+// The piece and twist spelled by the m symbols of a slot: `m p + (k - o) mod m`.
+let readPictureSlot = seen => {
+  let m = Array.length(seen)
+  let first = seen->get(0)
+  let p = first / m
+  let o = mod(m - mod(first, m), m)
+  range(m)->Array.every(k => seen->get(k) == m * p + mod(k - o + m, m)) ? Some((p, o)) : None
+}
+
+// The pieces and twists of a table of slots; a `strict` slot admits no twist.
+let readPictureOriented = (what, table, strict, vs) =>
+  range(Array.length(table))
+  ->traverseAll((slot, _) => {
+    let seen = seenAt(table, slot, vs)
+    switch readPictureSlot(seen) {
+    | Some((p, o)) if !strict || o == 0 => Ok((p, o))
+    | _ => Error(noPiece(Picture, what, slot, seen))
+    }
+  })
+  ->Result.map(found => (pieces(found), twists(found)))
+
+// The coordinates of a canonical-pose picture; the frame is `frame`.
+let readPictureCube = (n, t, frame, vs): result<Orbit64V2.cube, string> =>
+  readPictureOriented("corner", t.corners, false, vs)->Result.flatMap(((cp, co)) =>
+    (odd(n) ? readPictureOriented("midge", t.midges, false, vs) : Ok(([], [])))->Result.flatMap(((
+      mp,
+      mo,
+    )) =>
+      t.wings
+      ->traverseAll(
+        (table, _) => readPictureOriented("wing", table, true, vs)->Result.map(((p, _)) => p),
+      )
+      ->Result.map(
+        (wings): Orbit64V2.cube => {
+          cornerPieces: cp,
+          cornerTwists: co,
+          midgePieces: mp,
+          midgeFlips: mo,
+          wings,
+          centers: t.centers->Array.map(table => table->Array.map(at => vs->get(at))),
+          rotations: t.fixed->Array.map(at => mod(vs->get(at), 4)),
+          frame,
+        },
+      )
+    )
+  )
+
+// The frame to record and the symbols in the pose the type reads them in.
+let posedPicture = (n, pose: Orbit64V2.pose, t, vs) =>
+  if odd(n) {
+    frameShown(t.fixed->Array.map(at => vs->get(at) / 4))->Result.map(r => (
+      pose == Framed ? r : 0,
+      unrotatePicture(n, turnOf(r), vs),
+    ))
+  } else if pose == Canonical {
+    normalizeEven(n, vs, rotated =>
+      readPictureSlot(seenAt(t.corners, 6, rotated)) == Some((6, 0))
+    )->Result.map(posed => (0, posed))
+  } else {
+    Ok((0, vs))
+  }
+
+// Every sticker is of its class and every slot spells one piece, in any pose.
+let checkPieces = (n, t, vs) =>
+  groups(t)
+  ->traverseAll((g, _) => checkGroup(vs, g))
+  ->Result.flatMap(_ => readPictureCube(n, t, 0, vs))
+
+let readPictureStickers = (n, pose, text) => {
+  let t = tables(n)
+  parse(n, text, symbolIndex, letter => `facelet '${letter}' is not a base64url symbol`)
+  ->Result.flatMap(vs => checkPieces(n, t, vs)->Result.map(_ => vs))
+  ->Result.flatMap(vs => posedPicture(n, pose, t, vs))
+  ->Result.flatMap(((frame, posed)) => readPictureCube(n, t, frame, posed))
+}
+
+let readStickers = (n, model: Orbit64V2.model, pose, text) =>
+  (
+    model == Picture ? readPictureStickers(n, pose, text) : readColorStickers(n, pose, text)
+  )->Result.flatMap(cube =>
     switch Orbit64V2.faultOf(n, model, pose, cube) {
     | Some(why) => Error(why)
     | None => Ok(cube)
     }
   )
-}
 
 @genType
 let fromFacelets = (n, model, pose, facelets) =>
