@@ -183,6 +183,36 @@ describe('Orbit64 V2 facelet reference rows', () => {
 
   // The generator checks this too: every move sequence of a size has one row
   // for each of the two color entries of that size, so a dropped row shows.
+  // Pinned, because dropping both rows of a move sequence keeps the structure
+  // below intact. Change them together with the reference input.
+  it('has the pinned number of rows and move sequences per size', () => {
+    const sequences: Record<number, number> = {
+      2: 32,
+      3: 41,
+      4: 50,
+      5: 59,
+      6: 5,
+      7: 5,
+      8: 4,
+      9: 4,
+      10: 4,
+      11: 4,
+      12: 4,
+      13: 4,
+      14: 4,
+      15: 4,
+    }
+    const seen = new Map<number, Set<string>>()
+    for (const { id, moves } of rows) {
+      const n = orbit64V2Entry(id)?.n ?? 0
+      seen.set(n, (seen.get(n) ?? new Set<string>()).add(moves))
+    }
+    expect(
+      Object.fromEntries([...seen].map(([n, set]) => [n, set.size])),
+    ).toEqual(sequences)
+    expect(rows).toHaveLength(448)
+  })
+
   it('has every move sequence once for each color entry of its size', () => {
     const entriesOf = new Map<number, Set<number>>()
     const bySequence = new Map<string, number[]>()
