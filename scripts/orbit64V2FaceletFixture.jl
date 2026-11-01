@@ -1,15 +1,20 @@
 #!/usr/bin/env julia
 #
-# Writes test/cube/notation/orbit64V2Facelets.json from the Orbit64 V2
+# Writes test/cube/notation/orbit64V2Facelets.json and
+# test/cube/notation/orbit64V2FaceletPictures.json from the Orbit64 V2
 # reference repository (flix-orbit64, Apache-2.0).
 #
 #     julia scripts/orbit64V2FaceletFixture.jl <path to flix-orbit64>
 #
-# It copies the slot tables of FORMAT-V2-SLOTS.md (n = 2..15) and the rows of
-# test/TestV2FaceletData.flix, which tools/format-v2/facelet_vectors.jl
-# generates there. Nothing is computed here. The row count comes from the
-# input. Needs only Julia's standard library; the output is deterministic, and
-# written the way `biome format` leaves it, so regenerating it changes nothing.
+# The first copies the slot tables of FORMAT-V2-SLOTS.md (n = 2..15) and the
+# color rows of test/TestV2FaceletData.flix, which
+# tools/format-v2/facelet_vectors.jl generates there. The second copies the
+# picture rows of test/TestV2FaceletPictureData.flix, which
+# tools/format-v2/facelet_picture_vectors.jl generates there (n = 3..15). Nothing
+# is computed here. Both inputs are checked for dropped, duplicated and
+# unparsed rows, and their row and move sequence counts are pinned below. Needs
+# only Julia's standard library; the output is deterministic, and written the
+# way `biome format` leaves it, so regenerating it changes nothing.
 
 root = length(ARGS) == 1 ? ARGS[1] : error("usage: julia scripts/orbit64V2FaceletFixture.jl <flix-orbit64 dir>")
 read_text(path) = read(joinpath(root, path), String)
@@ -135,6 +140,69 @@ length(rows) == EXPECTED_ROWS || error("TestV2FaceletData.flix: $(length(rows)) 
 sequences_per_size = Dict(n => count(k -> k[1] == n, keys(rows_by_sequence)) for n in keys(ids_by_size))
 sequences_per_size == EXPECTED_SEQUENCES || error("TestV2FaceletData.flix: move sequences per size $(sort(collect(sequences_per_size))), expected $(sort(collect(EXPECTED_SEQUENCES)))")
 
+# ---- test/TestV2FaceletPictureData.flix -----------------------------------------
+#        (4, "1R", "GGCEAQDCN ORBJFBWXL ...",
+#         "Jx4QRAuFTAAAE",
+#         ""),
+# A row is three lines. The empty move text is the solved cube.
+
+const BASE64URL = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_"
+picture_pattern = r"^\s*\((\d+), \"([^\"]*)\", \"([^\"]*)\",\n\s*\"([^\"]*)\",\n\s*\"([^\"]*)\"\),?[ \t]*$"m
+picture_text = read_text("test/TestV2FaceletPictureData.flix")
+picture_tuple_lines = length(collect(eachmatch(r"^\s*\(\d+,"m, picture_text)))
+picture_rows = [Row(parse(Int, m.captures[1]), m.captures[2], m.captures[3], m.captures[4], m.captures[5])
+                for m in eachmatch(picture_pattern, picture_text)]
+isempty(picture_rows) && error("TestV2FaceletPictureData.flix: no rows")
+length(picture_rows) == picture_tuple_lines ||
+    error("TestV2FaceletPictureData.flix: $picture_tuple_lines tuple lines, $(length(picture_rows)) parsed as rows")
+# The same structure as the color rows: a picture entry per pose, each move
+# sequence of a size once for both. The picture entry ids of the registry are
+# 4n - 8 (canonical) and 4n - 7 (framed) for n = 3..15; every size has exactly them.
+picture_sequences = Dict{Tuple{Int,String},Vector{Int}}()
+picture_ids = Dict{Int,Set{Int}}()
+for r in picture_rows
+    cells = length(replace(r.facelets, " " => ""))
+    n = round(Int, sqrt(cells / 6))
+    6n^2 == cells || error("picture row of entry $(r.id): $cells facelets are no cube")
+    all(c -> c == ' ' || occursin(c, BASE64URL), r.facelets * r.canonical) ||
+        error("picture row of entry $(r.id): a character outside the base64url alphabet")
+    all(c -> occursin(c, BASE64URL), r.token) && !isempty(r.token) ||
+        error("picture row of entry $(r.id): token \"$(r.token)\" is not base64url")
+    r.canonical == "" || length(replace(r.canonical, " " => "")) == cells ||
+        error("picture row of entry $(r.id): canonical facelets of another length")
+    r.id in (4n - 8, 4n - 7) || error("picture row of entry $(r.id) at size $n, expected $(4n - 8) or $(4n - 7)")
+    push!(get!(picture_sequences, (n, r.moves), Int[]), r.id)
+    push!(get!(picture_ids, n, Set{Int}()), r.id)
+end
+# A token has the length of its entry, so the rows of one entry agree on it.
+token_lengths = Dict{Int,Set{Int}}()
+for r in picture_rows
+    push!(get!(token_lengths, r.id, Set{Int}()), length(r.token))
+end
+for (id, lengths) in token_lengths
+    length(lengths) == 1 || error("picture rows of entry $id have tokens of lengths $(sort(collect(lengths)))")
+end
+sort(collect(keys(picture_ids))) == collect(3:15) ||
+    error("picture rows for sizes $(sort(collect(keys(picture_ids)))), expected 3:15")
+for (n, ids) in picture_ids
+    ids == Set([4n - 8, 4n - 7]) || error("$(n)x$(n)x$(n): picture rows of entries $(sort(collect(ids))), expected $(4n - 8) and $(4n - 7)")
+end
+for ((n, moves), ids) in picture_sequences
+    sort(ids) == [4n - 8, 4n - 7] ||
+        error("$(n)x$(n)x$(n): picture moves \"$moves\" have rows for entries $(sort(ids)), expected $(4n - 8) and $(4n - 7) once each")
+end
+# Pinned like the color counts: dropping both rows of a move sequence leaves the
+# structure above intact. Change them together with the input.
+const EXPECTED_PICTURE_SEQUENCES = Dict(3 => 41, 4 => 4, 5 => 5, 6 => 4, 7 => 5, 8 => 3,
+    9 => 4, 10 => 3, 11 => 4, 12 => 3, 13 => 4, 14 => 3, 15 => 4)
+const EXPECTED_PICTURE_ROWS = 2 * sum(values(EXPECTED_PICTURE_SEQUENCES))
+EXPECTED_PICTURE_ROWS == 174 || error("the pinned picture counts add up to $EXPECTED_PICTURE_ROWS rows, expected 174")
+length(picture_rows) == EXPECTED_PICTURE_ROWS ||
+    error("TestV2FaceletPictureData.flix: $(length(picture_rows)) rows, expected $EXPECTED_PICTURE_ROWS")
+picture_per_size = Dict(n => count(k -> k[1] == n, keys(picture_sequences)) for n in keys(picture_ids))
+picture_per_size == EXPECTED_PICTURE_SEQUENCES ||
+    error("TestV2FaceletPictureData.flix: move sequences per size $(sort(collect(picture_per_size))), expected $(sort(collect(EXPECTED_PICTURE_SEQUENCES)))")
+
 # ---- JSON ----------------------------------------------------------------------
 
 function quoted(text::AbstractString)
@@ -196,6 +264,20 @@ $row_text
 }
 """
 
-target = joinpath(@__DIR__, "..", "test", "cube", "notation", "orbit64V2Facelets.json")
-write(target, json)
-println("wrote ", length(rows), " rows and the slot tables of ", length(slots), " sizes")
+picture_json = """
+{
+  "source": $(quoted("$source_name: test/TestV2FaceletPictureData.flix (generated there by tools/format-v2/facelet_picture_vectors.jl)")),
+  "generatedBy": "scripts/orbit64V2FaceletFixture.jl. Do not edit.",
+  "rowText": "id: registry entry; moves: layer turns (depth, face, suffix) and whole-cube turns x y z from the solved cube, empty for the solved cube; facelets: what the entry writes for the cube, one base64url symbol per facelet; token: its V2 token; canonical: the reference pose of that cube when the entry's facelets differ from it, else empty.",
+  "rowCount": $(length(picture_rows)),
+  "rows": [
+$(join([row_object(r) for r in picture_rows], ",\n"))
+  ]
+}
+"""
+
+notation = joinpath(@__DIR__, "..", "test", "cube", "notation")
+write(joinpath(notation, "orbit64V2Facelets.json"), json)
+write(joinpath(notation, "orbit64V2FaceletPictures.json"), picture_json)
+println("wrote ", length(rows), " color rows and the slot tables of ", length(slots), " sizes, and ",
+        length(picture_rows), " picture rows")

@@ -1,5 +1,5 @@
 {
-  "source": "flix-orbit64@d7010088fd0d83d52be66672246189ba70705809: FORMAT-V2-SLOTS.md and test/TestV2FaceletData.flix (generated there by tools/format-v2/facelet_vectors.jl)",
+  "source": "flix-orbit64@a046e34adcdc212a69ce3dcc24b2e47b7fabfbe5: FORMAT-V2-SLOTS.md and test/TestV2FaceletData.flix (generated there by tools/format-v2/facelet_vectors.jl)",
   "generatedBy": "scripts/orbit64V2FaceletFixture.jl. Do not edit.",
   "slotText": "Facelets of each slot of an orbit, separated by spaces, slots separated by |, in slot order. Wings are keyed by depth, outermost first.",
   "rowText": "id: registry entry; moves: layer turns (depth, face, suffix) and whole-cube turns x y z from the solved cube; facelets: what the entry writes for the cube; token: its V2 token; canonical: the reference pose of that cube when the entry's facelets differ from it, else empty.",
