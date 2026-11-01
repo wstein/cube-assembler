@@ -175,9 +175,6 @@ let isInt = x =>
   Float.isFinite(Obj.magic(x)) &&
   Math.floor(Obj.magic(x)) == Obj.magic(x)
 
-// A number or whatever a caller passed, as text for a message.
-@val external show: 'a => string = "String"
-
 let validSize = n => isInt(n) && n >= 2 && n <= 15
 
 @genType
@@ -580,7 +577,13 @@ let fromFacelets = (n, model, pose, facelets) =>
 let encodeFacelets = (id, facelets) =>
   try {
     switch Orbit64V2.entryById(id) {
-    | None => Error(`unknown registry entry ${show(id)}`)
+    | None =>
+      // Only a genuine integer is quoted: no caller text, no caller code.
+      Error(
+        isInt(id)
+          ? `unknown registry entry ${Int.toString(id)}`
+          : "the registry entry is not an integer",
+      )
     | Some(entry) =>
       fromFacelets(entry.n, entry.model, entry.pose, facelets)->Result.flatMap(cube =>
         Orbit64V2.encodeOrbit64V2State(id, cube)

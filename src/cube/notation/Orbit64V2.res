@@ -417,7 +417,13 @@ let snapshot = (cube: cube): cube => {
 let encodeOrbit64V2State = (id, cube) =>
   try {
     switch findEntry(id) {
-    | None => Error(`unknown registry entry ${Int.toString(id)}`)
+    | None =>
+      // Only a genuine integer is quoted: no caller text, no caller code.
+      Error(
+        Type.typeof(id) == #number && isInt(id)
+          ? `unknown registry entry ${Int.toString(id)}`
+          : "the registry entry is not an integer",
+      )
     | Some(entry) =>
       rankState(entry.n, entry.model, entry.pose, snapshot(cube))->Result.map(rank =>
         Orbit64.toBase64(entry.offset + rank, entry.length)
