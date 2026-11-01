@@ -125,6 +125,16 @@ for ((n, moves), ids) in rows_by_sequence
 end
 sort(collect(keys(ids_by_size))) == collect(2:15) || error("rows for sizes $(sort(collect(keys(ids_by_size)))), expected 2:15")
 
+# Pinned counts of the reference repository's rows: dropping both rows of a move
+# sequence leaves the structure above intact, so the counts are fixed here and in
+# the test. When the reference adds or removes rows, change them with the input.
+const EXPECTED_SEQUENCES = Dict(2 => 32, 3 => 41, 4 => 50, 5 => 59, 6 => 5, 7 => 5,
+    8 => 4, 9 => 4, 10 => 4, 11 => 4, 12 => 4, 13 => 4, 14 => 4, 15 => 4)
+const EXPECTED_ROWS = 2 * sum(values(EXPECTED_SEQUENCES))
+length(rows) == EXPECTED_ROWS || error("TestV2FaceletData.flix: $(length(rows)) rows, expected $EXPECTED_ROWS")
+sequences_per_size = Dict(n => count(k -> k[1] == n, keys(rows_by_sequence)) for n in keys(ids_by_size))
+sequences_per_size == EXPECTED_SEQUENCES || error("TestV2FaceletData.flix: move sequences per size $(sort(collect(sequences_per_size))), expected $(sort(collect(EXPECTED_SEQUENCES)))")
+
 # ---- JSON ----------------------------------------------------------------------
 
 function quoted(text::AbstractString)
