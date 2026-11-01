@@ -215,10 +215,13 @@ describe('Orbit64 V2 facelet reference rows', () => {
       const entry = orbit64V2Entry(id)
       if (entry === undefined) throw new Error(`${id}`)
       expect(entry.pose, `${id} ${moves}`).toBe('Canonical')
+      const cube = ok(
+        orbit64V2FromFacelets(entry.n, 'Color', 'Canonical', canonical),
+      )
       expect(
         orbit64V2FromFacelets(entry.n, 'Color', 'Canonical', facelets),
         `${id} ${moves}`,
-      ).toEqual(orbit64V2FromFacelets(entry.n, 'Color', 'Canonical', canonical))
+      ).toEqual({ TAG: 'Ok', _0: cube })
     }
   })
 
@@ -298,6 +301,130 @@ describe('Orbit64 V2 facelet reference rows', () => {
         TAG: 'Ok',
         _0: digits,
       })
+    }
+  })
+})
+
+const sizeFault = 'the cube size is not an integer in 2..15'
+
+describe('Orbit64 V2 facelet bridge rejects an invalid pose', () => {
+  const solved3 = solvedFacelets(3)
+  const poses = [
+    'Bogus',
+    'framed',
+    'canonical',
+    '',
+    undefined,
+    null,
+    0,
+    1,
+    {},
+    [],
+  ]
+
+  it('reads no pose but Canonical and Framed', () => {
+    for (const pose of poses) {
+      for (const [n, text] of [
+        [3, solved3],
+        [2, solvedFacelets(2)],
+        [4, solvedFacelets(4)],
+      ] as const) {
+        expect(
+          error(orbit64V2FromFacelets(n, 'Color', pose as Orbit64V2Pose, text)),
+          `${n} ${JSON.stringify(pose)}`,
+        ).toBe('unknown pose')
+      }
+    }
+  })
+
+  it('does not read the 2x2x2 string of an unknown pose as a cube', () => {
+    // As a Bogus pose this used to read as corners [3, 0, 1, 2, 7, 4, 5, 6].
+    expect(
+      error(
+        orbit64V2FromFacelets(
+          2,
+          'Color',
+          'Bogus' as Orbit64V2Pose,
+          'UUUU BBBB RRRR DDDD FFFF LLLL',
+        ),
+      ),
+    ).toBe('unknown pose')
+  })
+
+  it('writes no facelets for an unknown pose', () => {
+    for (const pose of poses) {
+      expect(
+        error(
+          orbit64V2ToFacelets(
+            3,
+            'Color',
+            pose as Orbit64V2Pose,
+            orbit64V2Solved(3, 'Color'),
+          ),
+        ),
+        JSON.stringify(pose),
+      ).toBe('unknown pose')
+    }
+  })
+
+  it('names the size before the model before the pose', () => {
+    const bogus = 'Bogus' as Orbit64V2Pose
+    expect(error(orbit64V2FromFacelets(16, 'Color', bogus, solved3))).toBe(
+      'no V2 type for the 16x16x16',
+    )
+    expect(error(orbit64V2FromFacelets(3, 'Picture', bogus, solved3))).toBe(
+      'the picture model has no letters',
+    )
+  })
+})
+
+describe('Orbit64 V2 facelet bridge rejects a hostile cube size', () => {
+  const solved3 = solvedFacelets(3)
+  const throwing = {
+    toString() {
+      throw new Error('toString')
+    },
+    valueOf() {
+      throw new Error('valueOf')
+    },
+  }
+  const sizes: unknown[] = [
+    Object.create(null),
+    throwing,
+    3n,
+    Symbol('3'),
+    '3',
+    [3],
+    { valueOf: () => 3 },
+    undefined,
+    null,
+    true,
+  ]
+
+  it('has no slot tables, and does not throw', () => {
+    for (const n of sizes) {
+      expect(orbit64V2Slots(n as number), String(typeof n)).toBeUndefined()
+    }
+  })
+
+  it('says the size is not an integer in 2..15, echoing nothing', () => {
+    for (const n of sizes) {
+      const label = typeof n
+      expect(
+        error(orbit64V2FromFacelets(n as number, 'Color', 'Framed', solved3)),
+        label,
+      ).toBe(sizeFault)
+      expect(
+        error(
+          orbit64V2ToFacelets(
+            n as number,
+            'Color',
+            'Framed',
+            orbit64V2Solved(3, 'Color'),
+          ),
+        ),
+        label,
+      ).toBe(sizeFault)
     }
   })
 })
@@ -446,7 +573,8 @@ describe('Orbit64 V2 facelet bridge rejects invalid input', () => {
     expect(read(text, 'Canonical')).toBe(
       'corner pieces are not a permutation of 8',
     )
-    // A 4x4x4 wing doubled: slot 0 shows the wing of slot 20.
+    // A 4x4x4 wing doubled: slot 0 shows the wing of slot 20. The text is the
+    // reference's for any wing orbit that is no permutation, kept for parity.
     const doubled = withFacelet(withFacelet(solvedFacelets(4), 1, 'B'), 82, 'U')
     expect(read(doubled, 'Framed', 4)).toBe(
       'expected 1 wing permutations of 24',
@@ -460,6 +588,14 @@ describe('Orbit64 V2 facelet bridge rejects invalid input', () => {
       .replaceAll('R', 'x')
       .replaceAll('L', 'R')
       .replaceAll('x', 'L')
+    // On a 3x3x3 the fixed centers show the mirror first, in either pose.
+    const mirrored3 = solved3
+      .replaceAll('R', 'x')
+      .replaceAll('L', 'R')
+      .replaceAll('x', 'L')
+    expect(read(mirrored3, 'Framed')).toBe(
+      'the six fixed centers are not a right-handed whole-cube frame',
+    )
     expect(read(mirrored, 'Canonical', 4)).toBe(
       'no whole-cube rotation puts the DBL corner home',
     )
@@ -472,11 +608,17 @@ describe('Orbit64 V2 facelet bridge rejects invalid input', () => {
     expect(error(orbit64V2FromFacelets(3, 'Picture', 'Framed', solved3))).toBe(
       'the picture model has no letters',
     )
-    for (const n of [16, 1, 0, -3, 2.5, Number.NaN]) {
+    for (const n of [16, 1, 0, -3]) {
       expect(
         error(orbit64V2FromFacelets(n, 'Color', 'Framed', solved3)),
         String(n),
-      ).toMatch(/^no V2 type for the /)
+      ).toBe(`no V2 type for the ${n}x${n}x${n}`)
+    }
+    for (const n of [2.5, Number.NaN, Number.POSITIVE_INFINITY]) {
+      expect(
+        error(orbit64V2FromFacelets(n, 'Color', 'Framed', solved3)),
+        String(n),
+      ).toBe(sizeFault)
     }
     expect(error(orbit64V2FromFacelets(16, 'Color', 'Framed', solved3))).toBe(
       'no V2 type for the 16x16x16',

@@ -168,10 +168,12 @@ let tables = n =>
     built
   }
 
-let isInt = x => {
-  let f = Int.toFloat(x)
-  Float.isFinite(f) && Math.floor(f) == f
-}
+// Only a number is looked at: the global isFinite would convert anything else
+// first, and a hostile object or symbol would throw there.
+let isInt = x =>
+  Type.typeof(x) == #number &&
+  Float.isFinite(Obj.magic(x)) &&
+  Math.floor(Obj.magic(x)) == Obj.magic(x)
 
 // A number or whatever a caller passed, as text for a message.
 @val external show: 'a => string = "String"
@@ -352,13 +354,17 @@ let paint = (n, t, cube: Orbit64V2.cube) => {
 }
 
 // Why a type has no facelet letters, if it has none.
-let typeFault = (n, model: Orbit64V2.model) =>
-  if !validSize(n) {
-    Some(`no V2 type for the ${show(n)}x${show(n)}x${show(n)}`)
+let typeFault = (n, model: Orbit64V2.model, pose: Orbit64V2.pose) =>
+  if !isInt(n) {
+    Some("the cube size is not an integer in 2..15")
+  } else if !validSize(n) {
+    Some(`no V2 type for the ${Int.toString(n)}x${Int.toString(n)}x${Int.toString(n)}`)
   } else if model == Picture {
     Some("the picture model has no letters")
   } else if model != Color {
     Some("unknown sticker model")
+  } else if pose != Canonical && pose != Framed {
+    Some("unknown pose")
   } else {
     None
   }
@@ -373,7 +379,7 @@ let spell = (n, fs) =>
 @genType
 let toFacelets = (n, model, pose, cube) =>
   try {
-    switch typeFault(n, model) {
+    switch typeFault(n, model, pose) {
     | Some(why) => Error(why)
     | None =>
       let cube = Orbit64V2.snapshot(cube)
@@ -392,7 +398,8 @@ let toFacelets = (n, model, pose, cube) =>
 
 @val external codePoints: string => array<string> = "Array.from"
 
-// The face index of a facelet letter; a tab or newline is a bad letter like any other.
+// The face index of a facelet letter (a whole code point is quoted, where the
+// reference quotes a UTF-16 unit); a tab or newline is a bad letter like any other.
 let letterIndex = letter =>
   switch faceIndex(letter) {
   | -1 => Error(`facelet '${letter}' is not one of U R F D L B`)
@@ -556,7 +563,7 @@ let readStickers = (n, model, pose, text) => {
 @genType
 let fromFacelets = (n, model, pose, facelets) =>
   try {
-    switch typeFault(n, model) {
+    switch typeFault(n, model, pose) {
     | Some(why) => Error(why)
     | None =>
       Type.typeof(facelets) == #string
