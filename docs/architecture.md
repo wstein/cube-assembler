@@ -107,8 +107,9 @@ has no picture entry) writes one base64url symbol per facelet, the sticker's
 index within its class, so a picture string is as long as a color string. Both
 read in the validation order of `FORMAT-V2.md` and give the reference's reason.
 A cube handed to the bridge is copied once, by index, before it is checked, and
-a string is walked once, so hostile arrays, getters and huge strings cost
-bounded work and cannot change between the check and the write. The fixtures
+a string is walked once, so hostile arrays and getters cost bounded work, a
+huge string costs linear time but no memory beyond the symbols of one cube,
+and nothing can change between the check and the write. The fixtures
 `test/cube/notation/orbit64V2Facelets.json` (the slot tables of
 `FORMAT-V2-SLOTS.md` and the color rows of `TestV2FaceletData.flix`) and
 `test/cube/notation/orbit64V2FaceletPictures.json` (the picture rows of
