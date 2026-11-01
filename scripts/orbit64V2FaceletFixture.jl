@@ -14,7 +14,10 @@
 root = length(ARGS) == 1 ? ARGS[1] : error("usage: julia scripts/orbit64V2FaceletFixture.jl <flix-orbit64 dir>")
 read_text(path) = read(joinpath(root, path), String)
 
-revision = strip(read(`git -C $root rev-parse --short HEAD`, String))
+revision = strip(read(`git -C $root rev-parse HEAD`, String))
+# A tree with uncommitted changes is not the commit it names; the fixture says so.
+dirty = !isempty(strip(read(`git -C $root status --porcelain`, String)))
+source_name = dirty ? "flix-orbit64@$revision (uncommitted changes)" : "flix-orbit64@$revision"
 
 # ---- FORMAT-V2-SLOTS.md --------------------------------------------------------
 #   ## 5x5x5
@@ -60,6 +63,8 @@ function parse_slots(text::String)
             kind == :midges && push!(current.midges, facelets)
             kind == :wings && push!(current.wings[end], facelets)
             kind == :centers && push!(current.centers, facelets)
+        elseif startswith(line, "  ") && !isempty(strip(line))
+            error("unparsed slot line: $line")
         end
     end
     sizes
@@ -71,6 +76,8 @@ for (n, s) in slots
     length(s.corners) == 8 || error("$(n)x$(n)x$(n): $(length(s.corners)) corners")
     length(s.midges) == (isodd(n) ? 12 : 0) || error("$(n)x$(n)x$(n): $(length(s.midges)) midges")
     length(s.wings) == (n - 2) ÷ 2 || error("$(n)x$(n)x$(n): $(length(s.wings)) wing depths")
+    length(s.centers) == ((n - 2)^2) ÷ 4 || error("$(n)x$(n)x$(n): $(length(s.centers)) center orbits")
+    all(c -> length(split(c)) == 24, s.centers) || error("$(n)x$(n)x$(n): a center orbit without 24 slots")
     all(w -> length(w) == 24, s.wings) || error("$(n)x$(n)x$(n): a wing depth without 24 slots")
 end
 
@@ -87,12 +94,16 @@ end
 
 row_pattern = r"^\s*\((\d+), \"([^\"]*)\", \"([^\"]*)\", \"([^\"]*)\", \"([^\"]*)\"\),?\s*$"
 rows = Row[]
+tuple_lines = 0
 for line in split(read_text("test/TestV2FaceletData.flix"), '\n')
+    # A line that starts a tuple must be a row; the count is checked below.
+    occursin(r"^\s*\(\d+,", line) && (global tuple_lines += 1)
     m = match(row_pattern, line)
     m === nothing && continue
     push!(rows, Row(parse(Int, m.captures[1]), m.captures[2], m.captures[3], m.captures[4], m.captures[5]))
 end
 isempty(rows) && error("TestV2FaceletData.flix: no rows")
+length(rows) == tuple_lines || error("TestV2FaceletData.flix: $tuple_lines tuple lines, $(length(rows)) parsed as rows")
 
 # ---- JSON ----------------------------------------------------------------------
 
@@ -141,7 +152,7 @@ row_text = join([row_object(r) for r in rows], ",\n")
 
 json = """
 {
-  "source": $(quoted("flix-orbit64@$revision: FORMAT-V2-SLOTS.md and test/TestV2FaceletData.flix (generated there by tools/format-v2/facelet_vectors.jl)")),
+  "source": $(quoted("$source_name: FORMAT-V2-SLOTS.md and test/TestV2FaceletData.flix (generated there by tools/format-v2/facelet_vectors.jl)")),
   "generatedBy": "scripts/orbit64V2FaceletFixture.jl. Do not edit.",
   "slotText": "Facelets of each slot of an orbit, separated by spaces, slots separated by |, in slot order. Wings are keyed by depth, outermost first.",
   "rowText": "id: registry entry; moves: layer turns (depth, face, suffix) and whole-cube turns x y z from the solved cube; facelets: what the entry writes for the cube; token: its V2 token; canonical: the reference pose of that cube when the entry's facelets differ from it, else empty.",
