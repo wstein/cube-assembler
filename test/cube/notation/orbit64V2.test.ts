@@ -730,4 +730,82 @@ describe('Orbit64 V2 hardening', () => {
     reads = 0
     expect(encodeOrbit64V2State(2, arrays as Orbit64V2Cube).TAG).toBe('Ok')
   })
+
+  it('keeps only primitive numbers and runs no caller code on them', () => {
+    const solved = orbit64V2Solved(3, 'Color')
+    const ran: string[] = []
+    const trick = {
+      valueOf() {
+        ran.push('valueOf')
+        return 0
+      },
+      toString() {
+        ran.push('toString')
+        return '0'
+      },
+    }
+    for (const bad of [trick, new Number(0), 0n, '0', null, Number.NaN, [0]]) {
+      const twists = [...solved.cornerTwists]
+      twists[0] = bad as number
+      const reason = (cube: unknown) => {
+        const result = encodeOrbit64V2State(3, cube as Orbit64V2Cube)
+        return result.TAG === 'Error' ? result._0 : 'accepted'
+      }
+      expect(reason({ ...solved, cornerTwists: twists }), typeof bad).toBe(
+        'corner twists must be 8 values in 0..2',
+      )
+      expect(reason({ ...solved, frame: bad }), typeof bad).toBe(
+        'frame must be 0..23 on odd framed cubes and 0 otherwise',
+      )
+    }
+    expect(ran).toEqual([])
+  })
+
+  it('does bounded work for a hostile length and reads it once', () => {
+    const solved = orbit64V2Solved(3, 'Color')
+    const started = Date.now()
+    for (const length of [1e6, 2 ** 31, 2 ** 53, Number.MAX_VALUE, 65, 1e9]) {
+      const huge = new Proxy(solved.cornerPieces, {
+        get(target, key, receiver) {
+          return key === 'length'
+            ? length
+            : (Reflect.get(target, key, receiver) as unknown)
+        },
+      })
+      const result = encodeOrbit64V2State(3, { ...solved, cornerPieces: huge })
+      expect(result, String(length)).toEqual({
+        TAG: 'Error',
+        _0: 'corner pieces are not a permutation of 8',
+      })
+    }
+    // A length that is no non-negative integer is not an array's length.
+    for (const length of ['8', 8n, Number.NaN, -1, 2.5, Symbol('8'), {}]) {
+      const odd = new Proxy(solved.cornerPieces, {
+        get(target, key, receiver) {
+          return key === 'length'
+            ? length
+            : (Reflect.get(target, key, receiver) as unknown)
+        },
+      })
+      expect(
+        encodeOrbit64V2State(3, { ...solved, cornerPieces: odd }),
+        String(typeof length),
+      ).toEqual({
+        TAG: 'Error',
+        _0: 'corner pieces are not a permutation of 8',
+      })
+    }
+    let reads = 0
+    const shrinking = new Proxy(solved.cornerPieces, {
+      get(target, key, receiver) {
+        if (key === 'length') return ++reads === 1 ? 8 : 3
+        return Reflect.get(target, key, receiver) as unknown
+      },
+    })
+    expect(
+      encodeOrbit64V2State(3, { ...solved, cornerPieces: shrinking }),
+    ).toEqual(encodeOrbit64V2State(3, solved))
+    expect(reads).toBe(1)
+    expect(Date.now() - started).toBeLessThan(2000)
+  })
 })
