@@ -392,10 +392,31 @@ let unrankState = (n, model, pose, value) => {
 
 let notAV2Token = "not a known V2 state token"
 
+// No array of a cube has more than 42 entries (the center orbits of a 15x15x15).
+// A longer one is read only up to this many entries plus one: it is no state
+// either way, and a hostile length costs no time or memory.
+let maxEntries = 64
+
 // A copy of the arrays and numbers of a cube, read once and by index, so that
 // holes become undefined (and fail validation) and a getter cannot answer
-// differently between validation and ranking.
-let readArray = values => Array.fromInitializer(~length=Array.length(values), i => values->get(i))
+// differently between validation and ranking. The length is read once and only
+// a non-negative integer counts: anything else (an object with a valueOf, NaN,
+// no length at all) reads as one undefined entry, which fits no layout. Only a
+// primitive number is kept as a number: any other entry (an object whose
+// valueOf answers differently each time, a Number object, a bigint) becomes
+// undefined, so the copy is plain data and no caller code runs on it.
+let readEntries = (values, entry) => {
+  let length = Array.length(values)
+  // isInt alone would convert a bigint or symbol (and throw), so look at the type first.
+  let size =
+    Type.typeof(length) == #number && isInt(length) && length >= 0
+      ? Math.Int.min(length, maxEntries + 1)
+      : 1
+  Array.fromInitializer(~length=size, i => entry(values->get(i)))
+}
+
+let primitive = (x: int): int => Type.typeof(x) == #number ? x : Obj.magic(undefined)
+let readArray = values => readEntries(values, primitive)
 
 let snapshot = (cube: cube): cube => {
   let {cornerPieces, cornerTwists, midgePieces, midgeFlips, wings, centers, rotations, frame} = cube
@@ -404,10 +425,10 @@ let snapshot = (cube: cube): cube => {
     cornerTwists: readArray(cornerTwists),
     midgePieces: readArray(midgePieces),
     midgeFlips: readArray(midgeFlips),
-    wings: readArray(wings)->Array.map(readArray),
-    centers: readArray(centers)->Array.map(readArray),
+    wings: readEntries(wings, readArray),
+    centers: readEntries(centers, readArray),
     rotations: readArray(rotations),
-    frame,
+    frame: primitive(frame),
   }
 }
 
