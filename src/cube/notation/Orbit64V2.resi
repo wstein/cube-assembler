@@ -50,3 +50,9 @@ type decoded = {entry: entry, cube: cube}
 
 // The registry entry and state a token addresses, or why it addresses none.
 @genType let decodeOrbit64V2State: string => result<decoded, string>
+
+// For the facelet bridge (Orbit64V2Facelets.res): a copy of a cube read once
+// and by index, and why a cube is no state of the type, if it is none. The
+// fault is the reason `encodeOrbit64V2State` gives; `faultOf` needs a snapshot.
+let snapshot: cube => cube
+let faultOf: (int, model, pose, cube) => option<string>
