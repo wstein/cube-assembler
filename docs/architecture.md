@@ -100,10 +100,19 @@ cross-project vectors in `test/cube/notation/orbit64Vectors.json` and
 The Orbit64 V2 state codec for 2x2-15x15 cubes
 ([`Orbit64V2.res`](../src/cube/notation/Orbit64V2.res)) works on orbit
 coordinates. [`Orbit64V2Facelets.res`](../src/cube/notation/Orbit64V2Facelets.res)
-is its facelet bridge for the color model, both poses: slot tables, cube to
-facelets and back, and token to facelets and back, with every failure an error
-value. The picture model has no facelet letters and is an error there. Its
-fixture `test/cube/notation/orbit64V2Facelets.json` (the slot tables of
-`FORMAT-V2-SLOTS.md` and the facelet rows of `TestV2FaceletData.flix`) is written
-by `julia scripts/orbit64V2FaceletFixture.jl <flix-orbit64 dir>` and
-regenerates byte for byte.
+is its facelet bridge, both poses: slot tables, cube to facelets and back, and
+token to facelets and back, with every failure an error value. The color model
+writes the letters `U R F D L B`. The picture model (3x3x3 and up; the 2x2x2
+has no picture entry) writes one base64url symbol per facelet, the sticker's
+index within its class, so a picture string is as long as a color string. Both
+read in the validation order of `FORMAT-V2.md` and give the reference's reason.
+A cube handed to the bridge is copied once, by index, before it is checked, and
+a string is walked once, so hostile arrays, getters and huge strings cost
+bounded work and cannot change between the check and the write. The fixtures
+`test/cube/notation/orbit64V2Facelets.json` (the slot tables of
+`FORMAT-V2-SLOTS.md` and the color rows of `TestV2FaceletData.flix`) and
+`test/cube/notation/orbit64V2FaceletPictures.json` (the picture rows of
+`TestV2FaceletPictureData.flix`) are written by
+`julia scripts/orbit64V2FaceletFixture.jl <flix-orbit64 dir>`, which checks the
+reference rows for dropped, duplicated and unparsed entries and regenerates both
+files byte for byte.
