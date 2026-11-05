@@ -56,8 +56,13 @@ The live analysis effect clears auto-capture progress when its settings change. 
 [PuzlWerk already exists](https://github.com/wstein/puzlwerk). Its target ownership
 is the shared ReScript cube mechanics, state model, coordinates, cubie/sticker
 identity, orientation/symmetry semantics, notation/codecs and reusable solver
-integration; its viewer boundary uses TypeScript. This does not mean a package
-is released or CubeAssembler already consumes it. See
+integration. The shared viewer is the separate package `@puzlwerk/viewer` in the
+PuzlWerk monorepo: scene (camera, lighting, cube rotation) and rendering without
+application knowledge, with the CubeScene model as its contract
+([Cubistry #111](https://github.com/wstein/cubistry/issues/111)). Dependencies
+point from core to viewer to applications. This is the target architecture, not a
+migration approval, and it does not mean a package is released or CubeAssembler
+already consumes it. See
 [Cubistry #21](https://github.com/wstein/cubistry/issues/21),
 [local tracking #29](https://github.com/wstein/cube-assembler/issues/29),
 [PuzlWerk #5](https://github.com/wstein/puzlwerk/issues/5) and
@@ -73,15 +78,19 @@ for PuzlWerk #6 (3×3 Supercube center orientation); that issue stays open until
 its owner closes it. This pilot is not permission to migrate the entire
 CubeAssembler or CubeLab applications. Cubistry #21 still records CubeAssembler M2 before
 CubeLab M3; how the new 3×3 pilot is prioritized against those migrations
-remains a human decision, not an implicit supersession.
+remains a human decision, not an implicit supersession. CubeLab keeps its own
+native WebGL viewport until M3 is approved separately.
 Each implementation/migration phase needs explicit human approval.
 
 CubeAssembler remains the independent scanning/assembly application. Preserve
 its capture, color review, profiles, assembly, UI, renderer and existing
 2×2–7×7 behavior/tests until an approved replacement and migration plan exist.
 Necessary fixes remain allowed in their authorized scope. Before expanding
-reusable cube or viewer primitives, check PuzlWerk ownership and track the
-shared change rather than building a second permanent engine. Do not silently
+reusable cube mechanics, check PuzlWerk ownership and track the shared change
+rather than building a second permanent engine. Before extending reusable viewer
+primitives, check `@puzlwerk/viewer` and track the shared change rather than
+building a second permanent rendering engine; the existing viewer code stays in
+this repository until M2 is approved separately. Do not silently
 move code, add unapproved dependencies or delete working functionality.
 
 Cubacle remains a separate optional Rust solver provider, not Rust code inside
