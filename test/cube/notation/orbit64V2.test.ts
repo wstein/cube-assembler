@@ -761,6 +761,84 @@ describe('Orbit64 V2 hardening', () => {
     expect(ran).toEqual([])
   })
 
+  it('stateCount and solved run no caller code and do bounded work', () => {
+    const marker = 'MARKER_SECRET_5f3a'
+    let ran = 0
+    const hostile = {
+      valueOf() {
+        ran++
+        throw new Error(marker)
+      },
+      toString() {
+        ran++
+        throw new Error(marker)
+      },
+    }
+    const counting = {
+      valueOf() {
+        ran++
+        return 3
+      },
+    }
+    const started = Date.now()
+    const bad: unknown[] = [
+      hostile,
+      counting,
+      1.5,
+      1,
+      16,
+      -1,
+      1e9,
+      Number.NaN,
+      3n,
+      '3',
+      null,
+      undefined,
+      Symbol('3'),
+    ]
+    for (const n of bad) {
+      const message = (call: () => unknown) => {
+        try {
+          call()
+        } catch (error) {
+          return (error as Error).message
+        }
+        return undefined
+      }
+      const asAny = n as number
+      for (const text of [
+        message(() => orbit64V2StateCount(asAny, 'Color', 'Canonical')),
+        message(() => orbit64V2Solved(asAny, 'Color')),
+      ]) {
+        expect(text, String(typeof n)).toBe('not a V2 cube type')
+        expect(text).not.toContain(marker)
+      }
+    }
+    for (const [model, pose] of [
+      [hostile, 'Canonical'],
+      ['Color', hostile],
+      ['color', 'Canonical'],
+      ['Color', 'framed'],
+    ] as const) {
+      expect(() =>
+        orbit64V2StateCount(
+          3,
+          model as unknown as 'Color',
+          pose as 'Canonical',
+        ),
+      ).toThrow('not a V2 cube type')
+    }
+    expect(() => orbit64V2Solved(3, hostile as unknown as 'Color')).toThrow(
+      'not a V2 cube type',
+    )
+    expect(ran).toBe(0)
+    expect(Date.now() - started).toBeLessThan(1000)
+    // A valid type is unchanged.
+    expect(orbit64V2StateCount(3, 'Color', 'Canonical')).toBe(
+      43252003274489856000n,
+    )
+  })
+
   it('does bounded work for a hostile length and reads it once', () => {
     const solved = orbit64V2Solved(3, 'Color')
     const started = Date.now()
