@@ -19,7 +19,8 @@ type entry = {
 // lengths and offsets computed by the allocation rule.
 @genType let entries: array<entry>
 @genType let entryById: int => option<entry>
-// The number of states of a type.
+// The number of states of a type. A size outside 2..15, or a model or pose that
+// is none, throws an Error with the fixed message "not a V2 cube type".
 @genType let stateCount: (int, model, pose) => bigint
 
 // Orbit coordinates of one cube in the slot convention of V1. Components a
@@ -43,6 +44,7 @@ type cube = {
 type decoded = {entry: entry, cube: cube}
 
 // The solved state of a cube of size n and sticker model: every digit is zero.
+// An invalid size or model throws like `stateCount`.
 @genType let solved: (int, model) => cube
 
 // The token of a state of the registry entry `id`, or why it has none.

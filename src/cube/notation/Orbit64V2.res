@@ -132,8 +132,28 @@ let findEntry = id => registry->Array.find(entry => entry.id == id)
 @genType
 let entryById = id => findEntry(id)->Option.map(copyEntry)
 
+// A size, model or pose from a caller is looked at only after its type: a
+// number is tested as a number, anything else is compared by identity. No
+// caller code runs (no valueOf, no toString) and no caller text is quoted.
+let notAType = "not a V2 cube type"
+let validSize = (n: int) => {
+  let value: float = Obj.magic(n)
+  Type.typeof(n) == #number &&
+  Float.isFinite(value) &&
+  Math.floor(value) == value &&
+  n >= 2 &&
+  n <= 15
+}
+let validType = (n, model, pose) =>
+  validSize(n) && (model == Color || model == Picture) && (pose == Canonical || pose == Framed)
+
+// The number of states of a type. A size outside 2..15, or a model or pose
+// that is none, throws an Error with a fixed message.
 @genType
-let stateCount = (n, model, pose) => countOf(n, model, pose)
+let stateCount = (n, model, pose) => {
+  validType(n, model, pose) ? () : JsError.throwWithMessage(notAType)
+  countOf(n, model, pose)
+}
 
 // Orbit coordinates of one cube in the slot convention of V1. Components a
 // type lacks are empty. The caller normalizes the pose first: fixed centers of
@@ -164,6 +184,7 @@ let positiveMod = (x, m) => mod(mod(x, m) + m, m)
 // by color, four slots each.
 @genType
 let solved = (n, model) => {
+  validType(n, model, Canonical) ? () : JsError.throwWithMessage(notAType)
   let identity = count => range(count)
   {
     cornerPieces: identity(8),
