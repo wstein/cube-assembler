@@ -785,6 +785,7 @@ describe('Orbit64 V2 hardening', () => {
       hostile,
       counting,
       1.5,
+      2.5,
       1,
       16,
       -1,
