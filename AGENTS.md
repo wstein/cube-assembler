@@ -74,10 +74,12 @@ A separately approved, bounded 3×3 picture/calendar pilot has merged
 (CubeLab #27, PuzlWerk #21, Cubistry #70). PuzlWerk #21 implemented the pilot
 for PuzlWerk #6 (3×3 Supercube center orientation); that issue stays open until
 its owner closes it. This pilot is not permission to migrate the entire
-CubeAssembler or CubeLab applications. Cubistry #21 still records CubeAssembler M2 before
-CubeLab M3; how the new 3×3 pilot is prioritized against those migrations
-remains a human decision, not an implicit supersession. CubeLab keeps its own
-native WebGL viewport until M3 is approved separately.
+CubeAssembler or CubeLab applications. [Cubistry #21](https://github.com/wstein/cubistry/issues/21)
+requires full 2×2 Counter M1 acceptance before separately approved CubeAssembler
+M2, then separately approved CubeLab M3. The already merged bounded 3×3 pilot
+does not authorize further 3×3 work or new solver development during M1,
+or change this sequence. CubeLab keeps its own native WebGL viewport until M3
+is approved separately.
 Each implementation/migration phase needs explicit human approval.
 
 CubeAssembler remains the independent scanning/assembly application. Preserve
