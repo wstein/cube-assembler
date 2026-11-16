@@ -41,6 +41,7 @@ interface CubeView3DPresentationProps {
   isRotating: boolean
   onToggleAutoRotate: () => void
   // Whether a drag turns a layer; off, a drag only orbits the view.
+  allowLayerMoves?: boolean
   layerMoves: boolean
   onToggleLayerMoves: () => void
   // Shown briefly after a drag on a sticker while layer moves are locked.
@@ -74,6 +75,7 @@ export function CubeView3DPresentation({
   onToggleStickerless,
   isRotating,
   onToggleAutoRotate,
+  allowLayerMoves = true,
   layerMoves,
   onToggleLayerMoves,
   lockedHint,
@@ -235,6 +237,7 @@ export function CubeView3DPresentation({
                 <button
                   type="button"
                   class={`cube-3d-btn ${isScrambling ? 'cube-3d-btn-active' : ''}`}
+                  disabled={!allowLayerMoves}
                   onClick={toggleScramble}
                   title={isScrambling ? 'Stop scramble' : 'Scramble cube'}
                 >
@@ -243,6 +246,7 @@ export function CubeView3DPresentation({
                 <button
                   type="button"
                   class="cube-3d-btn"
+                  disabled={!allowLayerMoves}
                   onClick={randomState}
                   title="Mix the cube at once into a random valid state"
                 >
@@ -309,6 +313,7 @@ export function CubeView3DPresentation({
               <button
                 type="button"
                 class={`cube-3d-btn ${layerMoves ? 'cube-3d-btn-active' : ''}`}
+                disabled={!allowLayerMoves}
                 aria-pressed={layerMoves}
                 onClick={onToggleLayerMoves}
               >

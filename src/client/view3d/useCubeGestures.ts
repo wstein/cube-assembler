@@ -48,6 +48,7 @@ type Turns = ReturnType<typeof useCubeTurns>
 
 interface CubeGesturesOptions {
   canvasRef: RefObject<HTMLCanvasElement | null>
+  allowLayerMoves?: boolean
   puzzleSize: number
   camera: Pick<
     Camera,
@@ -81,6 +82,7 @@ interface CubeGesturesOptions {
 export function useCubeGestures({
   canvasRef,
   puzzleSize,
+  allowLayerMoves = true,
   camera: {
     isDraggingRef,
     resumeAutoAtRef,
@@ -221,6 +223,7 @@ export function useCubeGestures({
 
   // Where two fingers meet, over the cube if they are, while no turn plays.
   const cubeUnder = (clientX: number, clientY: number) => {
+    if (!allowLayerMoves) return null
     const rect = canvasRef.current?.getBoundingClientRect()
     return rect && !busy()
       ? pickCubeSurface(
@@ -285,7 +288,7 @@ export function useCubeGestures({
             gestureCamera(rect),
           )
         : null
-    const layerMoves = layerMovesOn(document.cookie)
+    const layerMoves = allowLayerMoves && layerMovesOn(document.cookie)
     const hit =
       rect && surface && layerMoves
         ? pickStickerSurface(
@@ -538,7 +541,7 @@ export function useCubeGestures({
   } | null>(null)
 
   const handleCubeWheel = (e: WheelEvent) => {
-    if (wheelGesture(e) !== 'tilt') {
+    if (!allowLayerMoves || wheelGesture(e) !== 'tilt') {
       handleViewWheel(e)
       return
     }

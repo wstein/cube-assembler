@@ -21,6 +21,7 @@ import { createCubeViewControls } from './cubeViewControls'
 import { DEFAULT_STICKER_HEX, type CubeTurn } from './cubeView3DState'
 
 export interface CubeView3DProps {
+  allowLayerMoves?: boolean
   cube: CubeState
   initialCube?: CubeState
   initialMoves?: CubeTurn[]
@@ -39,6 +40,7 @@ export interface CubeView3DProps {
 const LOCKED_HINT_VISIBLE_MS = 2500
 
 export function CubeView3D({
+  allowLayerMoves = true,
   cube,
   initialCube = cube,
   initialMoves = [],
@@ -177,6 +179,7 @@ export function CubeView3D({
   } = useCubeGestures({
     canvasRef,
     puzzleSize,
+    allowLayerMoves,
     camera: {
       isDraggingRef,
       resumeAutoAtRef,
@@ -209,8 +212,8 @@ export function CubeView3D({
       setPreset={setPreset}
       resetView={resetView}
       isScrambling={isScrambling}
-      toggleScramble={toggleScramble}
-      randomState={randomState}
+      toggleScramble={allowLayerMoves ? toggleScramble : () => {}}
+      randomState={allowLayerMoves ? randomState : () => {}}
       undoLastTurn={undoLastTurn}
       moves={moves}
       isTurning={isTurning}
@@ -221,9 +224,12 @@ export function CubeView3D({
       onToggleStickerless={() => setIsStickerless((value) => !value)}
       isRotating={isRotating}
       onToggleAutoRotate={toggleAutoRotate}
-      layerMoves={layerMoves}
+      allowLayerMoves={allowLayerMoves}
+      layerMoves={allowLayerMoves && layerMoves}
       lockedHint={lockedHint && !layerMoves}
-      onToggleLayerMoves={() => setLayerMoves((value) => !value)}
+      onToggleLayerMoves={() =>
+        allowLayerMoves && setLayerMoves((value) => !value)
+      }
     />
   )
 }
