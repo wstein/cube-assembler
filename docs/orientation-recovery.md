@@ -6,9 +6,37 @@ editor independently of the number of retained search candidates. **Check the
 colors** remains a different action; correction never requires opening a camera.
 The same editor can be reopened after closing the approval dialog.
 
+## Spatial candidate workflow
+
+The primary recovery screen keeps six recognized color grids in an unfolded net
+beside the existing interactive 3D viewer. The spatial pane stays visible while
+candidate choices, validation, and advanced controls scroll separately. Outlines
+identify the current face and its four neighbors without replacing sticker colors.
+Camera orbit and zoom change the view only.
+
+Candidates start with the first captured front photo, then follow capture-slot
+order. Resolved choices are skipped. Choosing a colored grid previews it in both
+views; **Next** records that answer. **Back** keeps the draft and exposes the
+earlier alternatives using prefix constraints. Changing an earlier answer retains
+compatible later answers and reports incompatible ones that need another answer.
+
+Hover, keyboard focus, or tap on a net face opens its explicitly linked source
+photo. **Correct detected colors** opens the existing color editor for that source
+photo only. Returning preserves the other five faces, mapping, pose, and answers.
+These color corrections remain part of the assembly draft: outer **Cancel changes**
+discards them; outer **Confirm face mapping** applies them with the mapping.
+Closing keeps the draft. The original JPEG and `detectedColors` remain provenance.
+
+**Advanced manual orientation / assignment recovery** contains direct rotations
+and assignments when the retained candidates do not include the physical cube.
+The candidate set comes from the existing guided or free assembly solver and
+existing validation; it is not a new solver. The UI reports capping, equivalence
+reduction, inferred identity for symmetric grids, and incomplete large-cube checks.
+A retained count is never presented as the number of all possible arrangements.
+
 ## Three separate records
 
-- Original photos, capture-slot grids, and detected colors remain unchanged.
+- Original photos and detected-color provenance remain unchanged by rotation or assignment. Explicit color correction changes only the selected source photo’s reviewed `colors` grid.
 - The editable mapping assigns each source photo to U/R/F/D/L/B with its own
   clockwise quarter-turn count. Edits are not restricted to solver alternatives.
 - The assembled logical cube is validated using the repository's existing
@@ -20,7 +48,7 @@ an explanation instead of an automatic reassignment. Even cubes allow six
 independent assignment selectors. Duplicate targets are allowed while editing,
 but confirmation requires a bijection and passing available checks.
 
-Use −90°, +90°, or 180° for each photograph. Native buttons and selects work with
+In Advanced recovery, use −90°, +90°, or 180° for each photograph. Native buttons and selects work with
 keyboard and touch; their names include the source photo, target face, and turn.
 Undo reverses one edit. Reset restores the editor's initial draft. Closing or
 Escape keeps the draft; **Cancel changes** rolls it back without changing the
@@ -102,12 +130,25 @@ including duplicate drafts and whole-face reassignment. Unit tests cover all 24
 presentation frames and inverse turn mapping. Live owner acceptance remains
 separate from automated evidence.
 
+## Manual acceptance checklist
+
+- Import `orientation-recovery-7x7.zip`; reject the suggestion without a camera.
+- At desktop and touch widths, inspect all six net grids and the live 3D cube.
+- Pick a first-front candidate, use Next and Back, and change the earlier answer.
+- Inspect each original with hover/focus/tap; verify photo identity after assignment.
+- Correct one face’s detected colors and return; cancel the assembly to discard it.
+- Use Advanced rotation/assignment, Undo, Reset, and explicit front/top confirmation.
+- Export/reimport a confirmed mapping and verify the exact selected source photos.
+- Check invalid drafts and omitted candidates remain recoverable without recapture.
+
+Browser tests supplement this checklist. Owner mouse/touch acceptance is separate.
+
 ## Interface comparison
 
-Before, a valid suggestion provided only color review when rejected:
+The previous primary recovery screen required scrolling past six raw photos:
 
-![Before: approval without independent orientation recovery](screenshots/orientation-before.png)
+![Before: six-photo recovery layout](screenshots/orientation-spatial-before.png)
 
-The editor exposes the six source photographs and explicit correction controls:
+The spatial workflow keeps the recognized net beside the production 3D viewer:
 
-![After: source-photo orientation and assignment editor](screenshots/orientation-after.png)
+![After: persistent recognized net and 3D candidate workflow](screenshots/orientation-spatial-after.png)
