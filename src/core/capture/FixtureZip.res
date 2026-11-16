@@ -312,7 +312,9 @@ let summarizeMeta = (meta: JSON.t) => {
   }
   rows->Array.push((
     "Capture",
-    sourceProtocol->Null.toOption == Some(CaptureSteps.guidedProtocol)
+    sourceProtocol->Null.toOption->Option.mapOr(false, GuidedCaptureProtocol.isCurrentProtocol)
+      ? "guided (4 numbered sides, then up and down)"
+      : sourceProtocol->Null.toOption == Some(GuidedCaptureProtocol.physicalProtocol)
       ? "guided (4 sides, then bottom and top)"
       : sourceProtocol->Null.toOption == Some(CaptureSteps.legacyGuidedProtocol)
       ? "guided (4 sides, then top and bottom)"

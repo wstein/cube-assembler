@@ -18,8 +18,8 @@ describe('capture steps', () => {
       CAPTURE_STEPS.map((step) => step.label),
     )
     expect(FACE_SHORT_LABEL.D).toBe('4')
-    expect(FACE_DISPLAY_LABEL.B).toBe('Top')
-    expect(FACE_DISPLAY_LABEL.L).toBe('Bottom')
+    expect(FACE_DISPLAY_LABEL.B).toBe('Down')
+    expect(FACE_DISPLAY_LABEL.L).toBe('Up')
   })
 
   it('gives the same instruction with or without Mirror', () => {

@@ -24,9 +24,21 @@ import {
 import { captureFrame } from '../src/client/capture/captureFaceMapping'
 import {
   readRecovery,
-  recordGuide,
+  recordGuide as recordCurrentGuide,
 } from '../src/client/capture/captureRecovery'
 import { readFixtureColors } from '../src/client/fixtures/fixtureFormat'
+// Historical v2 observations are explicit; the current camera now records v3.
+const recordV2Guide = (slot: string, mirrored: boolean, retake: boolean) => {
+  const guide = recordCurrentGuide(slot, mirrored, retake)
+  return (
+    guide && {
+      ...guide,
+      protocol: retake ? guide.protocol : physicalProtocol,
+      displayedArrow:
+        retake || guide.step === 0 ? null : guide.step < 4 ? 270 : 0,
+    }
+  )
+}
 const slots = ['U', 'R', 'F', 'D', 'L', 'B']
 const sourceFaces = ['F', 'R', 'B', 'L', 'D', 'U'] as const
 function photograph(initial: Faces): Record<string, string[][]> {
@@ -84,7 +96,7 @@ for (const size of [2, 3, 4, 5, 6, 7])
       const photos = photograph(original)
       const before = JSON.stringify(photos)
       for (const slot of slots) {
-        const observation = recordGuide(slot, mirrored, false)!
+        const observation = recordV2Guide(slot, mirrored, false)!
         expect(observation.protocol).toBe(physicalProtocol)
         expect(observation.mirrored).toBe(mirrored)
       }
@@ -128,7 +140,7 @@ it('requires six consistent original shot records before recognizing physical v2
         colors: [['W']],
         confidence: 1,
         timestamp: 0,
-        captureGuide: recordGuide(slot, false, false)!,
+        captureGuide: recordV2Guide(slot, false, false)!,
       },
     ]),
   )
@@ -137,7 +149,7 @@ it('requires six consistent original shot records before recognizing physical v2
     captureProtocol(
       {
         ...photos,
-        R: { ...photos.R, captureGuide: recordGuide('R', false, true)! },
+        R: { ...photos.R, captureGuide: recordV2Guide('R', false, true)! },
       },
       physicalProtocol,
     ),
@@ -179,7 +191,7 @@ it('preserves physical source rotations for symmetric grids instead of rematchin
   const frame = captureFrame(photos, seed.mapping, 'U', 'B')!
   const observations = slots.map((slot) => ({
     slot,
-    ...recordGuide(slot, true, false)!,
+    ...recordV2Guide(slot, true, false)!,
   }))
   const restored = readRecovery({
     stateRelation: 'capture',

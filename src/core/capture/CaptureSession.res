@@ -116,7 +116,12 @@ let sessionViewForProtocol = (faces: faces, webcamFace, size, dismissed, uploade
     predictedCenters,
     // Undefined for a face outside the capture order, as the original read.
     predictedCenter: predictedCenters->Array.getUnsafe(order->Array.indexOf(webcamFace)),
-    centerRoutingActive: mod(size, 2) == 1 &&
+    centerRoutingActive: !(
+      CaptureFlow.sourcePresentationProtocol(faces, uploadedProtocol)
+      ->Null.toOption
+      ->Option.mapOr(false, GuidedCaptureProtocol.isCurrentProtocol)
+    ) &&
+    mod(size, 2) == 1 &&
     hasFace(faces, order->Array.getUnsafe(0)) &&
     hasFace(faces, order->Array.getUnsafe(1)) &&
     predictedCenters->Array.every(center => center->Null.toOption->Option.isSome) &&

@@ -1,35 +1,39 @@
 // New guided captures follow the physical 3D demonstration. Camera mirroring
-// changes only the displayed image, never the physical turn convention.
+// changes only the displayed image and camera-relative arrow, never the physical turn convention.
 let faceOrder = ["U", "R", "F", "D", "L", "B"]
 
 type captureStep = {label: string, short: string, instruction: string}
 
 let captureSteps = [
-  {label: "Side 1", short: "1", instruction: "Hold the cube upright and show any side."},
   {
-    label: "Side 2",
-    short: "2",
-    instruction: "Follow the 3D demonstration: keep the same row on top and turn the physical cube one quarter turn to show its right side.",
+    label: "Photo 1",
+    short: "1",
+    instruction: "Hold the cube upright and show the first side in the numbered net.",
   },
   {
-    label: "Side 3",
+    label: "Photo 2",
+    short: "2",
+    instruction: "Follow the 3D demonstration: keep the same row on top and turn the physical cube one quarter turn to show the next numbered side.",
+  },
+  {
+    label: "Photo 3",
     short: "3",
     instruction: "Repeat the same physical quarter turn shown by the 3D demonstration.",
   },
   {
-    label: "Side 4",
+    label: "Photo 4",
     short: "4",
     instruction: "Repeat that physical quarter turn once more to show the fourth side.",
   },
   {
-    label: "Bottom",
+    label: "Up",
     short: "5",
-    instruction: "Follow the 3D demonstration: tip the cube away from you by one quarter turn to show its bottom face.",
+    instruction: "Follow the 3D demonstration: tip the cube toward you by one quarter turn to show its upper face.",
   },
   {
-    label: "Top",
+    label: "Down",
     short: "6",
-    instruction: "Continue the physical tipping direction shown by the 3D demonstration, passing the next side to show the opposite top face.",
+    instruction: "Continue the physical tipping direction shown by the 3D demonstration, passing the next side to show the opposite lower face.",
   },
 ]
 
@@ -47,13 +51,22 @@ let turnHintArrowAngle = step => step < 4 ? 270 : 0
 
 // Saved with fixtures captured this way, so they can be put together (and
 // regression-tested) with the guided search again later.
-let guidedProtocol = GuidedCaptureProtocol.physicalProtocol
+let guidedProtocol = GuidedCaptureProtocol.currentProtocol
 let legacyGuidedProtocol = GuidedCaptureProtocol.legacyProtocol
 
 // Capture source names describe recorded steps, not logical cube sides.
 let sourcePhotoNames = (protocol: Null.t<string>) =>
   switch protocol->Null.toOption {
-  | Some(value) if value == guidedProtocol => captureSteps->Array.map(step => step.label)
+  | Some(value) if GuidedCaptureProtocol.isCurrentProtocol(value) =>
+    captureSteps->Array.map(step => step.label)
+  | Some(value) if value == GuidedCaptureProtocol.physicalProtocol => [
+      "Side 1",
+      "Side 2",
+      "Side 3",
+      "Side 4",
+      "Bottom",
+      "Top",
+    ]
   | Some(value) if value == legacyGuidedProtocol => [
       "Side 1",
       "Side 2",

@@ -87,6 +87,8 @@ let readObservation = value =>
       [
         GuidedCaptureProtocol.legacyProtocol,
         GuidedCaptureProtocol.physicalProtocol,
+        GuidedCaptureProtocol.currentProtocol,
+        GuidedCaptureProtocol.mirroredProtocol,
         "retake/v1",
       ]->Array.includes(protocol) =>
     let parsed = switch arrow {
@@ -284,7 +286,11 @@ let recordGuide = (slot, mirrored, retake) => {
           {
             step,
             mirrored,
-            protocol: retake ? "retake/v1" : CaptureSteps.guidedProtocol,
+            protocol: retake
+              ? "retake/v1"
+              : mirrored
+              ? GuidedCaptureProtocol.mirroredProtocol
+              : CaptureSteps.guidedProtocol,
             displayedArrow: retake || step == 0
               ? Null.null
               : Null.make(CaptureSteps.turnHintArrowAngle(step)),
@@ -332,7 +338,13 @@ let captureProtocol = (
   let allProtocol = protocol =>
     Array.length(Dict.keysToArray(captured)) == 6 &&
       guides->Array.every(guide => guide->Option.mapOr(false, guide => guide.protocol == protocol))
-  if allProtocol(GuidedCaptureProtocol.physicalProtocol) {
+  let consistentMirror = mirrored =>
+    guides->Array.every(guide => guide->Option.mapOr(false, guide => guide.mirrored == mirrored))
+  if allProtocol(GuidedCaptureProtocol.mirroredProtocol) && consistentMirror(true) {
+    Null.make(GuidedCaptureProtocol.mirroredProtocol)
+  } else if allProtocol(GuidedCaptureProtocol.currentProtocol) && consistentMirror(false) {
+    Null.make(GuidedCaptureProtocol.currentProtocol)
+  } else if allProtocol(GuidedCaptureProtocol.physicalProtocol) {
     Null.make(GuidedCaptureProtocol.physicalProtocol)
   } else if allProtocol(GuidedCaptureProtocol.legacyProtocol) {
     Null.make(GuidedCaptureProtocol.legacyProtocol)
@@ -342,5 +354,28 @@ let captureProtocol = (
     !anyObservation && uploadedProtocol->Null.toOption == Some(GuidedCaptureProtocol.legacyProtocol)
       ? Null.make(GuidedCaptureProtocol.legacyProtocol)
       : Null.null
+  }
+}
+
+// Incomplete or contradictory v3 evidence is not a license to rerank with a
+// legacy search. This review-only marker is never serialized as capture data.
+let reviewProtocol = (captured: Dict.t<CaptureFlow.faceCaptureData>, uploadedProtocol, guided) => {
+  let protocol = captureProtocol(captured, uploadedProtocol)
+  let anyCurrent =
+    captured
+    ->Dict.valuesToArray
+    ->Array.some(photo =>
+      photo.captureGuide->Option.mapOr(false, guide =>
+        GuidedCaptureProtocol.isCurrentProtocol(guide.protocol)
+      )
+    )
+  if anyCurrent && protocol->Null.toOption->Option.isNone {
+    Null.make(GuidedCaptureProtocol.incompleteProtocol)
+  } else if protocol->Null.toOption->Option.isSome {
+    protocol
+  } else if guided {
+    Null.make(GuidedCaptureProtocol.legacyProtocol)
+  } else {
+    Null.null
   }
 }

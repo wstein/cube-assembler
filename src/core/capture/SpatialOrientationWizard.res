@@ -429,7 +429,24 @@ type protocolSession = {
   issues: array<string>,
 }
 let generateForProtocol = (captured, size, protocol: Null.t<string>): protocolSession => {
-  if protocol->Null.toOption != Some(GuidedCaptureProtocol.physicalProtocol) {
+  if protocol->Null.toOption == Some(GuidedCaptureProtocol.incompleteProtocol) {
+    {
+      session: {
+        candidates: [],
+        truncated: false,
+        guided: true,
+        equivalenceReduced: false,
+        issues: ["The recorded mirror modes or guide steps do not establish one capture frame."],
+      },
+      baseline: Null.null,
+      baselineStatus: "conflict",
+      issues: [
+        "The recorded mirror modes or guide steps do not establish one capture frame. Review the captured steps or colors.",
+      ],
+    }
+  } else if (
+    !(protocol->Null.toOption->Option.mapOr(false, GuidedCaptureProtocol.isPhysicalProtocol))
+  ) {
     let session = generate(
       captured,
       size,
@@ -453,11 +470,15 @@ let generateForProtocol = (captured, size, protocol: Null.t<string>): protocolSe
         ? ["Existing checks do not establish complete large-cube reachability."]
         : [],
     }
-    let seed = GuidedCaptureProtocol.physicalSeed(captured, size)
+    let seed = GuidedCaptureProtocol.seedForProtocol(
+      captured,
+      size,
+      protocol->Null.toOption->Option.getOrThrow,
+    )
     switch seed.validation.faces->Null.toOption {
     | Some(faces) if seed.validation.valid =>
       let baseline = {
-        id: "physical-v2-baseline",
+        id: "physical-guide-baseline",
         mapping: seed.mapping,
         faces,
         valid: true,
