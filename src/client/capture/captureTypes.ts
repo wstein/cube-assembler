@@ -12,6 +12,12 @@ export interface PreviewColorProfile {
 export type CameraSettings = Partial<MediaTrackSettings>
 
 export interface FaceCaptureData {
+  captureGuide?: {
+    step: number
+    mirrored: boolean
+    displayedArrow: number | null
+    protocol: string
+  }
   colors: string[][]
   // What automatic detection produced for this face, kept alongside
   // `colors` (the final answer, possibly human-corrected) so the review

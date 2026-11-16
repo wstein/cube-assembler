@@ -29,7 +29,10 @@ type previewColorProfile = {id: string, name: string, colors: Dict.t<rgb>}
 @genType
 type photoInfo = {fingerprint?: JSON.t, exif?: PhotoMetadata.exif}
 
+type captureGuide = {step: int, mirrored: bool, displayedArrow: Null.t<int>, protocol: string}
+
 type faceCaptureData = {
+  captureGuide?: captureGuide,
   colors: array<array<string>>,
   detectedColors?: array<array<string>>,
   cellConfidences?: array<array<float>>,

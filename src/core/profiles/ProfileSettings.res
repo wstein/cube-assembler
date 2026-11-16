@@ -93,9 +93,19 @@ let builtinCubes = cubeSizes->Array.map(size =>
   })
 )
 
+// Imported 8x8 captures can be corrected without adding a camera-size option.
+// Keep one stable profile object so live effects do not retrigger per render.
+let importedEight = freeze({
+  id: "imported-generic-8",
+  name: "Imported 8×8 (review only)",
+  size: 8,
+  sampling: freeze({stickerCore: 0.6}),
+})
+
 let builtinCube = size =>
   switch builtinCubes->Array.find(cube => cube.size == size) {
   | Some(cube) => cube
+  | None if size == 8 => importedEight
   | None => fail("Unsupported cube size")
   }
 
