@@ -117,6 +117,7 @@ export function ScannerAppView({ model }: { model: ScannerAppModel }) {
     handleRejectOrientation,
     handleRetakeFace,
     handleSaveFixture,
+    canSaveCapture,
     handleSyntheticPreset,
     handleUpdateColors,
     handleUploadFiles,
@@ -492,6 +493,8 @@ export function ScannerAppView({ model }: { model: ScannerAppModel }) {
 
         <div class="side-column">
           <CaptureCard
+            canSaveCapture={canSaveCapture}
+            onSaveCapture={() => void handleSaveFixture(null)}
             faceLabels={sourceLabels}
             capturedFaces={capturedFaces}
             size={puzzleSize}

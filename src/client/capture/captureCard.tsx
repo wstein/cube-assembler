@@ -5,6 +5,8 @@ import type { FaceCaptureData } from './captureTypes'
 import { FaceNet } from './faceNet'
 
 interface CaptureCardProps {
+  canSaveCapture: boolean
+  onSaveCapture: () => void
   faceLabels: Record<string, string>
   capturedFaces: Record<string, FaceCaptureData>
   // Stickers per cube edge and the colors to draw them in.
@@ -29,6 +31,8 @@ interface CaptureCardProps {
 
 // Getting a cube in: guided capture, file uploads, typed colors.
 export function CaptureCard({
+  canSaveCapture,
+  onSaveCapture,
   capturedFaces,
   faceLabels,
   size,
@@ -113,9 +117,19 @@ export function CaptureCard({
             Edit colors
           </button>
         )}
+        {canSaveCapture && (
+          <button
+            type="button"
+            class="btn btn-secondary"
+            disabled={loading}
+            onClick={onSaveCapture}
+          >
+            Save capture
+          </button>
+        )}
       </div>
       <p class="card-hint">
-        Four sides while turning the cube, then top and bottom — about a minute.
+        Four sides while turning the cube, then bottom and top — about a minute.
       </p>
       <div class="face-status-row">
         <FaceNet

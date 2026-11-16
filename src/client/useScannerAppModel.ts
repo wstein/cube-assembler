@@ -587,9 +587,14 @@ export function useScannerAppModel() {
     void saveSyntheticFixture(preset)
   }
 
-  // Without confirmed photos the state shown (`shown`) saves as rendered ones.
-  const handleSaveFixture = async (shown: CubeState) => {
+  // Six source photos can be saved with no assembly (`shown === null`).
+  // Synthetic export requires an explicitly supplied shown cube.
+  const handleSaveFixture = async (shown: CubeState | null) => {
     if (!canSaveCaptureFixture(capturedFaces)) {
+      if (shown === null) {
+        setFixtureSaveMessage('Capture all six photos before saving.')
+        return
+      }
       syntheticSource.current = shown
       await saveSyntheticFixture('clean')
       return
@@ -607,7 +612,8 @@ export function useScannerAppModel() {
         userAgent: navigator.userAgent,
         devicePixelRatio: window.devicePixelRatio,
         mirrored: recovery.context?.mirrored ?? mirrorPreview,
-        faceRecovery: chosenRecovery ?? undefined,
+        faceRecovery:
+          shown === null ? undefined : (chosenRecovery ?? undefined),
         cameraInfo,
         captureProfile,
         resolvedColorProfile,
@@ -683,6 +689,7 @@ export function useScannerAppModel() {
     handleRejectOrientation,
     handleRetakeFace,
     handleSaveFixture,
+    canSaveCapture: canSaveCaptureFixture(capturedFaces),
     handleSyntheticPreset,
     handleUpdateColors,
     handleUploadFiles,
