@@ -272,7 +272,11 @@ test('an error names the stickers the equal color share moved, in one sentence',
   await expect(dialog).not.toContainText('Camera was sure')
   await expect(dialog).not.toContainText('To double-check')
   // The net shows the same stickers, outlined, with the same sentence.
+  await expect(
+    dialog.getByRole('button', { name: 'Use it anyway' }),
+  ).toBeEnabled()
   await dialog.getByRole('button', { name: 'Use it anyway' }).click()
+  await expect(page.locator('.verdict.is-invalid')).toBeVisible()
   const note = page.locator('.net-highlight-note')
   await expect(note).toContainText('were moved to')
   await expect(note).toContainText('outlined below')

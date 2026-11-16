@@ -109,7 +109,7 @@ export function OrientationApprovalDialog({
             Available checks passed. Full NxN reachability unverified.
           </p>
         )}
-        {candidates.some(blockedCandidate) && (
+        {valid && candidates.some(blockedCandidate) && (
           <p class="capture-warning">
             No retained arrangement matches the capture sequence. Review the
             captured input.
