@@ -92,6 +92,28 @@ restored without rerunning search. Otherwise matching simply closes. Escape
 inside the nested color editor still closes that innermost editor and returns
 focus. Original JPEGs and `detectedColors` remain unchanged.
 
+## Photo identity boundary
+
+The private `@puzlwerk/capture-recovery` package owns immutable capture snapshots,
+photo-ID bijections, revision checks, and canonical photo projection in ReScript.
+CubeAssembler records a photo ID and actual JPEG SHA-256 at browser I/O. Its
+original observation grid stays separate from later reviewed colors. Explicit
+producer mappings bind the current candidate before approval; an approved
+selection is not required to inspect its sources. Canonical mappings are already
+in the display frame and are not transformed twice.
+
+Neither the approval net nor the main net infers photo identity from color
+equality. Without an explicit source mapping the photo remains unknown, and
+confirming a legal logical cube does not manufacture a photo mapping. Older
+explicit saved mappings remain usable. Newly exported face metadata also keeps
+`photoIdentity`; reimport validates it through Core and compares its hash with
+the actual uploaded JPEG. Capture cancellation cannot approve a preview.
+
+The vendored package's source commit and artifact hashes are checked by
+`npm run verify:capture-core`. Its EUPL-1.2 license and CubeAssembler MIT notices
+are included; production distribution remains subject to the owner's license
+acceptance gate. This slice does not migrate the viewer or the puzzle engine.
+
 ## Constraints and persistence
 
 Candidates have passed the repository's available checks. Larger NxN checks do
