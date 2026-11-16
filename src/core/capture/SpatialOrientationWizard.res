@@ -1,0 +1,122 @@
+open CubeTypes
+
+@genType type decision = CaptureFaceMapping.placement
+@genType
+type candidate = {
+  id: string,
+  mapping: CaptureFaceMapping.mapping,
+  faces: faceSet<grid>,
+  valid: bool,
+  issues: array<string>,
+  fullCubeValidityKnown: bool,
+}
+@genType
+type session = {
+  candidates: array<candidate>,
+  truncated: bool,
+  guided: bool,
+  equivalenceReduced: bool,
+  issues: array<string>,
+}
+@genType
+type choice = {
+  slot: string,
+  target: CubeState.faceKey,
+  quarterTurns: int,
+  grid: grid,
+  candidateIds: array<string>,
+}
+let slots = ["U", "R", "F", "D", "L", "B"]
+let agrees = (a: decision, b: decision) =>
+  a.slot == b.slot && a.target == b.target && a.quarterTurns == b.quarterTurns
+let remaining = (session: session, decisions: array<decision>) =>
+  session.candidates->Array.filter(candidate =>
+    decisions->Array.every(decision =>
+      candidate.mapping->Array.some(entry => agrees(decision, entry))
+    )
+  )
+let options = (session, decisions, slot) => {
+  let groups: array<choice> = []
+  remaining(session, decisions)->Array.forEach(candidate => {
+    switch candidate.mapping->Array.find(entry => entry.slot == slot) {
+    | None => ()
+    | Some(entry) =>
+      switch groups->Array.findIndex(group =>
+        group.target == entry.target && group.quarterTurns == entry.quarterTurns
+      ) {
+      | -1 =>
+        groups->Array.push({
+          slot,
+          target: entry.target,
+          quarterTurns: entry.quarterTurns,
+          grid: faceValue(candidate.faces, entry.target),
+          candidateIds: [candidate.id],
+        })
+      | index => (groups->Array.getUnsafe(index)).candidateIds->Array.push(candidate.id)
+      }
+    }
+  })
+  groups
+}
+let nextSlot = (session, decisions: array<decision>) =>
+  slots
+  ->Array.find(slot =>
+    !(decisions->Array.some(decision => decision.slot == slot)) &&
+    Array.length(options(session, decisions, slot)) > 1
+  )
+  ->Null.fromOption
+let select = (decisions: array<decision>, decision: decision) => {
+  let others = decisions->Array.filter(previous => previous.slot != decision.slot)
+  [...others, decision]
+}
+let previous = (decisions: array<decision>) =>
+  decisions->Array.filterWithIndex((_, i) => i < Array.length(decisions) - 1)
+
+let generate = (captured: Dict.t<grid>, size, guided): session => {
+  let result = if guided {
+    let photos = slots->Array.map(slot => captured->Dict.get(slot)->Nullable.fromOption)
+    let capture = {
+      sides: photos->Array.filterWithIndex((_, i) => i < 4),
+      caps: photos->Array.filterWithIndex((_, i) => i >= 4),
+    }
+    CubeAssembly.solveGuidedCapture(capture)
+    ->Null.toOption
+    ->Option.map(solution => (solution.alternatives, solution.truncated))
+  } else {
+    CubeAssembly.solveFaceOrientations(captured)
+    ->Null.toOption
+    ->Option.map(solution => (solution.alternatives, solution.truncated))
+  }
+  let (alternatives, truncated) = result->Option.getOr(([], false))
+  let candidates = alternatives->Array.filterMapWithIndex((value, index) => {
+    let mapping = CaptureFaceMapping.initializeMapping(captured, Null.make(value))
+    let checked = CaptureFaceMapping.validateMapping(captured, mapping, size)
+    checked.valid
+      ? Some({
+          id: `candidate-${Int.toString(index)}`,
+          mapping,
+          faces: value.faces,
+          valid: checked.valid,
+          issues: checked.issues,
+          fullCubeValidityKnown: size <= 3,
+        })
+      : None
+  })
+  let issues = [
+    "Candidates are retained representatives of whole-cube equivalence classes; photo identity is inferred when source grids are symmetric.",
+  ]
+  if size >= 4 {
+    issues->Array.push("Existing checks do not establish complete large-cube reachability.")
+  }
+  if truncated {
+    issues->Array.push("The candidate search was capped; omitted arrangements remain possible.")
+  }
+  if Array.length(candidates) == 0 {
+    issues->Array.push(
+      guided
+        ? "No retained candidate satisfies the guided capture constraints and existing validation. Advanced manual recovery remains available."
+        : "No retained candidate passes existing validation. Advanced manual recovery remains available.",
+    )
+  }
+  {candidates, truncated, guided, equivalenceReduced: true, issues}
+}
