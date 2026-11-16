@@ -1,6 +1,10 @@
 import '../../web/net-inspector.css'
 import type { FaceMapping } from './capture/captureFaceMapping'
-import { useState } from 'preact/hooks'
+import { useLayoutEffect, useMemo, useRef, useState } from 'preact/hooks'
+import {
+  nearestInspectorCell,
+  type InspectorCell,
+} from './netInspectorPosition'
 import type { CubeState } from '../cube/cubeAssembly'
 import type { ParityResult } from '../cube/parity'
 import { miniNet, netCells } from './capture/approvalPhotos'
@@ -78,6 +82,18 @@ export function CubeNetView({
     face: string
     index: number
   } | null>(null)
+  const netRef = useRef<HTMLDivElement | null>(null)
+  const previousInspectorCell = useRef<InspectorCell | undefined>(undefined)
+  const inspectorCell = useMemo(() => {
+    const next = nearestInspectorCell(
+      hoveredNetCell?.face ?? 'f',
+      previousInspectorCell.current,
+    )
+    previousInspectorCell.current = next
+    return next
+  }, [hoveredNetCell?.face])
+  const [inspectorBelow, setInspectorBelow] = useState(false)
+  const [inspectorPhotoSize, setInspectorPhotoSize] = useState(0)
   // parity.highlight (see parity.ts's HighlightGroup) is a
   // list of readings, each with its own `group` tag (the color
   // combination or matched piece name it read as) and the facelets
@@ -198,6 +214,29 @@ export function CubeNetView({
               : null,
     }
   })()
+  useLayoutEffect(() => {
+    const net = netRef.current
+    if (!net) return
+    const measure = () => {
+      const face = net.querySelector<HTMLElement>('.net-face-grid')
+      const title = net.querySelector<HTMLElement>('.net-info-title')
+      const width = face?.getBoundingClientRect().width ?? 0
+      setInspectorPhotoSize(width)
+      const titleRange = document.createRange()
+      if (title) titleRange.selectNodeContents(title)
+      const titleWidth = title
+        ? titleRange.getBoundingClientRect().width + 4
+        : 0
+      setInspectorBelow(
+        Boolean(hoveredInfo?.photo) &&
+          (titleWidth > width + 1 || Boolean(hoveredInfo?.note)),
+      )
+    }
+    measure()
+    const observer = new ResizeObserver(measure)
+    observer.observe(net)
+    return () => observer.disconnect()
+  }, [hoveredInfo?.faceName, hoveredInfo?.photo, hoveredInfo?.note])
   return (
     <div class="net-region">
       {forcedNote && (
@@ -215,6 +254,7 @@ export function CubeNetView({
       )}
       <div
         class="cube-net"
+        ref={netRef}
         style={{
           '--net-gap':
             puzzleSize >= 6 ? '1px' : puzzleSize >= 4 ? '2px' : '3px',
@@ -378,7 +418,12 @@ export function CubeNetView({
           )
         })}
         <div
-          class="net-info"
+          class={`net-info${inspectorBelow ? ' net-info-below' : ''}`}
+          style={{
+            '--net-inspector-column': inspectorCell.column + 1,
+            '--net-inspector-row': inspectorCell.row + 1,
+            '--net-inspector-size': `${inspectorPhotoSize}px`,
+          }}
           aria-live="polite"
           aria-label={
             hoveredInfo
