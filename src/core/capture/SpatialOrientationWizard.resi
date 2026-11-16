@@ -38,3 +38,9 @@ let preserveMapping: (
 ) => CaptureFaceMapping.mapping
 @genType type reconciliation = {decisions: array<decision>, conflicts: array<decision>}
 @genType let reconcile: (session, array<decision>, decision) => reconciliation
+@genType
+let previewFaces: (
+  Dict.t<CubeTypes.grid>,
+  CaptureFaceMapping.mapping,
+  int,
+) => CubeTypes.faceSet<CubeTypes.grid>
