@@ -743,9 +743,15 @@ export function ScannerAppView({ model }: { model: ScannerAppModel }) {
           faceOrder={FACE_ORDER}
           puzzleSize={puzzleSize}
           displayRecovery={recovery.approved}
-          blockedCandidate={recovery.displayedBlocked}
+          blockedCandidate={(candidate) =>
+            orientationApproval.valid && recovery.displayedBlocked(candidate)
+          }
           alternativesCount={recovery.alternativesCount}
-          onChoose={recovery.acceptDisplayed}
+          onChoose={(candidate) =>
+            orientationApproval.valid
+              ? recovery.acceptDisplayed(candidate)
+              : void handleChooseOrientation(candidate, undefined, 'diagnostic')
+          }
           onReject={handleRejectOrientation}
           onPageChange={(page) =>
             setOrientationApproval((prev) => prev && { ...prev, page })

@@ -509,8 +509,9 @@ export function useScannerAppModel() {
   const handleChooseOrientation = async (
     chosen: OrientedCandidate,
     record?: CaptureRecovery,
+    intent: 'approval' | 'diagnostic' = 'approval',
   ) => {
-    if (isGuided() && !record) {
+    if (isGuided() && !record && intent !== 'diagnostic') {
       recovery.begin(chosen)
       clearOrientationReview()
       return
