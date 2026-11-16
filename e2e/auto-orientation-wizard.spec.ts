@@ -141,6 +141,16 @@ for (const touch of [false, true])
       page.getByRole('button', { name: 'Use this cube', exact: true }),
     ).toHaveCount(0)
     await expect(page.locator('#spatial-choice-title')).toBeFocused()
+    // A separate real choice remains available when the duplicate guard ends.
+    await page.locator('.spatial-candidate').first().click()
+    await expect(
+      page.getByRole('button', { name: 'Use this cube', exact: true }),
+    ).toBeEnabled()
+    await expect(page.locator('.face-recovery')).toBeVisible()
+    await page
+      .getByRole('button', { name: 'Use this cube', exact: true })
+      .click()
+    await expect(page.locator('.face-recovery')).toHaveCount(0)
     await context.close()
   })
 
