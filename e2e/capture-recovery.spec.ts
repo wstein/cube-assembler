@@ -155,7 +155,6 @@ test('correct original 7x7 photos offer only constrained choices after rejection
   await expect(net.getByRole('button')).toHaveCount(6)
   await expect(page.locator('.spatial-candidate')).toHaveCount(2)
   await page.locator('.spatial-candidate').first().click()
-  await page.getByRole('button', { name: 'Next', exact: true }).click()
   await expect(
     page.getByLabel('Capture top photo', { exact: true }),
   ).toHaveCount(0)
