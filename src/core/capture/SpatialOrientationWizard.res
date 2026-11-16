@@ -185,3 +185,31 @@ let previewFaces = (captured: Dict.t<grid>, mapping: CaptureFaceMapping.mapping,
   })
   Dict.fromArray(faces)->fromGeometry
 }
+
+let matchesDecision = (mapping: CaptureFaceMapping.mapping, decision: decision) =>
+  mapping->Array.some(entry => agrees(entry, decision))
+
+// Membership is an exact source-photo statement, not a validity verdict.
+// Search caps and symmetry reduction can omit legal owner-selected mappings.
+let retainsMapping = (session: session, mapping: CaptureFaceMapping.mapping) => {
+  let complete = (entries: CaptureFaceMapping.mapping) =>
+    Array.length(entries) == 6 &&
+    slots->Array.every(slot =>
+      entries->Array.filter(entry => entry.slot == slot)->Array.length == 1
+    ) &&
+    faceKeys->Array.every(target =>
+      entries->Array.filter(entry => entry.target == target)->Array.length == 1
+    ) &&
+    entries->Array.every(entry => {
+      let turns = Int.toFloat(entry.quarterTurns)
+      Float.isFinite(turns) &&
+      Math.floor(turns) == turns &&
+      entry.quarterTurns >= 0 &&
+      entry.quarterTurns <= 3
+    })
+  complete(mapping) &&
+  session.candidates->Array.some(candidate =>
+    complete(candidate.mapping) &&
+    mapping->Array.every(decision => matchesDecision(candidate.mapping, decision))
+  )
+}

@@ -4,6 +4,8 @@ import { readFixtureColors } from '../src/client/fixtures/fixtureFormat'
 import { describe, expect, it } from 'vitest'
 import {
   generate,
+  retainsMapping,
+  matchesDecision,
   preserveMapping,
   previewFaces,
   reconcile,
@@ -251,4 +253,46 @@ it('shows the first duplicate assignment and an empty missing face without modif
     ['', ''],
   ])
   expect(JSON.stringify({ raw, mapping })).toBe(before)
+})
+
+it('distinguishes retained exact mapping membership from mechanical validity', () => {
+  const mapping = keys.map((slot) => ({
+    slot,
+    target: slot as 'U' | 'R' | 'F' | 'D' | 'L' | 'B',
+    quarterTurns: 0,
+  }))
+  const pool = {
+    ...session,
+    candidates: [{ ...candidate('retained', 0), mapping }],
+  }
+  expect(retainsMapping(pool, [...mapping].reverse())).toBe(true)
+  expect(retainsMapping({ ...pool, candidates: [] }, mapping)).toBe(false)
+  const outside = mapping.map((entry, index) =>
+    index === 0 ? { ...entry, quarterTurns: 1 } : entry,
+  )
+  expect(retainsMapping(pool, outside)).toBe(false)
+  expect(retainsMapping({ ...pool, truncated: true }, outside)).toBe(false)
+  expect(retainsMapping(pool, mapping.slice(1))).toBe(false)
+  expect(retainsMapping(pool, [...mapping.slice(0, 5), mapping[0]])).toBe(false)
+})
+
+it('does not infer retained identity from symmetric face colors or a stale decision', () => {
+  const mapping = keys.map((slot) => ({
+    slot,
+    target: slot as 'U' | 'R' | 'F' | 'D' | 'L' | 'B',
+    quarterTurns: 0,
+  }))
+  const pool = {
+    ...session,
+    candidates: [{ ...candidate('symmetric', 0), mapping }],
+  }
+  const swapped = mapping.map((entry, index) =>
+    index < 2 ? { ...entry, target: mapping[1 - index].target } : entry,
+  )
+  expect(retainsMapping(pool, swapped)).toBe(false)
+  expect(matchesDecision(mapping, mapping[0])).toBe(true)
+  expect(matchesDecision(mapping, { ...mapping[0], quarterTurns: 1 })).toBe(
+    false,
+  )
+  expect(matchesDecision(mapping, { ...mapping[0], slot: 'R' })).toBe(false)
 })
