@@ -24,6 +24,11 @@ test('correct 7x7 photos can be adjusted after rejecting a valid suggestion', as
       name: 'Adjust face orientations / assignments',
     }),
   ).toBeVisible()
+  await page
+    .getByText('Advanced manual orientation / assignment recovery', {
+      exact: true,
+    })
+    .click()
   await expect(
     page.getByRole('button', {
       name: /Rotate Side 1 \(B face\) clockwise 90°/,
@@ -53,6 +58,11 @@ async function openArchive(
   await page
     .getByRole('button', {
       name: 'Adjust face orientations / assignments',
+      exact: true,
+    })
+    .click()
+  await page
+    .getByText('Advanced manual orientation / assignment recovery', {
       exact: true,
     })
     .click()
