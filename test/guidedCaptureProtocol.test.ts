@@ -17,7 +17,10 @@ import {
   physicalSeed,
   captureProtocol,
 } from '../src/client/capture/guidedCaptureProtocol'
-import { generateForProtocol } from '../src/client/capture/spatialOrientationWizard'
+import {
+  generateForProtocol,
+  knownAlternatives,
+} from '../src/client/capture/spatialOrientationWizard'
 import { captureFrame } from '../src/client/capture/captureFaceMapping'
 import {
   readRecovery,
@@ -114,7 +117,7 @@ it('reports conflict for an invalid physical seed without choosing an opposite h
   const found = generateForProtocol(photos, 3, physicalProtocol)
   expect(found.baseline).toBeNull()
   expect(found.baselineStatus).toBe('conflict')
-  expect(found.issues.join(' ')).toContain('explicit review')
+  expect(found.issues.join(' ')).toContain('no alternative physical state')
 })
 
 it('requires six consistent original shot records before recognizing physical v2', () => {
@@ -229,4 +232,29 @@ it('retains exact source identity through canonicalization for every initial glo
       ).toEqual(canonical[placement.target])
   }
   expect(indices.size).toBe(24)
+})
+
+it('offers only the checked physical baseline for proven v2 capture metadata', () => {
+  const photos = photograph(
+    solvedCubeFaces(3, { U: 'W', R: 'R', F: 'G', D: 'Y', L: 'O', B: 'B' }),
+  )
+  const found = generateForProtocol(photos, 3, physicalProtocol)
+  expect(found.baselineStatus).toBe('checked')
+  expect(found.session.candidates).toEqual([found.baseline])
+  expect(knownAlternatives(found.session, found.baseline!.mapping)).toBe(0)
+})
+it('does not reinterpret a conflicting v2 capture using otherwise feasible legacy alternatives', () => {
+  const archive = unzipSync(
+    readFileSync('test/fixtures/orientation-recovery-7x7.zip'),
+  )
+  const key = Object.keys(archive).find((key) => key.endsWith('/meta.json'))!
+  const photos = readFixtureColors(JSON.parse(strFromU8(archive[key])))!.colors
+  expect(
+    generateForProtocol(photos, 7, legacyProtocol).session.candidates.length,
+  ).toBeGreaterThan(0)
+  const strict = generateForProtocol(photos, 7, physicalProtocol)
+  expect(strict.baselineStatus).toBe('conflict')
+  expect(strict.baseline).toBeNull()
+  expect(strict.session.candidates).toEqual([])
+  expect(strict.issues.join(' ')).toContain('no alternative physical state')
 })
