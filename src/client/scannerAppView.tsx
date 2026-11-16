@@ -751,6 +751,8 @@ export function ScannerAppView({ model }: { model: ScannerAppModel }) {
 
       {recovery.open && (
         <FaceRecoveryDialog
+          initialCube={baseCube}
+          currentCube={visibleCube}
           recovery={recovery}
           captured={capturedFaces}
           size={puzzleSize}
