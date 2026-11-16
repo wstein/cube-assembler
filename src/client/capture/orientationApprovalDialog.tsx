@@ -1,3 +1,4 @@
+import type { CandidatePhotoEvidence } from './photoProvenance'
 import type { TargetedKeyboardEvent } from 'preact'
 import {
   photoNamesForProtocol,
@@ -9,7 +10,6 @@ import { COLOR_NAME } from '../vision/stickerDisplay'
 import { capturePhotos, captureStats, netPhotos } from './approvalPhotos'
 import type { FaceCaptureData } from './captureTypes'
 import type { CaptureRecovery } from './captureRecovery'
-import { type FaceMapping } from './captureFaceMapping'
 import type { OrientedCandidate } from '../../cube/cubeAssembly'
 import { canAdjustCapture, type CaptureApproval } from './captureReviewRouting'
 import {
@@ -32,7 +32,9 @@ interface OrientationApprovalDialogProps {
   onClose: () => void
   // "No": start the color review.
   onBackToColors: () => void
-  onCheckFace: (candidate: OrientedCandidate, face: string) => void
+  photoEvidence: (
+    candidate: OrientedCandidate,
+  ) => CandidatePhotoEvidence | undefined
   // A photo in the capture-order strip: open its colors.
   onCheckSlot: (slot: number) => void
   captured: Record<string, FaceCaptureData>
@@ -55,7 +57,7 @@ export function OrientationApprovalDialog({
   onDialogKeyDown,
   onClose,
   onBackToColors,
-  onCheckFace,
+  photoEvidence,
   onCheckSlot,
   captured,
   faceOrder,
@@ -66,7 +68,6 @@ export function OrientationApprovalDialog({
 }: OrientationApprovalDialogProps) {
   const { candidates, arrangements, valid, note } = approval
   const displayed = candidates
-  const displayMapping = displayRecovery?.mapping
   const single = candidates.length === 1
   const page = Math.min(
     approval.page ?? 0,
@@ -137,12 +138,11 @@ export function OrientationApprovalDialog({
           <CubeCheck
             sourceProtocol={sourceProtocol}
             candidate={displayed[0]}
-            photoMapping={displayMapping}
+            photoEvidence={photoEvidence}
             captured={captured}
             faceOrder={faceOrder}
             puzzleSize={puzzleSize}
             stickerColors={stickerColors}
-            onCheckFace={onCheckFace}
             onCheckSlot={onCheckSlot}
           />
         ) : (
@@ -153,7 +153,14 @@ export function OrientationApprovalDialog({
                   <OrientationNetPreview
                     faces={candidate.faces}
                     stickerColors={stickerColors}
-                    onFaceClick={(face) => onCheckFace(candidate, face)}
+                    onFaceClick={(face) => {
+                      const photo = netPhotos(
+                        captured,
+                        faceOrder,
+                        photoEvidence(candidate),
+                      )[face]
+                      if (photo) onCheckSlot(photo.slot)
+                    }}
                   />
                   {arrangements?.[i] && (
                     <ul class="orientation-approval-changes">
@@ -255,22 +262,22 @@ export function OrientationApprovalDialog({
 function CubeCheck({
   sourceProtocol,
   candidate,
-  photoMapping,
   captured,
   faceOrder,
   puzzleSize,
   stickerColors,
-  onCheckFace,
+  photoEvidence,
   onCheckSlot,
 }: {
   sourceProtocol: string | null
-  photoMapping?: FaceMapping
   candidate: OrientedCandidate | undefined
   captured: Record<string, FaceCaptureData>
   faceOrder: string[]
   puzzleSize: number
   stickerColors: Record<string, string>
-  onCheckFace: (candidate: OrientedCandidate, face: string) => void
+  photoEvidence: (
+    candidate: OrientedCandidate,
+  ) => CandidatePhotoEvidence | undefined
   onCheckSlot: (slot: number) => void
 }) {
   const photoNames = photoNamesForProtocol(sourceProtocol)
@@ -296,21 +303,9 @@ function CubeCheck({
       : ''
   const repeatedSlots = new Set(stats.diagnosis.repeated.flat())
   const inOrder = capturePhotos(captured, faceOrder)
-  const inNet = photoMapping
-    ? Object.fromEntries(
-        photoMapping.map((placement) => [
-          placement.target,
-          {
-            ...inOrder[faceOrder.indexOf(placement.slot)],
-            image: captured[placement.slot]?.croppedImage,
-            turns: placement.quarterTurns,
-            slot: faceOrder.indexOf(placement.slot),
-          },
-        ]),
-      )
-    : candidate
-      ? netPhotos(captured, faceOrder, candidate.faces)
-      : null
+  const inNet = candidate
+    ? netPhotos(captured, faceOrder, photoEvidence(candidate))
+    : null
   const changedFaces = inNet
     ? Object.fromEntries(
         Object.entries(inNet).map(([face, photo]) => [face, photo?.changed]),
@@ -342,13 +337,14 @@ function CubeCheck({
             unsureFaces={unsureFaces}
             photos={inNet ?? undefined}
             flaggedFaces={flaggedFaces}
-            onFaceClick={(face) => {
-              const placement = photoMapping?.find(
-                (entry) => entry.target === face,
-              )
-              if (placement) onCheckSlot(faceOrder.indexOf(placement.slot))
-              else onCheckFace(candidate, face)
-            }}
+            onFaceClick={
+              inNet && Object.values(inNet).some(Boolean)
+                ? (face) => {
+                    const photo = inNet[face]
+                    if (photo) onCheckSlot(photo.slot)
+                  }
+                : undefined
+            }
           />
         ) : (
           <div class="approval-strip">
@@ -379,6 +375,14 @@ function CubeCheck({
           </div>
         )}
       </section>
+      {candidate && Object.values(inNet ?? {}).some((photo) => !photo) && (
+        <p role="status">
+          Source photos are not established for this arrangement.{' '}
+          <button type="button" onClick={() => onCheckSlot(0)}>
+            Choose a captured photo
+          </button>
+        </p>
+      )}
       {(sentence || repeated || cause) && (
         <div class="approval-stats">
           {sentence && <p>{sentence}</p>}

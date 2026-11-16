@@ -1,4 +1,8 @@
-import { useMemo, useState } from 'preact/hooks'
+import {
+  CapturePhotoBinding,
+  type CandidatePhotoEvidence,
+} from './photoProvenance'
+import { useMemo, useRef, useState } from 'preact/hooks'
 import {
   assembleCubeFromFaces,
   type OrientedCandidate,
@@ -94,8 +98,13 @@ export function useFaceRecovery({
   guided: boolean
   onCancel: () => void
   onCommitFaces: (faces: Faces) => void
-  onChoose: (candidate: OrientedCandidate, recovery?: CaptureRecovery) => void
+  onChoose: (
+    candidate: OrientedCandidate,
+    recovery?: CaptureRecovery,
+    source?: CandidatePhotoEvidence,
+  ) => void
 }) {
+  const photoBinding = useRef(new CapturePhotoBinding())
   const [open, setOpen] = useState(false)
   const [transaction, setTransaction] = useState<{
     current: Snapshot
@@ -202,6 +211,7 @@ export function useFaceRecovery({
         : previous.history,
     }))
   const loadContext = (value: CaptureContext | null) => {
+    photoBinding.current.reset()
     const recovered = readRecovery(value?.faceRecovery)
     setContext(
       value
@@ -406,8 +416,21 @@ export function useFaceRecovery({
       initial: previous.current,
       history: [],
     }))
+    photoBinding.current.bind(
+      validation.candidate,
+      record.mapping,
+      workingFaces,
+      size,
+      record.captureFrame.canonicalTransform,
+      record,
+    )
+    const source = photoBinding.current.evidence(
+      validation.candidate,
+      workingFaces,
+      size,
+    )
     onCommitFaces(workingFaces)
-    onChoose(validation.candidate, record)
+    onChoose(validation.candidate, record, source)
   }
   const sameLogical = (a: OrientedCandidate, b: OrientedCandidate) =>
     sameCubeState(
@@ -461,9 +484,16 @@ export function useFaceRecovery({
         assembleCubeFromFaces(restored.faces, size),
         assembleCubeFromFaces(candidate.faces, size),
       )
+    const photoEvidence = photoBinding.current.evidence(
+      candidate,
+      capturedFaces,
+      size,
+    )
     let record =
-      sameSaved && approved ? { ...approved, view: 'canonical' } : null
-    if (!record) {
+      sameSaved && approved && photoEvidence?.candidate
+        ? { ...approved, view: 'canonical' }
+        : null
+    if (!record && photoEvidence?.candidate) {
       const logicalDraft = {
         ...initialDraft(mappingForDisplayed(candidate), null),
         view: 'canonical' as const,
@@ -479,17 +509,39 @@ export function useFaceRecovery({
       record = recordFor(logicalDraft, capturedFaces, logicalFrame)
     }
     setApproved(record)
-    setRecordPresent(true)
+    setRecordPresent(record !== null)
     setOpen(false)
     setTransaction({ current: emptySnapshot(), initial: null, history: [] })
-    onChoose(candidate, record)
+    onChoose(candidate, record ?? undefined, photoEvidence)
   }
-  const importedCandidate = () => committedSaved
-  const baselineCandidate = () =>
-    committedPackage?.baseline
-      ? validateMapping(committedGrids, committedPackage.baseline.mapping, size)
-          .candidate
+  const importedCandidate = () => {
+    if (committedSaved && approved?.stateRelation === 'capture')
+      photoBinding.current.bind(
+        committedSaved,
+        approved.mapping,
+        capturedFaces,
+        size,
+        approved.captureFrame.canonicalTransform,
+        approved,
+      )
+    return committedSaved
+  }
+  const baselineCandidate = () => {
+    const baseline = committedPackage?.baseline
+    const candidate = baseline
+      ? validateMapping(committedGrids, baseline.mapping, size).candidate
       : null
+    if (candidate && baseline)
+      photoBinding.current.bind(
+        candidate,
+        baseline.mapping,
+        capturedFaces,
+        size,
+        undefined,
+        baseline,
+      )
+    return candidate
+  }
   const captureConflict = () =>
     committedPackage?.baselineStatus === 'conflict'
       ? 'Capture conflicts with the physical guide. Check the photos and recorded steps.'
@@ -501,6 +553,11 @@ export function useFaceRecovery({
     alternativesCount,
     committedAlternativeCount,
     baselineCandidate,
+    currentPhotoEvidence: (
+      candidate: import('@puzlwerk/capture-recovery').candidate | undefined,
+    ) => photoBinding.current.currentEvidence(candidate, capturedFaces, size),
+    photoEvidence: (candidate: OrientedCandidate) =>
+      photoBinding.current.evidence(candidate, capturedFaces, size),
     captureConflict,
     workingFaces,
     sourcePhotoNames: sourcePhotoNamesForCapture(

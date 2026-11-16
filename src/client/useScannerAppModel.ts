@@ -144,12 +144,20 @@ export function useScannerAppModel() {
     size: puzzleSize,
     mirrored: mirrorPreview,
     guided: isGuided(),
-    onChoose: (candidate, record) =>
-      void handleChooseOrientation(candidate, record),
+    onChoose: (candidate, record, source) =>
+      void handleChooseOrientation(
+        candidate,
+        record,
+        'confirmed',
+        source?.candidate,
+      ),
   })
   const [chosenRecovery, setChosenRecovery] = useState<CaptureRecovery | null>(
     null,
   )
+  const [chosenPhotoCandidate, setChosenPhotoCandidate] = useState<
+    import('@puzlwerk/capture-recovery').candidate | undefined
+  >(undefined)
   const {
     orientationWizard,
     setOrientationWizard,
@@ -297,6 +305,7 @@ export function useScannerAppModel() {
     clearOrientationReview()
     recovery.reset()
     setChosenRecovery(null)
+    setChosenPhotoCandidate(undefined)
     clearCalibration()
     setProfileLearningOffer(null)
     setCaptureMessage('')
@@ -336,6 +345,7 @@ export function useScannerAppModel() {
       setUploadedProtocol(null)
       recovery.reset()
       setChosenRecovery(null)
+      setChosenPhotoCandidate(undefined)
       setProfileLearningOffer(null)
       setNewColorName(null)
     }
@@ -463,6 +473,7 @@ export function useScannerAppModel() {
       onCaptureContext: (context) => {
         recovery.loadContext(context)
         setChosenRecovery(null)
+        setChosenPhotoCandidate(undefined)
       },
       setPuzzleSize,
       setCapturedFaces,
@@ -512,14 +523,18 @@ export function useScannerAppModel() {
   const handleChooseOrientation = async (
     chosen: OrientedCandidate,
     record?: CaptureRecovery,
-    intent: 'approval' | 'diagnostic' = 'approval',
+    intent: 'approval' | 'diagnostic' | 'confirmed' = 'approval',
+    sourceCandidate?: import('@puzlwerk/capture-recovery').candidate,
   ) => {
-    if (isGuided() && !record && intent !== 'diagnostic') {
+    if (isGuided() && !record && intent === 'approval') {
       recovery.begin(chosen)
       clearOrientationReview()
       return
     }
     setChosenRecovery(record ?? null)
+    setChosenPhotoCandidate(
+      sourceCandidate ?? recovery.photoEvidence(chosen)?.candidate,
+    )
     clearOrientationReview()
     const cubeState = assembleCubeFromFaces(chosen.faces, puzzleSize)
     setCube(cubeState)
@@ -613,7 +628,10 @@ export function useScannerAppModel() {
         devicePixelRatio: window.devicePixelRatio,
         mirrored: recovery.context?.mirrored ?? mirrorPreview,
         faceRecovery:
-          shown === null ? undefined : (chosenRecovery ?? undefined),
+          shown === null ||
+          !recovery.currentPhotoEvidence(chosenPhotoCandidate)?.candidate
+            ? undefined
+            : (chosenRecovery ?? undefined),
         cameraInfo,
         captureProfile,
         resolvedColorProfile,
@@ -718,6 +736,7 @@ export function useScannerAppModel() {
     orientationWizard,
     recovery,
     chosenRecovery,
+    chosenPhotoEvidence: recovery.currentPhotoEvidence(chosenPhotoCandidate),
     page,
     palette,
     parity,

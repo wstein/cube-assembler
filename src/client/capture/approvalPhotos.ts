@@ -1,3 +1,5 @@
+import { photoForFace } from '@puzlwerk/capture-recovery'
+import type { CandidatePhotoEvidence } from './photoProvenance'
 import { diagnoseForProtocol } from '../../core/capture/CaptureDiagnosis.gen'
 import { findCaptureForOrientedFace } from '../../cube/capturedFaceMatching'
 import { solveFaceOrientations } from '../../cube/cubeAssembly'
@@ -68,28 +70,29 @@ function unsureCells(
     : markedCells(face, turns, 'flagged')
 }
 
-// The photo behind each face of an approved arrangement, by the stickers
-// that match (see findCaptureForOrientedFace).
+// Source identity comes only from a candidate bound by PuzlWerk. Color grids
+// are display data and cannot establish which original photograph was used.
 export function netPhotos(
   captured: Record<string, FaceCaptureData>,
   order: string[],
-  net: Record<string, string[][]>,
+  evidence: CandidatePhotoEvidence | undefined,
 ): Record<string, ApprovalPhoto | null> {
-  const colors = order.map((key) => captured[key]?.colors)
   const reading = forcedReading(captured, order)
   return Object.fromEntries(
-    Object.entries(net).map(([face, grid]) => {
-      const found = findCaptureForOrientedFace(colors, grid)
-      if (!found) return [face, null]
-      const data = captured[order[found.slot]]
+    (['U', 'R', 'F', 'D', 'L', 'B'] as const).map((face) => {
+      const source = evidence
+        ? photoForFace(evidence.capture, evidence.candidate, face)
+        : undefined
+      if (!source) return [face, null]
+      const data = captured[source.slot]
       return [
         face,
         {
-          slot: found.slot,
+          slot: order.indexOf(source.slot),
           image: data?.croppedImage,
-          turns: found.turns,
-          changed: markedCells(data, found.turns, 'corrected'),
-          unsure: unsureCells(reading, order[found.slot], data, found.turns),
+          turns: source.quarterTurns,
+          changed: markedCells(data, source.quarterTurns, 'corrected'),
+          unsure: unsureCells(reading, source.slot, data, source.quarterTurns),
         },
       ]
     }),

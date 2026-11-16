@@ -1,6 +1,7 @@
 import { canonicalFaceName } from './capture/canonicalFaceNames'
 import '../../web/net-inspector.css'
-import type { FaceMapping } from './capture/captureFaceMapping'
+import { photoForFace } from '@puzlwerk/capture-recovery'
+import type { CandidatePhotoEvidence } from './capture/photoProvenance'
 import { useLayoutEffect, useMemo, useRef, useState } from 'preact/hooks'
 import {
   nearestInspectorCell,
@@ -13,10 +14,10 @@ import { stickerMark } from './capture/captureSteps'
 import { diagonalSplit } from './capture/stickerSplit'
 import { forcedReading, forcedSentence } from './capture/forcedStickers'
 import type { FaceCaptureData } from './capture/captureTypes'
-import { faceSources, pieceKey, sourceIndex } from './netPresentation'
+import { pieceKey, sourceIndex } from './netPresentation'
 
 interface CubeNetViewProps {
-  photoMapping?: FaceMapping | null
+  photoEvidence?: CandidatePhotoEvidence
   cube: CubeState
   size: number
   parity: ParityResult | null
@@ -30,6 +31,7 @@ interface CubeNetViewProps {
     row: number,
     col: number,
     turns: number,
+    sourceOnly?: boolean,
   ) => void
 }
 
@@ -56,7 +58,7 @@ function netStickerMark(
 }
 
 export function CubeNetView({
-  photoMapping,
+  photoEvidence,
   cube: visibleCube,
   size: puzzleSize,
   parity,
@@ -133,34 +135,22 @@ export function CubeNetView({
       g.facelets.some((f) => f.face === face && f.index === index),
     )?.group
   // Which photo each net face shows, for its review marks and preview.
-  const rows = (flat: string[]) =>
-    Array.from({ length: puzzleSize }, (_, r) =>
-      flat.slice(r * puzzleSize, (r + 1) * puzzleSize),
-    )
-  const inferredSources = faceSources(
-    {
-      u: rows(visibleCube.u),
-      r: rows(visibleCube.r),
-      f: rows(visibleCube.f),
-      d: rows(visibleCube.d),
-      l: rows(visibleCube.l),
-      b: rows(visibleCube.b),
-    },
-    Object.fromEntries(
-      faceOrder
-        .filter((f) => capturedFaces[f])
-        .map((f) => [f, capturedFaces[f].colors]),
-    ),
+  // No photo identity can be established from sticker-color equality.
+  const netSources = Object.fromEntries(
+    (['U', 'R', 'F', 'D', 'L', 'B'] as const).flatMap((face) => {
+      const source = photoEvidence
+        ? photoForFace(photoEvidence.capture, photoEvidence.candidate, face)
+        : undefined
+      return source
+        ? [
+            [
+              face.toLowerCase(),
+              { slot: source.slot, turns: source.quarterTurns },
+            ],
+          ]
+        : []
+    }),
   )
-  const netSources =
-    photoMapping !== undefined
-      ? Object.fromEntries(
-          (photoMapping ?? []).map((p) => [
-            p.target.toLowerCase(),
-            { slot: p.slot, turns: p.quarterTurns },
-          ]),
-        )
-      : inferredSources
   const hoveredPiece = hoveredNetCell
     ? pieceKey(puzzleSize, hoveredNetCell.face, hoveredNetCell.index)
     : null
@@ -240,6 +230,31 @@ export function CubeNetView({
           reading.
         </p>
       )}
+      {Object.keys(netSources).length === 0 &&
+        onEditSticker &&
+        faceOrder.some((slot) => capturedFaces[slot]?.croppedImage) && (
+          <label>
+            Captured photo
+            <select
+              aria-label="Captured photo"
+              value=""
+              onChange={(event) => {
+                const slot = event.currentTarget.value
+                if (slot) onEditSticker(slot, -1, -1, 0, true)
+                event.currentTarget.value = ''
+              }}
+            >
+              <option value="">Choose a photo to check</option>
+              {faceOrder
+                .filter((slot) => capturedFaces[slot]?.croppedImage)
+                .map((slot) => (
+                  <option key={slot} value={slot}>
+                    Photo {faceOrder.indexOf(slot) + 1}
+                  </option>
+                ))}
+            </select>
+          </label>
+        )}
       <div
         class="cube-net"
         ref={netRef}

@@ -172,3 +172,16 @@ directly rather than adding duplicate individual JPEGs outside Git LFS. See its
 `capture.faceRecovery` metadata preserves exact manual photo assignments,
 rotations, and display pose; [the contract](../../docs/orientation-recovery.md)
 also describes imported 8×8 correction and validation limits.
+
+## Photo identity: patterned 4×4 capture
+
+`photo-identity-4x4-2026-11-16T21-28-43.zip` contains the owner's original
+`cube-4x4-2026-11-16T21-28-43` metadata and six JPEGs without pixel changes.
+The ZIP uses fixed entry timestamps; SHA-256 is
+`3325d520d637264d693851158bb46946bbde0f2aa89eb2fc54f95cb118529076`.
+Its metadata SHA-256 is
+`5c246ab802bead2279758cf3957cdfd3feedb4bfbfaf4701550dd103b73a1897`.
+The photo-provenance tests assert the original JPEG hashes, particularly the
+color-identical Up/Down faces whose photographs have different markings.
+An unapproved test variant removes approval metadata in memory; it does not
+change the stored capture or invent a new physical observation.
