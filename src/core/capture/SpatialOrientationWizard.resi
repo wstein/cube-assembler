@@ -78,3 +78,21 @@ let previewChoice: (
   string,
   bool,
 ) => Null.t<choicePreview>
+@genType
+type presentedChoice = {
+  choice: choice,
+  view: choicePreview,
+  relativeTurns: int,
+  isCurrent: bool,
+}
+@genType
+let presentChoices: (
+  Dict.t<CubeTypes.grid>,
+  session,
+  array<decision>,
+  string,
+  CaptureFaceMapping.mapping,
+  string,
+  string,
+  bool,
+) => array<presentedChoice>

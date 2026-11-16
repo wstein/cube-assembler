@@ -283,3 +283,68 @@ let previewChoice = (
     }
   }
 }
+
+@genType
+type presentedChoice = {
+  choice: choice,
+  view: choicePreview,
+  relativeTurns: int,
+  isCurrent: bool,
+}
+let presentChoices = (
+  captured,
+  session,
+  decisions: array<decision>,
+  slot,
+  currentMapping: CaptureFaceMapping.mapping,
+  frontSlot,
+  upSlot,
+  captureView,
+) => {
+  let current = if captureView {
+    CaptureFaceMapping.captureFrame(captured, currentMapping, frontSlot, upSlot)
+    ->Null.toOption
+    ->Option.map(frame => frame.mapping)
+  } else {
+    Some(currentMapping)
+  }
+  switch current->Option.flatMap(mapping => mapping->Array.find(entry => entry.slot == slot)) {
+  | None => []
+  | Some(current) =>
+    let index = decisions->Array.findIndex(decision => decision.slot == slot)
+    let prefix = index < 0 ? decisions : decisions->Array.filterWithIndex((_, i) => i < index)
+    let presented = options(session, prefix, slot)->Array.filterMap(choice => {
+      let decision: decision = {
+        slot: choice.slot,
+        target: choice.target,
+        quarterTurns: choice.quarterTurns,
+      }
+      switch previewChoice(
+        captured,
+        session,
+        decisions,
+        decision,
+        currentMapping,
+        frontSlot,
+        upSlot,
+        captureView,
+      )->Null.toOption {
+      | None => None
+      | Some(view) =>
+        view.mapping
+        ->Array.find(entry => entry.slot == slot)
+        ->Option.map(placed => {
+          choice,
+          view,
+          relativeTurns: mod(placed.quarterTurns - current.quarterTurns + 4, 4),
+          isCurrent: placed.target == current.target && placed.quarterTurns == current.quarterTurns,
+        })
+      }
+    })
+    presented->Array.toSorted((a, b) =>
+      a.isCurrent != b.isCurrent
+        ? a.isCurrent ? -1.0 : 1.0
+        : Int.toFloat(a.relativeTurns - b.relativeTurns)
+    )
+  }
+}
