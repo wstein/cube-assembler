@@ -96,3 +96,5 @@ let presentChoices: (
   string,
   bool,
 ) => array<presentedChoice>
+
+@genType let knownAlternatives: (session, CaptureFaceMapping.mapping) => int

@@ -191,25 +191,25 @@ let matchesDecision = (mapping: CaptureFaceMapping.mapping, decision: decision) 
 
 // Membership is an exact source-photo statement, not a validity verdict.
 // Search caps and symmetry reduction can omit legal owner-selected mappings.
+let completeMapping = (entries: CaptureFaceMapping.mapping) =>
+  Array.length(entries) == 6 &&
+  slots->Array.every(slot =>
+    entries->Array.filter(entry => entry.slot == slot)->Array.length == 1
+  ) &&
+  faceKeys->Array.every(target =>
+    entries->Array.filter(entry => entry.target == target)->Array.length == 1
+  ) &&
+  entries->Array.every(entry => {
+    let turns = Int.toFloat(entry.quarterTurns)
+    Float.isFinite(turns) &&
+    Math.floor(turns) == turns &&
+    entry.quarterTurns >= 0 &&
+    entry.quarterTurns <= 3
+  })
 let retainsMapping = (session: session, mapping: CaptureFaceMapping.mapping) => {
-  let complete = (entries: CaptureFaceMapping.mapping) =>
-    Array.length(entries) == 6 &&
-    slots->Array.every(slot =>
-      entries->Array.filter(entry => entry.slot == slot)->Array.length == 1
-    ) &&
-    faceKeys->Array.every(target =>
-      entries->Array.filter(entry => entry.target == target)->Array.length == 1
-    ) &&
-    entries->Array.every(entry => {
-      let turns = Int.toFloat(entry.quarterTurns)
-      Float.isFinite(turns) &&
-      Math.floor(turns) == turns &&
-      entry.quarterTurns >= 0 &&
-      entry.quarterTurns <= 3
-    })
-  complete(mapping) &&
+  completeMapping(mapping) &&
   session.candidates->Array.some(candidate =>
-    complete(candidate.mapping) &&
+    completeMapping(candidate.mapping) &&
     mapping->Array.every(decision => matchesDecision(candidate.mapping, decision))
   )
 }
@@ -347,4 +347,32 @@ let presentChoices = (
         : Int.toFloat(a.relativeTurns - b.relativeTurns)
     )
   }
+}
+
+let sourceMappingSignature = (mapping: CaptureFaceMapping.mapping) => {
+  if !completeMapping(mapping) {
+    None
+  } else {
+    let photos = Dict.fromArray(
+      slots->Array.map(slot => (
+        slot,
+        Array.fromInitializer(~length=3, row =>
+          Array.fromInitializer(~length=3, col => `${slot}${Int.toString(row * 3 + col)}`)
+        ),
+      )),
+    )
+    let faces = previewFaces(photos, mapping, 3)
+    Some(CubeAssembly.orientationFreeSignature(faces))
+  }
+}
+let knownAlternatives = (session: session, currentMapping) => {
+  let current = sourceMappingSignature(currentMapping)
+  let unique = Set.make()
+  session.candidates->Array.forEach(candidate => {
+    switch sourceMappingSignature(candidate.mapping) {
+    | Some(signature) if Some(signature) != current => unique->Set.add(signature)
+    | _ => ()
+    }
+  })
+  Set.size(unique)
 }

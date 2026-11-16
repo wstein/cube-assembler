@@ -1,6 +1,7 @@
 // Candidate generation and incremental decisions remain ReScript-owned.
 export {
   generate,
+  knownAlternatives,
   presentChoices,
   propose,
   previewChoice,
