@@ -1,3 +1,4 @@
+import '../../web/net-inspector.css'
 import type { FaceMapping } from './capture/captureFaceMapping'
 import { useState } from 'preact/hooks'
 import type { CubeState } from '../cube/cubeAssembly'
@@ -339,7 +340,15 @@ export function CubeNetView({
             </div>
           )
         })}
-        <div class="net-info" aria-live="polite">
+        <div
+          class="net-info"
+          aria-live="polite"
+          aria-label={
+            hoveredInfo
+              ? `${hoveredInfo.faceName} · ${hoveredInfo.pieceName}`
+              : undefined
+          }
+        >
           {hoveredInfo ? (
             <>
               {hoveredInfo.photo && (
@@ -352,10 +361,6 @@ export function CubeNetView({
                   }}
                 />
               )}
-              <p>
-                <strong>{hoveredInfo.faceName}</strong> ·{' '}
-                {hoveredInfo.pieceName}
-              </p>
               {hoveredInfo.note && (
                 <p class="net-info-note">{hoveredInfo.note}</p>
               )}

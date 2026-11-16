@@ -1,0 +1,32 @@
+/* One unused net cell holds the original at the same size as a sticker grid. */
+.cube-net > .net-info {
+  grid-column: 3 / 4;
+  grid-row: 1 / 2;
+  inset: var(--net-gap, 3px) var(--net-gap, 3px) auto;
+  aspect-ratio: 1;
+  padding: 0;
+  display: block;
+  overflow: visible;
+}
+
+.cube-net > .net-info > .net-info-photo {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* Notes use the other empty top-row cell, leaving every cube face visible. */
+.cube-net > .net-info > .net-info-note {
+  position: absolute;
+  top: 0;
+  left: calc(100% + 2px + 2 * var(--net-gap, 3px));
+  width: 100%;
+  max-height: 100%;
+  overflow: auto;
+}
+
+.cube-net > .net-info > .net-info-hint {
+  max-height: 100%;
+  overflow: auto;
+}
