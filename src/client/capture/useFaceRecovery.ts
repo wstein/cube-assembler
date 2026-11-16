@@ -1,4 +1,4 @@
-import { useState } from 'preact/hooks'
+import { useEffect, useMemo, useState } from 'preact/hooks'
 import type { FaceKey, OrientedCandidate } from '../../cube/cubeAssembly'
 import {
   assignMapping,
@@ -16,6 +16,16 @@ import {
 } from './captureRecovery'
 import { readFixtureAssembled } from '../fixtures/fixtureFormat'
 import type { FaceCaptureData } from './captureTypes'
+import {
+  generate,
+  remaining,
+  options,
+  nextSlot,
+  reconcile,
+  preserveMapping,
+  type SpatialDecision as Decision,
+  type SpatialChoice as Choice,
+} from './spatialOrientationWizard'
 
 export interface RecoveryDraft {
   mapping: FaceMapping
@@ -41,14 +51,49 @@ export function useFaceRecovery({
   mirrored,
   guided,
   onChoose,
+  onCommitFaces,
 }: {
   capturedFaces: Record<string, FaceCaptureData>
   size: number
   mirrored: boolean
   guided: boolean
+  onCommitFaces: (faces: Record<string, FaceCaptureData>) => void
   onChoose: (candidate: OrientedCandidate, recovery?: CaptureRecovery) => void
 }) {
   const [open, setOpen] = useState(false)
+  const [draftFaces, setDraftFaces] = useState<Record<
+    string,
+    FaceCaptureData
+  > | null>(null)
+  const workingFaces = draftFaces ?? capturedFaces
+  const [choiceWarning, setChoiceWarning] = useState<string | null>(null)
+  const [activeOverride, setActiveOverride] = useState<string | null>(null)
+  const [pendingChoice, setPendingChoice] = useState<Choice | null>(null)
+  useEffect(() => setPendingChoice(null), [workingFaces])
+  const [decisions, setDecisions] = useState<Decision[]>([])
+  const session = useMemo(
+    () =>
+      open
+        ? generate(
+            Object.fromEntries(
+              Object.entries(workingFaces).map(([slot, f]) => [slot, f.colors]),
+            ),
+            size,
+            guided,
+          )
+        : null,
+    [open, workingFaces, size, guided],
+  )
+  const remainingCandidates = session ? remaining(session, decisions) : []
+  const activeSlot =
+    activeOverride ?? (session ? nextSlot(session, decisions) : null)
+  const questionIndex = decisions.findIndex(
+    (decision) => decision.slot === activeSlot,
+  )
+  const prefixDecisions =
+    questionIndex < 0 ? decisions : decisions.slice(0, questionIndex)
+  const choices =
+    session && activeSlot ? options(session, prefixDecisions, activeSlot) : []
   const [draft, setDraft] = useState<RecoveryDraft | null>(null)
   const [initial, setInitial] = useState<RecoveryDraft | null>(null)
   const [history, setHistory] = useState<RecoveryDraft[]>([])
@@ -57,7 +102,7 @@ export function useFaceRecovery({
   const [context, setContext] = useState<CaptureContext | null>(null)
   const [importWarning, setImportWarning] = useState<string | null>(null)
   const grids = Object.fromEntries(
-    Object.entries(capturedFaces).map(([slot, f]) => [slot, f.colors]),
+    Object.entries(workingFaces).map(([slot, f]) => [slot, f.colors]),
   )
   const loadContext = (value: CaptureContext | null) => {
     const recovered = readRecovery(value?.faceRecovery)
@@ -74,9 +119,14 @@ export function useFaceRecovery({
     )
     setRecordPresent(value?.faceRecovery != null)
     setApproved(recovered)
+    setDraftFaces(null)
     setDraft(null)
     setInitial(null)
     setHistory([])
+    setDecisions([])
+    setActiveOverride(null)
+    setChoiceWarning(null)
+    setPendingChoice(null)
     setOpen(false)
     setImportWarning(
       value?.faceRecovery != null && !recovered
@@ -87,6 +137,7 @@ export function useFaceRecovery({
   const reset = () => loadContext(null)
   const begin = (candidate: OrientedCandidate | null) => {
     if (!draft) {
+      setDraftFaces(capturedFaces)
       const mapping = approved?.mapping ?? initializeMapping(grids, candidate)
       const frontSlot = approved?.captureFrame.frontSlot ?? 'U'
       const front = mapping.find((m) => m.slot === frontSlot)?.target
@@ -135,12 +186,61 @@ export function useFaceRecovery({
     }
   }
   const resetDraft = () => {
+    setDecisions([])
+    setActiveOverride(null)
+    setChoiceWarning(null)
+    setPendingChoice(null)
+    setDraftFaces(capturedFaces)
     if (initial) update(initial)
   }
   const cancel = () => {
+    setDraftFaces(capturedFaces)
+    setDecisions([])
     setDraft(initial)
     setHistory([])
     setOpen(false)
+  }
+  const chooseOption = (choice: Choice) => {
+    if (!draft || !session) return
+    const reconciled = reconcile(session, decisions, {
+      slot: choice.slot,
+      target: choice.target,
+      quarterTurns: choice.quarterTurns,
+    })
+    const nextDecisions = reconciled.decisions
+    setChoiceWarning(
+      reconciled.conflicts.length
+        ? `${reconciled.conflicts.length} incompatible later choices need another answer. Compatible choices were kept.`
+        : null,
+    )
+    setPendingChoice(choice)
+    const matching = remaining(session, nextDecisions)
+    if (matching.length) {
+      update({
+        ...draft,
+        mapping: preserveMapping(grids, draft.mapping, matching[0]),
+      })
+    }
+  }
+  const back = () => {
+    setPendingChoice(null)
+    const currentIndex = activeOverride
+      ? decisions.findIndex((d) => d.slot === activeOverride)
+      : decisions.length
+    const previousDecision = decisions[Math.max(0, currentIndex - 1)]
+    if (previousDecision) setActiveOverride(previousDecision.slot)
+  }
+  const next = () => {
+    if (!pendingChoice) return
+    setDecisions(
+      reconcile(session!, decisions, {
+        slot: pendingChoice.slot,
+        target: pendingChoice.target,
+        quarterTurns: pendingChoice.quarterTurns,
+      }).decisions,
+    )
+    setPendingChoice(null)
+    setActiveOverride(null)
   }
   const validation = draft ? validateMapping(grids, draft.mapping, size) : null
   const frame = draft
@@ -164,7 +264,7 @@ export function useFaceRecovery({
       captureFrame: {
         guideObservations: mergeGuideObservations(
           approved?.captureFrame.guideObservations ?? [],
-          capturedFaces,
+          workingFaces,
         ),
         frontSlot: draft.frontSlot,
         upSlot: draft.upSlot,
@@ -185,6 +285,7 @@ export function useFaceRecovery({
     setOpen(false)
     setInitial(draft)
     setHistory([])
+    onCommitFaces(workingFaces)
     onChoose(validation.candidate, record)
   }
   // Imported explicit choices bypass automatic reranking. Validate the pose
@@ -196,6 +297,27 @@ export function useFaceRecovery({
   }
   return {
     open,
+    workingFaces,
+    setDraftFaces: (
+      value:
+        | Record<string, FaceCaptureData>
+        | ((
+            previous: Record<string, FaceCaptureData>,
+          ) => Record<string, FaceCaptureData>),
+    ) =>
+      setDraftFaces((previous) =>
+        typeof value === 'function' ? value(previous ?? capturedFaces) : value,
+      ),
+    choiceWarning,
+    pendingChoice,
+    decisions,
+    session,
+    remainingCandidates,
+    activeSlot,
+    choices,
+    chooseOption,
+    back,
+    next,
     draft,
     history,
     approved,

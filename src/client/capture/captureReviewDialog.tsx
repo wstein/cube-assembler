@@ -13,6 +13,7 @@ import { sourceIndex } from '../netPresentation'
 import type { FaceCaptureData } from './captureTypes'
 
 interface CaptureReviewDialogProps {
+  embedded?: boolean
   faceOrder: readonly string[]
   faceLabels: Record<string, string>
   colorNames: Record<string, string>
@@ -44,6 +45,7 @@ interface CaptureReviewDialogProps {
 // Show each original photo beside the detected stickers so corrections stay
 // tied to the source image.
 export function CaptureReviewDialog({
+  embedded = false,
   faceOrder,
   faceLabels,
   colorNames,
@@ -109,11 +111,11 @@ export function CaptureReviewDialog({
       : (layoutTurns ?? 0)
   const pickers = miniNet(faces, [...faceOrder], size)
   return (
-    <div class="modal open">
+    <div class={embedded ? 'spatial-color-editor' : 'modal open'}>
       <div
         class="modal-content review-modal-content"
         role="dialog"
-        aria-modal="true"
+        aria-modal={embedded ? undefined : 'true'}
         aria-labelledby="review-title"
         tabIndex={-1}
         ref={focusDialog}
