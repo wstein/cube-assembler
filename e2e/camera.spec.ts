@@ -1,3 +1,4 @@
+import type * as FrameSampling from '../src/core/vision/FaceSampling.gen'
 import {
   readFixtureColors,
   readFixtureAssembled,
@@ -14,7 +15,12 @@ import { expect, test, type Page } from '@playwright/test'
 
 declare global {
   interface Window {
-    setTestCameraFace(index: number): Promise<void>
+    setTestCameraFace(index: number): Promise<number>
+    readTestCameraFrame(): number | null
+    cameraFrameChangeFinished: boolean
+    cameraFrameChangeId: number
+    testCameraSourceRegionUnchanged: boolean
+    testCameraSourceCanvas: HTMLCanvasElement
   }
 }
 
@@ -29,6 +35,11 @@ async function installStubCamera(
   frames = photos,
   turns = frames.map(() => 0),
 ) {
+  const cpu = Number(process.env.CAMERA_TEST_CPU ?? 1)
+  if (cpu > 1) {
+    const cdp = await page.context().newCDPSession(page)
+    await cdp.send('Emulation.setCPUThrottlingRate', { rate: cpu })
+  }
   // Hands-free capture starts on; these tests press the capture buttons.
   await page.addInitScript(() => {
     if (!document.cookie.includes('cube-assembler-auto-capture='))
@@ -40,11 +51,13 @@ async function installStubCamera(
       canvas.width = 960
       canvas.height = 720
       const context = canvas.getContext('2d')!
+      window.testCameraSourceCanvas = canvas
       const images = frames.map((base64) => {
         const image = new Image()
         image.src = `data:image/jpeg;base64,${base64}`
         return image
       })
+      let generation = 0
       const setFace = async (index: number) => {
         const image = images[index]
         await image.decode()
@@ -55,6 +68,29 @@ async function installStubCamera(
         context.rotate((turns[index] * Math.PI) / 2)
         context.drawImage(image, -216, -216, 432, 432)
         context.restore()
+        // The eight-bit marker lives entirely outside the unchanged JPEG and
+        // camera sampling square. It identifies the video frame, not puzzle data.
+        const before =
+          generation === 0
+            ? context.getImageData(264, 144, 432, 432).data
+            : null
+        generation = (generation + 1) % 256
+        for (let bit = 0; bit < 8; bit++) {
+          context.fillStyle = generation & (1 << bit) ? '#fff' : '#000'
+          context.fillRect(bit * 8, 0, 8, 8)
+        }
+        if (before) {
+          const after = context.getImageData(264, 144, 432, 432).data
+          window.testCameraSourceRegionUnchanged = before.every(
+            (value, index) => value === after[index],
+          )
+        }
+        // Canvas streams may otherwise coalesce a rapid redraw at their FPS
+        // boundary. Request this frame without waiting for a later redraw.
+        ;(
+          stream.getVideoTracks()[0] as CanvasCaptureMediaStreamTrack
+        ).requestFrame()
+        return generation
       }
       const stream = canvas.captureStream(10)
       Object.defineProperty(navigator.mediaDevices, 'getUserMedia', {
@@ -64,17 +100,34 @@ async function installStubCamera(
           return stream
         },
       })
-      window.setTestCameraFace = async (index) => {
-        await setFace(index)
+      window.setTestCameraFace = setFace
+      const sample = document.createElement('canvas')
+      sample.width = 64
+      sample.height = 8
+      const sampling = sample.getContext('2d')!
+      window.readTestCameraFrame = () => {
         const video = document.querySelector('video')
-        if (video && video.readyState >= 2 && !video.paused)
-          await new Promise<void>((resolve) =>
-            video.requestVideoFrameCallback(() => resolve()),
-          )
+        if (!video || video.readyState < 2) return null
+        sampling.drawImage(video, 0, 0, 64, 8, 0, 0, 64, 8)
+        const pixels = sampling.getImageData(0, 0, 64, 8).data
+        let frame = 0
+        for (let bit = 0; bit < 8; bit++)
+          if (pixels[(4 * 64 + bit * 8 + 4) * 4] > 128) frame |= 1 << bit
+        return frame
       }
     },
     { frames, turns },
   )
+}
+
+async function setCameraFace(page: Page, index: number) {
+  const expected = await page.evaluate(
+    (face) => window.setTestCameraFace(face),
+    index,
+  )
+  await expect
+    .poll(() => page.evaluate(() => window.readTestCameraFrame()))
+    .toBe(expected)
 }
 
 // Reuse the original JPEGs and their saved assembled state, not a chosen
@@ -145,9 +198,9 @@ test('captures and re-detects a face from a live camera stream', async ({
         zones.map((zone) => (zone as HTMLElement).style.borderColor).join(','),
       )
   const firstPreview = await previewColors()
-  await page.evaluate(() => window.setTestCameraFace(1))
+  await setCameraFace(page, 1)
   await expect.poll(previewColors).not.toBe(firstPreview)
-  await page.evaluate(() => window.setTestCameraFace(0))
+  await setCameraFace(page, 0)
   // The live view never compares the cube with faces already captured.
   await expect(capture.locator('.capture-live-badge')).not.toContainText(
     'Looks like',
@@ -161,7 +214,7 @@ test('captures and re-detects a face from a live camera stream', async ({
     capture.getByRole('button', { name: 'Capture photo 2', exact: true }),
   ).toBeEnabled()
   for (let index = 1; index < photos.length; index++) {
-    await page.evaluate((face) => window.setTestCameraFace(face), index)
+    await setCameraFace(page, index)
     await capture
       .getByRole('button', {
         name: /^Capture (?:side [1-4]|top|bottom|up|down|photo [1-6])$/i,
@@ -335,7 +388,7 @@ test('the turn cue shows after each of the first five captures', async ({
   await expect(capture.locator('.capture-live-badge')).toContainText('Live')
   const kinds = ['side', 'side', 'side', 'top', 'bottom']
   for (let index = 0; index < kinds.length; index++) {
-    await page.evaluate((face) => window.setTestCameraFace(face), index)
+    await setCameraFace(page, index)
     await capture
       .getByRole('button', {
         name: /^Capture (?:side [1-4]|top|bottom|up|down|photo [1-6])$/i,
@@ -360,7 +413,7 @@ test('a valid cube never starts the color review after the last capture', async 
   const capture = page.locator('.capture-modal-content')
   await expect(capture.locator('.capture-live-badge')).toContainText('Live')
   for (let index = 0; index < photos.length; index++) {
-    await page.evaluate((face) => window.setTestCameraFace(face), index)
+    await setCameraFace(page, index)
     await capture
       .getByRole('button', {
         name: /^Capture (?:side [1-4]|top|bottom|up|down|photo [1-6])$/i,
@@ -395,7 +448,7 @@ test('a mirrored 5x5 capture asks only whether it is your cube', async ({
   await expect(capture.locator('.capture-live-badge')).toContainText('Live')
   await capture.getByLabel('Mirror').check()
   for (let index = 0; index < frames.length; index++) {
-    await page.evaluate((face) => window.setTestCameraFace(face), index)
+    await setCameraFace(page, index)
     await capture
       .getByRole('button', {
         name: /^Capture (?:side [1-4]|top|bottom|up|down|photo [1-6])$/i,
@@ -430,7 +483,7 @@ for (const mirrored of [true, false])
       await expect(cell.locator('.capture-net-label')).toHaveText(String(i + 1))
     }
     for (let step = 0; step < 5; step++) {
-      await page.evaluate((index) => window.setTestCameraFace(index), step)
+      await setCameraFace(page, step)
       await capture
         .getByRole('button', { name: /^Capture (?:photo [1-6]|up|down)$/i })
         .click()
@@ -463,3 +516,72 @@ for (const mirrored of [true, false])
       await cue.getByRole('button', { name: 'Continue' }).click()
     }
   })
+
+test('a presented camera frame stays usable when no later video callback arrives', async ({
+  page,
+}) => {
+  await installStubCamera(page)
+  await page.goto('/')
+  await page.getByRole('button', { name: 'Capture faces' }).click()
+  await expect(page.locator('.capture-modal-content video')).toHaveJSProperty(
+    'videoWidth',
+    960,
+  )
+  await page.evaluate(() => {
+    const video = document.querySelector('video')!
+    // Model late registration after a one-shot canvas frame was presented:
+    // there is no following callback, although the video remains usable.
+    video.requestVideoFrameCallback = () => 0
+    window.cameraFrameChangeFinished = false
+    void window.setTestCameraFace(1).then((id) => {
+      window.cameraFrameChangeId = id
+      window.cameraFrameChangeFinished = true
+    })
+  })
+  await expect
+    .poll(() => page.evaluate(() => window.cameraFrameChangeFinished))
+    .toBe(true)
+  expect(
+    await page.evaluate(() => window.testCameraSourceRegionUnchanged),
+  ).toBe(true)
+  await expect
+    .poll(() => page.evaluate(() => window.readTestCameraFrame()))
+    .toBe(await page.evaluate(() => window.cameraFrameChangeId))
+  const padding = await page.evaluate(async () => {
+    // Use the actual production background sampler: the marker must not change
+    // its reference color either, despite living outside the sticker samples.
+    const path = '/src/core/vision/FaceSampling.res.mjs'
+    const core = (await import(path)) as typeof FrameSampling
+    const source = window.testCameraSourceCanvas
+    const clean = document.createElement('canvas')
+    clean.width = source.width
+    clean.height = source.height
+    const context = clean.getContext('2d')!
+    context.drawImage(source, 0, 0)
+    context.fillStyle = '#777777'
+    context.fillRect(0, 0, 64, 8)
+    const bounds = core.guideBounds(
+      source.width,
+      source.height,
+      core.sampleFaceFraction,
+    )
+    return {
+      outside: bounds.startX >= 64 && bounds.startY >= 8,
+      before: core.extractBackgroundColorFromPixels(
+        context.getImageData(0, 0, source.width, source.height).data,
+        source.width,
+        source.height,
+        bounds,
+      ),
+      after: core.extractBackgroundColorFromPixels(
+        source.getContext('2d')!.getImageData(0, 0, source.width, source.height)
+          .data,
+        source.width,
+        source.height,
+        bounds,
+      ),
+    }
+  })
+  expect(padding.outside).toBe(true)
+  expect(padding.after).toEqual(padding.before)
+})
