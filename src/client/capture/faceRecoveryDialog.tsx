@@ -57,7 +57,7 @@ export function FaceRecoveryDialog({
     faces: NonNullable<typeof recovery.validation>['faces']
     mapping: NonNullable<typeof recovery.draft>['mapping']
   } | null>(null)
-  const { draft, validation, frame } = recovery
+  const { draft, validation } = recovery
   const approvedCapture = recovery.approved
     ? validateMapping(
         Object.fromEntries(
@@ -107,10 +107,8 @@ export function FaceRecoveryDialog({
     } else onDialogKeyDown(event)
   }
   if (!draft) return null
-  const completeFaces =
-    draft.view === 'capture' ? frame?.faces : validation?.faces
-  const completeMapping =
-    draft.view === 'capture' ? frame?.mapping : draft.mapping
+  const completeFaces = validation?.faces
+  const completeMapping = draft.mapping
   if (completeFaces && completeMapping)
     lastComplete.current = { faces: completeFaces, mapping: completeMapping }
   const provisionalMapping = FACE_ORDER.map((slot) => ({
@@ -134,9 +132,7 @@ export function FaceRecoveryDialog({
       ? 'conflict'
       : recovery.activeSlot
         ? 'choice'
-        : draft.view === 'capture' && !draft.confirmed
-          ? 'pose'
-          : 'review'
+        : 'review'
   const placements =
     completeFaces && completeMapping
       ? completeMapping
@@ -287,15 +283,21 @@ export function FaceRecoveryDialog({
                     ] ?? recovery.activeSlot}
                     ?
                   </h3>
+                  <p>{recovery.presentedChoices.length} options</p>
                   <div class="spatial-candidates">
                     {recovery.presentedChoices.map(
-                      ({ choice, view, relativeTurns, isCurrent }, i) => (
+                      ({ choice, view, relativeTurns }, i) => (
                         <button
                           type="button"
                           class="spatial-candidate"
                           key={`${choice.target}-${choice.quarterTurns}`}
                           aria-label={`Choose ${LABELS[FACE_ORDER.indexOf(choice.slot)] ?? choice.slot}, ${relativeTurns * 90}° clockwise, ${view.target} face, option ${i + 1}`}
-                          aria-pressed={isCurrent}
+                          aria-pressed={
+                            recovery.selectedChoice?.slot === choice.slot &&
+                            recovery.selectedChoice.target === choice.target &&
+                            recovery.selectedChoice.quarterTurns ===
+                              choice.quarterTurns
+                          }
                           onClick={() => {
                             setInspectedFace(null)
                             recovery.chooseOption(choice)
@@ -310,49 +312,6 @@ export function FaceRecoveryDialog({
                     )}
                   </div>
                 </section>
-              )}
-              {stage === 'pose' && (
-                <fieldset class="spatial-pose">
-                  <legend>Which photos were front and top?</legend>
-                  <label>
-                    Front{' '}
-                    <select
-                      aria-label="Capture front photo"
-                      value={draft.frontSlot}
-                      onChange={(e) =>
-                        recovery.edit({
-                          frontSlot: e.currentTarget.value,
-                          confirmed: false,
-                        })
-                      }
-                    >
-                      {FACE_ORDER.map((f, i) => (
-                        <option key={f} value={f}>
-                          {LABELS[i]}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                  <label>
-                    Top{' '}
-                    <select
-                      aria-label="Capture top photo"
-                      value={draft.upSlot}
-                      onChange={(e) =>
-                        recovery.edit({
-                          upSlot: e.currentTarget.value,
-                          confirmed: false,
-                        })
-                      }
-                    >
-                      {FACE_ORDER.map((f, i) => (
-                        <option key={f} value={f}>
-                          {LABELS[i]}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                </fieldset>
               )}
               {stage === 'review' && <h3>Ready to use this cube?</h3>}
               {stage === 'conflict' && <h3>Review the captured input.</h3>}
@@ -458,16 +417,6 @@ export function FaceRecoveryDialog({
                 }}
               >
                 Next
-              </button>
-            )}
-            {!colorFace && stage === 'pose' && (
-              <button
-                type="button"
-                class="btn btn-primary"
-                disabled={!validation?.valid || !frame}
-                onClick={() => recovery.edit({ confirmed: true })}
-              >
-                Confirm front and top
               </button>
             )}
             {!colorFace && stage === 'review' && (
