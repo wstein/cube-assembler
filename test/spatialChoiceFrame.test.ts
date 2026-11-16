@@ -5,6 +5,7 @@ import { readFixtureColors } from '../src/client/fixtures/fixtureFormat'
 import { captureFrame } from '../src/client/capture/captureFaceMapping'
 import {
   generate,
+  presentChoices,
   previewChoice,
   propose,
 } from '../src/client/capture/spatialOrientationWizard'
@@ -156,4 +157,84 @@ it('uses the same reversible source-to-frame transform on a second asymmetric 3Ã
   expect(turns.has(1)).toBe(true)
   expect(turns.has(3)).toBe(true)
   expect(JSON.stringify(other)).toBe(before)
+})
+
+it('presents the current display choice first at relative zero across all 24 frames and six sources', () => {
+  const session = generate(raw, 7, true)
+  const candidate = session.candidates.at(-1)!
+  const before = JSON.stringify(candidate.mapping)
+  const frames = new Set<number>()
+  for (const front of candidate.mapping) {
+    for (const up of candidate.mapping) {
+      const frame = captureFrame(raw, candidate.mapping, front.slot, up.slot)
+      if (!frame) continue
+      frames.add(frame.displayTransform)
+      for (const placed of frame.mapping) {
+        const presented = presentChoices(
+          raw,
+          session,
+          [],
+          placed.slot,
+          candidate.mapping,
+          front.slot,
+          up.slot,
+          true,
+        )
+        expect(presented.length).toBeGreaterThan(0)
+        expect(presented[0].isCurrent).toBe(true)
+        expect(presented[0].relativeTurns).toBe(0)
+        const laterTurns = presented.slice(1).map((item) => item.relativeTurns)
+        expect(laterTurns).toEqual([...laterTurns].sort((a, b) => a - b))
+        expect(presented[0].view.grid).toEqual(frame.faces[placed.target])
+        for (const item of presented) {
+          const selected = item.view.mapping.find(
+            (entry) => entry.slot === placed.slot,
+          )!
+          expect(item.relativeTurns).toBe(
+            (selected.quarterTurns - placed.quarterTurns + 4) % 4,
+          )
+        }
+      }
+    }
+  }
+  expect(frames.size).toBe(24)
+  expect(JSON.stringify(candidate.mapping)).toBe(before)
+})
+
+it('does not inject an unretained current orientation or substitute a missing capture frame', () => {
+  const generated = generate(raw, 7, true)
+  const candidate = generated.candidates[0]
+  const session = { ...generated, candidates: [candidate] }
+  const choice = candidate.mapping[0]
+  const current = candidate.mapping.map((entry) =>
+    entry.slot === choice.slot
+      ? { ...entry, quarterTurns: (entry.quarterTurns + 1) % 4 }
+      : entry,
+  )
+  const presented = presentChoices(
+    raw,
+    session,
+    [],
+    choice.slot,
+    current,
+    'U',
+    'L',
+    false,
+  )
+  expect(presented).toHaveLength(1)
+  expect(presented[0].isCurrent).toBe(false)
+  expect(presented[0].relativeTurns).toBe(3)
+  expect(presented[0].choice.quarterTurns).toBe(choice.quarterTurns)
+  expect(
+    presentChoices(
+      raw,
+      session,
+      [],
+      choice.slot,
+      candidate.mapping,
+      'U',
+      'U',
+      true,
+    ),
+  ).toEqual([])
 })
