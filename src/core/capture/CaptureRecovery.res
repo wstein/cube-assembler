@@ -96,6 +96,25 @@ let readObservation = value =>
     parsed->Option.map(displayedArrow => {slot, step, mirrored, displayedArrow, protocol})
   | _ => None
   }
+// Inline photo observations share the recovery decoder's version/type checks.
+// The enclosing face supplies its source slot; no absent observation is invented.
+let readCaptureGuide = (value, slot): Null.t<CaptureFlow.captureGuide> => {
+  switch value {
+  | JSON.Object(fields) =>
+    let fields = Dict.copy(fields)
+    fields->Dict.set("slot", JSON.String(slot))
+    readObservation(JSON.Object(fields))
+    ->Option.map((observation): CaptureFlow.captureGuide => {
+      step: observation.step,
+      mirrored: observation.mirrored,
+      displayedArrow: observation.displayedArrow,
+      protocol: observation.protocol,
+    })
+    ->Null.fromOption
+  | _ => Null.null
+  }
+}
+
 let readPose = value =>
   switch (
     textAt(value, "frontSlot"),

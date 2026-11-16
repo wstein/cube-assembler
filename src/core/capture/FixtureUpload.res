@@ -16,6 +16,7 @@ type facePlan = {
   photo: string,
   colors: array<array<string>>,
   timestamp: float,
+  captureGuide?: CaptureFlow.captureGuide,
   backgroundColor?: JSON.t,
   previewColorProfile?: JSON.t,
 }
@@ -58,7 +59,11 @@ let planFixtureUpload = (meta: JSON.t, metaName, photoNames: array<string>, now)
           parsed == 0.0 || Float.isNaN(parsed) ? now : parsed
         | _ => now
         }
-        let plan = {face, photo, colors, timestamp}
+        let captureGuide =
+          field(faceData, "captureGuide")->Option.flatMap(value =>
+            CaptureRecovery.readCaptureGuide(value, face)->Null.toOption
+          )
+        let plan = {face, photo, colors, timestamp, ?captureGuide}
         let background = field(faceData, "background")
         let plan = switch background {
         | Some(background) if truthy(Some(background)) => {...plan, backgroundColor: background}
