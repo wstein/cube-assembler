@@ -1,3 +1,4 @@
+import type { CandidatePhotoEvidence } from './capture/photoProvenance'
 import { useMemo } from 'preact/hooks'
 import { validateMapping } from './capture/captureFaceMapping'
 import {
@@ -34,6 +35,7 @@ const PARITY_CHECK_NAMES: Record<string, string> = {
 }
 
 interface CubeDisplayCardProps {
+  photoEvidence?: CandidatePhotoEvidence
   recovery?: CaptureRecovery | null
   sourceCube: CubeState
   visibleCube: CubeState
@@ -52,6 +54,7 @@ interface CubeDisplayCardProps {
     row: number,
     col: number,
     turns: number,
+    sourceOnly?: boolean,
   ) => void
   onTurnStateChange: (
     cube: CubeState,
@@ -62,6 +65,7 @@ interface CubeDisplayCardProps {
 
 export function CubeDisplayCard({
   recovery = null,
+  photoEvidence,
   sourceCube,
   visibleCube,
   size,
@@ -111,7 +115,6 @@ export function CubeDisplayCard({
       visibleCube[f].length === captureCube[f].length &&
       visibleCube[f].every((v, i) => v === captureCube[f][i]),
   )
-  const displayMapping = recovery?.mapping
   return (
     <section class="card cube-card">
       <div class="card-header">
@@ -189,9 +192,7 @@ export function CubeDisplayCard({
         <CubeNetView
           key={size}
           cube={shownVisible}
-          photoMapping={
-            recovery ? (atSource ? displayMapping : null) : undefined
-          }
+          photoEvidence={atSource ? photoEvidence : undefined}
           size={size}
           parity={parity}
           capturedFaces={capturedFaces}

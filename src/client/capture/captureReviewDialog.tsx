@@ -38,7 +38,13 @@ interface CaptureReviewDialogProps {
   // Set when a marked sticker of the net was opened for a direct edit: its
   // place. The dialog then offers OK and Cancel in place of the wizard's
   // steps.
-  direct?: { face: string; row: number; col: number; turns: number } | null
+  direct?: {
+    face: string
+    row: number
+    col: number
+    turns: number
+    sourceOnly?: boolean
+  } | null
   onOk?: () => void
 }
 
@@ -74,8 +80,8 @@ export function CaptureReviewDialog({
   const data = faces[face]
   // The face picker is the cube net while the photos fit together.
   const netLayout = useMemo(
-    () => reviewNetLayout(faces, [...faceOrder]),
-    [faces, faceOrder],
+    () => (direct?.sourceOnly ? null : reviewNetLayout(faces, [...faceOrder])),
+    [faces, faceOrder, direct?.sourceOnly],
   )
   // Then the review walks it as Left, Front, Right, Back, Up, Down and names
   // the faces so; the photos' capture labels are kept in brackets.
@@ -91,7 +97,9 @@ export function CaptureReviewDialog({
     return netFace ? NET_FACE_NAME[netFace] : undefined
   }
   const nameOf = (slot: number) =>
-    netNameOf(slot) ?? faceLabels[faceOrder[slot]]
+    direct?.sourceOnly
+      ? `Photo ${slot + 1}`
+      : (netNameOf(slot) ?? faceLabels[faceOrder[slot]])
   const labelOf = (slot: number) => {
     const net = netNameOf(slot)
     return net
@@ -128,15 +136,17 @@ export function CaptureReviewDialog({
             </span>
             <h2 id="review-title">{nameOf(step)}</h2>
           </div>
-          <FaceNet
-            items={pickers}
-            label="Faces"
-            current={step}
-            images={faceOrder.map((f) => faces[f]?.croppedImage)}
-            stickerColors={stickerColors}
-            itemLabel={(item) => labelOf(item.slot)}
-            onSelect={onStepChange}
-          />
+          {!direct?.sourceOnly && (
+            <FaceNet
+              items={pickers}
+              label="Faces"
+              current={step}
+              images={faceOrder.map((f) => faces[f]?.croppedImage)}
+              stickerColors={stickerColors}
+              itemLabel={(item) => labelOf(item.slot)}
+              onSelect={onStepChange}
+            />
+          )}
           <button
             type="button"
             class="modal-close"

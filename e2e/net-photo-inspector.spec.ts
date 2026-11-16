@@ -11,7 +11,9 @@ for (const width of [1280, 390]) {
     await page.goto('/')
     await page
       .locator('.capture-alternatives input[type="file"]')
-      .setInputFiles(resolve('test/fixtures/orientation-recovery-7x7.zip'))
+      .setInputFiles(
+        resolve('test/fixtures/photo-identity-4x4-2026-11-16T21-28-43.zip'),
+      )
     await page
       .getByRole('button', { name: 'Yes, this is my cube', exact: true })
       .click()
@@ -25,7 +27,7 @@ for (const width of [1280, 390]) {
         .click()
     }
     const net = page.locator('.cube-net').first()
-    await net.locator('.net-b .net-cell').nth(24).hover()
+    await net.locator('.net-b .net-cell').nth(10).hover()
     const photo = net.locator('.net-info-photo')
     await expect(photo).toBeVisible()
     await page.screenshot({
@@ -115,7 +117,12 @@ for (const width of [1280, 390]) {
       expect(scrollbars.horizontal).toBeLessThanOrEqual(1)
       expect(scrollbars.vertical).toBeLessThanOrEqual(1)
     }
-    await net.locator('.net-f .net-face-grid').tap()
+    // A corrected sticker's edit control opens the color editor; use a
+    // plain sticker for the independent touch-photo inspection action.
+    await net
+      .locator('.net-f .net-cell:not(:has(.net-cell-edit))')
+      .first()
+      .tap()
     await expect(net.locator('.net-info-title')).toHaveText('Front · Photo')
   })
 }

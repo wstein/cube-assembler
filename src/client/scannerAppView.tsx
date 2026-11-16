@@ -38,11 +38,7 @@ import { AUTO_CAPTURE_COOKIE, MIRROR_COOKIE, SOUND_COOKIE } from './preferences'
 import { backdropReference } from './vision/faceSampling'
 import { NEUTRAL_GAINS } from './vision/colorMath'
 import { STICKER_COLORS } from './vision/stickerColorGeometry'
-import {
-  createSolvedCube,
-  findCaptureSlotForOrientedFace,
-  type FaceKey,
-} from '../cube/cubeAssembly'
+import { createSolvedCube } from '../cube/cubeAssembly'
 import {
   allColorProfiles,
   cubeGroupName,
@@ -146,6 +142,7 @@ export function ScannerAppView({ model }: { model: ScannerAppModel }) {
     orientationWizard,
     recovery,
     chosenRecovery,
+    chosenPhotoEvidence,
     page,
     palette,
     parity,
@@ -214,6 +211,7 @@ export function ScannerAppView({ model }: { model: ScannerAppModel }) {
     col: number
     // The quarter turns the net shows this face's photo turned by.
     turns: number
+    sourceOnly?: boolean
     before: typeof capturedFaces
   } | null>(null)
   useEffect(() => {
@@ -452,6 +450,7 @@ export function ScannerAppView({ model }: { model: ScannerAppModel }) {
         <div class="main-column">
           <CubeDisplayCard
             recovery={chosenRecovery}
+            photoEvidence={chosenPhotoEvidence}
             sourceCube={baseCube}
             visibleCube={visibleCube}
             size={puzzleSize}
@@ -468,11 +467,18 @@ export function ScannerAppView({ model }: { model: ScannerAppModel }) {
               turnedCube?.source === baseCube ? turnedCube.frame : undefined
             }
             onViewModeChange={setCubeViewMode}
-            onEditSticker={(face, row, col, turns) => {
+            onEditSticker={(face, row, col, turns, sourceOnly) => {
               setReviewStep(FACE_ORDER.indexOf(face))
               setReviewEditingCell(null)
               setReviewNotice(null)
-              setDirectEdit({ face, row, col, turns, before: capturedFaces })
+              setDirectEdit({
+                face,
+                row,
+                col,
+                turns,
+                sourceOnly,
+                before: capturedFaces,
+              })
               setShowReviewDialog(true)
             }}
             onTurnStateChange={(value, moves, frame) =>
@@ -735,18 +741,7 @@ export function ScannerAppView({ model }: { model: ScannerAppModel }) {
             setReviewStep(reviewStartSlot(capturedFaces, FACE_ORDER))
             setShowReviewDialog(true)
           }}
-          onCheckFace={(candidate, face) => {
-            const slot = findCaptureSlotForOrientedFace(
-              FACE_ORDER.map((key) => capturedFaces[key]?.colors),
-              candidate.faces[face as FaceKey],
-            )
-            if (slot === null) return
-            setOrientationApproval(null)
-            setReviewStep(slot)
-            setReviewEditingCell(null)
-            setReviewNotice(null)
-            setShowReviewDialog(true)
-          }}
+          photoEvidence={recovery.photoEvidence}
           onCheckSlot={(slot) => {
             setOrientationApproval(null)
             setReviewStep(slot)

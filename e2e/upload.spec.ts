@@ -208,7 +208,7 @@ test('shows the fixture contents before downloading and closes with Escape', asy
   await expect(dialog).toHaveCount(0)
 })
 
-test('opens sticker review from a face in the orientation approval', async ({
+test('opens captured-photo selection when a legacy arrangement has no source proof', async ({
   page,
 }) => {
   await page.goto('/')
@@ -231,8 +231,14 @@ test('opens sticker review from a face in the orientation approval', async ({
 
   const approval = page.locator('.orientation-approval')
   await expect(approval).toBeVisible()
+  await expect(approval).toContainText(
+    'Source photos are not established for this arrangement.',
+  )
+  await expect(
+    approval.locator('.approval-detected .orientation-net-photo'),
+  ).toHaveCount(0)
   await approval
-    .getByRole('button', { name: 'Check colors for U face' })
+    .getByRole('button', { name: 'Choose a captured photo', exact: true })
     .click()
   await expect(review).toBeVisible()
 })
@@ -243,7 +249,9 @@ test('the cube check shows the detected net and swaps in a photo on hover', asyn
   await page.goto('/')
   await page
     .locator('.capture-alternatives input[type="file"]')
-    .setInputFiles([...photos, resolve(fixture, 'meta.json')])
+    .setInputFiles(
+      resolve('test/fixtures/photo-identity-4x4-2026-11-16T21-28-43.zip'),
+    )
   const dialog = page.getByRole('dialog', {
     name: 'Does this match your cube?',
   })
@@ -318,16 +326,10 @@ test('an error names the stickers the equal color share moved, in one sentence',
   await expect(note).toContainText('were moved to')
   await expect(note).toContainText('outlined below')
   expect(await page.locator('.net-cell-highlighted').count()).toBeGreaterThan(2)
-  // Every outlined sticker is a candidate, so each one links to the editor.
-  expect(
-    await page.locator('.net-cell-highlighted .net-cell-edit').count(),
-  ).toBe(await page.locator('.net-cell-highlighted').count())
-  // A moved sticker is split along the diagonal and links to the color edit
-  // dialog, open on that sticker's face.
-  expect(await page.locator('.net-cell-edit').count()).toBeGreaterThan(2)
-  // Every marked sticker is reachable, the last one too.
-  const netFace = page.locator('.net-face:has(.net-cell-edit)').last()
-  // The final color of each sticker, in the order it is drawn.
+  // This legacy closest-match has no producer photo mapping. Keep the
+  // diagnosis, but do not pretend its stickers identify original photos.
+  await expect(page.locator('.net-cell-highlighted')).toHaveCount(24)
+  await expect(page.locator('.net-cell-edit')).toHaveCount(0)
   const finalColors = (cells: ReturnType<typeof page.locator>) =>
     cells.evaluateAll((els) =>
       els.map((el) => {
@@ -338,33 +340,39 @@ test('an error names the stickers the equal color share moved, in one sentence',
         )
       }),
     )
-  const inNet = await finalColors(netFace.locator('.net-cell'))
-  await page.locator('.net-cell-edit').last().click()
-  await expect(page.locator('.review-modal-content')).toBeVisible()
-  // The face is drawn turned as in the net.
-  expect(await finalColors(page.locator('.review-detected-cell'))).toEqual(
-    inNet,
-  )
-  // The picker waits for a tap; a direct edit ends with OK or Cancel, not
-  // the wizard's next side.
-  await expect(page.locator('.color-picker-content')).toHaveCount(0)
-  await expect(page.locator('.review-detected-cell-target')).toHaveCount(1)
-  await expect(page.getByRole('button', { name: /Looks right/ })).toHaveCount(0)
-  await expect(page.getByRole('button', { name: 'OK' })).toBeVisible()
-  // A color changed in the dialog is undone by Cancel, as is closing it.
+  let original: string[] | undefined
   for (const close of ['Cancel', 'Close']) {
-    await page.locator('.review-detected-cell-target').click()
+    await page
+      .getByRole('combobox', { name: 'Captured photo', exact: true })
+      .selectOption('B')
+    const review = page.locator('.review-modal-content')
+    await expect(review).toBeVisible()
+    await expect(
+      review.getByRole('heading', { name: 'Photo 6', exact: true }),
+    ).toBeVisible()
+    const current = await finalColors(review.locator('.review-detected-cell'))
+    if (original) expect(current).toEqual(original)
+    else original = current
+    await expect(review.locator('.review-detected-cell-target')).toHaveCount(0)
+    await expect(page.locator('.color-picker-content')).toHaveCount(0)
+    await expect(page.getByRole('button', { name: /Looks right/ })).toHaveCount(
+      0,
+    )
+    await expect(
+      review.getByRole('button', { name: 'OK', exact: true }),
+    ).toBeVisible()
+    await review.locator('.review-detected-cell').first().click()
     await page
       .locator('.color-picker-content')
       .getByRole('button', { name: /^Red/ })
       .click()
     await expect(page.locator('.color-picker-content')).toHaveCount(0)
-    await page
-      .locator('.review-modal-content')
-      .getByRole('button', { name: close, exact: true })
-      .click()
-    await expect(page.locator('.review-modal-content')).toHaveCount(0)
-    if (close === 'Cancel') await page.locator('.net-cell-edit').first().click()
+    expect(
+      await finalColors(review.locator('.review-detected-cell')),
+    ).not.toEqual(original)
+    await review.getByRole('button', { name: close, exact: true }).click()
+    await expect(review).toHaveCount(0)
+    await expect(page.locator('.verdict.is-invalid')).toBeVisible()
   }
   const diagnostic = await exportedMeta(page)
   expect(diagnostic.capture.faceRecovery).toBeNull()
