@@ -44,6 +44,8 @@ import {
   buildSyntheticFixture,
   encodeCanvasPhoto,
 } from './fixtures/syntheticFixture'
+import { useFaceRecovery } from './capture/useFaceRecovery'
+import type { CaptureRecovery } from './capture/captureRecovery'
 import { useOrientationReview } from './capture/useOrientationReview'
 
 // Injected at build time by Vite.
@@ -109,6 +111,7 @@ export function useScannerAppModel() {
     warning,
   } = useCaptureSession({
     puzzleSize,
+    mirrorPreview,
     webcamOpen,
     onAllCaptured: (faces) => finalizeAllFacesCaptured(faces),
   })
@@ -134,6 +137,17 @@ export function useScannerAppModel() {
     uploadFixture,
     downloadFixture,
   } = useFixtureDownload()
+  const recovery = useFaceRecovery({
+    capturedFaces,
+    size: puzzleSize,
+    mirrored: mirrorPreview,
+    guided: isGuided(),
+    onChoose: (candidate, record) =>
+      void handleChooseOrientation(candidate, record),
+  })
+  const [chosenRecovery, setChosenRecovery] = useState<CaptureRecovery | null>(
+    null,
+  )
   const {
     orientationWizard,
     setOrientationWizard,
@@ -149,7 +163,11 @@ export function useScannerAppModel() {
   } = useOrientationReview({
     capturedFaces,
     isGuidedCapture: () => isGuided(),
-    onChoose: (candidate) => handleChooseOrientation(candidate),
+    onChoose: (candidate) =>
+      handleChooseOrientation(candidate, recovery.approved ?? undefined),
+    onAdjust: recovery.begin,
+    savedCandidate: recovery.importedCandidate,
+    hasSavedMapping: () => recovery.recordPresent,
   })
   const {
     showReviewDialog,
@@ -269,6 +287,8 @@ export function useScannerAppModel() {
     setReviewStep(0)
     setReviewEditingCell(null)
     clearOrientationReview()
+    recovery.reset()
+    setChosenRecovery(null)
     clearCalibration()
     setProfileLearningOffer(null)
     setCaptureMessage('')
@@ -292,6 +312,12 @@ export function useScannerAppModel() {
   // Continue from the first empty slot, or start over when requested (and
   // after all six are already complete).
   const handleOpenCapture = (restart = false) => {
+    if (puzzleSize === 8) {
+      setCaptureMessage(
+        '8×8 is supported for imported-photo orientation review only. Select a 2×2–7×7 cube for camera capture.',
+      )
+      return
+    }
     armCaptureAudio()
     dismissTurnOverlay()
     forgetLastCapture()
@@ -299,6 +325,8 @@ export function useScannerAppModel() {
     const startOver = restart || allCaptured
     if (startOver) {
       setCapturedFaces({})
+      recovery.reset()
+      setChosenRecovery(null)
       setProfileLearningOffer(null)
       setNewColorName(null)
     }
@@ -423,6 +451,10 @@ export function useScannerAppModel() {
       setProfileLearningOffer,
       setUploadedProtocol,
       applyFixtureCalibration,
+      onCaptureContext: (context) => {
+        recovery.loadContext(context)
+        setChosenRecovery(null)
+      },
       setPuzzleSize,
       setCapturedFaces,
       setReviewStep,
@@ -468,7 +500,16 @@ export function useScannerAppModel() {
   // single candidate - mirrors handleConfirmReview's tail end exactly,
   // since this IS that same step, just with the choice already made
   // instead of auto-picking alternatives[0].
-  const handleChooseOrientation = async (chosen: OrientedCandidate) => {
+  const handleChooseOrientation = async (
+    chosen: OrientedCandidate,
+    record?: CaptureRecovery,
+  ) => {
+    if (isGuided() && !record) {
+      recovery.begin(chosen)
+      clearOrientationReview()
+      return
+    }
+    setChosenRecovery(record ?? null)
     clearOrientationReview()
     const cubeState = assembleCubeFromFaces(chosen.faces, puzzleSize)
     setCube(cubeState)
@@ -555,14 +596,15 @@ export function useScannerAppModel() {
         commit,
         userAgent: navigator.userAgent,
         devicePixelRatio: window.devicePixelRatio,
-        mirrored: mirrorPreview,
+        mirrored: recovery.context?.mirrored ?? mirrorPreview,
+        faceRecovery: chosenRecovery ?? undefined,
         cameraInfo,
         captureProfile,
         resolvedColorProfile,
         automaticResolution,
         resolvedColorReference,
         guided: isGuided(),
-        cube,
+        cube: shown,
         appliedBackgroundGains,
         sampling,
         calibrationApplied: globalWhiteBalanceNote !== null,
@@ -656,6 +698,8 @@ export function useScannerAppModel() {
     onSettingsPage,
     orientationApproval,
     orientationWizard,
+    recovery,
+    chosenRecovery,
     page,
     palette,
     parity,

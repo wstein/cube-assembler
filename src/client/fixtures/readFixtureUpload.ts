@@ -32,6 +32,8 @@ export interface FixtureUploadMetadata {
       nearest?: Array<{ id: string; name: string; fit: number }>
     } | null
     colorReference?: Record<string, RGB> | null
+    mirrored?: boolean
+    faceRecovery?: unknown
     protocol?: string | null
     assembledURFDLB?: string | null
   }

@@ -19,6 +19,7 @@ import type { usePhotoUploads } from './usePhotoUploads'
 import type { useProfileStore } from '../profiles/useProfileStore'
 import type { useCaptureCalibration } from '../capture/useCaptureCalibration'
 import type { CaptureMode } from '../capture/capturePhoto'
+import type { CaptureContext } from '../capture/useFaceRecovery'
 import type { FaceCaptureData } from '../capture/captureTypes'
 
 type Session = ReturnType<typeof useCaptureSession>
@@ -31,6 +32,7 @@ type UploadActions = {
   setCaptureMessage: Session['setCaptureMessage']
   setProfileLearningOffer: Profiles['setProfileLearningOffer']
   setUploadedProtocol: Session['setUploadedProtocol']
+  onCaptureContext: (context: CaptureContext | null) => void
   applyFixtureCalibration: Calibration['applyFixtureCalibration']
   setPuzzleSize: (size: number) => void
   setCapturedFaces: Session['setCapturedFaces']
@@ -65,6 +67,7 @@ export function createScannerUploadActions({
   setProfileLearningOffer,
   setUploadedProtocol,
   applyFixtureCalibration,
+  onCaptureContext,
   setPuzzleSize,
   setCapturedFaces,
   setReviewStep,
@@ -117,6 +120,7 @@ export function createScannerUploadActions({
       setCaptureMessage('Detecting colors from the fixture photos...')
       setProfileLearningOffer(null)
       setUploadedProtocol(meta.capture?.protocol ?? null)
+      onCaptureContext(meta.capture ?? null)
       const images = Object.fromEntries(
         Object.entries(newEntries).map(([f, d]) => [f, d.croppedImage!]),
       )
@@ -233,6 +237,7 @@ export function createScannerUploadActions({
         palette: automaticColors ? undefined : capturePalette(profileStore),
         faceOrder: FACE_ORDER,
       })
+      onCaptureContext(null)
       setCapturedFaces(entries)
       setUploadedProtocol(null)
       setDismissedCaptureWarnings([])

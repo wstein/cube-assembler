@@ -9,10 +9,7 @@ import { COLOR_NAME } from '../vision/stickerDisplay'
 import { capturePhotos, captureStats, netPhotos } from './approvalPhotos'
 import type { FaceCaptureData } from './captureTypes'
 import type { OrientedCandidate } from '../../cube/cubeAssembly'
-import {
-  rejectAlternatives,
-  type CaptureApproval,
-} from './captureReviewRouting'
+import { canAdjustCapture, type CaptureApproval } from './captureReviewRouting'
 import {
   describeArrangement,
   OrientationNetPreview,
@@ -95,6 +92,12 @@ export function OrientationApprovalDialog({
             ×
           </button>
         </div>
+        {valid && puzzleSize >= 4 && (
+          <p class="orientation-approval-note">
+            Available structural checks passed. Full NxN reachability has not
+            been established.
+          </p>
+        )}
         {note && (
           <p
             class={
@@ -107,8 +110,18 @@ export function OrientationApprovalDialog({
           </p>
         )}
         <p class="orientation-approval-note">
-          Tap any face to check its colors or retake that photo.
+          Photos and colors can be correct even when their placement is wrong.
+          Adjust orientations separately, or tap a face to fix sticker colors.
         </p>
+        {(approval.retainedCount !== undefined || approval.truncated) && (
+          <p class="orientation-approval-note" role="status">
+            Search retained {approval.retainedCount ?? candidates.length}{' '}
+            candidate(s).
+            {approval.truncated
+              ? ' More candidates exist; the search was capped.'
+              : ' Retained candidates are not a limit on manual corrections.'}
+          </p>
+        )}
         {!single && valid && (
           <p class="orientation-approval-note">
             The photos fit your cube in {candidates.length} different ways.
@@ -195,11 +208,13 @@ export function OrientationApprovalDialog({
             {single && valid ? 'No, check the colors' : 'Back to the colors'}
           </button>
           <div class="header-spacer" />
-          {rejectAlternatives(approval).length > 0 && (
+          {canAdjustCapture(
+            faceOrder.filter((f) => captured[f]).length,
+            candidates.length,
+            valid,
+          ) && (
             <button type="button" class="btn btn-secondary" onClick={onReject}>
-              {single
-                ? 'No, let me choose each side'
-                : 'None of these - let me choose each side'}
+              Adjust face orientations / assignments
             </button>
           )}
           {single && candidates.length > 0 && (

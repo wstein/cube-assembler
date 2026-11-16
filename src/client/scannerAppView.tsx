@@ -1,6 +1,7 @@
 import { CaptureLiveView } from './capture/captureLiveView'
 import { CaptureDialog } from './capture/captureDialog'
 import { CaptureReviewDialog } from './capture/captureReviewDialog'
+import { FaceRecoveryDialog } from './capture/faceRecoveryDialog'
 import { OrientationApprovalDialog } from './capture/orientationApprovalDialog'
 import { OrientationWizardDialog } from './capture/orientationWizardDialog'
 import { CaptureColorPicker } from './capture/captureColorPicker'
@@ -142,6 +143,8 @@ export function ScannerAppView({ model }: { model: ScannerAppModel }) {
     onSettingsPage,
     orientationApproval,
     orientationWizard,
+    recovery,
+    chosenRecovery,
     page,
     palette,
     parity,
@@ -411,6 +414,9 @@ export function ScannerAppView({ model }: { model: ScannerAppModel }) {
                 e.currentTarget.value = profile.id
             }}
           >
+            {puzzleSize === 8 && (
+              <option value={profile.id}>Imported 8×8 (review only)</option>
+            )}
             <CubeSelectOptions settings={profileStore} />
           </select>
           <select
@@ -441,6 +447,7 @@ export function ScannerAppView({ model }: { model: ScannerAppModel }) {
       <main class="app-main">
         <div class="main-column">
           <CubeDisplayCard
+            recovery={chosenRecovery}
             sourceCube={baseCube}
             visibleCube={visibleCube}
             size={puzzleSize}
@@ -695,7 +702,7 @@ export function ScannerAppView({ model }: { model: ScannerAppModel }) {
       {/* Approval of how the captured faces fit together (see
           handleConfirmReview): one arrangement to confirm, a few to pick
           from, or a closest match that isn't a valid cube. */}
-      {orientationApproval && !orientationWizard && (
+      {orientationApproval && !orientationWizard && !recovery.open && (
         <OrientationApprovalDialog
           approval={orientationApproval}
           mirrorPreview={mirrorPreview}
@@ -741,6 +748,31 @@ export function ScannerAppView({ model }: { model: ScannerAppModel }) {
           }
         />
       )}
+
+      {recovery.open && (
+        <FaceRecoveryDialog
+          recovery={recovery}
+          captured={capturedFaces}
+          size={puzzleSize}
+          colors={STICKER_HEX}
+          focusDialog={focusModalOnOpen}
+          onDialogKeyDown={(event) =>
+            handleModalKeyDown(event, event.currentTarget, recovery.close)
+          }
+        />
+      )}
+      {Object.keys(capturedFaces).length === 6 &&
+        !recovery.open &&
+        !orientationApproval &&
+        !showReviewDialog && (
+          <button
+            type="button"
+            class="btn btn-secondary"
+            onClick={() => recovery.begin(null)}
+          >
+            Adjust face orientations / assignments
+          </button>
+        )}
 
       {orientationWizard && (
         <OrientationWizardDialog
