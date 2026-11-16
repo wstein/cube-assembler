@@ -49,6 +49,7 @@ The JSON is validated by
 ## Move notation `layer-prefix/v1`
 
 One turn is `[layers]FACE[w][amount]`, or a whole-cube rotation.
+
 - Face letters: `U` up, `D` down, `R` right, `L` left, `F` front, `B` back.
   Clockwise is as seen looking at that face.
 - Amount: nothing is one clockwise quarter turn, `'` is one counterclockwise

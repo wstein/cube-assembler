@@ -45,6 +45,7 @@ Output: bytes in RGBA order, row-major, top row first, index
 ## 2. Numeric conventions (read this first, most porting bugs live here)
 
 All arithmetic is IEEE-754 binary64 (`double`) unless said otherwise.
+
 1. **Pixel store rule.** The reference writes into a `Uint8ClampedArray`.
    Every store of a float `v` into a pixel byte means:
    `NaN -> 0`; otherwise clamp to `[0, 255]`; then **round half to even**

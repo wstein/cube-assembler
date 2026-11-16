@@ -156,6 +156,7 @@ turned in the 3D view, in a lighting chosen in the dialog. See the
 ## Enter or copy facelets
 
 **Type colors** reads the facelets as typed; the format is detected:
+
 - **Face letters (URF):** six space-separated blocks of N² letters
   (U/R/F/D/L/B) in U R F D L B order, each the face whose solved color the
   sticker matches. A solved 3×3 starts `UUUUUUUUU RRRRRRRRR`.
