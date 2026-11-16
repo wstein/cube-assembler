@@ -34,6 +34,7 @@ async function installStubCamera(
   page: Page,
   frames = photos,
   turns = frames.map(() => 0),
+  startupDelayMs = 0,
 ) {
   const cpu = Number(process.env.CAMERA_TEST_CPU ?? 1)
   if (cpu > 1) {
@@ -46,7 +47,7 @@ async function installStubCamera(
       document.cookie = 'cube-assembler-auto-capture=0; Path=/'
   })
   await page.addInitScript(
-    ({ frames, turns }) => {
+    ({ frames, turns, startupDelayMs }) => {
       const canvas = document.createElement('canvas')
       canvas.width = 960
       canvas.height = 720
@@ -96,6 +97,8 @@ async function installStubCamera(
       Object.defineProperty(navigator.mediaDevices, 'getUserMedia', {
         configurable: true,
         value: async () => {
+          if (startupDelayMs)
+            await new Promise((resolve) => setTimeout(resolve, startupDelayMs))
           await setFace(0)
           return stream
         },
@@ -116,11 +119,17 @@ async function installStubCamera(
         return frame
       }
     },
-    { frames, turns },
+    { frames, turns, startupDelayMs },
   )
 }
 
 async function setCameraFace(page: Page, index: number) {
+  // The static Live badge precedes stream startup. Wait for the actual video
+  // before a manual draw can race with getUserMedia's initial frame.
+  await expect(page.locator('.capture-modal-content video')).toHaveJSProperty(
+    'videoWidth',
+    960,
+  )
   const expected = await page.evaluate(
     (face) => window.setTestCameraFace(face),
     index,
@@ -584,4 +593,16 @@ test('a presented camera frame stays usable when no later video callback arrives
   })
   expect(padding.outside).toBe(true)
   expect(padding.after).toEqual(padding.before)
+})
+
+test('manual camera frames follow a delayed stream initialization', async ({
+  page,
+}) => {
+  await installStubCamera(page, photos, undefined, 200)
+  await page.goto('/')
+  await page.getByRole('button', { name: 'Capture faces' }).click()
+  // The static badge deliberately does not imply getUserMedia has returned.
+  await expect(page.locator('.capture-live-badge')).toContainText('Live')
+  await setCameraFace(page, 1)
+  expect(await page.evaluate(() => window.readTestCameraFrame())).toBe(2)
 })
