@@ -61,6 +61,7 @@ type parsedCube =
 
 @genType
 type faceCaptureReading = {
+  captureGuide?: captureGuide,
   colors: array<array<string>>,
   confidence: float,
   cellConfidences?: array<array<float>>,
@@ -115,3 +116,5 @@ let captureEvidence: (
   bool,
   palette,
 ) => ColorProfileLearning.paletteEvidence
+
+@genType let captureUsesBottomFirst: Dict.t<faceCaptureData> => bool

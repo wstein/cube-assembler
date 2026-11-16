@@ -105,7 +105,10 @@ type sessionView = {
 let sessionView = (faces: faces, webcamFace, size, dismissed) => {
   let order = CaptureSteps.faceOrder
   let photos = order->Array.map(face => faces->Dict.get(face)->Option.map(face => face.colors))
-  let predictedCenters = GuidedCaptureSetup.captureCenterSlots(photos)
+  let predictedCenters = GuidedCaptureSetup.captureCenterSlotsForOrder(
+    photos,
+    CaptureFlow.captureUsesBottomFirst(faces),
+  )
   let repeatedFaces = CapturedFaceMatching.findRepeatedFaces(photos)
   {
     predictedCenters,

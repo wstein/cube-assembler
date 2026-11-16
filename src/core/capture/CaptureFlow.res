@@ -152,6 +152,7 @@ let parseCubeInput = (input, selectedFormat: NotationOutput.notationFormat) => {
 }
 
 type faceCaptureReading = {
+  captureGuide?: captureGuide,
   colors: array<array<string>>,
   confidence: float,
   cellConfidences?: array<array<float>>,
@@ -168,6 +169,24 @@ type placed = {faces: Dict.t<faceCaptureData>, assignedFace: string, unexpectedC
 let colorsAt = (faces: Dict.t<faceCaptureData>) =>
   faceOrder->Array.map(face => faces->Dict.get(face)->Option.map(data => data.colors))
 
+let bottomFirst = (faces: Dict.t<faceCaptureData>, incoming: option<captureGuide>) => {
+  let populated = faceOrder->Array.filterMap(slot => faces->Dict.get(slot))
+  let recorded = populated->Array.map(photo => photo.captureGuide)
+  let guides = [...recorded, incoming]->Array.filterMap(guide => guide)
+  let physical = guides->Array.some(guide => guide.protocol == CaptureSteps.guidedProtocol)
+  let compatible =
+    recorded->Array.every(guide =>
+      guide->Option.mapOr(false, guide =>
+        guide.protocol == CaptureSteps.guidedProtocol || guide.protocol == "retake/v1"
+      )
+    ) &&
+      guides->Array.every(guide =>
+        guide.protocol == CaptureSteps.guidedProtocol || guide.protocol == "retake/v1"
+      )
+  physical && compatible
+}
+let captureUsesBottomFirst = faces => bottomFirst(faces, None)
+
 // Stores a reading in the slot its center belongs to, which may not be the
 // requested one on odd cubes; a face placed elsewhere is out of order.
 let placeFaceCapture = (
@@ -180,15 +199,17 @@ let placeFaceCapture = (
   now,
 ) => {
   let requestedIndex = faceOrder->Array.indexOf(face)
-  let {index, unexpectedCenter} = GuidedCaptureSetup.placeCapturedFace(
+  let {index, unexpectedCenter} = GuidedCaptureSetup.placeCapturedFaceForOrder(
     colorsAt(faces),
     requestedIndex,
     reading.colors,
+    bottomFirst(faces, reading.captureGuide),
   )
   let assignedFace = faceOrder->Array.getUnsafe(index)
   let wasOutOfOrder =
     faces->Dict.get(assignedFace)->Option.flatMap(data => data.outOfOrder)->Option.getOr(false)
   let entry = {
+    captureGuide: ?reading.captureGuide,
     colors: reading.colors,
     detectedColors: reading.colors,
     cellConfidences: ?reading.cellConfidences,
