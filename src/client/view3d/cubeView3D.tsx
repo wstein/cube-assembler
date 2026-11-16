@@ -8,6 +8,7 @@ import {
   preferenceCookie,
   readPreference,
 } from '../preferences'
+import type { FaceKey } from '../../cube/cubeAssembly'
 import type { CubeState } from '../../cube/cubeAssembly'
 import type { colorFrame as ColorFrame } from '../../core/view/AxisGizmo.gen'
 
@@ -21,6 +22,7 @@ import { createCubeViewControls } from './cubeViewControls'
 import { DEFAULT_STICKER_HEX, type CubeTurn } from './cubeView3DState'
 
 export interface CubeView3DProps {
+  highlightedFace?: FaceKey
   allowLayerMoves?: boolean
   cube: CubeState
   initialCube?: CubeState
@@ -41,6 +43,7 @@ export interface CubeView3DProps {
 const LOCKED_HINT_VISIBLE_MS = 2500
 
 export function CubeView3D({
+  highlightedFace,
   allowLayerMoves = true,
   publicMoves,
   cube,
@@ -103,6 +106,7 @@ export function CubeView3D({
     pauseAutoRotation,
   })
   const isSupported = useCubeRenderer({
+    highlightedFace,
     canvasRef,
     cubeRef: currentCubeRef,
     resetKey: cube,

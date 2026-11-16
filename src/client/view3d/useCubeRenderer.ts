@@ -1,5 +1,7 @@
 import type { RefObject } from 'preact'
 import { useEffect, useRef, useState } from 'preact/hooks'
+import { faceHighlight } from '../../core/view/FaceHighlight.gen'
+import type { FaceKey } from '../../cube/cubeAssembly'
 import type { CubeState } from '../../cube/cubeAssembly'
 import { createShadowRenderer } from './cubeShadow'
 import { buildCubeMesh } from './cubeMesh'
@@ -15,6 +17,7 @@ import {
 import type { MeshUpdate } from './useCubeTurns'
 
 interface CubeRendererOptions {
+  highlightedFace?: FaceKey
   canvasRef: RefObject<HTMLCanvasElement | null>
   cubeRef: RefObject<CubeState | null>
   // Starts the renderer over when it changes, like the other settings.
@@ -31,6 +34,7 @@ interface CubeRendererOptions {
 // Draws the cube and its shadow with WebGL every animation frame. False
 // when the browser has no WebGL.
 export function useCubeRenderer({
+  highlightedFace,
   canvasRef,
   cubeRef,
   resetKey,
@@ -41,6 +45,8 @@ export function useCubeRenderer({
   onFrame,
   isIdle,
 }: CubeRendererOptions) {
+  const highlightRef = useRef(highlightedFace)
+  highlightRef.current = highlightedFace
   const [isSupported, setIsSupported] = useState<boolean>(true)
   const lastFrameTimeRef = useRef<number | null>(null)
   const animFrameRef = useRef<number | null>(null)
@@ -132,6 +138,8 @@ export function useCubeRenderer({
     const uLight1 = gl.getUniformLocation(program, 'u_lightDir1')
     const uLight2 = gl.getUniformLocation(program, 'u_lightDir2')
     const uCameraPos = gl.getUniformLocation(program, 'u_cameraPos')
+    const uHighlight = gl.getUniformLocation(program, 'u_highlightNormal')
+    const uOutlineEdge = gl.getUniformLocation(program, 'u_outlineEdge')
 
     gl.uniform3f(uLight1, 1.5, 2.5, 2.0)
     gl.uniform3f(uLight2, -2.0, -1.0, -2.0)
@@ -210,6 +218,9 @@ export function useCubeRenderer({
       gl.uniformMatrix4fv(uMvp, false, mvp)
       gl.uniformMatrix4fv(uModel, false, model)
       gl.uniform3f(uCameraPos, 0, 0, currentZoom)
+      const outline = faceHighlight(highlightRef.current ?? null, puzzleSize)
+      gl.uniform3f(uHighlight, ...outline.normal)
+      gl.uniform1f(uOutlineEdge, outline.edgeStart)
 
       // Bind attributes
       gl.bindBuffer(gl.ARRAY_BUFFER, posBuf)
