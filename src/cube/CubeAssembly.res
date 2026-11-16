@@ -204,6 +204,15 @@ let wingsValid = (faces, n) =>
 
 let isFullyValid = (faces: faceSet<grid>) => {
   let n = Array.length(faces.u)
+  let centersMatch =
+    mod(n, 2) == 0 ||
+      faceKeys->Array.every(face => {
+        let grid = faceValue(faces, face)
+        grid->Array.getUnsafe(n / 2)->Array.getUnsafe(n / 2) == solvedColor(face)
+      })
+  // A reflected odd-center frame cannot be repaired by a global rotation.
+  // Corner/wing checks alone do not enforce these fixed face identities.
+  centersMatch &&
   switch identifyAll(Array.length(corners), i =>
     CubePieces.identifyCorner(cornerTriple(faces, corners->Array.getUnsafe(i)))
   ) {

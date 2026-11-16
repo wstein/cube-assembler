@@ -16,6 +16,8 @@ type captureApproval = {
   suggestedFrom?: int,
   fallback: Null.t<CubeTypes.orientationSolution>,
   page?: int,
+  retainedCount?: int,
+  truncated?: bool,
 }
 
 @genType let rejectAlternatives: captureApproval => array<CubeTypes.orientedCandidate>
@@ -63,3 +65,5 @@ let answerWizard: (
   array<CubeTypes.orientedCandidate>,
   CubeState.faceKey,
 ) => wizardAnswer
+
+@genType let canAdjustCapture: (int, int, bool) => bool
