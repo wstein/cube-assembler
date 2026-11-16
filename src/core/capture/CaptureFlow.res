@@ -243,7 +243,11 @@ let isGuidedCapture = (faces, uploadedProtocol: Null.t<string>) =>
     colorsAt(faces)->Array.slice(~start=0, ~end=2),
   )->Array.length == 0) ||
     (faceOrder->Array.every(face => sourceOf(faces, face) == Some(Fixture)) &&
-      Null.toOption(uploadedProtocol) == Some(CaptureSteps.guidedProtocol))
+      uploadedProtocol
+      ->Null.toOption
+      ->Option.mapOr(false, protocol =>
+        protocol == CaptureSteps.guidedProtocol || protocol == CaptureSteps.legacyGuidedProtocol
+      ))
 
 type captureWarning = {text: string, key: string, retake: int}
 

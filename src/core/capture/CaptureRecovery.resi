@@ -46,3 +46,6 @@ let mergeGuideObservations: (
   array<observation>,
   Dict.t<CaptureFlow.faceCaptureData>,
 ) => array<observation>
+
+@genType
+let captureProtocol: (Dict.t<CaptureFlow.faceCaptureData>, Null.t<string>) => Null.t<string>

@@ -149,6 +149,7 @@ describe('guided face capture', () => {
     )
     expect(isGuidedCapture(fixture, null)).toBe(false)
     expect(isGuidedCapture(fixture, 'sides-then-top-bottom/v1')).toBe(true)
+    expect(isGuidedCapture(fixture, 'sides-then-top-bottom/v2')).toBe(true)
   })
 
   it('warns about a repeated face until the warning is dismissed', () => {

@@ -7,6 +7,7 @@ type captureStep = {label: string, short: string, instruction: string}
 @genType let captureInstruction: int => string
 @genType let turnHintArrowAngle: int => int
 @genType let guidedProtocol: string
+@genType let legacyGuidedProtocol: string
 @genType let describeCenterIssue: CapturedFaceMatching.guidedCenterIssue => string
 @genType let faceDisplayLabel: Dict.t<string>
 @genType let faceShortLabel: Dict.t<string>

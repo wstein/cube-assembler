@@ -484,18 +484,22 @@ let allOrientations = faces =>
 // parity are judged against the standard color scheme with white on U, so
 // an arrangement in the capture's own frame is turned into standard
 // orientation first. On even sizes this only picks a familiar-looking one.
-let toStandardOrientation = faces => {
+@genType type standardFrame = {faces: faceSet<grid>, index: int}
+let standardOrientation = faces => {
   let best = ref(faces)
+  let bestIndex = ref(0)
   let bestScore = ref(-1)
-  allOrientations(faces)->Array.forEach(oriented => {
+  allOrientations(faces)->Array.forEachWithIndex((oriented, index) => {
     let score = standardLookScore(oriented)
     if score > bestScore.contents {
       best := oriented
+      bestIndex := index
       bestScore := score
     }
   })
-  best.contents
+  {faces: best.contents, index: bestIndex.contents}
 }
+let toStandardOrientation = faces => standardOrientation(faces).faces
 
 // Same content held differently is the same cube: the smallest signature
 // over all 24 orientations identifies it regardless of how it's held.

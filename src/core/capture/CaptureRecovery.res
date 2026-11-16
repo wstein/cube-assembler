@@ -84,7 +84,11 @@ let readObservation = value =>
   ) {
   | (Some(slot), Some(step), Some(mirrored), Some(protocol), Some(arrow))
     if keys->Array.includes(slot) &&
-      ["sides-then-top-bottom/v1", "retake/v1"]->Array.includes(protocol) =>
+      [
+        GuidedCaptureProtocol.legacyProtocol,
+        GuidedCaptureProtocol.physicalProtocol,
+        "retake/v1",
+      ]->Array.includes(protocol) =>
     let parsed = switch arrow {
     | JSON.Null => Some(Null.null)
     | _ => integer(arrow, 0, 359)->Option.map(Null.make)
@@ -293,3 +297,31 @@ let mergeGuideObservations = (
     | None => previous->Array.find(o => o.slot == slot)
     }
   )
+
+// A versioned expectation is usable only when all six original shot records
+// agree. Imports without observations must never be upgraded to physical v2.
+let captureProtocol = (
+  captured: Dict.t<CaptureFlow.faceCaptureData>,
+  uploadedProtocol: Null.t<string>,
+) => {
+  let guides = keys->Array.mapWithIndex((slot, step) =>
+    captured
+    ->Dict.get(slot)
+    ->Option.flatMap(photo => photo.captureGuide)
+    ->Option.filter(guide => guide.step == step)
+  )
+  let allProtocol = protocol =>
+    Array.length(Dict.keysToArray(captured)) == 6 &&
+      guides->Array.every(guide => guide->Option.mapOr(false, guide => guide.protocol == protocol))
+  if allProtocol(GuidedCaptureProtocol.physicalProtocol) {
+    Null.make(GuidedCaptureProtocol.physicalProtocol)
+  } else if allProtocol(GuidedCaptureProtocol.legacyProtocol) {
+    Null.make(GuidedCaptureProtocol.legacyProtocol)
+  } else {
+    let anyObservation =
+      captured->Dict.valuesToArray->Array.some(photo => photo.captureGuide->Option.isSome)
+    !anyObservation && uploadedProtocol->Null.toOption == Some(GuidedCaptureProtocol.legacyProtocol)
+      ? Null.make(GuidedCaptureProtocol.legacyProtocol)
+      : Null.null
+  }
+}
