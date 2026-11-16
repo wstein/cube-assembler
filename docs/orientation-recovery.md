@@ -29,28 +29,48 @@ That history does not imply that an unknown physical pose was newly measured.
 
 ## Physical guided captures
 
-New camera captures record `sides-then-top-bottom/v2`. Physical turns follow the
-3D cue: the four side views are Front, Right, Back, Left; the caps are Down then
-Up. The photographed cap grids require inverse assembly rotations of 270° and
-90°. Camera mirroring affects the video/grid presentation, not physical turns.
-All six source-step observations must agree before the v2 contract is used.
+New camera captures record one of two v3 conventions:
 
-A checked v2 sequence supplies exactly one capture-derived assembly. The
-canonical view applies a global rotation to that assembly, not a different
-rotation to each face. Its Alternatives count is zero. If that exact seed fails
-the available checks, the workflow reports a conflict and offers photo/color
-review; it does not replace it with a contradictory legacy arrangement.
+| Recorded mirror mode | Protocol                           | Source frames in slot order | Inverse photo rotations    |
+| -------------------- | ---------------------------------- | --------------------------- | -------------------------- |
+| Off                  | `left-front-right-back-up-down/v3` | L, F, R, B, U, D            | 0°, 0°, 0°, 0°, 180°, 180° |
+| On                   | `right-back-left-front-up-down/v3` | R, B, L, F, U, D            | 0°, 0°, 0°, 0°, 0°, 0°     |
 
-Older `sides-then-top-bottom/v1` fixtures retain their original observations and
-ambiguity. Missing, mixed, or retaken observations do not establish the exact v2
-sequence. An upload alone never upgrades an old protocol claim. Source slots
-remain capture-step identities even when center colors imply a different
-initial holding orientation.
+The live net stays numbered 1–6 in both modes: four source slots in a row,
+Up above the second slot and Down below it. These source IDs are not canonical
+color-face identities. After all six shots, the assembly uses their recorded
+convention and applies one global canonical rotation. Photos and sampled grids
+are never mirrored to create a puzzle state. The final canonical review can
+therefore place a source photo on a different displayed face.
 
-**Alternatives (n)** counts distinct retained arrangements other than the current
-one, after global-pose equivalence. It is disabled at zero. The count uses
-committed captured colors, independently of an unconfirmed color-editor draft.
-A closed draft also cannot change positive approval or saved-mapping restoration.
+The accepted mirrored animation and all lateral cues are retained. Only the
+unmirrored cap animations reverse their visible pitch. The source transforms
+are independently checked with labeled facelets through all five physical
+transitions. Six matching protocol, step and mirror observations are required;
+a mixed mode, inconsistent flag, missing step or retake does not establish an
+exact v3 assembly and cannot silently fall back to a different proposal.
+
+A checked physical sequence supplies one capture-derived assembly and zero
+alternatives. A failed seed remains a conflict. The capture mini-net and color
+review use that same v3 seed and explicit source mapping, rather than a free
+search or color-content photo rematching. Full large-cube reachability remains
+unverified by the existing checks.
+
+Acceptance requires unchanged live slot positions in both modes, all five
+marked-face transitions, a source-ID/rotation-preserving v3 export/import,
+unchanged v1/v2 interpretation, and rejection of mixed mirror observations.
+Automated checks cover these contracts; physical-camera/owner acceptance remains
+open until exercised with the actual cube.
+
+Historical `sides-then-top-bottom/v2` keeps its original Front, Right, Back,
+Left, Down, Up meaning and cap rotations of 270°/90°. Historical v1 remains
+ambiguous. Imports and reexports retain these observations; they are never
+upgraded to v3 by the current Mirror toggle. The original 2026-11-16 19:08:19
+4×4 metadata is stored byte-for-byte as an assembly-only regression (SHA-256
+`f76e61` prefix); its declared v2 seed conflicts, while the owner's explicitly
+reported Up/Down interpretation passes the available checks. That test neither
+changes the recorded protocol nor proves complete reachability or photo color
+accuracy.
 
 ## Photos and color corrections
 
