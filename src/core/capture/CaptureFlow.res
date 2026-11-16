@@ -20,6 +20,10 @@ type crop = {
 @genType.import(("../../client/capture/captureTypes", "CameraSettings"))
 type cameraSettings
 
+// Browser-observed identity is passed through unchanged; decisions live in PuzlWerk.
+@genType.import(("../../client/capture/photoIdentity", "PhotoIdentity"))
+type photoIdentity
+
 type source = | @as("camera") Camera | @as("image-file") ImageFile | @as("fixture") Fixture
 
 type previewColorProfile = {id: string, name: string, colors: Dict.t<rgb>}
@@ -32,6 +36,7 @@ type photoInfo = {fingerprint?: JSON.t, exif?: PhotoMetadata.exif}
 type captureGuide = {step: int, mirrored: bool, displayedArrow: Null.t<int>, protocol: string}
 
 type faceCaptureData = {
+  photoIdentity?: photoIdentity,
   captureGuide?: captureGuide,
   colors: array<array<string>>,
   detectedColors?: array<array<string>>,
@@ -152,6 +157,7 @@ let parseCubeInput = (input, selectedFormat: NotationOutput.notationFormat) => {
 }
 
 type faceCaptureReading = {
+  photoIdentity?: photoIdentity,
   // Presentation context only; never copied into captured photo metadata.
   sourceLabelProtocol?: string,
   captureGuide?: captureGuide,
@@ -220,6 +226,7 @@ let placeFaceCapture = (
   let wasOutOfOrder =
     faces->Dict.get(assignedFace)->Option.flatMap(data => data.outOfOrder)->Option.getOr(false)
   let entry = {
+    photoIdentity: ?reading.photoIdentity,
     captureGuide: ?reading.captureGuide,
     colors: reading.colors,
     detectedColors: reading.colors,

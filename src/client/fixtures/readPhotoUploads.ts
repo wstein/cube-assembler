@@ -1,3 +1,4 @@
+import { createPhotoIdentity } from '../capture/photoIdentity'
 import { validateFaceColors } from '../../cube/cubeAssembly'
 import type { FaceCaptureData } from '../capture/captureTypes'
 import { estimateOuterCellRatio } from '../vision/gridAlignment'
@@ -143,6 +144,10 @@ export async function readPhotoUploads({
       cellLookalikes: result.cellLookalikes,
       confidence: result.confidence,
       croppedImage: result.croppedImage,
+      photoIdentity: await createPhotoIdentity(
+        result.croppedImage,
+        result.colors,
+      ),
       backgroundColor: result.backgroundColor,
       frame: result.frame,
       crop: result.crop,

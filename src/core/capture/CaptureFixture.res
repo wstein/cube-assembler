@@ -70,6 +70,7 @@ let faceRecord = (face: faceCaptureData) => {
   )
   add("source", face.source->Option.map(json))
   add("captureGuide", face.captureGuide->Option.map(json))
+  add("photoIdentity", face.photoIdentity->Option.map(json))
   add("capturedAt", Some(JSON.String(Date.fromTime(face.timestamp)->toISOString)))
   add("background", face.backgroundColor->Option.map(json))
   add("frame", face.frame->Option.map(json))

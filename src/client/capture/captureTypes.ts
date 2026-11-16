@@ -1,3 +1,4 @@
+import type { PhotoIdentity } from './photoIdentity'
 import type { FaceCaptureResult } from '../vision/faceDetection'
 import type { exif as CameraExif } from '../../core/capture/PhotoMetadata.gen'
 import type { RGB } from '../vision/stickerColorGeometry'
@@ -12,6 +13,7 @@ export interface PreviewColorProfile {
 export type CameraSettings = Partial<MediaTrackSettings>
 
 export interface FaceCaptureData {
+  photoIdentity?: PhotoIdentity
   captureGuide?: {
     step: number
     mirrored: boolean
