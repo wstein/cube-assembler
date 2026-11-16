@@ -7,6 +7,7 @@ type captureFixtureInput = {
   userAgent: string,
   devicePixelRatio: float,
   faceRecovery?: CaptureRecovery.recovery,
+  uploadedProtocol?: string,
   mirrored: bool,
   cameraInfo: JSON.t,
   captureProfile: JSON.t,

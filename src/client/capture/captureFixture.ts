@@ -35,6 +35,7 @@ export interface CaptureFixtureInput {
   userAgent: string
   devicePixelRatio: number
   faceRecovery?: import('./captureRecovery').CaptureRecovery
+  uploadedProtocol?: string
   mirrored: boolean
   cameraInfo: CameraInfo | null
   captureProfile: { id?: string; name: string } | null
