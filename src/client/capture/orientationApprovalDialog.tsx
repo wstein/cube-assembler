@@ -8,6 +8,8 @@ import { forcedReading, forcedSentence } from './forcedStickers'
 import { COLOR_NAME } from '../vision/stickerDisplay'
 import { capturePhotos, captureStats, netPhotos } from './approvalPhotos'
 import type { FaceCaptureData } from './captureTypes'
+import type { CaptureRecovery } from './captureRecovery'
+import { transformFaces, type FaceMapping } from './captureFaceMapping'
 import type { OrientedCandidate } from '../../cube/cubeAssembly'
 import { canAdjustCapture, type CaptureApproval } from './captureReviewRouting'
 import {
@@ -18,6 +20,8 @@ import {
 } from './orientationPresentation'
 
 interface OrientationApprovalDialogProps {
+  displayRecovery?: CaptureRecovery | null
+  blockedCandidate?: (candidate: OrientedCandidate) => boolean
   approval: CaptureApproval
   mirrorPreview: boolean
   stickerColors: Record<string, string>
@@ -39,6 +43,8 @@ interface OrientationApprovalDialogProps {
 
 export function OrientationApprovalDialog({
   approval,
+  displayRecovery,
+  blockedCandidate = () => false,
   mirrorPreview,
   stickerColors,
   focusDialog,
@@ -55,6 +61,20 @@ export function OrientationApprovalDialog({
   onPageChange,
 }: OrientationApprovalDialogProps) {
   const { candidates, arrangements, valid, note } = approval
+  const displayed = candidates.map((candidate) => ({
+    ...candidate,
+    faces:
+      displayRecovery?.view === 'capture'
+        ? (transformFaces(
+            candidate.faces,
+            displayRecovery.captureFrame.displayTransform,
+          ) ?? candidate.faces)
+        : candidate.faces,
+  }))
+  const displayMapping =
+    displayRecovery?.view === 'capture'
+      ? displayRecovery.captureFrame.photoTransforms
+      : displayRecovery?.mapping
   const single = candidates.length === 1
   const page = Math.min(
     approval.page ?? 0,
@@ -94,34 +114,29 @@ export function OrientationApprovalDialog({
         </div>
         {valid && puzzleSize >= 4 && (
           <p class="orientation-approval-note">
-            Available structural checks passed. Full NxN reachability has not
-            been established.
+            Available checks passed. Full NxN reachability unverified.
           </p>
         )}
-        {note && (
-          <p
-            class={
-              valid
-                ? 'orientation-approval-note'
-                : 'approval-error capture-warning'
-            }
-          >
-            {note}
+        {candidates.some(blockedCandidate) && (
+          <p class="capture-warning">
+            No retained arrangement matches the capture sequence. Review the
+            captured input.
+          </p>
+        )}
+        {note && !valid && <p class="approval-error capture-warning">{note}</p>}
+        {approval.truncated && (
+          <p class="orientation-approval-note">
+            Search capped; other arrangements may exist.
           </p>
         )}
         <p class="orientation-approval-note">
-          Photos and colors can be correct even when their placement is wrong.
-          Adjust orientations separately, or tap a face to fix sticker colors.
+          {displayRecovery?.view === 'capture'
+            ? 'Saved capture view'
+            : 'Logical view'}
+          {!displayRecovery?.captureFrame.confirmed
+            ? ' · capture pose unknown'
+            : ''}
         </p>
-        {(approval.retainedCount !== undefined || approval.truncated) && (
-          <p class="orientation-approval-note" role="status">
-            Search retained {approval.retainedCount ?? candidates.length}{' '}
-            candidate(s).
-            {approval.truncated
-              ? ' More candidates exist; the search was capped.'
-              : ' Retained candidates are not a limit on manual corrections.'}
-          </p>
-        )}
         {!single && valid && (
           <p class="orientation-approval-note">
             The photos fit your cube in {candidates.length} different ways.
@@ -130,7 +145,8 @@ export function OrientationApprovalDialog({
         )}
         {single || candidates.length === 0 ? (
           <CubeCheck
-            candidate={candidates[0]}
+            candidate={displayed[0]}
+            photoMapping={displayMapping}
             captured={captured}
             faceOrder={faceOrder}
             puzzleSize={puzzleSize}
@@ -160,6 +176,7 @@ export function OrientationApprovalDialog({
                   <button
                     type="button"
                     class="btn btn-primary btn-sm"
+                    disabled={blockedCandidate(candidate)}
                     onClick={() => onChoose(candidate)}
                   >
                     {valid ? 'This one' : 'Use it anyway'}
@@ -221,6 +238,7 @@ export function OrientationApprovalDialog({
             <button
               type="button"
               class="btn btn-primary btn-review-next"
+              disabled={blockedCandidate(candidates[0])}
               onClick={() => onChoose(candidates[0])}
             >
               {valid ? 'Yes, this is my cube' : 'Use it anyway'}
@@ -237,6 +255,7 @@ export function OrientationApprovalDialog({
 // are shown in the order they were taken.
 function CubeCheck({
   candidate,
+  photoMapping,
   captured,
   faceOrder,
   puzzleSize,
@@ -244,6 +263,7 @@ function CubeCheck({
   onCheckFace,
   onCheckSlot,
 }: {
+  photoMapping?: FaceMapping
   candidate: OrientedCandidate | undefined
   captured: Record<string, FaceCaptureData>
   faceOrder: string[]
@@ -267,10 +287,22 @@ function CubeCheck({
       ? stats.diagnosis.cause
       : ''
   const repeatedSlots = new Set(stats.diagnosis.repeated.flat())
-  const inNet = candidate
-    ? netPhotos(captured, faceOrder, candidate.faces)
-    : null
   const inOrder = capturePhotos(captured, faceOrder)
+  const inNet = photoMapping
+    ? Object.fromEntries(
+        photoMapping.map((placement) => [
+          placement.target,
+          {
+            ...inOrder[faceOrder.indexOf(placement.slot)],
+            image: captured[placement.slot]?.croppedImage,
+            turns: placement.quarterTurns,
+            slot: faceOrder.indexOf(placement.slot),
+          },
+        ]),
+      )
+    : candidate
+      ? netPhotos(captured, faceOrder, candidate.faces)
+      : null
   const changedFaces = inNet
     ? Object.fromEntries(
         Object.entries(inNet).map(([face, photo]) => [face, photo?.changed]),
@@ -292,9 +324,7 @@ function CubeCheck({
     <>
       <section class="approval-section approval-detected">
         <h3 class="approval-section-title">
-          {candidate
-            ? 'Detected cube - point at a face to see its photo'
-            : 'Detected colors in the order taken - point at a face to see its photo'}
+          {candidate ? 'Your cube' : 'Detected colors'}
         </h3>
         {candidate ? (
           <OrientationNetPreview
@@ -304,7 +334,13 @@ function CubeCheck({
             unsureFaces={unsureFaces}
             photos={inNet ?? undefined}
             flaggedFaces={flaggedFaces}
-            onFaceClick={(face) => onCheckFace(candidate, face)}
+            onFaceClick={(face) => {
+              const placement = photoMapping?.find(
+                (entry) => entry.target === face,
+              )
+              if (placement) onCheckSlot(faceOrder.indexOf(placement.slot))
+              else onCheckFace(candidate, face)
+            }}
           />
         ) : (
           <div class="approval-strip">

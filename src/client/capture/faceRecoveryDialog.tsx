@@ -47,7 +47,7 @@ export function FaceRecoveryDialog({
   const captured = recovery.workingFaces
   const [inspectedFace, setInspectedFace] = useState<FaceKey | null>(null)
   const [colorFace, setColorFace] = useState<string | null>(null)
-  const [colorBefore, setColorBefore] = useState(captured)
+  const [colorBefore, setColorBefore] = useState(recovery.checkpoint())
   const colorReview = useColorReview({
     capturedFaces: captured,
     setCapturedFaces: recovery.setDraftFaces,
@@ -75,6 +75,37 @@ export function FaceRecoveryDialog({
     : initialCube
   const discardsViewerEdits =
     currentCube && initialCapture && !sameCubeState(currentCube, initialCapture)
+  const finishColor = (cancel: boolean) => {
+    if (cancel) recovery.restoreCheckpoint(colorBefore)
+    setColorFace(null)
+    queueMicrotask(() =>
+      document
+        .querySelector<HTMLButtonElement>(
+          `[aria-label="Inspect ${inspectedFace ?? 'F'} face"]`,
+        )
+        ?.focus(),
+    )
+  }
+  const closePicker = () => {
+    colorReview.setReviewEditingCell(null)
+    queueMicrotask(() =>
+      document
+        .querySelector<HTMLButtonElement>(
+          '.spatial-color-editor .review-detected-cell',
+        )
+        ?.focus(),
+    )
+  }
+  const childKeys = (
+    event: TargetedKeyboardEvent<HTMLDivElement>,
+    close: () => void,
+  ) => {
+    if (event.key === 'Escape') {
+      event.preventDefault()
+      event.stopPropagation()
+      close()
+    } else onDialogKeyDown(event)
+  }
   if (!draft) return null
   const completeFaces =
     draft.view === 'capture' ? frame?.faces : validation?.faces
@@ -98,6 +129,14 @@ export function FaceRecoveryDialog({
       size,
     )
   const previewCube = assembleCubeFromFaces(shown!, size)
+  const stage =
+    !recovery.session?.candidates.length && !recovery.savedSelection
+      ? 'conflict'
+      : recovery.activeSlot
+        ? 'choice'
+        : draft.view === 'capture' && !draft.confirmed
+          ? 'pose'
+          : 'review'
   const placements =
     completeFaces && completeMapping
       ? completeMapping
@@ -142,7 +181,7 @@ export function FaceRecoveryDialog({
                 }
                 onInspect={setInspectedFace}
                 onCorrectFace={(slot) => {
-                  setColorBefore(captured)
+                  setColorBefore(recovery.checkpoint())
                   setColorFace(slot)
                 }}
               />
@@ -182,17 +221,16 @@ export function FaceRecoveryDialog({
                 mixedUpColors={[]}
                 confidenceTier={confidenceTier}
                 focusDialog={focusDialog}
-                onDialogKeyDown={onDialogKeyDown}
-                onClose={() => {
-                  recovery.setDraftFaces(colorBefore)
-                  setColorFace(null)
-                }}
+                onDialogKeyDown={(event) =>
+                  childKeys(event, () => finishColor(true))
+                }
+                onClose={() => finishColor(true)}
                 onStepChange={() => {}}
                 onEditCell={(face, row, col) =>
                   colorReview.setReviewEditingCell({ face, row, col })
                 }
                 onRetake={() => {}}
-                onConfirm={() => setColorFace(null)}
+                onConfirm={() => finishColor(false)}
                 direct={{
                   face: colorFace,
                   row: -1,
@@ -201,7 +239,7 @@ export function FaceRecoveryDialog({
                     placements?.find((p) => p.slot === colorFace)
                       ?.quarterTurns ?? 0,
                 }}
-                onOk={() => setColorFace(null)}
+                onOk={() => finishColor(false)}
               />
             )}
             {colorReview.reviewEditingCell && (
@@ -214,118 +252,137 @@ export function FaceRecoveryDialog({
                 stickerColors={colors}
                 colorNames={COLOR_NAME}
                 focusDialog={focusDialog}
-                onDialogKeyDown={onDialogKeyDown}
-                onFixColor={colorReview.handleFixCellColor}
-                onClose={() => colorReview.setReviewEditingCell(null)}
+                onDialogKeyDown={(event) => childKeys(event, closePicker)}
+                onFixColor={(...args) => {
+                  colorReview.handleFixCellColor(...args)
+                  queueMicrotask(() =>
+                    document
+                      .querySelector<HTMLButtonElement>(
+                        '.spatial-color-editor .review-detected-cell',
+                      )
+                      ?.focus(),
+                  )
+                }}
+                onClose={closePicker}
               />
             )}
             <div hidden={!!colorFace}>
               {!completeFaces && (
                 <p class="capture-warning" role="alert">
-                  The draft assignment is invalid. Preview shows the last
-                  complete assignment, or provisional capture-slot order if none
-                  was available. All six recognized source grids are retained;
-                  correct the assignment before confirming.
+                  Preview shows the last complete assignment; correct the draft
+                  errors before use.
                 </p>
               )}
-              <section aria-label="Orientation candidate choices">
-                {recovery.choiceWarning && (
-                  <p class="capture-warning" role="alert">
-                    {recovery.choiceWarning}
-                  </p>
-                )}
-                {!!recovery.decisions.length &&
-                  !recovery.remainingCandidates.length && (
-                    <p class="capture-warning" role="alert">
-                      The saved answers no longer match a retained candidate
-                      after correction. Your draft was kept; revisit an earlier
-                      answer or use Advanced manual recovery.
-                    </p>
-                  )}
-                <h3>
-                  {recovery.activeSlot
-                    ? 'Choose the matching face.'
-                    : 'Review your cube.'}
-                </h3>
-                <p role="status">
-                  {recovery.remainingCandidates.length} retained candidates.{' '}
-                  {recovery.session?.truncated
-                    ? 'Search capped; other matches may exist.'
-                    : 'Equivalent arrangements may be omitted.'}
+              {recovery.choiceWarning && (
+                <p class="capture-warning" role="status">
+                  {recovery.choiceWarning}
                 </p>
-                <details>
-                  <summary>Search details</summary>
-                  {recovery.session?.issues.map((issue) => (
-                    <p key={issue} class="capture-warning">
-                      {issue}
-                    </p>
-                  ))}
-                </details>
-                {recovery.activeSlot ? (
-                  <>
-                    <p>
-                      Choose{' '}
-                      {LABELS[
-                        FACE_ORDER.indexOf(recovery.activeSlot as FaceKey)
-                      ] ?? recovery.activeSlot}
-                      .
-                    </p>
-                    <div class="spatial-candidates">
-                      {recovery.choices.map((choice, i) => (
+              )}
+              {stage === 'choice' && (
+                <section aria-label="Orientation candidate choices">
+                  <h3>
+                    Which matches{' '}
+                    {LABELS[
+                      FACE_ORDER.indexOf(recovery.activeSlot as FaceKey)
+                    ] ?? recovery.activeSlot}
+                    ?
+                  </h3>
+                  <div class="spatial-candidates">
+                    {recovery.presentedChoices.map(
+                      ({ choice, view, relativeTurns, isCurrent }, i) => (
                         <button
                           type="button"
                           class="spatial-candidate"
                           key={`${choice.target}-${choice.quarterTurns}`}
-                          aria-label={`Choose ${choice.slot} as ${choice.target}, ${choice.quarterTurns * 90} degrees, candidate ${i + 1}`}
-                          onClick={() => recovery.chooseOption(choice)}
+                          aria-label={`Choose ${LABELS[FACE_ORDER.indexOf(choice.slot)] ?? choice.slot}, ${relativeTurns * 90}° clockwise, ${view.target} face, option ${i + 1}`}
+                          aria-pressed={isCurrent}
+                          onClick={() => {
+                            setInspectedFace(null)
+                            recovery.chooseOption(choice)
+                          }}
                         >
-                          <FaceGrid
-                            colors={choice.grid}
-                            stickerColors={colors}
-                          />
+                          <FaceGrid colors={view.grid} stickerColors={colors} />
                           <span>
-                            {choice.target} · {choice.quarterTurns * 90}°
+                            {view.target} · {relativeTurns * 90}°
                           </span>
                         </button>
+                      ),
+                    )}
+                  </div>
+                </section>
+              )}
+              {stage === 'pose' && (
+                <fieldset class="spatial-pose">
+                  <legend>Which photos were front and top?</legend>
+                  <label>
+                    Front{' '}
+                    <select
+                      aria-label="Capture front photo"
+                      value={draft.frontSlot}
+                      onChange={(e) =>
+                        recovery.edit({
+                          frontSlot: e.currentTarget.value,
+                          confirmed: false,
+                        })
+                      }
+                    >
+                      {FACE_ORDER.map((f, i) => (
+                        <option key={f} value={f}>
+                          {LABELS[i]}
+                        </option>
                       ))}
-                    </div>
-                  </>
-                ) : (
-                  <p>
-                    {recovery.remainingCandidates.length
-                      ? 'Choices resolved. Check the cube and capture frame.'
-                      : 'No retained match. Use Advanced recovery; other arrangements may exist.'}
-                  </p>
-                )}
-                <button
-                  type="button"
-                  class="btn btn-secondary"
-                  disabled={!recovery.decisions.length}
-                  onClick={() => {
-                    setInspectedFace(null)
-                    recovery.back()
-                  }}
-                >
-                  Back
-                </button>{' '}
-                <button
-                  type="button"
-                  class="btn btn-secondary"
-                  disabled={!recovery.pendingChoice}
-                  onClick={() => {
-                    setInspectedFace(null)
-                    recovery.next()
-                  }}
-                >
-                  Next
-                </button>
-              </section>
-              <p>Originals stay unchanged; Confirm applies your changes.</p>
+                    </select>
+                  </label>
+                  <label>
+                    Top{' '}
+                    <select
+                      aria-label="Capture top photo"
+                      value={draft.upSlot}
+                      onChange={(e) =>
+                        recovery.edit({
+                          upSlot: e.currentTarget.value,
+                          confirmed: false,
+                        })
+                      }
+                    >
+                      {FACE_ORDER.map((f, i) => (
+                        <option key={f} value={f}>
+                          {LABELS[i]}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                </fieldset>
+              )}
+              {stage === 'review' && <h3>Ready to use this cube?</h3>}
+              {stage === 'conflict' && <h3>Review the captured input.</h3>}
+              {!recovery.remainingCandidates.length && (
+                <p class="capture-warning" role="status">
+                  No retained match. Review earlier answers, front/top, or
+                  detected colors.
+                </p>
+              )}
+              {recovery.session?.truncated && (
+                <p class="capture-warning" role="status">
+                  Search capped; other matches may exist.
+                </p>
+              )}
+              {validation?.issues[0] && (
+                <p class="capture-warning" role="alert">
+                  {validation.issues[0]}
+                </p>
+              )}
+              {validation?.valid && (
+                <p role="status">
+                  {size >= 4
+                    ? 'Some cube constraints remain unverified.'
+                    : 'Available checks passed.'}
+                </p>
+              )}
               {discardsViewerEdits && (
                 <p class="capture-warning">
-                  Confirming orientation edits reconstructs the original
-                  captured photos and discards later viewer edits. Cancel keeps
-                  the current cube unchanged.
+                  Using this capture discards later viewer edits. Cancel keeps
+                  them.
                 </p>
               )}
               {recovery.importWarning && (
@@ -333,268 +390,108 @@ export function FaceRecoveryDialog({
                   {recovery.importWarning}
                 </p>
               )}
-              <details class="spatial-advanced">
-                <summary>Advanced recovery</summary>
-                <div class="face-recovery-photos">
-                  {FACE_ORDER.map((slot, i) => {
-                    const placement = draft.mapping.find((p) => p.slot === slot)
-                    if (!placement) return null
-                    return (
-                      <section
-                        class="face-recovery-photo"
-                        key={slot}
-                        aria-label={`${LABELS[i]} correction`}
-                      >
-                        <h3>
-                          {LABELS[i]} → {placement.target} ·{' '}
-                          {placement.quarterTurns * 90}°
-                        </h3>
-                        <div class="face-recovery-image">
-                          {captured[slot]?.croppedImage && (
-                            <img
-                              src={captured[slot].croppedImage}
-                              alt={`${LABELS[i]} original photo`}
-                              style={{
-                                transform: `rotate(${placement.quarterTurns * 90}deg)`,
-                              }}
-                            />
-                          )}
-                        </div>
-                        <label>
-                          Face{' '}
-                          <select
-                            aria-label={`Assign ${LABELS[i]} to face`}
-                            value={placement.target}
-                            disabled={size % 2 === 1}
-                            onChange={(e) =>
-                              recovery.assign(
-                                slot,
-                                e.currentTarget.value as FaceKey,
-                              )
-                            }
-                          >
-                            {FACE_ORDER.map((f) => (
-                              <option key={f} value={f}>
-                                {f}
-                              </option>
-                            ))}
-                          </select>
-                        </label>
-                        <div class="face-recovery-rotations">
-                          <button
-                            type="button"
-                            class="btn btn-secondary btn-sm"
-                            aria-label={`Rotate ${LABELS[i]} (${placement.target} face) counterclockwise 90°`}
-                            onClick={() => recovery.rotate(slot, -1)}
-                          >
-                            −90°
-                          </button>
-                          <button
-                            type="button"
-                            class="btn btn-secondary btn-sm"
-                            aria-label={`Rotate ${LABELS[i]} (${placement.target} face) clockwise 90°`}
-                            onClick={() => recovery.rotate(slot, 1)}
-                          >
-                            +90°
-                          </button>
-                          <button
-                            type="button"
-                            class="btn btn-secondary btn-sm"
-                            aria-label={`Rotate ${LABELS[i]} (${placement.target} face) 180°`}
-                            onClick={() => recovery.rotate(slot, 2)}
-                          >
-                            180°
-                          </button>
-                        </div>
-                        <span>
-                          {placement.target} · {placement.quarterTurns * 90}°
-                          clockwise
-                        </span>
-                      </section>
-                    )
-                  })}
-                </div>
-              </details>
-              <fieldset>
-                <legend>Capture frame</legend>
-                <label>
-                  Front{' '}
-                  <select
-                    aria-label="Capture front photo"
-                    value={draft.frontSlot}
-                    onChange={(e) =>
-                      recovery.edit({
-                        frontSlot: e.currentTarget.value,
-                        confirmed: false,
-                      })
-                    }
-                  >
-                    {FACE_ORDER.map((f, i) => (
-                      <option key={f} value={f}>
-                        {LABELS[i]}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <label>
-                  Top{' '}
-                  <select
-                    aria-label="Capture top photo"
-                    value={draft.upSlot}
-                    onChange={(e) =>
-                      recovery.edit({
-                        upSlot: e.currentTarget.value,
-                        confirmed: false,
-                      })
-                    }
-                  >
-                    {FACE_ORDER.map((f, i) => (
-                      <option key={f} value={f}>
-                        {LABELS[i]}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <label>
-                  <input
-                    type="checkbox"
-                    aria-label="I confirm this front and top match how I held the cube."
-                    checked={draft.confirmed}
-                    onChange={(e) =>
-                      recovery.edit({ confirmed: e.currentTarget.checked })
-                    }
-                  />{' '}
-                  Front and top match my cube.
-                </label>
-                <details>
-                  <summary>Capture details</summary>
-                  {recovery.context?.mirrored && (
-                    <p>
-                      Mirrored preview recorded; photos are not mirrored again.
-                    </p>
-                  )}
-                  {size % 2 === 1 && (
-                    <p>
-                      Fixed centers lock face assignments; rotations remain
-                      editable.
-                    </p>
-                  )}
-                  <p>
-                    The old guide did not record a unique pose. Confirm the
-                    front and top you used.
-                  </p>
-                  <label>
-                    Physical lateral turn{' '}
-                    <select
-                      aria-label="Physical lateral turn direction"
-                      value={draft.turnDirection}
-                      onChange={(e) =>
-                        recovery.edit({ turnDirection: e.currentTarget.value })
-                      }
-                    >
-                      <option value="unknown">Not recorded / unknown</option>
-                      <option value="left">Left</option>
-                      <option value="right">Right</option>
-                    </select>
-                  </label>
-                  <label>
-                    Cap order{' '}
-                    <select
-                      aria-label="Capture cap order"
-                      value={draft.capOrder}
-                      onChange={(e) =>
-                        recovery.edit({ capOrder: e.currentTarget.value })
-                      }
-                    >
-                      <option value="unknown">Not recorded / unknown</option>
-                      <option value="top-bottom">Top then bottom</option>
-                      <option value="bottom-top">Bottom then top</option>
-                    </select>
-                  </label>
-                </details>
-                <label>
-                  Preview frame{' '}
-                  <select
-                    aria-label="Orientation preview frame"
-                    value={draft.view}
-                    onChange={(e) =>
-                      recovery.edit({
-                        view: e.currentTarget.value as 'capture' | 'canonical',
-                      })
-                    }
-                  >
-                    <option value="capture">
-                      Capture-relative (first side at front)
-                    </option>
-                    <option value="canonical">Logical U/R/F/D/L/B</option>
-                  </select>
-                </label>
-                {!frame && (
-                  <p role="alert" class="capture-warning">
-                    Front and top must be different, adjacent faces. Correct
-                    assignments or choose a different top photo.
-                  </p>
-                )}
-              </fieldset>
-              <section aria-label="Orientation validation">
-                <h3>Validation</h3>
-                {validation?.issues.map((issue) => (
-                  <p role="alert" class="capture-warning" key={issue}>
-                    {issue}
-                  </p>
-                ))}
-                {validation?.parity?.detail && (
-                  <details>
-                    <summary>Check details</summary>
-                    <p>{validation.parity.detail}</p>
-                  </details>
-                )}
-                {validation?.valid && (
-                  <p role="status">
-                    Available checks passed.
-                    {size >= 4 ? ' Full NxN reachability unverified.' : ''}
-                  </p>
-                )}
-              </section>
             </div>
           </div>
-          <div class="orientation-approval-actions">
+          <div class="orientation-approval-actions spatial-stage-actions">
             <button
               type="button"
-              class="btn btn-secondary"
+              class="btn btn-secondary btn-sm"
               onClick={recovery.cancel}
             >
               Cancel changes
             </button>
             <button
               type="button"
-              class="btn btn-secondary"
-              disabled={!recovery.history.length}
+              class="btn btn-secondary btn-sm"
+              aria-label="Undo orientation edit"
+              disabled={!!colorFace || !recovery.history.length}
               onClick={recovery.undo}
             >
-              Undo orientation edit
+              Undo
             </button>
             <button
               type="button"
-              class="btn btn-secondary"
+              class="btn btn-secondary btn-sm"
+              aria-label="Reset orientation draft"
+              disabled={!!colorFace}
               onClick={recovery.resetDraft}
             >
-              Reset orientation draft
+              Reset
             </button>
+            {!colorFace && recovery.decisions.length > 0 && (
+              <button
+                type="button"
+                class="btn btn-secondary"
+                onClick={() => {
+                  setInspectedFace(null)
+                  recovery.back()
+                }}
+              >
+                Back
+              </button>
+            )}
             <div class="header-spacer" />
-            <button
-              type="button"
-              class="btn btn-primary"
-              disabled={
-                !!colorFace ||
-                !validation?.valid ||
-                !frame ||
-                (draft.view === 'capture' && !draft.confirmed)
-              }
-              onClick={recovery.confirm}
-            >
-              Confirm face mapping
-            </button>
+            {!colorFace && stage === 'conflict' && (
+              <button
+                type="button"
+                class="btn btn-primary"
+                onClick={() => {
+                  setInspectedFace('F')
+                  document
+                    .querySelector<HTMLButtonElement>(
+                      '[aria-label="Inspect F face"]',
+                    )
+                    ?.focus()
+                }}
+              >
+                Check a face
+              </button>
+            )}
+            {!colorFace && stage === 'choice' && (
+              <button
+                type="button"
+                class="btn btn-primary"
+                disabled={!recovery.selectedChoice}
+                onClick={() => {
+                  setInspectedFace(null)
+                  recovery.next()
+                }}
+              >
+                Next
+              </button>
+            )}
+            {!colorFace && stage === 'pose' && (
+              <button
+                type="button"
+                class="btn btn-primary"
+                disabled={!validation?.valid || !frame}
+                onClick={() => recovery.edit({ confirmed: true })}
+              >
+                Confirm front and top
+              </button>
+            )}
+            {!colorFace && stage === 'review' && (
+              <>
+                {recovery.confirmBlockedReason && (
+                  <p id="recovery-confirm-reason" role="status">
+                    {recovery.confirmBlockedReason}
+                  </p>
+                )}
+                <button
+                  type="button"
+                  class="btn btn-primary"
+                  disabled={!!recovery.confirmBlockedReason}
+                  aria-describedby={
+                    recovery.confirmBlockedReason
+                      ? 'recovery-confirm-reason'
+                      : undefined
+                  }
+                  onClick={recovery.confirm}
+                >
+                  Use this cube
+                </button>
+              </>
+            )}
           </div>
         </div>
       </div>
