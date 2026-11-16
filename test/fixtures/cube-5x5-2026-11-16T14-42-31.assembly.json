@@ -1,0 +1,1826 @@
+{
+  "$schema": "https://wstein.github.io/cube-assembler/schemas/fixture-meta-v1.schema.json",
+  "gridSize": 5,
+  "colorsURFDLB": "YYBYYYYBYYBBBBBWWBWWWWBWW GGRBBGGRBBRRRRRGGRBBGGRBB YYGYYYYGYYGGGGGWWGWWWWGWW BBOGGBBOGGOOOOOBBOGGBBOGG OOYOOOOYOOYYYYYRRYRRRRYRR RRWRRRRWRRWWWWWOOWOOOOWOO",
+  "detectedURFDLB": "YYBYYYYBYYBBBBBWWBWWWWBWW GGRBBGGRBBRRRRRGGRBBGGRBB YYGYYYYGYYGGGGGWWGWWWWGWW BBOGGBBOGGOOOOOBBOGGBBOGG OOYOOOOYOOYYYYYRRYRRRRYRR RRWRRRRWRRWWWWWOOWOOOOWOO",
+  "faces": {
+    "u": {
+      "photo": "face-u.jpg",
+      "readings": [
+        [
+          159,
+          212,
+          59
+        ],
+        [
+          157,
+          210,
+          55
+        ],
+        [
+          5,
+          55,
+          111
+        ],
+        [
+          165,
+          211,
+          51
+        ],
+        [
+          159,
+          212,
+          47
+        ],
+        [
+          156,
+          212,
+          62
+        ],
+        [
+          159,
+          212,
+          64
+        ],
+        [
+          12,
+          61,
+          122
+        ],
+        [
+          164,
+          217,
+          63
+        ],
+        [
+          160,
+          215,
+          52
+        ],
+        [
+          50,
+          91,
+          155
+        ],
+        [
+          58,
+          99,
+          161
+        ],
+        [
+          9,
+          64,
+          130
+        ],
+        [
+          36,
+          80,
+          143
+        ],
+        [
+          31,
+          78,
+          142
+        ],
+        [
+          151,
+          187,
+          200
+        ],
+        [
+          156,
+          192,
+          206
+        ],
+        [
+          35,
+          82,
+          153
+        ],
+        [
+          165,
+          204,
+          216
+        ],
+        [
+          168,
+          206,
+          219
+        ],
+        [
+          162,
+          199,
+          212
+        ],
+        [
+          166,
+          203,
+          219
+        ],
+        [
+          12,
+          68,
+          143
+        ],
+        [
+          168,
+          204,
+          217
+        ],
+        [
+          167,
+          204,
+          214
+        ]
+      ],
+      "confidences": [
+        97,
+        96,
+        90,
+        97,
+        96,
+        96,
+        97,
+        94,
+        98,
+        96,
+        89,
+        85,
+        95,
+        95,
+        96,
+        91,
+        94,
+        93,
+        97,
+        96,
+        98,
+        97,
+        94,
+        97,
+        96
+      ],
+      "source": "camera",
+      "captureGuide": {
+        "step": 0,
+        "mirrored": true,
+        "displayedArrow": null,
+        "protocol": "sides-then-top-bottom/v1"
+      },
+      "capturedAt": "2026-11-16T14:38:46.135Z",
+      "background": {
+        "r": 112.84462798307662,
+        "g": 78.98513832881602,
+        "b": 63.63043729754743
+      },
+      "frame": {
+        "width": 1920,
+        "height": 1080
+      },
+      "crop": {
+        "x": 735,
+        "y": 296,
+        "width": 554,
+        "height": 554
+      },
+      "sharpness": 29.9,
+      "camera": {
+        "aspectRatio": 1.7777777777777777,
+        "backgroundBlur": false,
+        "frameRate": 30,
+        "height": 1080,
+        "resizeMode": "none",
+        "width": 1920
+      },
+      "previewColorProfile": {
+        "id": "colors-1790500141868-s2h0u2",
+        "name": "Plastic 5",
+        "colors": {
+          "W": {
+            "r": 183,
+            "g": 191,
+            "b": 198
+          },
+          "Y": {
+            "r": 216,
+            "g": 173,
+            "b": 33
+          },
+          "O": {
+            "r": 237,
+            "g": 73,
+            "b": 22
+          },
+          "R": {
+            "r": 164,
+            "g": 15,
+            "b": 24
+          },
+          "G": {
+            "r": 59,
+            "g": 168,
+            "b": 45
+          },
+          "B": {
+            "r": 1,
+            "g": 79,
+            "b": 158
+          }
+        }
+      }
+    },
+    "r": {
+      "photo": "face-r.jpg",
+      "readings": [
+        [
+          5,
+          152,
+          66
+        ],
+        [
+          1,
+          145,
+          57
+        ],
+        [
+          135,
+          24,
+          20
+        ],
+        [
+          5,
+          48,
+          104
+        ],
+        [
+          4,
+          46,
+          101
+        ],
+        [
+          13,
+          161,
+          71
+        ],
+        [
+          9,
+          150,
+          67
+        ],
+        [
+          143,
+          29,
+          32
+        ],
+        [
+          8,
+          51,
+          109
+        ],
+        [
+          6,
+          51,
+          106
+        ],
+        [
+          150,
+          61,
+          68
+        ],
+        [
+          146,
+          43,
+          48
+        ],
+        [
+          155,
+          45,
+          54
+        ],
+        [
+          151,
+          42,
+          52
+        ],
+        [
+          143,
+          32,
+          40
+        ],
+        [
+          38,
+          165,
+          87
+        ],
+        [
+          41,
+          166,
+          86
+        ],
+        [
+          178,
+          90,
+          99
+        ],
+        [
+          68,
+          108,
+          163
+        ],
+        [
+          67,
+          108,
+          162
+        ],
+        [
+          34,
+          172,
+          89
+        ],
+        [
+          19,
+          167,
+          78
+        ],
+        [
+          167,
+          44,
+          54
+        ],
+        [
+          28,
+          74,
+          137
+        ],
+        [
+          23,
+          72,
+          135
+        ]
+      ],
+      "confidences": [
+        95,
+        92,
+        87,
+        86,
+        85,
+        99,
+        94,
+        91,
+        88,
+        88,
+        90,
+        93,
+        96,
+        95,
+        92,
+        97,
+        97,
+        81,
+        81,
+        81,
+        95,
+        98,
+        98,
+        98,
+        99
+      ],
+      "source": "camera",
+      "captureGuide": {
+        "step": 1,
+        "mirrored": true,
+        "displayedArrow": 270,
+        "protocol": "sides-then-top-bottom/v1"
+      },
+      "capturedAt": "2026-11-16T14:38:50.375Z",
+      "background": {
+        "r": 97.15124547690809,
+        "g": 79.94670097640017,
+        "b": 74.69538917480334
+      },
+      "frame": {
+        "width": 1920,
+        "height": 1080
+      },
+      "crop": {
+        "x": 707,
+        "y": 291,
+        "width": 563,
+        "height": 563
+      },
+      "sharpness": 24.5,
+      "camera": {
+        "aspectRatio": 1.7777777777777777,
+        "backgroundBlur": false,
+        "frameRate": 30,
+        "height": 1080,
+        "resizeMode": "none",
+        "width": 1920
+      },
+      "previewColorProfile": {
+        "id": "colors-1790500141868-s2h0u2",
+        "name": "Plastic 5",
+        "colors": {
+          "W": {
+            "r": 183,
+            "g": 191,
+            "b": 198
+          },
+          "Y": {
+            "r": 216,
+            "g": 173,
+            "b": 33
+          },
+          "O": {
+            "r": 237,
+            "g": 73,
+            "b": 22
+          },
+          "R": {
+            "r": 164,
+            "g": 15,
+            "b": 24
+          },
+          "G": {
+            "r": 59,
+            "g": 168,
+            "b": 45
+          },
+          "B": {
+            "r": 1,
+            "g": 79,
+            "b": 158
+          }
+        }
+      }
+    },
+    "f": {
+      "photo": "face-f.jpg",
+      "readings": [
+        [
+          173,
+          223,
+          63
+        ],
+        [
+          170,
+          221,
+          54
+        ],
+        [
+          1,
+          156,
+          55
+        ],
+        [
+          174,
+          223,
+          56
+        ],
+        [
+          172,
+          222,
+          56
+        ],
+        [
+          166,
+          223,
+          64
+        ],
+        [
+          169,
+          222,
+          63
+        ],
+        [
+          21,
+          166,
+          67
+        ],
+        [
+          177,
+          229,
+          68
+        ],
+        [
+          172,
+          226,
+          59
+        ],
+        [
+          29,
+          167,
+          78
+        ],
+        [
+          27,
+          165,
+          81
+        ],
+        [
+          11,
+          165,
+          70
+        ],
+        [
+          9,
+          169,
+          70
+        ],
+        [
+          23,
+          170,
+          72
+        ],
+        [
+          168,
+          201,
+          217
+        ],
+        [
+          173,
+          206,
+          221
+        ],
+        [
+          56,
+          186,
+          103
+        ],
+        [
+          189,
+          224,
+          239
+        ],
+        [
+          184,
+          221,
+          235
+        ],
+        [
+          170,
+          206,
+          221
+        ],
+        [
+          175,
+          208,
+          221
+        ],
+        [
+          31,
+          184,
+          83
+        ],
+        [
+          183,
+          217,
+          232
+        ],
+        [
+          181,
+          216,
+          227
+        ]
+      ],
+      "confidences": [
+        96,
+        96,
+        95,
+        96,
+        96,
+        96,
+        97,
+        96,
+        94,
+        95,
+        98,
+        98,
+        98,
+        95,
+        95,
+        99,
+        96,
+        88,
+        85,
+        87,
+        96,
+        95,
+        89,
+        89,
+        90
+      ],
+      "source": "camera",
+      "captureGuide": {
+        "step": 2,
+        "mirrored": true,
+        "displayedArrow": 270,
+        "protocol": "sides-then-top-bottom/v1"
+      },
+      "capturedAt": "2026-11-16T14:38:54.625Z",
+      "background": {
+        "r": 98.75601353262829,
+        "g": 73.05293691361517,
+        "b": 57.85487690036157
+      },
+      "frame": {
+        "width": 1920,
+        "height": 1080
+      },
+      "crop": {
+        "x": 711,
+        "y": 336,
+        "width": 516,
+        "height": 516
+      },
+      "sharpness": 34,
+      "camera": {
+        "aspectRatio": 1.7777777777777777,
+        "backgroundBlur": false,
+        "frameRate": 30,
+        "height": 1080,
+        "resizeMode": "none",
+        "width": 1920
+      },
+      "previewColorProfile": {
+        "id": "colors-1790500141868-s2h0u2",
+        "name": "Plastic 5",
+        "colors": {
+          "W": {
+            "r": 183,
+            "g": 191,
+            "b": 198
+          },
+          "Y": {
+            "r": 216,
+            "g": 173,
+            "b": 33
+          },
+          "O": {
+            "r": 237,
+            "g": 73,
+            "b": 22
+          },
+          "R": {
+            "r": 164,
+            "g": 15,
+            "b": 24
+          },
+          "G": {
+            "r": 59,
+            "g": 168,
+            "b": 45
+          },
+          "B": {
+            "r": 1,
+            "g": 79,
+            "b": 158
+          }
+        }
+      }
+    },
+    "d": {
+      "photo": "face-d.jpg",
+      "readings": [
+        [
+          17,
+          59,
+          113
+        ],
+        [
+          10,
+          49,
+          104
+        ],
+        [
+          223,
+          84,
+          53
+        ],
+        [
+          4,
+          140,
+          55
+        ],
+        [
+          0,
+          142,
+          55
+        ],
+        [
+          17,
+          63,
+          124
+        ],
+        [
+          21,
+          57,
+          113
+        ],
+        [
+          228,
+          88,
+          65
+        ],
+        [
+          24,
+          148,
+          67
+        ],
+        [
+          0,
+          146,
+          60
+        ],
+        [
+          219,
+          99,
+          81
+        ],
+        [
+          220,
+          95,
+          76
+        ],
+        [
+          226,
+          97,
+          79
+        ],
+        [
+          228,
+          91,
+          68
+        ],
+        [
+          224,
+          95,
+          63
+        ],
+        [
+          49,
+          84,
+          149
+        ],
+        [
+          47,
+          81,
+          144
+        ],
+        [
+          227,
+          100,
+          83
+        ],
+        [
+          62,
+          177,
+          105
+        ],
+        [
+          49,
+          172,
+          95
+        ],
+        [
+          44,
+          87,
+          154
+        ],
+        [
+          43,
+          84,
+          148
+        ],
+        [
+          228,
+          100,
+          75
+        ],
+        [
+          23,
+          167,
+          78
+        ],
+        [
+          15,
+          168,
+          81
+        ]
+      ],
+      "confidences": [
+        92,
+        87,
+        96,
+        89,
+        90,
+        95,
+        91,
+        98,
+        93,
+        92,
+        95,
+        96,
+        98,
+        99,
+        97,
+        92,
+        94,
+        96,
+        90,
+        94,
+        91,
+        93,
+        97,
+        98,
+        97
+      ],
+      "source": "camera",
+      "captureGuide": {
+        "step": 3,
+        "mirrored": true,
+        "displayedArrow": 270,
+        "protocol": "sides-then-top-bottom/v1"
+      },
+      "capturedAt": "2026-11-16T14:38:58.894Z",
+      "background": {
+        "r": 91.93507074166976,
+        "g": 78.81509408225283,
+        "b": 72.12261005312256
+      },
+      "frame": {
+        "width": 1920,
+        "height": 1080
+      },
+      "crop": {
+        "x": 720,
+        "y": 350,
+        "width": 501,
+        "height": 501
+      },
+      "sharpness": 25.5,
+      "camera": {
+        "aspectRatio": 1.7777777777777777,
+        "backgroundBlur": false,
+        "frameRate": 30,
+        "height": 1080,
+        "resizeMode": "none",
+        "width": 1920
+      },
+      "previewColorProfile": {
+        "id": "colors-1790500141868-s2h0u2",
+        "name": "Plastic 5",
+        "colors": {
+          "W": {
+            "r": 183,
+            "g": 191,
+            "b": 198
+          },
+          "Y": {
+            "r": 216,
+            "g": 173,
+            "b": 33
+          },
+          "O": {
+            "r": 237,
+            "g": 73,
+            "b": 22
+          },
+          "R": {
+            "r": 164,
+            "g": 15,
+            "b": 24
+          },
+          "G": {
+            "r": 59,
+            "g": 168,
+            "b": 45
+          },
+          "B": {
+            "r": 1,
+            "g": 79,
+            "b": 158
+          }
+        }
+      }
+    },
+    "l": {
+      "photo": "face-l.jpg",
+      "readings": [
+        [
+          233,
+          90,
+          61
+        ],
+        [
+          230,
+          92,
+          60
+        ],
+        [
+          167,
+          211,
+          63
+        ],
+        [
+          232,
+          88,
+          49
+        ],
+        [
+          230,
+          89,
+          49
+        ],
+        [
+          235,
+          91,
+          65
+        ],
+        [
+          235,
+          93,
+          65
+        ],
+        [
+          172,
+          213,
+          70
+        ],
+        [
+          241,
+          93,
+          62
+        ],
+        [
+          236,
+          87,
+          54
+        ],
+        [
+          152,
+          204,
+          81
+        ],
+        [
+          169,
+          212,
+          99
+        ],
+        [
+          172,
+          216,
+          92
+        ],
+        [
+          183,
+          225,
+          110
+        ],
+        [
+          175,
+          223,
+          111
+        ],
+        [
+          178,
+          59,
+          72
+        ],
+        [
+          175,
+          57,
+          65
+        ],
+        [
+          169,
+          215,
+          78
+        ],
+        [
+          181,
+          58,
+          64
+        ],
+        [
+          176,
+          53,
+          59
+        ],
+        [
+          196,
+          96,
+          108
+        ],
+        [
+          171,
+          41,
+          50
+        ],
+        [
+          169,
+          214,
+          62
+        ],
+        [
+          167,
+          25,
+          28
+        ],
+        [
+          164,
+          17,
+          22
+        ]
+      ],
+      "confidences": [
+        97,
+        98,
+        97,
+        95,
+        96,
+        97,
+        97,
+        97,
+        95,
+        95,
+        92,
+        92,
+        96,
+        91,
+        91,
+        92,
+        94,
+        98,
+        93,
+        95,
+        78,
+        97,
+        98,
+        94,
+        92
+      ],
+      "source": "camera",
+      "captureGuide": {
+        "step": 4,
+        "mirrored": true,
+        "displayedArrow": 0,
+        "protocol": "sides-then-top-bottom/v1"
+      },
+      "capturedAt": "2026-11-16T14:39:03.158Z",
+      "background": {
+        "r": 86.88359482712141,
+        "g": 75.61412528594866,
+        "b": 70.445286564842
+      },
+      "frame": {
+        "width": 1920,
+        "height": 1080
+      },
+      "crop": {
+        "x": 740,
+        "y": 369,
+        "width": 512,
+        "height": 512
+      },
+      "sharpness": 32,
+      "camera": {
+        "aspectRatio": 1.7777777777777777,
+        "backgroundBlur": false,
+        "frameRate": 30,
+        "height": 1080,
+        "resizeMode": "none",
+        "width": 1920
+      },
+      "previewColorProfile": {
+        "id": "colors-1790500141868-s2h0u2",
+        "name": "Plastic 5",
+        "colors": {
+          "W": {
+            "r": 183,
+            "g": 191,
+            "b": 198
+          },
+          "Y": {
+            "r": 216,
+            "g": 173,
+            "b": 33
+          },
+          "O": {
+            "r": 237,
+            "g": 73,
+            "b": 22
+          },
+          "R": {
+            "r": 164,
+            "g": 15,
+            "b": 24
+          },
+          "G": {
+            "r": 59,
+            "g": 168,
+            "b": 45
+          },
+          "B": {
+            "r": 1,
+            "g": 79,
+            "b": 158
+          }
+        }
+      }
+    },
+    "b": {
+      "photo": "face-b.jpg",
+      "readings": [
+        [
+          169,
+          34,
+          43
+        ],
+        [
+          154,
+          25,
+          26
+        ],
+        [
+          177,
+          191,
+          206
+        ],
+        [
+          157,
+          21,
+          28
+        ],
+        [
+          149,
+          19,
+          22
+        ],
+        [
+          182,
+          39,
+          54
+        ],
+        [
+          178,
+          38,
+          49
+        ],
+        [
+          178,
+          194,
+          208
+        ],
+        [
+          169,
+          34,
+          42
+        ],
+        [
+          158,
+          22,
+          29
+        ],
+        [
+          168,
+          191,
+          208
+        ],
+        [
+          169,
+          187,
+          205
+        ],
+        [
+          116,
+          151,
+          200
+        ],
+        [
+          177,
+          191,
+          209
+        ],
+        [
+          173,
+          190,
+          208
+        ],
+        [
+          227,
+          100,
+          83
+        ],
+        [
+          224,
+          96,
+          80
+        ],
+        [
+          175,
+          191,
+          206
+        ],
+        [
+          236,
+          100,
+          86
+        ],
+        [
+          234,
+          102,
+          89
+        ],
+        [
+          229,
+          94,
+          78
+        ],
+        [
+          223,
+          90,
+          74
+        ],
+        [
+          170,
+          186,
+          204
+        ],
+        [
+          228,
+          91,
+          66
+        ],
+        [
+          229,
+          91,
+          65
+        ]
+      ],
+      "confidences": [
+        96,
+        93,
+        95,
+        93,
+        91,
+        93,
+        94,
+        96,
+        96,
+        94,
+        96,
+        93,
+        95,
+        95,
+        95,
+        96,
+        97,
+        95,
+        96,
+        95,
+        98,
+        97,
+        93,
+        99,
+        99
+      ],
+      "source": "camera",
+      "captureGuide": {
+        "step": 5,
+        "mirrored": true,
+        "displayedArrow": 0,
+        "protocol": "sides-then-top-bottom/v1"
+      },
+      "capturedAt": "2026-11-16T14:39:07.628Z",
+      "background": {
+        "r": 90.78259197703085,
+        "g": 74.48916698354647,
+        "b": 59.56715786595344
+      },
+      "frame": {
+        "width": 1920,
+        "height": 1080
+      },
+      "crop": {
+        "x": 678,
+        "y": 315,
+        "width": 572,
+        "height": 572
+      },
+      "sharpness": 47.4,
+      "camera": {
+        "aspectRatio": 1.7777777777777777,
+        "backgroundBlur": false,
+        "frameRate": 30,
+        "height": 1080,
+        "resizeMode": "none",
+        "width": 1920
+      },
+      "previewColorProfile": {
+        "id": "colors-1790500141868-s2h0u2",
+        "name": "Plastic 5",
+        "colors": {
+          "W": {
+            "r": 183,
+            "g": 191,
+            "b": 198
+          },
+          "Y": {
+            "r": 216,
+            "g": 173,
+            "b": 33
+          },
+          "O": {
+            "r": 237,
+            "g": 73,
+            "b": 22
+          },
+          "R": {
+            "r": 164,
+            "g": 15,
+            "b": 24
+          },
+          "G": {
+            "r": 59,
+            "g": 168,
+            "b": 45
+          },
+          "B": {
+            "r": 1,
+            "g": 79,
+            "b": 158
+          }
+        }
+      }
+    }
+  },
+  "capture": {
+    "capturedAt": "2026-11-16T14:42:31.071Z",
+    "app": {
+      "version": "0.1.0",
+      "commit": "0e2b62f"
+    },
+    "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/157.0.0.0 Safari/537.36",
+    "devicePixelRatio": 2,
+    "photo": {
+      "format": "image/jpeg",
+      "quality": 1
+    },
+    "mirrored": true,
+    "assemblyValidation": {
+      "status": "checks-passed",
+      "scope": "existing-repository-checks",
+      "fullNxNReachability": "unverified",
+      "checks": {
+        "colorBalance": true,
+        "cornerColors": true,
+        "cornerOrientation": true,
+        "wingEdgeColors": true,
+        "edgeColors": true,
+        "edgeOrientation": true,
+        "permutationParity": true
+      },
+      "result": "Valid (structural + corner + wing-edge count + middle-edge check)"
+    },
+    "faceRecovery": {
+      "stateRelation": "capture",
+      "version": 1,
+      "transformConvention": "cube-geometry-orientations/v1",
+      "mapping": [
+        {
+          "slot": "U",
+          "target": "B",
+          "quarterTurns": 2
+        },
+        {
+          "slot": "R",
+          "target": "R",
+          "quarterTurns": 2
+        },
+        {
+          "slot": "F",
+          "target": "F",
+          "quarterTurns": 2
+        },
+        {
+          "slot": "D",
+          "target": "L",
+          "quarterTurns": 2
+        },
+        {
+          "slot": "L",
+          "target": "D",
+          "quarterTurns": 1
+        },
+        {
+          "slot": "B",
+          "target": "U",
+          "quarterTurns": 3
+        }
+      ],
+      "captureFrame": {
+        "guideObservations": [
+          {
+            "slot": "U",
+            "step": 0,
+            "mirrored": true,
+            "displayedArrow": null,
+            "protocol": "sides-then-top-bottom/v1"
+          },
+          {
+            "slot": "R",
+            "step": 1,
+            "mirrored": true,
+            "displayedArrow": 270,
+            "protocol": "sides-then-top-bottom/v1"
+          },
+          {
+            "slot": "F",
+            "step": 2,
+            "mirrored": true,
+            "displayedArrow": 270,
+            "protocol": "sides-then-top-bottom/v1"
+          },
+          {
+            "slot": "D",
+            "step": 3,
+            "mirrored": true,
+            "displayedArrow": 270,
+            "protocol": "sides-then-top-bottom/v1"
+          },
+          {
+            "slot": "L",
+            "step": 4,
+            "mirrored": true,
+            "displayedArrow": 0,
+            "protocol": "sides-then-top-bottom/v1"
+          },
+          {
+            "slot": "B",
+            "step": 5,
+            "mirrored": true,
+            "displayedArrow": 0,
+            "protocol": "sides-then-top-bottom/v1"
+          }
+        ],
+        "frontSlot": "U",
+        "upSlot": "B",
+        "confirmed": true,
+        "displayTransform": 2,
+        "canonicalTransform": 2,
+        "photoTransforms": [
+          {
+            "slot": "B",
+            "target": "U",
+            "quarterTurns": 1
+          },
+          {
+            "slot": "D",
+            "target": "R",
+            "quarterTurns": 2
+          },
+          {
+            "slot": "U",
+            "target": "F",
+            "quarterTurns": 2
+          },
+          {
+            "slot": "L",
+            "target": "D",
+            "quarterTurns": 3
+          },
+          {
+            "slot": "R",
+            "target": "L",
+            "quarterTurns": 2
+          },
+          {
+            "slot": "F",
+            "target": "B",
+            "quarterTurns": 2
+          }
+        ],
+        "protocol": "sides-then-top-bottom/v1",
+        "mirrored": true,
+        "turnDirection": "unknown",
+        "capOrder": "unknown",
+        "displayedArrows": []
+      },
+      "view": "capture"
+    },
+    "camera": {
+      "label": "FaceTime HD Camera (2C0E:82E3)",
+      "requested": {
+        "facingMode": "environment",
+        "width": {
+          "ideal": 1920
+        },
+        "height": {
+          "ideal": 1080
+        }
+      },
+      "granted": {
+        "aspectRatio": 1.7777777777777777,
+        "backgroundBlur": false,
+        "frameRate": 30,
+        "height": 1080,
+        "resizeMode": "none",
+        "width": 1920
+      },
+      "supported": {
+        "aspectRatio": {
+          "max": 1920,
+          "min": 0.0005208333333333333
+        },
+        "backgroundBlur": [
+          false
+        ],
+        "facingMode": [],
+        "frameRate": {
+          "max": 30,
+          "min": 0
+        },
+        "height": {
+          "max": 1920,
+          "min": 1
+        },
+        "resizeMode": [
+          "none",
+          "crop-and-scale"
+        ],
+        "width": {
+          "max": 1920,
+          "min": 1
+        }
+      }
+    },
+    "profile": {
+      "id": "builtin-generic-5",
+      "name": "Generic 5×5"
+    },
+    "colorProfile": {
+      "id": "colors-1790500141868-s2h0u2",
+      "name": "Plastic 5",
+      "selection": "manual",
+      "colors": {
+        "W": {
+          "r": 183,
+          "g": 191,
+          "b": 198
+        },
+        "Y": {
+          "r": 216,
+          "g": 173,
+          "b": 33
+        },
+        "O": {
+          "r": 237,
+          "g": 73,
+          "b": 22
+        },
+        "R": {
+          "r": 164,
+          "g": 15,
+          "b": 24
+        },
+        "G": {
+          "r": 59,
+          "g": 168,
+          "b": 45
+        },
+        "B": {
+          "r": 1,
+          "g": 79,
+          "b": 158
+        }
+      },
+      "colorFitPercent": 38
+    },
+    "colorResolution": null,
+    "colorReference": {
+      "W": {
+        "r": 183,
+        "g": 191,
+        "b": 198
+      },
+      "Y": {
+        "r": 216,
+        "g": 173,
+        "b": 33
+      },
+      "O": {
+        "r": 237,
+        "g": 73,
+        "b": 22
+      },
+      "R": {
+        "r": 164,
+        "g": 15,
+        "b": 24
+      },
+      "G": {
+        "r": 59,
+        "g": 168,
+        "b": 45
+      },
+      "B": {
+        "r": 1,
+        "g": 79,
+        "b": 158
+      }
+    },
+    "protocol": "sides-then-top-bottom/v1",
+    "measurement": "colorful-30/v1",
+    "assembledURFDLB": "RRWOORRWOOWWWWWRRWOORRWOO BBRGGBBRGGRRRRRBBRGGBBRGG WWGWWWWGWWGGGGGYYGYYYYGYY RRYOORRYOOYYYYYRRYOORRYOO GGOBBGGOBBOOOOOGGOBBGGOBB WWBWWWWBWWBBBBBYYBYYYYBYY",
+    "backgroundWhiteBalance": {
+      "U": {
+        "r": 0.6887289983843016,
+        "g": 0.9554147807915968,
+        "b": 1.111852923095636
+      },
+      "R": {
+        "r": 0.9455357636539039,
+        "g": 0.9321196020393975,
+        "b": 0.8076135144291539
+      },
+      "F": {
+        "r": 0.9135669605151603,
+        "g": 1.1191418542695193,
+        "b": 1.338450302390437
+      },
+      "D": {
+        "r": 1.0611221823130728,
+        "g": 0.9596199759825624,
+        "b": 0.8667145130750257
+      },
+      "L": {
+        "r": 1.1931064341473454,
+        "g": 1.0439276207818364,
+        "b": 0.9085949262694355
+      },
+      "B": {
+        "r": 1.0893418420800827,
+        "g": 1.0760537486534356,
+        "b": 1.2649231457716479
+      }
+    },
+    "backgroundWhiteBalanceMethod": "median-around-cube/v2",
+    "sampling": {
+      "stickerCore": 0.6
+    },
+    "colorCalibration": {
+      "applied": true,
+      "learnedColors": {
+        "Y": [
+          174,
+          212,
+          67
+        ],
+        "B": [
+          27,
+          73,
+          136
+        ],
+        "O": [
+          230,
+          92,
+          66
+        ],
+        "R": [
+          164,
+          42,
+          48
+        ],
+        "W": [
+          171,
+          198,
+          213
+        ],
+        "G": [
+          30,
+          164,
+          72
+        ]
+      }
+    },
+    "colorStats": {
+      "W": {
+        "count": 25,
+        "expected": 25,
+        "lightness": {
+          "min": 0.6694110261234835,
+          "max": 0.8862027873123957
+        },
+        "chroma": {
+          "min": 0.026291012755465373,
+          "max": 0.08304550049302871
+        },
+        "hue": {
+          "min": 215.96855304481477,
+          "max": 256.86457930254323,
+          "span": 40.896026257728465
+        },
+        "hueOverlapsWith": [
+          "B"
+        ]
+      },
+      "O": {
+        "count": 25,
+        "expected": 25,
+        "lightness": {
+          "min": 0.6263304319648267,
+          "max": 0.6711949537687921
+        },
+        "chroma": {
+          "min": 0.15438834939044815,
+          "max": 0.19037597315298035
+        },
+        "hue": {
+          "min": 27.996695174686813,
+          "max": 36.29077168522084,
+          "span": 8.294076510534012
+        },
+        "hueOverlapsWith": [
+          "R"
+        ]
+      },
+      "G": {
+        "count": 25,
+        "expected": 25,
+        "lightness": {
+          "min": 0.558672398862666,
+          "max": 0.6993622115269086
+        },
+        "chroma": {
+          "min": 0.14798756535697355,
+          "max": 0.18622585232034072
+        },
+        "hue": {
+          "min": 146.87689511192826,
+          "max": 152.40356880975688,
+          "span": 5.526673697828642
+        },
+        "hueOverlapsWith": []
+      },
+      "R": {
+        "count": 25,
+        "expected": 25,
+        "lightness": {
+          "min": 0.4058298752635861,
+          "max": 0.612022113218956
+        },
+        "chroma": {
+          "min": 0.11439918606230721,
+          "max": 0.17795599581454669
+        },
+        "hue": {
+          "min": 14.125985383935134,
+          "max": 28.136607176354815,
+          "span": 14.01062179241967
+        },
+        "hueOverlapsWith": [
+          "O"
+        ]
+      },
+      "B": {
+        "count": 25,
+        "expected": 25,
+        "lightness": {
+          "min": 0.3111310466192621,
+          "max": 0.5271086379604167
+        },
+        "chroma": {
+          "min": 0.09742845002889915,
+          "max": 0.13620800899171667
+        },
+        "hue": {
+          "min": 255.59268266986197,
+          "max": 261.6391118467102,
+          "span": 6.046429176848221
+        },
+        "hueOverlapsWith": [
+          "W"
+        ]
+      },
+      "Y": {
+        "count": 25,
+        "expected": 25,
+        "lightness": {
+          "min": 0.7837321991494127,
+          "max": 0.8565461484959985
+        },
+        "chroma": {
+          "min": 0.14941358031431948,
+          "max": 0.19530313124988516
+        },
+        "hue": {
+          "min": 124.02450530349252,
+          "max": 128.92647349263697,
+          "span": 4.901968189144441
+        },
+        "hueOverlapsWith": []
+      }
+    }
+  }
+}
