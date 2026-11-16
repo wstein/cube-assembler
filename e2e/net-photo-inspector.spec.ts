@@ -51,12 +51,24 @@ for (const width of [1280, 390]) {
       timeout: 1000,
     })
     const bounds = await photo.boundingBox()
-    const face = await net.locator('.net-u .net-face-grid').boundingBox()
+    const referenceFace = await net
+      .locator('.net-u .net-face-grid')
+      .boundingBox()
     expect(bounds).not.toBeNull()
-    expect(face).not.toBeNull()
-    expect(Math.abs(bounds!.width - face!.width)).toBeLessThanOrEqual(1)
-    expect(Math.abs(bounds!.height - face!.width)).toBeLessThanOrEqual(1)
-    expect(Math.abs(bounds!.y - face!.y)).toBeLessThanOrEqual(1)
+    expect(referenceFace).not.toBeNull()
+    expect(Math.abs(bounds!.width - referenceFace!.width)).toBeLessThanOrEqual(
+      1,
+    )
+    expect(Math.abs(bounds!.height - referenceFace!.width)).toBeLessThanOrEqual(
+      1,
+    )
+    if (
+      !(await net
+        .locator('.net-info')
+        .evaluate((element) => element.classList.contains('net-info-below')))
+    ) {
+      expect(Math.abs(bounds!.y - referenceFace!.y)).toBeLessThanOrEqual(1)
+    }
     for (const face of await net.locator('.net-face-grid').all()) {
       const box = (await face.boundingBox())!
       const x = box.x + box.width / 2
@@ -80,6 +92,32 @@ for (const width of [1280, 390]) {
       await expect(net.locator('.net-info-title')).toHaveText(
         `${name} · Original photo`,
       )
+      const image = (await photo.boundingBox())!
+      const header = (await net.locator('.net-info-title').boundingBox())!
+      expect(Math.abs(image.width - referenceFace!.width)).toBeLessThanOrEqual(
+        1,
+      )
+      expect(
+        Math.abs(image.height - referenceFace!.height),
+      ).toBeLessThanOrEqual(1)
+      for (const otherFace of await net.locator('.net-face-grid').all()) {
+        const other = (await otherFace.boundingBox())!
+        for (const box of [image, header]) {
+          const overlapWidth =
+            Math.min(box.x + box.width, other.x + other.width) -
+            Math.max(box.x, other.x)
+          const overlapHeight =
+            Math.min(box.y + box.height, other.y + other.height) -
+            Math.max(box.y, other.y)
+          expect(overlapWidth <= 1 || overlapHeight <= 1).toBe(true)
+        }
+      }
+      const scrollbars = await net.locator('.net-info').evaluate((element) => ({
+        horizontal: element.scrollWidth - element.clientWidth,
+        vertical: element.scrollHeight - element.clientHeight,
+      }))
+      expect(scrollbars.horizontal).toBeLessThanOrEqual(1)
+      expect(scrollbars.vertical).toBeLessThanOrEqual(1)
     }
     await net.locator('.net-f .net-face-grid').tap()
     await expect(net.locator('.net-info-title')).toHaveText(

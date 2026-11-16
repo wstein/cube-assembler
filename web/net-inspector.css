@@ -1,14 +1,12 @@
-/* One unused net cell holds the original at the same size as a sticker grid. */
+/* The photo uses the nearest empty cross-net cell; labels reserve face-header height. */
 .cube-net > .net-info {
-  grid-column: 3 / 4;
-  grid-row: 1 / 2;
+  grid-column: var(--net-inspector-column, 1) / span 1;
+  grid-row: var(--net-inspector-row, 1) / span 1;
   inset: var(--net-gap, 3px) var(--net-gap, 3px) auto;
-  aspect-ratio: auto;
   padding: 0;
   display: block;
   overflow: visible;
 }
-
 .cube-net > .net-info > .net-info-photo {
   display: block;
   width: 100%;
@@ -16,31 +14,13 @@
   aspect-ratio: 1;
   object-fit: contain;
 }
-
-/* Notes use the other empty top-row cell, leaving every cube face visible. */
-.cube-net > .net-info > .net-info-note {
-  position: absolute;
-  top: calc(0.68rem + 6px);
-  left: calc(100% + 2px + 2 * var(--net-gap, 3px));
-  width: 100%;
-  max-height: calc(100% - 0.68rem - 6px);
-  overflow: auto;
-}
-
-.cube-net > .net-info > .net-info-hint {
-  aspect-ratio: 1;
-  max-height: 100%;
-  overflow: auto;
-}
-
 .cube-net > .net-info > .net-info-title {
   width: max-content;
-  max-width: calc(200% + 2px);
+  min-width: 100%;
   height: calc(0.68rem + 6px);
   box-sizing: border-box;
   padding: 2px 2px 4px;
   margin: 0;
-  min-width: 100%;
   background: #333;
   color: #fff;
   border-radius: 4px 4px 0 0;
@@ -49,4 +29,26 @@
   text-transform: uppercase;
   line-height: 1;
   white-space: nowrap;
+}
+/* If title or notes cannot fit the empty cell, use an ordinary row below the net. */
+.cube-net > .net-info.net-info-below {
+  position: relative;
+  grid-column: 1 / -1;
+  grid-row: 4;
+  inset: auto;
+  margin-top: 2px;
+}
+.cube-net > .net-info.net-info-below > .net-info-photo {
+  width: var(--net-inspector-size);
+}
+.cube-net > .net-info > .net-info-note {
+  position: static;
+  width: auto;
+  max-height: none;
+  overflow: visible;
+}
+.cube-net > .net-info > .net-info-hint {
+  font-size: 0.6rem;
+  line-height: 1.1;
+  overflow: visible;
 }
