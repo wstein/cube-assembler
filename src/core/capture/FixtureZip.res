@@ -236,20 +236,21 @@ let photoSureness = (face: option<JSON.t>) => {
 }
 
 // Tells a face photographed twice from poor photos, for the summary.
-let captureCheck = (face: string => option<JSON.t>, size, paletteFar) => {
+let captureCheck = (face: string => option<JSON.t>, size, paletteFar, protocol) => {
   let grids = faceKeys->Array.map(key => readingsGrid(face(key), size))
   if grids->Array.some(grid => grid->Option.isSome) {
-    let diagnosis = CaptureDiagnosis.diagnose(
+    let diagnosis = CaptureDiagnosis.diagnoseForProtocol(
       size,
       grids,
       faceKeys->Array.map(key => photoSureness(face(key))),
       paletteFar,
+      protocol,
     )
     [
       (
         "Repeated face",
         diagnosis.repeatsChecked
-          ? CaptureDiagnosis.repeatedText(diagnosis)
+          ? CaptureDiagnosis.repeatedTextForProtocol(diagnosis, protocol)
           : "not checked on even cubes",
       ),
       ("Likely cause", diagnosis.cause),
@@ -267,6 +268,20 @@ let summarizeMeta = (meta: JSON.t) => {
   }
   let faces = field(meta, "faces")
   let face = key => field(faces, key)
+  let sourceGuides =
+    faceKeys->Array.filterMap(key =>
+      face(key)->Option.map(value =>
+        field(Some(value), "captureGuide")->Option.flatMap(
+          guide => CaptureRecovery.readCaptureGuide(guide, String.toUpperCase(key))->Null.toOption,
+        )
+      )
+    )
+  let sourceContext = switch field(capture, "protocol") {
+  | Some(JSON.String(value)) => Null.make(value)
+  | _ => Null.null
+  }
+  let sourceProtocol = CaptureFlow.presentationProtocolFromGuides(sourceGuides, sourceContext)
+
   let photos =
     faceKeys
     ->Array.filter(key => truthy(face(key)))
@@ -297,7 +312,11 @@ let summarizeMeta = (meta: JSON.t) => {
   }
   rows->Array.push((
     "Capture",
-    truthy(field(capture, "protocol")) ? "guided (4 sides, then top and bottom)" : "free order",
+    sourceProtocol->Null.toOption == Some(CaptureSteps.guidedProtocol)
+      ? "guided (4 sides, then bottom and top)"
+      : sourceProtocol->Null.toOption == Some(CaptureSteps.legacyGuidedProtocol)
+      ? "guided (4 sides, then top and bottom)"
+      : "free order",
   ))
   let sources = []
   faceKeys->Array.forEach(key => {
@@ -396,6 +415,7 @@ let summarizeMeta = (meta: JSON.t) => {
     face,
     size->Int.fromString->Option.getOr(0),
     field(field(capture, "colorResolution"), "reason") == Some(String("far")),
+    sourceProtocol,
   )->Array.forEach(row => rows->Array.push(row))
   let calibration = field(capture, "colorCalibration")
   if truthy(calibration) {

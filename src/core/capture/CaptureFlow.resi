@@ -61,6 +61,8 @@ type parsedCube =
 
 @genType
 type faceCaptureReading = {
+  // Presentation context only; never copied into captured photo metadata.
+  sourceLabelProtocol?: string,
   captureGuide?: captureGuide,
   colors: array<array<string>>,
   confidence: float,
@@ -118,3 +120,23 @@ let captureEvidence: (
 ) => ColorProfileLearning.paletteEvidence
 
 @genType let captureUsesBottomFirst: Dict.t<faceCaptureData> => bool
+
+let presentationProtocolFromGuides: (array<option<captureGuide>>, Null.t<string>) => Null.t<string>
+@genType let sourcePresentationProtocol: (Dict.t<faceCaptureData>, Null.t<string>) => Null.t<string>
+@genType let sourcePhotoNamesForCapture: (Dict.t<faceCaptureData>, Null.t<string>) => array<string>
+@genType
+let capturedFaceMessageForCapture: (
+  Dict.t<faceCaptureData>,
+  string,
+  float,
+  bool,
+  Null.t<string>,
+) => string
+@genType
+let captureWarningForProtocol: (
+  Dict.t<faceCaptureData>,
+  array<(int, int)>,
+  int,
+  array<string>,
+  Null.t<string>,
+) => Null.t<captureWarning>

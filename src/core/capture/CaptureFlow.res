@@ -152,6 +152,8 @@ let parseCubeInput = (input, selectedFormat: NotationOutput.notationFormat) => {
 }
 
 type faceCaptureReading = {
+  // Presentation context only; never copied into captured photo metadata.
+  sourceLabelProtocol?: string,
   captureGuide?: captureGuide,
   colors: array<array<string>>,
   confidence: float,
@@ -231,10 +233,60 @@ let placeFaceCapture = (
   {faces: next, assignedFace, unexpectedCenter}
 }
 
-let capturedFaceMessage = (face, confidence, unexpectedCenter) =>
-  `✓ ${CaptureSteps.faceDisplayLabel->Dict.getUnsafe(face)} captured (${(confidence *. 100.0)
-      ->Float.toFixed(~digits=0)}% confidence)` ++ (
+// Source naming is a presentation decision. It must not be used as proof
+// that six shots followed a physical protocol or to select a puzzle state.
+let presentationProtocolFromGuides = (
+  guides: array<option<captureGuide>>,
+  uploadedProtocol: Null.t<string>,
+) => {
+  let known = protocol =>
+    protocol == CaptureSteps.guidedProtocol || protocol == CaptureSteps.legacyGuidedProtocol
+  let context = uploadedProtocol->Null.toOption->Option.filter(known)
+  let originals =
+    guides->Array.filterMap(guide => guide->Option.filter(guide => guide.protocol != "retake/v1"))
+  let unsupported = originals->Array.some(guide => !known(guide.protocol))
+  let versions = originals->Array.map(guide => guide.protocol)->Set.fromArray
+  if unsupported || Set.size(versions) > 1 {
+    Null.null
+  } else {
+    switch originals->Array.get(0)->Option.map(guide => guide.protocol) {
+    | None => context->Null.fromOption
+    | Some(observed) =>
+      let mixedMissing = guides->Array.some(Option.isNone) && context->Option.isNone
+      let conflict = context->Option.mapOr(false, value => value != observed)
+      mixedMissing || conflict ? Null.null : Null.make(observed)
+    }
+  }
+}
+let sourcePresentationProtocol = (faces: Dict.t<faceCaptureData>, uploadedProtocol) =>
+  presentationProtocolFromGuides(
+    faces->Dict.valuesToArray->Array.map(photo => photo.captureGuide),
+    uploadedProtocol,
+  )
+let sourcePhotoNamesForCapture = (faces, uploadedProtocol) =>
+  CaptureSteps.sourcePhotoNames(sourcePresentationProtocol(faces, uploadedProtocol))
+let capturedMessageWithProtocol = (face, confidence, unexpectedCenter, protocol) => {
+  let label =
+    CaptureSteps.sourcePhotoNames(protocol)
+    ->Array.get(faceOrder->Array.indexOf(face))
+    ->Option.getOr("Photo")
+  `✓ ${label} captured (${(confidence *. 100.0)->Float.toFixed(~digits=0)}% confidence)` ++ (
     unexpectedCenter ? " - its center isn't the suggested one; check it in the review" : ""
+  )
+}
+let capturedFaceMessage = (face, confidence, unexpectedCenter) =>
+  capturedMessageWithProtocol(
+    face,
+    confidence,
+    unexpectedCenter,
+    Null.make(CaptureSteps.legacyGuidedProtocol),
+  )
+let capturedFaceMessageForCapture = (faces, face, confidence, unexpectedCenter, uploadedProtocol) =>
+  capturedMessageWithProtocol(
+    face,
+    confidence,
+    unexpectedCenter,
+    sourcePresentationProtocol(faces, uploadedProtocol),
   )
 
 type turnCue = {step: int}
@@ -276,20 +328,22 @@ type captureWarning = {text: string, key: string, retake: int}
 // blocking. A whole face matching an earlier one (any size) comes first.
 // Odd-size centers are live first-pass readings that can confuse red and
 // orange, so they only count when read with some confidence.
-let captureWarning = (
+let captureWarningWithProtocol = (
   faces: Dict.t<faceCaptureData>,
   repeatedFaces: array<(int, int)>,
   size,
   dismissed,
+  protocol,
 ) => {
+  let names = CaptureSteps.sourcePhotoNames(protocol)
   let repeat = repeatedFaces->Array.findMap(((j, i)) => {
     let key = `repeat:${Int.toString(j)}:${Int.toString(i)}`
     dismissed->Array.includes(key)
       ? None
       : Some({
-          text: `${(CaptureSteps.captureSteps->Array.getUnsafe(i)).label} and ${(
-              CaptureSteps.captureSteps->Array.getUnsafe(j)
-            ).label} have matching patterns. They may be different faces; check both photos if unsure.`,
+          text: `${names->Array.getUnsafe(i)} and ${names->Array.getUnsafe(
+              j,
+            )} have matching patterns. They may be different faces; check both photos if unsure.`,
           key,
           retake: i,
         })
@@ -314,7 +368,7 @@ let captureWarning = (
       let key = JSON.stringifyAny(issue)->Option.getOr("")
       involved->Array.every(sure) && !(dismissed->Array.includes(key))
         ? Some({
-            text: CaptureSteps.describeCenterIssue(issue),
+            text: CaptureSteps.describeCenterIssueForProtocol(issue, protocol),
             key,
             retake: involved->Array.reduce(0, (a, b) => a > b ? a : b),
           })
@@ -323,6 +377,23 @@ let captureWarning = (
     ->Null.fromOption
   }
 }
+
+let captureWarning = (faces, repeated, size, dismissed) =>
+  captureWarningWithProtocol(
+    faces,
+    repeated,
+    size,
+    dismissed,
+    Null.make(CaptureSteps.legacyGuidedProtocol),
+  )
+let captureWarningForProtocol = (faces, repeated, size, dismissed, uploadedProtocol) =>
+  captureWarningWithProtocol(
+    faces,
+    repeated,
+    size,
+    dismissed,
+    sourcePresentationProtocol(faces, uploadedProtocol),
+  )
 
 type palette = {recalibrated: bool, confidentFraction: float}
 

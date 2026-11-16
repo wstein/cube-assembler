@@ -4,7 +4,7 @@ import { TURN_CUE_COOLDOWN_MS } from './autoCapture'
 import {
   captureStep,
   isGuidedCapture,
-  sessionView,
+  sessionViewForProtocol,
   type FaceCaptureReading,
   type TurnCue,
 } from './captureFlow'
@@ -111,6 +111,8 @@ export function useCaptureSession({
       previewColorProfile,
       captureSize,
       window.matchMedia('(prefers-reduced-motion: reduce)').matches,
+      undefined,
+      uploadedProtocol,
     )
     if (!step.ok) {
       setCaptureMessage(step.message)
@@ -141,11 +143,12 @@ export function useCaptureSession({
     centerRoutingActive,
     repeatedNetFaces,
     warning,
-  } = sessionView(
+  } = sessionViewForProtocol(
     capturedFaces,
     webcamFace,
     puzzleSize,
     dismissedCaptureWarnings,
+    uploadedProtocol,
   )
 
   return {

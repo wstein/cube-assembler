@@ -20,12 +20,13 @@ type diagnosis = {
 
 @send external toFixed: (float, int) => string = "toFixed"
 
-let diagnose = (
+let diagnoseWithNames = (
   size,
   readings: array<option<array<array<rgb>>>>,
   sureness: array<option<float>>,
   // The colors learned from this capture sit far from every known palette.
   paletteFar: bool,
+  names,
 ) => {
   let repeatsChecked = mod(size, 2) == 1
   let repeated = repeatsChecked ? RepeatedFace.findRepeatShots(readings) : []
@@ -40,7 +41,7 @@ let diagnose = (
     | None => ()
     }
   )
-  let name = i => photoNames->Array.get(i)->Option.getOr("Photo")
+  let name = i => names->Array.get(i)->Option.getOr("Photo")
   let cause = switch (Array.length(repeated) > 0, weakest.contents) {
   | (true, _) => "a face was shot twice - the photos themselves are fine"
   | (false, Some((i, sure))) if sure < poorPhotoBelow =>
@@ -52,6 +53,11 @@ let diagnose = (
   }
   {repeatsChecked, repeated, weakest: Null.fromOption(weakest.contents), cause}
 }
+
+let diagnose = (size, readings, sureness, paletteFar) =>
+  diagnoseWithNames(size, readings, sureness, paletteFar, photoNames)
+let diagnoseForProtocol = (size, readings, sureness, paletteFar, protocol) =>
+  diagnoseWithNames(size, readings, sureness, paletteFar, CaptureSteps.sourcePhotoNames(protocol))
 
 // "Side 4 and Top", or "none".
 let repeatedTextWithNames = (diagnosis: diagnosis, names) =>

@@ -22,3 +22,12 @@ let repeatedText: diagnosis => string
 
 @genType let photoNamesForProtocol: Null.t<string> => array<string>
 @genType let repeatedTextForProtocol: (diagnosis, Null.t<string>) => string
+
+@genType
+let diagnoseForProtocol: (
+  int,
+  array<option<array<array<StickerGeometry.rgb>>>>,
+  array<option<float>>,
+  bool,
+  Null.t<string>,
+) => diagnosis

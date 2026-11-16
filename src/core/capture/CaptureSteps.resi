@@ -30,3 +30,9 @@ type mark = | @as("corrected") Corrected | @as("flagged") Flagged
 let stickerMark: (Nullable.t<string>, string, float, Nullable.t<string>) => Null.t<mark>
 
 @genType let sourcePhotoNames: Null.t<string> => array<string>
+
+@genType
+let describeCenterIssueForProtocol: (
+  CapturedFaceMatching.guidedCenterIssue,
+  Null.t<string>,
+) => string

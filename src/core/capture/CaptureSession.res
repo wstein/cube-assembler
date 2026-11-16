@@ -74,10 +74,12 @@ let captureStep = (
     Captured({
       faces: placed.faces,
       assignedFace: placed.assignedFace,
-      message: CaptureFlow.capturedFaceMessage(
+      message: CaptureFlow.capturedFaceMessageForCapture(
+        placed.faces,
         placed.assignedFace,
         reading.confidence,
         placed.unexpectedCenter,
+        reading.sourceLabelProtocol->Null.fromOption,
       ),
       nextFace: Null.fromOption(nextFace),
       // The cue blocks capturing while the cube turns; without the turn it
@@ -102,7 +104,7 @@ type sessionView = {
   warning: Null.t<CaptureFlow.captureWarning>,
 }
 
-let sessionView = (faces: faces, webcamFace, size, dismissed) => {
+let sessionViewForProtocol = (faces: faces, webcamFace, size, dismissed, uploadedProtocol) => {
   let order = CaptureSteps.faceOrder
   let photos = order->Array.map(face => faces->Dict.get(face)->Option.map(face => face.colors))
   let predictedCenters = GuidedCaptureSetup.captureCenterSlotsForOrder(
@@ -123,6 +125,15 @@ let sessionView = (faces: faces, webcamFace, size, dismissed) => {
       order->Array.getUnsafe(a),
       order->Array.getUnsafe(b),
     ]),
-    warning: CaptureFlow.captureWarning(faces, repeatedFaces, size, dismissed),
+    warning: CaptureFlow.captureWarningForProtocol(
+      faces,
+      repeatedFaces,
+      size,
+      dismissed,
+      uploadedProtocol,
+    ),
   }
 }
+
+let sessionView = (faces, webcamFace, size, dismissed) =>
+  sessionViewForProtocol(faces, webcamFace, size, dismissed, Null.null)
