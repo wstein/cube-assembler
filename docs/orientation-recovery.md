@@ -49,6 +49,9 @@ are independently checked with labeled facelets through all five physical
 transitions. Six matching protocol, step and mirror observations are required;
 a mixed mode, inconsistent flag, missing step or retake does not establish an
 exact v3 assembly and cannot silently fall back to a different proposal.
+A declared v3 context remains uncertain even after every observation is retaken
+or missing. Raw export preserves that declared origin without an approved
+assembly; reimport does not turn it into a legacy proposal.
 
 A checked physical sequence supplies one capture-derived assembly and zero
 alternatives. A failed seed remains a conflict. The capture mini-net and color

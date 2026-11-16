@@ -297,7 +297,7 @@ describe('capture fixtures', () => {
   })
 })
 
-it('exports the recorded v3 frame only with six consistent original capture records', () => {
+it('retains declared v3 context after a retake without claiming six observed steps', () => {
   const photographed = faces('camera')
   for (const slot of Object.keys(photographed))
     photographed[slot].captureGuide = recordGuide(slot, true, false)!
@@ -313,9 +313,9 @@ it('exports the recorded v3 frame only with six consistent original capture reco
         uploadedProtocol: 'right-back-left-front-up-down/v3',
       }),
     ).capture.protocol,
-  ).toBeNull()
+  ).toBe('right-back-left-front-up-down/v3')
 })
-it('does not upgrade legacy or unsupported imported protocol claims on export', () => {
+it('retains existing v3 provenance without inferring a complete observed sequence', () => {
   expect(
     metaOf(
       buildCaptureFixture(
@@ -332,7 +332,7 @@ it('does not upgrade legacy or unsupported imported protocol claims on export', 
         }),
       ),
     ).capture.protocol,
-  ).toBe('sides-then-top-bottom/v1')
+  ).toBe('right-back-left-front-up-down/v3')
   expect(
     metaOf(
       buildCaptureFixture(
@@ -342,5 +342,5 @@ it('does not upgrade legacy or unsupported imported protocol claims on export', 
         }),
       ),
     ).capture.protocol,
-  ).toBeNull()
+  ).toBe('right-back-left-front-up-down/v3')
 })

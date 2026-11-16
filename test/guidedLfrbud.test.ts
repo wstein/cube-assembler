@@ -242,3 +242,36 @@ for (const mirrored of [false, true])
     }
     expect(reviewNetLayout(mixed, slots)).toBeNull()
   })
+
+for (const declared of [protocol, mirroredProtocol])
+  for (const kind of ['all-retakes', 'all-missing'])
+    it(`keeps declared ${declared} uncertain with ${kind}`, () => {
+      const photos = photograph(
+        solvedCubeFaces(3, { U: 'W', R: 'R', F: 'G', D: 'Y', L: 'O', B: 'B' }),
+      )
+      const captured = Object.fromEntries(
+        slots.map((slot) => [
+          slot,
+          {
+            colors: photos[slot],
+            confidence: 1,
+            timestamp: 0,
+            captureGuide:
+              kind === 'all-retakes'
+                ? recordGuide(slot, declared === mirroredProtocol, true)!
+                : undefined,
+          },
+        ]),
+      )
+      expect(captureProtocol(captured, declared)).toBeNull()
+      for (const guided of [false, true]) {
+        const found = generateForProtocol(
+          photos,
+          3,
+          reviewProtocol(captured, declared, guided),
+        )
+        expect(found.baselineStatus).toBe('conflict')
+        expect(found.session.candidates).toHaveLength(0)
+      }
+    })
+
