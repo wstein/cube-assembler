@@ -172,6 +172,7 @@ export function useScannerAppModel() {
     baselineCandidate: recovery.baselineCandidate,
     captureConflict: recovery.captureConflict,
     savedAssembly: recovery.savedAssembly,
+    sourceProtocol: recovery.sourceProtocol,
   })
   const {
     showReviewDialog,

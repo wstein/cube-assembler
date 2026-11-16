@@ -1,10 +1,18 @@
+import { unzipSync, strFromU8 } from 'fflate'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { expect, test, type Page } from '@playwright/test'
 
 const fixture = resolve('test/fixtures/cube-3x3-2026-09-27T09-00-11')
 const faceKeys = ['u', 'r', 'f', 'd', 'l', 'b'] as const
-const faceLabels = ['Side 1', 'Side 2', 'Side 3', 'Side 4', 'Top', 'Bottom']
+const faceLabels = [
+  'Photo 1',
+  'Photo 2',
+  'Photo 3',
+  'Photo 4',
+  'Photo 5',
+  'Photo 6',
+]
 const photos = faceKeys.map((face) => resolve(fixture, `face-${face}.jpg`))
 const metadata = JSON.parse(
   readFileSync(resolve(fixture, 'meta.json'), 'utf8'),
@@ -75,6 +83,33 @@ async function reviewFaces(page: Page): Promise<string[]> {
   return grids
 }
 
+async function exportedMeta(page: Page) {
+  await page
+    .getByRole('button', { name: 'Save as test fixture', exact: true })
+    .click()
+  const pending = page.waitForEvent('download')
+  await page.getByRole('button', { name: 'Download zip', exact: true }).click()
+  const path = await (await pending).path()
+  if (!path) throw new Error('Missing fixture download')
+  const zip = unzipSync(readFileSync(path))
+  const key = Object.keys(zip).find((key) => key.endsWith('meta.json'))!
+  return JSON.parse(strFromU8(zip[key]))
+}
+
+async function unchangedUnobservedSourceExport(page: Page) {
+  await page
+    .locator('.review-modal-content')
+    .getByRole('button', { name: 'Close', exact: true })
+    .click()
+  const exported = await exportedMeta(page)
+  expect(exported.colorsURFDLB).toBe(metadata.colorsURFDLB)
+  expect(exported.capture.protocol).not.toBe('sides-then-top-bottom/v2')
+  for (const face of Object.values(exported.faces) as {
+    captureGuide?: unknown
+  }[])
+    expect(face.captureGuide).toBeUndefined()
+}
+
 test('uploads six cropped photos without metadata and shows six detected faces', async ({
   page,
 }) => {
@@ -88,6 +123,7 @@ test('uploads six cropped photos without metadata and shows six detected faces',
   await preview.getByRole('button', { name: 'Read six photos' }).click()
   const grids = await reviewFaces(page)
   expect(grids).toEqual(metadata.colorsURFDLB.split(' '))
+  await unchangedUnobservedSourceExport(page)
 })
 
 test('explains Auto framing with readable spacing', async ({ page }) => {
@@ -113,6 +149,7 @@ test('uploads the same photos with meta.json and preserves all saved face colors
   await expect(page.getByLabel('Photo upload order')).toHaveCount(0)
   const grids = await reviewFaces(page)
   expect(grids).toEqual(metadata.colorsURFDLB.split(' '))
+  await unchangedUnobservedSourceExport(page)
 })
 
 test('goes straight to how the faces fit after uploading a fixture with meta.json', async ({
@@ -243,7 +280,7 @@ test('a capture that cannot be put together shows an error, not silence', async 
   await expect(dialog).toBeVisible()
   await expect(dialog.locator('.orientation-net-photo')).toHaveCount(6)
   await expect(dialog.locator('.approval-stats')).toContainText(
-    'Repeated face: Side 4 and Top',
+    'Repeated face: Photo 4 and Photo 5',
   )
   await expect(dialog).toContainText('shot twice')
 })
@@ -329,6 +366,9 @@ test('an error names the stickers the equal color share moved, in one sentence',
     await expect(page.locator('.review-modal-content')).toHaveCount(0)
     if (close === 'Cancel') await page.locator('.net-cell-edit').first().click()
   }
+  const diagnostic = await exportedMeta(page)
+  expect(diagnostic.capture.faceRecovery).toBeNull()
+  await expect(page.locator('.verdict.is-invalid')).toBeVisible()
 })
 
 test('the color review follows the cube net: Left, Front, Right, Back, Up, Down', async ({
@@ -731,3 +771,34 @@ test('saves photos that carry a generator fingerprint as a synthetic fixture', a
   const dialog = page.getByRole('dialog', { name: 'Save as test fixture' })
   await expect(dialog.locator('code').first()).toContainText(/^synt-3x3-/)
 })
+
+for (const context of ['unknown', 'legacy'] as const)
+  test(`retaking an existing ${context} cap preserves its source context without a sequence cue`, async ({
+    page,
+  }) => {
+    await page.goto('/')
+    await page
+      .locator('.capture-alternatives input[type="file"]')
+      .setInputFiles(
+        context === 'legacy'
+          ? resolve('test/fixtures/synthetic-4x4-medium.zip')
+          : [...photos, resolve(fixture, 'meta.json')],
+      )
+    const review = await openColorReview(page)
+    const name = context === 'legacy' ? 'Top' : 'Photo 5'
+    await review
+      .getByRole('group', { name: 'Faces' })
+      .getByRole('button', {
+        name: new RegExp(`^${name}$|\\(${name}\\)$`),
+      })
+      .click()
+    await review.getByRole('button', { name: /^Retake / }).click()
+    await expect(page.locator('.capture-hint-text')).toContainText(
+      'Show the same face as the selected photo.',
+    )
+    await expect(page.locator('.capture-hint-text')).not.toContainText(
+      'quarter turn',
+    )
+    await expect(page.locator('.turn-hint')).toHaveCount(0)
+    await expect(page.locator('.capture-modal-content')).toContainText(name)
+  })

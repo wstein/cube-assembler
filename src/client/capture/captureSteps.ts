@@ -4,6 +4,7 @@ import {
   captureInstruction as captureInstructionRes,
   captureSteps,
   describeCenterIssue as describeCenterIssueRes,
+  describeCenterIssueForProtocol,
   faceDisplayLabel,
   faceOrder,
   faceShortLabel,
@@ -55,3 +56,5 @@ export function glareFacesToWarn(glare: Array<{ face: string }>): string[] {
 }
 
 export const FACE_SHORT_LABEL: Record<string, string> = faceShortLabel
+
+export { describeCenterIssueForProtocol }

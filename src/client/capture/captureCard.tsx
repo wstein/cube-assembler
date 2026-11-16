@@ -1,10 +1,11 @@
 import type { ComponentChildren } from 'preact'
-import { FACE_DISPLAY_LABEL, FACE_ORDER } from './captureSteps'
+import { FACE_ORDER } from './captureSteps'
 import { miniNet } from './approvalPhotos'
 import type { FaceCaptureData } from './captureTypes'
 import { FaceNet } from './faceNet'
 
 interface CaptureCardProps {
+  faceLabels: Record<string, string>
   capturedFaces: Record<string, FaceCaptureData>
   // Stickers per cube edge and the colors to draw them in.
   size: number
@@ -29,6 +30,7 @@ interface CaptureCardProps {
 // Getting a cube in: guided capture, file uploads, typed colors.
 export function CaptureCard({
   capturedFaces,
+  faceLabels,
   size,
   stickerColors,
   loading,
@@ -122,7 +124,7 @@ export function CaptureCard({
           images={FACE_ORDER.map((f) => capturedFaces[f]?.croppedImage)}
           stickerColors={stickerColors}
           itemLabel={(item) =>
-            `${item.name ? `${item.name} (${FACE_DISPLAY_LABEL[FACE_ORDER[item.slot]]})` : FACE_DISPLAY_LABEL[FACE_ORDER[item.slot]]}${item.captured ? ' (captured)' : ' (not captured)'}`
+            `${item.name ? `${item.name} (${faceLabels[FACE_ORDER[item.slot]]})` : faceLabels[FACE_ORDER[item.slot]]}${item.captured ? ' (captured)' : ' (not captured)'}`
           }
         />
         <span class="card-hint">
