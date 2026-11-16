@@ -1,6 +1,7 @@
 // Candidate generation and incremental decisions remain ReScript-owned.
 export {
   generate,
+  generateForProtocol,
   knownAlternatives,
   presentChoices,
   propose,
@@ -18,6 +19,7 @@ export {
 } from '../../core/capture/SpatialOrientationWizard.gen'
 export type {
   candidate as SpatialCandidate,
+  protocolSession as SpatialProtocolSession,
   presentedChoice as SpatialPresentedChoice,
   session as SpatialSession,
   choice as SpatialChoice,

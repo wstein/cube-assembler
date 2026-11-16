@@ -18,7 +18,8 @@ describe('capture steps', () => {
       CAPTURE_STEPS.map((step) => step.label),
     )
     expect(FACE_SHORT_LABEL.D).toBe('4')
-    expect(FACE_DISPLAY_LABEL.B).toBe('Bottom')
+    expect(FACE_DISPLAY_LABEL.B).toBe('Top')
+    expect(FACE_DISPLAY_LABEL.L).toBe('Bottom')
   })
 
   it('gives the same instruction with or without Mirror', () => {
@@ -28,11 +29,12 @@ describe('capture steps', () => {
       expect(captureInstruction(i)).toBe(step.instruction)
       expect(step.instruction).not.toMatch(/mirror/i)
     })
-    // The arrow always points the same way on screen, so side turns are
-    // described by the picture, never by a physical direction.
+    // The physical 3D demonstration is authoritative; camera image
+    // mirroring never changes the physical turning direction.
     ;[1, 2, 3].forEach((i) => {
       expect(CAPTURE_STEPS[i].instruction).not.toMatch(/clockwise/i)
-      expect(CAPTURE_STEPS[i].instruction).toMatch(/arrow.*picture/i)
+      expect(CAPTURE_STEPS[i].instruction).toMatch(/physical/i)
+      expect(CAPTURE_STEPS[i].instruction).not.toMatch(/arrow.*picture/i)
     })
   })
 

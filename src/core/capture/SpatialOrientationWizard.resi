@@ -98,3 +98,12 @@ let presentChoices: (
 ) => array<presentedChoice>
 
 @genType let knownAlternatives: (session, CaptureFaceMapping.mapping) => int
+
+@genType
+type protocolSession = {
+  session: session,
+  baseline: Null.t<candidate>,
+  baselineStatus: string,
+  issues: array<string>,
+}
+@genType let generateForProtocol: (Dict.t<CubeTypes.grid>, int, Null.t<string>) => protocolSession
