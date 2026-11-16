@@ -3,6 +3,7 @@
 // src/core/capture/CaptureReviewRouting.res.
 export {
   canSkipColorReview,
+  canAdjustCapture,
   planCaptureReview,
   readyAssemblyAfterCapture,
   rejectAlternatives,

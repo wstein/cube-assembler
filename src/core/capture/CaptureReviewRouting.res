@@ -18,6 +18,8 @@ type captureApproval = {
   suggestedFrom?: int,
   fallback: Null.t<orientationSolution>,
   page?: int,
+  retainedCount?: int,
+  truncated?: bool,
 }
 
 // The fallback's arrangements other than the ones already turned down.
@@ -98,13 +100,23 @@ let planCaptureReview = (
         )
       | None => solution.alternatives->Array.getUnsafe(preferred)
       }
+      let suggestionIndex = solution.alternatives->Array.indexOf(suggestion)
+      let known = Array.concat(solution.alternatives, free->Option.mapOr([], f => f.alternatives))
+      let signatures = Set.make()
+      known->Array.forEach(c => signatures->Set.add(CubeAssembly.orientationFreeSignature(c.faces)))
       Some(
         Approval({
           approval: {
             candidates: [suggestion],
-            arrangements: [solution.arrangements->Array.getUnsafe(preferred)],
+            arrangements: ?(
+              suggestionIndex >= 0
+                ? Some([solution.arrangements->Array.getUnsafe(suggestionIndex)])
+                : None
+            ),
             valid: true,
             suggestedFrom: Array.length(solution.alternatives),
+            retainedCount: signatures->Set.size,
+            truncated: solution.truncated || free->Option.mapOr(false, f => f.truncated),
             fallback: Null.null,
           },
         }),
@@ -118,6 +130,8 @@ let planCaptureReview = (
           Approval({
             approval: {
               candidates: [preferAlternative(free.alternatives, saved)],
+              retainedCount: Array.length(free.alternatives),
+              truncated: free.truncated,
               valid: true,
               fallback: Null.null,
             },
@@ -132,6 +146,8 @@ let planCaptureReview = (
           approval: {
             candidates: [closest.alternatives->Array.getUnsafe(0)],
             valid: false,
+            retainedCount: Array.length(closest.alternatives),
+            truncated: closest.truncated,
             note: `${why} No arrangement makes a valid cube, so a color was probably misread - check the colors, or use the closest match anyway.`,
             fallback: Null.fromOption(free),
           },
@@ -150,6 +166,8 @@ let planCaptureReview = (
       approval: {
         candidates: [free.alternatives->Array.getUnsafe(0)],
         valid: false,
+        retainedCount: Array.length(free.alternatives),
+        truncated: free.truncated,
         note: "No arrangement of these faces makes a valid cube, so a color was probably misread - check the colors, or use the closest match anyway.",
         fallback: Null.make(free),
       },
@@ -158,6 +176,8 @@ let planCaptureReview = (
     Approval({
       approval: {
         candidates: [preferAlternative(free.alternatives, saved)],
+        retainedCount: Array.length(free.alternatives),
+        truncated: free.truncated,
         valid: true,
         fallback: Null.null,
       },
@@ -223,3 +243,6 @@ let answerWizard = (wizard: Null.t<wizardState>, matched, face) =>
       ->Null.fromOption,
     })
   }
+
+// Manual corrections use all six source photos, never a retained search list.
+let canAdjustCapture = (capturedCount, _candidateCount, _valid) => capturedCount == 6
