@@ -4,6 +4,8 @@ import { readFixtureColors } from '../src/client/fixtures/fixtureFormat'
 import { describe, expect, it } from 'vitest'
 import {
   generate,
+  preserveMapping,
+  reconcile,
   nextSlot,
   options,
   previous,
@@ -172,4 +174,40 @@ it('skips resolved slots while retaining every matching identity in a shared opt
   expect(options(pool, [], 'U')[0].candidateIds).toEqual(['a', 'b'])
   expect(options(pool, [], 'U')[0].grid).toEqual(grid)
   expect(previous([])).toEqual([])
+})
+
+it('preserves explicit symmetric photo identities instead of content-rematching', () => {
+  const raw = Object.fromEntries(keys.map((key) => [key, grid]))
+  const mapping = keys.map((slot, index) => ({
+    slot,
+    target: keys[(index + 1) % 6] as 'U' | 'R' | 'F' | 'D' | 'L' | 'B',
+    quarterTurns: 0,
+  }))
+  expect(preserveMapping(raw, mapping, candidate('same', 0))).toEqual(mapping)
+  const rotated = candidate('different', 0)
+  rotated.faces.F = [
+    ['B', 'G'],
+    ['R', 'W'],
+  ]
+  expect(preserveMapping(raw, mapping, rotated)).toEqual(rotated.mapping)
+})
+
+it('reconciles earlier answers by retaining compatible later choices and reporting conflicts', () => {
+  const right = { slot: 'R', target: 'R' as const, quarterTurns: 0 }
+  const pool = {
+    ...session,
+    candidates: session.candidates.map((value) => ({
+      ...value,
+      mapping: [...value.mapping, right],
+    })),
+  }
+  expect(reconcile(pool, [placement(0), right], placement(1))).toEqual({
+    decisions: [placement(1), right],
+    conflicts: [],
+  })
+  const wrong = { ...right, quarterTurns: 2 }
+  expect(reconcile(pool, [placement(0), wrong], placement(1))).toEqual({
+    decisions: [placement(1)],
+    conflicts: [wrong],
+  })
 })
