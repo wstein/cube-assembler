@@ -5,6 +5,9 @@ import { FaceGrid } from './captureNet'
 import { OrientationNetPreview } from './orientationPresentation'
 import type { FaceCaptureData } from './captureTypes'
 import type { useFaceRecovery } from './useFaceRecovery'
+import { sameCubeState } from './recoveryPresentation'
+import { validateMapping } from './captureFaceMapping'
+import type { CubeState } from '../../cube/cubeAssembly'
 import { FACE_ORDER } from './captureSteps'
 
 const CubeView3D = lazy(() =>
@@ -13,12 +16,16 @@ const CubeView3D = lazy(() =>
 const LABELS = ['Side 1', 'Side 2', 'Side 3', 'Side 4', 'Top', 'Bottom']
 export function FaceRecoveryDialog({
   recovery,
+  currentCube,
+  initialCube,
   captured,
   size,
   colors,
   focusDialog,
   onDialogKeyDown,
 }: {
+  initialCube: CubeState | null
+  currentCube: CubeState | null
   recovery: ReturnType<typeof useFaceRecovery>
   captured: Record<string, FaceCaptureData>
   size: number
@@ -27,6 +34,20 @@ export function FaceRecoveryDialog({
   onDialogKeyDown: (event: TargetedKeyboardEvent<HTMLDivElement>) => void
 }) {
   const { draft, validation, frame } = recovery
+  const approvedCapture = recovery.approved
+    ? validateMapping(
+        Object.fromEntries(
+          Object.entries(captured).map(([slot, data]) => [slot, data.colors]),
+        ),
+        recovery.approved.mapping,
+        size,
+      ).candidate
+    : null
+  const initialCapture = approvedCapture
+    ? assembleCubeFromFaces(approvedCapture.faces, size)
+    : initialCube
+  const discardsViewerEdits =
+    currentCube && initialCapture && !sameCubeState(currentCube, initialCapture)
   if (!draft) return null
   const shown = draft.view === 'capture' ? frame?.faces : validation?.faces
   const previewCube = shown ? assembleCubeFromFaces(shown, size) : null
@@ -66,7 +87,7 @@ export function FaceRecoveryDialog({
           or change whole-face assignments on even cubes. Closing keeps the
           draft; only Confirm applies it.
         </p>
-        {recovery.approved?.stateRelation === 'after-viewer-moves' && (
+        {discardsViewerEdits && (
           <p class="capture-warning">
             Confirming orientation edits reconstructs the original captured
             photos and discards later viewer edits. Cancel keeps the current

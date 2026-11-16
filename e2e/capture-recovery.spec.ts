@@ -278,3 +278,64 @@ for (const n of [3, 5])
     const saved = await saveFixture(page)
     expect(saved.meta.capture.faceRecovery.mapping[0].quarterTurns).toBe(1)
   })
+
+test('local viewer turns warn before photo reconstruction and Cancel preserves public history', async ({
+  page,
+  context,
+}) => {
+  const { setLayerMoves, swipeFrontFace, waitForCubeIdle } = await import(
+    './cubeView3DHelpers'
+  )
+  await setLayerMoves(context)
+  await openArchive(page, solidFiles(3))
+  await page
+    .getByLabel('Capture front photo', { exact: true })
+    .selectOption('R')
+  await page.getByLabel('Capture top photo', { exact: true }).selectOption('U')
+  await page
+    .getByLabel('I confirm this front and top match how I held the cube.')
+    .check()
+  await page.getByRole('button', { name: 'Confirm face mapping' }).click()
+  await page.getByRole('button', { name: '3D View', exact: true }).click()
+  await waitForCubeIdle(page)
+  await swipeFrontFace(page)
+  await waitForCubeIdle(page)
+  const payload = await page.locator('#cubelab-moves').textContent()
+  expect(JSON.parse(payload!).moves).not.toBe('')
+  await page
+    .getByRole('button', {
+      name: 'Adjust face orientations / assignments',
+      exact: true,
+    })
+    .click()
+  await expect(
+    page.getByText(
+      /Confirming orientation edits reconstructs the original captured/,
+    ),
+  ).toBeVisible()
+  await page
+    .getByRole('button', { name: 'Cancel changes', exact: true })
+    .click()
+  await expect
+    .poll(() => page.locator('#cubelab-moves').textContent())
+    .toBe(payload)
+  await page.getByRole('button', { name: 'Undo', exact: true }).click()
+  await waitForCubeIdle(page)
+  await expect
+    .poll(
+      async () =>
+        JSON.parse((await page.locator('#cubelab-moves').textContent())!).moves,
+    )
+    .toBe('')
+  await page
+    .getByRole('button', {
+      name: 'Adjust face orientations / assignments',
+      exact: true,
+    })
+    .click()
+  await expect(
+    page.getByText(
+      /Confirming orientation edits reconstructs the original captured/,
+    ),
+  ).toHaveCount(0)
+})

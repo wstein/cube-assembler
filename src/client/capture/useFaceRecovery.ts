@@ -181,6 +181,7 @@ export function useFaceRecovery({
       },
     }
     setApproved(record)
+    setRecordPresent(true)
     setOpen(false)
     setInitial(draft)
     setHistory([])

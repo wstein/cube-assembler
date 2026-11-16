@@ -129,7 +129,8 @@ export function useOrientationReview({
         setOrientationApproval({
           candidates: [],
           valid: false,
-          note: plan.message,
+          note: `${plan.message} No automatic candidates are retained; this does not establish that every possible mapping was searched.`,
+          retainedCount: 0,
           fallback: null,
         })
         break
