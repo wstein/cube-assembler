@@ -166,6 +166,17 @@ describe('manual captured-face mapping', () => {
       ).valid,
     ).toBe(false)
   })
+  it('rejects an unknown imported target instead of treating it as the back face', () => {
+    const raw = solved(4)
+    const mapping = initializeMapping(raw, null)
+    const malformed = mapping.map((entry, i) =>
+      i === 5 ? { ...entry, target: 'invalid' as typeof entry.target } : entry,
+    )
+    const result = validateMapping(raw, malformed, 4)
+    expect(result.valid).toBe(false)
+    expect(result.faces).toBeNull()
+    expect(result.issues.join(' ')).toMatch(/assigned side/i)
+  })
   it('reports duplicate odd centers instead of silently replacing their assignment', () => {
     const raw = solved(7)
     raw.R[3][3] = 'W'
@@ -187,7 +198,10 @@ describe('capture-relative display frame', () => {
     expect(frame?.mapping.find((x) => x.slot === 'U')?.target).toBe('U')
     for (const entry of frame!.mapping) {
       expect(frame!.faces[entry.target]).toEqual(
-        rotateGrid(raw[entry.slot], entry.quarterTurns),
+        rotateGrid(
+          raw[entry.slot as (typeof ORDER)[number]],
+          entry.quarterTurns,
+        ),
       )
     }
     expect(frame?.displayTransform).toBeGreaterThanOrEqual(0)
@@ -247,3 +261,33 @@ describe('recorded 7x7 capture and persisted display transforms', () => {
     }
   })
 })
+
+it('conjugates every face direction and representative layer depth exactly through all display frames', () => {
+  const key = (faces: Faces) =>
+    ORDER.map((face) => faces[face].flat().join('')).join('|')
+  for (const n of [2, 3, 4, 5, 6, 7, 8]) {
+    let original = asymmetric(n)
+    original = turnFace(turnFace(original, 'F', -1), 'L', 2)
+    const widths = [...new Set([1, Math.ceil(n / 2), n])]
+    for (const width of widths) {
+      for (const quarters of [1, -1, 2]) {
+        const legal = new Set(
+          ORDER.map((face) => key(turnFace(original, face, quarters, width))),
+        )
+        for (let index = 0; index < 24; index++) {
+          const displayed = transformFaces(original, index)!
+          const inverse = inverseTransform(index)!
+          for (const face of ORDER) {
+            const displayedMove = turnFace(displayed, face, quarters, width)
+            const canonical = transformFaces(displayedMove, inverse)!
+            expect(
+              legal.has(key(canonical)),
+              `N=${n}, frame=${index}, ${face}/${quarters}/${width}`,
+            ).toBe(true)
+            expect(transformFaces(canonical, index)).toEqual(displayedMove)
+          }
+        }
+      }
+    }
+  }
+}, 30_000)

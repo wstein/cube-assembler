@@ -135,6 +135,9 @@ let validateMapping = (captured: Dict.t<grid>, mapping: mapping, size): validati
       issues->Array.push("Each captured photo must be assigned exactly once.")
     }
     knownSlots->Set.add(entry.slot)
+    if !(faceKeys->Array.includes(entry.target)) {
+      issues->Array.push("Every assigned side must be U, R, F, D, L or B.")
+    }
     let target = letter(entry.target)
     if assigned->Set.has(target) {
       issues->Array.push("Each cube side must be assigned exactly once.")
