@@ -117,3 +117,11 @@ and nothing can change between the check and the write. The fixtures
 `julia scripts/orbit64V2FaceletFixture.jl <flix-orbit64 dir>`, which checks the
 reference rows for dropped, duplicated and unparsed entries and regenerates both
 files byte for byte.
+
+## Manual face recovery
+
+[Orientation recovery](orientation-recovery.md) separates immutable capture data,
+manual source-slot mappings, logical assembled state, and derived capture pose.
+`CaptureFaceMapping.res` owns mapping/validation and invertible display frames;
+`CaptureRecovery.res` decodes the versioned record. The browser editor and hooks
+coordinate dialogs without implementing cube mechanics.

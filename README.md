@@ -27,8 +27,9 @@ with no model download or production server.
    the square on screen when you prefer manual framing.
 3. **Check the colors.** The app recalibrates all six photos together. Review
    any uncertain stickers against the photos and correct them if needed.
-4. **Confirm the assembly.** If several face placements or rotations fit,
-   choose each side when prompted.
+4. **Confirm the assembly.** Use **Adjust face orientations / assignments**
+   to rotate photos or reassign even-cube faces, even when search found only
+   one candidate. Confirm the capture-relative front/top when needed.
 5. **Use the cube net.** View the assembled cube, copy its facelets or compact
    state token, and save the reviewed photos as a test fixture if useful.
 
@@ -63,6 +64,8 @@ for browser tests, lint and formatting, fixture uploads, and Pages deployment.
   learning, merging, and import/export.
 - [Scanner and color detection](docs/scanner.md) — alignment, auto capture,
   white balance, and sticker classification.
+- [Face orientation recovery](docs/orientation-recovery.md) — correct photo
+  rotations, whole-face assignments, capture pose, and saved decisions.
 - [Cube validity and parity](docs/parity.md) — what is checked on each size
   and what a failed check highlights.
 - [Architecture](docs/architecture.md) — modules, worker, data flow, storage,
