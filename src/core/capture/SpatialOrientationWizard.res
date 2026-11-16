@@ -35,18 +35,20 @@ let remaining = (session: session, decisions: array<decision>) =>
       candidate.mapping->Array.some(entry => agrees(decision, entry))
     )
   )
-let options = (session, decisions, slot) => {
+let groupChoices = (session, decisions, matches: decision => bool) => {
   let groups: array<choice> = []
   remaining(session, decisions)->Array.forEach(candidate => {
-    switch candidate.mapping->Array.find(entry => entry.slot == slot) {
+    switch candidate.mapping->Array.find(matches) {
     | None => ()
     | Some(entry) =>
       switch groups->Array.findIndex(group =>
-        group.target == entry.target && group.quarterTurns == entry.quarterTurns
+        group.slot == entry.slot &&
+        group.target == entry.target &&
+        group.quarterTurns == entry.quarterTurns
       ) {
       | -1 =>
         groups->Array.push({
-          slot,
+          slot: entry.slot,
           target: entry.target,
           quarterTurns: entry.quarterTurns,
           grid: faceValue(candidate.faces, entry.target),
@@ -58,6 +60,17 @@ let options = (session, decisions, slot) => {
   })
   groups
 }
+let options = (session, decisions, slot) =>
+  groupChoices(session, decisions, entry => entry.slot == slot)
+let targetOptions = (session, decisions, target) =>
+  groupChoices(session, decisions, entry => entry.target == target)
+let nextTarget = (session, decisions: array<decision>) =>
+  [CubeState.F, R, B, L, U, D]
+  ->Array.find(target =>
+    !(decisions->Array.some(decision => decision.target == target)) &&
+    Array.length(targetOptions(session, decisions, target)) > 1
+  )
+  ->Null.fromOption
 let nextSlot = (session, decisions: array<decision>) =>
   slots
   ->Array.find(slot =>
@@ -136,12 +149,7 @@ let preserveMapping = (captured, mapping, candidate: candidate) => {
   }
 }
 @genType type reconciliation = {decisions: array<decision>, conflicts: array<decision>}
-let reconcile = (session, decisions: array<decision>, selected: decision): reconciliation => {
-  let index = decisions->Array.findIndex(previous => previous.slot == selected.slot)
-  let ordered =
-    index < 0
-      ? [...decisions, selected]
-      : decisions->Array.map(previous => previous.slot == selected.slot ? selected : previous)
+let reconcileOrdered = (session, ordered: array<decision>, selected: decision): reconciliation => {
   let kept = ref([])
   let conflicts = []
   ordered->Array.forEach(decision => {
@@ -153,6 +161,14 @@ let reconcile = (session, decisions: array<decision>, selected: decision): recon
     }
   })
   {decisions: kept.contents, conflicts}
+}
+let reconcile = (session, decisions: array<decision>, selected: decision): reconciliation => {
+  let index = decisions->Array.findIndex(previous => previous.slot == selected.slot)
+  let ordered =
+    index < 0
+      ? [...decisions, selected]
+      : decisions->Array.map(previous => previous.slot == selected.slot ? selected : previous)
+  reconcileOrdered(session, ordered, selected)
 }
 
 // Rendering a draft is independent of validating it. Missing or conflicting
@@ -220,8 +236,9 @@ type proposal = {
   decisions: array<decision>,
   conflicts: array<decision>,
 }
-let propose = (captured, session, decisions, choice, currentMapping): Null.t<proposal> => {
-  let adjusted = reconcile(session, decisions, choice)
+let proposalFrom = (captured, session, adjusted: reconciliation, currentMapping): Null.t<
+  proposal,
+> => {
   switch remaining(session, adjusted.decisions)->Array.get(0) {
   | None => Null.null
   | Some(candidate) =>
@@ -233,6 +250,23 @@ let propose = (captured, session, decisions, choice, currentMapping): Null.t<pro
     Null.make({mapping, decisions: adjusted.decisions, conflicts: adjusted.conflicts})
   }
 }
+let propose = (captured, session, decisions, choice, currentMapping) =>
+  proposalFrom(captured, session, reconcile(session, decisions, choice), currentMapping)
+let proposeTarget = (
+  captured,
+  session,
+  decisions: array<decision>,
+  choice: decision,
+  currentMapping,
+) => {
+  let index = decisions->Array.findIndex(previous => previous.target == choice.target)
+  let ordered =
+    index < 0
+      ? [...decisions, choice]
+      : decisions->Array.map(previous => previous.target == choice.target ? choice : previous)
+  proposalFrom(captured, session, reconcileOrdered(session, ordered, choice), currentMapping)
+}
+
 @genType
 type choicePreview = {
   grid: grid,
@@ -240,49 +274,59 @@ type choicePreview = {
   mapping: CaptureFaceMapping.mapping,
   displayTransform: int,
 }
-let previewChoice = (
+let projectProposal = (
   captured,
-  session,
-  decisions,
+  proposal: proposal,
   choice: decision,
-  currentMapping,
   frontSlot,
   upSlot,
   captureView,
 ): Null.t<choicePreview> => {
-  switch propose(captured, session, decisions, choice, currentMapping)->Null.toOption {
-  | None => Null.null
-  | Some(proposal) =>
-    let selectedFrame = if captureView {
-      CaptureFaceMapping.captureFrame(captured, proposal.mapping, frontSlot, upSlot)
-    } else {
-      // Derive the identity from the frozen orientation convention; never
-      // assume a particular numeric index represents the logical frame.
-      switch (
-        proposal.mapping->Array.find(entry => entry.target == F),
-        proposal.mapping->Array.find(entry => entry.target == U),
-      ) {
-      | (Some(front), Some(up)) =>
-        CaptureFaceMapping.captureFrame(captured, proposal.mapping, front.slot, up.slot)
-      | _ => Null.null
-      }
+  let selectedFrame = if captureView {
+    CaptureFaceMapping.captureFrame(captured, proposal.mapping, frontSlot, upSlot)
+  } else {
+    // Derive the identity from the frozen orientation convention; never
+    // assume a particular numeric index represents the logical frame.
+    switch (
+      proposal.mapping->Array.find(entry => entry.target == F),
+      proposal.mapping->Array.find(entry => entry.target == U),
+    ) {
+    | (Some(front), Some(up)) =>
+      CaptureFaceMapping.captureFrame(captured, proposal.mapping, front.slot, up.slot)
+    | _ => Null.null
     }
-    switch selectedFrame->Null.toOption {
+  }
+  switch selectedFrame->Null.toOption {
+  | None => Null.null
+  | Some(frame) =>
+    switch frame.mapping->Array.find(entry => entry.slot == choice.slot) {
     | None => Null.null
-    | Some(frame) =>
-      switch frame.mapping->Array.find(entry => entry.slot == choice.slot) {
-      | None => Null.null
-      | Some(placed) =>
-        Null.make({
-          grid: faceValue(frame.faces, placed.target),
-          target: placed.target,
-          mapping: frame.mapping,
-          displayTransform: frame.displayTransform,
-        })
-      }
+    | Some(placed) =>
+      Null.make({
+        grid: faceValue(frame.faces, placed.target),
+        target: placed.target,
+        mapping: frame.mapping,
+        displayTransform: frame.displayTransform,
+      })
     }
   }
 }
+let previewChoice = (
+  captured,
+  session,
+  decisions,
+  choice,
+  currentMapping,
+  frontSlot,
+  upSlot,
+  captureView,
+) =>
+  propose(captured, session, decisions, choice, currentMapping)
+  ->Null.toOption
+  ->Option.flatMap(proposal =>
+    projectProposal(captured, proposal, choice, frontSlot, upSlot, captureView)->Null.toOption
+  )
+  ->Null.fromOption
 
 @genType
 type presentedChoice = {
@@ -437,4 +481,44 @@ let generateForProtocol = (captured, size, protocol: Null.t<string>): protocolSe
       }
     }
   }
+}
+
+let presentTargetChoices = (
+  captured,
+  session,
+  decisions: array<decision>,
+  target,
+  currentMapping: CaptureFaceMapping.mapping,
+) => {
+  let index = decisions->Array.findIndex(decision => decision.target == target)
+  let prefix = index < 0 ? decisions : decisions->Array.filterWithIndex((_, i) => i < index)
+  let presented = targetOptions(session, prefix, target)->Array.filterMap(choice => {
+    let decision: decision = {
+      slot: choice.slot,
+      target: choice.target,
+      quarterTurns: choice.quarterTurns,
+    }
+    switch proposeTarget(captured, session, decisions, decision, currentMapping)->Null.toOption {
+    | None => None
+    | Some(proposal) =>
+      projectProposal(captured, proposal, decision, "", "", false)
+      ->Null.toOption
+      ->Option.map(projected => {
+        let view = {...projected, mapping: proposal.mapping}
+        let currentSource = currentMapping->Array.find(entry => entry.slot == choice.slot)
+        let currentTurns = currentSource->Option.mapOr(0, entry => entry.quarterTurns)
+        {
+          choice,
+          view,
+          relativeTurns: mod(choice.quarterTurns - currentTurns + 4, 4),
+          isCurrent: currentSource->Option.mapOr(false, entry => agrees(entry, decision)),
+        }
+      })
+    }
+  })
+  presented->Array.toSorted((a, b) =>
+    a.isCurrent != b.isCurrent
+      ? a.isCurrent ? -1.0 : 1.0
+      : Int.toFloat(a.relativeTurns - b.relativeTurns)
+  )
 }
