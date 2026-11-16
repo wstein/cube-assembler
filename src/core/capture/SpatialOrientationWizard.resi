@@ -46,3 +46,35 @@ let previewFaces: (
 ) => CubeTypes.faceSet<CubeTypes.grid>
 @genType let retainsMapping: (session, CaptureFaceMapping.mapping) => bool
 @genType let matchesDecision: (CaptureFaceMapping.mapping, decision) => bool
+@genType
+type proposal = {
+  mapping: CaptureFaceMapping.mapping,
+  decisions: array<decision>,
+  conflicts: array<decision>,
+}
+@genType
+let propose: (
+  Dict.t<CubeTypes.grid>,
+  session,
+  array<decision>,
+  decision,
+  CaptureFaceMapping.mapping,
+) => Null.t<proposal>
+@genType
+type choicePreview = {
+  grid: CubeTypes.grid,
+  target: CubeState.faceKey,
+  mapping: CaptureFaceMapping.mapping,
+  displayTransform: int,
+}
+@genType
+let previewChoice: (
+  Dict.t<CubeTypes.grid>,
+  session,
+  array<decision>,
+  decision,
+  CaptureFaceMapping.mapping,
+  string,
+  string,
+  bool,
+) => Null.t<choicePreview>
