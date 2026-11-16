@@ -1,3 +1,4 @@
+import { canonicalFaceName } from './canonicalFaceNames'
 import { useState } from 'preact/hooks'
 import type { FaceKey } from '../../cube/cubeAssembly'
 import type { FaceMapping } from './captureFaceMapping'
@@ -46,7 +47,7 @@ export function SpatialOrientationWorkspace({
           <button
             type="button"
             key={face}
-            aria-label={`Inspect ${face} face`}
+            aria-label={`Inspect ${canonicalFaceName(face)} face`}
             aria-pressed={face === currentFace}
             class={`spatial-net-slot spatial-net-${face}${face === currentFace ? ' spatial-current' : face !== OPPOSITE[currentFace] ? ' spatial-neighbor' : ''}`}
             onPointerEnter={(event) => {
@@ -58,7 +59,7 @@ export function SpatialOrientationWorkspace({
               setPhotoFace(face)
             }}
           >
-            <span>{face}</span>
+            <span>{canonicalFaceName(face)}</span>
             <FaceGrid colors={faces[face]} stickerColors={colors} />
           </button>
         ))}
@@ -69,17 +70,14 @@ export function SpatialOrientationWorkspace({
       {photoFace && placement && photo?.croppedImage && (
         <aside
           class="spatial-photo"
-          aria-label={`Original photo for ${photoFace} face`}
+          aria-label={`Original photo for ${canonicalFaceName(photoFace)} face`}
         >
           <img
             src={photo.croppedImage}
-            alt={`Captured photo ${placement.slot}, assigned to ${photoFace}`}
+            alt={`Captured photo ${placement.slot}, assigned to ${canonicalFaceName(photoFace)}`}
             style={{ transform: `rotate(${placement.quarterTurns * 90}deg)` }}
           />
-          <span>
-            Photo {placement.slot} → {photoFace} · {placement.quarterTurns * 90}
-            °
-          </span>
+          <span>{canonicalFaceName(photoFace)} · Photo</span>
           <button
             type="button"
             class="spatial-correct-colors"

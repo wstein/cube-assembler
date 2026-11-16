@@ -39,7 +39,16 @@ async function currentMatchesNet(page: Page, selected = true) {
   await expect(current).toHaveAttribute('aria-pressed', String(selected))
   const label = await current.locator('span').textContent()
   expect(label).toMatch(/· 0°$/)
-  const target = label!.trim()[0]
+  const target = (
+    {
+      Front: 'F',
+      Right: 'R',
+      Back: 'B',
+      Left: 'L',
+      Up: 'U',
+      Down: 'D',
+    } as Record<string, string>
+  )[label!.split(' · ')[0].trim()]
   const colors = await current
     .locator('.orientation-net-sticker')
     .evaluateAll((elements) =>
@@ -103,6 +112,17 @@ for (const width of [1440, 390])
     await page.setViewportSize({ width, height: width === 390 ? 844 : 1000 })
     await openRecovery(page)
     await allFacesVisible(page)
+    await expect(
+      page.getByRole('heading', { name: 'Which matches Front?', exact: true }),
+    ).toBeVisible()
+    await expect(page.locator('.spatial-net-slot > span')).toHaveText([
+      'Up',
+      'Left',
+      'Front',
+      'Right',
+      'Back',
+      'Down',
+    ])
     await currentMatchesNet(page, false)
     await expect(
       page.locator('.spatial-workspace .cube-3d-canvas'),
@@ -203,7 +223,10 @@ test('R1: color picker and editor Escape keep the outer wizard and roll back edi
 }) => {
   await openRecovery(page)
   const initial = await netColors(page)
-  const face = page.getByRole('button', { name: 'Inspect F face', exact: true })
+  const face = page.getByRole('button', {
+    name: 'Inspect Front face',
+    exact: true,
+  })
   await face.focus()
   await page
     .getByRole('button', { name: 'Correct detected colors', exact: true })
@@ -236,7 +259,7 @@ test('color corrections stay in the draft and outer Cancel discards them', async
   await openRecovery(page)
   const initial = await netColors(page)
   await page
-    .getByRole('button', { name: 'Inspect F face', exact: true })
+    .getByRole('button', { name: 'Inspect Front face', exact: true })
     .focus()
   await page
     .getByRole('button', { name: 'Correct detected colors', exact: true })
@@ -320,11 +343,11 @@ test.describe('touch recovery', () => {
     await openRecovery(page)
     await currentMatchesNet(page, false)
     await page
-      .getByRole('button', { name: 'Inspect F face', exact: true })
+      .getByRole('button', { name: 'Inspect Front face', exact: true })
       .tap()
     await expect(
       page
-        .getByRole('complementary', { name: 'Original photo for F face' })
+        .getByRole('complementary', { name: 'Original photo for Front face' })
         .getByRole('img'),
     ).toBeVisible()
     await page
@@ -365,7 +388,7 @@ for (const size of [7, 5])
     await expect(yes).toBeEnabled()
     await alternatives.click()
     await page
-      .getByRole('button', { name: 'Inspect F face', exact: true })
+      .getByRole('button', { name: 'Inspect Front face', exact: true })
       .focus()
     await page
       .getByRole('button', { name: 'Correct detected colors', exact: true })

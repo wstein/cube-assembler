@@ -1,3 +1,4 @@
+import { canonicalFaceName } from './canonicalFaceNames'
 import { lazy, Suspense } from 'preact/compat'
 import { useRef, useState } from 'preact/hooks'
 import type { TargetedKeyboardEvent } from 'preact'
@@ -9,7 +10,7 @@ import type { useFaceRecovery } from './useFaceRecovery'
 import { sameCubeState } from './recoveryPresentation'
 import { validateMapping } from './captureFaceMapping'
 import type { CubeState } from '../../cube/cubeAssembly'
-import { FACE_ORDER, FACE_DISPLAY_LABEL } from './captureSteps'
+import { FACE_ORDER } from './captureSteps'
 import { CaptureReviewDialog } from './captureReviewDialog'
 import { CaptureColorPicker } from './captureColorPicker'
 import { useColorReview } from '../profiles/useColorReview'
@@ -80,7 +81,7 @@ export function FaceRecoveryDialog({
     queueMicrotask(() =>
       document
         .querySelector<HTMLButtonElement>(
-          `[aria-label="Inspect ${inspectedFace ?? 'F'} face"]`,
+          `[aria-label="Inspect ${canonicalFaceName(inspectedFace ?? 'F')} face"]`,
         )
         ?.focus(),
     )
@@ -129,7 +130,7 @@ export function FaceRecoveryDialog({
   const stage =
     !recovery.session?.candidates.length && !recovery.savedSelection
       ? 'conflict'
-      : recovery.activeSlot
+      : recovery.activeTarget
         ? 'choice'
         : 'review'
   const placements =
@@ -168,12 +169,7 @@ export function FaceRecoveryDialog({
                 placements={placements ?? []}
                 captured={captured}
                 colors={colors}
-                currentFace={
-                  inspectedFace ??
-                  placements?.find((p) => p.slot === recovery.activeSlot)
-                    ?.target ??
-                  'F'
-                }
+                currentFace={inspectedFace ?? recovery.activeTarget ?? 'F'}
                 onInspect={setInspectedFace}
                 onCorrectFace={(slot) => {
                   setColorBefore(recovery.checkpoint())
@@ -187,10 +183,7 @@ export function FaceRecoveryDialog({
                     puzzleSize={size}
                     palette={colors}
                     highlightedFace={
-                      inspectedFace ??
-                      placements?.find((p) => p.slot === recovery.activeSlot)
-                        ?.target ??
-                      'F'
+                      inspectedFace ?? recovery.activeTarget ?? 'F'
                     }
                     allowLayerMoves={false}
                   />
@@ -203,7 +196,14 @@ export function FaceRecoveryDialog({
               <CaptureReviewDialog
                 embedded
                 faceOrder={FACE_ORDER}
-                faceLabels={FACE_DISPLAY_LABEL}
+                faceLabels={Object.fromEntries(
+                  FACE_ORDER.map((slot) => [
+                    slot,
+                    canonicalFaceName(
+                      placements?.find((p) => p.slot === slot)?.target ?? slot,
+                    ),
+                  ]),
+                )}
                 colorNames={COLOR_NAME}
                 stickerColors={colors}
                 colorOrder={COLOR_ORDER}
@@ -277,10 +277,7 @@ export function FaceRecoveryDialog({
                 <section aria-label="Orientation candidate choices">
                   <h3>
                     Which matches{' '}
-                    {recovery.sourcePhotoNames[
-                      FACE_ORDER.indexOf(recovery.activeSlot as FaceKey)
-                    ] ?? recovery.activeSlot}
-                    ?
+                    {canonicalFaceName(recovery.activeTarget ?? 'F')}?
                   </h3>
                   <p>{recovery.presentedChoices.length} options</p>
                   <div class="spatial-candidates">
@@ -289,8 +286,8 @@ export function FaceRecoveryDialog({
                         <button
                           type="button"
                           class="spatial-candidate"
-                          key={`${choice.target}-${choice.quarterTurns}`}
-                          aria-label={`Choose ${recovery.sourcePhotoNames[FACE_ORDER.indexOf(choice.slot)] ?? choice.slot}, ${relativeTurns * 90}° clockwise, ${view.target} face, option ${i + 1}`}
+                          key={`${choice.slot}-${choice.target}-${choice.quarterTurns}`}
+                          aria-label={`Choose ${canonicalFaceName(view.target)}, ${relativeTurns * 90}° clockwise, option ${i + 1}`}
                           aria-pressed={
                             recovery.selectedChoice?.slot === choice.slot &&
                             recovery.selectedChoice.target === choice.target &&
@@ -304,7 +301,8 @@ export function FaceRecoveryDialog({
                         >
                           <FaceGrid colors={view.grid} stickerColors={colors} />
                           <span>
-                            {view.target} · {relativeTurns * 90}°
+                            {canonicalFaceName(view.target)} ·{' '}
+                            {relativeTurns * 90}°
                           </span>
                         </button>
                       ),
@@ -316,8 +314,7 @@ export function FaceRecoveryDialog({
               {stage === 'conflict' && <h3>Review the captured input.</h3>}
               {!recovery.remainingCandidates.length && (
                 <p class="capture-warning" role="status">
-                  No retained match. Review earlier answers, front/top, or
-                  detected colors.
+                  No retained match. Review earlier answers or detected colors.
                 </p>
               )}
               {recovery.session?.truncated && (
@@ -397,7 +394,7 @@ export function FaceRecoveryDialog({
                   setInspectedFace('F')
                   document
                     .querySelector<HTMLButtonElement>(
-                      '[aria-label="Inspect F face"]',
+                      '[aria-label="Inspect Front face"]',
                     )
                     ?.focus()
                 }}

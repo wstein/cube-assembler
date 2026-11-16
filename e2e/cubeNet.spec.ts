@@ -35,7 +35,7 @@ test('shows sticker details on hover and clears them on leaving the net', async 
   const net = page.locator('.cube-net')
   await expect(net).toBeVisible()
   await net.locator('.net-u .net-cell').first().hover()
-  await expect(net.locator('.net-info')).toContainText('Top')
+  await expect(net.locator('.net-info')).toContainText('Up')
 
   await page.locator('.notation-card').hover()
   await expect(net.locator('.net-info')).toContainText('Point at a sticker')
