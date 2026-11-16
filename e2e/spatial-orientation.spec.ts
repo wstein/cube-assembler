@@ -142,9 +142,8 @@ for (const width of [1440, 390])
     await page.screenshot({ path: testInfo.outputPath(`spatial-${width}.png`) })
     await expect(
       page.getByRole('button', { name: 'Next', exact: true }),
-    ).toBeDisabled()
+    ).toHaveCount(0)
     await page.locator('.spatial-candidate').first().click()
-    await page.getByRole('button', { name: 'Next', exact: true }).click()
     await allFacesVisible(page)
     await allFacesVisible(page)
     await expect(
@@ -152,37 +151,31 @@ for (const width of [1440, 390])
     ).toBeEnabled()
   })
 
-test('R1: Undo restores candidate answer and preview before Next', async ({
+test('Back changes an earlier answer and atomically updates the preview', async ({
   page,
 }) => {
   await openRecovery(page)
   await page.locator('.spatial-candidate').nth(1).click()
-  const b = await netColors(page)
-  await page.getByRole('button', { name: 'Next', exact: true }).click()
+  const previous = await netColors(page)
   await page.getByRole('button', { name: 'Back', exact: true }).click()
-  await page.locator('.spatial-candidate').nth(1).click()
-  expect(await netColors(page)).not.toEqual(b)
-  await page
-    .getByRole('button', { name: 'Undo orientation edit', exact: true })
-    .click()
   await currentMatchesNet(page)
-  await page.getByRole('button', { name: 'Next', exact: true }).click()
-  expect(await netColors(page)).toEqual(b)
+  await page.locator('.spatial-candidate').nth(1).click()
+  expect(await netColors(page)).not.toEqual(previous)
+  await expect(
+    page.getByRole('button', { name: 'Use this cube', exact: true }),
+  ).toBeEnabled()
 })
 
-test('R1: Back retains an accessible current answer; Next needs no extra click', async ({
+test('Back retains an accessible answer that advances when selected again', async ({
   page,
 }) => {
   await openRecovery(page)
   const initial = await netColors(page)
   await page.locator('.spatial-candidate').first().click()
-  await page.getByRole('button', { name: 'Next', exact: true }).click()
   await page.getByRole('button', { name: 'Back', exact: true }).click()
   await currentMatchesNet(page)
-  await expect(
-    page.getByRole('button', { name: 'Next', exact: true }),
-  ).toBeEnabled()
-  await page.getByRole('button', { name: 'Next', exact: true }).click()
+  await expect(page.locator('.spatial-candidate').first()).toBeEnabled()
+  await page.locator('.spatial-candidate').first().click()
   expect(await netColors(page)).toEqual(initial)
 })
 
@@ -268,9 +261,7 @@ test('color corrections stay in the draft and outer Cancel discards them', async
   await page.locator('.color-btn:not(.is-current)').first().click()
   await page.getByRole('button', { name: 'OK', exact: true }).click()
   expect(await netColors(page)).not.toEqual(initial)
-  await page
-    .getByRole('button', { name: 'Cancel changes', exact: true })
-    .click()
+  await page.getByRole('button', { name: 'Cancel', exact: true }).click()
   await page
     .getByRole('button', {
       name: /^Alternatives \([1-9][0-9]*\)$/,
@@ -289,13 +280,10 @@ test('canonical relative options preserve absolute chosen turns through roundtri
   const baseline = await saved(page)
   await openRecovery(page)
   await page.locator('.spatial-candidate').first().click()
-  await page.getByRole('button', { name: 'Next', exact: true }).click()
   await page.getByRole('button', { name: 'Back', exact: true }).click()
   await currentMatchesNet(page)
   await page.locator('.spatial-candidate').nth(1).click()
-  await currentMatchesNet(page)
   const chosen = await netColors(page)
-  await page.getByRole('button', { name: 'Next', exact: true }).click()
   await page.getByRole('button', { name: 'Use this cube', exact: true }).click()
   const final = await saved(page)
   expect(
@@ -354,8 +342,9 @@ test.describe('touch recovery', () => {
       .getByRole('button', { name: 'Close original photo', exact: true })
       .tap()
     await page.locator('.spatial-candidate').nth(1).tap()
-    await currentMatchesNet(page)
-    await page.getByRole('button', { name: 'Next', exact: true }).tap()
+    await expect(
+      page.getByRole('button', { name: 'Use this cube', exact: true }),
+    ).toBeEnabled()
     await page.getByRole('button', { name: 'Back', exact: true }).tap()
     await currentMatchesNet(page)
     await allFacesVisible(page)
@@ -363,7 +352,7 @@ test.describe('touch recovery', () => {
 })
 
 for (const size of [7, 5])
-  test(`R2: a kept ${size}x${size} color draft cannot change committed approval`, async ({
+  test(`R2: a discarded ${size}x${size} color draft cannot change committed approval`, async ({
     page,
   }) => {
     await upload(
@@ -398,10 +387,13 @@ for (const size of [7, 5])
     await page.getByRole('button', { name: 'OK', exact: true }).click()
     await page
       .getByRole('button', {
-        name: 'Close and keep orientation draft',
+        name: 'Close',
         exact: true,
       })
       .click()
+    expect(await approvalColors()).toEqual(initial)
+    await expect(yes).toBeEnabled()
+    await page.locator('.orientation-approval .modal-close').click()
     await page.getByRole('button', { name: 'Edit colors', exact: true }).click()
     await expect(
       page.getByRole('heading', { name: 'Does this match your cube?' }),
