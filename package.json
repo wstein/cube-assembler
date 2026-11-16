@@ -8,7 +8,7 @@
     "rescript:build": "rescript build --warn-error +a",
     "fixture:server": "node scripts/fixtureUploadServer.mjs",
     "build": "npm run rescript:build && vite build",
-    "typecheck": "npm run rescript:build && tsc --noEmit",
+    "typecheck": "npm run verify:capture-core && npm run rescript:build && tsc --noEmit",
     "test": "npm run rescript:build && vitest run",
     "test:e2e": "playwright test",
     "test:watch": "npm run rescript:build && vitest",
@@ -18,12 +18,14 @@
     "lint:biome": "biome lint .",
     "lint": "npm run lint:typescript && npm run lint:biome && npm run lint:rescript",
     "format:check": "biome format . && rescript format --check",
-    "format": "biome format --write . && rescript format"
+    "format": "biome format --write . && rescript format",
+    "verify:capture-core": "node scripts/verifyCaptureCore.mjs"
   },
   "dependencies": {
     "@fontsource/ibm-plex-mono": "^5.3.0",
     "@fontsource/ibm-plex-sans": "^5.3.0",
     "@fontsource/space-grotesk": "^5.3.0",
+    "@puzlwerk/capture-recovery": "file:vendor/puzlwerk-capture-recovery-0.1.0-f7a0082f.tgz",
     "fflate": "^0.8.3",
     "preact": "^11.2.0"
   },
