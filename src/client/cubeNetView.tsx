@@ -1,3 +1,4 @@
+import { canonicalFaceName } from './capture/canonicalFaceNames'
 import '../../web/net-inspector.css'
 import type { FaceMapping } from './capture/captureFaceMapping'
 import { useLayoutEffect, useMemo, useRef, useState } from 'preact/hooks'
@@ -30,16 +31,6 @@ interface CubeNetViewProps {
     col: number,
     turns: number,
   ) => void
-}
-
-// Face names shown on the net, keyed by CubeIR face.
-const NET_FACE_NAMES: Record<string, string> = {
-  u: 'Top',
-  l: 'Left',
-  f: 'Front',
-  r: 'Right',
-  b: 'Back',
-  d: 'Bottom',
 }
 
 // The review mark for sticker `index` (row-major) of a captured face: hand
@@ -194,7 +185,7 @@ export function CubeNetView({
       hoveredNetCell.index
     ] as string
     return {
-      faceName: NET_FACE_NAMES[hoveredNetCell.face],
+      faceName: canonicalFaceName(hoveredNetCell.face),
       pieceName:
         members === 3
           ? 'corner piece'
@@ -281,12 +272,12 @@ export function CubeNetView({
           const photo = source ? capturedFaces[source.slot] : undefined
           return (
             <div class={`net-face ${cls}`} key={label}>
-              <div class="net-face-label">{NET_FACE_NAMES[faceKey]}</div>
+              <div class="net-face-label">{canonicalFaceName(faceKey)}</div>
               <div
                 class="net-face-grid"
                 tabIndex={0}
                 role="group"
-                aria-label={`${NET_FACE_NAMES[faceKey]} face detected colors`}
+                aria-label={`${canonicalFaceName(faceKey)} face detected colors`}
                 onFocus={() =>
                   setHoveredNetCell({
                     face: faceKey,

@@ -79,10 +79,10 @@ for (const width of [1280, 390]) {
       ).toBe(true)
     }
     for (const [face, name] of [
-      ['u', 'Top'],
+      ['u', 'Up'],
       ['r', 'Right'],
       ['f', 'Front'],
-      ['d', 'Bottom'],
+      ['d', 'Down'],
       ['l', 'Left'],
       ['b', 'Back'],
     ]) {

@@ -2,6 +2,7 @@ import { useMemo, useState } from 'preact/hooks'
 import {
   assembleCubeFromFaces,
   type OrientedCandidate,
+  type FaceKey,
 } from '../../cube/cubeAssembly'
 import {
   captureFrame,
@@ -25,10 +26,10 @@ import {
   generateForProtocol,
   knownAlternatives,
   remaining,
-  nextSlot,
+  nextTarget,
   retainsMapping,
-  propose,
-  presentChoices,
+  proposeTarget,
+  presentTargetChoices,
   type SpatialDecision as Decision,
   type SpatialChoice as Choice,
 } from './spatialOrientationWizard'
@@ -54,7 +55,7 @@ interface Snapshot {
   draft: RecoveryDraft | null
   faces: Faces | null
   decisions: Decision[]
-  cursor: string | null
+  cursor: FaceKey | null
   warning: string | null
   savedSelection: boolean
   protocolSelection: boolean
@@ -153,19 +154,16 @@ export function useFaceRecovery({
   )
   const decisions = current.decisions
   const remainingCandidates = session ? remaining(session, decisions) : []
-  const activeSlot =
-    current.cursor ?? (session ? nextSlot(session, decisions) : null)
+  const activeTarget =
+    current.cursor ?? (session ? nextTarget(session, decisions) : null)
   const presentedChoices =
-    draft && session && activeSlot
-      ? presentChoices(
+    draft && session && activeTarget
+      ? presentTargetChoices(
           grids,
           session,
           decisions,
-          activeSlot,
+          activeTarget,
           draft.mapping,
-          draft.frontSlot,
-          draft.upSlot,
-          false,
         )
       : []
   const choices = presentedChoices.map((presented) => presented.choice)
@@ -295,7 +293,13 @@ export function useFaceRecovery({
   }
   const chooseOption = (choice: Choice) => {
     if (!draft || !session) return
-    const proposal = propose(grids, session, decisions, choice, draft.mapping)
+    const proposal = proposeTarget(
+      grids,
+      session,
+      decisions,
+      choice,
+      draft.mapping,
+    )
     if (!proposal) return
     update((previous) => ({
       ...previous,
@@ -303,7 +307,7 @@ export function useFaceRecovery({
       decisions: proposal.decisions,
       savedSelection: false,
       protocolSelection: false,
-      cursor: choice.slot,
+      cursor: choice.target,
       warning: proposal.conflicts.length
         ? `${proposal.conflicts.length} later answers need review.`
         : null,
@@ -311,15 +315,15 @@ export function useFaceRecovery({
   }
   const back = () => {
     const index = current.cursor
-      ? decisions.findIndex((decision) => decision.slot === current.cursor)
+      ? decisions.findIndex((decision) => decision.target === current.cursor)
       : decisions.length
     const previous = decisions[Math.max(0, index - 1)]
     if (previous)
-      update((snapshot) => ({ ...snapshot, cursor: previous.slot }), false)
+      update((snapshot) => ({ ...snapshot, cursor: previous.target }), false)
   }
   const next = () => {
     if (!selectedChoice || !draft || !session) return
-    const proposal = propose(
+    const proposal = proposeTarget(
       grids,
       session,
       decisions,
@@ -338,7 +342,7 @@ export function useFaceRecovery({
         ...previous,
         draft: { ...draft, mapping: proposal.mapping },
         decisions: proposal.decisions,
-        cursor: nextSlot(session, proposal.decisions),
+        cursor: nextTarget(session, proposal.decisions),
         savedSelection: false,
       }),
       !answered,
@@ -552,7 +556,7 @@ export function useFaceRecovery({
     decisions,
     session,
     remainingCandidates,
-    activeSlot,
+    activeTarget,
     choices,
     presentedChoices,
     chooseOption,
