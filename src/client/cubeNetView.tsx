@@ -219,7 +219,8 @@ export function CubeNetView({
           '--net-gap':
             puzzleSize >= 6 ? '1px' : puzzleSize >= 4 ? '2px' : '3px',
         }}
-        onMouseLeave={() => {
+        onPointerLeave={(event) => {
+          if (event.pointerType !== 'mouse') return
           setHoveredNetCell(null)
           setHoveredHighlightGroup(null)
         }}
@@ -326,7 +327,12 @@ export function CubeNetView({
                             )
                           : stickerColors[color] || '#888',
                       }}
-                      onMouseEnter={() => {
+                      onPointerMove={(event) => {
+                        if (
+                          event.pointerType !== 'mouse' ||
+                          (event.movementX === 0 && event.movementY === 0)
+                        )
+                          return
                         setHoveredNetCell({
                           face: faceKey,
                           index: i,
