@@ -143,3 +143,33 @@ it('returns an explicit manual-recovery explanation for invalid or missing sourc
     'Advanced manual recovery remains available',
   )
 })
+
+it('uses capture sequence order rather than the most ambiguous logical face', () => {
+  const make = (id: string, front: number, right: number) => ({
+    ...candidate(id, front),
+    mapping: [
+      placement(front),
+      { slot: 'R', target: 'R' as const, quarterTurns: right },
+    ],
+  })
+  const pool = {
+    ...session,
+    candidates: [make('a', 0, 0), make('b', 0, 1), make('c', 1, 2)],
+  }
+  expect(nextSlot(pool, [])).toBe('U')
+  expect(nextSlot(pool, [placement(0)])).toBe('R')
+  expect(
+    options(pool, [placement(0)], 'R').map((choice) => choice.quarterTurns),
+  ).toEqual([0, 1])
+})
+
+it('skips resolved slots while retaining every matching identity in a shared option', () => {
+  const pool = {
+    ...session,
+    candidates: [candidate('a', 0), candidate('b', 0)],
+  }
+  expect(nextSlot(pool, [])).toBeNull()
+  expect(options(pool, [], 'U')[0].candidateIds).toEqual(['a', 'b'])
+  expect(options(pool, [], 'U')[0].grid).toEqual(grid)
+  expect(previous([])).toEqual([])
+})
