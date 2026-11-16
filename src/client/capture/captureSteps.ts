@@ -16,7 +16,7 @@ import type { GuidedCenterIssue } from '../../cube/cubeAssembly'
 
 export const FACE_ORDER: string[] = faceOrder
 
-// New physical-v2 camera captures take four sides, then bottom and top.
+// New physical-v3 camera captures take Left, Front, Right, Back, Up, Down.
 // Slot IDs are capture steps; legacy source labels use their recorded protocol.
 export const CAPTURE_STEPS: Array<{
   label: string

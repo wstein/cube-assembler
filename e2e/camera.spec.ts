@@ -67,7 +67,7 @@ test('captures and re-detects a face from a live camera stream', async ({
   await expect(capture.locator('.capture-live-badge')).toContainText(
     'color match',
   )
-  await capture.getByRole('button', { name: 'Capture side 1' }).click()
+  await capture.getByRole('button', { name: 'Capture photo 1' }).click()
   await expect(capture.locator('.capture-net [data-slot="U"]')).toHaveAttribute(
     'aria-label',
     /captured/,
@@ -88,7 +88,7 @@ test('captures and re-detects a face from a live camera stream', async ({
   )
   await capture.locator('.capture-net [data-slot="U"]').click()
   await expect(capture).toContainText('Step 1 of 6')
-  await capture.getByRole('button', { name: 'Capture side 1' }).click()
+  await capture.getByRole('button', { name: 'Capture photo 1' }).click()
   // Retaking the only original shot leaves no original protocol observation.
   // The next source stays actionable under its neutral photo name.
   await expect(
@@ -98,7 +98,7 @@ test('captures and re-detects a face from a live camera stream', async ({
     await page.evaluate((face) => window.setTestCameraFace(face), index)
     await capture
       .getByRole('button', {
-        name: /^Capture (?:side [1-4]|top|bottom|photo [1-6])$/i,
+        name: /^Capture (?:side [1-4]|top|bottom|up|down|photo [1-6])$/i,
       })
       .click()
     await expect(page.locator('.capture-card')).toContainText(
@@ -187,7 +187,7 @@ test('net thumbnails stay unflipped in mirror mode, also after the fly-in', asyn
   const capture = page.locator('.capture-modal-content')
   await expect(capture.locator('.capture-live-badge')).toContainText('Live')
   await capture.getByLabel('Mirror').check()
-  await capture.getByRole('button', { name: 'Capture side 1' }).click()
+  await capture.getByRole('button', { name: 'Capture photo 1' }).click()
   const face = capture.locator(
     '.capture-net [data-slot="U"] .orientation-net-face',
   )
@@ -211,7 +211,7 @@ test('the turn cue is never flipped in mirror mode', async ({ page }) => {
   const capture = page.locator('.capture-modal-content')
   await expect(capture.locator('.capture-live-badge')).toContainText('Live')
   await capture.getByLabel('Mirror').check()
-  await capture.getByRole('button', { name: 'Capture side 1' }).click()
+  await capture.getByRole('button', { name: 'Capture photo 1' }).click()
   await expect(capture.locator('.capture-turn-overlay')).toBeVisible()
   await expect(capture.locator('.turn-hint')).toBeVisible()
   const flipped = (selector: string) =>
@@ -231,7 +231,7 @@ test('the turn cue shows the arrow and Continue, no instruction text', async ({
   await page.getByRole('button', { name: 'Capture faces' }).click()
   const capture = page.locator('.capture-modal-content')
   await expect(capture.locator('.capture-live-badge')).toContainText('Live')
-  await capture.getByRole('button', { name: 'Capture side 1' }).click()
+  await capture.getByRole('button', { name: 'Capture photo 1' }).click()
   const cue = capture.locator('.capture-turn-overlay')
   await expect(cue).toBeVisible()
   await expect(cue.locator('.capture-turn-direction').first()).toBeVisible()
@@ -252,7 +252,7 @@ test('the turn cue draws the selected cube size', async ({ page }) => {
   await page.getByRole('button', { name: 'Capture faces' }).click()
   const capture = page.locator('.capture-modal-content')
   await expect(capture.locator('.capture-live-badge')).toContainText('Live')
-  await capture.getByRole('button', { name: /^Capture side 1/i }).click()
+  await capture.getByRole('button', { name: /^Capture photo 1/i }).click()
   await expect(capture.locator('.capture-turn-overlay')).toBeVisible()
   const face = capture.locator('.capture-turn-front .capture-turn-sticker')
   await expect(face).toHaveCount(25)
@@ -272,7 +272,7 @@ test('the turn cue shows after each of the first five captures', async ({
     await page.evaluate((face) => window.setTestCameraFace(face), index)
     await capture
       .getByRole('button', {
-        name: /^Capture (?:side [1-4]|top|bottom|photo [1-6])$/i,
+        name: /^Capture (?:side [1-4]|top|bottom|up|down|photo [1-6])$/i,
       })
       .click()
     await expect(
@@ -296,7 +296,7 @@ test('a valid cube never starts the color review after the last capture', async 
     await page.evaluate((face) => window.setTestCameraFace(face), index)
     await capture
       .getByRole('button', {
-        name: /^Capture (?:side [1-4]|top|bottom|photo [1-6])$/i,
+        name: /^Capture (?:side [1-4]|top|bottom|up|down|photo [1-6])$/i,
       })
       .click()
   }
@@ -331,7 +331,7 @@ test('a mirrored 5x5 capture asks only whether it is your cube', async ({
     await page.evaluate((face) => window.setTestCameraFace(face), index)
     await capture
       .getByRole('button', {
-        name: /^Capture (?:side [1-4]|top|bottom|photo [1-6])$/i,
+        name: /^Capture (?:side [1-4]|top|bottom|up|down|photo [1-6])$/i,
       })
       .click()
   }
@@ -344,3 +344,55 @@ test('a mirrored 5x5 capture asks only whether it is your cube', async ({
   await page.getByRole('button', { name: 'No, check the colors' }).click()
   await expect(page.locator('.review-modal-content')).toBeVisible()
 })
+
+for (const mirrored of [true, false])
+  test(`numbered live slots stay fixed while ${mirrored ? 'mirrored' : 'unmirrored'} cap cues use the accepted pitch`, async ({
+    page,
+  }) => {
+    await installStubCamera(page)
+    await page.goto('/')
+    await page.getByRole('button', { name: 'Capture faces' }).click()
+    const capture = page.locator('.capture-modal-content')
+    const mirror = capture.getByRole('checkbox', { name: 'Mirror' })
+    await mirror.setChecked(mirrored)
+    const slots = ['U', 'R', 'F', 'D', 'L', 'B']
+    const areas = ['2 / 1', '2 / 2', '2 / 3', '2 / 4', '1 / 2', '3 / 2']
+    for (const [i, slot] of slots.entries()) {
+      const cell = capture.locator(`.capture-net [data-slot="${slot}"]`)
+      await expect(cell).toHaveCSS('grid-area', areas[i])
+      await expect(cell.locator('.capture-net-label')).toHaveText(String(i + 1))
+    }
+    for (let step = 0; step < 5; step++) {
+      await page.evaluate((index) => window.setTestCameraFace(index), step)
+      await capture
+        .getByRole('button', { name: /^Capture (?:photo [1-6]|up|down)$/i })
+        .click()
+      const cue = capture.locator('.capture-turn-overlay')
+      await expect(cue).toBeVisible()
+      const matrix = await cue
+        .locator('.capture-turn-cube')
+        .evaluate((element) => {
+          for (const animation of element.getAnimations()) animation.finish()
+          const m = new DOMMatrix(getComputedStyle(element).transform)
+          return {
+            xx: m.m11,
+            xz: m.m13,
+            yy: m.m22,
+            yz: m.m23,
+            zy: m.m32,
+            zz: m.m33,
+          }
+        })
+      if (step < 3) {
+        expect(matrix.xx).toBeCloseTo(0)
+        expect(matrix.xz).toBeCloseTo(1)
+      } else if (step === 3) {
+        expect(matrix.yz).toBeCloseTo(mirrored ? 1 : -1)
+        expect(matrix.zy).toBeCloseTo(mirrored ? -1 : 1)
+      } else {
+        expect(matrix.yy).toBeCloseTo(-1)
+        expect(matrix.zz).toBeCloseTo(-1)
+      }
+      await cue.getByRole('button', { name: 'Continue' }).click()
+    }
+  })

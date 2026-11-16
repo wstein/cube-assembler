@@ -69,8 +69,8 @@ export function FaceGrid({
 }
 
 // Live net in the capture dialog: the 4 sides in the order taken, with Top
-// (5) above and Bottom (6) below Side 2 (which way the cube was turned, and which
-// of the two is really the top, is only worked out once all 6 are in).
+// (5) above and Down (6) below step 2. These are source slots, not canonical
+// face identities; both mirror modes use this same numbered layout.
 // Each slot shows the colors detected for it, or a placeholder; tapping a
 // slot retakes it or jumps to it.
 export function CaptureNet({
@@ -129,15 +129,15 @@ export function CaptureNet({
       </button>
     )
   }
-  const [s1, s2, s3, s4, top, bottom] = faceOrder
+  const [s1, s2, s3, s4, up, down] = faceOrder
   return (
     <div class="capture-net" role="group" aria-label="Captured faces">
       {slot(s1, '2 / 1')}
       {slot(s2, '2 / 2')}
       {slot(s3, '2 / 3')}
       {slot(s4, '2 / 4')}
-      {slot(top, '1 / 2')}
-      {slot(bottom, '3 / 2')}
+      {slot(up, '1 / 2')}
+      {slot(down, '3 / 2')}
     </div>
   )
 }

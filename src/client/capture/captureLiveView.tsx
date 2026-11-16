@@ -170,6 +170,7 @@ export function CaptureLiveView({
           <CaptureTurnOverlay
             step={turnOverlay.step}
             size={puzzleSize}
+            mirrored={mirrorPreview}
             onContinue={onContinueTurn}
           />
         )}

@@ -27,21 +27,25 @@ export function TurnHint({ step }: { step: number }) {
   )
 }
 
-// A visual cue between successful captures. The turn shown is only an
-// example: the guided solver determines the real face orientation afterward.
+// The cue between successful captures follows the current guide.
+// Mirrored presentation preserves the accepted reference;
+// unmirrored cap cues reverse their visible pitch, without changing source data.
 export function CaptureTurnOverlay({
   step,
   size,
+  mirrored = false,
   onContinue,
 }: {
   step: number
   // Stickers per edge: the cue cube is drawn with the selected cube's grid.
   size: number
+  mirrored?: boolean
   onContinue: () => void
 }) {
   const kind = step < 4 ? 'side' : step === 4 ? 'top' : 'bottom'
-  const nextFace = kind === 'side' ? 'right' : kind === 'top' ? 'down' : 'back'
-  const viaFace = 'down'
+  const capFace = mirrored ? 'down' : 'up'
+  const nextFace = kind === 'side' ? 'right' : kind === 'top' ? capFace : 'back'
+  const viaFace = capFace
   const directionArrow = () => (
     <svg
       class={`capture-turn-direction capture-turn-direction-${kind}`}
@@ -72,7 +76,7 @@ export function CaptureTurnOverlay({
   )
   return (
     <div
-      class={`capture-turn-overlay capture-turn-${kind}`}
+      class={`capture-turn-overlay capture-turn-${kind}${mirrored ? '' : ' capture-turn-unmirrored'}`}
       role="status"
       aria-label="Turn the cube"
     >

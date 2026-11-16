@@ -18,7 +18,10 @@ function conflictedCapture() {
   delete meta.capture.assembledURFDLB
   delete meta.capture.faceRecovery
   for (const slot of ['U', 'R', 'F', 'D', 'L', 'B'])
-    meta.faces[slot.toLowerCase()].captureGuide = recordGuide(slot, true, false)
+    meta.faces[slot.toLowerCase()].captureGuide = {
+      ...recordGuide(slot, true, false)!,
+      protocol: 'sides-then-top-bottom/v2',
+    }
   expect(
     physicalSeed(readFixtureColors(meta)!.colors, 7).validation.valid,
   ).toBe(false)
@@ -109,12 +112,12 @@ test('six-photo capture saves before assembly and reimports the same physical-gu
   ).toHaveCount(0)
 })
 
-test('new camera introduction uses the same bottom-before-top order as the physical guide', async ({
+test('new camera introduction names the numbered sides followed by Up and Down', async ({
   page,
 }) => {
   await page.goto('/')
   await expect(page.locator('.capture-card .card-hint').first()).toContainText(
-    'bottom and top',
+    'Four numbered sides, then Up and Down',
   )
   await expect(
     page
