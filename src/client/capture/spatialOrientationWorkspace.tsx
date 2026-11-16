@@ -64,8 +64,7 @@ export function SpatialOrientationWorkspace({
         ))}
       </div>
       <p class="spatial-net-caption">
-        Outlined: current face and adjacent faces. Hover, focus, or tap a face
-        to consult its photo.
+        Hover, focus, or tap a face for its photo.
       </p>
       {photoFace && placement && photo?.croppedImage && (
         <aside

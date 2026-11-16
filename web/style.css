@@ -1316,3 +1316,8 @@ textarea {
   min-width: 44px;
   min-height: 44px;
 }
+
+.spatial-candidate[aria-pressed="true"] {
+  outline: 3px solid #1685ee;
+  outline-offset: 2px;
+}
