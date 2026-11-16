@@ -1,5 +1,10 @@
 import { expect, it } from 'vitest'
-import { rotateCube, solvedCubeFaces, turnFace } from '../src/cube/cubeGeometry'
+import {
+  allOrientations,
+  rotateCube,
+  solvedCubeFaces,
+  turnFace,
+} from '../src/cube/cubeGeometry'
 import { standardOrientation } from '../src/cube/CubeAssembly.gen'
 import {
   captureStep,
@@ -127,4 +132,65 @@ it('keeps legacy top-first imports and explicit retakes in their original slots'
   expect(retaken.faces.L.captureGuide!.protocol).toBe('retake/v1')
   for (const slot of slots.filter((slot) => slot !== 'L'))
     expect(retaken.faces[slot]).toEqual(original[slot])
+})
+
+it('routes different initial physical holds without interpreting capture IDs as canonical faces', () => {
+  for (const size of [3, 5, 7]) {
+    const solved = solvedCubeFaces(size, {
+      U: 'W',
+      R: 'R',
+      F: 'G',
+      D: 'Y',
+      L: 'O',
+      B: 'B',
+    })
+    const original = turnFace(turnFace(solved, 'R', 1), 'F', 3)
+    const orientations = allOrientations(original)
+    const initialPoses =
+      size === 3
+        ? orientations
+        : [orientations[1], orientations[7], orientations[19]]
+    for (const initial of initialPoses)
+      for (const mirrored of [false, true]) {
+        let held = initial
+        let captured: Record<string, FaceCaptureData> = {}
+        let requested: string | null = 'U'
+        for (let step = 0; step < 6; step++) {
+          if (step > 0 && step < 4) held = rotateCube(held, 'y', 1)
+          if (step === 4) held = rotateCube(held, 'x', 1)
+          if (step === 5) held = rotateCube(held, 'x', 2)
+          expect(requested).toBe(slots[step])
+          if (step >= 2)
+            expect(
+              sessionView(captured, requested!, size, []).predictedCenter,
+            ).toBe(held.F[Math.floor(size / 2)][Math.floor(size / 2)])
+          const result = captureStep(
+            captured,
+            requested!,
+            {
+              colors: held.F,
+              confidence: 1,
+              captureGuide: recordGuide(requested!, mirrored, false)!,
+            },
+            'camera',
+            undefined,
+            undefined,
+            size,
+            false,
+            step,
+          )
+          if (!result.ok) throw new Error(result.message)
+          expect(result.assignedFace).toBe(slots[step])
+          captured = result.faces
+          requested = result.nextFace
+        }
+        expect(captureProtocol(captured, null)).toBe(physicalProtocol)
+        const colors = Object.fromEntries(
+          Object.entries(captured).map(([slot, photo]) => [slot, photo.colors]),
+        )
+        expect(
+          generateForProtocol(colors, size, physicalProtocol).baseline!.faces,
+        ).toEqual(standardOrientation(original).faces)
+      }
+  }
 })
