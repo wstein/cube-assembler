@@ -221,7 +221,7 @@ let transformFaces = (faces: faceSet<grid>, index) => {
   if !Float.isFinite(value) || Math.floor(value) != value || index < 0 || index >= 24 {
     Null.null
   } else {
-    Null.make(CubeGeometry.allOrientations(toGeometry(faces))->Array.getUnsafe(index)->fromGeometry)
+    Null.make(CubeGeometry.orientationAt(toGeometry(faces), index)->fromGeometry)
   }
 }
 let inverseTransform = index => {
