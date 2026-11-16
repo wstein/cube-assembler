@@ -1,3 +1,13 @@
+import {
+  readFixtureColors,
+  readFixtureAssembled,
+} from '../src/client/fixtures/fixtureFormat'
+import { rotateCube, rotateGrid, type Faces } from '../src/cube/cubeGeometry'
+import { findCaptureForOrientedFace } from '../src/cube/capturedFaceMatching'
+import {
+  seedForProtocol,
+  mirroredProtocol,
+} from '../src/client/capture/guidedCaptureProtocol'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { expect, test, type Page } from '@playwright/test'
@@ -14,14 +24,18 @@ const photos = faceKeys.map((face) =>
   readFileSync(resolve(fixture, `face-${face}.jpg`)).toString('base64'),
 )
 
-async function installStubCamera(page: Page, frames = photos) {
+async function installStubCamera(
+  page: Page,
+  frames = photos,
+  turns = frames.map(() => 0),
+) {
   // Hands-free capture starts on; these tests press the capture buttons.
   await page.addInitScript(() => {
     if (!document.cookie.includes('cube-assembler-auto-capture='))
       document.cookie = 'cube-assembler-auto-capture=0; Path=/'
   })
   await page.addInitScript(
-    ({ frames }) => {
+    ({ frames, turns }) => {
       const canvas = document.createElement('canvas')
       canvas.width = 960
       canvas.height = 720
@@ -36,7 +50,11 @@ async function installStubCamera(page: Page, frames = photos) {
         await image.decode()
         context.fillStyle = '#777777'
         context.fillRect(0, 0, canvas.width, canvas.height)
-        context.drawImage(image, 264, 144, 432, 432)
+        context.save()
+        context.translate(480, 360)
+        context.rotate((turns[index] * Math.PI) / 2)
+        context.drawImage(image, -216, -216, 432, 432)
+        context.restore()
       }
       const stream = canvas.captureStream(10)
       Object.defineProperty(navigator.mediaDevices, 'getUserMedia', {
@@ -46,10 +64,57 @@ async function installStubCamera(page: Page, frames = photos) {
           return stream
         },
       })
-      window.setTestCameraFace = setFace
+      window.setTestCameraFace = async (index) => {
+        await setFace(index)
+        const video = document.querySelector('video')
+        if (video && video.readyState >= 2 && !video.paused)
+          await new Promise<void>((resolve) =>
+            video.requestVideoFrameCallback(() => resolve()),
+          )
+      }
     },
-    { frames },
+    { frames, turns },
   )
+}
+
+// Reuse the original JPEGs and their saved assembled state, not a chosen
+// solver output. Geometry supplies the v3 view; only JPEG order/rotation changes.
+function physicalCameraFrames() {
+  const meta = JSON.parse(readFileSync(resolve(fixture, 'meta.json'), 'utf8'))
+  const raw = readFixtureColors(meta)!.colors
+  const approved = readFixtureAssembled(meta)! as Faces
+  let held = rotateCube(approved, 'y', 1)
+  const grids: Record<string, string[][]> = {}
+  const transforms = faceKeys.map((slot, step) => {
+    if (step > 0 && step < 4) held = rotateCube(held, 'y', 1)
+    if (step === 4) held = rotateCube(held, 'x', -1)
+    if (step === 5) held = rotateCube(held, 'x', 2)
+    grids[slot.toUpperCase()] = held.F
+    const found = findCaptureForOrientedFace(
+      faceKeys.map((key) => raw[key.toUpperCase()]),
+      held.F,
+    )
+    if (!found) throw new Error('Saved physical view has no source JPEG')
+    expect(
+      rotateGrid(raw[faceKeys[found.slot].toUpperCase()], found.turns),
+    ).toEqual(held.F)
+    return found
+  })
+  expect(seedForProtocol(grids, 3, mirroredProtocol).validation.valid).toBe(
+    true,
+  )
+  expect(transforms).toEqual([
+    { slot: 3, turns: 1 },
+    { slot: 5, turns: 1 },
+    { slot: 1, turns: 3 },
+    { slot: 4, turns: 1 },
+    { slot: 0, turns: 0 },
+    { slot: 2, turns: 2 },
+  ])
+  return {
+    frames: transforms.map((found) => photos[found.slot]),
+    turns: transforms.map((found) => found.turns),
+  }
 }
 
 test('captures and re-detects a face from a live camera stream', async ({
@@ -57,7 +122,8 @@ test('captures and re-detects a face from a live camera stream', async ({
 }) => {
   test.setTimeout(120_000)
   await page.emulateMedia({ reducedMotion: 'reduce' })
-  await installStubCamera(page)
+  const physical = physicalCameraFrames()
+  await installStubCamera(page, physical.frames, physical.turns)
 
   await page.goto('/')
   await page.getByRole('button', { name: 'Capture faces' }).click()
@@ -287,7 +353,8 @@ test('a valid cube never starts the color review after the last capture', async 
   page,
 }) => {
   test.setTimeout(120_000)
-  await installStubCamera(page)
+  const physical = physicalCameraFrames()
+  await installStubCamera(page, physical.frames, physical.turns)
   await page.goto('/')
   await page.getByRole('button', { name: 'Capture faces' }).click()
   const capture = page.locator('.capture-modal-content')
