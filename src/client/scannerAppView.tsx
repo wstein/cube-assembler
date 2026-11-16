@@ -505,9 +505,14 @@ export function ScannerAppView({ model }: { model: ScannerAppModel }) {
             showColorInput={showColorInput}
             ignoreFixtureCorrections={ignoreFixtureCorrections}
             onOpenCapture={handleOpenCapture}
-            // The overview first: the photos, the detection and the
-            // question whether it is the user's cube.
-            onEditColors={() => handleConfirmReview()}
+            // Explicit color inspection must remain available even when
+            // no constrained assembly candidate can be confirmed.
+            onEditColors={() => {
+              if (recovery.captureConflict()) {
+                setReviewStep(reviewStartSlot(capturedFaces, FACE_ORDER))
+                setShowReviewDialog(true)
+              } else handleConfirmReview()
+            }}
             onUploadFiles={handleUploadFiles}
             onToggleColorInput={() => setShowColorInput(!showColorInput)}
             onApplySolved={handleApplySolved}
