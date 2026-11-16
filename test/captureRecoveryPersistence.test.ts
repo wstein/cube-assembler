@@ -123,6 +123,33 @@ describe('versioned exact face recovery', () => {
     const { record } = setup(3)
     const invalid = [
       { ...record, version: 2 },
+      { ...record, view: 'nonsense' },
+      {
+        ...record,
+        captureFrame: { ...record.captureFrame, turnDirection: 'nonsense' },
+      },
+      {
+        ...record,
+        captureFrame: {
+          ...record.captureFrame,
+          canonicalTransform: (record.captureFrame.canonicalTransform + 1) % 24,
+        },
+      },
+      {
+        ...record,
+        captureFrame: {
+          ...record.captureFrame,
+          guideObservations: [
+            {
+              slot: 'U',
+              step: 6,
+              mirrored: true,
+              displayedArrow: null,
+              protocol: 'retake/v1',
+            },
+          ],
+        },
+      },
       { ...record, transformConvention: 'unknown' },
       {
         ...record,
