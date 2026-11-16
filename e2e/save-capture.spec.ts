@@ -31,13 +31,11 @@ test('six-photo capture saves before assembly and reimports the same physical-gu
 }) => {
   const original = conflictedCapture()
   await page.goto('/')
-  await page
-    .locator('.capture-alternatives input[type="file"]')
-    .setInputFiles({
-      name: 'conflicting-guide.zip',
-      mimeType: 'application/zip',
-      buffer: original.bytes,
-    })
+  await page.locator('.capture-alternatives input[type="file"]').setInputFiles({
+    name: 'conflicting-guide.zip',
+    mimeType: 'application/zip',
+    buffer: original.bytes,
+  })
   await expect(
     page.getByRole('heading', { name: 'Match your cube', exact: true }),
   ).toBeVisible()
@@ -94,13 +92,11 @@ test('six-photo capture saves before assembly and reimports the same physical-gu
     ).toBe(true)
   }
   await page.goto('/')
-  await page
-    .locator('.capture-alternatives input[type="file"]')
-    .setInputFiles({
-      name: 'capture-only.zip',
-      mimeType: 'application/zip',
-      buffer: bytes,
-    })
+  await page.locator('.capture-alternatives input[type="file"]').setInputFiles({
+    name: 'capture-only.zip',
+    mimeType: 'application/zip',
+    buffer: bytes,
+  })
   await expect(
     page.getByRole('heading', { name: 'Match your cube', exact: true }),
   ).toBeVisible()
