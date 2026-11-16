@@ -89,10 +89,17 @@ test('captures and re-detects a face from a live camera stream', async ({
   await capture.locator('.capture-net [data-slot="U"]').click()
   await expect(capture).toContainText('Step 1 of 6')
   await capture.getByRole('button', { name: 'Capture side 1' }).click()
+  // Retaking the only original shot leaves no original protocol observation.
+  // The next source stays actionable under its neutral photo name.
+  await expect(
+    capture.getByRole('button', { name: 'Capture photo 2', exact: true }),
+  ).toBeEnabled()
   for (let index = 1; index < photos.length; index++) {
     await page.evaluate((face) => window.setTestCameraFace(face), index)
     await capture
-      .getByRole('button', { name: /^Capture (side|top|bottom)/i })
+      .getByRole('button', {
+        name: /^Capture (?:side [1-4]|top|bottom|photo [1-6])$/i,
+      })
       .click()
     await expect(page.locator('.capture-card')).toContainText(
       index === 5 ? 'All 6 captured' : `${index + 1} of 6 captured`,
@@ -264,7 +271,9 @@ test('the turn cue shows after each of the first five captures', async ({
   for (let index = 0; index < kinds.length; index++) {
     await page.evaluate((face) => window.setTestCameraFace(face), index)
     await capture
-      .getByRole('button', { name: /^Capture (side|top|bottom)/i })
+      .getByRole('button', {
+        name: /^Capture (?:side [1-4]|top|bottom|photo [1-6])$/i,
+      })
       .click()
     await expect(
       capture.locator(`.capture-turn-overlay.capture-turn-${kinds[index]}`),
@@ -286,7 +295,9 @@ test('a valid cube never starts the color review after the last capture', async 
   for (let index = 0; index < photos.length; index++) {
     await page.evaluate((face) => window.setTestCameraFace(face), index)
     await capture
-      .getByRole('button', { name: /^Capture (side|top|bottom)/i })
+      .getByRole('button', {
+        name: /^Capture (?:side [1-4]|top|bottom|photo [1-6])$/i,
+      })
       .click()
   }
   await expect(capture).not.toBeVisible()
@@ -319,7 +330,9 @@ test('a mirrored 5x5 capture asks only whether it is your cube', async ({
   for (let index = 0; index < frames.length; index++) {
     await page.evaluate((face) => window.setTestCameraFace(face), index)
     await capture
-      .getByRole('button', { name: /^Capture (side|top|bottom)/i })
+      .getByRole('button', {
+        name: /^Capture (?:side [1-4]|top|bottom|photo [1-6])$/i,
+      })
       .click()
   }
   await expect(capture).not.toBeVisible()
