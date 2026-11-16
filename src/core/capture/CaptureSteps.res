@@ -67,8 +67,9 @@ let sourcePhotoNames = (protocol: Null.t<string>) =>
 
 // A capture mistake read from odd-size centers, in words; photo indexes are
 // capture steps.
-let describeCenterIssue = (issue: CapturedFaceMatching.guidedCenterIssue) => {
-  let label = i => stepAt(i).label
+let describeCenterIssueForProtocol = (issue: CapturedFaceMatching.guidedCenterIssue, protocol) => {
+  let names = sourcePhotoNames(protocol)
+  let label = i => names->Array.getUnsafe(i)
   switch issue {
   | SameCenter({photos: (a, b)}) =>
     `${label(a)} and ${label(b)} show the same center - the same face photographed twice?`
@@ -80,6 +81,9 @@ let describeCenterIssue = (issue: CapturedFaceMatching.guidedCenterIssue) => {
     `${label(a)} and ${label(b)} should be opposite faces, but aren't.`
   }
 }
+
+let describeCenterIssue = issue =>
+  describeCenterIssueForProtocol(issue, Null.make(legacyGuidedProtocol))
 
 let faceDisplayLabel = Dict.fromArray(faceOrder->Array.map(face => (face, stepOf(face).label)))
 let faceShortLabel = Dict.fromArray(faceOrder->Array.map(face => (face, stepOf(face).short)))

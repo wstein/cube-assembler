@@ -34,3 +34,12 @@ type sessionView = {
 
 @genType
 let sessionView: (Dict.t<CaptureFlow.faceCaptureData>, string, int, array<string>) => sessionView
+
+@genType
+let sessionViewForProtocol: (
+  Dict.t<CaptureFlow.faceCaptureData>,
+  string,
+  int,
+  array<string>,
+  Null.t<string>,
+) => sessionView

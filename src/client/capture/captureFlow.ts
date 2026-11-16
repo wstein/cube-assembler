@@ -23,6 +23,10 @@ import type {
 export {
   captureEvidence,
   captureWarning,
+  captureWarningForProtocol,
+  sourcePresentationProtocol,
+  sourcePhotoNamesForCapture,
+  capturedFaceMessageForCapture,
   capturedFaceMessage,
   checkParity,
   isGuidedCapture,
@@ -30,7 +34,10 @@ export {
   parityStatus,
   parseCubeInput,
 } from '../../core/capture/CaptureFlow.gen'
-export { sessionView } from '../../core/capture/CaptureSession.gen'
+export {
+  sessionView,
+  sessionViewForProtocol,
+} from '../../core/capture/CaptureSession.gen'
 
 export type {
   captureWarning as CaptureWarning,
@@ -90,11 +97,12 @@ export function captureStep(
   size: number,
   reducedMotion: boolean,
   now = Date.now(),
+  sourceLabelProtocol: string | null = null,
 ): step {
   return captureStepRes(
     faces,
     face,
-    reading,
+    { ...reading, sourceLabelProtocol: sourceLabelProtocol ?? undefined },
     source,
     cameraSettings,
     previewColorProfile,
