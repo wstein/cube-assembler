@@ -25,7 +25,7 @@ test('correct 7x7 photos can be adjusted after rejecting a valid suggestion', as
     }),
   ).toBeVisible()
   await page
-    .getByText('Advanced manual orientation / assignment recovery', {
+    .getByText('Advanced recovery', {
       exact: true,
     })
     .click()
@@ -62,7 +62,7 @@ async function openArchive(
     })
     .click()
   await page
-    .getByText('Advanced manual orientation / assignment recovery', {
+    .getByText('Advanced recovery', {
       exact: true,
     })
     .click()

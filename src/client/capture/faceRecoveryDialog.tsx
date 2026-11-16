@@ -242,19 +242,25 @@ export function FaceRecoveryDialog({
                       answer or use Advanced manual recovery.
                     </p>
                   )}
-                <h3>Which of these matches your physical cube?</h3>
+                <h3>
+                  {recovery.activeSlot
+                    ? 'Choose the matching face.'
+                    : 'Review your cube.'}
+                </h3>
                 <p role="status">
-                  {recovery.remainingCandidates.length} retained candidates
-                  remain.{' '}
+                  {recovery.remainingCandidates.length} retained candidates.{' '}
                   {recovery.session?.truncated
-                    ? 'Search was capped; other arrangements may exist.'
-                    : 'Color-equivalent and whole-cube poses may have been deduplicated; this is not an exhaustive photo-identity search.'}
+                    ? 'Search capped; other matches may exist.'
+                    : 'Equivalent arrangements may be omitted.'}
                 </p>
-                {recovery.session?.issues.map((issue) => (
-                  <p key={issue} class="capture-warning">
-                    {issue}
-                  </p>
-                ))}
+                <details>
+                  <summary>Search details</summary>
+                  {recovery.session?.issues.map((issue) => (
+                    <p key={issue} class="capture-warning">
+                      {issue}
+                    </p>
+                  ))}
+                </details>
                 {recovery.activeSlot ? (
                   <>
                     <p>
@@ -262,7 +268,7 @@ export function FaceRecoveryDialog({
                       {LABELS[
                         FACE_ORDER.indexOf(recovery.activeSlot as FaceKey)
                       ] ?? recovery.activeSlot}
-                      , starting with the first captured front face.
+                      .
                     </p>
                     <div class="spatial-candidates">
                       {recovery.choices.map((choice, i) => (
@@ -287,8 +293,8 @@ export function FaceRecoveryDialog({
                 ) : (
                   <p>
                     {recovery.remainingCandidates.length
-                      ? 'The retained choices are resolved. Inspect the cube and confirm its capture frame below.'
-                      : 'No retained candidate matches these choices. Use Advanced manual recovery; your real arrangement may be missing from this search.'}
+                      ? 'Choices resolved. Check the cube and capture frame.'
+                      : 'No retained match. Use Advanced recovery; other arrangements may exist.'}
                   </p>
                 )}
                 <button
@@ -314,11 +320,7 @@ export function FaceRecoveryDialog({
                   Next
                 </button>
               </section>
-              <p>
-                Original photos and detected colors stay unchanged. Rotate each
-                photo, or change whole-face assignments on even cubes. Closing
-                keeps the draft; only Confirm applies it.
-              </p>
+              <p>Originals stay unchanged; Confirm applies your changes.</p>
               {discardsViewerEdits && (
                 <p class="capture-warning">
                   Confirming orientation edits reconstructs the original
@@ -331,23 +333,8 @@ export function FaceRecoveryDialog({
                   {recovery.importWarning}
                 </p>
               )}
-              {recovery.context?.mirrored && (
-                <p>
-                  The recorded camera preview was mirrored. Original photo grids
-                  are not mirrored again during correction.
-                </p>
-              )}
-              {size % 2 === 1 && (
-                <p>
-                  Fixed center colors determine logical faces on this odd cube.
-                  Face assignments are locked; each photo can rotate
-                  independently.
-                </p>
-              )}
               <details class="spatial-advanced">
-                <summary>
-                  Advanced manual orientation / assignment recovery
-                </summary>
+                <summary>Advanced recovery</summary>
                 <div class="face-recovery-photos">
                   {FACE_ORDER.map((slot, i) => {
                     const placement = draft.mapping.find((p) => p.slot === slot)
@@ -358,7 +345,10 @@ export function FaceRecoveryDialog({
                         key={slot}
                         aria-label={`${LABELS[i]} correction`}
                       >
-                        <h3>{LABELS[i]}</h3>
+                        <h3>
+                          {LABELS[i]} → {placement.target} ·{' '}
+                          {placement.quarterTurns * 90}°
+                        </h3>
                         <div class="face-recovery-image">
                           {captured[slot]?.croppedImage && (
                             <img
@@ -371,7 +361,7 @@ export function FaceRecoveryDialog({
                           )}
                         </div>
                         <label>
-                          Assign {LABELS[i]} to{' '}
+                          Face{' '}
                           <select
                             aria-label={`Assign ${LABELS[i]} to face`}
                             value={placement.target}
@@ -426,14 +416,9 @@ export function FaceRecoveryDialog({
                 </div>
               </details>
               <fieldset>
-                <legend>Capture-relative view</legend>
-                <p>
-                  The old guide allows either turning direction and either cap
-                  order. It cannot establish one absolute pose. Keep Side 1 at
-                  the front and confirm which captured photo was on top.
-                </p>
+                <legend>Capture frame</legend>
                 <label>
-                  Front photo{' '}
+                  Front{' '}
                   <select
                     aria-label="Capture front photo"
                     value={draft.frontSlot}
@@ -452,7 +437,7 @@ export function FaceRecoveryDialog({
                   </select>
                 </label>
                 <label>
-                  Top photo{' '}
+                  Top{' '}
                   <select
                     aria-label="Capture top photo"
                     value={draft.upSlot}
@@ -473,41 +458,60 @@ export function FaceRecoveryDialog({
                 <label>
                   <input
                     type="checkbox"
+                    aria-label="I confirm this front and top match how I held the cube."
                     checked={draft.confirmed}
                     onChange={(e) =>
                       recovery.edit({ confirmed: e.currentTarget.checked })
                     }
                   />{' '}
-                  I confirm this front and top match how I held the cube.
+                  Front and top match my cube.
                 </label>
-                <label>
-                  Physical lateral turn{' '}
-                  <select
-                    aria-label="Physical lateral turn direction"
-                    value={draft.turnDirection}
-                    onChange={(e) =>
-                      recovery.edit({ turnDirection: e.currentTarget.value })
-                    }
-                  >
-                    <option value="unknown">Not recorded / unknown</option>
-                    <option value="left">Left</option>
-                    <option value="right">Right</option>
-                  </select>
-                </label>
-                <label>
-                  Cap order{' '}
-                  <select
-                    aria-label="Capture cap order"
-                    value={draft.capOrder}
-                    onChange={(e) =>
-                      recovery.edit({ capOrder: e.currentTarget.value })
-                    }
-                  >
-                    <option value="unknown">Not recorded / unknown</option>
-                    <option value="top-bottom">Top then bottom</option>
-                    <option value="bottom-top">Bottom then top</option>
-                  </select>
-                </label>
+                <details>
+                  <summary>Capture details</summary>
+                  {recovery.context?.mirrored && (
+                    <p>
+                      Mirrored preview recorded; photos are not mirrored again.
+                    </p>
+                  )}
+                  {size % 2 === 1 && (
+                    <p>
+                      Fixed centers lock face assignments; rotations remain
+                      editable.
+                    </p>
+                  )}
+                  <p>
+                    The old guide did not record a unique pose. Confirm the
+                    front and top you used.
+                  </p>
+                  <label>
+                    Physical lateral turn{' '}
+                    <select
+                      aria-label="Physical lateral turn direction"
+                      value={draft.turnDirection}
+                      onChange={(e) =>
+                        recovery.edit({ turnDirection: e.currentTarget.value })
+                      }
+                    >
+                      <option value="unknown">Not recorded / unknown</option>
+                      <option value="left">Left</option>
+                      <option value="right">Right</option>
+                    </select>
+                  </label>
+                  <label>
+                    Cap order{' '}
+                    <select
+                      aria-label="Capture cap order"
+                      value={draft.capOrder}
+                      onChange={(e) =>
+                        recovery.edit({ capOrder: e.currentTarget.value })
+                      }
+                    >
+                      <option value="unknown">Not recorded / unknown</option>
+                      <option value="top-bottom">Top then bottom</option>
+                      <option value="bottom-top">Bottom then top</option>
+                    </select>
+                  </label>
+                </details>
                 <label>
                   Preview frame{' '}
                   <select
@@ -540,14 +544,15 @@ export function FaceRecoveryDialog({
                   </p>
                 ))}
                 {validation?.parity?.detail && (
-                  <p>{validation.parity.detail}</p>
+                  <details>
+                    <summary>Check details</summary>
+                    <p>{validation.parity.detail}</p>
+                  </details>
                 )}
                 {validation?.valid && (
                   <p role="status">
-                    Available mechanical checks passed.
-                    {size >= 4
-                      ? ' Full NxN reachability is not established by these checks.'
-                      : ''}
+                    Available checks passed.
+                    {size >= 4 ? ' Full NxN reachability unverified.' : ''}
                   </p>
                 )}
               </section>
