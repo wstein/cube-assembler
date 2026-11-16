@@ -385,17 +385,12 @@ type protocolSession = {
   issues: array<string>,
 }
 let generateForProtocol = (captured, size, protocol: Null.t<string>): protocolSession => {
-  let session = generate(
-    captured,
-    size,
-    protocol
-    ->Null.toOption
-    ->Option.mapOr(false, value =>
-      value == GuidedCaptureProtocol.physicalProtocol ||
-        value == GuidedCaptureProtocol.legacyProtocol
-    ),
-  )
   if protocol->Null.toOption != Some(GuidedCaptureProtocol.physicalProtocol) {
+    let session = generate(
+      captured,
+      size,
+      protocol->Null.toOption == Some(GuidedCaptureProtocol.legacyProtocol),
+    )
     {
       session,
       baseline: Null.null,
@@ -405,6 +400,15 @@ let generateForProtocol = (captured, size, protocol: Null.t<string>): protocolSe
       ],
     }
   } else {
+    let session: session = {
+      candidates: [],
+      truncated: false,
+      guided: true,
+      equivalenceReduced: false,
+      issues: size >= 4
+        ? ["Existing checks do not establish complete large-cube reachability."]
+        : [],
+    }
     let seed = GuidedCaptureProtocol.physicalSeed(captured, size)
     switch seed.validation.faces->Null.toOption {
     | Some(faces) if seed.validation.valid =>
@@ -416,10 +420,8 @@ let generateForProtocol = (captured, size, protocol: Null.t<string>): protocolSe
         issues: seed.validation.issues,
         fullCubeValidityKnown: size <= 3,
       }
-      // Keep the exact physical proposal alongside the legacy solver's
-      // feasible representatives; no color-content match replaces its IDs.
       {
-        session: {...session, candidates: [baseline, ...session.candidates]},
+        session: {...session, candidates: [baseline]},
         baseline: Null.make(baseline),
         baselineStatus: "checked",
         issues: [],
@@ -429,7 +431,7 @@ let generateForProtocol = (captured, size, protocol: Null.t<string>): protocolSe
         baseline: Null.null,
         baselineStatus: "conflict",
         issues: [
-          "The recorded physical guide conflicts with the existing cube checks. Other feasible candidates require explicit review.",
+          "The recorded physical guide conflicts with existing cube checks. Review sticker colors or return to capture; no alternative physical state has been substituted.",
           ...seed.validation.issues,
         ],
       }
