@@ -24,7 +24,6 @@ import {
   remaining,
   nextSlot,
   retainsMapping,
-  matchesDecision,
   propose,
   presentChoices,
   type SpatialDecision as Decision,
