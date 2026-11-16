@@ -107,3 +107,22 @@ type protocolSession = {
   issues: array<string>,
 }
 @genType let generateForProtocol: (Dict.t<CubeTypes.grid>, int, Null.t<string>) => protocolSession
+
+@genType let targetOptions: (session, array<decision>, CubeState.faceKey) => array<choice>
+@genType let nextTarget: (session, array<decision>) => Null.t<CubeState.faceKey>
+@genType
+let proposeTarget: (
+  Dict.t<CubeTypes.grid>,
+  session,
+  array<decision>,
+  decision,
+  CaptureFaceMapping.mapping,
+) => Null.t<proposal>
+@genType
+let presentTargetChoices: (
+  Dict.t<CubeTypes.grid>,
+  session,
+  array<decision>,
+  CubeState.faceKey,
+  CaptureFaceMapping.mapping,
+) => array<presentedChoice>

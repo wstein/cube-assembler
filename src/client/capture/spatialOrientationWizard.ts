@@ -1,6 +1,10 @@
 // Candidate generation and incremental decisions remain ReScript-owned.
 export {
   generate,
+  targetOptions,
+  nextTarget,
+  proposeTarget,
+  presentTargetChoices,
   generateForProtocol,
   knownAlternatives,
   presentChoices,
