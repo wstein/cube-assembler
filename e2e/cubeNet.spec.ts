@@ -26,7 +26,7 @@ test('shows a solved cube on first load without marking faces as captured', asyn
   await expect(page.locator('.cube-net .net-u .net-cell')).toHaveCount(25)
 })
 
-test('shows sticker details on hover and clears them on leaving the net', async ({
+test('announces sticker details on hover and clears them on leaving the net', async ({
   page,
 }) => {
   await page.goto('/')
@@ -35,9 +35,16 @@ test('shows sticker details on hover and clears them on leaving the net', async 
   const net = page.locator('.cube-net')
   await expect(net).toBeVisible()
   await net.locator('.net-u .net-cell').first().hover()
-  await expect(net.locator('.net-info')).toContainText('Up')
+  await expect(net.locator('.net-info')).toHaveAttribute(
+    'aria-label',
+    'Up · corner piece',
+  )
+  await expect(net.locator('.net-info-title')).toHaveCount(0)
+  await expect(net.locator('.net-cell-piece')).toHaveCount(3)
 
   await page.locator('.notation-card').hover()
+  await expect(net.locator('.net-info')).not.toHaveAttribute('aria-label')
+  await expect(net.locator('.net-cell-piece')).toHaveCount(0)
   await expect(net.locator('.net-info')).toContainText('Point at a sticker')
 })
 
