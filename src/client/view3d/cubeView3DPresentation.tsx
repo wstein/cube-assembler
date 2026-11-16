@@ -31,6 +31,7 @@ interface CubeView3DPresentationProps {
   toggleScramble: () => void
   randomState: () => void
   undoLastTurn: () => void
+  publicMoves?: CubeTurn[]
   moves: CubeTurn[]
   isTurning: boolean
   resetCube: () => void
@@ -67,6 +68,7 @@ export function CubeView3DPresentation({
   randomState,
   undoLastTurn,
   moves,
+  publicMoves = moves,
   isTurning,
   resetCube,
   isInitialCube,
@@ -279,8 +281,8 @@ export function CubeView3DPresentation({
               aria-label="Move history"
             >
               Moves:{' '}
-              {moves.length
-                ? moves
+              {publicMoves.length
+                ? publicMoves
                     .map((move) => formatCubeTurn(move, puzzleSize))
                     .join(' ')
                 : 'None'}
@@ -290,7 +292,7 @@ export function CubeView3DPresentation({
               id={CUBELAB_MOVES_ID}
               // Escaped JSON (no "<"), so it cannot end the element early.
               dangerouslySetInnerHTML={{
-                __html: cubeLabMovesJson(moves, puzzleSize),
+                __html: cubeLabMovesJson(publicMoves, puzzleSize),
               }}
             />
 

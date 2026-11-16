@@ -24,6 +24,7 @@ export interface CubeView3DProps {
   allowLayerMoves?: boolean
   cube: CubeState
   initialCube?: CubeState
+  publicMoves?: (moves: CubeTurn[]) => CubeTurn[]
   initialMoves?: CubeTurn[]
   initialFrame?: ColorFrame
   onTurnStateChange?: (
@@ -41,6 +42,7 @@ const LOCKED_HINT_VISIBLE_MS = 2500
 
 export function CubeView3D({
   allowLayerMoves = true,
+  publicMoves,
   cube,
   initialCube = cube,
   initialMoves = [],
@@ -216,6 +218,7 @@ export function CubeView3D({
       randomState={allowLayerMoves ? randomState : () => {}}
       undoLastTurn={undoLastTurn}
       moves={moves}
+      publicMoves={publicMoves?.(moves)}
       isTurning={isTurning}
       resetCube={resetCube}
       isInitialCube={isInitialCube}
