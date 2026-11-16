@@ -50,6 +50,21 @@ let turnHintArrowAngle = step => step < 4 ? 270 : 0
 let guidedProtocol = GuidedCaptureProtocol.physicalProtocol
 let legacyGuidedProtocol = GuidedCaptureProtocol.legacyProtocol
 
+// Capture source names describe recorded steps, not logical cube sides.
+let sourcePhotoNames = (protocol: Null.t<string>) =>
+  switch protocol->Null.toOption {
+  | Some(value) if value == guidedProtocol => captureSteps->Array.map(step => step.label)
+  | Some(value) if value == legacyGuidedProtocol => [
+      "Side 1",
+      "Side 2",
+      "Side 3",
+      "Side 4",
+      "Top",
+      "Bottom",
+    ]
+  | _ => Array.fromInitializer(~length=6, i => `Photo ${Int.toString(i + 1)}`)
+  }
+
 // A capture mistake read from odd-size centers, in words; photo indexes are
 // capture steps.
 let describeCenterIssue = (issue: CapturedFaceMatching.guidedCenterIssue) => {
