@@ -435,7 +435,7 @@ export function CubeNetView({
             <>
               {hoveredInfo.photo && (
                 <p class="net-info-title">
-                  {hoveredInfo.faceName} · Original photo
+                  {hoveredInfo.faceName} · Photo
                 </p>
               )}
               {hoveredInfo.photo && (
