@@ -82,11 +82,13 @@ export function useFaceRecovery({
   guided,
   onChoose,
   onCommitFaces,
+  onCancel,
 }: {
   capturedFaces: Faces
   size: number
   mirrored: boolean
   guided: boolean
+  onCancel: () => void
   onCommitFaces: (faces: Faces) => void
   onChoose: (candidate: OrientedCandidate, recovery?: CaptureRecovery) => void
 }) {
@@ -238,7 +240,7 @@ export function useFaceRecovery({
     }
   }
   const begin = (candidate: OrientedCandidate | null) => {
-    if (!draft) {
+    {
       const first: Snapshot = {
         ...emptySnapshot(),
         draft: initialDraft(
@@ -265,34 +267,10 @@ export function useFaceRecovery({
         ? { ...previous, draft: { ...previous.draft, ...patch } }
         : previous,
     )
-  const undo = () =>
-    setTransaction((previous) => {
-      const snapshot = previous.history.at(-1)
-      return snapshot
-        ? {
-            ...previous,
-            current: snapshot,
-            history: previous.history.slice(0, -1),
-          }
-        : previous
-    })
-  const resetDraft = () =>
-    setTransaction((previous) =>
-      previous.initial
-        ? {
-            ...previous,
-            current: previous.initial,
-            history: [...previous.history, previous.current],
-          }
-        : previous,
-    )
   const cancel = () => {
-    setTransaction((previous) => ({
-      ...previous,
-      current: previous.initial ?? emptySnapshot(),
-      history: [],
-    }))
+    setTransaction({ current: emptySnapshot(), initial: null, history: [] })
     setOpen(false)
+    onCancel()
   }
   const chooseOption = (choice: Choice) => {
     if (!draft || !session) return
@@ -310,7 +288,7 @@ export function useFaceRecovery({
       decisions: proposal.decisions,
       savedSelection: false,
       protocolSelection: false,
-      cursor: choice.target,
+      cursor: nextTarget(session, proposal.decisions),
       warning: proposal.conflicts.length
         ? `${proposal.conflicts.length} later answers need review.`
         : null,
@@ -323,33 +301,6 @@ export function useFaceRecovery({
     const previous = decisions[Math.max(0, index - 1)]
     if (previous)
       update((snapshot) => ({ ...snapshot, cursor: previous.target }), false)
-  }
-  const next = () => {
-    if (!selectedChoice || !draft || !session) return
-    const proposal = proposeTarget(
-      grids,
-      session,
-      decisions,
-      selectedChoice,
-      draft.mapping,
-    )
-    if (!proposal) return
-    const answered = decisions.some(
-      (decision) =>
-        decision.slot === selectedChoice.slot &&
-        decision.target === selectedChoice.target &&
-        decision.quarterTurns === selectedChoice.quarterTurns,
-    )
-    update(
-      (previous) => ({
-        ...previous,
-        draft: { ...draft, mapping: proposal.mapping },
-        decisions: proposal.decisions,
-        cursor: nextTarget(session, proposal.decisions),
-        savedSelection: false,
-      }),
-      !answered,
-    )
   }
   const validation = draft ? validateMapping(grids, draft.mapping, size) : null
   const directFrame = draft
@@ -577,7 +528,6 @@ export function useFaceRecovery({
     presentedChoices,
     chooseOption,
     back,
-    next,
     draft,
     history: transaction.history,
     approved,
@@ -591,10 +541,8 @@ export function useFaceRecovery({
     reset: () => loadContext(null),
     begin,
     edit,
-    undo,
-    resetDraft,
     cancel,
-    close: () => setOpen(false),
+    close: cancel,
     confirm,
     validation,
     frame,

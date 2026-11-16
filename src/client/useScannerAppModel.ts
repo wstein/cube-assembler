@@ -140,6 +140,7 @@ export function useScannerAppModel() {
   const recovery = useFaceRecovery({
     capturedFaces,
     onCommitFaces: setCapturedFaces,
+    onCancel: () => resumeOrientationReview(),
     size: puzzleSize,
     mirrored: mirrorPreview,
     guided: isGuided(),
@@ -158,6 +159,7 @@ export function useScannerAppModel() {
     reviewNotice,
     setReviewNotice,
     clearOrientationReview,
+    resumeOrientationReview,
     handleConfirmReview,
     handleRejectOrientation,
     handleWizardPick,

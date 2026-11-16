@@ -1,6 +1,6 @@
 import { canonicalFaceName } from './canonicalFaceNames'
 import { lazy, Suspense } from 'preact/compat'
-import { useRef, useState } from 'preact/hooks'
+import { useEffect, useRef, useState } from 'preact/hooks'
 import type { TargetedKeyboardEvent } from 'preact'
 import { assembleCubeFromFaces, type FaceKey } from '../../cube/cubeAssembly'
 import { FaceGrid } from './captureNet'
@@ -44,6 +44,15 @@ export function FaceRecoveryDialog({
   focusDialog: (element: HTMLElement | null) => void
   onDialogKeyDown: (event: TargetedKeyboardEvent<HTMLDivElement>) => void
 }) {
+  const choiceLockedUntil = useRef(0)
+  const [selectionPending, setSelectionPending] = useState(false)
+  const unlockTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  useEffect(
+    () => () => {
+      if (unlockTimer.current !== null) clearTimeout(unlockTimer.current)
+    },
+    [],
+  )
   const captured = recovery.workingFaces
   const [inspectedFace, setInspectedFace] = useState<FaceKey | null>(null)
   const [colorFace, setColorFace] = useState<string | null>(null)
@@ -148,15 +157,23 @@ export function FaceRecoveryDialog({
           tabIndex={-1}
           ref={focusDialog}
           onKeyDown={onDialogKeyDown}
+          onPointerUpCapture={() => {
+            if (performance.now() < choiceLockedUntil.current)
+              requestAnimationFrame(() =>
+                document
+                  .querySelector<HTMLElement>(
+                    '#spatial-choice-title, #spatial-review-title',
+                  )
+                  ?.focus(),
+              )
+          }}
         >
           <div class="modal-header">
-            <h2 id="face-recovery-title">
-              Adjust face orientations / assignments
-            </h2>
+            <h2 id="face-recovery-title">Match your cube</h2>
             <button
               type="button"
               class="modal-close"
-              aria-label="Close and keep orientation draft"
+              aria-label="Close"
               onClick={recovery.close}
             >
               ×
@@ -275,7 +292,7 @@ export function FaceRecoveryDialog({
               )}
               {stage === 'choice' && (
                 <section aria-label="Orientation candidate choices">
-                  <h3>
+                  <h3 id="spatial-choice-title" tabIndex={-1}>
                     Which matches{' '}
                     {canonicalFaceName(recovery.activeTarget ?? 'F')}?
                   </h3>
@@ -286,6 +303,9 @@ export function FaceRecoveryDialog({
                         <button
                           type="button"
                           class="spatial-candidate"
+                          disabled={selectionPending}
+                          data-source-slot={choice.slot}
+                          data-quarter-turns={choice.quarterTurns}
                           key={`${choice.slot}-${choice.target}-${choice.quarterTurns}`}
                           aria-label={`Choose ${canonicalFaceName(view.target)}, ${relativeTurns * 90}° clockwise, option ${i + 1}`}
                           aria-pressed={
@@ -294,9 +314,34 @@ export function FaceRecoveryDialog({
                             recovery.selectedChoice.quarterTurns ===
                               choice.quarterTurns
                           }
-                          onClick={() => {
+                          onClick={(event) => {
+                            if (
+                              event.detail > 1 ||
+                              performance.now() < choiceLockedUntil.current
+                            ) {
+                              event.preventDefault()
+                              document
+                                .querySelector<HTMLElement>(
+                                  '#spatial-choice-title, #spatial-review-title',
+                                )
+                                ?.focus()
+                              return
+                            }
+                            choiceLockedUntil.current = performance.now() + 350
+                            setSelectionPending(true)
+                            unlockTimer.current = setTimeout(
+                              () => setSelectionPending(false),
+                              350,
+                            )
                             setInspectedFace(null)
                             recovery.chooseOption(choice)
+                            queueMicrotask(() =>
+                              document
+                                .querySelector<HTMLElement>(
+                                  '#spatial-choice-title, #spatial-review-title',
+                                )
+                                ?.focus(),
+                            )
                           }}
                         >
                           <FaceGrid colors={view.grid} stickerColors={colors} />
@@ -310,7 +355,11 @@ export function FaceRecoveryDialog({
                   </div>
                 </section>
               )}
-              {stage === 'review' && <h3>Ready to use this cube?</h3>}
+              {stage === 'review' && (
+                <h3 id="spatial-review-title" tabIndex={-1}>
+                  Ready to use this cube?
+                </h3>
+              )}
               {stage === 'conflict' && <h3>Review the captured input.</h3>}
               {!recovery.remainingCandidates.length && (
                 <p class="capture-warning" role="status">
@@ -353,25 +402,7 @@ export function FaceRecoveryDialog({
               class="btn btn-secondary btn-sm"
               onClick={recovery.cancel}
             >
-              Cancel changes
-            </button>
-            <button
-              type="button"
-              class="btn btn-secondary btn-sm"
-              aria-label="Undo orientation edit"
-              disabled={!!colorFace || !recovery.history.length}
-              onClick={recovery.undo}
-            >
-              Undo
-            </button>
-            <button
-              type="button"
-              class="btn btn-secondary btn-sm"
-              aria-label="Reset orientation draft"
-              disabled={!!colorFace}
-              onClick={recovery.resetDraft}
-            >
-              Reset
+              Cancel
             </button>
             {!colorFace && recovery.decisions.length > 0 && (
               <button
@@ -379,6 +410,10 @@ export function FaceRecoveryDialog({
                 class="btn btn-secondary"
                 onClick={() => {
                   setInspectedFace(null)
+                  choiceLockedUntil.current = 0
+                  if (unlockTimer.current !== null)
+                    clearTimeout(unlockTimer.current)
+                  setSelectionPending(false)
                   recovery.back()
                 }}
               >
@@ -402,19 +437,6 @@ export function FaceRecoveryDialog({
                 Check a face
               </button>
             )}
-            {!colorFace && stage === 'choice' && (
-              <button
-                type="button"
-                class="btn btn-primary"
-                disabled={!recovery.selectedChoice}
-                onClick={() => {
-                  setInspectedFace(null)
-                  recovery.next()
-                }}
-              >
-                Next
-              </button>
-            )}
             {!colorFace && stage === 'review' && (
               <>
                 {recovery.confirmBlockedReason && (
@@ -425,13 +447,20 @@ export function FaceRecoveryDialog({
                 <button
                   type="button"
                   class="btn btn-primary"
-                  disabled={!!recovery.confirmBlockedReason}
+                  disabled={selectionPending || !!recovery.confirmBlockedReason}
                   aria-describedby={
                     recovery.confirmBlockedReason
                       ? 'recovery-confirm-reason'
                       : undefined
                   }
-                  onClick={recovery.confirm}
+                  onClick={(event) => {
+                    if (
+                      event.detail > 1 ||
+                      performance.now() < choiceLockedUntil.current
+                    )
+                      return
+                    recovery.confirm()
+                  }}
                 >
                   Use this cube
                 </button>
