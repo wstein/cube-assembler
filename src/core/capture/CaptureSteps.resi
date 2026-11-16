@@ -28,3 +28,5 @@ type mark = | @as("corrected") Corrected | @as("flagged") Flagged
 
 @genType
 let stickerMark: (Nullable.t<string>, string, float, Nullable.t<string>) => Null.t<mark>
+
+@genType let sourcePhotoNames: Null.t<string> => array<string>

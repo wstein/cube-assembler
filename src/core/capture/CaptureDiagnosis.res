@@ -54,13 +54,18 @@ let diagnose = (
 }
 
 // "Side 4 and Top", or "none".
-let repeatedText = (diagnosis: diagnosis) =>
+let repeatedTextWithNames = (diagnosis: diagnosis, names) =>
   Array.length(diagnosis.repeated) == 0
     ? "none"
     : diagnosis.repeated
       ->Array.map(((a, b)) =>
-        `${photoNames->Array.get(a)->Option.getOr("?")} and ${photoNames
+        `${names->Array.get(a)->Option.getOr("?")} and ${names
           ->Array.get(b)
           ->Option.getOr("?")}`
       )
       ->Array.join("; ")
+
+let repeatedText = diagnosis => repeatedTextWithNames(diagnosis, photoNames)
+let photoNamesForProtocol = protocol => CaptureSteps.sourcePhotoNames(protocol)
+let repeatedTextForProtocol = (diagnosis, protocol) =>
+  repeatedTextWithNames(diagnosis, photoNamesForProtocol(protocol))
