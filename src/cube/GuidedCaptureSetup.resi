@@ -10,3 +10,14 @@ type placement = {index: int, unexpectedCenter: bool}
 
 @genType
 let placeCapturedFace: (array<option<CubeTypes.grid>>, int, CubeTypes.grid) => placement
+@genType
+let predictGuidedCentersForOrder: (array<option<CubeTypes.grid>>, bool) => array<Null.t<string>>
+@genType
+let captureCenterSlotsForOrder: (array<option<CubeTypes.grid>>, bool) => array<Null.t<string>>
+@genType
+let placeCapturedFaceForOrder: (
+  array<option<CubeTypes.grid>>,
+  int,
+  CubeTypes.grid,
+  bool,
+) => placement

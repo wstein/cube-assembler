@@ -214,3 +214,21 @@ let placeCapturedFace = (photos, requestedIndex, candidate) =>
   | Some(index) => {index, unexpectedCenter: false}
   | None => {index: requestedIndex, unexpectedCenter: true}
   }
+
+// Normalize the physical bottom-first capture order into the historical
+// top-first coordinates before applying the existing center constraints.
+let capIndex = index => index == 4 ? 5 : index == 5 ? 4 : index
+let swapCaps = values =>
+  values->Array.mapWithIndex((_, index) => values->Array.getUnsafe(capIndex(index)))
+let predictGuidedCentersForOrder = (photos, bottomFirst) =>
+  bottomFirst ? swapCaps(predictGuidedCenters(swapCaps(photos))) : predictGuidedCenters(photos)
+let captureCenterSlotsForOrder = (photos, bottomFirst) =>
+  bottomFirst ? swapCaps(captureCenterSlots(swapCaps(photos))) : captureCenterSlots(photos)
+let placeCapturedFaceForOrder = (photos, requestedIndex, candidate, bottomFirst) => {
+  if bottomFirst {
+    let placed = placeCapturedFace(swapCaps(photos), capIndex(requestedIndex), candidate)
+    {...placed, index: capIndex(placed.index)}
+  } else {
+    placeCapturedFace(photos, requestedIndex, candidate)
+  }
+}
