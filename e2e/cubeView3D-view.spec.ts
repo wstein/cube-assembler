@@ -1,6 +1,6 @@
 // The 3D view's help overlay, rendering and backdrop, the view's inertia
 // after a drag, and auto-rotate.
-import { expect, test } from '@playwright/test'
+import { expect, test, type Page } from '@playwright/test'
 import { waitForCubeIdle, setLayerMoves } from './cubeView3DHelpers'
 
 test.beforeEach(async ({ context }) => {
@@ -203,13 +203,45 @@ test('a dragged cube keeps turning briefly after release', async ({ page }) => {
     .toBe(false)
 })
 
+// Only pause-window tests control app time: slow screenshot encoding must not
+// consume the camera's real 1500ms inspection budget.
+async function installPauseClock(page: Page) {
+  const cpuRate = Number(process.env.CUBE_VIEW_PAUSE_CPU ?? 1)
+  if (cpuRate > 1) {
+    const cdp = await page.context().newCDPSession(page)
+    await cdp.send('Emulation.setCPUThrottlingRate', { rate: cpuRate })
+  }
+  await page.clock.install({ time: new Date('2026-01-01T00:00:00Z') })
+}
+async function freezePauseClock(page: Page) {
+  await page.clock.pauseAt(new Date('2026-01-02T00:00:00Z'))
+}
+async function expectPauseWindowThenResume(page: Page, pausedAt: number) {
+  const canvas = page.locator('.cube-3d-canvas')
+  await page.clock.runFor(100)
+  await expect(canvas).toHaveAttribute('data-idle', 'true')
+  const idle = await canvas.screenshot()
+  await page.clock.runFor(150)
+  expect((await canvas.screenshot()).equals(idle)).toBe(true)
+  const remaining = pausedAt + 1499 - await page.evaluate(() => performance.now())
+  expect(remaining).toBeGreaterThanOrEqual(0)
+  await page.clock.runFor(remaining)
+  await expect(canvas).toHaveAttribute('data-idle', 'true')
+  expect((await canvas.screenshot()).equals(idle)).toBe(true)
+  await page.clock.runFor(100)
+  await expect(canvas).toHaveAttribute('data-idle', 'false')
+  expect((await canvas.screenshot()).equals(idle)).toBe(false)
+}
+
 test('auto-rotate pauses for a drag and resumes without changing its setting', async ({
   page,
 }) => {
+  await installPauseClock(page)
   await page.goto('/')
   await page.getByRole('button', { name: 'Solved cube' }).click()
   await page.getByRole('button', { name: '3D View' }).click()
   await page.getByRole('button', { name: 'Auto-rotate' }).click()
+  await freezePauseClock(page)
   const canvas = page.locator('.cube-3d-canvas')
   const bounds = await canvas.boundingBox()
   expect(bounds).not.toBeNull()
@@ -220,40 +252,34 @@ test('auto-rotate pauses for a drag and resumes without changing its setting', a
   await page.mouse.move(x, y)
   await page.mouse.down()
   await page.mouse.move(x + 90, y + 20)
-  await page.waitForTimeout(100)
+  await page.clock.runFor(100)
   const held = await canvas.screenshot()
-  await page.waitForTimeout(150)
+  await page.clock.fastForward(1700)
+  await page.clock.runFor(32)
   expect((await canvas.screenshot()).equals(held)).toBe(true)
 
   await page.mouse.up()
+  const pausedAt = await page.evaluate(() => performance.now())
   await expect(page.getByRole('button', { name: 'Pause' })).toBeVisible()
   await expect
     .poll(async () => page.evaluate(() => document.cookie))
     .toContain('cube-assembler-auto-rotate=1')
-  await waitForCubeIdle(page)
-  const idle = await canvas.screenshot()
-  await page.waitForTimeout(150)
-  expect((await canvas.screenshot()).equals(idle)).toBe(true)
-  await expect(canvas).toHaveAttribute('data-idle', 'false')
-  await expect
-    .poll(async () => (await canvas.screenshot()).equals(idle))
-    .toBe(false)
+  await expectPauseWindowThenResume(page, pausedAt)
 })
 
 for (const control of ['Front (F)', 'Isometric', 'Iso-back']) {
   test(`${control} pauses auto-rotate so its view can be inspected`, async ({
     page,
   }) => {
+    await installPauseClock(page)
     await page.goto('/')
     await page.getByRole('button', { name: 'Solved cube' }).click()
     await page.getByRole('button', { name: '3D View' }).click()
     await page.getByRole('button', { name: 'Auto-rotate' }).click()
+    await freezePauseClock(page)
     await page.getByRole('button', { name: control }).click()
-    const canvas = page.locator('.cube-3d-canvas')
-    await waitForCubeIdle(page)
-    const held = await canvas.screenshot()
-    await page.waitForTimeout(150)
-    expect((await canvas.screenshot()).equals(held)).toBe(true)
+    const pausedAt = await page.evaluate(() => performance.now())
+    await expectPauseWindowThenResume(page, pausedAt)
     await expect(page.getByRole('button', { name: 'Pause' })).toBeVisible()
   })
 }
