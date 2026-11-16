@@ -232,7 +232,8 @@ describe('the capture check in the fixture summary', () => {
 
   it('blames a face shot twice, not the photos', () => {
     const meta = load('cube-5x5-2026-10-26T00-18-58')
-    expect(row(meta, 'Repeated face')).toBe('Side 4 and Top')
+    expect(meta.capture.protocol).toBeNull()
+    expect(row(meta, 'Repeated face')).toBe('Photo 4 and Photo 5')
     expect(row(meta, 'Likely cause')).toMatch(/shot twice/)
   })
 
