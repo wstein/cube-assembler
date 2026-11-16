@@ -162,3 +162,13 @@ generated to exercise the fixture-loading and comparison machinery itself
 (JPEG decode → extraction → clustering → comparison) even before any real
 fixture has been added. Kept as a baseline; real fixtures from actual
 captures are what make this suite valuable for catching real regressions.
+
+## Original orientation-recovery archive
+
+[`orientation-recovery-7x7.zip`](orientation-recovery-7x7.zip) preserves the exact
+owner-supplied JPEGs and metadata in their original archive. It is exercised
+directly rather than adding duplicate individual JPEGs outside Git LFS. See its
+[provenance and verification boundary](orientation-recovery-7x7.md). New
+`capture.faceRecovery` metadata preserves exact manual photo assignments,
+rotations, and display pose; [the contract](../../docs/orientation-recovery.md)
+also describes imported 8×8 correction and validation limits.
