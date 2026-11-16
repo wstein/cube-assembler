@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'preact/hooks'
+import { recordGuide } from './captureRecovery'
 import { TURN_CUE_COOLDOWN_MS } from './autoCapture'
 import {
   captureStep,
@@ -16,10 +17,12 @@ import { flyInto } from './flyAnimation'
 // all six are in is App's job (onAllCaptured).
 export function useCaptureSession({
   puzzleSize,
+  mirrorPreview,
   webcamOpen,
   onAllCaptured,
 }: {
   puzzleSize: number
+  mirrorPreview: boolean
   webcamOpen: boolean
   onAllCaptured: (faces: Record<string, FaceCaptureData>) => Promise<void>
 }) {
@@ -111,12 +114,27 @@ export function useCaptureSession({
     }
     if (pendingFlyIn.current) pendingFlyIn.current.slot = step.assignedFace
 
-    setCapturedFaces(step.faces)
+    const guide = recordGuide(
+      face,
+      mirrorPreview,
+      capturedFaces[face] !== undefined,
+    )
+    const faces =
+      source === 'camera' && guide
+        ? {
+            ...step.faces,
+            [step.assignedFace]: {
+              ...step.faces[step.assignedFace],
+              captureGuide: guide,
+            },
+          }
+        : step.faces
+    setCapturedFaces(faces)
     lastCaptureAt.current = source === 'camera' ? Date.now() : null
     setCaptureMessage(step.message)
 
     if (step.nextFace === null) {
-      await onAllCaptured(step.faces)
+      await onAllCaptured(faces)
     } else {
       setWebcamFace(step.nextFace)
       setCaptureMessage('')

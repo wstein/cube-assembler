@@ -1,8 +1,5 @@
 import { useState } from 'preact/hooks'
-import {
-  answerWizard,
-  wizardAfterRejection,
-} from '../../core/capture/CaptureReviewRouting.gen'
+import { answerWizard } from '../../core/capture/CaptureReviewRouting.gen'
 import type {
   FaceKey,
   OrientedCandidate,
@@ -22,10 +19,16 @@ export function useOrientationReview({
   capturedFaces,
   isGuidedCapture,
   onChoose,
+  onAdjust,
+  savedCandidate,
+  hasSavedMapping,
 }: {
   capturedFaces: Record<string, FaceCaptureData>
   isGuidedCapture: () => boolean
   onChoose: (candidate: OrientedCandidate) => void | Promise<void>
+  onAdjust: (candidate: OrientedCandidate | null) => void
+  hasSavedMapping: () => boolean
+  savedCandidate: () => OrientedCandidate | null
 }) {
   // Non-null only when solveFaceOrientations found genuine ambiguity (see
   // its alternatives field) - drives the step-by-step orientation wizard
@@ -78,6 +81,28 @@ export function useOrientationReview({
     const faceData = Object.fromEntries(
       FACE_ORDER.map((face) => [face, capturedFaces[face].colors]),
     )
+    const explicit = savedCandidate()
+    if (explicit) {
+      setOrientationApproval({
+        candidates: [explicit],
+        valid: true,
+        fallback: null,
+        retainedCount: 1,
+        note: 'Your saved manual face mapping and capture pose are restored exactly; automatic candidates do not replace them.',
+      })
+      return
+    }
+    if (hasSavedMapping()) {
+      setOrientationApproval({
+        candidates: [],
+        valid: false,
+        fallback: null,
+        retainedCount: 0,
+        note: 'The saved manual mapping cannot be applied to these source grids or its pose is inconsistent. Adjust the saved draft; it has not been replaced by automatic search.',
+      })
+      onAdjust(null)
+      return
+    }
     const plan = planCaptureReview(
       faceData,
       FACE_ORDER,
@@ -117,10 +142,8 @@ export function useOrientationReview({
   // "No, let me choose each side" (see wizardAfterRejection).
   const handleRejectOrientation = () => {
     if (!orientationApproval) return
-    const wizard = wizardAfterRejection(orientationApproval)
-    if (!wizard) return
+    onAdjust(orientationApproval.candidates[0] ?? null)
     setOrientationApproval(null)
-    setOrientationWizard(wizard as OrientationWizardState)
   }
 
   // Advances the orientation wizard by one answer (see answerWizard): the
