@@ -131,13 +131,19 @@ let turnFace = (faces, face: faceKey, quarterTurns, depth) => {
   })
 }
 
-let allOrientations = faces => {
-  let tops = [(X, 0), (X, 1), (X, 2), (X, 3), (Z, 1), (Z, 3)]
-  tops->Array.flatMap(((axis, turns)) => {
+// Persisted capture frame indices use this top-major, yaw-minor order.
+let orientationTops = [(X, 0), (X, 1), (X, 2), (X, 3), (Z, 1), (Z, 3)]
+
+let orientationAt = (faces, index) => {
+  let (axis, turns) = orientationTops->Array.getUnsafe(index / 4)
+  rotateCube(rotateCube(faces, axis, turns), Y, mod(index, 4))
+}
+
+let allOrientations = faces =>
+  orientationTops->Array.flatMap(((axis, turns)) => {
     let topped = rotateCube(faces, axis, turns)
     [0, 1, 2, 3]->Array.map(y => rotateCube(topped, Y, y))
   })
-}
 
 let solvedCubeFaces = (n, colors) => {
   let out = Dict.make()
