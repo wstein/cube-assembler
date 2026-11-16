@@ -1,3 +1,9 @@
+import { solvedCubeFaces, turnFace, rotateCube } from '../src/cube/cubeGeometry'
+import {
+  physicalSeed,
+  physicalProtocol,
+} from '../src/client/capture/guidedCaptureProtocol'
+import { recordGuide } from '../src/client/capture/captureRecovery'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { expect, test, type Page } from '@playwright/test'
@@ -290,3 +296,113 @@ test('displayed approval keeps unknown physical pose across export and reimport'
     saved.meta.capture.faceRecovery,
   )
 })
+
+for (const mirrored of [false, true])
+  test(`physical v2 browser approval preserves the scanned assembly with mirror=${mirrored}`, async ({
+    page,
+  }) => {
+    const slots = ['U', 'R', 'F', 'D', 'L', 'B']
+    let original = solvedCubeFaces(3, {
+      U: 'W',
+      R: 'R',
+      F: 'G',
+      D: 'Y',
+      L: 'O',
+      B: 'B',
+    })
+    for (const [face, turns] of [
+      ['F', 1],
+      ['R', 2],
+      ['U', 3],
+      ['L', 1],
+      ['D', 2],
+      ['B', 3],
+    ] as const)
+      original = turnFace(original, face, turns)
+    let held = original
+    const photos = Object.fromEntries(
+      slots.map((slot, step) => {
+        if (step > 0 && step < 4) held = rotateCube(held, 'y', 1)
+        if (step === 4) held = rotateCube(held, 'x', 1)
+        if (step === 5) held = rotateCube(held, 'x', 2)
+        return [slot, held.F]
+      }),
+    )
+    const colors: Record<string, number[]> = {
+      W: [247, 246, 241],
+      R: [207, 42, 58],
+      G: [30, 158, 87],
+      Y: [242, 210, 27],
+      O: [255, 122, 26],
+      B: [36, 89, 214],
+    }
+    const zip: Record<string, Uint8Array> = {}
+    for (const slot of slots) {
+      const data = Buffer.alloc(144 * 144 * 4)
+      for (let y = 0; y < 144; y++)
+        for (let x = 0; x < 144; x++) {
+          const color =
+            colors[photos[slot][Math.floor(y / 48)][Math.floor(x / 48)]]
+          const pixel = (y * 144 + x) * 4
+          for (let channel = 0; channel < 3; channel++)
+            data[pixel + channel] = color[channel]
+          data[pixel + 3] = 255
+        }
+      zip[`face-${slot.toLowerCase()}.jpg`] = encodeJpeg(
+        { width: 144, height: 144, data },
+        100,
+      ).data
+    }
+    const state = slots.map((slot) => photos[slot].flat().join('')).join(' ')
+    zip['meta.json'] = strToU8(
+      JSON.stringify({
+        gridSize: 3,
+        colorsURFDLB: state,
+        detectedURFDLB: state,
+        synthetic:
+          'Legal Core moves photographed by physical v2 geometry; JPEG color grids are generated test images.',
+        capture: { protocol: physicalProtocol, mirrored },
+        faces: Object.fromEntries(
+          slots.map((slot) => [
+            slot.toLowerCase(),
+            {
+              photo: `face-${slot.toLowerCase()}.jpg`,
+              captureGuide: recordGuide(slot, mirrored, false),
+            },
+          ]),
+        ),
+      }),
+    )
+    const seed = physicalSeed(photos, 3)
+    expect(seed.validation.valid).toBe(true)
+    await upload(page, zipSync(zip))
+    await expect(
+      page.getByRole('button', { name: 'Alternatives (0)', exact: true }),
+    ).toBeDisabled()
+    await page
+      .getByRole('button', { name: 'Yes, this is my cube', exact: true })
+      .click()
+    await expect(page.locator('.face-recovery')).toHaveCount(0)
+    const saved = await savedFixture(page)
+    expect(saved.meta.capture.protocol).toBe(physicalProtocol)
+    expect(saved.meta.capture.faceRecovery.mapping).toEqual(seed.mapping)
+    expect(saved.meta.capture.faceRecovery.view).toBe('canonical')
+    expect(saved.meta.capture.assembledURFDLB).toBe(
+      slots
+        .map((slot) =>
+          seed.validation
+            .faces![
+              slot as keyof NonNullable<typeof seed.validation.faces>
+            ].flat()
+            .join(''),
+        )
+        .join(' '),
+    )
+    await upload(page, saved.bytes)
+    await expect(
+      page.getByRole('button', { name: 'Alternatives (0)', exact: true }),
+    ).toBeDisabled()
+    await expect(
+      page.getByRole('button', { name: 'Yes, this is my cube', exact: true }),
+    ).toBeEnabled()
+  })
