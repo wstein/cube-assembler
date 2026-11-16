@@ -167,6 +167,15 @@ export function FaceRecoveryDialog({
                   ?.focus(),
               )
           }}
+          onPointerDownCapture={(event) => {
+            if (
+              selectionPending &&
+              (event.target as HTMLElement).closest(
+                '.spatial-candidate, .spatial-stage-actions .btn-primary',
+              )
+            )
+              event.preventDefault()
+          }}
         >
           <div class="modal-header">
             <h2 id="face-recovery-title">Match your cube</h2>
