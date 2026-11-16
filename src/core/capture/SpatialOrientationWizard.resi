@@ -44,3 +44,5 @@ let previewFaces: (
   CaptureFaceMapping.mapping,
   int,
 ) => CubeTypes.faceSet<CubeTypes.grid>
+@genType let retainsMapping: (session, CaptureFaceMapping.mapping) => bool
+@genType let matchesDecision: (CaptureFaceMapping.mapping, decision) => bool

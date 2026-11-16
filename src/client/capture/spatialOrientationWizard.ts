@@ -1,6 +1,8 @@
 // Candidate generation and incremental decisions remain ReScript-owned.
 export {
   generate,
+  retainsMapping,
+  matchesDecision,
   preserveMapping,
   previewFaces,
   reconcile,
