@@ -120,3 +120,37 @@ let generate = (captured: Dict.t<grid>, size, guided): session => {
   }
   {candidates, truncated, guided, equivalenceReduced: true, issues}
 }
+
+// Existing exact photo identities win over inferred matches whenever they
+// produce the candidate's same face grids, including symmetric artwork.
+let preserveMapping = (captured, mapping, candidate: candidate) => {
+  let size = captured->Dict.valuesToArray->Array.get(0)->Option.mapOr(0, Array.length)
+  let checked = CaptureFaceMapping.validateMapping(captured, mapping, size)
+  switch checked.faces->Null.toOption {
+  | Some(faces)
+    if faceKeys->Array.every(face =>
+      OrientationWizard.faceContentKey(faceValue(faces, face)) ==
+        OrientationWizard.faceContentKey(faceValue(candidate.faces, face))
+    ) => mapping
+  | _ => candidate.mapping
+  }
+}
+@genType type reconciliation = {decisions: array<decision>, conflicts: array<decision>}
+let reconcile = (session, decisions: array<decision>, selected: decision): reconciliation => {
+  let index = decisions->Array.findIndex(previous => previous.slot == selected.slot)
+  let ordered =
+    index < 0
+      ? [...decisions, selected]
+      : decisions->Array.map(previous => previous.slot == selected.slot ? selected : previous)
+  let kept = ref([])
+  let conflicts = []
+  ordered->Array.forEach(decision => {
+    let proposed = [...kept.contents, decision]
+    if agrees(decision, selected) || Array.length(remaining(session, proposed)) > 0 {
+      kept := proposed
+    } else {
+      conflicts->Array.push(decision)
+    }
+  })
+  {decisions: kept.contents, conflicts}
+}

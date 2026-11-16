@@ -30,3 +30,11 @@ type choice = {
 @genType let nextSlot: (session, array<decision>) => Null.t<string>
 @genType let select: (array<decision>, decision) => array<decision>
 @genType let previous: array<decision> => array<decision>
+@genType
+let preserveMapping: (
+  Dict.t<CubeTypes.grid>,
+  CaptureFaceMapping.mapping,
+  candidate,
+) => CaptureFaceMapping.mapping
+@genType type reconciliation = {decisions: array<decision>, conflicts: array<decision>}
+@genType let reconcile: (session, array<decision>, decision) => reconciliation
