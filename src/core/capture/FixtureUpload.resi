@@ -4,6 +4,7 @@ type facePlan = {
   photo: string,
   colors: array<array<string>>,
   timestamp: float,
+  captureGuide?: CaptureFlow.captureGuide,
   backgroundColor?: JSON.t,
   previewColorProfile?: JSON.t,
 }

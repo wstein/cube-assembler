@@ -16,6 +16,7 @@ export interface FixtureUploadMetadata {
     string,
     {
       photo: string
+      captureGuide?: FaceCaptureData['captureGuide']
       capturedAt?: string
       background?: RGB | null
       previewColorProfile?: PreviewColorProfile
@@ -91,7 +92,11 @@ export async function readFixtureUpload(
     entries[face] = {
       ...(entry as Pick<
         FaceCaptureData,
-        'colors' | 'timestamp' | 'backgroundColor' | 'previewColorProfile'
+        | 'colors'
+        | 'timestamp'
+        | 'backgroundColor'
+        | 'previewColorProfile'
+        | 'captureGuide'
       >),
       confidence: 1,
       croppedImage: dataUrl,
