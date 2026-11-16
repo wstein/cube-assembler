@@ -6,6 +6,7 @@ type captureFixtureInput = {
   commit: string,
   userAgent: string,
   devicePixelRatio: float,
+  faceRecovery?: CaptureRecovery.recovery,
   mirrored: bool,
   cameraInfo: JSON.t,
   captureProfile: JSON.t,

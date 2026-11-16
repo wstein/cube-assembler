@@ -74,9 +74,9 @@ let fixtureLayout = (request: fixtureRequest, now: string) => {
     !Float.isFinite(gridSize) ||
     Math.floor(gridSize) != gridSize ||
     gridSize < 2.0 ||
-    gridSize > 7.0
+    gridSize > 8.0
   ) {
-    fail("gridSize must be an integer between 2 and 7")
+    fail("gridSize must be an integer between 2 and 8")
   }
   let size = Float.toString(gridSize)
   [

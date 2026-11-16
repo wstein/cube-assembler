@@ -9,7 +9,7 @@
     "$schema": {
       "const": "https://wstein.github.io/cube-assembler/schemas/fixture-meta-v1.schema.json"
     },
-    "gridSize": { "type": "integer", "minimum": 2, "maximum": 7 },
+    "gridSize": { "type": "integer", "minimum": 2, "maximum": 8 },
     "colorsURFDLB": { "$ref": "#/$defs/facelets" },
     "detectedURFDLB": { "$ref": "#/$defs/facelets" },
     "faces": {
@@ -42,7 +42,7 @@
     "facelets": {
       "type": "string",
       "description": "Six space-separated capture-slot grids, each with W/O/G/R/B/Y sticker letters. The app verifies each block contains gridSize squared letters.",
-      "pattern": "^[WOGRBY]{4,49}( [WOGRBY]{4,49}){5}$"
+      "pattern": "^[WOGRBY]{4,64}( [WOGRBY]{4,64}){5}$"
     },
     "face": {
       "type": "object",

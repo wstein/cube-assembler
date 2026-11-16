@@ -14,6 +14,7 @@ type captureFixtureInput = {
   commit: string,
   userAgent: string,
   devicePixelRatio: float,
+  faceRecovery?: CaptureRecovery.recovery,
   mirrored: bool,
   cameraInfo: JSON.t,
   captureProfile: JSON.t,
@@ -67,6 +68,7 @@ let faceRecord = (face: faceCaptureData) => {
     )),
   )
   add("source", face.source->Option.map(json))
+  add("captureGuide", face.captureGuide->Option.map(json))
   add("capturedAt", Some(JSON.String(Date.fromTime(face.timestamp)->toISOString)))
   add("background", face.backgroundColor->Option.map(json))
   add("frame", face.frame->Option.map(json))
@@ -174,6 +176,38 @@ let captureFixtureRequest = (input: captureFixtureInput): FixtureZip.fixtureRequ
   let fromCamera = order->Array.some(face => (capturedFaces->faceOf(face)).source == Some(Camera))
   let faceList = order->Array.map(face => capturedFaces->faceOf(face))
   let synthetic = syntheticOf(faceList)
+  let faceRecovery = input.faceRecovery->Option.map(record => {
+    let raw = Dict.fromArray(order->Array.map(slot => (slot, (capturedFaces->faceOf(slot)).colors)))
+    let initial =
+      CaptureFaceMapping.validateMapping(
+        raw,
+        record.mapping,
+        input.puzzleSize,
+      ).candidate->Null.toOption
+    let atCapture = switch (initial, input.cube->Null.toOption) {
+    | (Some(initial), Some(cube)) =>
+      CubeAssembly.assembleCubeFromFaces(
+        Obj.magic(initial.faces),
+        input.puzzleSize,
+      )->NotationOutput.toWRGFacelets == NotationOutput.toWRGFacelets(cube)
+    | _ => false
+    }
+    {...record, stateRelation: atCapture ? "capture" : "after-viewer-moves"}
+  })
+  let assemblyValidation = switch input.cube->Null.toOption {
+  | None => JSON.Object(Dict.fromArray([("status", JSON.String("not-checked"))]))
+  | Some(cube) =>
+    let checked = CaptureFlow.parityStatus(cube, input.puzzleSize)
+    JSON.Object(
+      Dict.fromArray([
+        ("status", JSON.String(checked.valid ? "checks-passed" : "invalid")),
+        ("scope", JSON.String("existing-repository-checks")),
+        ("fullNxNReachability", JSON.String(input.puzzleSize >= 4 ? "unverified" : "see-checks")),
+        ("checks", json(checked.checks)),
+        ("result", JSON.String(checked.result)),
+      ]),
+    )
+  }
   let meta = Dict.fromArray([
     ("capturedAt", JSON.String(Date.make()->toISOString)),
     (
@@ -197,6 +231,8 @@ let captureFixtureRequest = (input: captureFixtureInput): FixtureZip.fixtureRequ
       ),
     ),
     ("mirrored", JSON.Boolean(input.mirrored)),
+    ("assemblyValidation", assemblyValidation),
+    ("faceRecovery", faceRecovery->Option.map(json)->Option.getOr(JSON.Null)),
     // Only meaningful when at least one face was shot with it - not for a
     // re-saved uploaded fixture or imported image files.
     // For imported photos it is what their EXIF says.
