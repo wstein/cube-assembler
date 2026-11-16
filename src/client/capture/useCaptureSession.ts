@@ -98,10 +98,14 @@ export function useCaptureSession({
     captureSize = puzzleSize,
     previewColorProfile?: PreviewColorProfile,
   ) => {
+    const guide =
+      source === 'camera'
+        ? recordGuide(face, mirrorPreview, capturedFaces[face] !== undefined)
+        : null
     const step = captureStep(
       capturedFaces,
       face,
-      result,
+      { ...result, captureGuide: guide ?? undefined },
       source,
       cameraSettings,
       previewColorProfile,
@@ -114,21 +118,7 @@ export function useCaptureSession({
     }
     if (pendingFlyIn.current) pendingFlyIn.current.slot = step.assignedFace
 
-    const guide = recordGuide(
-      face,
-      mirrorPreview,
-      capturedFaces[face] !== undefined,
-    )
-    const faces =
-      source === 'camera' && guide
-        ? {
-            ...step.faces,
-            [step.assignedFace]: {
-              ...step.faces[step.assignedFace],
-              captureGuide: guide,
-            },
-          }
-        : step.faces
+    const faces = step.faces
     setCapturedFaces(faces)
     lastCaptureAt.current = source === 'camera' ? Date.now() : null
     setCaptureMessage(step.message)
