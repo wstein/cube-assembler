@@ -1078,3 +1078,241 @@ textarea {
     min-height: 44px;
   }
 }
+
+/* Keep all recognized faces visible while the choice pane scrolls. */
+.face-recovery {
+  display: flex;
+  flex-direction: column;
+  height: 94dvh;
+  overflow: hidden;
+}
+.face-recovery > .modal-header {
+  flex-shrink: 0;
+}
+.spatial-workspace {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  flex-shrink: 0;
+  min-height: 0;
+}
+.spatial-net-panel {
+  position: relative;
+  min-width: 0;
+}
+.spatial-net {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-rows: repeat(3, auto);
+  gap: 5px;
+  max-width: 400px;
+  margin: auto;
+}
+.spatial-net-slot {
+  padding: 3px;
+  border: 2px solid transparent;
+  background: transparent;
+  min-width: 0;
+  color: inherit;
+  border-radius: 4px;
+  cursor: pointer;
+}
+.spatial-net-slot > span {
+  display: block;
+  font-size: 11px;
+  line-height: 12px;
+}
+.spatial-net-slot .orientation-net-face {
+  width: 100%;
+  height: auto;
+  aspect-ratio: 1;
+}
+.spatial-net-U {
+  grid-column: 2;
+  grid-row: 1;
+}
+.spatial-net-L {
+  grid-column: 1;
+  grid-row: 2;
+}
+.spatial-net-F {
+  grid-column: 2;
+  grid-row: 2;
+}
+.spatial-net-R {
+  grid-column: 3;
+  grid-row: 2;
+}
+.spatial-net-B {
+  grid-column: 4;
+  grid-row: 2;
+}
+.spatial-net-D {
+  grid-column: 2;
+  grid-row: 3;
+}
+.spatial-neighbor {
+  border-color: #777;
+  border-style: dashed;
+}
+.spatial-current {
+  border-color: #1685ee;
+  outline: 1px solid #1685ee;
+}
+.spatial-net-caption {
+  font-size: 11px;
+  margin: 4px 0;
+}
+.spatial-workspace .cube-3d-container {
+  min-height: 0;
+  height: 300px;
+}
+.spatial-workspace .cube-3d-canvas-wrap {
+  height: 240px;
+}
+.spatial-workflow-scroll {
+  overflow-y: auto;
+  min-height: 100px;
+  flex: 1;
+  padding: 0.5rem 0;
+}
+.spatial-candidates {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.spatial-candidate {
+  background: transparent;
+  color: inherit;
+  padding: 5px;
+  border: 1px solid #888;
+  border-radius: 5px;
+  width: 100px;
+  cursor: pointer;
+}
+.spatial-candidate .orientation-net-face {
+  width: 100%;
+  height: auto;
+  aspect-ratio: 1;
+}
+.spatial-photo {
+  position: absolute;
+  z-index: 5;
+  top: 0;
+  right: 0;
+  background: var(--color-bg-primary, #222);
+  border: 1px solid #888;
+  padding: 6px;
+  width: min(160px, 90%);
+  box-shadow: 0 3px 15px #0008;
+}
+.spatial-photo img {
+  width: 100%;
+  aspect-ratio: 1;
+  object-fit: contain;
+}
+.spatial-photo span {
+  display: block;
+  font-size: 11px;
+}
+.spatial-photo > button:last-child {
+  position: absolute;
+  right: 2px;
+  top: 2px;
+}
+.spatial-advanced summary {
+  cursor: pointer;
+  padding: 10px 0;
+}
+@media (max-width: 650px) {
+  .face-recovery {
+    padding: 10px;
+    width: 98vw;
+    height: 96dvh;
+    max-height: 96dvh;
+  }
+  .face-recovery h2 {
+    font-size: 16px;
+  }
+  .spatial-workspace {
+    gap: 5px;
+  }
+  .spatial-net {
+    gap: 1px;
+  }
+  .spatial-net-slot {
+    padding: 1px;
+  }
+  .spatial-workspace .cube-3d-container {
+    height: 195px;
+  }
+  .spatial-workspace .cube-3d-canvas-wrap {
+    height: 145px;
+  }
+  .spatial-net-caption {
+    font-size: 10px;
+  }
+  .spatial-candidate {
+    width: 80px;
+  }
+  .face-recovery .orientation-approval-actions {
+    padding: 5px;
+  }
+}
+
+.spatial-photo .spatial-correct-colors {
+  position: static;
+  display: block;
+  font-size: 11px;
+  margin-top: 4px;
+}
+
+.spatial-workspace .cube-3d-canvas-wrap {
+  flex-shrink: 0;
+}
+.spatial-workspace .cube-3d-toolbar {
+  display: none;
+}
+.spatial-workspace .cube-3d-container {
+  overflow: hidden;
+}
+
+.spatial-workspace .cube-3d-hint {
+  display: none;
+}
+
+.spatial-photo {
+  top: 100%;
+}
+.spatial-color-editor .review-modal-content,
+.spatial-color-picker .color-picker-content {
+  position: static;
+  width: 100%;
+  max-width: none;
+  max-height: none;
+  padding: 6px;
+  box-shadow: none;
+  border: 0;
+}
+.spatial-color-editor .review-header .face-net {
+  display: none;
+}
+.spatial-color-editor .review-wizard-panes {
+  display: grid;
+  grid-template-columns: minmax(60px, 0.6fr) minmax(0, 1fr);
+  gap: 8px;
+}
+.spatial-color-editor .review-header h2 {
+  font-size: 16px;
+}
+.spatial-color-editor .review-face-image-wrapper {
+  width: 100%;
+}
+.spatial-color-picker .color-palette {
+  display: flex;
+  flex-wrap: wrap;
+}
+.spatial-color-picker .color-btn {
+  min-width: 44px;
+  min-height: 44px;
+}

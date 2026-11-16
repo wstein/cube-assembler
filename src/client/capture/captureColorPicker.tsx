@@ -4,6 +4,7 @@ import { colorConfidences } from './captureRecalibration'
 import { type RGB } from '../vision/stickerColorGeometry'
 
 interface CaptureColorPickerProps {
+  embedded?: boolean
   editingCell: { face: string; row: number; col: number }
   faces: Record<string, FaceCaptureData>
   learnedPalette: Record<string, RGB> | null
@@ -18,6 +19,7 @@ interface CaptureColorPickerProps {
 }
 
 export function CaptureColorPicker({
+  embedded = false,
   editingCell,
   faces,
   learnedPalette,
@@ -31,11 +33,16 @@ export function CaptureColorPicker({
   onClose,
 }: CaptureColorPickerProps) {
   return (
-    <div class="modal open color-picker-modal" onClick={onClose}>
+    <div
+      class={
+        embedded ? 'spatial-color-picker' : 'modal open color-picker-modal'
+      }
+      onClick={onClose}
+    >
       <div
         class="modal-content color-picker-content"
         role="dialog"
-        aria-modal="true"
+        aria-modal={embedded ? undefined : 'true'}
         tabIndex={-1}
         ref={focusDialog}
         onClick={(e) => e.stopPropagation()}

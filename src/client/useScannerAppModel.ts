@@ -139,6 +139,7 @@ export function useScannerAppModel() {
   } = useFixtureDownload()
   const recovery = useFaceRecovery({
     capturedFaces,
+    onCommitFaces: setCapturedFaces,
     size: puzzleSize,
     mirrored: mirrorPreview,
     guided: isGuided(),
