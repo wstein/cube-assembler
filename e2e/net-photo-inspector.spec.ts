@@ -38,6 +38,14 @@ for (const width of [1280, 390]) {
     await expect(net.locator('.net-info-title')).toHaveText(
       'Back · Original photo',
     )
+    await expect(net.locator('.net-info-title')).toHaveCSS(
+      'background-color',
+      'rgb(51, 51, 51)',
+    )
+    await expect(net.locator('.net-info-title')).toHaveCSS(
+      'color',
+      'rgb(255, 255, 255)',
+    )
     await expect(photo).toHaveCSS('object-fit', 'contain')
     await expect(net.locator('.net-info')).not.toContainText('center piece', {
       timeout: 1000,
