@@ -1,4 +1,4 @@
-import { useState } from 'preact/hooks'
+import { useRef, useState } from 'preact/hooks'
 import { answerWizard } from '../../core/capture/CaptureReviewRouting.gen'
 import type {
   FaceKey,
@@ -62,7 +62,21 @@ export function useOrientationReview({
   // A problem with the capture shown in the review dialog.
   const [reviewNotice, setReviewNotice] = useState<string | null>(null)
 
+  const previousReview = useRef<{
+    approval: CaptureApproval | null
+    wizard: OrientationWizardState | null
+    notice: string | null
+  } | null>(null)
+  const resumeOrientationReview = () => {
+    const previous = previousReview.current
+    previousReview.current = null
+    setOrientationApproval(previous?.approval ?? null)
+    setOrientationWizard(previous?.wizard ?? null)
+    setReviewNotice(previous?.notice ?? null)
+  }
+
   const clearOrientationReview = () => {
+    previousReview.current = null
     setOrientationWizard(null)
     setOrientationApproval(null)
     setReviewNotice(null)
@@ -85,6 +99,7 @@ export function useOrientationReview({
     // The cube an uploaded fixture's photos were approved as: offered first.
     saved: Record<string, string[][]> | null = null,
   ) => {
+    previousReview.current = null
     setReviewNotice(null)
     const faceData = Object.fromEntries(
       FACE_ORDER.map((face) => [face, capturedFaces[face].colors]),
@@ -166,6 +181,11 @@ export function useOrientationReview({
   // "No, let me choose each side" (see wizardAfterRejection).
   const handleRejectOrientation = () => {
     if (!orientationApproval) return
+    previousReview.current = {
+      approval: orientationApproval,
+      wizard: orientationWizard,
+      notice: reviewNotice,
+    }
     onAdjust(orientationApproval.candidates[0] ?? null)
     setOrientationApproval(null)
   }
@@ -225,6 +245,7 @@ export function useOrientationReview({
     reviewNotice,
     setReviewNotice,
     clearOrientationReview,
+    resumeOrientationReview,
     handleConfirmReview,
     handleRejectOrientation,
     handleWizardPick,
