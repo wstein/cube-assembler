@@ -55,8 +55,10 @@ is the shared ReScript cube mechanics, state model, coordinates, cubie/sticker
 identity, orientation/symmetry semantics, notation/codecs and reusable solver
 integration. The shared viewer is the separate TypeScript package
 `@puzlwerk/viewer` in the PuzlWerk monorepo: scene and rendering without
-application knowledge, with the CubeScene model proposed in
-[Cubistry #111](https://github.com/wstein/cubistry/issues/111) as its contract.
+application knowledge. The CubeScene model in
+[Cubistry #111](https://github.com/wstein/cubistry/issues/111) is a proposal,
+**not an accepted viewer API contract**, under
+[Cubistry #21](https://github.com/wstein/cubistry/issues/21).
 The viewer depends on the core; applications depend on the viewer, never the
 reverse. This is the target architecture, not a
 migration approval, and it does not mean a package is released or CubeAssembler
