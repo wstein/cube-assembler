@@ -3,7 +3,8 @@
 The correction workflow keeps all six recognized color grids beside the existing
 interactive 3D cube. It offers arrangements retained by the existing ReScript
 assembly search and validator. Resolved faces are skipped; ambiguous faces get
-colored choices. It does not expose unrestricted rotation or assignment controls.
+colored choices in Front → Right → Back → Left → Up → Down order.
+Questions refer to canonical displayed faces, not capture-step IDs. It does not expose unrestricted rotation or assignment controls.
 
 The current preview is shown first as **0°**. Other angles are clockwise changes
 relative to that displayed face. These labels do not change the absolute source
@@ -82,3 +83,20 @@ Unit checks cover all 24 proper display transforms and all six source faces,
 including Back and cap rotations. Browser checks cover constrained choices,
 canonical approval, source-photo identity, legacy metadata, touch, nested color
 editing and export/reimport. Owner physical-cube acceptance remains separate.
+
+## Synthetic 4×4 acceptance captures
+
+Upload `synthetic-4x4-high.zip`, `synthetic-4x4-medium.zip`, or
+`synthetic-4x4-unique.zip` using the ordinary fixture-upload control. The JPEGs
+are generated sticker grids, not photographs. Their recognized colors and legal
+Core move sequences come from `guided-4x4-acceptance.json`.
+
+The legacy, unmeasured capture context retains respectively 3, 1, and 0 other
+arrangements (4, 2, and 1 total); these searches were not truncated. “High” is the
+largest found in 88 bounded trials with seed 461193, not a proven maximum. These
+archives deliberately contain no v2 observation claims or saved approval.
+
+Regenerate the archives with `node scripts/generateGuided4x4Fixtures.mjs`.
+ZIP timestamps and image generation are fixed for reproducible bytes. The same
+Core arrays, when tested separately under the fully specified physical v2
+contract, each produce only their checked seed and zero alternatives.
