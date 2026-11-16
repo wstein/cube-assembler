@@ -291,3 +291,43 @@ it('conjugates every face direction and representative layer depth exactly throu
     }
   }
 }, 30_000)
+
+it('prefills the current nonidentity even candidate instead of falling back to zero rotations', () => {
+  const candidateFaces = asymmetric(4)
+  const permutation = ['F', 'U', 'R', 'B', 'D', 'L'] as const
+  const raw = Object.fromEntries(
+    ORDER.map((slot, i) => [
+      slot,
+      rotateGrid(candidateFaces[permutation[i]], -(i % 4)),
+    ]),
+  )
+  const before = JSON.stringify(raw)
+  const candidate = {
+    faces: candidateFaces,
+    rotations: { U: 0, R: 0, F: 0, D: 0, L: 0, B: 0 },
+  }
+  const mapping = initializeMapping(raw, candidate)
+  expect(validateMapping(raw, mapping, 4).faces).toEqual(candidateFaces)
+  expect(mapping.map((p) => p.target)).toEqual(permutation)
+  expect(mapping.some((p) => p.quarterTurns !== 0)).toBe(true)
+  expect(JSON.stringify(raw)).toBe(before)
+})
+
+it('keeps every persisted v1 display index fixed to its labeled baseline basis', async () => {
+  const golden = await import('./captureFrameConventionV1.json')
+  const basis = Object.fromEntries(
+    ORDER.map((f) => [
+      f,
+      [
+        [`${f}0`, `${f}1`],
+        [`${f}2`, `${f}3`],
+      ],
+    ]),
+  ) as Faces
+  expect(ORDER.map((f) => basis[f].flat()).flat()).toHaveLength(24)
+  expect(
+    Array.from({ length: 24 }, (_, i) => transformFaces(basis, i)).map(
+      (faces) => ORDER.map((f) => faces![f].flat().join('.')).join('/'),
+    ),
+  ).toEqual(golden.signatures)
+})
