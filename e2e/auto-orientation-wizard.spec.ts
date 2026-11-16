@@ -1,6 +1,43 @@
 import { resolve } from 'node:path'
 import { expect, test, type Page } from '@playwright/test'
 
+// Preserve one native 60ms gesture burst even if CDP processing is slow.
+// Two awaited touchscreen.tap calls can instead become separate deliberate taps.
+async function doubleTouch(page: Page, x: number, y: number) {
+  const cdp = await page.context().newCDPSession(page)
+  const starts = page.evaluate(
+    () =>
+      new Promise<number[]>((resolve) => {
+        const times: number[] = []
+        const record = (event: TouchEvent) => {
+          times.push(event.timeStamp)
+          if (times.length === 2) {
+            window.removeEventListener('touchstart', record)
+            resolve(times)
+          }
+        }
+        window.addEventListener('touchstart', record)
+      }),
+  )
+  const timestamp = await page.evaluate(
+    () => (performance.timeOrigin + performance.now()) / 1000,
+  )
+  for (const [type, delta] of [
+    ['touchStart', 0],
+    ['touchEnd', 0.02],
+    ['touchStart', 0.06],
+    ['touchEnd', 0.08],
+  ] as const)
+    await cdp.send('Input.dispatchTouchEvent', {
+      type,
+      timestamp: timestamp + delta,
+      touchPoints: type === 'touchStart' ? [{ x, y, id: 1 }] : [],
+    })
+  const nativeStarts = await starts
+  expect(nativeStarts[1] - nativeStarts[0]).toBeCloseTo(60, 0)
+  await cdp.detach()
+}
+
 async function approval(page: Page) {
   await page.goto('/')
   await page
@@ -103,10 +140,11 @@ test('keyboard selection focuses review and repeated Enter cannot commit', async
 
 for (const { touch, cpu } of [
   { touch: false, cpu: 1 },
-  { touch: true, cpu: 1 },
+  // Optional stress rate preserves the same native gesture and assertions.
+  { touch: true, cpu: Number(process.env.AUTO_WIZARD_TOUCH_CPU ?? 1) },
   { touch: false, cpu: 6 },
 ])
-  test(`a ${cpu > 1 ? 'throttled ' : ''}${touch ? 'touch' : 'mouse'} double activation answers only one question`, async ({
+  test(`a ${cpu > 1 ? `CPU${cpu} ` : ''}${touch ? 'touch' : 'mouse'} double activation answers only one question`, async ({
     browser,
   }) => {
     const context = await browser.newContext({ hasTouch: touch })
@@ -134,8 +172,7 @@ for (const { touch, cpu } of [
           '.spatial-candidate[data-source-slot="R"][data-quarter-turns="0"]',
         )
         .boundingBox())!
-      await page.touchscreen.tap(box.x + box.width / 2, box.y + box.height / 2)
-      await page.touchscreen.tap(box.x + box.width / 2, box.y + box.height / 2)
+      await doubleTouch(page, box.x + box.width / 2, box.y + box.height / 2)
     } else
       await page
         .locator(
