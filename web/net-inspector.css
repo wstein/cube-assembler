@@ -30,7 +30,7 @@
   line-height: 1;
   white-space: nowrap;
 }
-/* If title or notes cannot fit the empty cell, use an ordinary row below the net. */
+/* If the title cannot fit the empty cell, use an ordinary row below the net. */
 .cube-net > .net-info.net-info-below {
   position: relative;
   grid-column: 1 / -1;
@@ -41,11 +41,9 @@
 .cube-net > .net-info.net-info-below > .net-info-photo {
   width: var(--net-inspector-size);
 }
-.cube-net > .net-info > .net-info-note {
-  position: static;
-  width: auto;
-  max-height: none;
-  overflow: visible;
+.net-region > .net-inspector-note {
+  margin-top: var(--spacing-sm);
+  color: var(--color-text-secondary);
 }
 .cube-net > .net-info > .net-info-hint {
   font-size: 0.6rem;
