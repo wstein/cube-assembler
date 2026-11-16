@@ -213,3 +213,73 @@ let retainsMapping = (session: session, mapping: CaptureFaceMapping.mapping) => 
     mapping->Array.every(decision => matchesDecision(candidate.mapping, decision))
   )
 }
+
+@genType
+type proposal = {
+  mapping: CaptureFaceMapping.mapping,
+  decisions: array<decision>,
+  conflicts: array<decision>,
+}
+let propose = (captured, session, decisions, choice, currentMapping): Null.t<proposal> => {
+  let adjusted = reconcile(session, decisions, choice)
+  switch remaining(session, adjusted.decisions)->Array.get(0) {
+  | None => Null.null
+  | Some(candidate) =>
+    let preserved = preserveMapping(captured, currentMapping, candidate)
+    let mapping =
+      adjusted.decisions->Array.every(decision => matchesDecision(preserved, decision))
+        ? preserved
+        : candidate.mapping
+    Null.make({mapping, decisions: adjusted.decisions, conflicts: adjusted.conflicts})
+  }
+}
+@genType
+type choicePreview = {
+  grid: grid,
+  target: CubeState.faceKey,
+  mapping: CaptureFaceMapping.mapping,
+  displayTransform: int,
+}
+let previewChoice = (
+  captured,
+  session,
+  decisions,
+  choice: decision,
+  currentMapping,
+  frontSlot,
+  upSlot,
+  captureView,
+): Null.t<choicePreview> => {
+  switch propose(captured, session, decisions, choice, currentMapping)->Null.toOption {
+  | None => Null.null
+  | Some(proposal) =>
+    let selectedFrame = if captureView {
+      CaptureFaceMapping.captureFrame(captured, proposal.mapping, frontSlot, upSlot)
+    } else {
+      // Derive the identity from the frozen orientation convention; never
+      // assume a particular numeric index represents the logical frame.
+      switch (
+        proposal.mapping->Array.find(entry => entry.target == F),
+        proposal.mapping->Array.find(entry => entry.target == U),
+      ) {
+      | (Some(front), Some(up)) =>
+        CaptureFaceMapping.captureFrame(captured, proposal.mapping, front.slot, up.slot)
+      | _ => Null.null
+      }
+    }
+    switch selectedFrame->Null.toOption {
+    | None => Null.null
+    | Some(frame) =>
+      switch frame.mapping->Array.find(entry => entry.slot == choice.slot) {
+      | None => Null.null
+      | Some(placed) =>
+        Null.make({
+          grid: faceValue(frame.faces, placed.target),
+          target: placed.target,
+          mapping: frame.mapping,
+          displayTransform: frame.displayTransform,
+        })
+      }
+    }
+  }
+}
