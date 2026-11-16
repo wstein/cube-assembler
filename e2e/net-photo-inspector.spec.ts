@@ -35,9 +35,7 @@ for (const width of [1280, 390]) {
       'alt',
       /^Photo of the Back face \(source photo [URFDLB]\)$/,
     )
-    await expect(net.locator('.net-info-title')).toHaveText(
-      'Back · Photo',
-    )
+    await expect(net.locator('.net-info-title')).toHaveText('Back · Photo')
     await expect(net.locator('.net-info-title')).toHaveCSS(
       'background-color',
       'rgb(51, 51, 51)',
@@ -89,9 +87,7 @@ for (const width of [1280, 390]) {
       ['b', 'Back'],
     ]) {
       await net.locator(`.net-${face} .net-face-grid`).focus()
-      await expect(net.locator('.net-info-title')).toHaveText(
-        `${name} · Photo`,
-      )
+      await expect(net.locator('.net-info-title')).toHaveText(`${name} · Photo`)
       const image = (await photo.boundingBox())!
       const header = (await net.locator('.net-info-title').boundingBox())!
       expect(Math.abs(image.width - referenceFace!.width)).toBeLessThanOrEqual(
@@ -120,8 +116,6 @@ for (const width of [1280, 390]) {
       expect(scrollbars.vertical).toBeLessThanOrEqual(1)
     }
     await net.locator('.net-f .net-face-grid').tap()
-    await expect(net.locator('.net-info-title')).toHaveText(
-      'Front · Photo',
-    )
+    await expect(net.locator('.net-info-title')).toHaveText('Front · Photo')
   })
 }
