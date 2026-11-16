@@ -129,7 +129,7 @@ export function CaptureCard({
         )}
       </div>
       <p class="card-hint">
-        Four sides while turning the cube, then bottom and top — about a minute.
+        Four numbered sides, then Up and Down — follow the net.
       </p>
       <div class="face-status-row">
         <FaceNet

@@ -469,3 +469,36 @@
     transform: translateZ(calc(-1 * var(--turn-depth))) rotateX(180deg);
   }
 }
+
+/* Keep the accepted mirrored cue and all side turns; only unmirrored caps
+   reverse the visible pitch. Source/photo transforms remain protocol-owned. */
+@media (prefers-reduced-motion: no-preference) {
+  .capture-turn-unmirrored.capture-turn-top .capture-turn-cube {
+    animation-name: capture-turn-top-unmirrored;
+  }
+  .capture-turn-unmirrored.capture-turn-bottom .capture-turn-cube {
+    animation-name: capture-turn-bottom-unmirrored;
+  }
+}
+@keyframes capture-turn-top-unmirrored {
+  0%,
+  14% {
+    transform: translateZ(calc(-1 * var(--turn-depth)));
+  }
+  80%,
+  100% {
+    transform: translateZ(calc(-1 * var(--turn-depth))) rotateX(-90deg);
+  }
+}
+@keyframes capture-turn-bottom-unmirrored {
+  0% {
+    transform: translateZ(calc(-1 * var(--turn-depth)));
+  }
+  44.4444%,
+  55.5556% {
+    transform: translateZ(calc(-1 * var(--turn-depth))) rotateX(-90deg);
+  }
+  100% {
+    transform: translateZ(calc(-1 * var(--turn-depth))) rotateX(-180deg);
+  }
+}
