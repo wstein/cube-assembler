@@ -187,6 +187,9 @@ let exportedProtocol = (input: captureFixtureInput) => {
       ->Array.some(photo => photo.captureGuide->Option.isSome)
     recognized->Null.toOption->Option.isSome
       ? recognized
+        // Declared v3 context preserves uncertain provenance, not six observed steps.
+      : prior->Null.toOption->Option.mapOr(false, GuidedCaptureProtocol.isCurrentProtocol)
+      ? prior
       : input.guided && !anyObservation
       ? Null.make(CaptureSteps.legacyGuidedProtocol)
       : Null.null

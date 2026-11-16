@@ -369,7 +369,9 @@ let reviewProtocol = (captured: Dict.t<CaptureFlow.faceCaptureData>, uploadedPro
         GuidedCaptureProtocol.isCurrentProtocol(guide.protocol)
       )
     )
-  if anyCurrent && protocol->Null.toOption->Option.isNone {
+  let declaredCurrent =
+    uploadedProtocol->Null.toOption->Option.mapOr(false, GuidedCaptureProtocol.isCurrentProtocol)
+  if (anyCurrent || declaredCurrent) && protocol->Null.toOption->Option.isNone {
     Null.make(GuidedCaptureProtocol.incompleteProtocol)
   } else if protocol->Null.toOption->Option.isSome {
     protocol

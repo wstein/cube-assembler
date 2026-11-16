@@ -6,6 +6,7 @@ import {
 import { recordGuide as recordCurrentGuide } from '../src/client/capture/captureRecovery'
 import {
   captureProtocol,
+  reviewProtocol,
   physicalProtocol,
 } from '../src/client/capture/guidedCaptureProtocol'
 import { readFixtureUpload } from '../src/client/fixtures/readFixtureUpload'
@@ -174,3 +175,49 @@ it('does not fabricate missing or malformed guides and preserves mixed retake pr
   expect(entries.L.captureGuide).toBeUndefined()
   expect(captureProtocol(entries, physicalProtocol)).toBeNull()
 })
+
+for (const protocol of [
+  'left-front-right-back-up-down/v3',
+  'right-back-left-front-up-down/v3',
+])
+  for (const kind of ['all-retakes', 'all-missing'])
+    it(`retains uncertain ${protocol} provenance across a raw ${kind} export/import`, () => {
+      const original = input()
+      original.uploadedProtocol = protocol
+      for (const slot of slots)
+        original.capturedFaces[slot].captureGuide =
+          kind === 'all-retakes'
+            ? recordCurrentGuide(slot, protocol.startsWith('right-'), true)!
+            : undefined
+      const fixture = buildCaptureFixture(original)
+      const meta = JSON.parse(
+        new TextDecoder().decode(fixture.files['meta.json']),
+      )
+      expect(meta.capture.protocol).toBe(protocol)
+      expect(meta.capture.assembledURFDLB).toBeNull()
+      expect(meta.capture.faceRecovery).toBeNull()
+      expect(meta.capture.assemblyValidation).toEqual({ status: 'not-checked' })
+      const plan = planFixtureUpload(
+        meta,
+        'meta.json',
+        Object.keys(fixture.files),
+        1,
+      )
+      if (!plan.ok) throw new Error(plan.message)
+      const entries = Object.fromEntries(
+        plan.faces.map((face) => [
+          face.face,
+          {
+            colors: face.colors,
+            confidence: 1,
+            timestamp: face.timestamp,
+            captureGuide: face.captureGuide,
+          },
+        ]),
+      )
+      expect(captureProtocol(entries, meta.capture.protocol)).toBeNull()
+      expect(reviewProtocol(entries, meta.capture.protocol, true)).toBe(
+        'incomplete-physical-guide/v3',
+      )
+      expect(meta.capture.protocol).not.toBe('incomplete-physical-guide/v3')
+    })
