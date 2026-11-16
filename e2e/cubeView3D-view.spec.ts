@@ -223,7 +223,8 @@ async function expectPauseWindowThenResume(page: Page, pausedAt: number) {
   const idle = await canvas.screenshot()
   await page.clock.runFor(150)
   expect((await canvas.screenshot()).equals(idle)).toBe(true)
-  const remaining = pausedAt + 1499 - await page.evaluate(() => performance.now())
+  const remaining =
+    pausedAt + 1499 - (await page.evaluate(() => performance.now()))
   expect(remaining).toBeGreaterThanOrEqual(0)
   await page.clock.runFor(remaining)
   await expect(canvas).toHaveAttribute('data-idle', 'true')
