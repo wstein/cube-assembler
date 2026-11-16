@@ -213,7 +213,7 @@ it('records retake prompts without inventing a sixth step or an unshown turn arr
   expect(recordGuide('R', true, false)).toEqual({
     step: 1,
     mirrored: true,
-    protocol: 'sides-then-top-bottom/v2',
+    protocol: 'right-back-left-front-up-down/v3',
     displayedArrow: 270,
   })
   expect(recordGuide('BAD', false, false)).toBeNull()

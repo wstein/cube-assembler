@@ -175,15 +175,16 @@ let bottomFirst = (faces: Dict.t<faceCaptureData>, incoming: option<captureGuide
   let populated = faceOrder->Array.filterMap(slot => faces->Dict.get(slot))
   let recorded = populated->Array.map(photo => photo.captureGuide)
   let guides = [...recorded, incoming]->Array.filterMap(guide => guide)
-  let physical = guides->Array.some(guide => guide.protocol == CaptureSteps.guidedProtocol)
+  let physical =
+    guides->Array.some(guide => guide.protocol == GuidedCaptureProtocol.physicalProtocol)
   let compatible =
     recorded->Array.every(guide =>
       guide->Option.mapOr(false, guide =>
-        guide.protocol == CaptureSteps.guidedProtocol || guide.protocol == "retake/v1"
+        guide.protocol == GuidedCaptureProtocol.physicalProtocol || guide.protocol == "retake/v1"
       )
     ) &&
       guides->Array.every(guide =>
-        guide.protocol == CaptureSteps.guidedProtocol || guide.protocol == "retake/v1"
+        guide.protocol == GuidedCaptureProtocol.physicalProtocol || guide.protocol == "retake/v1"
       )
   physical && compatible
 }
@@ -240,7 +241,8 @@ let presentationProtocolFromGuides = (
   uploadedProtocol: Null.t<string>,
 ) => {
   let known = protocol =>
-    protocol == CaptureSteps.guidedProtocol || protocol == CaptureSteps.legacyGuidedProtocol
+    GuidedCaptureProtocol.isPhysicalProtocol(protocol) ||
+    protocol == CaptureSteps.legacyGuidedProtocol
   let context = uploadedProtocol->Null.toOption->Option.filter(known)
   let originals =
     guides->Array.filterMap(guide => guide->Option.filter(guide => guide.protocol != "retake/v1"))
@@ -319,7 +321,8 @@ let isGuidedCapture = (faces, uploadedProtocol: Null.t<string>) =>
       uploadedProtocol
       ->Null.toOption
       ->Option.mapOr(false, protocol =>
-        protocol == CaptureSteps.guidedProtocol || protocol == CaptureSteps.legacyGuidedProtocol
+        GuidedCaptureProtocol.isPhysicalProtocol(protocol) ||
+        protocol == CaptureSteps.legacyGuidedProtocol
       ))
 
 type captureWarning = {text: string, key: string, retake: int}

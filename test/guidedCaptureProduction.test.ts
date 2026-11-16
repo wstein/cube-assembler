@@ -11,13 +11,25 @@ import {
   isGuidedCapture,
   sessionView,
 } from '../src/client/capture/captureFlow'
-import { recordGuide } from '../src/client/capture/captureRecovery'
+import { recordGuide as recordCurrentGuide } from '../src/client/capture/captureRecovery'
 import {
   captureProtocol,
   physicalProtocol,
 } from '../src/client/capture/guidedCaptureProtocol'
 import { generateForProtocol } from '../src/client/capture/spatialOrientationWizard'
 import type { FaceCaptureData } from '../src/client/capture/captureTypes'
+// Historical v2 observations are explicit; the current camera now records v3.
+const recordV2Guide = (slot: string, mirrored: boolean, retake: boolean) => {
+  const guide = recordCurrentGuide(slot, mirrored, retake)
+  return (
+    guide && {
+      ...guide,
+      protocol: retake ? guide.protocol : physicalProtocol,
+      displayedArrow:
+        retake || guide.step === 0 ? null : guide.step < 4 ? 270 : 0,
+    }
+  )
+}
 const slots = ['U', 'R', 'F', 'D', 'L', 'B']
 for (const size of [3, 5, 7])
   for (const mirrored of [false, true]) {
@@ -43,7 +55,7 @@ for (const size of [3, 5, 7])
           expect(
             sessionView(captured, requested!, size, []).predictedCenter,
           ).toBe(held.F[Math.floor(size / 2)][Math.floor(size / 2)])
-        const guide = recordGuide(requested!, mirrored, false)!
+        const guide = recordV2Guide(requested!, mirrored, false)!
         const result = captureStep(
           captured,
           requested!,
@@ -89,7 +101,7 @@ it('keeps legacy top-first imports and explicit retakes in their original slots'
   let captured: Record<string, FaceCaptureData> = {}
   for (const [step, slot] of slots.entries()) {
     const guide = {
-      ...recordGuide(slot, false, false)!,
+      ...recordV2Guide(slot, false, false)!,
       protocol: 'sides-then-top-bottom/v1',
     }
     if (step >= 2)
@@ -118,7 +130,7 @@ it('keeps legacy top-first imports and explicit retakes in their original slots'
     {
       colors: solved.U,
       confidence: 1,
-      captureGuide: recordGuide('L', false, true)!,
+      captureGuide: recordV2Guide('L', false, true)!,
     },
     'camera',
     undefined,
@@ -170,7 +182,7 @@ it('routes different initial physical holds without interpreting capture IDs as 
             {
               colors: held.F,
               confidence: 1,
-              captureGuide: recordGuide(requested!, mirrored, false)!,
+              captureGuide: recordV2Guide(requested!, mirrored, false)!,
             },
             'camera',
             undefined,

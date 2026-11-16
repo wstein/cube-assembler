@@ -24,7 +24,11 @@ import {
 import { sameCubeState } from './recoveryPresentation'
 import { readFixtureAssembled } from '../fixtures/fixtureFormat'
 import type { FaceCaptureData } from './captureTypes'
-import { captureProtocol, legacyProtocol } from './guidedCaptureProtocol'
+import {
+  captureProtocol,
+  reviewProtocol,
+  legacyProtocol,
+} from './guidedCaptureProtocol'
 import {
   generateForProtocol,
   knownAlternatives,
@@ -122,12 +126,16 @@ export function useFaceRecovery({
       ),
     [workingFaces],
   )
-  const committedProtocol =
-    captureProtocol(capturedFaces, context?.protocol ?? null) ??
-    (guided ? legacyProtocol : null)
-  const draftProtocol =
-    captureProtocol(workingFaces, context?.protocol ?? null) ??
-    (guided ? legacyProtocol : null)
+  const committedProtocol = reviewProtocol(
+    capturedFaces,
+    context?.protocol ?? null,
+    guided,
+  )
+  const draftProtocol = reviewProtocol(
+    workingFaces,
+    context?.protocol ?? null,
+    guided,
+  )
   const committedPackage = useMemo(
     () =>
       Object.keys(capturedFaces).length === 6
@@ -220,14 +228,24 @@ export function useFaceRecovery({
     mapping: FaceMapping,
     saved: CaptureRecovery | null,
   ): RecoveryDraft => {
-    const frontSlot = saved?.captureFrame.frontSlot ?? 'U'
+    const frontSlot =
+      saved?.captureFrame.frontSlot ??
+      (committedProtocol === 'left-front-right-back-up-down/v3'
+        ? 'R'
+        : committedProtocol === 'right-back-left-front-up-down/v3'
+          ? 'D'
+          : 'U')
     const front = mapping.find((entry) => entry.slot === frontSlot)?.target
     return {
       mapping,
       frontSlot,
       upSlot:
         saved?.captureFrame.upSlot ??
-        (committedPackage?.baselineStatus === 'checked' ? 'B' : null) ??
+        (committedPackage?.baselineStatus === 'checked'
+          ? committedProtocol?.endsWith('/v3')
+            ? 'L'
+            : 'B'
+          : null) ??
         mapping.find(
           (entry) =>
             entry.target === (front === 'U' || front === 'D' ? 'F' : 'U'),

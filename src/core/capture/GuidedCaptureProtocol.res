@@ -1,5 +1,10 @@
 open CubeTypes
 let physicalProtocol = "sides-then-top-bottom/v2"
+let currentProtocol = "left-front-right-back-up-down/v3"
+let mirroredProtocol = "right-back-left-front-up-down/v3"
+let incompleteProtocol = "incomplete-physical-guide/v3"
+let isCurrentProtocol = protocol => protocol == currentProtocol || protocol == mirroredProtocol
+let isPhysicalProtocol = protocol => protocol == physicalProtocol || isCurrentProtocol(protocol)
 let legacyProtocol = "sides-then-top-bottom/v1"
 let slots = ["U", "R", "F", "D", "L", "B"]
 let physicalMapping: CaptureFaceMapping.mapping = [
@@ -10,20 +15,36 @@ let physicalMapping: CaptureFaceMapping.mapping = [
   {slot: "L", target: D, quarterTurns: 3},
   {slot: "B", target: U, quarterTurns: 1},
 ]
+let currentMapping: CaptureFaceMapping.mapping = [
+  {slot: "U", target: L, quarterTurns: 0},
+  {slot: "R", target: F, quarterTurns: 0},
+  {slot: "F", target: R, quarterTurns: 0},
+  {slot: "D", target: B, quarterTurns: 0},
+  {slot: "L", target: U, quarterTurns: 2},
+  {slot: "B", target: D, quarterTurns: 2},
+]
+let mirroredMapping: CaptureFaceMapping.mapping = [
+  {slot: "U", target: R, quarterTurns: 0},
+  {slot: "R", target: B, quarterTurns: 0},
+  {slot: "F", target: L, quarterTurns: 0},
+  {slot: "D", target: F, quarterTurns: 0},
+  {slot: "L", target: U, quarterTurns: 0},
+  {slot: "B", target: D, quarterTurns: 0},
+]
 @genType
 type seed = {
   mapping: CaptureFaceMapping.mapping,
   validation: CaptureFaceMapping.validation,
   canonicalTransform: Null.t<int>,
 }
-let placedFaces = captured =>
+let placedFaces = (captured, placements: CaptureFaceMapping.mapping) =>
   Dict.fromArray(
-    physicalMapping->Array.map(entry => {
+    placements->Array.map(entry => {
       let key = slots->Array.getUnsafe(faceKeys->Array.indexOf(entry.target))
       (key, CubeGeometry.rotateGrid(captured->Dict.getUnsafe(entry.slot), entry.quarterTurns))
     }),
   )->fromGeometry
-let physicalSeed = (captured: Dict.t<grid>, size): seed => {
+let seedForMapping = (captured: Dict.t<grid>, size, placements): seed => {
   let complete =
     size >= 2 &&
     size <= 8 &&
@@ -36,12 +57,12 @@ let physicalSeed = (captured: Dict.t<grid>, size): seed => {
     )
   if !complete {
     {
-      mapping: physicalMapping,
-      validation: CaptureFaceMapping.validateMapping(captured, physicalMapping, size),
+      mapping: placements,
+      validation: CaptureFaceMapping.validateMapping(captured, placements, size),
       canonicalTransform: Null.null,
     }
   } else {
-    let sourceFrame = placedFaces(captured)
+    let sourceFrame = placedFaces(captured, placements)
     let canonical = CubeAssembly.standardOrientation(sourceFrame)
     // Unique source-pixel labels carry identity through the same global
     // rotation, even when photographed color grids happen to be symmetric.
@@ -53,7 +74,7 @@ let physicalSeed = (captured: Dict.t<grid>, size): seed => {
         ),
       )),
     )
-    let sourceLabels = placedFaces(photos)
+    let sourceLabels = placedFaces(photos, placements)
     let labels =
       CaptureFaceMapping.transformFaces(sourceLabels, canonical.index)
       ->Null.toOption
@@ -78,3 +99,15 @@ let physicalSeed = (captured: Dict.t<grid>, size): seed => {
     }
   }
 }
+
+let physicalSeed = (captured, size) => seedForMapping(captured, size, physicalMapping)
+let seedForProtocol = (captured, size, protocol) =>
+  seedForMapping(
+    captured,
+    size,
+    protocol == currentProtocol
+      ? currentMapping
+      : protocol == mirroredProtocol
+      ? mirroredMapping
+      : physicalMapping,
+  )

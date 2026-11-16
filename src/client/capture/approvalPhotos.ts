@@ -2,6 +2,12 @@ import { diagnoseForProtocol } from '../../core/capture/CaptureDiagnosis.gen'
 import { findCaptureForOrientedFace } from '../../cube/capturedFaceMatching'
 import { solveFaceOrientations } from '../../cube/cubeAssembly'
 import { rotateGrid } from '../../cube/cubeGeometry'
+import {
+  reviewProtocol,
+  incompleteProtocol,
+  isCurrentProtocol,
+  seedForProtocol,
+} from './guidedCaptureProtocol'
 import { forcedReading } from './forcedStickers'
 import { stickerMark } from './captureSteps'
 import type { FaceCaptureData } from './captureTypes'
@@ -180,6 +186,29 @@ export function reviewNetLayout(
   order: string[],
 ): Record<string, { slot: number; colors: string[][]; turns: number }> | null {
   if (!order.every((key) => captured[key])) return null
+  const protocol = reviewProtocol(captured, null, false)
+  if (protocol === incompleteProtocol) return null
+  if (protocol && isCurrentProtocol(protocol)) {
+    const grids = Object.fromEntries(
+      order.map((key) => [key, captured[key].colors]),
+    )
+    const seed = seedForProtocol(
+      grids,
+      captured[order[0]].colors.length,
+      protocol,
+    )
+    if (!seed.validation.valid || !seed.validation.faces) return null
+    return Object.fromEntries(
+      seed.mapping.map((entry) => [
+        entry.target,
+        {
+          slot: order.indexOf(entry.slot),
+          colors: seed.validation.faces![entry.target],
+          turns: entry.quarterTurns,
+        },
+      ]),
+    )
+  }
   const solution = solveFaceOrientations(
     Object.fromEntries(order.map((key) => [key, captured[key].colors])),
   )

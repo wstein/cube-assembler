@@ -3,13 +3,25 @@ import {
   buildCaptureFixture,
   type CaptureFixtureInput,
 } from '../src/client/capture/captureFixture'
-import { recordGuide } from '../src/client/capture/captureRecovery'
+import { recordGuide as recordCurrentGuide } from '../src/client/capture/captureRecovery'
 import {
   captureProtocol,
   physicalProtocol,
 } from '../src/client/capture/guidedCaptureProtocol'
 import { readFixtureUpload } from '../src/client/fixtures/readFixtureUpload'
 import { planFixtureUpload } from '../src/core/capture/FixtureUpload.gen'
+// Historical v2 observations are explicit; the current camera now records v3.
+const recordV2Guide = (slot: string, mirrored: boolean, retake: boolean) => {
+  const guide = recordCurrentGuide(slot, mirrored, retake)
+  return (
+    guide && {
+      ...guide,
+      protocol: retake ? guide.protocol : physicalProtocol,
+      displayedArrow:
+        retake || guide.step === 0 ? null : guide.step < 4 ? 270 : 0,
+    }
+  )
+}
 const slots = ['U', 'R', 'F', 'D', 'L', 'B']
 const colors = ['G', 'R', 'B', 'O', 'Y', 'W']
 function input(): CaptureFixtureInput {
@@ -22,7 +34,7 @@ function input(): CaptureFixtureInput {
             [colors[i], colors[i]],
             [colors[i], colors[i]],
           ],
-          captureGuide: recordGuide(slot, true, false)!,
+          captureGuide: recordV2Guide(slot, true, false)!,
           confidence: 1,
           timestamp: 0,
           source: 'camera' as const,
@@ -64,45 +76,61 @@ class FixtureReader {
   }
 }
 afterEach(() => vi.unstubAllGlobals())
-it('retains actual exported v2 guides through the pure import plan and browser entries into reexport', async () => {
-  vi.stubGlobal('FileReader', FixtureReader)
-  const original = input()
-  const fixture = buildCaptureFixture(original)
-  const meta = JSON.parse(new TextDecoder().decode(fixture.files['meta.json']))
-  const plan = planFixtureUpload(
-    meta,
-    'meta.json',
-    Object.keys(fixture.files).filter((name) => name !== 'meta.json'),
-    1,
-  )
-  expect(plan.ok).toBe(true)
-  if (!plan.ok) throw new Error(plan.message)
-  for (const face of plan.faces)
-    expect(face.captureGuide).toEqual(
-      original.capturedFaces[face.face].captureGuide,
+it.each([
+  'sides-then-top-bottom/v2',
+  'left-front-right-back-up-down/v3',
+  'right-back-left-front-up-down/v3',
+])(
+  'retains %s guides through the import plan, browser entries and reexport',
+  async (protocol) => {
+    vi.stubGlobal('FileReader', FixtureReader)
+    const original = input()
+    if (protocol !== physicalProtocol)
+      for (const slot of slots)
+        original.capturedFaces[slot].captureGuide = recordCurrentGuide(
+          slot,
+          protocol.startsWith('right-'),
+          false,
+        )!
+    const fixture = buildCaptureFixture(original)
+    const meta = JSON.parse(
+      new TextDecoder().decode(fixture.files['meta.json']),
     )
-  const files = Object.entries(fixture.files).map(
-    ([name, bytes]) =>
-      new File([new Uint8Array(bytes).buffer], name, {
-        type: name.endsWith('.json') ? 'application/json' : 'image/jpeg',
-      }),
-  )
-  const loaded = await readFixtureUpload(files)
-  expect(loaded.ok).toBe(true)
-  if (!loaded.ok) throw new Error(loaded.message)
-  expect(
-    captureProtocol(loaded.entries, loaded.meta.capture?.protocol ?? null),
-  ).toBe(physicalProtocol)
-  const exported = buildCaptureFixture({
-    ...original,
-    capturedFaces: loaded.entries,
-    uploadedProtocol: loaded.meta.capture?.protocol ?? undefined,
-  })
-  expect(
-    JSON.parse(new TextDecoder().decode(exported.files['meta.json'])).capture
-      .protocol,
-  ).toBe(physicalProtocol)
-})
+    const plan = planFixtureUpload(
+      meta,
+      'meta.json',
+      Object.keys(fixture.files).filter((name) => name !== 'meta.json'),
+      1,
+    )
+    expect(plan.ok).toBe(true)
+    if (!plan.ok) throw new Error(plan.message)
+    for (const face of plan.faces)
+      expect(face.captureGuide).toEqual(
+        original.capturedFaces[face.face].captureGuide,
+      )
+    const files = Object.entries(fixture.files).map(
+      ([name, bytes]) =>
+        new File([new Uint8Array(bytes).buffer], name, {
+          type: name.endsWith('.json') ? 'application/json' : 'image/jpeg',
+        }),
+    )
+    const loaded = await readFixtureUpload(files)
+    expect(loaded.ok).toBe(true)
+    if (!loaded.ok) throw new Error(loaded.message)
+    expect(
+      captureProtocol(loaded.entries, loaded.meta.capture?.protocol ?? null),
+    ).toBe(protocol)
+    const exported = buildCaptureFixture({
+      ...original,
+      capturedFaces: loaded.entries,
+      uploadedProtocol: loaded.meta.capture?.protocol ?? undefined,
+    })
+    expect(
+      JSON.parse(new TextDecoder().decode(exported.files['meta.json'])).capture
+        .protocol,
+    ).toBe(protocol)
+  },
+)
 it('does not fabricate missing or malformed guides and preserves mixed retake provenance without claiming v2', () => {
   const fixture = buildCaptureFixture(input())
   const meta = JSON.parse(new TextDecoder().decode(fixture.files['meta.json']))
