@@ -1,13 +1,20 @@
 import { useMemo } from 'preact/hooks'
 import { validateMapping } from './capture/captureFaceMapping'
-import { presentationCube } from './capture/recoveryPresentation'
+import {
+  presentationCube,
+  presentationMoves,
+  presentationColorFrame,
+} from './capture/recoveryPresentation'
 import type { CaptureRecovery } from './capture/captureRecovery'
 import { lazy, Suspense } from 'preact/compat'
 import type { CubeState } from '../cube/cubeAssembly'
 import type { ParityResult } from '../cube/parity'
 import type { FaceCaptureData } from './capture/captureTypes'
 import type { CubeTurn } from './view3d/cubeView3DState'
-import type { colorFrame as ColorFrame } from '../core/view/AxisGizmo.gen'
+import {
+  initialColorFrame,
+  type colorFrame as ColorFrame,
+} from '../core/view/AxisGizmo.gen'
 import { CubeNetView } from './cubeNetView'
 
 const CubeView3D = lazy(() =>
@@ -158,13 +165,17 @@ export function CubeDisplayCard({
           <CubeView3D
             cube={shownSource}
             initialCube={shownVisible}
-            initialMoves={initialMoves}
-            initialFrame={initialFrame}
+            initialMoves={presentationMoves(initialMoves, recovery)}
+            initialFrame={presentationColorFrame(
+              initialFrame ?? initialColorFrame(sourceCube, size),
+              recovery,
+            )}
+            publicMoves={(moves) => presentationMoves(moves, recovery, true)}
             onTurnStateChange={(value, moves, frame) =>
               onTurnStateChange(
                 presentationCube(value, size, recovery, true),
-                moves,
-                frame,
+                presentationMoves(moves, recovery, true),
+                presentationColorFrame(frame, recovery, true),
               )
             }
             puzzleSize={size}

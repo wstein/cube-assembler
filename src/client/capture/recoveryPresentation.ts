@@ -39,3 +39,58 @@ export function presentationCube(
   if (!faces) throw new Error('Invalid recorded display transform')
   return assembleCubeFromFaces(faces, size)
 }
+
+// A proper spatial rotation maps an outward face normal to another face;
+// clockwise direction and layer depth remain unchanged. Face identities are
+// transformed by the same authoritative ReScript geometry as sticker grids.
+export function presentationMoves(
+  moves: import('../view3d/cubeView3DState').CubeTurn[],
+  recovery: CaptureRecovery | null,
+  inverse = false,
+): import('../view3d/cubeView3DState').CubeTurn[] {
+  if (!recovery || recovery.view !== 'capture') return moves
+  const labels = Object.fromEntries(KEYS.map((f) => [f, [[f]]])) as Record<
+    FaceKey,
+    string[][]
+  >
+  const transformed = transformFaces(
+    labels,
+    inverse
+      ? recovery.captureFrame.canonicalTransform
+      : recovery.captureFrame.displayTransform,
+  )!
+  return moves.map((move) => ({
+    ...move,
+    face: KEYS.find((f) => transformed[f][0][0] === move.face)!,
+  }))
+}
+
+export function presentationColorFrame(
+  frame: import('../../core/view/AxisGizmo.gen').colorFrame,
+  recovery: CaptureRecovery | null,
+  inverse = false,
+): import('../../core/view/AxisGizmo.gen').colorFrame {
+  const cube = Object.fromEntries(
+    KEYS.map((f) => [
+      f.toLowerCase(),
+      [frame[f.toLowerCase() as keyof typeof frame]],
+    ]),
+  ) as CubeState
+  const shown = presentationCube(cube, 1, recovery, inverse)
+  return Object.fromEntries(
+    KEYS.map((f) => [
+      f.toLowerCase(),
+      shown[f.toLowerCase() as keyof CubeState][0],
+    ]),
+  ) as typeof frame
+}
+
+export function sameCubeState(left: CubeState, right: CubeState): boolean {
+  return KEYS.every((f) => {
+    const key = f.toLowerCase() as keyof CubeState
+    return (
+      left[key].length === right[key].length &&
+      left[key].every((value, i) => value === right[key][i])
+    )
+  })
+}
