@@ -275,3 +275,56 @@ for (const declared of [protocol, mirroredProtocol])
       }
     })
 
+for (const mirrored of [false, true])
+  it(`keeps a v3 source step even when its observed center conflicts, mirror=${mirrored}`, () => {
+    const photos = photograph(
+      turnFace(
+        solvedCubeFaces(3, { U: 'W', R: 'R', F: 'G', D: 'Y', L: 'O', B: 'B' }),
+        'R',
+        1,
+      ),
+      mirrored,
+    )
+    let captured: Record<string, FaceCaptureData> = {}
+    for (const slot of ['U', 'R']) {
+      const step = captureStep(
+        captured,
+        slot,
+        {
+          colors: photos[slot],
+          confidence: 1,
+          captureGuide: recordGuide(slot, mirrored, false)!,
+        },
+        'camera',
+        undefined,
+        undefined,
+        3,
+        false,
+        0,
+      )
+      if (!step.ok) throw new Error(step.message)
+      captured = step.faces
+    }
+    const unexpected = photos.F.map((row) => [...row])
+    unexpected[1][1] = photos.D[1][1]
+    const prior = JSON.stringify(captured)
+    const guide = recordGuide('F', mirrored, false)!
+    const step = captureStep(
+      captured,
+      'F',
+      { colors: unexpected, confidence: 1, captureGuide: guide },
+      'camera',
+      undefined,
+      undefined,
+      3,
+      false,
+      1,
+    )
+    expect(step.ok).toBe(true)
+    if (!step.ok) throw new Error(step.message)
+    expect(step.assignedFace).toBe('F')
+    expect(step.faces.R).toEqual(captured.R)
+    expect(step.faces.F.colors).toEqual(unexpected)
+    expect(step.faces.F.captureGuide).toEqual(guide)
+    expect(JSON.stringify(captured)).toBe(prior)
+  })

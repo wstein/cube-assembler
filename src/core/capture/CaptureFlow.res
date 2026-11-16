@@ -202,12 +202,20 @@ let placeFaceCapture = (
   now,
 ) => {
   let requestedIndex = faceOrder->Array.indexOf(face)
-  let {index, unexpectedCenter} = GuidedCaptureSetup.placeCapturedFaceForOrder(
+  let placement = GuidedCaptureSetup.placeCapturedFaceForOrder(
     colorsAt(faces),
     requestedIndex,
     reading.colors,
     bottomFirst(faces, reading.captureGuide),
   )
+  // V3 IDs describe observed source steps, not center-derived logical faces.
+  let currentGuide =
+    reading.captureGuide->Option.mapOr(false, guide =>
+      GuidedCaptureProtocol.isCurrentProtocol(guide.protocol)
+    )
+  let index = currentGuide ? requestedIndex : placement.index
+  let unexpectedCenter =
+    placement.unexpectedCenter || (currentGuide && placement.index != requestedIndex)
   let assignedFace = faceOrder->Array.getUnsafe(index)
   let wasOutOfOrder =
     faces->Dict.get(assignedFace)->Option.flatMap(data => data.outOfOrder)->Option.getOr(false)
