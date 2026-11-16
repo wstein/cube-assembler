@@ -138,8 +138,7 @@ test('correct original 7x7 photos offer only constrained choices after rejection
   await upload(page, readFileSync(archive))
   await page
     .getByRole('button', {
-      name: 'Adjust face orientations / assignments',
-      exact: true,
+      name: /^Alternatives \([1-9][0-9]*\)$/,
     })
     .click()
   await noFreeControls(page)
@@ -251,16 +250,11 @@ for (const size of [3, 5])
     page,
   }) => {
     await upload(page, solidArchive(size))
-    await page
-      .getByRole('button', {
-        name: 'Adjust face orientations / assignments',
-        exact: true,
-      })
-      .click()
-    await noFreeControls(page)
-    await expect(page.locator('.spatial-candidate')).toHaveCount(0)
     await expect(
-      page.getByRole('button', { name: 'Use this cube', exact: true }),
+      page.getByRole('button', { name: 'Alternatives (0)', exact: true }),
+    ).toBeDisabled()
+    await expect(
+      page.getByRole('button', { name: 'Yes, this is my cube', exact: true }),
     ).toBeEnabled()
   })
 

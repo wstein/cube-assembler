@@ -24,7 +24,6 @@ import { previewFaces } from './spatialOrientationWizard'
 const CubeView3D = lazy(() =>
   import('../view3d/cubeView3D').then((m) => ({ default: m.CubeView3D })),
 )
-const LABELS = ['Side 1', 'Side 2', 'Side 3', 'Side 4', 'Top', 'Bottom']
 export function FaceRecoveryDialog({
   recovery,
   currentCube,
@@ -278,7 +277,7 @@ export function FaceRecoveryDialog({
                 <section aria-label="Orientation candidate choices">
                   <h3>
                     Which matches{' '}
-                    {LABELS[
+                    {recovery.sourcePhotoNames[
                       FACE_ORDER.indexOf(recovery.activeSlot as FaceKey)
                     ] ?? recovery.activeSlot}
                     ?
@@ -291,7 +290,7 @@ export function FaceRecoveryDialog({
                           type="button"
                           class="spatial-candidate"
                           key={`${choice.target}-${choice.quarterTurns}`}
-                          aria-label={`Choose ${LABELS[FACE_ORDER.indexOf(choice.slot)] ?? choice.slot}, ${relativeTurns * 90}° clockwise, ${view.target} face, option ${i + 1}`}
+                          aria-label={`Choose ${recovery.sourcePhotoNames[FACE_ORDER.indexOf(choice.slot)] ?? choice.slot}, ${relativeTurns * 90}° clockwise, ${view.target} face, option ${i + 1}`}
                           aria-pressed={
                             recovery.selectedChoice?.slot === choice.slot &&
                             recovery.selectedChoice.target === choice.target &&

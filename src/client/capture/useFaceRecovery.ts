@@ -16,11 +16,14 @@ import {
   mergeGuideObservations,
   type CaptureRecovery,
 } from './captureRecovery'
+import { sourcePhotoNames } from '../../core/capture/CaptureSteps.gen'
 import { sameCubeState } from './recoveryPresentation'
 import { readFixtureAssembled } from '../fixtures/fixtureFormat'
 import type { FaceCaptureData } from './captureTypes'
+import { captureProtocol, legacyProtocol } from './guidedCaptureProtocol'
 import {
-  generate,
+  generateForProtocol,
+  knownAlternatives,
   remaining,
   nextSlot,
   retainsMapping,
@@ -54,6 +57,7 @@ interface Snapshot {
   cursor: string | null
   warning: string | null
   savedSelection: boolean
+  protocolSelection: boolean
 }
 const emptySnapshot = (): Snapshot => ({
   draft: null,
@@ -62,6 +66,7 @@ const emptySnapshot = (): Snapshot => ({
   cursor: null,
   warning: null,
   savedSelection: false,
+  protocolSelection: false,
 })
 
 // One browser transaction owns the complete editable session. ReScript owns
@@ -94,30 +99,62 @@ export function useFaceRecovery({
   const [recordPresent, setRecordPresent] = useState(false)
   const [context, setContext] = useState<CaptureContext | null>(null)
   const [importWarning, setImportWarning] = useState<string | null>(null)
-  const grids = Object.fromEntries(
-    Object.entries(workingFaces).map(([slot, face]) => [slot, face.colors]),
-  )
-  const session = useMemo(
+  const committedGrids = useMemo(
     () =>
-      Object.keys(workingFaces).length === 6
-        ? generate(
-            Object.fromEntries(
-              Object.entries(workingFaces).map(([slot, face]) => [
-                slot,
-                face.colors,
-              ]),
-            ),
+      Object.fromEntries(
+        Object.entries(capturedFaces).map(([slot, face]) => [
+          slot,
+          face.colors,
+        ]),
+      ),
+    [capturedFaces],
+  )
+  const grids = useMemo(
+    () =>
+      Object.fromEntries(
+        Object.entries(workingFaces).map(([slot, face]) => [slot, face.colors]),
+      ),
+    [workingFaces],
+  )
+  const committedProtocol =
+    captureProtocol(capturedFaces, context?.protocol ?? null) ??
+    (guided ? legacyProtocol : null)
+  const draftProtocol =
+    captureProtocol(workingFaces, context?.protocol ?? null) ??
+    (guided ? legacyProtocol : null)
+  const committedPackage = useMemo(
+    () =>
+      Object.keys(capturedFaces).length === 6
+        ? generateForProtocol(committedGrids, size, committedProtocol)
+        : null,
+    [capturedFaces, committedGrids, size, committedProtocol],
+  )
+  const workingPackage = useMemo(
+    () =>
+      workingFaces === capturedFaces
+        ? committedPackage
+        : Object.keys(workingFaces).length === 6
+          ? generateForProtocol(grids, size, draftProtocol)
+          : null,
+    [workingFaces, capturedFaces, committedPackage, grids, size, draftProtocol],
+  )
+  const session = workingPackage?.session ?? null
+  const committedSaved = useMemo(
+    () =>
+      approved
+        ? restoredCandidate(
+            approved,
+            committedGrids,
             size,
-            guided,
+            readFixtureAssembled({ gridSize: size, capture: context }),
           )
         : null,
-    [workingFaces, size, guided],
+    [approved, committedGrids, size, context],
   )
   const decisions = current.decisions
   const remainingCandidates = session ? remaining(session, decisions) : []
-  const activeSlot = current.savedSelection
-    ? null
-    : (current.cursor ?? (session ? nextSlot(session, decisions) : null))
+  const activeSlot =
+    current.cursor ?? (session ? nextSlot(session, decisions) : null)
   const presentedChoices =
     draft && session && activeSlot
       ? presentChoices(
@@ -136,12 +173,14 @@ export function useFaceRecovery({
     presentedChoices.find(
       (presented) =>
         presented.isCurrent &&
-        decisions.some(
-          (decision) =>
-            decision.slot === presented.choice.slot &&
-            decision.target === presented.choice.target &&
-            decision.quarterTurns === presented.choice.quarterTurns,
-        ),
+        (current.savedSelection ||
+          current.protocolSelection ||
+          decisions.some(
+            (decision) =>
+              decision.slot === presented.choice.slot &&
+              decision.target === presented.choice.target &&
+              decision.quarterTurns === presented.choice.quarterTurns,
+          )),
     )?.choice ?? null
   const update = (change: (previous: Snapshot) => Snapshot, remember = true) =>
     setTransaction((previous) => ({
@@ -185,6 +224,7 @@ export function useFaceRecovery({
       frontSlot,
       upSlot:
         saved?.captureFrame.upSlot ??
+        (committedPackage?.baselineStatus === 'checked' ? 'B' : null) ??
         mapping.find(
           (entry) =>
             entry.target === (front === 'U' || front === 'D' ? 'F' : 'U'),
@@ -201,11 +241,18 @@ export function useFaceRecovery({
       const first: Snapshot = {
         ...emptySnapshot(),
         draft: initialDraft(
-          approved?.mapping ?? initializeMapping(grids, candidate),
+          approved?.mapping ??
+            committedPackage?.baseline?.mapping ??
+            (candidate
+              ? initializeMapping(committedGrids, candidate)
+              : (committedPackage?.session.candidates[0]?.mapping ??
+                initializeMapping(committedGrids, null))),
           approved,
         ),
         faces: capturedFaces,
-        savedSelection: !!approved,
+        savedSelection: !!committedSaved,
+        protocolSelection:
+          !approved && committedPackage?.baselineStatus === 'checked',
       }
       setTransaction({ current: first, initial: first, history: [] })
     }
@@ -255,6 +302,7 @@ export function useFaceRecovery({
       draft: { ...draft, mapping: proposal.mapping },
       decisions: proposal.decisions,
       savedSelection: false,
+      protocolSelection: false,
       cursor: choice.slot,
       warning: proposal.conflicts.length
         ? `${proposal.conflicts.length} later answers need review.`
@@ -355,7 +403,8 @@ export function useFaceRecovery({
         canonicalTransform: frame.canonicalTransform,
         photoTransforms: frame.mapping,
         protocol:
-          context?.protocol ?? (guided ? 'sides-then-top-bottom/v1' : null),
+          captureProtocol(workingFaces, context?.protocol ?? null) ??
+          (guided ? legacyProtocol : null),
         mirrored: context?.mirrored ?? mirrored,
         turnDirection: draft.turnDirection,
         capOrder: draft.capOrder,
@@ -384,17 +433,44 @@ export function useFaceRecovery({
     onCommitFaces(workingFaces)
     onChoose(validation.candidate, record)
   }
-  const originalGrids = () =>
-    Object.fromEntries(
-      Object.entries(capturedFaces).map(([slot, face]) => [slot, face.colors]),
+  const sameLogical = (a: OrientedCandidate, b: OrientedCandidate) =>
+    sameCubeState(
+      assembleCubeFromFaces(a.faces, size),
+      assembleCubeFromFaces(b.faces, size),
     )
+  const mappingForDisplayed = (candidate: OrientedCandidate) =>
+    committedSaved && approved && sameLogical(committedSaved, candidate)
+      ? approved.mapping
+      : committedPackage?.baseline &&
+          sameCubeState(
+            assembleCubeFromFaces(committedPackage.baseline.faces, size),
+            assembleCubeFromFaces(candidate.faces, size),
+          )
+        ? committedPackage.baseline.mapping
+        : initializeMapping(committedGrids, candidate)
   const displayedBlocked = (candidate: OrientedCandidate) =>
-    !!session?.guided &&
-    !approved &&
-    !retainsMapping(session, initializeMapping(originalGrids(), candidate))
+    !(committedSaved && sameLogical(committedSaved, candidate)) &&
+    (!committedPackage ||
+      !retainsMapping(committedPackage.session, mappingForDisplayed(candidate)))
+  const alternativesCount = (candidate: OrientedCandidate) =>
+    committedPackage
+      ? knownAlternatives(
+          committedPackage.session,
+          mappingForDisplayed(candidate),
+        )
+      : 0
+  const committedAlternativeCount = committedPackage
+    ? knownAlternatives(
+        committedPackage.session,
+        approved?.mapping ??
+          committedPackage.baseline?.mapping ??
+          committedPackage.session.candidates[0]?.mapping ??
+          [],
+      )
+    : 0
   const acceptDisplayed = (candidate: OrientedCandidate) => {
     if (displayedBlocked(candidate)) return
-    const original = originalGrids()
+    const original = committedGrids
     const restored = approved
       ? restoredCandidate(
           approved,
@@ -413,7 +489,7 @@ export function useFaceRecovery({
       sameSaved && approved ? { ...approved, view: 'canonical' } : null
     if (!record) {
       const logicalDraft = {
-        ...initialDraft(initializeMapping(original, candidate), null),
+        ...initialDraft(mappingForDisplayed(candidate), null),
         view: 'canonical' as const,
         confirmed: false,
       }
@@ -432,20 +508,29 @@ export function useFaceRecovery({
     setTransaction({ current: emptySnapshot(), initial: null, history: [] })
     onChoose(candidate, record)
   }
-  const importedCandidate = () =>
-    approved
-      ? restoredCandidate(
-          approved,
-          grids,
-          size,
-          readFixtureAssembled({ gridSize: size, capture: context }),
-        )
+  const importedCandidate = () => committedSaved
+  const baselineCandidate = () =>
+    committedPackage?.baseline
+      ? validateMapping(committedGrids, committedPackage.baseline.mapping, size)
+          .candidate
+      : null
+  const captureConflict = () =>
+    committedPackage?.baselineStatus === 'conflict'
+      ? 'Capture conflicts with the physical guide. Check the photos and recorded steps.'
       : null
   return {
     open,
     acceptDisplayed,
     displayedBlocked,
+    alternativesCount,
+    committedAlternativeCount,
+    baselineCandidate,
+    captureConflict,
     workingFaces,
+    sourcePhotoNames: sourcePhotoNames(draftProtocol),
+    committedProtocol,
+    savedAssembly: () =>
+      readFixtureAssembled({ gridSize: size, capture: context }),
     checkpoint: () => transaction,
     restoreCheckpoint: (checkpoint: typeof transaction) =>
       setTransaction(checkpoint),
@@ -457,7 +542,11 @@ export function useFaceRecovery({
             ? value(previous.faces ?? capturedFaces)
             : value,
       })),
-    choiceWarning: current.warning,
+    choiceWarning:
+      current.warning ??
+      (workingPackage?.baselineStatus === 'conflict'
+        ? 'Capture conflicts with the physical guide. Check the photos and recorded steps.'
+        : null),
     pendingChoice: selectedChoice,
     selectedChoice,
     decisions,
