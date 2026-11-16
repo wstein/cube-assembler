@@ -15,6 +15,7 @@ type captureFixtureInput = {
   userAgent: string,
   devicePixelRatio: float,
   faceRecovery?: CaptureRecovery.recovery,
+  uploadedProtocol?: string,
   mirrored: bool,
   cameraInfo: JSON.t,
   captureProfile: JSON.t,
@@ -167,6 +168,30 @@ let nullable = (value, f) =>
 // Packs a capture - each face's actual photo plus its (human-reviewed)
 // color grid - into a fixture request: unzipped into test/fixtures/, it is
 // a permanent regression fixture (see test/fixtures.test.ts).
+// Export provenance never promotes a legacy or unsupported claim to v2.
+let exportedProtocol = (input: captureFixtureInput) => {
+  let prior = switch input.uploadedProtocol {
+  | Some(protocol) => Null.make(protocol)
+  | None =>
+    input.faceRecovery
+    ->Option.flatMap(record => record.captureFrame.protocol->Null.toOption)
+    ->Null.fromOption
+  }
+  if prior->Null.toOption == Some(CaptureSteps.legacyGuidedProtocol) {
+    prior
+  } else {
+    let recognized = CaptureRecovery.captureProtocol(input.capturedFaces, prior)
+    let anyObservation =
+      input.capturedFaces
+      ->Dict.valuesToArray
+      ->Array.some(photo => photo.captureGuide->Option.isSome)
+    recognized->Null.toOption->Option.isSome
+      ? recognized
+      : input.guided && !anyObservation
+      ? Null.make(CaptureSteps.legacyGuidedProtocol)
+      : Null.null
+  }
+}
 let captureFixtureRequest = (input: captureFixtureInput): FixtureZip.fixtureRequest => {
   let {capturedFaces} = input
   let order = CaptureSteps.faceOrder
@@ -270,7 +295,7 @@ let captureFixtureRequest = (input: captureFixtureInput): FixtureZip.fixtureRequ
     // How the photos were taken (see CAPTURE_STEPS) and the cube they were
     // approved as - the fixture test puts the photos together again and
     // checks it gets that cube.
-    ("protocol", input.guided ? JSON.String(CaptureSteps.guidedProtocol) : JSON.Null),
+    ("protocol", nullable(exportedProtocol(input), protocol => JSON.String(protocol))),
     // How the per-face `readings` were measured (see stickerColor).
     ("measurement", JSON.String(FaceSampling.stickerMeasurement)),
     (

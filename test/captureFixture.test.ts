@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { recordGuide } from '../src/client/capture/captureRecovery'
 import {
   applyFixtureDetection,
   buildCaptureFixture,
@@ -19,7 +20,9 @@ const SOLVED: Record<string, string> = {
   B: 'B',
 }
 
-function faces(source: FaceCaptureData['source']) {
+function faces(
+  source: FaceCaptureData['source'],
+): Record<string, FaceCaptureData> {
   return Object.fromEntries(
     Object.entries(SOLVED).map(([face, color]) => [
       face,
@@ -292,4 +295,46 @@ describe('capture fixtures', () => {
       'dropped the saved choice on 3 stickers',
     )
   })
+})
+
+it('exports physical v2 only with six consistent original capture records', () => {
+  const photographed = faces('camera')
+  for (const slot of Object.keys(photographed))
+    photographed[slot].captureGuide = recordGuide(slot, true, false)!
+  const current = input({ guided: true, capturedFaces: photographed })
+  expect(metaOf(buildCaptureFixture(current)).capture.protocol).toBe(
+    'sides-then-top-bottom/v2',
+  )
+  photographed.R.captureGuide = recordGuide('R', true, true)!
+  expect(
+    metaOf(
+      buildCaptureFixture({
+        ...current,
+        uploadedProtocol: 'sides-then-top-bottom/v2',
+      }),
+    ).capture.protocol,
+  ).toBeNull()
+})
+it('does not upgrade legacy or unsupported imported protocol claims on export', () => {
+  expect(
+    metaOf(
+      buildCaptureFixture(
+        input({ guided: true, uploadedProtocol: 'sides-then-top-bottom/v1' }),
+      ),
+    ).capture.protocol,
+  ).toBe('sides-then-top-bottom/v1')
+  expect(
+    metaOf(
+      buildCaptureFixture(
+        input({ guided: true, uploadedProtocol: 'sides-then-top-bottom/v2' }),
+      ),
+    ).capture.protocol,
+  ).toBe('sides-then-top-bottom/v1')
+  expect(
+    metaOf(
+      buildCaptureFixture(
+        input({ guided: false, uploadedProtocol: 'sides-then-top-bottom/v2' }),
+      ),
+    ).capture.protocol,
+  ).toBeNull()
 })
