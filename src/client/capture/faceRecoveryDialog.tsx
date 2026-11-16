@@ -45,6 +45,7 @@ export function FaceRecoveryDialog({
   onDialogKeyDown: (event: TargetedKeyboardEvent<HTMLDivElement>) => void
 }) {
   const choiceLockedUntil = useRef(0)
+  const followsChoiceMouseDown = useRef(false)
   const [selectionPending, setSelectionPending] = useState(false)
   const unlockTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   useEffect(
@@ -175,6 +176,18 @@ export function FaceRecoveryDialog({
               )
             )
               event.preventDefault()
+          }}
+          onMouseDownCapture={(event) => {
+            const followsChoice = followsChoiceMouseDown.current
+            followsChoiceMouseDown.current = false
+            if (followsChoice && event.detail > 1) {
+              event.preventDefault()
+              document
+                .querySelector<HTMLElement>(
+                  '#spatial-choice-title, #spatial-review-title',
+                )
+                ?.focus()
+            }
           }}
         >
           <div class="modal-header">
@@ -337,6 +350,7 @@ export function FaceRecoveryDialog({
                               return
                             }
                             choiceLockedUntil.current = performance.now() + 350
+                            followsChoiceMouseDown.current = true
                             setSelectionPending(true)
                             unlockTimer.current = setTimeout(
                               () => setSelectionPending(false),
