@@ -23,8 +23,7 @@ async function openRecovery(
   await upload(page, input)
   await page
     .getByRole('button', {
-      name: 'Adjust face orientations / assignments',
-      exact: true,
+      name: /^Alternatives \([1-9][0-9]*\)$/,
     })
     .click()
 }
@@ -181,23 +180,21 @@ test('R1: a legal free arrangement cannot bypass missing guided candidates', asy
   delete meta.capture.assembledURFDLB
   delete meta.capture.faceRecovery
   zip[key] = strToU8(JSON.stringify(meta))
-  await openRecovery(page, {
+  await upload(page, {
     name: 'incompatible-guide.zip',
     mimeType: 'application/zip',
     buffer: Buffer.from(zipSync(zip)),
   })
+  await expect(
+    page.getByRole('button', { name: 'Alternatives (0)', exact: true }),
+  ).toBeDisabled()
+  await expect(
+    page.getByRole('button', { name: 'Yes, this is my cube', exact: true }),
+  ).toBeDisabled()
   await expect(page.locator('.spatial-candidate')).toHaveCount(0)
-  await expect(
-    page.getByRole('button', { name: 'Use this cube', exact: true }),
-  ).toHaveCount(0)
-  await expect(
-    page.locator('.face-recovery').getByRole('checkbox'),
-  ).toHaveCount(0)
-  await expect(page.getByText(/No retained match/)).toBeVisible()
-  await page.getByRole('button', { name: 'Check a face', exact: true }).click()
-  await expect(
-    page.getByRole('button', { name: 'Correct detected colors', exact: true }),
-  ).toBeVisible()
+  await page
+    .getByRole('button', { name: 'No, check the colors', exact: true })
+    .click()
   await expect(page.locator('.webcam-modal-content')).toHaveCount(0)
 })
 
@@ -253,8 +250,7 @@ test('color corrections stay in the draft and outer Cancel discards them', async
     .click()
   await page
     .getByRole('button', {
-      name: 'Adjust face orientations / assignments',
-      exact: true,
+      name: /^Alternatives \([1-9][0-9]*\)$/,
     })
     .click()
   expect(await netColors(page)).toEqual(initial)
@@ -269,9 +265,10 @@ test('canonical relative options preserve absolute chosen turns through roundtri
     .click()
   const baseline = await saved(page)
   await openRecovery(page)
+  await page.locator('.spatial-candidate').first().click()
   await page.getByRole('button', { name: 'Next', exact: true }).click()
   await page.getByRole('button', { name: 'Back', exact: true }).click()
-  await currentMatchesNet(page, false)
+  await currentMatchesNet(page)
   await page.locator('.spatial-candidate').nth(1).click()
   await currentMatchesNet(page)
   const chosen = await netColors(page)
@@ -341,3 +338,68 @@ test.describe('touch recovery', () => {
     await allFacesVisible(page)
   })
 })
+
+for (const size of [7, 5])
+  test(`R2: a kept ${size}x${size} color draft cannot change committed approval`, async ({
+    page,
+  }) => {
+    await upload(
+      page,
+      resolve(`test/fixtures/orientation-recovery-${size}x${size}.zip`),
+    )
+    const approvalColors = () =>
+      page
+        .locator('.orientation-approval .orientation-net-sticker')
+        .evaluateAll((elements) =>
+          elements.map((element) => (element as HTMLElement).style.background),
+        )
+    const initial = await approvalColors()
+    const alternatives = page.getByRole('button', {
+      name: /^Alternatives \([1-9][0-9]*\)$/,
+    })
+    const initialCount = await alternatives.textContent()
+    const yes = page.getByRole('button', {
+      name: 'Yes, this is my cube',
+      exact: true,
+    })
+    await expect(yes).toBeEnabled()
+    await alternatives.click()
+    await page
+      .getByRole('button', { name: 'Inspect F face', exact: true })
+      .focus()
+    await page
+      .getByRole('button', { name: 'Correct detected colors', exact: true })
+      .click()
+    await page.locator('.review-detected-cell').first().click()
+    await page.locator('.color-btn:not(.is-current)').first().click()
+    await page.getByRole('button', { name: 'OK', exact: true }).click()
+    await page
+      .getByRole('button', {
+        name: 'Close and keep orientation draft',
+        exact: true,
+      })
+      .click()
+    await page.getByRole('button', { name: 'Edit colors', exact: true }).click()
+    await expect(
+      page.getByRole('heading', { name: 'Does this match your cube?' }),
+    ).toBeVisible()
+    await expect(page.locator('.face-recovery')).toHaveCount(0)
+    expect(await approvalColors()).toEqual(initial)
+    await expect(yes).toBeEnabled()
+    await expect(alternatives).toHaveText(initialCount!)
+    await yes.click()
+    await expect(page.locator('.face-recovery')).toHaveCount(0)
+    const confirmed = await saved(page)
+    const zip = unzipSync(
+      readFileSync(
+        resolve(`test/fixtures/orientation-recovery-${size}x${size}.zip`),
+      ),
+    )
+    const key = Object.keys(zip).find((key) => key.endsWith('meta.json'))!
+    const original = JSON.parse(strFromU8(zip[key]))
+    expect(confirmed.meta.colorsURFDLB).toBe(original.colorsURFDLB)
+    if (size === 5)
+      expect(confirmed.meta.capture.faceRecovery.mapping).toEqual(
+        original.capture.faceRecovery.mapping,
+      )
+  })

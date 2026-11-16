@@ -169,6 +169,9 @@ export function useScannerAppModel() {
     onAdjust: recovery.begin,
     savedCandidate: recovery.importedCandidate,
     hasSavedMapping: () => recovery.recordPresent,
+    baselineCandidate: recovery.baselineCandidate,
+    captureConflict: recovery.captureConflict,
+    savedAssembly: recovery.savedAssembly,
   })
   const {
     showReviewDialog,
@@ -281,6 +284,7 @@ export function useScannerAppModel() {
     setCube(null)
     setParity(null)
     setCapturedFaces({})
+    setUploadedProtocol(null)
     forgetLastCapture()
     setWebcamFace(FACE_ORDER[0])
     setLiveDetection(null)
@@ -326,6 +330,7 @@ export function useScannerAppModel() {
     const startOver = restart || allCaptured
     if (startOver) {
       setCapturedFaces({})
+      setUploadedProtocol(null)
       recovery.reset()
       setChosenRecovery(null)
       setProfileLearningOffer(null)
@@ -605,6 +610,7 @@ export function useScannerAppModel() {
         automaticResolution,
         resolvedColorReference,
         guided: isGuided(),
+        uploadedProtocol: recovery.context?.protocol ?? undefined,
         cube: shown,
         appliedBackgroundGains,
         sampling,

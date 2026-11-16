@@ -704,6 +704,7 @@ export function ScannerAppView({ model }: { model: ScannerAppModel }) {
           from, or a closest match that isn't a valid cube. */}
       {orientationApproval && !orientationWizard && !recovery.open && (
         <OrientationApprovalDialog
+          sourceProtocol={recovery.committedProtocol}
           approval={orientationApproval}
           mirrorPreview={mirrorPreview}
           stickerColors={STICKER_HEX}
@@ -743,6 +744,7 @@ export function ScannerAppView({ model }: { model: ScannerAppModel }) {
           puzzleSize={puzzleSize}
           displayRecovery={recovery.approved}
           blockedCandidate={recovery.displayedBlocked}
+          alternativesCount={recovery.alternativesCount}
           onChoose={recovery.acceptDisplayed}
           onReject={handleRejectOrientation}
           onPageChange={(page) =>
@@ -772,9 +774,10 @@ export function ScannerAppView({ model }: { model: ScannerAppModel }) {
           <button
             type="button"
             class="btn btn-secondary"
+            disabled={recovery.committedAlternativeCount === 0}
             onClick={() => recovery.begin(null)}
           >
-            Adjust face orientations / assignments
+            Alternatives ({recovery.committedAlternativeCount})
           </button>
         )}
 

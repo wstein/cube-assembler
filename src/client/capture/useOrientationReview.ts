@@ -22,6 +22,9 @@ export function useOrientationReview({
   onAdjust,
   savedCandidate,
   hasSavedMapping,
+  baselineCandidate,
+  captureConflict,
+  savedAssembly,
 }: {
   capturedFaces: Record<string, FaceCaptureData>
   isGuidedCapture: () => boolean
@@ -29,6 +32,9 @@ export function useOrientationReview({
   onAdjust: (candidate: OrientedCandidate | null) => void
   hasSavedMapping: () => boolean
   savedCandidate: () => OrientedCandidate | null
+  baselineCandidate: () => OrientedCandidate | null
+  savedAssembly: () => Record<string, string[][]> | null
+  captureConflict: () => string | null
 }) {
   // Non-null only when solveFaceOrientations found genuine ambiguity (see
   // its alternatives field) - drives the step-by-step orientation wizard
@@ -103,13 +109,28 @@ export function useOrientationReview({
       onAdjust(null)
       return
     }
+    const physical = baselineCandidate()
+    if (physical) {
+      setOrientationApproval({
+        candidates: [physical],
+        valid: true,
+        fallback: null,
+      })
+      return
+    }
+    const conflict = captureConflict()
+    if (conflict) {
+      setReviewNotice(conflict)
+      onAdjust(null)
+      return
+    }
     const plan = planCaptureReview(
       faceData,
       FACE_ORDER,
       isGuidedCapture(),
       describeCenterIssue,
       precomputedFree,
-      saved,
+      saved ?? savedAssembly(),
     )
     switch (plan.kind) {
       case 'approval':

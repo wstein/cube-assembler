@@ -1,7 +1,7 @@
 import type { TargetedKeyboardEvent } from 'preact'
 import {
-  photoNames,
-  repeatedText,
+  photoNamesForProtocol,
+  repeatedTextForProtocol,
 } from '../../core/capture/CaptureDiagnosis.gen'
 import { FaceGrid } from './captureNet'
 import { forcedReading, forcedSentence } from './forcedStickers'
@@ -20,8 +20,10 @@ import {
 } from './orientationPresentation'
 
 interface OrientationApprovalDialogProps {
+  sourceProtocol?: string | null
   displayRecovery?: CaptureRecovery | null
   blockedCandidate?: (candidate: OrientedCandidate) => boolean
+  alternativesCount: (candidate: OrientedCandidate) => number
   approval: CaptureApproval
   mirrorPreview: boolean
   stickerColors: Record<string, string>
@@ -43,8 +45,10 @@ interface OrientationApprovalDialogProps {
 
 export function OrientationApprovalDialog({
   approval,
+  sourceProtocol = null,
   displayRecovery,
   blockedCandidate = () => false,
+  alternativesCount,
   mirrorPreview,
   stickerColors,
   focusDialog,
@@ -118,9 +122,7 @@ export function OrientationApprovalDialog({
           </p>
         )}
         <p class="orientation-approval-note">
-          {displayRecovery?.view === 'capture'
-            ? 'Saved capture view'
-            : 'Logical view'}
+          Canonical view
           {!displayRecovery?.captureFrame.confirmed
             ? ' · capture pose unknown'
             : ''}
@@ -133,6 +135,7 @@ export function OrientationApprovalDialog({
         )}
         {single || candidates.length === 0 ? (
           <CubeCheck
+            sourceProtocol={sourceProtocol}
             candidate={displayed[0]}
             photoMapping={displayMapping}
             captured={captured}
@@ -218,8 +221,16 @@ export function OrientationApprovalDialog({
             candidates.length,
             valid,
           ) && (
-            <button type="button" class="btn btn-secondary" onClick={onReject}>
-              Adjust face orientations / assignments
+            <button
+              type="button"
+              class="btn btn-secondary"
+              disabled={
+                !candidates[0] || alternativesCount(candidates[0]) === 0
+              }
+              onClick={onReject}
+            >
+              Alternatives (
+              {candidates[0] ? alternativesCount(candidates[0]) : 0})
             </button>
           )}
           {single && candidates.length > 0 && (
@@ -242,6 +253,7 @@ export function OrientationApprovalDialog({
 // its original photo instead. Without an arrangement (an error) the faces
 // are shown in the order they were taken.
 function CubeCheck({
+  sourceProtocol,
   candidate,
   photoMapping,
   captured,
@@ -251,6 +263,7 @@ function CubeCheck({
   onCheckFace,
   onCheckSlot,
 }: {
+  sourceProtocol: string | null
   photoMapping?: FaceMapping
   candidate: OrientedCandidate | undefined
   captured: Record<string, FaceCaptureData>
@@ -260,6 +273,7 @@ function CubeCheck({
   onCheckFace: (candidate: OrientedCandidate, face: string) => void
   onCheckSlot: (slot: number) => void
 }) {
+  const photoNames = photoNamesForProtocol(sourceProtocol)
   const stats = captureStats(captured, faceOrder, puzzleSize)
   const reading = forcedReading(captured, faceOrder)
   // One sentence about the stickers the equal color share moved, the face
@@ -268,7 +282,7 @@ function CubeCheck({
     ? forcedSentence(reading.result.forced, COLOR_NAME)
     : ''
   const repeated = stats.diagnosis.repeated.length
-    ? repeatedText(stats.diagnosis)
+    ? repeatedTextForProtocol(stats.diagnosis, sourceProtocol)
     : ''
   const cause =
     stats.diagnosis.cause !== 'none found' || !candidate
