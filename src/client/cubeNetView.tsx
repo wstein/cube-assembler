@@ -1,3 +1,4 @@
+import type { FaceMapping } from './capture/captureFaceMapping'
 import { useState } from 'preact/hooks'
 import type { CubeState } from '../cube/cubeAssembly'
 import type { ParityResult } from '../cube/parity'
@@ -9,6 +10,7 @@ import type { FaceCaptureData } from './capture/captureTypes'
 import { faceSources, pieceKey, sourceIndex } from './netPresentation'
 
 interface CubeNetViewProps {
+  photoMapping?: FaceMapping | null
   cube: CubeState
   size: number
   parity: ParityResult | null
@@ -58,6 +60,7 @@ function netStickerMark(
 }
 
 export function CubeNetView({
+  photoMapping,
   cube: visibleCube,
   size: puzzleSize,
   parity,
@@ -126,7 +129,7 @@ export function CubeNetView({
     Array.from({ length: puzzleSize }, (_, r) =>
       flat.slice(r * puzzleSize, (r + 1) * puzzleSize),
     )
-  const netSources = faceSources(
+  const inferredSources = faceSources(
     {
       u: rows(visibleCube.u),
       r: rows(visibleCube.r),
@@ -141,6 +144,15 @@ export function CubeNetView({
         .map((f) => [f, capturedFaces[f].colors]),
     ),
   )
+  const netSources =
+    photoMapping !== undefined
+      ? Object.fromEntries(
+          (photoMapping ?? []).map((p) => [
+            p.target.toLowerCase(),
+            { slot: p.slot, turns: p.quarterTurns },
+          ]),
+        )
+      : inferredSources
   const hoveredPiece = hoveredNetCell
     ? pieceKey(puzzleSize, hoveredNetCell.face, hoveredNetCell.index)
     : null

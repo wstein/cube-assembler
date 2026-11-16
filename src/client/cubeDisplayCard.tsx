@@ -1,3 +1,7 @@
+import { useMemo } from 'preact/hooks'
+import { validateMapping } from './capture/captureFaceMapping'
+import { presentationCube } from './capture/recoveryPresentation'
+import type { CaptureRecovery } from './capture/captureRecovery'
 import { lazy, Suspense } from 'preact/compat'
 import type { CubeState } from '../cube/cubeAssembly'
 import type { ParityResult } from '../cube/parity'
@@ -23,6 +27,7 @@ const PARITY_CHECK_NAMES: Record<string, string> = {
 }
 
 interface CubeDisplayCardProps {
+  recovery?: CaptureRecovery | null
   sourceCube: CubeState
   visibleCube: CubeState
   size: number
@@ -49,6 +54,7 @@ interface CubeDisplayCardProps {
 }
 
 export function CubeDisplayCard({
+  recovery = null,
   sourceCube,
   visibleCube,
   size,
@@ -64,6 +70,40 @@ export function CubeDisplayCard({
   onEditSticker,
   onTurnStateChange,
 }: CubeDisplayCardProps) {
+  const shownSource = useMemo(
+    () => presentationCube(sourceCube, size, recovery),
+    [sourceCube, size, recovery],
+  )
+  const shownVisible = useMemo(
+    () => presentationCube(visibleCube, size, recovery),
+    [visibleCube, size, recovery],
+  )
+  const captureInitial = recovery
+    ? validateMapping(
+        Object.fromEntries(
+          Object.entries(capturedFaces).map(([f, d]) => [f, d.colors]),
+        ),
+        recovery.mapping,
+        size,
+      ).candidate
+    : null
+  const captureCube = captureInitial
+    ? (Object.fromEntries(
+        (['U', 'R', 'F', 'D', 'L', 'B'] as const).map((f) => [
+          f.toLowerCase(),
+          captureInitial.faces[f].flat(),
+        ]),
+      ) as CubeState)
+    : sourceCube
+  const atSource = (['u', 'r', 'f', 'd', 'l', 'b'] as const).every(
+    (f) =>
+      visibleCube[f].length === captureCube[f].length &&
+      visibleCube[f].every((v, i) => v === captureCube[f][i]),
+  )
+  const displayMapping =
+    recovery?.view === 'capture'
+      ? recovery.captureFrame.photoTransforms
+      : recovery?.mapping
   return (
     <section class="card cube-card">
       <div class="card-header">
@@ -72,7 +112,9 @@ export function CubeDisplayCard({
           {parity && (
             <span class={`verdict ${parity.valid ? 'is-valid' : 'is-invalid'}`}>
               {parity.valid
-                ? '✓ Valid cube — every check passed'
+                ? size >= 4
+                  ? '✓ Available checks passed — full reachability unverified'
+                  : '✓ Valid cube — every check passed'
                 : parity.result}
               {!parity.valid && parity.detail && (
                 <span class="status-detail">: {parity.detail}</span>
@@ -98,6 +140,13 @@ export function CubeDisplayCard({
           </button>
         </div>
       </div>
+      {recovery?.stateRelation === 'after-viewer-moves' && (
+        <p class="capture-warning">
+          This saved state includes later viewer edits. The initial photo
+          mapping is preserved separately; the relationship to the photos is
+          unverified. Available state checks are shown below.
+        </p>
+      )}
       {viewMode === '3d' ? (
         <Suspense
           fallback={
@@ -107,11 +156,17 @@ export function CubeDisplayCard({
           }
         >
           <CubeView3D
-            cube={sourceCube}
-            initialCube={visibleCube}
+            cube={shownSource}
+            initialCube={shownVisible}
             initialMoves={initialMoves}
             initialFrame={initialFrame}
-            onTurnStateChange={onTurnStateChange}
+            onTurnStateChange={(value, moves, frame) =>
+              onTurnStateChange(
+                presentationCube(value, size, recovery, true),
+                moves,
+                frame,
+              )
+            }
             puzzleSize={size}
             palette={stickerColors}
           />
@@ -119,9 +174,12 @@ export function CubeDisplayCard({
       ) : (
         <CubeNetView
           key={size}
-          cube={visibleCube}
+          cube={shownVisible}
+          photoMapping={
+            recovery ? (atSource ? displayMapping : null) : undefined
+          }
           size={size}
-          parity={parity}
+          parity={recovery?.view === 'capture' ? null : parity}
           capturedFaces={capturedFaces}
           faceOrder={faceOrder}
           stickerColors={stickerColors}
