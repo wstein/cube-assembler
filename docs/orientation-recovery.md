@@ -9,7 +9,16 @@ Questions refer to canonical displayed faces, not capture-step IDs. It does not 
 The current preview is shown first as **0°**. Other angles are clockwise changes
 relative to that displayed face. These labels do not change the absolute source
 photo rotations stored in the mapping. A preview is not a user answer: an
-ambiguous, unsaved arrangement needs an explicit choice before Next.
+ambiguous, unsaved arrangement needs an explicit choice. Choosing a feasible
+option atomically saves the draft answer and advances to the next unresolved
+canonical face, skipping resolved faces. The dialog is titled **Match your cube**;
+it has no Next, Undo, or Reset controls. Existing Back navigation lets an earlier
+answer be chosen again.
+
+After the last choice, a separate review offers **Use this cube**. Only that
+explicit action commits the assembly; pointer double activation and repeated
+keyboard activation cannot answer a following question or commit it. Focus moves
+to the next question or review heading, never to the final action.
 
 The viewer uses the canonical logical frame. Camera movement changes only the
 view. Positive approval applies the cube actually displayed, without opening a
@@ -53,8 +62,12 @@ below the net rather than covering faces.
 
 **Correct detected colors** opens the existing editor for that source face only.
 The net and 3D stay visible. Color changes remain in the assembly draft until
-**Use this cube**; outer Cancel discards them. Escape closes the innermost editor
-and returns focus. Original JPEGs and `detectedColors` remain unchanged.
+**Use this cube**. Cancel, closing the matching dialog, or its Escape action
+discards the entire unconfirmed transaction, including color edits. If matching
+was opened from an approval dialog, its exact candidate, page, and notices are
+restored without rerunning search. Otherwise matching simply closes. Escape
+inside the nested color editor still closes that innermost editor and returns
+focus. Original JPEGs and `detectedColors` remain unchanged.
 
 ## Constraints and persistence
 
