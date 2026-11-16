@@ -1,154 +1,84 @@
-# Correcting captured face orientation and placement
+# Reviewing captured face orientations
 
-Six correct photographs do not necessarily determine one arrangement. On the
-assembly approval screen, **Adjust face orientations / assignments** opens an
-editor independently of the number of retained search candidates. **Check the
-colors** remains a different action; correction never requires opening a camera.
-The same editor can be reopened after closing the approval dialog.
+The correction workflow keeps all six recognized color grids beside the existing
+interactive 3D cube. It offers arrangements retained by the existing ReScript
+assembly search and validator. Resolved faces are skipped; ambiguous faces get
+colored choices. It does not expose unrestricted rotation or assignment controls.
 
-## Spatial candidate workflow
+The current preview is shown first as **0°**. Other angles are clockwise changes
+relative to that displayed face. These labels do not change the absolute source
+photo rotations stored in the mapping. A preview is not a user answer: an
+ambiguous, unsaved arrangement needs an explicit choice before Next.
 
-The primary recovery screen keeps six recognized color grids in an unfolded net
-beside the existing interactive 3D viewer. The spatial pane stays visible while
-candidate choices, validation, and advanced controls scroll separately. Outlines
-identify the current face and its four neighbors without replacing sticker colors.
-Camera orbit and zoom change the view only.
+The viewer uses the canonical logical frame. Camera movement changes only the
+view. Positive approval applies the cube actually displayed, without opening a
+second correction dialog. Saved source identities and logical mappings are
+restored without automatic reranking. Confirming an older capture writes the
+canonical display choice while retaining its historical capture-pose metadata.
+That history does not imply that an unknown physical pose was newly measured.
 
-Candidates start with the first captured front photo, then follow capture-slot
-order. Resolved choices are skipped. Choosing a colored grid previews it in both
-views; **Next** records that answer. **Back** keeps the draft and exposes the
-earlier alternatives using prefix constraints. Changing an earlier answer retains
-compatible later answers and reports incompatible ones that need another answer.
+## Physical guided captures
 
-Hover, keyboard focus, or tap on a net face opens its explicitly linked source
-photo. **Correct detected colors** opens the existing color editor for that source
-photo only. Returning preserves the other five faces, mapping, pose, and answers.
-These color corrections remain part of the assembly draft: outer **Cancel changes**
-discards them; outer **Confirm face mapping** applies them with the mapping.
-Closing keeps the draft. The original JPEG and `detectedColors` remain provenance.
+New camera captures record `sides-then-top-bottom/v2`. Physical turns follow the
+3D cue: the four side views are Front, Right, Back, Left; the caps are Down then
+Up. The photographed cap grids require inverse assembly rotations of 270° and
+90°. Camera mirroring affects the video/grid presentation, not physical turns.
+All six source-step observations must agree before the v2 contract is used.
 
-**Advanced manual orientation / assignment recovery** contains direct rotations
-and assignments when the retained candidates do not include the physical cube.
-The candidate set comes from the existing guided or free assembly solver and
-existing validation; it is not a new solver. The UI reports capping, equivalence
-reduction, inferred identity for symmetric grids, and incomplete large-cube checks.
-A retained count is never presented as the number of all possible arrangements.
+A checked v2 sequence supplies exactly one capture-derived assembly. The
+canonical view applies a global rotation to that assembly, not a different
+rotation to each face. Its Alternatives count is zero. If that exact seed fails
+the available checks, the workflow reports a conflict and offers photo/color
+review; it does not replace it with a contradictory legacy arrangement.
 
-## Three separate records
+Older `sides-then-top-bottom/v1` fixtures retain their original observations and
+ambiguity. Missing, mixed, or retaken observations do not establish the exact v2
+sequence. An upload alone never upgrades an old protocol claim. Source slots
+remain capture-step identities even when center colors imply a different
+initial holding orientation.
 
-- Original photos and detected-color provenance remain unchanged by rotation or assignment. Explicit color correction changes only the selected source photo’s reviewed `colors` grid.
-- The editable mapping assigns each source photo to U/R/F/D/L/B with its own
-  clockwise quarter-turn count. Edits are not restricted to solver alternatives.
-- The assembled logical cube is validated using the repository's existing
-  checks. Net and 3D capture views are derived presentations of that state.
+**Alternatives (n)** counts distinct retained arrangements other than the current
+one, after global-pose equivalence. It is disabled at zero. The count uses
+committed captured colors, independently of an unconfirmed color-editor draft.
+A closed draft also cannot change positive approval or saved-mapping restoration.
 
-Odd 3×3, 5×5, and 7×7 cubes use their fixed center colors for face identity.
-Their assignment selectors are locked. Conflicting or unreadable centers produce
-an explanation instead of an automatic reassignment. Even cubes allow six
-independent assignment selectors. Duplicate targets are allowed while editing,
-but confirmation requires a bijection and passing available checks.
+## Photos and color corrections
 
-In Advanced recovery, use −90°, +90°, or 180° for each photograph. Native buttons and selects work with
-keyboard and touch; their names include the source photo, target face, and turn.
-Undo reverses one edit. Reset restores the editor's initial draft. Closing or
-Escape keeps the draft; **Cancel changes** rolls it back without changing the
-current cube. Only **Confirm face mapping** commits an orientation decision.
-Invalid drafts can be viewed and corrected, but cannot be confirmed as valid.
+Hover, focus, or tap a face to inspect its explicitly linked source photograph.
+The **Face · Photo** header uses the displayed face name. The full, rotated image
+occupies the nearest unused net cell; changing stickers within one face does not
+move it. Narrow layouts can place the inspector below the net. Notes appear
+below the net rather than covering faces.
 
-## Capture pose is not canonical color orientation
+**Correct detected colors** opens the existing editor for that source face only.
+The net and 3D stay visible. Color changes remain in the assembly draft until
+**Use this cube**; outer Cancel discards them. Escape closes the innermost editor
+and returns focus. Original JPEGs and `detectedColors` remain unchanged.
 
-The previous guided protocol permitted either lateral direction, flexible tipping,
-and swapped caps. Older captures therefore do not prove one absolute pose.
-Choose the original front and top photos and confirm that pair, or explicitly
-select the logical frame. By default the confirmed capture view shows Side 1
-at the front. Net and 3D use the same display transform; picking and completed
-turns return through its exact inverse. Camera actions do not change logical
-state or history.
+## Constraints and persistence
 
-A mirrored camera preview does not mirror the cube. Camera sampling and the
-original JPEG use sensor coordinates. Correction applies proper rotations only.
-New camera shots record the requested step, displayed arrow, and mirrored
-presentation. Retakes record `retake/v1` with no claimed guide arrow. For older
-captures, unobserved turn direction, cap order, and per-photo observations stay
-unknown until the user supplies confirmation.
+Candidates have passed the repository's available checks. Larger NxN checks do
+not establish complete reachability. Capped or empty searches remain explicit;
+absence from a retained list is not proof that a physical cube is impossible.
+When no guided arrangement is retained, review earlier answers and captured
+colors. The interface does not silently substitute a free-search arrangement.
 
-## Validation and search limits
+`capture.faceRecovery` remains version 1. Source slots, logical faces, absolute
+quarter turns, source-photo transforms and historical capture observations remain
+separate from display orientation. Older explicit mappings stay importable even
+though unrestricted manual editing is no longer part of the interface.
 
-The approval screen reports retained candidate count and a capped-search flag.
-These are not an exhaustive count of possible arrangements. A manual selection
-is not reranked back to an automatic candidate.
+## Regression inputs
 
-Existing checks include color balance, pieces, orientation constraints, wings,
-and applicable parity checks. Larger NxN checks do **not** certify complete
-physical reachability. The editor, main view, and exported validation metadata
-state that limit. Known invalid states remain invalid; uncertain relationships
-remain unverified. The guided search also rejects improper odd-center frames
-that corner and wing checks alone previously admitted.
+- `orientation-recovery-7x7.zip`: original patterned capture from app `8ac10f5`.
+- `orientation-recovery-5x5.zip`: byte-preserved owner capture from app `0e2b62f`.
+- `cube-5x5-2026-11-16T14-42-31.assembly.json`: exact metadata copy, SHA-256
+  `5fdc7b7123c396ae0ea315846b70ec07f42606139334566238d1584a776e5c70`.
+  Its two guided arrangements differ in 64 stickers and are not related by a
+  whole-cube rotation. The saved mapping identifies one; the export alone does
+  not establish the owner's intended physical arrangement.
 
-Camera capture remains 2×2–7×7. Imported 8×8 fixtures support manual assignment,
-rotation, validation, and export/reimport; this does not claim 8×8 camera support.
-
-## Backward-compatible fixture metadata
-
-`colorsURFDLB` and `detectedURFDLB` still describe capture slots. The canonical
-current cube remains `capture.assembledURFDLB`. New exports additionally contain
-`capture.faceRecovery`:
-
-- `version: 1`, `transformConvention: "cube-geometry-orientations/v1"`.
-- Exact source-slot `mapping`: `slot`, logical `target`, and `quarterTurns`.
-- `captureFrame`: confirmed front/top, proper display and inverse canonical
-  transforms, six source-photo-to-display transformations, mirror/protocol,
-  physical direction/cap-order confirmation, and actual guide observations.
-- `view`: `capture` or `canonical`.
-- `stateRelation`: `capture` or `after-viewer-moves`.
-
-The 24 transform indices are frozen by labeled baseline vectors in
-`test/captureFrameConventionV1.json`. Changing that convention requires a new
-version or an explicit migration. Unsupported versions, invalid enums, duplicate
-assignments, invalid rotations, or inconsistent pose transforms do not silently
-replace saved manual choices with solver output. Original photos remain
-available for correction, with a warning.
-
-The source mapping always describes the initial captured state. A current state
-saved after viewport edits is checked separately and clearly marked as having
-an unverified relationship to the photos; it is not a proof of a move sequence.
-Reopening the orientation editor explains that confirming reconstructs the
-original capture and discards later viewport edits. Cancel preserves that state.
-
-Fixtures without recovery metadata remain importable through the legacy search.
-An older saved assembly is evidence of a past outcome, not proof of the owner's
-intended pose. `assemblyValidation` reports the scope and result of checks rather
-than claiming a new reachability certificate.
-
-## Regression evidence
-
-The unchanged owner archive `test/fixtures/orientation-recovery-7x7.zip` pins
-capture app commit `8ac10f5`. Its real patterned photographs are exercised by
-browser import, manual rotations, confirmed front/top, exact-photo export, and
-reimport. Synthetic cases supplement it for odd 3×3/5×5 and even 2×2/4×4/6×6/8×8,
-including duplicate drafts and whole-face reassignment. Unit tests cover all 24
-presentation frames and inverse turn mapping. Live owner acceptance remains
-separate from automated evidence.
-
-## Manual acceptance checklist
-
-- Import `orientation-recovery-7x7.zip`; reject the suggestion without a camera.
-- At desktop and touch widths, inspect all six net grids and the live 3D cube.
-- Pick a first-front candidate, use Next and Back, and change the earlier answer.
-- Inspect each original with hover/focus/tap; verify photo identity after assignment.
-- Correct one face’s detected colors and return; cancel the assembly to discard it.
-- Use Advanced rotation/assignment, Undo, Reset, and explicit front/top confirmation.
-- Export/reimport a confirmed mapping and verify the exact selected source photos.
-- Check invalid drafts and omitted candidates remain recoverable without recapture.
-
-Browser tests supplement this checklist. Owner mouse/touch acceptance is separate.
-
-## Interface comparison
-
-The previous primary recovery screen required scrolling past six raw photos:
-
-![Before: six-photo recovery layout](screenshots/orientation-spatial-before.png)
-
-The spatial workflow keeps the recognized net beside the production 3D viewer:
-
-![After: persistent recognized net and 3D candidate workflow](screenshots/orientation-spatial-after.png)
+Unit checks cover all 24 proper display transforms and all six source faces,
+including Back and cap rotations. Browser checks cover constrained choices,
+canonical approval, source-photo identity, legacy metadata, touch, nested color
+editing and export/reimport. Owner physical-cube acceptance remains separate.
