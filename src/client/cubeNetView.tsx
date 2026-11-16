@@ -227,16 +227,13 @@ export function CubeNetView({
       const titleWidth = title
         ? titleRange.getBoundingClientRect().width + 4
         : 0
-      setInspectorBelow(
-        Boolean(hoveredInfo?.photo) &&
-          (titleWidth > width + 1 || Boolean(hoveredInfo?.note)),
-      )
+      setInspectorBelow(Boolean(hoveredInfo?.photo) && titleWidth > width + 1)
     }
     measure()
     const observer = new ResizeObserver(measure)
     observer.observe(net)
     return () => observer.disconnect()
-  }, [hoveredInfo?.faceName, hoveredInfo?.photo, hoveredInfo?.note])
+  }, [hoveredInfo?.faceName, hoveredInfo?.photo])
   return (
     <div class="net-region">
       {forcedNote && (
@@ -434,9 +431,7 @@ export function CubeNetView({
           {hoveredInfo ? (
             <>
               {hoveredInfo.photo && (
-                <p class="net-info-title">
-                  {hoveredInfo.faceName} · Photo
-                </p>
+                <p class="net-info-title">{hoveredInfo.faceName} · Photo</p>
               )}
               {hoveredInfo.photo && (
                 <img
@@ -448,9 +443,6 @@ export function CubeNetView({
                   }}
                 />
               )}
-              {hoveredInfo.note && (
-                <p class="net-info-note">{hoveredInfo.note}</p>
-              )}
             </>
           ) : (
             <p class="net-info-hint">
@@ -460,6 +452,11 @@ export function CubeNetView({
           )}
         </div>
       </div>
+      {hoveredInfo?.note && (
+        <p class="net-inspector-note" role="status">
+          {hoveredInfo.note}
+        </p>
+      )}
     </div>
   )
 }
