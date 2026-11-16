@@ -9,7 +9,7 @@ import { COLOR_NAME } from '../vision/stickerDisplay'
 import { capturePhotos, captureStats, netPhotos } from './approvalPhotos'
 import type { FaceCaptureData } from './captureTypes'
 import type { CaptureRecovery } from './captureRecovery'
-import { transformFaces, type FaceMapping } from './captureFaceMapping'
+import { type FaceMapping } from './captureFaceMapping'
 import type { OrientedCandidate } from '../../cube/cubeAssembly'
 import { canAdjustCapture, type CaptureApproval } from './captureReviewRouting'
 import {
@@ -61,20 +61,8 @@ export function OrientationApprovalDialog({
   onPageChange,
 }: OrientationApprovalDialogProps) {
   const { candidates, arrangements, valid, note } = approval
-  const displayed = candidates.map((candidate) => ({
-    ...candidate,
-    faces:
-      displayRecovery?.view === 'capture'
-        ? (transformFaces(
-            candidate.faces,
-            displayRecovery.captureFrame.displayTransform,
-          ) ?? candidate.faces)
-        : candidate.faces,
-  }))
-  const displayMapping =
-    displayRecovery?.view === 'capture'
-      ? displayRecovery.captureFrame.photoTransforms
-      : displayRecovery?.mapping
+  const displayed = candidates
+  const displayMapping = displayRecovery?.mapping
   const single = candidates.length === 1
   const page = Math.min(
     approval.page ?? 0,

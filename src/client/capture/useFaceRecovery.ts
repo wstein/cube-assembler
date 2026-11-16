@@ -128,12 +128,21 @@ export function useFaceRecovery({
           draft.mapping,
           draft.frontSlot,
           draft.upSlot,
-          draft.view === 'capture',
+          false,
         )
       : []
   const choices = presentedChoices.map((presented) => presented.choice)
   const selectedChoice =
-    presentedChoices.find((presented) => presented.isCurrent)?.choice ?? null
+    presentedChoices.find(
+      (presented) =>
+        presented.isCurrent &&
+        decisions.some(
+          (decision) =>
+            decision.slot === presented.choice.slot &&
+            decision.target === presented.choice.target &&
+            decision.quarterTurns === presented.choice.quarterTurns,
+        ),
+    )?.choice ?? null
   const update = (change: (previous: Snapshot) => Snapshot, remember = true) =>
     setTransaction((previous) => ({
       ...previous,
@@ -182,13 +191,7 @@ export function useFaceRecovery({
         )?.slot ??
         'L',
       confirmed: saved?.captureFrame.confirmed ?? false,
-      view: saved
-        ? saved.view === 'canonical'
-          ? 'canonical'
-          : 'capture'
-        : guided
-          ? 'capture'
-          : 'canonical',
+      view: 'canonical',
       turnDirection: saved?.captureFrame.turnDirection ?? 'unknown',
       capOrder: saved?.captureFrame.capOrder ?? 'unknown',
     }
@@ -294,9 +297,21 @@ export function useFaceRecovery({
     )
   }
   const validation = draft ? validateMapping(grids, draft.mapping, size) : null
-  const frame = draft
+  const directFrame = draft
     ? captureFrame(grids, draft.mapping, draft.frontSlot, draft.upSlot)
     : null
+  const recordDraft =
+    draft && !directFrame ? initialDraft(draft.mapping, null) : draft
+  const frame =
+    directFrame ??
+    (recordDraft
+      ? captureFrame(
+          grids,
+          recordDraft.mapping,
+          recordDraft.frontSlot,
+          recordDraft.upSlot,
+        )
+      : null)
   const savedCandidate =
     current.savedSelection && approved
       ? restoredCandidate(
@@ -311,14 +326,12 @@ export function useFaceRecovery({
     !savedCandidate &&
     (!session || !retainsMapping(session, draft.mapping))
   const confirmBlockedReason = !validation?.valid
-    ? (validation?.issues[0] ?? 'Correct the capture input.')
+    ? (validation?.issues[0] ?? 'Correct the captured input.')
     : selectionBlocked
       ? 'No retained arrangement matches the capture constraints.'
       : !frame
-        ? 'Choose adjacent front and top faces.'
-        : draft?.view === 'capture' && !draft.confirmed
-          ? 'Confirm front and top to continue.'
-          : null
+        ? 'Source transformation could not be verified.'
+        : null
   const recordFor = (
     draft: RecoveryDraft,
     workingFaces: Faces,
@@ -329,7 +342,7 @@ export function useFaceRecovery({
       version: 1,
       transformConvention: 'cube-geometry-orientations/v1',
       mapping: draft.mapping.map((p) => ({ ...p })),
-      view: draft.view,
+      view: 'canonical',
       captureFrame: {
         guideObservations: mergeGuideObservations(
           approved?.captureFrame.guideObservations ?? [],
@@ -356,11 +369,10 @@ export function useFaceRecovery({
       !validation?.valid ||
       !validation.candidate ||
       !frame ||
-      selectionBlocked ||
-      (draft.view === 'capture' && !draft.confirmed)
+      selectionBlocked
     )
       return
-    const record = recordFor(draft, workingFaces, frame)
+    const record = recordFor(recordDraft ?? draft, workingFaces, frame)
     setApproved(record)
     setRecordPresent(true)
     setOpen(false)
@@ -397,7 +409,8 @@ export function useFaceRecovery({
         assembleCubeFromFaces(restored.faces, size),
         assembleCubeFromFaces(candidate.faces, size),
       )
-    let record = sameSaved ? approved : null
+    let record =
+      sameSaved && approved ? { ...approved, view: 'canonical' } : null
     if (!record) {
       const logicalDraft = {
         ...initialDraft(initializeMapping(original, candidate), null),
