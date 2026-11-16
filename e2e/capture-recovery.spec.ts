@@ -1,73 +1,28 @@
+import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
-import { expect, test } from '@playwright/test'
+import { expect, test, type Page } from '@playwright/test'
+import { unzipSync, zipSync, strFromU8, strToU8 } from 'fflate'
+import { encode as encodeJpeg } from 'jpeg-js'
+import { readFixtureColors } from '../src/client/fixtures/fixtureFormat'
+import {
+  captureFrame,
+  initializeMapping,
+  validateMapping,
+} from '../src/client/capture/captureFaceMapping'
 
 const archive = resolve('test/fixtures/orientation-recovery-7x7.zip')
-
-test('correct 7x7 photos can be adjusted after rejecting a valid suggestion', async ({
-  page,
-}) => {
+async function upload(page: Page, bytes: Uint8Array) {
   await page.goto('/')
+  await page.locator('.capture-alternatives input[type="file"]').setInputFiles({
+    name: 'capture.zip',
+    mimeType: 'application/zip',
+    buffer: Buffer.from(bytes),
+  })
   await page
-    .locator('.capture-alternatives input[type="file"]')
-    .setInputFiles(archive)
-  await expect(
-    page.getByRole('heading', { name: 'Does this match your cube?' }),
-  ).toBeVisible({ timeout: 30000 })
-  await page
-    .getByRole('button', {
-      name: 'Adjust face orientations / assignments',
-      exact: true,
-    })
-    .click()
-  await expect(
-    page.getByRole('heading', {
-      name: 'Adjust face orientations / assignments',
-    }),
-  ).toBeVisible()
-  await page
-    .getByText('Advanced recovery', {
-      exact: true,
-    })
-    .click()
-  await expect(
-    page.getByRole('button', {
-      name: /Rotate Side 1 \(B face\) clockwise 90°/,
-    }),
-  ).toBeVisible()
-  await expect(page.locator('.webcam-modal-content')).toHaveCount(0)
-})
-
-import { readFileSync } from 'node:fs'
-import { unzipSync, strFromU8 } from 'fflate'
-import { encode as encodeJpeg } from 'jpeg-js'
-import type { Page } from '@playwright/test'
-
-async function openArchive(
-  page: Page,
-  input: string | Array<{ name: string; mimeType: string; buffer: Buffer }>,
-) {
-  await page.goto('/')
-  await page
-    .locator('.capture-alternatives input[type="file"]')
-    .setInputFiles(input)
-  await expect(
-    page.getByRole('heading', {
-      name: /Does this match your cube|Error detected/,
-    }),
-  ).toBeVisible({ timeout: 30000 })
-  await page
-    .getByRole('button', {
-      name: 'Adjust face orientations / assignments',
-      exact: true,
-    })
-    .click()
-  await page
-    .getByText('Advanced recovery', {
-      exact: true,
-    })
-    .click()
+    .getByRole('heading', { name: 'Does this match your cube?' })
+    .waitFor({ timeout: 30000 })
 }
-async function saveFixture(page: Page) {
+async function savedFixture(page: Page) {
   await page
     .getByRole('button', { name: 'Save as test fixture', exact: true })
     .click()
@@ -75,106 +30,14 @@ async function saveFixture(page: Page) {
   await page.getByRole('button', { name: 'Download zip', exact: true }).click()
   const download = await pending
   const path = await download.path()
-  if (!path) throw new Error('Fixture download did not produce a file')
+  if (!path) throw new Error('Missing fixture download')
   const bytes = readFileSync(path)
   const zip = unzipSync(bytes)
-  const meta = JSON.parse(
-    strFromU8(zip[Object.keys(zip).find((k) => k.endsWith('/meta.json'))!]),
-  )
-  return { bytes, meta }
+  const key = Object.keys(zip).find((name) => name.endsWith('meta.json'))!
+  return { bytes, zip, meta: JSON.parse(strFromU8(zip[key])) }
 }
-
-test('7x7 manual rotations, confirmed capture pose and original bytes survive export and reimport', async ({
-  page,
-}) => {
-  await openArchive(page, archive)
-  const choices = [1, 3, 1, 3, 2, 0]
-  const cards = page.locator('.face-recovery-photo')
-  for (let i = 0; i < 6; i++) {
-    const value =
-      Number(
-        (await cards.nth(i).locator('span').last().textContent())!.match(
-          /(\d+)°/,
-        )![1],
-      ) / 90
-    const delta = (choices[i] - value + 4) % 4
-    for (let j = 0; j < delta; j++)
-      await cards
-        .nth(i)
-        .getByRole('button', { name: /clockwise 90°/ })
-        .filter({ hasText: '+90°' })
-        .click()
-  }
-  await page.getByLabel('Capture top photo', { exact: true }).selectOption('B')
-  await page
-    .getByLabel('I confirm this front and top match how I held the cube.')
-    .check()
-  await page
-    .getByRole('button', { name: 'Close and keep orientation draft' })
-    .click()
-  await page
-    .getByRole('button', {
-      name: 'Adjust face orientations / assignments',
-      exact: true,
-    })
-    .click()
-  await expect(
-    page.getByLabel('Capture top photo', { exact: true }),
-  ).toHaveValue('B')
-  await expect(
-    page.getByLabel('I confirm this front and top match how I held the cube.'),
-  ).toBeChecked()
-  await expect(
-    page.getByRole('button', { name: 'Confirm face mapping' }),
-  ).toBeEnabled()
-  await page.getByRole('button', { name: 'Confirm face mapping' }).click()
-  await expect(
-    page.getByRole('status').filter({ hasText: /Available checks passed/ }),
-  ).toBeVisible()
-  const saved = await saveFixture(page)
-  expect(
-    saved.meta.capture.faceRecovery.mapping.map(
-      (p: { quarterTurns: number }) => p.quarterTurns,
-    ),
-  ).toEqual(choices)
-  expect(saved.meta.capture.faceRecovery.captureFrame.mirrored).toBe(true)
-  expect(saved.meta.capture.faceRecovery.captureFrame.frontSlot).toBe('U')
-  expect(saved.meta.capture.faceRecovery.captureFrame.upSlot).toBe('B')
-  const original = unzipSync(readFileSync(archive))
-  const originalMeta = JSON.parse(
-    strFromU8(
-      original[Object.keys(original).find((k) => k.endsWith('/meta.json'))!],
-    ),
-  )
-  expect(saved.meta.colorsURFDLB).toBe(originalMeta.colorsURFDLB)
-  const savedZip = unzipSync(saved.bytes)
-  for (const f of ['u', 'r', 'f', 'd', 'l', 'b']) {
-    expect(
-      savedZip[
-        Object.keys(savedZip).find((k) => k.endsWith(`/face-${f}.jpg`))!
-      ],
-    ).toEqual(
-      original[
-        Object.keys(original).find((k) => k.endsWith(`/face-${f}.jpg`))!
-      ],
-    )
-  }
-  await openArchive(page, [
-    { name: 'manual.zip', mimeType: 'application/zip', buffer: saved.bytes },
-  ])
-  for (let i = 0; i < 6; i++)
-    await expect(
-      page.locator('.face-recovery-photo').nth(i).locator('span').last(),
-    ).toContainText(`${choices[i] * 90}°`)
-  await expect(
-    page.getByLabel('Capture top photo', { exact: true }),
-  ).toHaveValue('B')
-})
-
-// Generated solid-color photographs are supplementary synthetic cases, never a
-// substitute for the mandatory original patterned 7x7 archive above.
-function solidFiles(n: number) {
-  const keys = ['u', 'r', 'f', 'd', 'l', 'b']
+function solidArchive(size: number) {
+  const letters = ['W', 'R', 'G', 'Y', 'O', 'B']
   const rgb = [
     [242, 242, 232],
     [214, 44, 44],
@@ -183,169 +46,253 @@ function solidFiles(n: number) {
     [241, 139, 35],
     [36, 89, 214],
   ]
-  const letters = ['W', 'R', 'G', 'Y', 'O', 'B']
-  const files = keys.map((face, i) => {
+  const keys = ['u', 'r', 'f', 'd', 'l', 'b']
+  const zip: Record<string, Uint8Array> = {}
+  keys.forEach((face, i) => {
     const data = Buffer.alloc(128 * 128 * 4)
-    for (let p = 0; p < 128 * 128; p++) {
-      data[p * 4] = rgb[i][0]
-      data[p * 4 + 1] = rgb[i][1]
-      data[p * 4 + 2] = rgb[i][2]
-      data[p * 4 + 3] = 255
+    for (let pixel = 0; pixel < 128 * 128; pixel++) {
+      data[pixel * 4] = rgb[i][0]
+      data[pixel * 4 + 1] = rgb[i][1]
+      data[pixel * 4 + 2] = rgb[i][2]
+      data[pixel * 4 + 3] = 255
     }
-    return {
-      name: `face-${face}.jpg`,
-      mimeType: 'image/jpeg',
-      buffer: encodeJpeg({ width: 128, height: 128, data }, 100).data,
-    }
+    zip[`face-${face}.jpg`] = encodeJpeg(
+      { width: 128, height: 128, data },
+      100,
+    ).data
   })
-  const meta = {
-    gridSize: n,
-    colorsURFDLB: letters.map((c) => c.repeat(n * n)).join(' '),
-    faces: Object.fromEntries(keys.map((f) => [f, { photo: `face-${f}.jpg` }])),
-    capture: { mirrored: false },
-  }
-  return [
-    ...files,
-    {
-      name: 'meta.json',
-      mimeType: 'application/json',
-      buffer: Buffer.from(JSON.stringify(meta)),
-    },
-  ]
-}
-for (const n of [2, 4, 6, 8])
-  test(`even ${n}x${n} assignments are editable and duplicate drafts can be corrected`, async ({
-    page,
-  }) => {
-    await openArchive(page, solidFiles(n))
-    const top = page.getByLabel('Assign Side 1 to face')
-    const right = page.getByLabel('Assign Side 2 to face')
-    await expect(top).toBeEnabled()
-    const original = await top.inputValue()
-    await top.selectOption(await right.inputValue())
-    await expect(
-      page.getByRole('button', { name: 'Confirm face mapping' }),
-    ).toBeDisabled()
-    await expect(
-      page.locator('.face-recovery [role="alert"]').first(),
-    ).toBeVisible()
-    await top.selectOption(original)
-    const reassigned = ['U', 'F', 'L', 'D', 'B', 'R']
-    for (let i = 0; i < 6; i++)
-      await page
-        .locator('.face-recovery-photo')
-        .nth(i)
-        .locator('select')
-        .selectOption(reassigned[i])
-    await page.getByLabel('Orientation preview frame').selectOption('canonical')
-    await page
-      .getByRole('button', {
-        name: 'Rotate Side 1 (U face) clockwise 90°',
-        exact: true,
-      })
-      .click()
-    await expect(
-      page.getByRole('button', { name: 'Confirm face mapping' }),
-    ).toBeEnabled()
-    await page.getByRole('button', { name: 'Confirm face mapping' }).click()
-    const saved = await saveFixture(page)
-    expect(saved.meta.gridSize).toBe(n)
-    expect(saved.meta.capture.faceRecovery.mapping[0].quarterTurns).toBe(1)
-    expect(
-      saved.meta.capture.faceRecovery.mapping.map(
-        (p: { target: string }) => p.target,
+  zip['meta.json'] = strToU8(
+    JSON.stringify({
+      gridSize: size,
+      colorsURFDLB: letters
+        .map((letter) => letter.repeat(size * size))
+        .join(' '),
+      faces: Object.fromEntries(
+        keys.map((face) => [face, { photo: `face-${face}.jpg` }]),
       ),
-    ).toEqual(reassigned)
-    await openArchive(page, [
-      {
-        name: 'roundtrip.zip',
-        mimeType: 'application/zip',
-        buffer: saved.bytes,
-      },
-    ])
-    await expect(
-      page.locator('.face-recovery-photo').first().locator('span').last(),
-    ).toContainText('90°')
-    for (let i = 0; i < 6; i++)
-      await expect(
-        page.locator('.face-recovery-photo').nth(i).locator('select'),
-      ).toHaveValue(reassigned[i])
+      capture: { mirrored: false },
+    }),
+  )
+  return zipSync(zip)
+}
+// Legacy exports remain supported; creating one here does not expose free
+// corrections in the product. These exact mappings passed the previous suite.
+function legacyArchive(bytes: Uint8Array, patterned = false) {
+  const zip = unzipSync(bytes)
+  const key = Object.keys(zip).find((name) => name.endsWith('meta.json'))!
+  const meta = JSON.parse(strFromU8(zip[key]))
+  const raw = readFixtureColors(meta)!.colors
+  const targets = ['U', 'F', 'L', 'D', 'B', 'R'] as const
+  const turns = patterned ? [1, 3, 1, 3, 2, 0] : [1, 0, 0, 0, 0, 0]
+  const mapping = initializeMapping(raw, null).map((entry, index) => ({
+    ...entry,
+    target: patterned ? entry.target : targets[index],
+    quarterTurns: turns[index],
+  }))
+  const checked = validateMapping(raw, mapping, meta.gridSize)
+  expect(checked.valid).toBe(true)
+  const frontSlot = patterned ? 'U' : 'R'
+  const upSlot = patterned ? 'B' : 'U'
+  const frame = captureFrame(raw, mapping, frontSlot, upSlot)!
+  expect(frame).not.toBeNull()
+  const record = {
+    stateRelation: 'capture',
+    version: 1,
+    transformConvention: 'cube-geometry-orientations/v1',
+    view: 'capture',
+    mapping,
+    captureFrame: {
+      guideObservations: [],
+      frontSlot,
+      upSlot,
+      confirmed: true,
+      displayTransform: frame.displayTransform,
+      canonicalTransform: frame.canonicalTransform,
+      photoTransforms: frame.mapping,
+      protocol: meta.capture.protocol ?? null,
+      mirrored: meta.capture.mirrored,
+      turnDirection: 'unknown',
+      capOrder: 'unknown',
+      displayedArrows: [],
+    },
+  }
+  meta.capture.faceRecovery = record
+  meta.capture.assembledURFDLB = (['U', 'R', 'F', 'D', 'L', 'B'] as const)
+    .map((face) => checked.faces![face].flat().join(''))
+    .join(' ')
+  zip[key] = strToU8(JSON.stringify(meta))
+  return { bytes: zipSync(zip), zip, record }
+}
+async function noFreeControls(page: Page) {
+  await expect(
+    page.getByText('Advanced recovery', { exact: true }),
+  ).toHaveCount(0)
+  await expect(page.locator('.face-recovery-photo')).toHaveCount(0)
+  await expect(page.getByRole('button', { name: /Rotate Side/ })).toHaveCount(0)
+  await expect(page.getByLabel(/Assign Side .* to face/)).toHaveCount(0)
+}
+
+test('correct original 7x7 photos offer only constrained choices after rejection', async ({
+  page,
+}) => {
+  await upload(page, readFileSync(archive))
+  await page
+    .getByRole('button', {
+      name: 'Adjust face orientations / assignments',
+      exact: true,
+    })
+    .click()
+  await noFreeControls(page)
+  const net = page.getByRole('group', {
+    name: 'Recognized cube net',
+    exact: true,
   })
-for (const n of [3, 5])
-  test(`odd ${n}x${n} rotations are editable with fixed assignments`, async ({
+  await expect(net.getByRole('button')).toHaveCount(6)
+  await expect(page.locator('.spatial-candidate')).toHaveCount(2)
+  await page.locator('.spatial-candidate').first().click()
+  await page.getByRole('button', { name: 'Next', exact: true }).click()
+  await expect(
+    page.getByLabel('Capture top photo', { exact: true }),
+  ).toHaveCount(0)
+  await page.getByRole('button', { name: 'Use this cube', exact: true }).click()
+  const saved = await savedFixture(page)
+  expect(saved.meta.capture.faceRecovery.captureFrame.confirmed).toBe(false)
+  for (const key of Object.keys(saved.zip).filter((name) =>
+    name.endsWith('.jpg'),
+  )) {
+    const original = Object.keys(unzipSync(readFileSync(archive))).find(
+      (name) => name.endsWith(key.split('/').at(-1)!),
+    )!
+    expect(
+      Buffer.from(saved.zip[key]).equals(
+        Buffer.from(unzipSync(readFileSync(archive))[original]),
+      ),
+    ).toBe(true)
+  }
+})
+
+for (const size of [2, 4, 6, 8])
+  test(`legacy ${size}x${size} face assignments and pose survive displayed approval and roundtrip`, async ({
     page,
   }) => {
-    await openArchive(page, solidFiles(n))
-    await expect(page.getByLabel('Assign Side 1 to face')).toBeDisabled()
+    const legacy = legacyArchive(solidArchive(size))
+    await upload(page, legacy.bytes)
+    const displayed = await page
+      .locator('.approval-detected .orientation-net-sticker')
+      .evaluateAll((elements) =>
+        elements.map((element) => (element as HTMLElement).style.background),
+      )
     await page
-      .getByRole('button', {
-        name: 'Rotate Side 1 (U face) clockwise 90°',
-        exact: true,
-      })
+      .getByRole('button', { name: 'Yes, this is my cube', exact: true })
       .click()
-    await page.getByLabel('Orientation preview frame').selectOption('canonical')
-    await page.getByRole('button', { name: 'Confirm face mapping' }).click()
-    const saved = await saveFixture(page)
-    expect(saved.meta.capture.faceRecovery.mapping[0].quarterTurns).toBe(1)
+    await expect(page.locator('.face-recovery')).toHaveCount(0)
+    const actual = await page
+      .locator('.cube-net .net-cell')
+      .evaluateAll((elements) =>
+        elements.map((element) => (element as HTMLElement).style.background),
+      )
+    expect(actual).toEqual(displayed)
+    const saved = await savedFixture(page)
+    expect(saved.meta.capture.faceRecovery).toEqual({
+      ...legacy.record,
+      view: 'canonical',
+    })
+    await upload(page, saved.bytes)
+    await page
+      .getByRole('button', { name: 'Yes, this is my cube', exact: true })
+      .click()
+    const again = await savedFixture(page)
+    expect(again.meta.capture.faceRecovery).toEqual({
+      ...legacy.record,
+      view: 'canonical',
+    })
   })
 
-test('local viewer turns warn before photo reconstruction and Cancel preserves public history', async ({
+test('patterned 7x7 legacy rotations preserve exact photo identities and mirrored provenance', async ({
   page,
-  context,
 }) => {
-  const { setLayerMoves, swipeFrontFace, waitForCubeIdle } = await import(
-    './cubeView3DHelpers'
-  )
-  await setLayerMoves(context)
-  await openArchive(page, solidFiles(3))
-  await page
-    .getByLabel('Capture front photo', { exact: true })
-    .selectOption('R')
-  await page.getByLabel('Capture top photo', { exact: true }).selectOption('U')
-  await page
-    .getByLabel('I confirm this front and top match how I held the cube.')
-    .check()
-  await page.getByRole('button', { name: 'Confirm face mapping' }).click()
-  await page.getByRole('button', { name: '3D View', exact: true }).click()
-  await waitForCubeIdle(page)
-  await swipeFrontFace(page)
-  await waitForCubeIdle(page)
-  const payload = await page.locator('#cubelab-moves').textContent()
-  expect(JSON.parse(payload!).moves).not.toBe('')
-  await page
-    .getByRole('button', {
-      name: 'Adjust face orientations / assignments',
-      exact: true,
-    })
-    .click()
-  await expect(
-    page.getByText(
-      /Confirming orientation edits reconstructs the original captured/,
-    ),
-  ).toBeVisible()
-  await page
-    .getByRole('button', { name: 'Cancel changes', exact: true })
-    .click()
-  await expect
-    .poll(() => page.locator('#cubelab-moves').textContent())
-    .toBe(payload)
-  await page.getByRole('button', { name: 'Undo', exact: true }).click()
-  await waitForCubeIdle(page)
-  await expect
-    .poll(
-      async () =>
-        JSON.parse((await page.locator('#cubelab-moves').textContent())!).moves,
+  const legacy = legacyArchive(readFileSync(archive), true)
+  await upload(page, legacy.bytes)
+  const displayed = await page
+    .locator('.approval-detected .orientation-net-sticker')
+    .evaluateAll((elements) =>
+      elements.map((element) => (element as HTMLElement).style.background),
     )
-    .toBe('')
   await page
-    .getByRole('button', {
-      name: 'Adjust face orientations / assignments',
-      exact: true,
-    })
+    .getByRole('button', { name: 'Yes, this is my cube', exact: true })
     .click()
-  await expect(
-    page.getByText(
-      /Confirming orientation edits reconstructs the original captured/,
-    ),
-  ).toHaveCount(0)
+  expect(
+    await page
+      .locator('.cube-net .net-cell')
+      .evaluateAll((elements) =>
+        elements.map((element) => (element as HTMLElement).style.background),
+      ),
+  ).toEqual(displayed)
+  const saved = await savedFixture(page)
+  expect(saved.meta.capture.faceRecovery).toEqual({
+    ...legacy.record,
+    view: 'canonical',
+  })
+  expect(saved.meta.capture.mirrored).toBe(true)
+  for (const key of Object.keys(saved.zip).filter((name) =>
+    name.endsWith('.jpg'),
+  )) {
+    const original = Object.keys(legacy.zip).find((name) =>
+      name.endsWith(key.split('/').at(-1)!),
+    )!
+    expect(
+      Buffer.from(saved.zip[key]).equals(Buffer.from(legacy.zip[original])),
+    ).toBe(true)
+  }
+})
+
+for (const size of [3, 5])
+  test(`resolved ${size}x${size} faces skip unnecessary questions`, async ({
+    page,
+  }) => {
+    await upload(page, solidArchive(size))
+    await page
+      .getByRole('button', {
+        name: 'Adjust face orientations / assignments',
+        exact: true,
+      })
+      .click()
+    await noFreeControls(page)
+    await expect(page.locator('.spatial-candidate')).toHaveCount(0)
+    await expect(
+      page.getByRole('button', { name: 'Use this cube', exact: true }),
+    ).toBeEnabled()
+  })
+
+test('displayed approval keeps unknown physical pose across export and reimport', async ({
+  page,
+}) => {
+  await upload(page, readFileSync(archive))
+  const displayed = await page
+    .locator('.approval-detected .orientation-net-sticker')
+    .evaluateAll((elements) =>
+      elements.map((element) => (element as HTMLElement).style.background),
+    )
+  await page
+    .getByRole('button', { name: 'Yes, this is my cube', exact: true })
+    .click()
+  await expect(page.locator('.face-recovery')).toHaveCount(0)
+  expect(
+    await page
+      .locator('.cube-net .net-cell')
+      .evaluateAll((elements) =>
+        elements.map((element) => (element as HTMLElement).style.background),
+      ),
+  ).toEqual(displayed)
+  const saved = await savedFixture(page)
+  expect(saved.meta.capture.faceRecovery.view).toBe('canonical')
+  expect(saved.meta.capture.faceRecovery.captureFrame.confirmed).toBe(false)
+  expect(saved.meta.capture.faceRecovery.stateRelation).toBe('capture')
+  await upload(page, saved.bytes)
+  await page
+    .getByRole('button', { name: 'Yes, this is my cube', exact: true })
+    .click()
+  expect((await savedFixture(page)).meta.capture.faceRecovery).toEqual(
+    saved.meta.capture.faceRecovery,
+  )
 })
