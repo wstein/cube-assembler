@@ -1,3 +1,4 @@
+import { readPhotoIdentity } from '../capture/photoIdentity'
 // Loading an uploaded fixture's files; what its meta.json says is decided
 // in src/core/capture/FixtureUpload.res.
 import { planFixtureUpload } from '../../core/capture/FixtureUpload.gen'
@@ -99,6 +100,13 @@ export async function readFixtureUpload(
         | 'captureGuide'
       >),
       confidence: 1,
+      photoIdentity: await readPhotoIdentity(
+        dataUrl,
+        entry.colors,
+        meta.gridSize,
+        face,
+        (meta.faces[face] ?? meta.faces[face.toLowerCase()])?.photoIdentity,
+      ),
       croppedImage: dataUrl,
       source: 'fixture',
     }

@@ -1,3 +1,4 @@
+import { createPhotoIdentity } from './photoIdentity'
 import { useEffect, useRef, useState } from 'preact/hooks'
 import { recordGuide } from './captureRecovery'
 import { TURN_CUE_COOLDOWN_MS } from './autoCapture'
@@ -105,7 +106,13 @@ export function useCaptureSession({
     const step = captureStep(
       capturedFaces,
       face,
-      { ...result, captureGuide: guide ?? undefined },
+      {
+        ...result,
+        photoIdentity: result.croppedImage
+          ? await createPhotoIdentity(result.croppedImage, result.colors)
+          : undefined,
+        captureGuide: guide ?? undefined,
+      },
       source,
       cameraSettings,
       previewColorProfile,

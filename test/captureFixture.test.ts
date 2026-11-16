@@ -344,3 +344,22 @@ it('retains existing v3 provenance without inferring a complete observed sequenc
     ).capture.protocol,
   ).toBe('right-back-left-front-up-down/v3')
 })
+
+it('exports the unchanged photo identity separately from reviewed colors', () => {
+  const captured = faces('camera')
+  const identity = {
+    photoId: 'original-up',
+    sourceHash: 'a'.repeat(64),
+    sourceGrid: [
+      ['R', 'R'],
+      ['R', 'R'],
+    ],
+  }
+  captured.U = { ...captured.U, photoIdentity: identity }
+  const metadata = metaOf(
+    buildCaptureFixture(input({ capturedFaces: captured })),
+  )
+  expect(metadata.faces.u.photoIdentity).toEqual(identity)
+  expect(metadata.colorsURFDLB.split(' ')[0]).toBe('WWWW')
+  expect(metadata.faces.u.photoIdentity.sourceGrid.flat().join('')).toBe('RRRR')
+})
