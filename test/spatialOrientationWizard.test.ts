@@ -5,6 +5,7 @@ import { describe, expect, it } from 'vitest'
 import {
   generate,
   preserveMapping,
+  previewFaces,
   reconcile,
   nextSlot,
   options,
@@ -210,4 +211,44 @@ it('reconciles earlier answers by retaining compatible later choices and reporti
     decisions: [placement(1)],
     conflicts: [wrong],
   })
+})
+
+it('keeps all six source grids previewable when center colors fail validation', () => {
+  const raw = Object.fromEntries(
+    keys.map((key) => [
+      key,
+      [
+        ['W', 'R', 'G'],
+        ['Y', '?', 'B'],
+        ['R', 'G', 'W'],
+      ],
+    ]),
+  )
+  const mapping = keys.map((slot) => ({
+    slot,
+    target: slot as 'U' | 'R' | 'F' | 'D' | 'L' | 'B',
+    quarterTurns: 0,
+  }))
+  const shown = previewFaces(raw, mapping, 3)
+  expect(Object.keys(shown)).toEqual(keys)
+  for (const key of keys)
+    expect(shown[key as keyof typeof shown]).toEqual(raw[key])
+})
+
+it('shows the first duplicate assignment and an empty missing face without modifying sources', () => {
+  const raw = Object.fromEntries(keys.map((key) => [key, grid]))
+  const mapping = keys.map((slot) => ({
+    slot,
+    target: slot as 'U' | 'R' | 'F' | 'D' | 'L' | 'B',
+    quarterTurns: 0,
+  }))
+  mapping[1] = { slot: 'R', target: 'U', quarterTurns: 1 }
+  const before = JSON.stringify({ raw, mapping })
+  const shown = previewFaces(raw, mapping, 2)
+  expect(shown.U).toEqual(grid)
+  expect(shown.R).toEqual([
+    ['', ''],
+    ['', ''],
+  ])
+  expect(JSON.stringify({ raw, mapping })).toBe(before)
 })

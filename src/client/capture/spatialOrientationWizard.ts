@@ -2,6 +2,7 @@
 export {
   generate,
   preserveMapping,
+  previewFaces,
   reconcile,
   remaining,
   options,

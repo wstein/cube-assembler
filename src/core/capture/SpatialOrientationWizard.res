@@ -154,3 +154,34 @@ let reconcile = (session, decisions: array<decision>, selected: decision): recon
   })
   {decisions: kept.contents, conflicts}
 }
+
+// Rendering a draft is independent of validating it. Missing or conflicting
+// assignments stay visible as blank faces; validation continues to explain them.
+let previewFaces = (captured: Dict.t<grid>, mapping: CaptureFaceMapping.mapping, size) => {
+  let extent = size > 0 ? size : 0
+  let blank = () =>
+    Array.fromInitializer(~length=extent, _ => Array.fromInitializer(~length=extent, _ => ""))
+  let faces = faceKeys->Array.mapWithIndex((target, index) => {
+    let selected = mapping->Array.find(entry => {
+      let turns = Int.toFloat(entry.quarterTurns)
+      entry.target == target &&
+      slots->Array.includes(entry.slot) &&
+      Float.isFinite(turns) &&
+      Math.floor(turns) == turns &&
+      entry.quarterTurns >= 0 &&
+      entry.quarterTurns <= 3 &&
+      switch captured->Dict.get(entry.slot) {
+      | Some(grid) =>
+        Array.length(grid) == size && grid->Array.every(row => Array.length(row) == size)
+      | None => false
+      }
+    })
+    let grid = switch selected {
+    | Some(entry) =>
+      CubeGeometry.rotateGrid(captured->Dict.getUnsafe(entry.slot), entry.quarterTurns)
+    | None => blank()
+    }
+    (slots->Array.getUnsafe(index), grid)
+  })
+  Dict.fromArray(faces)->fromGeometry
+}
