@@ -101,12 +101,20 @@ test('keyboard selection focuses review and repeated Enter cannot commit', async
   ).toBeEnabled()
 })
 
-for (const touch of [false, true])
-  test(`a ${touch ? 'touch' : 'mouse'} double activation answers only one question`, async ({
+for (const { touch, cpu } of [
+  { touch: false, cpu: 1 },
+  { touch: true, cpu: 1 },
+  { touch: false, cpu: 6 },
+])
+  test(`a ${cpu > 1 ? 'throttled ' : ''}${touch ? 'touch' : 'mouse'} double activation answers only one question`, async ({
     browser,
   }) => {
     const context = await browser.newContext({ hasTouch: touch })
     const page = await context.newPage()
+    if (cpu > 1) {
+      const cdp = await context.newCDPSession(page)
+      await cdp.send('Emulation.setCPUThrottlingRate', { rate: cpu })
+    }
     await page.goto('/')
     await page
       .locator('.capture-alternatives input[type="file"]')
@@ -140,16 +148,25 @@ for (const touch of [false, true])
     await expect(
       page.getByRole('button', { name: 'Use this cube', exact: true }),
     ).toHaveCount(0)
+    await expect(page.locator('.spatial-candidate').first()).toBeEnabled()
+    await page.evaluate(
+      () =>
+        new Promise((resolve) =>
+          requestAnimationFrame(() => requestAnimationFrame(resolve)),
+        ),
+    )
     await expect(page.locator('#spatial-choice-title')).toBeFocused()
     // A separate real choice remains available when the duplicate guard ends.
-    await page.locator('.spatial-candidate').first().click()
-    await expect(
-      page.getByRole('button', { name: 'Use this cube', exact: true }),
-    ).toBeEnabled()
+    if (touch) await page.locator('.spatial-candidate').first().tap()
+    else await page.locator('.spatial-candidate').first().click()
+    const useCube = page.getByRole('button', {
+      name: 'Use this cube',
+      exact: true,
+    })
+    await expect(useCube).toBeEnabled()
     await expect(page.locator('.face-recovery')).toBeVisible()
-    await page
-      .getByRole('button', { name: 'Use this cube', exact: true })
-      .click()
+    if (touch) await useCube.tap()
+    else await useCube.click()
     await expect(page.locator('.face-recovery')).toHaveCount(0)
     await context.close()
   })
