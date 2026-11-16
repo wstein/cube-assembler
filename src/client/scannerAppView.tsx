@@ -256,11 +256,14 @@ export function ScannerAppView({ model }: { model: ScannerAppModel }) {
     if (directEdit) setCapturedFaces(directEdit.before)
     setShowReviewDialog(false)
   }
+  const sourceLabels = recovery.sourcePhotoLabels
+  const liveSourceLabels =
+    Object.keys(capturedFaces).length === 0 ? FACE_DISPLAY_LABEL : sourceLabels
   const analysis = analysisSamples(
     showBackdropDialog ? capturedFaces : {},
     FACE_ORDER,
     puzzleSize,
-    (key) => FACE_DISPLAY_LABEL[key],
+    (key) => sourceLabels[key],
   )
   const firstGuess = showBackdropDialog
     ? forcedReading(capturedFaces, FACE_ORDER).faces
@@ -272,7 +275,7 @@ export function ScannerAppView({ model }: { model: ScannerAppModel }) {
           ? FACE_ORDER.filter((f) => capturedFaces[f]?.croppedImage).map(
               (f) => ({
                 face: f,
-                label: FACE_DISPLAY_LABEL[f],
+                label: sourceLabels[f],
                 photo: capturedFaces[f].croppedImage!,
                 gains: appliedBackgroundGains[f] ?? NEUTRAL_GAINS,
                 background: capturedFaces[f].backgroundColor ?? null,
@@ -308,7 +311,7 @@ export function ScannerAppView({ model }: { model: ScannerAppModel }) {
           ? [
               {
                 face,
-                label: FACE_DISPLAY_LABEL[face],
+                label: sourceLabels[face],
                 colors: data.colors,
                 cellColors: data.cellColors,
               },
@@ -324,7 +327,7 @@ export function ScannerAppView({ model }: { model: ScannerAppModel }) {
       ? {
           size: puzzleSize,
           src: capturedFaces[photoFace].croppedImage!,
-          label: `${FACE_DISPLAY_LABEL[photoFace]} face`,
+          label: `${sourceLabels[photoFace]} face`,
         }
       : null
     return (
@@ -489,6 +492,7 @@ export function ScannerAppView({ model }: { model: ScannerAppModel }) {
 
         <div class="side-column">
           <CaptureCard
+            faceLabels={sourceLabels}
             capturedFaces={capturedFaces}
             size={puzzleSize}
             stickerColors={STICKER_HEX}
@@ -619,7 +623,7 @@ export function ScannerAppView({ model }: { model: ScannerAppModel }) {
           onClose={() => setWebcamOpen(false)}
           face={webcamFace}
           faceOrder={FACE_ORDER}
-          faceLabels={FACE_DISPLAY_LABEL}
+          faceLabels={liveSourceLabels}
           shortLabels={FACE_SHORT_LABEL}
           colorNames={COLOR_NAME}
           stickerColors={STICKER_HEX}
@@ -631,10 +635,13 @@ export function ScannerAppView({ model }: { model: ScannerAppModel }) {
             setLiveFaceVisible(false)
           }}
           centerRoutingActive={centerRoutingActive}
+          showTurnHint={!capturedFaces[webcamFace]}
           instruction={
-            centerRoutingActive
-              ? 'Show any uncaptured face. Its center color will place it in the capture net.'
-              : captureInstruction(FACE_ORDER.indexOf(webcamFace))
+            capturedFaces[webcamFace]
+              ? 'Show the same face as the selected photo.'
+              : centerRoutingActive
+                ? 'Show any uncaptured face. Its center color will place it in the capture net.'
+                : captureInstruction(FACE_ORDER.indexOf(webcamFace))
           }
           predictedCenter={predictedCenter}
           predictedCenters={predictedCenters}
@@ -664,7 +671,7 @@ export function ScannerAppView({ model }: { model: ScannerAppModel }) {
       {showReviewDialog && (
         <CaptureReviewDialog
           faceOrder={FACE_ORDER}
-          faceLabels={FACE_DISPLAY_LABEL}
+          faceLabels={sourceLabels}
           colorNames={COLOR_NAME}
           stickerColors={STICKER_HEX}
           colorOrder={COLOR_ORDER}
@@ -704,7 +711,7 @@ export function ScannerAppView({ model }: { model: ScannerAppModel }) {
           from, or a closest match that isn't a valid cube. */}
       {orientationApproval && !orientationWizard && !recovery.open && (
         <OrientationApprovalDialog
-          sourceProtocol={recovery.committedProtocol}
+          sourceProtocol={recovery.sourceProtocol}
           approval={orientationApproval}
           mirrorPreview={mirrorPreview}
           stickerColors={STICKER_HEX}
@@ -827,9 +834,7 @@ export function ScannerAppView({ model }: { model: ScannerAppModel }) {
       {fixtureDownload && (
         <FixtureDownloadDialog
           download={fixtureDownload}
-          faceLabels={
-            fixtureDownload.synthetic ? FACE_LABELS : FACE_DISPLAY_LABEL
-          }
+          faceLabels={fixtureDownload.synthetic ? FACE_LABELS : sourceLabels}
           serverChecked={fixtureServerChecked}
           serverReachable={fixtureServerReachable}
           serverPolling={fixtureServerPolling}

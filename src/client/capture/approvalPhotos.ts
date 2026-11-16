@@ -1,4 +1,4 @@
-import { diagnose } from '../../core/capture/CaptureDiagnosis.gen'
+import { diagnoseForProtocol } from '../../core/capture/CaptureDiagnosis.gen'
 import { findCaptureForOrientedFace } from '../../cube/capturedFaceMatching'
 import { solveFaceOrientations } from '../../cube/cubeAssembly'
 import { rotateGrid } from '../../cube/cubeGeometry'
@@ -116,15 +116,17 @@ export function captureStats(
   order: string[],
   size: number,
   paletteFar = false,
+  sourceProtocol: string | null = null,
 ) {
   const sureness = order.map((key) =>
     captured[key] ? captured[key].confidence * 100 : undefined,
   )
-  const diagnosis = diagnose(
+  const diagnosis = diagnoseForProtocol(
     size,
     order.map((key) => captured[key]?.cellColors),
     sureness,
     paletteFar,
+    sourceProtocol,
   )
   // The same stickers the color review marks "to double-check".
   const unsure = order.map((key) => {

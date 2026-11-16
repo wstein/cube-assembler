@@ -274,7 +274,13 @@ function CubeCheck({
   onCheckSlot: (slot: number) => void
 }) {
   const photoNames = photoNamesForProtocol(sourceProtocol)
-  const stats = captureStats(captured, faceOrder, puzzleSize)
+  const stats = captureStats(
+    captured,
+    faceOrder,
+    puzzleSize,
+    false,
+    sourceProtocol,
+  )
   const reading = forcedReading(captured, faceOrder)
   // One sentence about the stickers the equal color share moved, the face
   // shot twice, and the likely cause: no figures to read.

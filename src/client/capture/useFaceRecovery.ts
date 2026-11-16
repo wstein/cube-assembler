@@ -17,7 +17,10 @@ import {
   mergeGuideObservations,
   type CaptureRecovery,
 } from './captureRecovery'
-import { sourcePhotoNames } from '../../core/capture/CaptureSteps.gen'
+import {
+  sourcePhotoNamesForCapture,
+  sourcePresentationProtocol,
+} from './captureFlow'
 import { sameCubeState } from './recoveryPresentation'
 import { readFixtureAssembled } from '../fixtures/fixtureFormat'
 import type { FaceCaptureData } from './captureTypes'
@@ -531,7 +534,20 @@ export function useFaceRecovery({
     baselineCandidate,
     captureConflict,
     workingFaces,
-    sourcePhotoNames: sourcePhotoNames(draftProtocol),
+    sourcePhotoNames: sourcePhotoNamesForCapture(
+      workingFaces,
+      context?.protocol ?? null,
+    ),
+    sourceProtocol: sourcePresentationProtocol(
+      capturedFaces,
+      context?.protocol ?? null,
+    ),
+    sourcePhotoLabels: Object.fromEntries(
+      ['U', 'R', 'F', 'D', 'L', 'B'].map((slot, i) => [
+        slot,
+        sourcePhotoNamesForCapture(capturedFaces, context?.protocol ?? null)[i],
+      ]),
+    ),
     committedProtocol,
     savedAssembly: () =>
       readFixtureAssembled({ gridSize: size, capture: context }),

@@ -19,6 +19,7 @@ interface CaptureDialogProps {
   captureMode: CaptureMode
   onModeChange: (mode: CaptureMode) => void
   centerRoutingActive: boolean
+  showTurnHint?: boolean
   instruction: string
   predictedCenter: string | null
   predictedCenters: Array<string | null>
@@ -53,6 +54,7 @@ export function CaptureDialog({
   onModeChange,
   centerRoutingActive,
   instruction,
+  showTurnHint = true,
   predictedCenter,
   predictedCenters,
   faces,
@@ -129,7 +131,7 @@ export function CaptureDialog({
             </button>
           </div>
           <p class="capture-hint-text" aria-live="polite">
-            {!centerRoutingActive && (
+            {showTurnHint && !centerRoutingActive && (
               <TurnHint step={faceOrder.indexOf(face)} />
             )}
             {instruction}

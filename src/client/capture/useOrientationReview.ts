@@ -5,7 +5,7 @@ import type {
   OrientedCandidate,
   OrientationSolution,
 } from '../../cube/cubeAssembly'
-import { FACE_ORDER, describeCenterIssue } from './captureSteps'
+import { FACE_ORDER, describeCenterIssueForProtocol } from './captureSteps'
 import { planCaptureReview, type CaptureApproval } from './captureReviewRouting'
 import type { FaceCaptureData } from './captureTypes'
 import { morphInto } from './flyAnimation'
@@ -25,6 +25,7 @@ export function useOrientationReview({
   baselineCandidate,
   captureConflict,
   savedAssembly,
+  sourceProtocol,
 }: {
   capturedFaces: Record<string, FaceCaptureData>
   isGuidedCapture: () => boolean
@@ -33,6 +34,7 @@ export function useOrientationReview({
   hasSavedMapping: () => boolean
   savedCandidate: () => OrientedCandidate | null
   baselineCandidate: () => OrientedCandidate | null
+  sourceProtocol: string | null
   savedAssembly: () => Record<string, string[][]> | null
   captureConflict: () => string | null
 }) {
@@ -128,7 +130,7 @@ export function useOrientationReview({
       faceData,
       FACE_ORDER,
       isGuidedCapture(),
-      describeCenterIssue,
+      (issue) => describeCenterIssueForProtocol(issue, sourceProtocol),
       precomputedFree,
       saved ?? savedAssembly(),
     )
