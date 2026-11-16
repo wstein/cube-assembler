@@ -186,6 +186,7 @@ export function CubeNetView({
             ? 'edge piece'
             : 'center piece',
       photo: photo?.croppedImage,
+      sourceSlot: source?.slot,
       turns: source?.turns ?? 0,
       note:
         first && photo && first !== photo.colors[r]?.[c]
@@ -245,6 +246,36 @@ export function CubeNetView({
               <div class="net-face-label">{NET_FACE_NAMES[faceKey]}</div>
               <div
                 class="net-face-grid"
+                tabIndex={0}
+                role="group"
+                aria-label={`${NET_FACE_NAMES[faceKey]} face detected colors`}
+                onFocus={() =>
+                  setHoveredNetCell({
+                    face: faceKey,
+                    index: Math.floor((puzzleSize * puzzleSize) / 2),
+                  })
+                }
+                onPointerDown={() =>
+                  setHoveredNetCell({
+                    face: faceKey,
+                    index: Math.floor((puzzleSize * puzzleSize) / 2),
+                  })
+                }
+                onClick={() =>
+                  setHoveredNetCell({
+                    face: faceKey,
+                    index: Math.floor((puzzleSize * puzzleSize) / 2),
+                  })
+                }
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault()
+                    setHoveredNetCell({
+                      face: faceKey,
+                      index: Math.floor((puzzleSize * puzzleSize) / 2),
+                    })
+                  }
+                }}
                 style={{
                   gridTemplateColumns: `repeat(${puzzleSize}, 1fr)`,
                 }}
@@ -352,10 +383,15 @@ export function CubeNetView({
           {hoveredInfo ? (
             <>
               {hoveredInfo.photo && (
+                <p class="net-info-title">
+                  {hoveredInfo.faceName} · Original photo
+                </p>
+              )}
+              {hoveredInfo.photo && (
                 <img
                   class="net-info-photo"
                   src={hoveredInfo.photo}
-                  alt={`Photo of the ${hoveredInfo.faceName} face`}
+                  alt={`Photo of the ${hoveredInfo.faceName} face (source photo ${hoveredInfo.sourceSlot ?? 'unknown'})`}
                   style={{
                     transform: `rotate(${hoveredInfo.turns * 90}deg)`,
                   }}
