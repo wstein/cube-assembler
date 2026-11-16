@@ -77,13 +77,17 @@ export function CubeDisplayCard({
   onEditSticker,
   onTurnStateChange,
 }: CubeDisplayCardProps) {
+  const displayRecovery = useMemo<CaptureRecovery | null>(
+    () => (recovery ? { ...recovery, view: 'canonical' } : null),
+    [recovery],
+  )
   const shownSource = useMemo(
-    () => presentationCube(sourceCube, size, recovery),
-    [sourceCube, size, recovery],
+    () => presentationCube(sourceCube, size, displayRecovery),
+    [sourceCube, size, displayRecovery],
   )
   const shownVisible = useMemo(
-    () => presentationCube(visibleCube, size, recovery),
-    [visibleCube, size, recovery],
+    () => presentationCube(visibleCube, size, displayRecovery),
+    [visibleCube, size, displayRecovery],
   )
   const captureInitial = recovery
     ? validateMapping(
@@ -107,10 +111,7 @@ export function CubeDisplayCard({
       visibleCube[f].length === captureCube[f].length &&
       visibleCube[f].every((v, i) => v === captureCube[f][i]),
   )
-  const displayMapping =
-    recovery?.view === 'capture'
-      ? recovery.captureFrame.photoTransforms
-      : recovery?.mapping
+  const displayMapping = recovery?.mapping
   return (
     <section class="card cube-card">
       <div class="card-header">
@@ -165,17 +166,19 @@ export function CubeDisplayCard({
           <CubeView3D
             cube={shownSource}
             initialCube={shownVisible}
-            initialMoves={presentationMoves(initialMoves, recovery)}
+            initialMoves={presentationMoves(initialMoves, displayRecovery)}
             initialFrame={presentationColorFrame(
               initialFrame ?? initialColorFrame(sourceCube, size),
-              recovery,
+              displayRecovery,
             )}
-            publicMoves={(moves) => presentationMoves(moves, recovery, true)}
+            publicMoves={(moves) =>
+              presentationMoves(moves, displayRecovery, true)
+            }
             onTurnStateChange={(value, moves, frame) =>
               onTurnStateChange(
-                presentationCube(value, size, recovery, true),
-                presentationMoves(moves, recovery, true),
-                presentationColorFrame(frame, recovery, true),
+                presentationCube(value, size, displayRecovery, true),
+                presentationMoves(moves, displayRecovery, true),
+                presentationColorFrame(frame, displayRecovery, true),
               )
             }
             puzzleSize={size}
@@ -190,7 +193,7 @@ export function CubeDisplayCard({
             recovery ? (atSource ? displayMapping : null) : undefined
           }
           size={size}
-          parity={recovery?.view === 'capture' ? null : parity}
+          parity={parity}
           capturedFaces={capturedFaces}
           faceOrder={faceOrder}
           stickerColors={stickerColors}
