@@ -99,8 +99,11 @@ Cubacle remains a separate optional Rust solver provider, not Rust code inside
 PuzlWerk. Preserve physical identity, exact frames and sticker-up orientation
 when adapting state; color-only codecs cannot carry all printed-sticker data.
 Verify API compatibility, provenance and licensing before reuse: CubeAssembler
-is MIT, and adopting AGPL-covered code requires an explicit license/distribution
-decision, not an assumption that a thin adapter removes obligations.
+is AGPL-3.0-or-later, and adopting code under another license requires an explicit
+license/distribution decision, not an assumption that a thin adapter removes
+obligations. On 2026-11-17 the owner decided to relicense CubeAssembler from MIT to
+AGPL-3.0-or-later
+([wstein/cube-assembler#29 comment](https://github.com/wstein/cube-assembler/issues/29#issuecomment-6956721339)).
 
 ## PuzlWerk naming conventions
 

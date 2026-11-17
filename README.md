@@ -9,7 +9,7 @@ your browser.
 [![CI](https://github.com/wstein/cube-assembler/actions/workflows/ci.yml/badge.svg)](https://github.com/wstein/cube-assembler/actions/workflows/ci.yml)
 [![Pages](https://github.com/wstein/cube-assembler/actions/workflows/pages.yml/badge.svg)](https://github.com/wstein/cube-assembler/actions/workflows/pages.yml)
 ![TypeScript: strict](https://img.shields.io/badge/TypeScript-strict-blue)
-![License: MIT](https://img.shields.io/badge/License-MIT-cyan.svg)
+![License: AGPL-3.0-or-later](https://img.shields.io/badge/License-AGPL--3.0--or--later-cyan.svg)
 
 CubeAssembler figures out which photo belongs to each face and how that face
 was rotated. Guided capture narrows the possibilities to 64 arrangements; the
@@ -79,7 +79,7 @@ for browser tests, lint and formatting, fixture uploads, and Pages deployment.
 
 ## License and trademarks
 
-MIT © 2026 Werner Stein. See [LICENSE](LICENSE). The bundled fonts and runtime
+AGPL-3.0-or-later © 2026 Werner Stein. See [LICENSE](LICENSE). The bundled fonts and runtime
 libraries retain their own licenses; see the [third-party notices](public/licenses/index.html).
 
 Rubik's, Rubik's Cube, GoCube, GAN, QiYi, and other brand names are trademarks
