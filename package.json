@@ -27,7 +27,7 @@
     "@fontsource/ibm-plex-sans": "^5.3.0",
     "@fontsource/space-grotesk": "^5.3.0",
     "@puzlwerk/capture-recovery": "file:vendor/puzlwerk-capture-recovery-0.3.0-f1fa30ac.tgz",
-    "@puzlwerk/viewer": "file:vendor/puzlwerk-viewer-0.1.0-aa725fda.tgz",
+    "@puzlwerk/viewer": "file:vendor/puzlwerk-viewer-0.1.0-7e14cbd8.tgz",
     "fflate": "^0.8.3",
     "preact": "^11.2.0"
   },
