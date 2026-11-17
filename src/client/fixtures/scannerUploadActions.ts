@@ -1,3 +1,4 @@
+import type { CaptureIO, CaptureIOOperation } from '../capture/captureIO'
 import { uploadKind } from './photoUpload'
 import { isSinglePicture, splitNetPicture } from './netImport'
 import { readPhotoUploads } from './readPhotoUploads'
@@ -28,6 +29,7 @@ type Profiles = ReturnType<typeof useProfileStore>
 type Calibration = ReturnType<typeof useCaptureCalibration>
 
 type UploadActions = {
+  captureIO: CaptureIO
   setLoading: (value: boolean) => void
   setCaptureMessage: Session['setCaptureMessage']
   setProfileLearningOffer: Profiles['setProfileLearningOffer']
@@ -58,10 +60,12 @@ type UploadActions = {
   closePhotoUpload: Photos['closePhotoUpload']
   finalizeAllFacesCaptured: (
     faces: Record<string, FaceCaptureData>,
+    operation: CaptureIOOperation,
   ) => Promise<void>
 }
 
 export function createScannerUploadActions({
+  captureIO,
   setLoading,
   setCaptureMessage,
   setProfileLearningOffer,
@@ -105,12 +109,16 @@ export function createScannerUploadActions({
   // rewritten to reflect solveFaceOrientations' answer - see
   // handleConfirmReview), so reloading a fixture faithfully reproduces what
   // solveFaceOrientations would have seen the first time.
-  const handleUploadFixture = async (files: File[]) => {
+  const handleUploadFixture = async (
+    files: File[],
+    operation: CaptureIOOperation,
+  ) => {
     setLoading(true)
     setCaptureMessage('Loading fixture...')
 
     try {
       const loaded = await readFixtureUpload(files)
+      if (!operation.isCurrent()) return
       if (!loaded.ok) {
         setCaptureMessage(loaded.message)
         return
@@ -118,9 +126,6 @@ export function createScannerUploadActions({
       const { meta, entries: newEntries } = loaded
 
       setCaptureMessage('Detecting colors from the fixture photos...')
-      setProfileLearningOffer(null)
-      setUploadedProtocol(meta.capture?.protocol ?? null)
-      onCaptureContext(meta.capture ?? null)
       const images = Object.fromEntries(
         Object.entries(newEntries).map(([f, d]) => [f, d.croppedImage!]),
       )
@@ -137,11 +142,15 @@ export function createScannerUploadActions({
         meta.capture?.sampling ?? DEFAULT_SAMPLING,
         meta.capture?.colorReference ?? undefined,
       )
+      if (!operation.isCurrent()) return
       const mismatches = applyFixtureDetection(
         newEntries,
         wb.faces,
         ignoreFixtureCorrections,
       )
+      setProfileLearningOffer(null)
+      setUploadedProtocol(meta.capture?.protocol ?? null)
+      onCaptureContext(meta.capture ?? null)
       applyFixtureCalibration(meta.capture, wb, recordedGains)
 
       setPuzzleSize(meta.gridSize)
@@ -162,7 +171,7 @@ export function createScannerUploadActions({
         })
       }
     } finally {
-      setLoading(false)
+      if (operation.isCurrent()) setLoading(false)
     }
   }
 
@@ -182,24 +191,26 @@ export function createScannerUploadActions({
   // is cut into six face pictures and goes on as six photos.
   const importFiles = async (selected: File[]) => {
     if (selected.length === 0) return
+    const operation = captureIO.begin()
+    setLoading(true)
     try {
       const files: File[] = []
       for (const file of selected) {
-        if (file.name.toLowerCase().endsWith('.zip'))
-          files.push(
-            ...(await unzipUploadFiles(
-              new Uint8Array(await file.arrayBuffer()),
-            )),
-          )
-        else files.push(file)
+        if (file.name.toLowerCase().endsWith('.zip')) {
+          const bytes = await file.arrayBuffer()
+          if (!operation.isCurrent()) return
+          const unpacked = await unzipUploadFiles(new Uint8Array(bytes))
+          if (!operation.isCurrent()) return
+          files.push(...unpacked)
+        } else files.push(file)
       }
-      if (uploadKind(files) === 'fixture') await handleUploadFixture(files)
+      if (!operation.isCurrent()) return
+      if (uploadKind(files) === 'fixture')
+        await handleUploadFixture(files, operation)
       else if (isSinglePicture(files)) {
-        setLoading(true)
         setCaptureMessage('Reading the net picture...')
-        const split = await splitNetPicture(files[0]).finally(() =>
-          setLoading(false),
-        )
+        const split = await splitNetPicture(files[0])
+        if (!operation.isCurrent()) return
         if (split.ok) {
           setPuzzleSize(split.size)
           handleSelectPhotos(split.files)
@@ -209,23 +220,25 @@ export function createScannerUploadActions({
           )
       } else handleSelectPhotos(files)
     } catch (err) {
+      if (!operation.isCurrent()) return
       setCaptureMessage(
         `❌ Could not open files: ${err instanceof Error ? err.message : String(err)}`,
       )
+    } finally {
+      if (captureIO.finish(operation)) setLoading(false)
     }
   }
 
   const handleUploadFiles = async (e: Event) => {
     const input = e.currentTarget as HTMLInputElement
-    try {
-      await importFiles(Array.from(input.files ?? []))
-    } finally {
-      input.value = ''
-    }
+    const files = Array.from(input.files ?? [])
+    input.value = ''
+    await importFiles(files)
   }
 
   const handleUploadPhotos = async () => {
     if (!photoUpload || loading) return
+    const operation = captureIO.begin()
     setLoading(true)
     setCaptureMessage('Reading six photos...')
     try {
@@ -237,19 +250,21 @@ export function createScannerUploadActions({
         palette: automaticColors ? undefined : capturePalette(profileStore),
         faceOrder: FACE_ORDER,
       })
+      if (!operation.isCurrent()) return
       onCaptureContext(null)
       setCapturedFaces(entries)
       setUploadedProtocol(null)
       setDismissedCaptureWarnings([])
       closePhotoUpload()
-      await finalizeAllFacesCaptured(entries)
+      await finalizeAllFacesCaptured(entries, operation)
     } catch (err) {
+      if (!operation.isCurrent()) return
       console.error('Photo upload error:', err)
       setCaptureMessage(
         `❌ ${err instanceof Error ? err.message : 'Could not read photos.'}`,
       )
     } finally {
-      setLoading(false)
+      if (captureIO.finish(operation)) setLoading(false)
     }
   }
 

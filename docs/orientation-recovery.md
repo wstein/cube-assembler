@@ -102,6 +102,11 @@ producer mappings bind the current candidate before approval; an approved
 selection is not required to inspect its sources. Canonical mappings are already
 in the display frame and are not transformed twice.
 
+Browser capture/import I/O belongs to one cancellable operation. Closing capture,
+resetting the cube, changing its size, or starting a newer input supersedes the
+old operation. Late hashes, decoding/calibration results, errors and loading
+cleanup cannot publish into the newer session.
+
 Neither the approval net nor the main net infers photo identity from color
 equality. Without an explicit source mapping the photo remains unknown, and
 confirming a legal logical cube does not manufacture a photo mapping. Older

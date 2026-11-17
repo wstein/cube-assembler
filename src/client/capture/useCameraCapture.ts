@@ -1,3 +1,4 @@
+import type { CaptureIO } from './captureIO'
 import { useState } from 'preact/hooks'
 import { captureCameraPhoto, importCapturePhoto } from './capturePhoto'
 import { FACE_ORDER } from './captureSteps'
@@ -14,6 +15,7 @@ type Profiles = ReturnType<typeof useProfileStore>
 type Preferences = ReturnType<typeof useScannerPreferences>
 
 interface CameraCaptureOptions {
+  captureIO: CaptureIO
   webcamOpen: boolean
   loading: boolean
   setLoading: (value: boolean) => void
@@ -41,6 +43,7 @@ interface CameraCaptureOptions {
 // What the camera dialog reads from each live frame, auto capture, the
 // shutter button and importing a photo for the current face.
 export function useCameraCapture({
+  captureIO,
   webcamOpen,
   loading,
   setLoading,
@@ -107,6 +110,7 @@ export function useCameraCapture({
     setCaptureMessage,
     onCaptureSignal: signalCapture,
     onAutoCapture: async (result, profileId) => {
+      const operation = captureIO.begin()
       const track = (
         webcamRef.current?.srcObject as MediaStream | null
       )?.getVideoTracks()[0]
@@ -120,15 +124,19 @@ export function useCameraCapture({
           track ? withoutDeviceIds(track.getSettings()) : undefined,
           puzzleSize,
           previewProfileFor(profileId),
+          operation,
         )
+      } catch (err) {
+        if (operation.isCurrent()) throw err
       } finally {
-        setLoading(false)
+        if (captureIO.finish(operation)) setLoading(false)
       }
     },
   })
 
   const handleCapturePhoto = async () => {
     if (!webcamRef.current || turnOverlay !== null) return
+    const operation = captureIO.begin()
     const frame = document
       .querySelector('.capture-scan-frame')
       ?.getBoundingClientRect()
@@ -161,14 +169,16 @@ export function useCameraCapture({
         track ? withoutDeviceIds(track.getSettings()) : undefined,
         result.colors.length,
         previewProfileFor(liveAutoColorProfileId),
+        operation,
       )
     } catch (err) {
+      if (!operation.isCurrent()) return
       console.error('Capture error:', err)
       setCaptureMessage(
         `❌ Error: ${err instanceof Error ? err.message : 'Unknown error'}`,
       )
     } finally {
-      setLoading(false)
+      if (captureIO.finish(operation)) setLoading(false)
     }
   }
 
@@ -176,6 +186,8 @@ export function useCameraCapture({
     const input = e.currentTarget as HTMLInputElement
     const file = input.files?.[0]
     if (!file) return
+    input.value = ''
+    const operation = captureIO.begin()
 
     try {
       setLoading(true)
@@ -187,6 +199,7 @@ export function useCameraCapture({
         sampling,
         palette,
       })
+      if (!operation.isCurrent()) return
       await applyFaceCapture(
         webcamFace,
         result,
@@ -194,15 +207,16 @@ export function useCameraCapture({
         undefined,
         puzzleSize,
         previewProfileFor(null),
+        operation,
       )
     } catch (err) {
+      if (!operation.isCurrent()) return
       console.error('Image import error:', err)
       setCaptureMessage(
         `❌ Error: ${err instanceof Error ? err.message : 'Unknown error'}`,
       )
     } finally {
-      setLoading(false)
-      input.value = ''
+      if (captureIO.finish(operation)) setLoading(false)
     }
   }
 

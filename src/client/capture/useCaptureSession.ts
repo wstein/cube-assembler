@@ -1,3 +1,4 @@
+import type { CaptureIO, CaptureIOOperation } from './captureIO'
 import { createPhotoIdentity } from './photoIdentity'
 import { useEffect, useRef, useState } from 'preact/hooks'
 import { recordGuide } from './captureRecovery'
@@ -18,14 +19,19 @@ import { flyInto } from './flyAnimation'
 // all six are in is App's job (onAllCaptured).
 export function useCaptureSession({
   puzzleSize,
+  captureIO,
   mirrorPreview,
   webcamOpen,
   onAllCaptured,
 }: {
   puzzleSize: number
+  captureIO: CaptureIO
   mirrorPreview: boolean
   webcamOpen: boolean
-  onAllCaptured: (faces: Record<string, FaceCaptureData>) => Promise<void>
+  onAllCaptured: (
+    faces: Record<string, FaceCaptureData>,
+    operation: CaptureIOOperation,
+  ) => Promise<void>
 }) {
   const [capturedFaces, setCapturedFaces] = useState<
     Record<string, FaceCaptureData>
@@ -98,19 +104,22 @@ export function useCaptureSession({
     cameraSettings?: Partial<MediaTrackSettings>,
     captureSize = puzzleSize,
     previewColorProfile?: PreviewColorProfile,
+    operation = captureIO.begin(),
   ) => {
     const guide =
       source === 'camera'
         ? recordGuide(face, mirrorPreview, capturedFaces[face] !== undefined)
         : null
+    const photoIdentity = result.croppedImage
+      ? await createPhotoIdentity(result.croppedImage, result.colors)
+      : undefined
+    if (!operation.isCurrent()) return
     const step = captureStep(
       capturedFaces,
       face,
       {
         ...result,
-        photoIdentity: result.croppedImage
-          ? await createPhotoIdentity(result.croppedImage, result.colors)
-          : undefined,
+        photoIdentity,
         captureGuide: guide ?? undefined,
       },
       source,
@@ -133,7 +142,7 @@ export function useCaptureSession({
     setCaptureMessage(step.message)
 
     if (step.nextFace === null) {
-      await onAllCaptured(faces)
+      await onAllCaptured(faces, operation)
     } else {
       setWebcamFace(step.nextFace)
       setCaptureMessage('')
