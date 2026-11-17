@@ -10,12 +10,12 @@ import {
   type CubeStage,
   type StageChild,
 } from '@puzlwerk/viewer'
+import { open } from '@puzlwerk/viewer/bridge'
 import {
   cubePresentation,
   cubeStateDocuments,
   faceStickerIds,
-  open,
-} from '@puzlwerk/viewer/bridge'
+} from '@puzlwerk/viewer/bridge/cube-state'
 import '../../../web/cube3d.css'
 import type { CubeState, FaceKey } from '../../cube/cubeAssembly'
 import {
