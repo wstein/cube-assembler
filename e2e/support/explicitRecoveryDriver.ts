@@ -33,13 +33,18 @@ export function recoveryDriver(
   const root = document.createElement('div')
   document.body.append(root)
   const commits: Recovery.confirmation[] = []
+  let rememberedUse: (() => void) | undefined
   let controller: ReturnType<typeof useExplicitCaptureRecovery>
   function Harness() {
     controller = useExplicitCaptureRecovery({
       captured: faces,
       size: 4,
-      commit: (value) => {
-        const evidence = authority.currentEvidence(value.candidate, faces, 4)
+      commit: (value, approvedFaces) => {
+        const evidence = authority.currentEvidence(
+          value.candidate,
+          approvedFaces,
+          4,
+        )
         if (!evidence?.candidate) return false
         if (options.rejectInstall) return false
         commits.push(value)
@@ -62,6 +67,19 @@ export function recoveryDriver(
   render(h(Harness, {}), root)
   return {
     find: () => controller.find(),
+    cancel: () => controller.cancel(),
+    rememberUse: () => {
+      rememberedUse = controller.use
+    },
+    resetCaptured: () => {
+      faces = {}
+      authority.reset()
+      render(h(Harness, {}), root)
+    },
+    lateUse: () => {
+      rememberedUse?.()
+      return { active: !!controller.state, commits: commits.length }
+    },
     choose: () => {
       const current = controller.state
       if (!current) throw new Error('No active search')

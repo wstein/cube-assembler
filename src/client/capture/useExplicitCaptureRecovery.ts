@@ -1,4 +1,4 @@
-import { Recovery, type capture } from '@puzlwerk/capture-recovery'
+import { Recovery, snapshot, type capture } from '@puzlwerk/capture-recovery'
 import { useRef, useState } from 'preact/hooks'
 import { CapturePhotoBinding } from './photoProvenance'
 import {
@@ -34,13 +34,37 @@ export function useExplicitCaptureRecovery({
   const sourceCapture = (faces: CapturedPhotos) =>
     binding.current.update(faces, size)
   const [state, setState] = useState<SearchState | null>(null)
+  const context = useRef({ captured, size })
+  context.current = { captured, size }
+  const visibleState =
+    state?.origin === captured && snapshot(state.capture).size === size
+      ? state
+      : null
   const latest = useRef(state)
-  latest.current = state
+  latest.current = visibleState
+  const expectedReview = visibleState?.review
+  const expectedRevision = expectedReview
+    ? Recovery.revision(expectedReview)
+    : -1
+  // A browser callback belongs to the exact opaque review rendered with it.
+  // It must not consume a newer review from the same captured photographs.
+  const ownsReview = (current: SearchState | null): current is SearchState =>
+    !!current &&
+    current.review === expectedReview &&
+    Recovery.revision(current.review) === expectedRevision &&
+    current.origin === context.current.captured &&
+    snapshot(current.capture).size === context.current.size
   const publish = (value: SearchState | null) => {
     latest.current = value
     setState(value)
   }
   const find = () => {
+    if (
+      context.current.captured !== captured ||
+      context.current.size !== size ||
+      latest.current?.review !== expectedReview
+    )
+      return
     binding.current = sourceBinding()
     const current = sourceCapture(captured)
     if (!current) return
@@ -62,23 +86,19 @@ export function useExplicitCaptureRecovery({
   }
   const cancel = () => {
     const current = latest.current
-    if (current)
-      Recovery.cancel(current.review, Recovery.revision(current.review))
+    if (!ownsReview(current)) return
+    Recovery.cancel(current.review, expectedRevision)
     publish(null)
   }
   const choose = (placement: Parameters<typeof Recovery.select>[2]) => {
     const current = latest.current
-    if (!current || current.origin !== captured) return
-    const result = Recovery.select(
-      current.review,
-      Recovery.revision(current.review),
-      placement,
-    )
+    if (!ownsReview(current)) return
+    const result = Recovery.select(current.review, expectedRevision, placement)
     if (result.ok) publish({ ...current, review: result.value })
   }
   const resume = (faces: CapturedPhotos, back = false, budget?: number) => {
     const current = latest.current
-    if (!current || current.origin !== captured) return
+    if (!ownsReview(current)) return
     const next = sourceCapture(faces)
     if (!next) return
     const action = back ? 'backAndResumeReview' : 'resumeReview'
@@ -87,7 +107,7 @@ export function useExplicitCaptureRecovery({
     )(
       next,
       current.review,
-      Recovery.revision(current.review),
+      expectedRevision,
       recoveryRequest(next, faces, action, budget ?? current.budget),
       recoveryChecker(faces, size),
     )
@@ -105,14 +125,14 @@ export function useExplicitCaptureRecovery({
   }
   const use = () => {
     const current = latest.current
-    if (!current || current.origin !== captured) return
+    if (!ownsReview(current)) return
     const candidate = Recovery.selectedCandidate(current.review)
     const actual = sourceCapture(current.faces)
     if (!candidate || !actual) return
     const result = Recovery.useCandidate(
       actual,
       current.review,
-      Recovery.revision(current.review),
+      expectedRevision,
       candidate.candidateId,
       recoveryChecker(current.faces, size),
     )
@@ -134,7 +154,7 @@ export function useExplicitCaptureRecovery({
     setState(null)
   }
   return {
-    state: state?.origin === captured ? state : null,
+    state: visibleState,
     find,
     cancel,
     choose,
