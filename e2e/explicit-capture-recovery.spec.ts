@@ -539,3 +539,78 @@ for (const profile of [
       })
     })
   })
+
+test('a saved Use callback cannot install an old search after the current capture is reset', async ({
+  page,
+}) => {
+  await page.goto('/')
+  await page.evaluate(async (faces) => {
+    const path = '/e2e/support/explicitRecoveryDriver.ts'
+    const { recoveryDriver } = (await import(
+      path
+    )) as typeof import('./support/explicitRecoveryDriver')
+    Object.assign(window, { recoveryDriver: recoveryDriver(faces) })
+  }, driverCapture())
+  await page.evaluate(() =>
+    (
+      window as unknown as { recoveryDriver: { find: () => void } }
+    ).recoveryDriver.find(),
+  )
+  for (let i = 0; i < 6; i++) {
+    const chosen = await page.evaluate(() =>
+      (
+        window as unknown as { recoveryDriver: { choose: () => boolean } }
+      ).recoveryDriver.choose(),
+    )
+    if (!chosen) break
+  }
+  await page.evaluate(() =>
+    (
+      window as unknown as { recoveryDriver: { rememberUse: () => void } }
+    ).recoveryDriver.rememberUse(),
+  )
+  await page.evaluate(() =>
+    (
+      window as unknown as { recoveryDriver: { resetCaptured: () => void } }
+    ).recoveryDriver.resetCaptured(),
+  )
+  const outcome = await page.evaluate(() =>
+    (
+      window as unknown as {
+        recoveryDriver: { lateUse: () => { active: boolean; commits: number } }
+      }
+    ).recoveryDriver.lateUse(),
+  )
+  expect(outcome.active).toBe(false)
+  expect(outcome.commits).toBe(0)
+})
+
+test('an old Use callback cannot approve a different search session over the same capture', async ({
+  page,
+}) => {
+  await page.goto('/')
+  await page.evaluate(async (faces) => {
+    const path = '/e2e/support/explicitRecoveryDriver.ts'
+    const { recoveryDriver } = (await import(
+      path
+    )) as typeof import('./support/explicitRecoveryDriver')
+    Object.assign(window, { recoveryDriver: recoveryDriver(faces) })
+  }, driverCapture())
+  const act = async (method: string) =>
+    page.evaluate((method) => {
+      const d = (
+        window as unknown as { recoveryDriver: Record<string, () => unknown> }
+      ).recoveryDriver
+      return d[method]()
+    }, method)
+  await act('find')
+  for (let i = 0; i < 6; i++) if (!(await act('choose'))) break
+  await act('rememberUse')
+  await act('cancel')
+  await act('find')
+  for (let i = 0; i < 6; i++) if (!(await act('choose'))) break
+  const result = (await act('lateUse')) as { active: boolean; commits: number }
+  expect(result.active).toBe(true)
+  expect(result.commits).toBe(0)
+  expect(await act('useTwice')).toBe(1)
+})
