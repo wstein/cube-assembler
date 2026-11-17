@@ -159,6 +159,16 @@ export class CapturePhotoBinding {
     return checked.ok ? { capture, candidate: checked.value } : undefined
   }
 
+  // Separate browser holders share the same immutable Core snapshot. This
+  // preserves observation revisions/history while draft changes stay private.
+  fork(faces: Record<string, FaceCaptureData>, size: number) {
+    const fork = new CapturePhotoBinding()
+    fork.current = this.update(faces, size)
+    fork.faces = faces
+    fork.error = this.error
+    return fork
+  }
+
   get issue() {
     return this.error
   }

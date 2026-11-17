@@ -41,6 +41,7 @@ interface OrientationApprovalDialogProps {
   faceOrder: string[]
   puzzleSize: number
   onChoose: (candidate: OrientedCandidate) => void
+  onFindMatching: () => void
   onReject: () => void
   onPageChange: (page: number) => void
 }
@@ -63,6 +64,7 @@ export function OrientationApprovalDialog({
   faceOrder,
   puzzleSize,
   onChoose,
+  onFindMatching,
   onReject,
   onPageChange,
 }: OrientationApprovalDialogProps) {
@@ -215,6 +217,13 @@ export function OrientationApprovalDialog({
           </>
         )}
         <div class="orientation-approval-actions">
+          <button
+            type="button"
+            class="btn btn-secondary"
+            onClick={onFindMatching}
+          >
+            Find a matching cube
+          </button>
           <button
             type="button"
             class="btn btn-secondary"

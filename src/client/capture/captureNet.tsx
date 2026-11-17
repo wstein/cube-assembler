@@ -83,6 +83,7 @@ export function CaptureNet({
   faceOrder,
   faceLabels,
   shortLabels,
+  capturedAction = 'tap to retake',
   colorNames,
   stickerColors,
 }: {
@@ -95,6 +96,7 @@ export function CaptureNet({
   faceOrder: readonly string[]
   faceLabels: Record<string, string>
   shortLabels: Record<string, string>
+  capturedAction?: string
   colorNames: Record<string, string>
   stickerColors: Record<string, string>
 }) {
@@ -113,7 +115,7 @@ export function CaptureNet({
         class={`capture-net-slot${matchingFaces.has(key) ? ' pattern-match' : ''}`}
         style={{ gridArea }}
         data-slot={key}
-        aria-label={`${faceLabels[key]}: ${colors ? (matchingFaces.has(key) ? 'captured, pattern looks like another captured face; tap to retake' : 'captured, tap to retake') : suggested ? `suggested ${colorNames[suggested]} center, not captured yet` : 'not captured yet'}`}
+        aria-label={`${faceLabels[key]}: ${colors ? (matchingFaces.has(key) ? `captured, pattern looks like another captured face; ${capturedAction}` : `captured, ${capturedAction}`) : suggested ? `suggested ${colorNames[suggested]} center, not captured yet` : 'not captured yet'}`}
         aria-current={key === current ? 'step' : undefined}
         onClick={() => onSelect(key)}
       >

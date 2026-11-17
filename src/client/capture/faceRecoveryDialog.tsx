@@ -27,6 +27,7 @@ const CubeView3D = lazy(() =>
 )
 export function FaceRecoveryDialog({
   recovery,
+  onFindMatching,
   currentCube,
   initialCube,
   captured: originalCaptured,
@@ -37,6 +38,7 @@ export function FaceRecoveryDialog({
 }: {
   initialCube: CubeState | null
   currentCube: CubeState | null
+  onFindMatching: () => void
   recovery: ReturnType<typeof useFaceRecovery>
   captured: Record<string, FaceCaptureData>
   size: number
@@ -383,7 +385,18 @@ export function FaceRecoveryDialog({
                   Ready to use this cube?
                 </h3>
               )}
-              {stage === 'conflict' && <h3>Review the captured input.</h3>}
+              {stage === 'conflict' && (
+                <>
+                  <h3>Review the captured input.</h3>
+                  <button
+                    type="button"
+                    class="btn btn-secondary"
+                    onClick={onFindMatching}
+                  >
+                    Find a matching cube
+                  </button>
+                </>
+              )}
               {!recovery.remainingCandidates.length && (
                 <p class="capture-warning" role="status">
                   No retained match. Review earlier answers or detected colors.

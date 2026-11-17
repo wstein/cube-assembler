@@ -1,3 +1,4 @@
+import { useExplicitCaptureRecovery } from './capture/useExplicitCaptureRecovery'
 import { CaptureIO, type CaptureIOOperation } from './capture/captureIO'
 import { createScannerUploadActions } from './fixtures/scannerUploadActions'
 import { usePasteAndDrop } from './fixtures/usePasteAndDrop'
@@ -166,6 +167,12 @@ export function useScannerAppModel() {
         'confirmed',
         source?.candidate,
       ),
+  })
+  const explicitRecovery = useExplicitCaptureRecovery({
+    captured: capturedFaces,
+    size: puzzleSize,
+    commit: recovery.commitSearch,
+    sourceBinding: recovery.forkSearchCapture,
   })
   const [chosenRecovery, setChosenRecovery] = useState<CaptureRecovery | null>(
     null,
@@ -682,6 +689,7 @@ export function useScannerAppModel() {
 
   // ─────────────────────────────────────────────────────────────────────────
   return {
+    explicitRecovery,
     appliedBackgroundGains,
     applyProfileStore,
     armCaptureAudio,
