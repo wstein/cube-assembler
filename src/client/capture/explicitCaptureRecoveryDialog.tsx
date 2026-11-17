@@ -217,7 +217,15 @@ export function ExplicitCaptureRecoveryDialog({
               embedded
               faceOrder={FACE_ORDER}
               faceLabels={Object.fromEntries(
-                placements.map((p) => [p.slot, canonicalFaceName(p.target)]),
+                FACE_ORDER.map((slot, index) => {
+                  const placement = placements.find((p) => p.slot === slot)
+                  return [
+                    slot,
+                    placement
+                      ? canonicalFaceName(placement.target)
+                      : `Photo ${index + 1}`,
+                  ]
+                }),
               )}
               colorNames={COLOR_NAME}
               stickerColors={colors}
@@ -240,6 +248,7 @@ export function ExplicitCaptureRecoveryDialog({
               onRetake={() => {}}
               onConfirm={() => finishColors(false)}
               direct={{
+                sourceOnly: !projected,
                 face: editing,
                 row: -1,
                 col: -1,

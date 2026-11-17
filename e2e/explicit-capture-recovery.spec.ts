@@ -585,6 +585,32 @@ test('a saved Use callback cannot install an old search after the current captur
   expect(outcome.commits).toBe(0)
 })
 
+test('the neutral zero-candidate source editor retains its Photo 1 accessible name', async ({
+  page,
+}) => {
+  await page.goto('/')
+  await page.evaluate(async (faces) => {
+    const path = '/e2e/support/explicitRecoveryDriver.ts'
+    const { recoveryDriver } = (await import(
+      path
+    )) as typeof import('./support/explicitRecoveryDriver')
+    const driver = recoveryDriver(faces, { budget: 1000, dialog: true })
+    Object.assign(window, { recoveryDriver: driver })
+    driver.find()
+  }, driverCapture())
+  await page.locator('.face-recovery [data-slot="U"]').click()
+  await expect(page.locator('.spatial-color-editor')).toBeVisible()
+  await expect(page.locator('.spatial-color-editor #review-title')).toHaveText(
+    'Photo 1',
+  )
+  await expect(
+    page.locator('.spatial-color-editor [role=dialog]'),
+  ).toHaveAccessibleName('Photo 1')
+  await expect(
+    page.locator('.spatial-color-editor .review-face-image'),
+  ).toHaveAttribute('alt', 'Captured photo of Photo 1')
+})
+
 test('an old Use callback cannot approve a different search session over the same capture', async ({
   page,
 }) => {
