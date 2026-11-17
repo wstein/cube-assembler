@@ -12,6 +12,7 @@ import type { useCaptureSession } from './capture/useCaptureSession'
 type Session = ReturnType<typeof useCaptureSession>
 
 interface AssembledCubeOptions {
+  cancelCaptureIO: () => void
   puzzleSize: number
   setPuzzleSize: (size: number) => void
   notationFormat: 'wrg' | 'urf'
@@ -23,6 +24,7 @@ interface AssembledCubeOptions {
 // The cube the scanner shows - solved, typed in as facelets, or assembled
 // from a reviewed capture - and its parity check.
 export function useAssembledCube({
+  cancelCaptureIO,
   puzzleSize,
   setPuzzleSize,
   notationFormat,
@@ -40,6 +42,7 @@ export function useAssembledCube({
   }
 
   const handleApplySolved = async () => {
+    cancelCaptureIO()
     const solved = createSolvedCube(puzzleSize)
     setCube(solved)
     forgetResolvedProfile()
@@ -64,6 +67,7 @@ export function useAssembledCube({
         alert(parsed.message)
         return
       }
+      cancelCaptureIO()
       const { cube: newCube } = parsed
 
       const size = Math.sqrt(newCube.u.length)

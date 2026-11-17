@@ -1,3 +1,4 @@
+import { CaptureIO, type CaptureIOOperation } from './capture/captureIO'
 import { createScannerUploadActions } from './fixtures/scannerUploadActions'
 import { usePasteAndDrop } from './fixtures/usePasteAndDrop'
 import { parseCubeInput } from './capture/captureFlow'
@@ -63,6 +64,7 @@ export function useScannerAppModel() {
     frame: import('../core/view/AxisGizmo.gen').colorFrame
   } | null>(null)
   const [webcamOpen, setWebcamOpen] = useState(false)
+  const captureIO = useRef(new CaptureIO()).current
   const {
     cubeViewMode,
     setCubeViewMode,
@@ -111,11 +113,24 @@ export function useScannerAppModel() {
     warning,
   } = useCaptureSession({
     puzzleSize,
+    captureIO,
     mirrorPreview,
     webcamOpen,
-    onAllCaptured: (faces) => finalizeAllFacesCaptured(faces),
+    onAllCaptured: (faces, operation) =>
+      finalizeAllFacesCaptured(faces, operation),
   })
   const [loading, setLoading] = useState(false)
+  const cancelCaptureIO = () => {
+    if (captureIO.cancel()) {
+      setLoading(false)
+      setCaptureMessage('')
+    }
+    pendingFlyIn.current = null
+  }
+  const closeCapture = () => {
+    cancelCaptureIO()
+    setWebcamOpen(false)
+  }
   const {
     photoUpload,
     selectPhotos,
@@ -229,7 +244,7 @@ export function useScannerAppModel() {
     puzzleSize,
     capturedFaces,
     onCubeCreated: () => {
-      setWebcamOpen(false)
+      closeCapture()
       location.hash = profilesHash('cubes')
     },
   })
@@ -273,6 +288,7 @@ export function useScannerAppModel() {
     handleApplyFacelets,
   } = useAssembledCube({
     puzzleSize,
+    cancelCaptureIO,
     setPuzzleSize,
     notationFormat,
     setCapturedFaces,
@@ -291,6 +307,7 @@ export function useScannerAppModel() {
       !window.confirm('Changing cube size clears the captured faces. Continue?')
     )
       return false
+    cancelCaptureIO()
     setPuzzleSize(size)
     setCube(null)
     setParity(null)
@@ -335,6 +352,7 @@ export function useScannerAppModel() {
       )
       return
     }
+    cancelCaptureIO()
     armCaptureAudio()
     dismissTurnOverlay()
     forgetLastCapture()
@@ -372,6 +390,7 @@ export function useScannerAppModel() {
     handleCapturePhoto,
     handleImportImage,
   } = useCameraCapture({
+    captureIO,
     webcamOpen,
     loading,
     setLoading,
@@ -404,7 +423,9 @@ export function useScannerAppModel() {
   // before routing to color review or assembly.
   const finalizeAllFacesCaptured = async (
     newCapturedFaces: Record<string, FaceCaptureData>,
+    operation: CaptureIOOperation,
   ) => {
+    if (!operation.isCurrent()) return
     let finalFaces = newCapturedFaces
     let finalGlare: string[] = []
     let finalMixedUp: string[] = []
@@ -439,6 +460,7 @@ export function useScannerAppModel() {
           },
           faceGains,
         )
+        if (!operation.isCurrent()) return
         applyRecalibration(result, profile)
         finalMixedUp = result.mixedUp
         finalGlare = result.glare
@@ -449,11 +471,13 @@ export function useScannerAppModel() {
           setCapturedFaces(result.finalFaces)
         }
       } catch (err) {
+        if (!operation.isCurrent()) return
         console.error('Global white balance error:', err)
         failRecalibration()
       }
     }
 
+    if (!operation.isCurrent()) return
     setLoading(false)
     setWebcamOpen(false)
     routeReview({
@@ -465,6 +489,7 @@ export function useScannerAppModel() {
 
   const { handleUploadFiles, importFiles, handleUploadPhotos } =
     createScannerUploadActions({
+      captureIO,
       setLoading,
       setCaptureMessage,
       setProfileLearningOffer,
@@ -507,6 +532,7 @@ export function useScannerAppModel() {
   })
 
   const handleRetakeFace = (face: string) => {
+    cancelCaptureIO()
     armCaptureAudio()
     setShowReviewDialog(false)
     setWebcamFace(face)
@@ -782,6 +808,7 @@ export function useScannerAppModel() {
     setTurnedCube,
     setWebcamFace,
     setWebcamOpen,
+    closeCapture,
     showBackdropDialog,
     showColorInput,
     showReviewDialog,

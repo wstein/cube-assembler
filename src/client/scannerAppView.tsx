@@ -186,7 +186,7 @@ export function ScannerAppView({ model }: { model: ScannerAppModel }) {
     setShowReviewDialog,
     setTurnedCube,
     setWebcamFace,
-    setWebcamOpen,
+    closeCapture,
     showBackdropDialog,
     showColorInput,
     showReviewDialog,
@@ -630,11 +630,9 @@ export function ScannerAppView({ model }: { model: ScannerAppModel }) {
           }
           focusDialog={focusModalOnOpen}
           onDialogKeyDown={(event) =>
-            handleModalKeyDown(event, event.currentTarget, () =>
-              setWebcamOpen(false),
-            )
+            handleModalKeyDown(event, event.currentTarget, () => closeCapture())
           }
-          onClose={() => setWebcamOpen(false)}
+          onClose={() => closeCapture()}
           face={webcamFace}
           faceOrder={FACE_ORDER}
           faceLabels={liveSourceLabels}
