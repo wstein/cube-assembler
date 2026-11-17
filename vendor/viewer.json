@@ -1,0 +1,9 @@
+{
+  "package": "@puzlwerk/viewer",
+  "version": "0.1.0",
+  "artifact": "puzlwerk-viewer-0.1.0-dedf9d00.tgz",
+  "sha256": "357260a86244a8a91134e5981f3bf760b1c14ff6af80b17242625f9b2d8bc571",
+  "sourceRevision": "dedf9d00e160094cc92dd910a39821790adc7295",
+  "sourceRepository": "https://github.com/wstein/puzlwerk",
+  "license": "AGPL-3.0-or-later; compiled Core modules in dist/bridge/core are EUPL-1.2"
+}

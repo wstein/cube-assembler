@@ -8,7 +8,7 @@
     "rescript:build": "rescript build --warn-error +a",
     "fixture:server": "node scripts/fixtureUploadServer.mjs",
     "build": "npm run rescript:build && vite build",
-    "typecheck": "npm run verify:capture-core && npm run rescript:build && tsc --noEmit",
+    "typecheck": "npm run verify:capture-core && npm run verify:viewer-vendor && npm run rescript:build && tsc --noEmit",
     "test": "npm run rescript:build && vitest run",
     "test:e2e": "playwright test",
     "test:watch": "npm run rescript:build && vitest",
@@ -19,13 +19,15 @@
     "lint": "npm run lint:typescript && npm run lint:biome && npm run lint:rescript",
     "format:check": "biome format . && rescript format --check",
     "format": "biome format --write . && rescript format",
-    "verify:capture-core": "node scripts/verifyCaptureCore.mjs"
+    "verify:capture-core": "node scripts/verifyCaptureCore.mjs",
+    "verify:viewer-vendor": "node scripts/verifyViewerVendor.mjs"
   },
   "dependencies": {
     "@fontsource/ibm-plex-mono": "^5.3.0",
     "@fontsource/ibm-plex-sans": "^5.3.0",
     "@fontsource/space-grotesk": "^5.3.0",
     "@puzlwerk/capture-recovery": "file:vendor/puzlwerk-capture-recovery-0.3.0-f1fa30ac.tgz",
+    "@puzlwerk/viewer": "file:vendor/puzlwerk-viewer-0.1.0-dedf9d00.tgz",
     "fflate": "^0.8.3",
     "preact": "^11.2.0"
   },
