@@ -210,3 +210,11 @@
   text-align: center;
   color: var(--color-text-secondary);
 }
+
+/* PuzlWerk viewer spike: its canvas fills the same backdrop box as the existing canvas. */
+.cube-3d-puzlwerk canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+  touch-action: none;
+}
