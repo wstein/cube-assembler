@@ -19,7 +19,9 @@ import {
 import { STICKER_COLORS } from '../vision/stickerColorGeometry'
 
 const CubeView3D = lazy(() =>
-  import('../view3d/cubeView3D').then((m) => ({ default: m.CubeView3D })),
+  import('../view3d/cubeView3DChoice').then((m) => ({
+    default: m.CubeView3DChoice,
+  })),
 )
 
 export function ExplicitCaptureRecoveryDialog({
