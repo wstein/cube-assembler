@@ -286,16 +286,36 @@ test('displayed approval keeps unknown physical pose across export and reimport'
       ),
   ).toEqual(displayed)
   const saved = await savedFixture(page)
-  expect(saved.meta.capture.faceRecovery.view).toBe('canonical')
-  expect(saved.meta.capture.faceRecovery.captureFrame.confirmed).toBe(false)
-  expect(saved.meta.capture.faceRecovery.stateRelation).toBe('capture')
+  // A logical Yes does not identify ambiguous legacy source photographs.
+  expect(saved.meta.capture.faceRecovery).toBeNull()
+  expect(saved.meta.capture.assembledURFDLB).toBeTruthy()
+  const identities = Object.values(saved.meta.faces).map(
+    (face) => (face as { photoIdentity: { photoId: string } }).photoIdentity,
+  )
+  expect(new Set(identities.map((identity) => identity.photoId)).size).toBe(6)
   await upload(page, saved.bytes)
+  expect(
+    await page
+      .locator('.approval-detected .orientation-net-sticker')
+      .evaluateAll((elements) =>
+        elements.map((element) => (element as HTMLElement).style.background),
+      ),
+  ).toEqual(displayed)
   await page
     .getByRole('button', { name: 'Yes, this is my cube', exact: true })
     .click()
-  expect((await savedFixture(page)).meta.capture.faceRecovery).toEqual(
-    saved.meta.capture.faceRecovery,
+  const restored = await savedFixture(page)
+  expect(restored.meta.capture.faceRecovery).toBeNull()
+  expect(restored.meta.capture.assembledURFDLB).toBe(
+    saved.meta.capture.assembledURFDLB,
   )
+  expect(
+    Object.values(restored.meta.faces).map(
+      (face) => (face as { photoIdentity: unknown }).photoIdentity,
+    ),
+  ).toEqual(identities)
+  expect(restored.meta.capture.protocol).toBe(saved.meta.capture.protocol)
+  expect(restored.meta.capture.mirrored).toBe(saved.meta.capture.mirrored)
 })
 
 for (const variant of [physicalProtocol, currentProtocol])

@@ -273,12 +273,17 @@ test('color corrections stay in the draft and outer Cancel discards them', async
 test('canonical relative options preserve absolute chosen turns through roundtrip', async ({
   page,
 }) => {
-  await upload(page)
-  await page
-    .getByRole('button', { name: 'Yes, this is my cube', exact: true })
-    .click()
-  const baseline = await saved(page)
+  // Establish source provenance through an explicit checked wizard choice.
   await openRecovery(page)
+  await page.locator('.spatial-candidate').first().click()
+  await page.getByRole('button', { name: 'Use this cube', exact: true }).click()
+  const baseline = await saved(page)
+  expect(baseline.meta.capture.faceRecovery).not.toBeNull()
+  await openRecovery(page, {
+    name: 'baseline.zip',
+    mimeType: 'application/zip',
+    buffer: baseline.bytes,
+  })
   await page.locator('.spatial-candidate').first().click()
   await page.getByRole('button', { name: 'Back', exact: true }).click()
   await currentMatchesNet(page)
