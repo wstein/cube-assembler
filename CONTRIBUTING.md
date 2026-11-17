@@ -105,4 +105,4 @@ To release the current version without bumping it (for example the first
   there is one, and list the test results.
 - Attach before-and-after screenshots for scanner or UI changes.
 
-Contributions are released under the project's [MIT License](LICENSE).
+Contributions are released under the project's [AGPL-3.0-or-later license](LICENSE).
