@@ -1,7 +1,10 @@
 // Display orientation of the PuzlWerk viewer as a unit quaternion [x, y, z, w]: the XYZ Euler rotation
 // (pitch about x, then yaw about y) of the existing isometric view, written out so the app needs no direct
 // dependency on three.
-export function eulerPitchYaw(pitch: number, yaw: number): [number, number, number, number] {
+export function eulerPitchYaw(
+  pitch: number,
+  yaw: number,
+): [number, number, number, number] {
   const c1 = Math.cos(pitch / 2)
   const s1 = Math.sin(pitch / 2)
   const c2 = Math.cos(yaw / 2)
