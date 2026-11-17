@@ -119,6 +119,51 @@ The vendored package's source commit and artifact hashes are checked by
 are included; production distribution remains subject to the owner's license
 acceptance gate. This slice does not migrate the viewer or the puzzle engine.
 
+## Explicit matching search
+
+**Find a matching cube** starts a separate, deliberate search from either a
+rejected valid proposal or a physical-guide conflict. It never runs implicitly
+in place of the recorded guide. PuzlWerk's private ReScript package owns bounded
+candidate generation, photo-ID assignments, review revisions, answers and final
+Use. CubeAssembler supplies its existing ReScript mapping/parity checker through
+a named temporary port; this is not a second puzzle engine or a viewer migration.
+
+The initial request evaluates at most 5,000 complete assignments and retains at
+most eight checked matches. An empty capped prefix does not establish that no
+legal arrangement exists. The UI keeps capped-search and incomplete-reachability
+warnings separate from a successful available check.
+
+Canonical questions run Front, Right, Back, Left, Up, Down and skip resolved
+faces. Choosing a colored grid updates the shared net/3D preview. Source photos
+remain linked by their explicit IDs and absolute rotations. Only **Use this
+cube** installs the exact rechecked Core confirmation; selecting the last option
+does not commit. Cancel restores the prior approval or conflict without reranking.
+
+The existing single-face color editor changes only the unconfirmed reviewed
+overlay. On OK, Core resume carries the earlier manual answers into the new
+bounded search; automatic resolutions are not promoted to user answers. Editor
+Cancel leaves that review untouched. Back uses Core's explicit back-and-resume
+operation. If a color draft has no retained match, the prior preview stays
+visible with an explicit notice and no final Use action. Raw photos, recognition
+provenance and guide observations remain immutable.
+
+### Owner browser checklist (not yet accepted)
+
+1. Upload `photo-identity-4x4-2026-11-16T21-28-43.zip`; reject the proposal by
+   choosing **Find a matching cube**, without taking new photographs.
+2. Compare each actual colored option with the physical cube. Check the shared
+   net and 3D view, inspect each source photo, then use Back to revisit a choice.
+3. Correct one detected sticker through its photo, return to the same review,
+   and verify that compatible earlier choices remain. Cancel keeps the prior
+   approval and original photographs.
+4. Finish all unresolved questions. Check that only **Use this cube** commits;
+   export/reimport must retain the selected grids, source photos and rotations.
+5. Repeat with `capture-conflict-4x4-2026-11-16T19-08-19.zip` and on touch. Its
+   historical guide conflict remains until an explicit matching search is chosen.
+
+Automated checks and local screenshots supplement these steps; they do not
+constitute physical-owner acceptance or prove complete larger-NxN reachability.
+
 ## Constraints and persistence
 
 Candidates have passed the repository's available checks. Larger NxN checks do
