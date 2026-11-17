@@ -1,3 +1,4 @@
+import { ExplicitCaptureRecoveryDialog } from './capture/explicitCaptureRecoveryDialog'
 import { CaptureLiveView } from './capture/captureLiveView'
 import { CaptureDialog } from './capture/captureDialog'
 import { CaptureReviewDialog } from './capture/captureReviewDialog'
@@ -138,6 +139,7 @@ export function ScannerAppView({ model }: { model: ScannerAppModel }) {
     newCubeName,
     notationFormat,
     onSettingsPage,
+    explicitRecovery,
     orientationApproval,
     orientationWizard,
     recovery,
@@ -721,57 +723,66 @@ export function ScannerAppView({ model }: { model: ScannerAppModel }) {
       {/* Approval of how the captured faces fit together (see
           handleConfirmReview): one arrangement to confirm, a few to pick
           from, or a closest match that isn't a valid cube. */}
-      {orientationApproval && !orientationWizard && !recovery.open && (
-        <OrientationApprovalDialog
-          sourceProtocol={recovery.sourceProtocol}
-          approval={orientationApproval}
-          mirrorPreview={mirrorPreview}
-          stickerColors={STICKER_HEX}
-          focusDialog={focusModalOnOpen}
-          onDialogKeyDown={(event) =>
-            handleModalKeyDown(event, event.currentTarget, () =>
-              setOrientationApproval(null),
-            )
-          }
-          onClose={() => setOrientationApproval(null)}
-          onBackToColors={() => {
-            setOrientationApproval(null)
-            setReviewStep(reviewStartSlot(capturedFaces, FACE_ORDER))
-            setShowReviewDialog(true)
-          }}
-          photoEvidence={recovery.photoEvidence}
-          onCheckSlot={(slot) => {
-            setOrientationApproval(null)
-            setReviewStep(slot)
-            setReviewEditingCell(null)
-            setReviewNotice(null)
-            setShowReviewDialog(true)
-          }}
-          captured={checkedFaces}
-          faceOrder={FACE_ORDER}
-          puzzleSize={puzzleSize}
-          displayRecovery={recovery.approved}
-          blockedCandidate={(candidate) =>
-            orientationApproval.valid && recovery.displayedBlocked(candidate)
-          }
-          alternativesCount={recovery.alternativesCount}
-          onChoose={(candidate) =>
-            orientationApproval.valid
-              ? recovery.acceptDisplayed(candidate)
-              : void handleChooseOrientation(candidate, undefined, 'diagnostic')
-          }
-          onReject={handleRejectOrientation}
-          onPageChange={(page) =>
-            setOrientationApproval((prev) => prev && { ...prev, page })
-          }
-        />
-      )}
+      {orientationApproval &&
+        !orientationWizard &&
+        !recovery.open &&
+        !explicitRecovery.state && (
+          <OrientationApprovalDialog
+            sourceProtocol={recovery.sourceProtocol}
+            approval={orientationApproval}
+            mirrorPreview={mirrorPreview}
+            stickerColors={STICKER_HEX}
+            focusDialog={focusModalOnOpen}
+            onDialogKeyDown={(event) =>
+              handleModalKeyDown(event, event.currentTarget, () =>
+                setOrientationApproval(null),
+              )
+            }
+            onClose={() => setOrientationApproval(null)}
+            onBackToColors={() => {
+              setOrientationApproval(null)
+              setReviewStep(reviewStartSlot(capturedFaces, FACE_ORDER))
+              setShowReviewDialog(true)
+            }}
+            photoEvidence={recovery.photoEvidence}
+            onCheckSlot={(slot) => {
+              setOrientationApproval(null)
+              setReviewStep(slot)
+              setReviewEditingCell(null)
+              setReviewNotice(null)
+              setShowReviewDialog(true)
+            }}
+            captured={checkedFaces}
+            faceOrder={FACE_ORDER}
+            puzzleSize={puzzleSize}
+            displayRecovery={recovery.approved}
+            blockedCandidate={(candidate) =>
+              orientationApproval.valid && recovery.displayedBlocked(candidate)
+            }
+            alternativesCount={recovery.alternativesCount}
+            onChoose={(candidate) =>
+              orientationApproval.valid
+                ? recovery.acceptDisplayed(candidate)
+                : void handleChooseOrientation(
+                    candidate,
+                    undefined,
+                    'diagnostic',
+                  )
+            }
+            onFindMatching={explicitRecovery.find}
+            onReject={handleRejectOrientation}
+            onPageChange={(page) =>
+              setOrientationApproval((prev) => prev && { ...prev, page })
+            }
+          />
+        )}
 
-      {recovery.open && (
+      {recovery.open && !explicitRecovery.state && (
         <FaceRecoveryDialog
           initialCube={baseCube}
           currentCube={visibleCube}
           recovery={recovery}
+          onFindMatching={explicitRecovery.find}
           captured={capturedFaces}
           size={puzzleSize}
           colors={STICKER_HEX}
@@ -781,7 +792,16 @@ export function ScannerAppView({ model }: { model: ScannerAppModel }) {
           }
         />
       )}
+      {explicitRecovery.state && (
+        <ExplicitCaptureRecoveryDialog
+          recovery={explicitRecovery}
+          size={puzzleSize}
+          colors={STICKER_HEX}
+          focusDialog={focusModalOnOpen}
+        />
+      )}
       {Object.keys(capturedFaces).length === 6 &&
+        !explicitRecovery.state &&
         !recovery.open &&
         !orientationApproval &&
         !showReviewDialog && (

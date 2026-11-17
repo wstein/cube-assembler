@@ -547,6 +547,60 @@ export function useFaceRecovery({
       ? 'Capture conflicts with the physical guide. Check the photos and recorded steps.'
       : null
   return {
+    forkSearchCapture: () => photoBinding.current.fork(capturedFaces, size),
+    commitSearch: (
+      confirmed: import('@puzlwerk/capture-recovery').Recovery.confirmation,
+      faces: Faces,
+    ): boolean => {
+      const mapping = confirmed.projection.map(
+        ({ slot, target, quarterTurns }) => ({ slot, target, quarterTurns }),
+      )
+      const current = validateMapping(
+        Object.fromEntries(
+          Object.entries(faces).map(([slot, face]) => [slot, face.colors]),
+        ),
+        mapping,
+        size,
+      )
+      if (!current.valid || !current.candidate) return false
+      const frontSlot = confirmed.projection.find((p) => p.target === 'F')!.slot
+      const upSlot = confirmed.projection.find((p) => p.target === 'U')!.slot
+      const frame = captureFrame(
+        Object.fromEntries(
+          Object.entries(faces).map(([slot, face]) => [slot, face.colors]),
+        ),
+        mapping,
+        frontSlot,
+        upSlot,
+      )
+      if (!frame) return false
+      const record = recordFor(
+        {
+          mapping,
+          frontSlot,
+          upSlot,
+          confirmed: false,
+          view: 'canonical',
+          turnDirection: 'unknown',
+          capOrder: 'unknown',
+        },
+        faces,
+        frame,
+      )
+      const source = photoBinding.current.currentEvidence(
+        confirmed.candidate,
+        faces,
+        size,
+      )
+      if (!source?.candidate) return false
+      setApproved(record)
+      setRecordPresent(true)
+      setOpen(false)
+      setTransaction({ current: emptySnapshot(), initial: null, history: [] })
+      onCommitFaces(faces)
+      onChoose(current.candidate, record, source)
+      return true
+    },
     open,
     acceptDisplayed,
     displayedBlocked,
