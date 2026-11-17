@@ -1,7 +1,6 @@
 // Spike: the capture-review 3D view on the shared PuzlWerk viewer (@puzlwerk/viewer), view only.
 // Selected by `?viewer=puzlwerk` (see cubeView3DChoice.tsx); the CubeState becomes wire-v1 documents
 // in @puzlwerk/viewer/bridge, so no translation lives in this app.
-import { Euler, Quaternion } from 'three'
 import { useEffect, useRef, useState } from 'preact/hooks'
 import {
   createCubeStage,
@@ -23,6 +22,7 @@ import {
   ISOMETRIC_PITCH,
   ISOMETRIC_YAW,
 } from './cubeView3DState'
+import { eulerPitchYaw } from './puzlwerkOrientation'
 
 export interface PuzlwerkCubeViewProps {
   cube: CubeState
@@ -61,9 +61,7 @@ export function PuzlwerkCubeView({
         ok: false,
         error: { code: 'UnresolvedAsset', message: id },
       }),
-      initialOrientation: new Quaternion()
-        .setFromEuler(new Euler(ISOMETRIC_PITCH, ISOMETRIC_YAW, 0, 'XYZ'))
-        .toArray() as [number, number, number, number],
+      initialOrientation: eulerPitchYaw(ISOMETRIC_PITCH, ISOMETRIC_YAW),
       casterEnvelope: { radius, clearance: 0.08 },
       viewPolicy: (view) => {
         const distance =
@@ -121,11 +119,13 @@ export function PuzlwerkCubeView({
         ? faceStickerIds(puzzleSize, faceName(highlightedFace))
         : undefined
       const applied = stage.stage.setStickerHighlight(stage.child, ids)
-      // Signal for tests: the face and the number of outlined stickers.
+      // Signal for tests: the face of the outlined stickers (from their IDs) and their number.
       const host = hostRef.current
       if (host)
         host.dataset.highlight =
-          applied.ok && ids ? `${faceName(highlightedFace!)}:${ids.length}` : ''
+          applied.ok && ids
+            ? `${ids[0].slice(-1).toLowerCase()}:${ids.length}`
+            : ''
     })
     return () => {
       current = false
