@@ -185,3 +185,14 @@ The photo-provenance tests assert the original JPEG hashes, particularly the
 color-identical Up/Down faces whose photographs have different markings.
 An unapproved test variant removes approval metadata in memory; it does not
 change the stored capture or invent a new physical observation.
+
+## Explicit search: original physical-guide conflict
+
+`capture-conflict-4x4-2026-11-16T19-08-19.zip` preserves the owner's six JPEGs
+and metadata byte for byte. ZIP SHA-256:
+`6ef3d0561582159ab55f3c94862e2bbd5c61e74861ba1b74dcc7b8f99e2728e9`.
+Metadata SHA-256:
+`f76e61a0aa8bafd12db3b378b033d910853267e3ddea5d7387d19482bfc5f65c`.
+Its historical v2 observations remain unchanged; the archive has no approved
+assembly. Tests deliberately request a separate bounded search and do not rewrite
+its protocol, colors or photographs to manufacture a successful guide seed.

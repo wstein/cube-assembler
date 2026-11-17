@@ -1,9 +1,9 @@
 {
   "package": "@puzlwerk/capture-recovery",
-  "version": "0.1.0",
-  "artifact": "puzlwerk-capture-recovery-0.1.0-f7a0082f.tgz",
-  "sha256": "eefc1239618429bd8731713f82311bfdb7d1cac86c0a93a35154800502135e9f",
-  "sourceRevision": "f7a0082fbb6683400cd8d34feed4cae36a8a5ba4",
+  "version": "0.3.0",
+  "artifact": "puzlwerk-capture-recovery-0.3.0-f1fa30ac.tgz",
+  "sha256": "2750f4573fbb8ef800fbff7e638f9354e616424fb3b9078d13118b55223da25c",
+  "sourceRevision": "f1fa30ac2c12b507be9c6f3041fe7ef316378c37",
   "sourceRepository": "https://github.com/wstein/puzlwerk",
   "license": "EUPL-1.2 with CubeAssembler MIT notices"
 }
