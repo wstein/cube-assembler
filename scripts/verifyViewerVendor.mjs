@@ -7,6 +7,15 @@ const pin = readJSON('vendor/viewer.json')
 const sha = createHash('sha256')
   .update(readFileSync(resolve('vendor', pin.artifact)))
   .digest('hex')
+const readme = readFileSync('vendor/README.md', 'utf8')
+if (
+  !readme.includes(pin.artifact) ||
+  !readme.includes(pin.sha256) ||
+  !readme.includes(pin.sourceRevision)
+)
+  throw new Error(
+    'vendor/README.md does not match the pin in vendor/viewer.json',
+  )
 const installed = resolve('node_modules', pin.package)
 const manifest = readJSON(resolve(installed, 'package.json'))
 if (
