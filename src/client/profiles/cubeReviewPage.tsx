@@ -8,6 +8,7 @@ import {
   deleteCubes,
   mergeCubes,
   replaceCubes,
+  toggleSizeFilter,
   unusedCubes,
 } from './cubeProfileReview'
 import { DeleteButton, SelectionBar } from './profileDeletion'
@@ -227,13 +228,7 @@ export function CubeReviewTab({ settings, onChange, photo }: Props) {
               key={size}
               class="color-review-tab"
               aria-pressed={sizes.includes(size)}
-              onClick={() =>
-                setSizes(
-                  sizes.includes(size)
-                    ? sizes.filter((s) => s !== size)
-                    : [...sizes, size].sort((a, b) => a - b),
-                )
-              }
+              onClick={() => setSizes(toggleSizeFilter(sizes, size))}
             >
               {size}×{size}
             </button>

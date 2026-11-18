@@ -6,6 +6,7 @@ import {
   duplicateCubeGroups,
   mergeCubes,
   replaceCubes,
+  toggleSizeFilter,
   unusedCubes,
 } from '../src/client/profiles/cubeProfileReview'
 import {
@@ -159,9 +160,19 @@ describe('deleting cubes', () => {
   })
 })
 
+describe('size filter', () => {
+  it('toggles sizes and keeps them in numeric order', () => {
+    expect(toggleSizeFilter([], 10)).toEqual([10])
+    expect(toggleSizeFilter([10], 2)).toEqual([2, 10])
+    expect(toggleSizeFilter([2, 10, 15], 3)).toEqual([2, 3, 10, 15])
+    expect(toggleSizeFilter([2, 3, 10], 3)).toEqual([2, 10])
+    expect(toggleSizeFilter([9], 9)).toEqual([])
+  })
+})
+
 describe('review of cubes of size 8 through 15', () => {
   it.each([8, 9, 12, 15])(
-    'groups a saved %ix%i cube with its Generic cube and names the fallback when deleting it',
+    'groups a saved size %i cube with its Generic cube and names the fallback when deleting it',
     (size) => {
       const saved = settings([cube(`mine-${size}`, size, 0.6)], {
         [size]: `mine-${size}`,
