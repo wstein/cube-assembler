@@ -169,6 +169,7 @@
   .cube-3d-actions {
     display: flex;
     gap: 4px;
+    flex-wrap: wrap;
   }
 
   .cube-3d-move-history {

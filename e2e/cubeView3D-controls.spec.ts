@@ -11,6 +11,37 @@ test.beforeEach(async ({ context }) => {
   await setLayerMoves(context)
 })
 
+test('the toolbar shares the turn sound setting and preserves the capture default', async ({
+  page,
+}) => {
+  await page.goto('/#settings')
+  const captureSound = page.getByRole('switch', { name: 'Capture sound' })
+  const turnSound = page.getByRole('switch', { name: 'Turn sound' })
+  await captureSound.uncheck()
+
+  const openViewer = async () => {
+    await page.goto('/')
+    await page.getByRole('button', { name: 'Solved cube' }).click()
+    await page.getByRole('button', { name: '3D View' }).click()
+  }
+  const sound = page.getByRole('button', { name: 'Sound', exact: true })
+  await openViewer()
+  await expect(sound).toHaveAttribute('aria-pressed', 'false')
+  expect(await page.evaluate(() => document.cookie)).not.toContain(
+    'cube-assembler-turn-sound=',
+  )
+  await sound.click()
+  await expect(sound).toHaveAttribute('aria-pressed', 'true')
+
+  await page.goto('/#settings')
+  await expect(turnSound).toBeChecked()
+  await expect(captureSound).not.toBeChecked()
+  await turnSound.uncheck()
+
+  await openViewer()
+  await expect(sound).toHaveAttribute('aria-pressed', 'false')
+})
+
 test('move history and Undo survive a view switch, then Reset clears them', async ({
   page,
 }) => {
