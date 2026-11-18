@@ -8,6 +8,7 @@ import type { RGB } from './stickerColorGeometry'
 export {
   applyGains,
   applyGainsToPixels,
+  clusterDistance,
   hueCircularRange,
   hueRangesOverlap,
   linearChannelToSrgb,

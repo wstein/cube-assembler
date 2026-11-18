@@ -10,6 +10,7 @@ import {
 import { STICKER_COLORS, type RGB } from './stickerColorGeometry'
 
 export {
+  balancedAssign,
   glareWarningStickers as GLARE_WARNING_STICKERS,
   hungarianAssignment,
   mixedUpClusters,
