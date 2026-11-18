@@ -98,7 +98,7 @@ describe('local fixture upload server', () => {
   })
 
   it.each(Array.from({ length: 14 }, (_, i) => i + 2))(
-    'accepts a %ix%i fixture',
+    'accepts a size %i fixture',
     async (size) => {
       await start()
       expect((await upload(fixtureForm(`size-${size}`, size))).status).toBe(201)
@@ -114,7 +114,7 @@ describe('local fixture upload server', () => {
     )
   })
 
-  it.each([1, 16, 17])('refuses a %ix%i fixture', async (size) => {
+  it.each([1, 16, 17])('refuses a size %i fixture', async (size) => {
     await start()
     const response = await upload(fixtureForm('too-big', size))
     expect(response.status).toBe(400)

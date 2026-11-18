@@ -192,3 +192,28 @@ it('does not initialize a capture from an unselected empty main-net render', () 
     ).filter(Boolean),
   ).toHaveLength(6)
 })
+
+it.each(Array.from({ length: 14 }, (_, i) => [i + 2]))(
+  'binds six source photos of a %i-sized cube through the capture package',
+  (size) => {
+    const grid = Array.from({ length: size }, () => Array(size).fill('W'))
+    const faces: Record<string, FaceCaptureData> = Object.fromEntries(
+      slots.map((slot) => [
+        slot,
+        {
+          photoIdentity: {
+            photoId: `size-${size}-${slot}`,
+            sourceHash: createHash('sha256').update(slot).digest('hex'),
+            sourceGrid: grid,
+          },
+          colors: grid,
+          confidence: 1,
+          timestamp: 0,
+          croppedImage: '',
+        },
+      ]),
+    )
+    const binding = new CapturePhotoBinding()
+    expect(binding.update(faces, size)).toBeDefined()
+  },
+)

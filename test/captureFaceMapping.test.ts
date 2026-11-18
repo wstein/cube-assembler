@@ -188,7 +188,7 @@ describe('manual captured-face mapping', () => {
 
 describe('manual mapping size range', () => {
   it.each(Array.from({ length: 14 }, (_, i) => i + 2))(
-    'accepts a %ix%i cube',
+    'accepts a size %i cube',
     (n) => {
       const raw = solved(n)
       const result = validateMapping(raw, initializeMapping(raw, null), n)

@@ -94,7 +94,7 @@ describe('fixture zips', () => {
   })
 
   it.each(Array.from({ length: 14 }, (_, i) => i + 2))(
-    'builds a fixture for a %ix%i cube',
+    'builds a fixture for a size %i cube',
     (size) => {
       const face = 'W'.repeat(size * size)
       const fixture = buildFixture(
