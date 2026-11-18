@@ -48,7 +48,6 @@ describe('documented cube size range', () => {
 
   for (const file of RANGE_FILES) {
     it(`${file} states no range that ends below ${maxSize}`, () => {
-      const text = read(file)
       const ends = upperBounds(read(file))
       expect(ends.filter((end) => end !== maxSize)).toEqual([])
     })
