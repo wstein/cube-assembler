@@ -21,7 +21,7 @@ export function ManualFaceletInput({
       <label htmlFor="manual-facelets">Facelets</label>
       <p id="manual-facelets-help" class="notation-hint">
         {`6 blocks of ${size * size} letters in U R F D L B order, space-separated - face letters (U, R, F, D, L, B: the face each sticker's color matches when solved) or colors (W, O, G, R, B, Y). The format is detected.`}{' '}
-        You can also paste an Orbit64 2×2–7×7 state token.
+        You can also paste an Orbit64 2×2–15×15 state token.
       </p>
       <textarea
         id="manual-facelets"

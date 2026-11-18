@@ -5,7 +5,7 @@ import {
   toURFFacelets,
   toWRGFacelets,
 } from '../src/cube/notation/NotationOutput.gen'
-import { encodeOrbit64State } from '../src/cube/notation/orbit64'
+import { encodeOrbit64Token } from '../src/cube/notation/orbit64Token'
 import {
   captureEvidence,
   captureWarning,
@@ -53,7 +53,7 @@ describe('typed and solved cubes', () => {
       ok: true,
       format: 'urf',
     })
-    const token = encodeOrbit64State(urf)
+    const token = encodeOrbit64Token(urf)
     expect(token).not.toBeNull()
     expect(parseCubeInput(` ${token} `, 'wrg')).toEqual({
       ok: true,
