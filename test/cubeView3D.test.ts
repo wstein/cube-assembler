@@ -894,7 +894,8 @@ describe('cubeView3D for every size from 2 to 15', () => {
         for (const index of mesh.indices) highest = Math.max(highest, index)
         expect(highest).toBeLessThan(mesh.vertexCount)
         // 16-bit indices hold up to 65535 vertices; larger meshes (stickered
-        // 9x9 and up) need 32-bit indices, which the renderer draws as such.
+        // 7x7 and up, stickerless 9x9 and up) need 32-bit indices, which the
+        // renderer draws as such.
         expect(mesh.indices instanceof Uint32Array).toBe(
           mesh.vertexCount > 65535,
         )
