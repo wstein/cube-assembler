@@ -115,7 +115,7 @@ explicit saved mappings remain usable. Newly exported face metadata also keeps
 the actual uploaded JPEG. Capture cancellation cannot approve a preview.
 
 The vendored package's source commit and artifact hashes are checked by
-`npm run verify:capture-core`. Its EUPL-1.2 license and CubeAssembler MIT notices
+`npm run verify:capture-core`. Its `EUPL-1.2 OR AGPL-3.0-or-later` license and CubeAssembler MIT notices
 are included; production distribution remains subject to the owner's license
 acceptance gate. This slice does not migrate the viewer or the puzzle engine.
 
