@@ -114,7 +114,7 @@ describe("notation round trips", () => {
     "an Orbit64 token decodes to the facelets it encodes",
     () =>
       Fc.check(
-        scrambledTo(7),
+        scrambled,
         ((n, moves, _)) => {
           let facelets = NotationOutput.toURFFacelets(scramble(n, moves))
           switch Orbit64Token.encodeState(facelets)->Null.toOption {
