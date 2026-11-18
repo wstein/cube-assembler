@@ -86,7 +86,7 @@ Each implementation/migration phase needs explicit human approval.
 
 CubeAssembler remains the independent scanning/assembly application. Preserve
 its capture, color review, profiles, assembly, UI, renderer and existing
-2×2–7×7 behavior/tests until an approved replacement and migration plan exist.
+2×2–15×15 behavior/tests until an approved replacement and migration plan exist.
 Necessary fixes remain allowed in their authorized scope. Before expanding
 reusable cube mechanics, check PuzlWerk ownership and track the shared change
 rather than building a second permanent engine. Before extending reusable viewer
