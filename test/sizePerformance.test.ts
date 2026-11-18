@@ -72,7 +72,8 @@ describe('15x15 budgets', () => {
         if (read.TAG === 'Error') throw new Error(read._0)
       },
     ],
-    ['stickered mesh', 3000, () => buildCubeMesh(cube, SIZE)],
+    // The adapter defaults to stickerless; the stickered mesh needs `false`.
+    ['stickered mesh', 3000, () => buildCubeMesh(cube, SIZE, undefined, false)],
     [
       'stickerless mesh',
       3000,
