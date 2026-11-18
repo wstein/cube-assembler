@@ -2,7 +2,7 @@
 
 **Cube** and **Colors** are separate settings. A cube records its name, size,
 and sticker gap. A color profile records six sticker colors and can be reused
-across sizes. The Generic cube offers each size from 2×2 to 7×7 with a 60%
+across sizes. The Generic cube offers each size from 2×2 to 15×15 with a 60%
 sticker core and a 40% total gap. **New cube** copies the selected size and gap
 so you can name and adjust a variant. Built-in cubes are read-only.
 
