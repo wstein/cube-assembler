@@ -177,7 +177,11 @@ let scrambleScale = length =>
 // slice fixed), and a first inner turn on 4x4 and larger. `random` returns
 // numbers in [0, 1).
 let generateScrambleMoves = (size, options: scrambleOptions, random: unit => float) => {
-  let base = scrambleLengths[size - 2]->Option.getOr(20)
+  // Above the table (7x7 = 100 moves) the length grows with the sticker count.
+  let base =
+    scrambleLengths[size - 2]->Option.getOr(
+      size > 7 ? Math.round(100.0 *. Int.toFloat(size * size) /. 49.0)->Float.toInt : 20,
+    )
   let scale = scrambleScale(options.length->Option.getOr(Normal))
   let length = Math.round(Int.toFloat(base) *. scale)->Float.toInt
   let maxDepth = options.innerLayers->Option.getOr(true) ? size / 2 : 1
