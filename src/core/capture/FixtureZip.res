@@ -73,10 +73,12 @@ let fixtureLayout = (request: fixtureRequest, now: string) => {
   if (
     !Float.isFinite(gridSize) ||
     Math.floor(gridSize) != gridSize ||
-    gridSize < 2.0 ||
-    gridSize > 8.0
+    gridSize < Int.toFloat(CubeSizeRange.minCubeSize) ||
+    gridSize > Int.toFloat(CubeSizeRange.maxCubeSize)
   ) {
-    fail("gridSize must be an integer between 2 and 8")
+    fail(
+      `gridSize must be an integer between ${Int.toString(CubeSizeRange.minCubeSize)} and ${Int.toString(CubeSizeRange.maxCubeSize)}`,
+    )
   }
   let size = Float.toString(gridSize)
   [

@@ -73,7 +73,7 @@ it('independently derives every source and pixel orientation from the physical 3
     })
   }
 })
-for (const size of [2, 3, 4, 5, 6, 7])
+for (const size of Array.from({ length: 14 }, (_, i) => i + 2))
   for (const mirrored of [false, true]) {
     it(`preserves the exact physical ${size}×${size} assembly with mirror=${mirrored}`, () => {
       let original = solvedCubeFaces(size, {

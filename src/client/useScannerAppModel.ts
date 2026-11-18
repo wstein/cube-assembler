@@ -353,12 +353,6 @@ export function useScannerAppModel() {
   // Continue from the first empty slot, or start over when requested (and
   // after all six are already complete).
   const handleOpenCapture = (restart = false) => {
-    if (puzzleSize === 8) {
-      setCaptureMessage(
-        '8×8 is supported for imported-photo orientation review only. Select a 2×2–7×7 cube for camera capture.',
-      )
-      return
-    }
     cancelCaptureIO()
     armCaptureAudio()
     dismissTurnOverlay()

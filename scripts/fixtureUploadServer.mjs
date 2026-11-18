@@ -5,6 +5,8 @@ import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const FACES = ['u', 'r', 'f', 'd', 'l', 'b']
+// Same range as CubeSizeRange.maxCubeSize; a test keeps the two equal.
+const MAX_CUBE_SIZE = 15
 const MAX_BYTES = 30 * 1024 * 1024
 const FAVICON = readFileSync(
   new URL('./fixtureUploadFavicon.svg', import.meta.url),
@@ -93,7 +95,7 @@ async function validateFixture(byName) {
   if (
     !Number.isInteger(n) ||
     n < 2 ||
-    n > 7 ||
+    n > MAX_CUBE_SIZE ||
     !validFacelets(meta.colorsURFDLB, n)
   ) {
     throw new UploadError(400, 'Invalid fixture metadata')

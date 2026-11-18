@@ -186,6 +186,25 @@ describe('manual captured-face mapping', () => {
   })
 })
 
+describe('manual mapping size range', () => {
+  it.each(Array.from({ length: 14 }, (_, i) => i + 2))(
+    'accepts a %ix%i cube',
+    (n) => {
+      const raw = solved(n)
+      const result = validateMapping(raw, initializeMapping(raw, null), n)
+      expect(result.issues.join(' ')).not.toMatch(/supports sizes/)
+    },
+  )
+  it.each([1, 16, 17])('refuses size %i with the supported range', (n) => {
+    const raw = solved(Math.max(n, 2))
+    const result = validateMapping(raw, initializeMapping(raw, null), n)
+    expect(result.valid).toBe(false)
+    expect(result.issues).toContain(
+      'Manual face mapping supports sizes 2 through 15.',
+    )
+  })
+})
+
 describe('capture-relative display frame', () => {
   it('keeps canonical faces intact and records exact invertible transforms', () => {
     const raw = asymmetric(3)
