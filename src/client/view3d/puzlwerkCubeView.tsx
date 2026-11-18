@@ -78,6 +78,17 @@ export function PuzlwerkCubeView({
       setProblem(created.error.message)
       return
     }
+    // The X/Y/Z axis gizmo of the existing view: the viewer's overlay, reference frame and colors as default.
+    const indicator = created.value.setOrientationIndicator({
+      physicalOrientation: [0, 0, 0, 1],
+      solverFrame: [0, 0, 0, 1],
+      colors: { x: 0xd9493f, y: 0xf4f4f4, z: 0x4caf67 },
+    })
+    if (!indicator.ok) {
+      created.value.dispose()
+      setProblem(indicator.error.message)
+      return
+    }
     const added = created.value.addCube({ position: [0, 0, 0] })
     if (!added.ok) {
       created.value.dispose()

@@ -34,6 +34,12 @@ for (const [size, archive, n] of fixtures) {
     await expect(
       page.locator('.spatial-workspace .cube-3d-canvas'),
     ).toHaveCount(0)
+    // The X/Y/Z axis gizmo of the old view is present, with the three axes.
+    const gizmo = view.locator(
+      'svg[aria-label="Cube orientation axes X, Y and Z"]',
+    )
+    await expect(gizmo).toBeVisible()
+    await expect(gizmo.locator('[data-axis]')).toHaveCount(3)
     // The viewer's own floating panel stays hidden inside the dialog.
     await expect(page.locator('.cube-appearance')).toBeHidden()
     await expect(page.getByText('3D view unavailable')).toHaveCount(0)
