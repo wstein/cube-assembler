@@ -38,7 +38,8 @@ let cross = ((a0, a1, a2): vector, (b0, b1, b2): vector): vector => (
   a0 * b1 - a1 * b0,
 )
 
-let isOddSize = n => n == 3 || n == 5 || n == 7
+// Odd cubes have a fixed center sticker on every face, at any size.
+let isOddSize = n => n >= 3 && mod(n, 2) == 1
 
 // The sticker in the middle of a photo, if it has one there.
 let centerOf = (photo: grid, mid) => photo[mid]->Option.flatMap(row => row[mid])
