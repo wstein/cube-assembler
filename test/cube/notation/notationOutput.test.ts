@@ -22,6 +22,7 @@ import {
   wrgFaceletsToGrids,
   type cubeState as CubeState,
 } from '../../../src/cube/notation/NotationOutput.gen'
+import { ALL_SIZES } from '../../cubeSizes'
 
 function solvedCube(size: number): CubeState {
   const face = (color: string) => Array(size * size).fill(color)
@@ -87,7 +88,7 @@ describe('fromWRGFacelets', () => {
   })
 
   it('round-trips toWRGFacelets output for every supported puzzle size', () => {
-    for (const size of [2, 3, 4, 5, 6, 7]) {
+    for (const size of ALL_SIZES) {
       const cube = solvedCube(size)
       expect(fromWRGFacelets(toWRGFacelets(cube))).toEqual(cube)
     }
@@ -163,7 +164,7 @@ describe('fromURFFacelets', () => {
   })
 
   it('round-trips toURFFacelets output for every supported puzzle size', () => {
-    for (const size of [2, 3, 4, 5, 6, 7]) {
+    for (const size of ALL_SIZES) {
       const cube = solvedCube(size)
       expect(fromURFFacelets(toURFFacelets(cube))).toEqual(cube)
     }

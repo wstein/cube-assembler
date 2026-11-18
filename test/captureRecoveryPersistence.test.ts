@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { ALL_SIZES } from './cubeSizes'
 import {
   captureFrame,
   validateMapping,
@@ -60,7 +61,7 @@ const setup = (n: number) => {
 }
 
 describe('versioned exact face recovery', () => {
-  for (const n of [2, 3, 4, 5, 6, 7, 8])
+  for (const n of ALL_SIZES)
     it(`retains explicit slots, all rotations and capture pose for ${n}x${n}`, () => {
       const { raw, faces, record } = setup(n)
       const before = JSON.stringify(raw)

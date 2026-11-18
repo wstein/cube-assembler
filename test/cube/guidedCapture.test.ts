@@ -32,6 +32,7 @@ import {
   type GuidedCapture,
 } from '../../src/cube/cubeAssembly'
 import { preferredGuidedArrangementIndex } from '../../src/cube/orientationWizard'
+import { ALL_SIZES, ODD_SIZES } from '../cubeSizes'
 
 const WCA: Record<FaceKey, string> = {
   U: 'W',
@@ -140,7 +141,7 @@ const sameCube = (a: Faces, b: Faces) => {
 }
 
 describe('solveGuidedCapture', () => {
-  for (const n of [2, 3, 4, 5, 6, 7]) {
+  for (const n of ALL_SIZES) {
     it(`reassembles scrambled ${n}x${n} cubes however they were held, turned and tipped`, () => {
       const rand = rng(1000 + n)
       for (let trial = 0; trial < 6; trial++) {
@@ -159,7 +160,9 @@ describe('solveGuidedCapture', () => {
           `trial ${trial}`,
         ).toBe(true)
       }
-    })
+      // 1 to 9 s per size on a busy machine (6 trials of the joint search);
+      // the default 5 s limit is too tight above 7x7.
+    }, 120_000)
   }
 
   it('presents odd sizes in standard orientation (white on top, green in front)', () => {
@@ -252,7 +255,7 @@ describe('predictGuidedCenters', () => {
   const face = (n: number, color: string) =>
     Array.from({ length: n }, () => Array(n).fill(color))
 
-  for (const n of [3, 5, 7, 9, 11, 13, 15]) {
+  for (const n of ODD_SIZES) {
     it(`shows the opposite after one ${n}x${n} face, then all remaining centers after adjacent faces`, () => {
       const first = face(n, 'G'),
         second = face(n, 'R')
@@ -284,7 +287,7 @@ describe('predictGuidedCenters', () => {
     })
   }
 
-  for (const n of [3, 5, 7, 9, 11, 13, 15]) {
+  for (const n of ODD_SIZES) {
     it(`reserves center slots and routes faces by center on ${n}x${n}`, () => {
       const first = face(n, 'G'),
         second = face(n, 'R')
@@ -360,7 +363,7 @@ describe('center-routed capture slots', () => {
   const face = (n: number, color: string) =>
     Array.from({ length: n }, () => Array(n).fill(color))
 
-  for (const n of [3, 5, 7]) {
+  for (const n of ODD_SIZES) {
     it(`keeps the first two ${n}x${n} photos and routes later faces regardless of arrival order`, () => {
       const photos: Array<string[][] | undefined> = Array(6).fill(undefined)
       expect(captureSlotForCenter(photos, 4, face(n, 'O'))).toBe(0)

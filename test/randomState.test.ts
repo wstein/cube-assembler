@@ -2,8 +2,9 @@ import { describe, expect, it } from 'vitest'
 import { parityStatus } from '../src/client/capture/captureFlow'
 import { createSolvedCube, type CubeState } from '../src/cube/cubeAssembly'
 import { randomCube } from '../src/cube/randomState'
+import { ALL_SIZES, EVEN_SIZES, ODD_SIZES } from './cubeSizes'
 
-const SIZES = [2, 3, 4, 5, 6, 7]
+const SIZES = ALL_SIZES
 const FACES = ['u', 'r', 'f', 'd', 'l', 'b'] as const
 const SOLVED = { u: 'W', r: 'R', f: 'G', d: 'Y', l: 'O', b: 'B' }
 
@@ -39,7 +40,7 @@ describe('a random cube state', () => {
   })
 
   it('keeps the centers of an odd cube where they were', () => {
-    for (const n of [3, 5, 7])
+    for (const n of ODD_SIZES)
       for (const seed of seeds(10)) {
         const cube = randomCube(n, seed)
         for (const face of FACES)
@@ -51,7 +52,7 @@ describe('a random cube state', () => {
 
   it('keeps the down-back-left corner of an even cube where it was', () => {
     // The frame an even cube is turned in: nothing else pins it down.
-    for (const n of [2, 4, 6])
+    for (const n of EVEN_SIZES)
       for (const seed of seeds(20)) {
         const cube = randomCube(n, seed)
         expect(cube.d[n * (n - 1)], `${n}x${n} D`).toBe('Y')

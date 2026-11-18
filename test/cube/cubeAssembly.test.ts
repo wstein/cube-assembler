@@ -25,6 +25,7 @@ import {
   pickWizardFace,
 } from '../../src/cube/orientationWizard'
 import { runFullParity } from '../../src/cube/parity'
+import { EVEN_SIZES, ODD_SIZES } from '../cubeSizes'
 
 const SOLVED_COLOR: Record<string, string> = {
   U: 'W',
@@ -94,7 +95,7 @@ function captureWithRotations(
 }
 
 describe('solveFaceOrientations', () => {
-  it.each([3, 5, 7])(
+  it.each(ODD_SIZES)(
     'resolves a solved %ix%i cube with zero rotation and full validity',
     (size) => {
       const result = solveFaceOrientations(solvedFaces(size))
@@ -106,7 +107,7 @@ describe('solveFaceOrientations', () => {
     },
   )
 
-  it.each([3, 5, 7])(
+  it.each(ODD_SIZES)(
     'recovers a real one-move scramble (%ix%i, U turn) at full validity',
     (size) => {
       const captured = captureWithRotations(uTurnedFaces(size), {
@@ -273,7 +274,7 @@ describe('solveFaceOrientations', () => {
   })
 
   describe('even sizes (no fixed center reference - identity searched jointly with rotation)', () => {
-    it.each([2, 4, 6])(
+    it.each(EVEN_SIZES)(
       'resolves a solved %ix%i cube, shuffled and pre-rotated, to full validity',
       (size) => {
         // Even sizes have no center to key off, so - unlike the odd-size

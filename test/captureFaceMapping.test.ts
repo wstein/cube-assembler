@@ -10,6 +10,7 @@ import {
   validateMapping,
 } from '../src/client/capture/captureFaceMapping'
 import { rotateGrid, turnFace, type Faces } from '../src/cube/cubeGeometry'
+import { ALL_SIZES, ODD_SIZES } from './cubeSizes'
 
 const ORDER = ['U', 'R', 'F', 'D', 'L', 'B'] as const
 const COLORS = ['W', 'R', 'G', 'Y', 'O', 'B']
@@ -24,7 +25,7 @@ const asymmetric = (n: number) => turnFace(turnFace(solved(n), 'R', 1), 'U', 1)
 
 // Source photos are capture slots, not the cube sides named by these keys.
 describe('manual captured-face mapping', () => {
-  for (const n of [3, 5, 7]) {
+  for (const n of ODD_SIZES) {
     it(`uses fixed centers and preserves every quarter turn on an odd ${n}x${n}`, () => {
       const faces = asymmetric(n)
       const raw = Object.fromEntries(
@@ -281,35 +282,38 @@ describe('recorded 7x7 capture and persisted display transforms', () => {
   })
 })
 
-it('conjugates every face direction and representative layer depth exactly through all display frames', () => {
-  const key = (faces: Faces) =>
-    ORDER.map((face) => faces[face].flat().join('')).join('|')
-  for (const n of [2, 3, 4, 5, 6, 7, 8]) {
-    let original = asymmetric(n)
-    original = turnFace(turnFace(original, 'F', -1), 'L', 2)
-    const widths = [...new Set([1, Math.ceil(n / 2), n])]
-    for (const width of widths) {
-      for (const quarters of [1, -1, 2]) {
-        const legal = new Set(
-          ORDER.map((face) => key(turnFace(original, face, quarters, width))),
-        )
-        for (let index = 0; index < 24; index++) {
-          const displayed = transformFaces(original, index)!
-          const inverse = inverseTransform(index)!
-          for (const face of ORDER) {
-            const displayedMove = turnFace(displayed, face, quarters, width)
-            const canonical = transformFaces(displayedMove, inverse)!
-            expect(
-              legal.has(key(canonical)),
-              `N=${n}, frame=${index}, ${face}/${quarters}/${width}`,
-            ).toBe(true)
-            expect(transformFaces(canonical, index)).toEqual(displayedMove)
+for (const n of ALL_SIZES)
+  describe(`${n}x${n} display frames`, () => {
+    const key = (faces: Faces) =>
+      ORDER.map((face) => faces[face].flat().join('')).join('|')
+    // One test per size: the work grows with the size (about 15 s at 15x15 on a
+    // busy machine), so each size gets its own time limit.
+    it('conjugates every face direction and representative layer depth exactly through all display frames', () => {
+      let original = asymmetric(n)
+      original = turnFace(turnFace(original, 'F', -1), 'L', 2)
+      const widths = [...new Set([1, Math.ceil(n / 2), n])]
+      for (const width of widths) {
+        for (const quarters of [1, -1, 2]) {
+          const legal = new Set(
+            ORDER.map((face) => key(turnFace(original, face, quarters, width))),
+          )
+          for (let index = 0; index < 24; index++) {
+            const displayed = transformFaces(original, index)!
+            const inverse = inverseTransform(index)!
+            for (const face of ORDER) {
+              const displayedMove = turnFace(displayed, face, quarters, width)
+              const canonical = transformFaces(displayedMove, inverse)!
+              expect(
+                legal.has(key(canonical)),
+                `N=${n}, frame=${index}, ${face}/${quarters}/${width}`,
+              ).toBe(true)
+              expect(transformFaces(canonical, index)).toEqual(displayedMove)
+            }
           }
         }
       }
-    }
-  }
-}, 30_000)
+    }, 60_000)
+  })
 
 it('prefills the current nonidentity even candidate instead of falling back to zero rotations', () => {
   const candidateFaces = asymmetric(4)

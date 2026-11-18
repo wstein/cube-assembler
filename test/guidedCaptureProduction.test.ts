@@ -18,6 +18,7 @@ import {
 } from '../src/client/capture/guidedCaptureProtocol'
 import { generateForProtocol } from '../src/client/capture/spatialOrientationWizard'
 import type { FaceCaptureData } from '../src/client/capture/captureTypes'
+import { ODD_SIZES } from './cubeSizes'
 // Historical v2 observations are explicit; the current camera now records v3.
 const recordV2Guide = (slot: string, mirrored: boolean, retake: boolean) => {
   const guide = recordCurrentGuide(slot, mirrored, retake)
@@ -147,7 +148,7 @@ it('keeps legacy top-first imports and explicit retakes in their original slots'
 })
 
 it('routes different initial physical holds without interpreting capture IDs as canonical faces', () => {
-  for (const size of [3, 5, 7]) {
+  for (const size of ODD_SIZES) {
     const solved = solvedCubeFaces(size, {
       U: 'W',
       R: 'R',
