@@ -417,7 +417,7 @@ let runFullParity = (cube: cubeIR): parityResult => {
         // permutation, so there is nothing further to check.
         {valid: true, result: validResult, checks}
       } else if n != 3 {
-        // 4x4-7x7: wings are validated by counting, then by identity per
+        // 4x4 and larger: wings are validated by counting, then by identity per
         // orbit, then an odd cube's middle edges like a 3x3's edges. Centers need no check:
         // color balance plus the exact corner and wing counts leave each
         // color's center count no choice, and center pieces of one color
