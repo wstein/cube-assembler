@@ -8,6 +8,9 @@ import { DEFAULT_SAMPLING } from '../src/client/vision/stickerColorGeometry'
 import { randomCube } from '../src/cube/randomState'
 import { readNetImage } from '../src/core/vision/NetImage.gen'
 
+// Every cube size the app handles.
+const SIZES = Array.from({ length: 14 }, (_, i) => i + 2)
+
 type RGB = [number, number, number]
 const STANDARD: Record<string, RGB> = {
   W: [250, 250, 245],
@@ -169,7 +172,7 @@ describe('reading a net image', () => {
     ['light panels with titles', LIGHT_PANELS],
   ]
   for (const [name, style] of styles)
-    for (const size of [2, 3, 4, 5, 7])
+    for (const size of SIZES)
       it(`reads a ${size}x${size} net, ${name}`, () => {
         const cube = randomCube(size, 11 + size)
         const { data, width, height } = renderNet(cube, style)
@@ -229,6 +232,33 @@ describe('reading a net image', () => {
     const data = new Uint8ClampedArray(100 * 100 * 4).fill(128)
     const read = readNetImage(data, 100, 100)
     expect(read.TAG).toBe('unreadable')
+  })
+
+  it('names the picture size when the stickers are too small to read', () => {
+    // 15x15 at 5 pixels a sticker: 1350 shapes, each below the 6 x 6 minimum.
+    const cube = randomCube(15, 2)
+    const tiny: NetStyle = { ...DARK_TIGHT, cell: 5, gap: 2, margin: 4 }
+    const { data, width, height } = renderNet(cube, tiny)
+    const read = readNetImage(data, width, height)
+    if (read.TAG !== 'unreadable')
+      throw new Error('read a net of tiny stickers')
+    expect(read.message).toMatch(/too small/i)
+    expect(read.message).toMatch(/6 pixels/)
+  })
+
+  it('reads a 15x15 net at the smallest sticker size', () => {
+    const cube = randomCube(15, 9)
+    const small: NetStyle = { ...DARK_TIGHT, cell: 6, gap: 2, margin: 4 }
+    const { data, width, height } = renderNet(cube, small)
+    expect(cubeFromRead(readNetImage(data, width, height))).toEqual(cube)
+  })
+
+  it('refuses a 16x16 net and names the supported sizes', () => {
+    const cube = randomCube(16, 5)
+    const { data, width, height } = renderNet(cube, DARK_TIGHT)
+    const read = readNetImage(data, width, height)
+    if (read.TAG !== 'unreadable') throw new Error('read a 16x16 net')
+    expect(read.message).toContain('2x2 to 15x15')
   })
 
   it('says so when two face centers share a color', () => {
@@ -292,8 +322,32 @@ describe('splitting a net into six face pictures', () => {
     ['dark and tight', DARK_TIGHT],
     ['light panels with titles', LIGHT_PANELS],
   ]
+  // The color pipeline's own limits above 7x7 belong to face detection.
   for (const [name, style] of styles)
-    for (const size of [3, 4, 5])
+    for (const size of SIZES)
+      it(`gives six face rectangles that hold their stickers, ${size}x${size}, ${name}`, () => {
+        const cube = randomCube(size, 40 + size)
+        const { data, width, height } = renderNet(cube, style)
+        const read = readNetImage(data, width, height)
+        if (read.TAG !== 'read') throw new Error(read.message)
+        expect(read.faces).toHaveLength(6)
+        const pitch = style.cell + style.gap
+        for (const box of read.faces) {
+          expect(box.x).toBeGreaterThanOrEqual(0)
+          expect(box.y).toBeGreaterThanOrEqual(0)
+          expect(box.x + box.width).toBeLessThanOrEqual(width)
+          expect(box.y + box.height).toBeLessThanOrEqual(height)
+          expect(box.width).toBeGreaterThanOrEqual(size * pitch - style.gap)
+          expect(box.height).toBeGreaterThanOrEqual(size * pitch - style.gap)
+        }
+        const [, right, front, , left, back] = read.faces
+        expect(left.x + left.width).toBeLessThanOrEqual(front.x)
+        expect(front.x + front.width).toBeLessThanOrEqual(right.x)
+        expect(right.x + right.width).toBeLessThanOrEqual(back.x)
+      })
+
+  for (const [name, style] of styles)
+    for (const size of [3, 4, 5, 6, 7])
       it(`gives six faces the pipeline reads, ${size}x${size}, ${name}`, () => {
         const cube = randomCube(size, 30 + size)
         const { data, width, height } = renderNet(cube, style)

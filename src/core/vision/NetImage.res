@@ -1,5 +1,5 @@
 // Reads a picture of a cube net (a screenshot or an export): the cross with U
-// above F and L F R B in a row, D below F, for 2x2 to 7x7. Stickers are the
+// above F and L F R B in a row, D below F, for 2x2 to 15x15. Stickers are the
 // bright shapes the dark gaps, lines and panels leave; the cross' columns and
 // rows tell the size, and the six colors found are named by the faces'
 // centers (odd cubes) or by the nearest standard color (even cubes).
@@ -20,7 +20,16 @@ type ints
 
 // Stickers of different colors differ by more than this (RGB distance).
 let sameColor = 45.0
-let maxSize = 7
+// The largest cube a net can show.
+let maxSize = 15
+// A net of the largest cube has 6 * 15 * 15 = 1350 stickers; a picture with
+// more sticker-like shapes than about three times that is no net.
+let maxCandidates = 4000
+// A sticker is read from a box at least this many pixels on a side.
+let minStickerSide = 6
+let minStickerArea = minStickerSide * minStickerSide
+// Fewer sticker-like shapes than the smallest net (2x2: 6 * 2 * 2).
+let minCandidates = 24
 
 type component = {
   mutable area: int,
@@ -92,7 +101,19 @@ let boxHeight = c => c.maxY - c.minY + 1
 let looksLikeSticker = c => {
   let w = Int.toFloat(boxWidth(c))
   let h = Int.toFloat(boxHeight(c))
-  c.area >= 36 && w /. h > 0.7 && w /. h < 1.4 && Int.toFloat(c.area) /. (w *. h) > 0.6
+  c.area >= minStickerArea && w /. h > 0.7 && w /. h < 1.4 && Int.toFloat(c.area) /. (w *. h) > 0.6
+}
+
+// Square-ish, filled shapes below the sticker minimum: the stickers of a
+// picture whose resolution is too low to read.
+let looksLikeTinySticker = c => {
+  let w = Int.toFloat(boxWidth(c))
+  let h = Int.toFloat(boxHeight(c))
+  c.area >= 4 &&
+  c.area < minStickerArea &&
+  w /. h > 0.7 &&
+  w /. h < 1.4 &&
+  Int.toFloat(c.area) /. (w *. h) > 0.6
 }
 
 // The sticker size: the area most shapes share, within a quarter.
@@ -304,7 +325,20 @@ let unreadable = message => Unreadable({message: message})
 let readNetImage = (data: Uint8ClampedArray.t, width: int, height: int): netRead => {
   let all = components(data, width, height)
   let candidates = all->Array.filter(looksLikeSticker)
-  if Array.length(candidates) < 24 || Array.length(candidates) > 4000 {
+  if (
+    Array.length(candidates) < minCandidates &&
+      Array.length(all->Array.filter(looksLikeTinySticker)) >= minCandidates
+  ) {
+    unreadable(
+      `The stickers are too small to read: the picture shows ${Int.toString(
+          Array.length(all->Array.filter(looksLikeTinySticker)),
+        )} shapes under ${Int.toString(
+          minStickerSide,
+        )} pixels wide. Use a bigger picture, at least ${Int.toString(
+          minStickerSide,
+        )} pixels per sticker.`,
+    )
+  } else if Array.length(candidates) < minCandidates || Array.length(candidates) > maxCandidates {
     unreadable("No cube net found in the picture.")
   } else {
     let area = Int.toFloat(referenceArea(candidates))
@@ -326,9 +360,9 @@ let readNetImage = (data: Uint8ClampedArray.t, width: int, height: int): netRead
       unreadable(
         `Found ${Int.toString(Array.length(stickers))} stickers in ${Int.toString(
             Array.length(columns),
-          )} columns and ${Int.toString(
-            Array.length(rows),
-          )} rows; a net of a 2x2 to 7x7 cube has 6 faces of n x n in a cross.`,
+          )} columns and ${Int.toString(Array.length(rows))} rows; a net of a 2x2 to ${Int.toString(
+            maxSize,
+          )}x${Int.toString(maxSize)} cube has 6 faces of n x n in a cross.`,
       )
     } else {
       // Each sticker's face and place in it.
