@@ -234,7 +234,7 @@ describe('reading a net image', () => {
     expect(read.TAG).toBe('unreadable')
   })
 
-  it('names the picture size when the stickers are too small to read', () => {
+  it('says the stickers are too small when the picture has too few pixels', () => {
     // 15x15 at 5 pixels a sticker: 1350 shapes, each below the 6 x 6 minimum.
     const cube = randomCube(15, 2)
     const tiny: NetStyle = { ...DARK_TIGHT, cell: 5, gap: 2, margin: 4 }
@@ -243,7 +243,64 @@ describe('reading a net image', () => {
     if (read.TAG !== 'unreadable')
       throw new Error('read a net of tiny stickers')
     expect(read.message).toMatch(/too small/i)
-    expect(read.message).toMatch(/6 pixels/)
+    expect(read.message).toMatch(/6 x 6 pixels/)
+  })
+
+  it('does not call a noise picture too small', () => {
+    let seed = 7
+    const data = new Uint8ClampedArray(200 * 200 * 4)
+    for (let i = 0; i < data.length; i += 4) {
+      seed = (seed * 1103515245 + 12345) % 2147483648
+      const v = seed % 2 ? 255 : 0
+      data.set([v, v, v, 255], i)
+    }
+    const read = readNetImage(data, 200, 200)
+    if (read.TAG !== 'unreadable') throw new Error('read noise')
+    expect(read.message).toBe('No cube net found in the picture.')
+  })
+
+  it('reads a net of full-size stickers among many specks', () => {
+    const cube = randomCube(2, 12)
+    const { data, width, height } = renderNet(cube, {
+      ...DARK_GAPPED,
+      margin: 40,
+      specks: 200,
+    })
+    expect(cubeFromRead(readNetImage(data, width, height))).toEqual(cube)
+  })
+
+  it('reports a missing sticker, not small stickers, when specks are around', () => {
+    const cube = randomCube(2, 3)
+    const { data, width, height } = renderNet(cube, {
+      ...DARK_GAPPED,
+      margin: 40,
+      specks: 24,
+    })
+    // Paint the front face's first sticker over with the background.
+    for (let y = 136; y < 164; y++)
+      for (let x = 108; x < 136; x++) {
+        const i = (y * width + x) * 4
+        data.set([13, 15, 25, 255], i)
+      }
+    const read = readNetImage(data, width, height)
+    if (read.TAG !== 'unreadable') throw new Error('read a net with a gap')
+    expect(read.message).toBe('No cube net found in the picture.')
+  })
+
+  it('does not look for a net among more than 4000 sticker-sized shapes', () => {
+    const side = 70
+    const data = new Uint8ClampedArray(side * 10 * side * 10 * 4)
+    for (let y = 0; y < side * 10; y++)
+      for (let x = 0; x < side * 10; x++) {
+        const lit = x % 10 < 8 && y % 10 < 8
+        data.set(
+          lit ? [200, 60, 60, 255] : [0, 0, 0, 255],
+          (y * side * 10 + x) * 4,
+        )
+      }
+    const read = readNetImage(data, side * 10, side * 10)
+    if (read.TAG !== 'unreadable') throw new Error('read a grid')
+    expect(read.message).toBe('No cube net found in the picture.')
   })
 
   it('reads a 15x15 net at the smallest sticker size', () => {

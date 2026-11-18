@@ -104,12 +104,13 @@ let looksLikeSticker = c => {
   c.area >= minStickerArea && w /. h > 0.7 && w /. h < 1.4 && Int.toFloat(c.area) /. (w *. h) > 0.6
 }
 
-// Square-ish, filled shapes below the sticker minimum: the stickers of a
-// picture whose resolution is too low to read.
+// Square-ish, filled shapes from 4 x 4 pixels up to the sticker minimum: the
+// stickers of a picture whose resolution is too low to read.
+let minTinyArea = 16
 let looksLikeTinySticker = c => {
   let w = Int.toFloat(boxWidth(c))
   let h = Int.toFloat(boxHeight(c))
-  c.area >= 4 &&
+  c.area >= minTinyArea &&
   c.area < minStickerArea &&
   w /. h > 0.7 &&
   w /. h < 1.4 &&
@@ -322,19 +323,39 @@ let faceBoxes = (stickers, slots: array<option<(int, int)>>, width, height, area
 
 let unreadable = message => Unreadable({message: message})
 
+// How many too small shapes of one common size the picture holds, when they
+// are what the picture mostly shows: at least a net's worth of them and ten
+// times the readable candidates. Specks of dust, noise and a net with a
+// sticker missing do not qualify; 0 then.
+let tooSmallStickers = (all, candidateCount) => {
+  let tiny = all->Array.filter(looksLikeTinySticker)
+  if Array.length(tiny) < minCandidates || Array.length(tiny) > maxCandidates {
+    0
+  } else {
+    let area = Int.toFloat(referenceArea(tiny))
+    let same =
+      tiny
+      ->Array.filter(c => {
+        let a = Int.toFloat(c.area)
+        a >= area *. 0.8 && a <= area *. 1.25
+      })
+      ->Array.length
+    same >= minCandidates && candidateCount * 10 < same ? same : 0
+  }
+}
+
 let readNetImage = (data: Uint8ClampedArray.t, width: int, height: int): netRead => {
   let all = components(data, width, height)
   let candidates = all->Array.filter(looksLikeSticker)
-  if (
-    Array.length(candidates) < minCandidates &&
-      Array.length(all->Array.filter(looksLikeTinySticker)) >= minCandidates
-  ) {
+  let tooSmall =
+    Array.length(candidates) < minCandidates ? tooSmallStickers(all, Array.length(candidates)) : 0
+  if tooSmall > 0 {
     unreadable(
       `The stickers are too small to read: the picture shows ${Int.toString(
-          Array.length(all->Array.filter(looksLikeTinySticker)),
-        )} shapes under ${Int.toString(
+          tooSmall,
+        )} shapes smaller than ${Int.toString(minStickerSide)} x ${Int.toString(
           minStickerSide,
-        )} pixels wide. Use a bigger picture, at least ${Int.toString(
+        )} pixels. Use a bigger picture, at least ${Int.toString(
           minStickerSide,
         )} pixels per sticker.`,
     )
