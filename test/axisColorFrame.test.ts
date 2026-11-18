@@ -4,6 +4,7 @@ import {
   initialColorFrame,
 } from '../src/core/view/AxisGizmo.gen'
 import { createSolvedCube } from '../src/cube/cubeAssembly'
+import { EVEN_SIZES, ODD_SIZES } from './cubeSizes'
 import {
   applyCubeLayerMove,
   generateScrambleMoves,
@@ -19,14 +20,14 @@ const standardFrame = {
 }
 
 describe('axis color reference frame', () => {
-  it.each([2, 4, 6])('uses a logical frame for a mixed %i cube', (size) => {
+  it.each(EVEN_SIZES)('uses a logical frame for a mixed %i cube', (size) => {
     let cube = createSolvedCube(size)
     for (const face of ['U', 'R', 'F', 'D'] as const)
       cube = applyCubeLayerMove(cube, size, face, 1, 1, 1)
     expect(initialColorFrame(cube, size)).toEqual(standardFrame)
   })
 
-  it.each([2, 4, 6])(
+  it.each(EVEN_SIZES)(
     'keeps the %i cube frame through face, inner and wide turns',
     (size) => {
       let frame = initialColorFrame(createSolvedCube(size), size)
@@ -39,7 +40,7 @@ describe('axis color reference frame', () => {
     },
   )
 
-  it.each([2, 4, 6])('rotates the %i cube frame with x, y and z', (size) => {
+  it.each(EVEN_SIZES)('rotates the %i cube frame with x, y and z', (size) => {
     const start = initialColorFrame(createSolvedCube(size), size)
     const x = advanceColorFrame(start, size, 'R', size, 1, size)
     const y = advanceColorFrame(start, size, 'U', size, 1, size)
@@ -50,7 +51,7 @@ describe('axis color reference frame', () => {
     expect(advanceColorFrame(y, size, 'U', size, -1, size)).toEqual(start)
   })
 
-  it.each([3, 5, 7])(
+  it.each(ODD_SIZES)(
     'preserves the middle-slice reference change on a %i cube',
     (size) => {
       const start = initialColorFrame(createSolvedCube(size), size)
@@ -74,7 +75,7 @@ describe('axis color reference frame', () => {
     expect(initialColorFrame(rotated, 3)).toMatchObject({ u: 'W', f: 'R' })
   })
 
-  it.each([3, 5, 7])(
+  it.each(ODD_SIZES)(
     'tracks fixed centers through a sequence of %i cube turns',
     (size) => {
       let cube = createSolvedCube(size)
@@ -110,7 +111,7 @@ describe('axis color reference frame', () => {
     },
   )
 
-  it.each([2, 4, 6])(
+  it.each(EVEN_SIZES)(
     'restores the %i cube frame with inverse moves and ignores Scramble turns',
     (size) => {
       const initial = initialColorFrame(createSolvedCube(size), size)

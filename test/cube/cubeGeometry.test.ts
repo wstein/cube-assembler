@@ -20,6 +20,7 @@ import {
   solveFaceOrientations,
   type FaceKey,
 } from '../../src/cube/cubeAssembly'
+import { ALL_SIZES } from '../cubeSizes'
 
 const WCA: Record<FaceKey, string> = {
   U: 'W',
@@ -99,14 +100,16 @@ describe('rotateCube', () => {
 })
 
 describe('scrambles read as valid cubes', () => {
-  for (const n of [2, 3, 4, 5, 6, 7]) {
+  for (const n of ALL_SIZES) {
+    // Even sizes search identity and rotation jointly: 1 to 3 s per size, so
+    // the default 5 s limit is too tight on a busy runner.
     it(`${n}x${n}`, () => {
       for (let seed = 1; seed <= 5; seed++) {
         const cube = scramble(n, 30, seed * 31 + n)
         const solved = solveFaceOrientations(cube)!
         expect(solved.fullyValid, `seed ${seed}`).toBe(true)
       }
-    })
+    }, 60_000)
   }
 })
 

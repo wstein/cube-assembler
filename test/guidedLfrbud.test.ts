@@ -21,6 +21,7 @@ import {
 } from '../src/client/capture/guidedCaptureProtocol'
 import type { FaceCaptureData } from '../src/client/capture/captureTypes'
 import { generateForProtocol } from '../src/client/capture/spatialOrientationWizard'
+import { ALL_SIZES, ODD_SIZES } from './cubeSizes'
 const protocol = 'left-front-right-back-up-down/v3'
 const mirroredProtocol = 'right-back-left-front-up-down/v3'
 const slots = ['U', 'R', 'F', 'D', 'L', 'B']
@@ -64,7 +65,7 @@ it('derives all six source photo orientations from the physical five transitions
     }
   }
 })
-for (const size of [2, 3, 4, 7])
+for (const size of ALL_SIZES)
   for (const mirror of [false, true])
     it(`keeps the exact LFRBUD scanned state at size=${size}, mirror=${mirror}`, () => {
       let original = solvedCubeFaces(size, {
@@ -99,7 +100,7 @@ for (const size of [2, 3, 4, 7])
       expect(JSON.stringify(photos)).toBe(before)
     })
 
-for (const size of [3, 5, 7])
+for (const size of ODD_SIZES)
   for (const mirrored of [false, true])
     it(`routes real LFRBUD source steps without center reassignment at size=${size}, mirror=${mirrored}`, () => {
       const original = turnFace(

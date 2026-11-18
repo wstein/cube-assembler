@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { ALL_SIZES } from './cubeSizes'
 import {
   SHADOW_OUTLINE_POINTS,
   paddedOutline,
@@ -39,7 +40,7 @@ describe('cube shadow', () => {
   })
 
   it('lies on a floor below the cube in every orientation', () => {
-    for (const n of [2, 3, 7]) {
+    for (const n of ALL_SIZES) {
       const radius = (n / 2) * Math.sqrt(3)
       expect(shadowFloorY(n)).toBeLessThan(-radius)
     }

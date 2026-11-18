@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs'
 import { unzipSync, strFromU8 } from 'fflate'
 import { readFixtureColors } from '../src/client/fixtures/fixtureFormat'
 import { describe, expect, it } from 'vitest'
+import { ALL_SIZES } from './cubeSizes'
 import {
   generate,
   retainsMapping,
@@ -87,7 +88,7 @@ it('distinguishes whole-face assignments even when their colored grids are ident
 
 const keys = ['U', 'R', 'F', 'D', 'L', 'B']
 const colors = ['W', 'R', 'G', 'Y', 'O', 'B']
-for (const size of [2, 3, 4, 5, 6, 7, 8]) {
+for (const size of ALL_SIZES) {
   it(`uses existing validation for guided ${size}×${size} candidates without changing sources`, () => {
     const raw = Object.fromEntries(
       keys.map((key, i) => [
