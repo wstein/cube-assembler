@@ -15,13 +15,31 @@ const RANGE_FILES = [
   'docs/color-profiles.md',
   'docs/user-guide.md',
   'docs/parity.md',
+  'docs/scanner.md',
 ]
 
-// "2×2–7×7", "2x2 to 7x7", "2×2 through 7×7": a range that ends below the maximum.
-const RANGE_END = /\b2\s*[x×]\s*2\s*(?:–|-|to|through)\s*(\d+)\s*[x×]\s*\d+/gi
+const SIZE = String.raw`(\d+)\s*[x×]\s*\d+`
 
-// "a cube up to 7×7": an upper bound below the maximum.
-const UP_TO = /\bup to\s*(\d+)\s*[x×]\s*\d+/gi
+// Upper bounds below the maximum, in the forms the docs use:
+// "2×2–7×7", "4x4 to 7x7", "5×5 through 7×7"
+const RANGE_END = new RegExp(
+  String.raw`\b${SIZE}\s*(?:–|-|to|through)\s*${SIZE}`,
+  'gi',
+)
+// "a cube up to 7×7"
+const UP_TO = new RegExp(String.raw`\bup to\s*${SIZE}`, 'gi')
+// "sizes 2 to 7", "sizes 2..7", "2 to 7 cubes"
+const NUMBER_RANGE =
+  /\b(?:sizes?\s+)?2\s*(?:–|-|to|through|\.\.)\s*(\d+)\b(?!\s*[x×])/gi
+// "6×6 and 7×7" (a pair, not a list item after a comma)
+const PAIR = new RegExp(String.raw`(?<!,\s)\b${SIZE}\s+and\s+${SIZE}`, 'gi')
+
+const upperBounds = (text: string): number[] => [
+  ...[...text.matchAll(RANGE_END)].map((m) => Number(m[2])),
+  ...[...text.matchAll(UP_TO)].map((m) => Number(m[1])),
+  ...[...text.matchAll(NUMBER_RANGE)].map((m) => Number(m[1])),
+  ...[...text.matchAll(PAIR)].map((m) => Number(m[2])),
+]
 
 describe('documented cube size range', () => {
   it('uses the supported maximum', () => {
@@ -31,9 +49,7 @@ describe('documented cube size range', () => {
   for (const file of RANGE_FILES) {
     it(`${file} states no range that ends below ${maxSize}`, () => {
       const text = read(file)
-      const ends = [...text.matchAll(RANGE_END), ...text.matchAll(UP_TO)].map(
-        (m) => Number(m[1]),
-      )
+      const ends = upperBounds(read(file))
       expect(ends.filter((end) => end !== maxSize)).toEqual([])
     })
   }
