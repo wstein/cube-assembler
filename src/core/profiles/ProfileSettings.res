@@ -36,7 +36,7 @@ type profileSettings = {
   autoMatchedColorsId?: string,
 }
 
-let cubeSizes = [2, 3, 4, 5, 6, 7]
+let cubeSizes = CubeSizeRange.cubeSizes
 let autoColorsId = "auto-colors"
 let captureColorsId = "capture-colors"
 let colorKeys = ["W", "Y", "O", "R", "G", "B"]
@@ -93,19 +93,9 @@ let builtinCubes = cubeSizes->Array.map(size =>
   })
 )
 
-// Imported 8x8 captures can be corrected without adding a camera-size option.
-// Keep one stable profile object so live effects do not retrigger per render.
-let importedEight = freeze({
-  id: "imported-generic-8",
-  name: "Imported 8×8 (review only)",
-  size: 8,
-  sampling: freeze({stickerCore: 0.6}),
-})
-
 let builtinCube = size =>
   switch builtinCubes->Array.find(cube => cube.size == size) {
   | Some(cube) => cube
-  | None if size == 8 => importedEight
   | None => fail("Unsupported cube size")
   }
 
@@ -153,7 +143,7 @@ let activeCube = (settings: profileSettings, size) => {
 let validCubeSetting = (cube: cubeSetting) =>
   cube.id != "" &&
   cube.name->String.trim != "" &&
-  cubeSizes->Array.includes(cube.size) &&
+  CubeSizeRange.isSupportedSize(cube.size) &&
   Float.isFinite(cube.sampling.stickerCore) &&
   cube.sampling.stickerCore > 0.0 &&
   cube.sampling.stickerCore <= 1.0
@@ -435,7 +425,7 @@ let parseCube = (value: Untrusted.t) =>
   | (Some(id), Some(name), Some(size), Some(stickerCore))
     if name->String.trim != "" &&
     isInteger(size) &&
-    cubeSizes->Array.includes(Float.toInt(size)) &&
+    CubeSizeRange.isSupportedSize(Float.toInt(size)) &&
     Float.isFinite(stickerCore) &&
     stickerCore > 0.0 &&
     stickerCore <= 1.0 =>
@@ -490,7 +480,7 @@ let parseProfileSettings = (value: Untrusted.t) =>
     ->Array.forEach(((key, id)) =>
       switch (Int.fromString(key), Untrusted.string(id)) {
       | (Some(size), Some(id))
-        if cubeSizes->Array.includes(size) &&
+        if CubeSizeRange.isSupportedSize(size) &&
         Int.toString(size) == key &&
         [...cubes, builtinCube(size)]->Array.some(cube => cube.id == id && cube.size == size) =>
         activeCubeBySize->Dict.set(key, id)

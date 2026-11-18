@@ -418,9 +418,6 @@ export function ScannerAppView({ model }: { model: ScannerAppModel }) {
                 e.currentTarget.value = profile.id
             }}
           >
-            {puzzleSize === 8 && (
-              <option value={profile.id}>Imported 8×8 (review only)</option>
-            )}
             <CubeSelectOptions settings={profileStore} />
           </select>
           <select

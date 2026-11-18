@@ -231,7 +231,7 @@ export function CubeReviewTab({ settings, onChange, photo }: Props) {
                 setSizes(
                   sizes.includes(size)
                     ? sizes.filter((s) => s !== size)
-                    : [...sizes, size].sort(),
+                    : [...sizes, size].sort((a, b) => a - b),
                 )
               }
             >

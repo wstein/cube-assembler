@@ -13,9 +13,11 @@ import {
   colorPalette,
   copyColorProfile,
   copyCubeSetting,
+  CUBE_SIZES,
   cubesForSize,
   deleteColorProfile,
   groupCubesByName,
+  isBuiltinCube,
   mergeSettings,
   parseProfileSettings,
   renameColorProfile,
@@ -27,6 +29,8 @@ import {
   setAutoColorMatch,
   resolvedColorProfileSnapshot,
 } from '../src/client/profiles/profileSettings'
+
+const SIZES = Array.from({ length: 14 }, (_, i) => i + 2)
 
 describe('separate cube and color settings', () => {
   it('groups cube choices by name and shows sizes within each group', () => {
@@ -50,13 +54,13 @@ describe('separate cube and color settings', () => {
         sizes: cubes.map((cube) => cube.size),
       })),
     ).toEqual([
-      { name: 'Generic', sizes: [2, 3, 4, 5, 6, 7] },
+      { name: 'Generic', sizes: SIZES },
       { name: 'My Cube', sizes: [3, 7] },
     ])
   })
 
   it('always lists one read-only Generic cube with a 60 percent core for every size', () => {
-    expect(allCubes(EMPTY_SETTINGS)).toHaveLength(6)
+    expect(allCubes(EMPTY_SETTINGS)).toHaveLength(14)
     expect(cubesForSize(EMPTY_SETTINGS, 5).map((cube) => cube.name)).toEqual([
       'Generic 5×5',
     ])
@@ -314,5 +318,92 @@ describe('renaming profiles', () => {
     expect(() => renameColorProfile(settings, AUTO_COLORS_ID, 'Mine')).toThrow()
     expect(() => renameCube(settings, 'nope', 'Mine')).toThrow()
     expect(() => renameColorProfile(settings, 'colors-a', '   ')).toThrow()
+  })
+
+  describe('cube sizes 2 through 15', () => {
+    it('lists the sizes 2 through 15 only', () => {
+      expect(CUBE_SIZES).toEqual(SIZES)
+    })
+
+    it.each(SIZES)('has a read-only Generic %ix%i cube', (size) => {
+      const cube = builtinCube(size)
+      expect(cube).toMatchObject({
+        id: `builtin-generic-${size}`,
+        name: `Generic ${size}×${size}`,
+        size,
+        sampling: { stickerCore: 0.6 },
+      })
+      expect(isBuiltinCube(cube.id)).toBe(true)
+      expect(activeCube(EMPTY_SETTINGS, size)).toBe(cube)
+      expect(cubesForSize(EMPTY_SETTINGS, size)).toEqual([cube])
+      expect(() => saveCube(EMPTY_SETTINGS, cube)).toThrow('built-in')
+    })
+
+    it.each([1, 16, 0, -3])('has no built-in cube of size %i', (size) => {
+      expect(() => builtinCube(size)).toThrow('Unsupported cube size')
+    })
+
+    it('has no review-only imported 8×8 cube', () => {
+      expect(isBuiltinCube('imported-generic-8')).toBe(false)
+      expect(allCubes(EMPTY_SETTINGS).map((cube) => cube.id)).not.toContain(
+        'imported-generic-8',
+      )
+      expect(builtinCube(8).id).toBe('builtin-generic-8')
+      expect(allCubes(EMPTY_SETTINGS).map((cube) => cube.name)).not.toContain(
+        'Imported 8×8 (review only)',
+      )
+    })
+
+    it.each(SIZES)('saves, selects and reloads a custom %ix%i cube', (size) => {
+      const custom = {
+        id: `custom-${size}`,
+        name: `My ${size}×${size}`,
+        size,
+        sampling: { stickerCore: 0.5 },
+      }
+      const saved = saveCube(EMPTY_SETTINGS, custom)
+      expect(activeCube(saved, size)).toEqual(custom)
+      const reloaded = parseProfileSettings(JSON.parse(JSON.stringify(saved)))
+      expect(reloaded.cubes).toEqual([custom])
+      expect(activeCube(reloaded, size).id).toBe(custom.id)
+      expect(
+        selectCube(EMPTY_SETTINGS, builtinCube(size).id).activeCubeBySize,
+      ).toEqual({ [size]: builtinCube(size).id })
+    })
+
+    it.each([1, 16, 100])('rejects a custom cube of size %i', (size) => {
+      const custom = {
+        id: 'bad',
+        name: 'Bad',
+        size,
+        sampling: { stickerCore: 0.5 },
+      }
+      expect(() => saveCube(EMPTY_SETTINGS, custom)).toThrow('Invalid cube')
+      const parsed = parseProfileSettings({
+        cubes: [custom],
+        colors: [],
+        activeCubeBySize: { [size]: 'bad' },
+        activeColorsId: AUTO_COLORS_ID,
+      })
+      expect(parsed.cubes).toEqual([])
+      expect(parsed.activeCubeBySize).toEqual({})
+    })
+
+    it('keeps a stored active cube for size 8 and 15', () => {
+      const parsed = parseProfileSettings({
+        cubes: [],
+        colors: [],
+        activeCubeBySize: {
+          8: 'builtin-generic-8',
+          15: 'builtin-generic-15',
+          16: 'builtin-generic-16',
+        },
+        activeColorsId: AUTO_COLORS_ID,
+      })
+      expect(parsed.activeCubeBySize).toEqual({
+        8: 'builtin-generic-8',
+        15: 'builtin-generic-15',
+      })
+    })
   })
 })
