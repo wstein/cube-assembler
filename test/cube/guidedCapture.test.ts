@@ -252,7 +252,7 @@ describe('predictGuidedCenters', () => {
   const face = (n: number, color: string) =>
     Array.from({ length: n }, () => Array(n).fill(color))
 
-  for (const n of [3, 5, 7]) {
+  for (const n of [3, 5, 7, 9, 11, 13, 15]) {
     it(`shows the opposite after one ${n}x${n} face, then all remaining centers after adjacent faces`, () => {
       const first = face(n, 'G'),
         second = face(n, 'R')
@@ -281,6 +281,33 @@ describe('predictGuidedCenters', () => {
         'Y',
         'W',
       ])
+    })
+  }
+
+  for (const n of [3, 5, 7, 9, 11, 13, 15]) {
+    it(`reserves center slots and routes faces by center on ${n}x${n}`, () => {
+      const first = face(n, 'G'),
+        second = face(n, 'R')
+      expect(captureCenterSlots([first, second])).toEqual([
+        'G',
+        'R',
+        'B',
+        'O',
+        'W',
+        'Y',
+      ])
+      // The opposite of the first face goes to slot 3, a duplicate nowhere.
+      expect(captureSlotForCenter([first], 1, face(n, 'B'))).toBe(2)
+      expect(captureSlotForCenter([first], 1, face(n, 'G'))).toBeNull()
+      expect(captureSlotForCenter([first, second], 3, face(n, 'W'))).toBe(4)
+    })
+  }
+
+  for (const n of [2, 4, 6, 8, 10, 12, 14]) {
+    it(`predicts nothing on the even ${n}x${n} size`, () => {
+      const blank = [null, null, null, null, null, null]
+      expect(predictGuidedCenters([face(n, 'G'), face(n, 'R')])).toEqual(blank)
+      expect(captureCenterSlots([face(n, 'G'), face(n, 'R')])).toEqual(blank)
     })
   }
 
