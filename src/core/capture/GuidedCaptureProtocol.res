@@ -46,8 +46,7 @@ let placedFaces = (captured, placements: CaptureFaceMapping.mapping) =>
   )->fromGeometry
 let seedForMapping = (captured: Dict.t<grid>, size, placements): seed => {
   let complete =
-    size >= 2 &&
-    size <= 8 &&
+    CubeSizeRange.isSupportedSize(size) &&
     slots->Array.every(slot =>
       captured
       ->Dict.get(slot)

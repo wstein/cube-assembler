@@ -93,6 +93,34 @@ describe('fixture zips', () => {
     ).toBe('cube-2x2-2026-09-27T08-55-46')
   })
 
+  it.each(Array.from({ length: 14 }, (_, i) => i + 2))(
+    'builds a fixture for a %ix%i cube',
+    (size) => {
+      const face = 'W'.repeat(size * size)
+      const fixture = buildFixture(
+        request({
+          name: 'sized',
+          gridSize: size,
+          colorsURFDLB: Array(6).fill(face).join(' '),
+        }),
+      )
+      expect(fixture.name).toBe('sized')
+    },
+  )
+
+  it.each([1, 16, 17])('refuses a grid size of %i', (size) => {
+    expect(() =>
+      buildFixture(
+        request({
+          gridSize: size,
+          colorsURFDLB: Array(6)
+            .fill('W'.repeat(size * size))
+            .join(' '),
+        }),
+      ),
+    ).toThrow('gridSize must be an integer between 2 and 15')
+  })
+
   it('keeps explicit fixture names path-safe', () => {
     expect(buildFixture(request({ name: '../../etc/passwd' })).name).toBe(
       '------etc-passwd',

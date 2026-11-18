@@ -110,8 +110,10 @@ let assignMapping = (mapping: mapping, slot, target) =>
 
 let validateMapping = (captured: Dict.t<grid>, mapping: mapping, size): validation => {
   let issues = []
-  if size < 2 || size > 8 {
-    issues->Array.push("Manual face mapping supports sizes 2 through 8.")
+  if !CubeSizeRange.isSupportedSize(size) {
+    issues->Array.push(
+      `Manual face mapping supports sizes ${Int.toString(CubeSizeRange.minCubeSize)} through ${Int.toString(CubeSizeRange.maxCubeSize)}.`,
+    )
   }
   if Array.length(mapping) != 6 {
     issues->Array.push("Assign all six captured photos.")

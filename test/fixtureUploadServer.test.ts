@@ -4,20 +4,23 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { once } from 'node:events'
 import type { Server } from 'node:http'
+import { maxCubeSize } from '../src/core/app/CubeSizeRange.gen'
 import { createFixtureUploadServer } from '../scripts/fixtureUploadServer.mjs'
 
 const FACE_KEYS = ['u', 'r', 'f', 'd', 'l', 'b']
 const JPEG = new Uint8Array([0xff, 0xd8, 0xff, 0xd9])
 
-function fixtureForm(name = 'capture-test'): FormData {
+function fixtureForm(name = 'capture-test', gridSize = 3): FormData {
   const form = new FormData()
   form.set('name', name)
   const faces = Object.fromEntries(
     FACE_KEYS.map((face) => [face, { photo: `face-${face}.jpg` }]),
   )
   const meta = {
-    gridSize: 3,
-    colorsURFDLB: FACE_KEYS.map((_, i) => 'WROGYB'[i].repeat(9)).join(' '),
+    gridSize,
+    colorsURFDLB: FACE_KEYS.map((_, i) =>
+      'WROGYB'[i].repeat(gridSize * gridSize),
+    ).join(' '),
     faces,
   }
   form.append(
@@ -92,6 +95,30 @@ describe('local fixture upload server', () => {
     expect((await fetch(`${url}/upload`)).status).toBe(405)
     expect((await fetch(`${url}/ping`, { method: 'POST' })).status).toBe(405)
     expect((await fetch(`${url}/meta.json`)).status).toBe(404)
+  })
+
+  it.each(Array.from({ length: 14 }, (_, i) => i + 2))(
+    'accepts a %ix%i fixture',
+    async (size) => {
+      await start()
+      expect((await upload(fixtureForm(`size-${size}`, size))).status).toBe(201)
+    },
+  )
+
+  it('accepts the largest app size and refuses the next one', async () => {
+    await start()
+    expect(maxCubeSize).toBe(15)
+    expect((await upload(fixtureForm('edge', maxCubeSize))).status).toBe(201)
+    expect((await upload(fixtureForm('over', maxCubeSize + 1))).status).toBe(
+      400,
+    )
+  })
+
+  it.each([1, 16, 17])('refuses a %ix%i fixture', async (size) => {
+    await start()
+    const response = await upload(fixtureForm('too-big', size))
+    expect(response.status).toBe(400)
+    expect(await readdir(root!)).toEqual([])
   })
 
   it('stores size-prefixed fixture names as directory names', async () => {
