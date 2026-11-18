@@ -739,16 +739,21 @@ describe('cubeView3D math and geometry', () => {
       }
     })
 
-    // Known gap: the length table (CubeMoves.res scrambleLengths) ends at 7x7
-    // and every larger size falls back to 20 moves, fewer than a 3x3 gets. The
-    // test turns red once the table or a formula covers 8 to 15, so this
-    // marker cannot go stale. The target lengths are an owner decision.
-    it.fails('scrambles a size above 7 at least as long as the 7x7', () => {
-      for (const size of ALL_SIZES.filter((n) => n > 7))
-        expect(
-          generateScrambleMoves(size).length,
-          `${size}x${size}`,
-        ).toBeGreaterThanOrEqual(100)
+    // The table covers 2 to 7 (7x7 = 100 moves); above it the length grows
+    // with the sticker count: round(100 * n^2 / 49).
+    it('gives every size its scramble length, growing as n^2 above 7x7', () => {
+      const table = [11, 20, 40, 60, 80, 100]
+      let previous = 0
+      for (const size of ALL_SIZES) {
+        const expected =
+          size <= 7 ? table[size - 2] : Math.round((100 * size * size) / 49)
+        const length = generateScrambleMoves(size).length
+        expect(length, `${size}x${size}`).toBe(expected)
+        expect(length).toBeGreaterThan(previous)
+        previous = length
+      }
+      expect(generateScrambleMoves(8).length).toBe(131)
+      expect(generateScrambleMoves(15).length).toBe(459)
     })
 
     it('builds mesh with animated turning layer rotated properly without crashing', () => {
