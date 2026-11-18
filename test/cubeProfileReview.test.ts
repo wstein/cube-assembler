@@ -158,3 +158,20 @@ describe('deleting cubes', () => {
     expect(unusedCubes(BASE)).toEqual(['warm', 'gan', 'gocube', 'big'])
   })
 })
+
+describe('review of cubes of size 8 through 15', () => {
+  it.each([8, 9, 12, 15])(
+    'groups a saved %ix%i cube with its Generic cube and names the fallback when deleting it',
+    (size) => {
+      const saved = settings([cube(`mine-${size}`, size, 0.6)], {
+        [size]: `mine-${size}`,
+      })
+      expect(ids(duplicateCubeGroups(saved, 0.02))).toEqual([
+        [`builtin-generic-${size}`, `mine-${size}`].sort(),
+      ])
+      expect(cubeDeletionEffects(saved, [`mine-${size}`])).toEqual([
+        `${size}×${size} then uses Generic ${size}×${size}`,
+      ])
+    },
+  )
+})
