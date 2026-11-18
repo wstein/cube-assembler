@@ -9,6 +9,7 @@ const maxSize = Math.max(...CUBE_SIZES)
 
 // Files whose text states the supported cube size range.
 const RANGE_FILES = [
+  'AGENTS.md',
   'README.md',
   'index.html',
   'package.json',
