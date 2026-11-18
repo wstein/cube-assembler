@@ -5,6 +5,7 @@ import { clusterDistance } from '../src/client/vision/colorMath'
 import {
   balancedAssign,
   hungarianAssignment,
+  learnStickerColors,
 } from '../src/client/vision/stickerLearning'
 import {
   STICKER_COLORS,
@@ -354,4 +355,21 @@ describe('balancedAssign speed', () => {
       expect(elapsed).toBeLessThan(1000)
     })
   }
+
+  // learnStickerColors runs balancedAssign about 40 times and searches
+  // farthest pairs: the whole learning pass at 15x15 took over a minute
+  // before the transportation solver.
+  it('learns the six colors of a 15x15 capture in under ten seconds', () => {
+    const n = 15
+    const samples = balancedPoints(n, 6, 25).map((rgb) => ({
+      rgb,
+      colorGuess: 'W',
+    }))
+    const start = performance.now()
+    const learned = learnStickerColors(samples, STICKER_COLORS, [])
+    const elapsed = performance.now() - start
+    expect(learned).not.toBeNull()
+    expect(Object.keys(learned!.colors).sort()).toEqual([...NAMES].sort())
+    expect(elapsed).toBeLessThan(10_000)
+  })
 })
