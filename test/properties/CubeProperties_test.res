@@ -27,11 +27,16 @@ let scramble = (n, moves) =>
     apply(cube, n, move)
   )
 
-// A size, a scramble of it and one more move.
-let scrambled =
-  Fc.integer({min: 2, max: 7})->Fc.chain(n =>
+// The sizes the app accepts.
+let maxSize = 15
+
+// A size up to `largest`, a scramble of it and one more move.
+let scrambledTo = largest =>
+  Fc.integer({min: 2, max: largest})->Fc.chain(n =>
     Fc.tuple3(Fc.constant(n), Fc.array(moveOf(n), {minLength: 0, maxLength: 30}), moveOf(n))
   )
+
+let scrambled = scrambledTo(maxSize)
 
 let sameCube = (a: CubeState.cubeState, b: CubeState.cubeState) => a == b
 
@@ -109,7 +114,7 @@ describe("notation round trips", () => {
     "an Orbit64 token decodes to the facelets it encodes",
     () =>
       Fc.check(
-        scrambled,
+        scrambledTo(7),
         ((n, moves, _)) => {
           let facelets = NotationOutput.toURFFacelets(scramble(n, moves))
           switch Orbit64Token.encodeState(facelets)->Null.toOption {
@@ -117,6 +122,41 @@ describe("notation round trips", () => {
             Orbit64Token.looksLikeToken(token) &&
             Orbit64Token.decodeState(token) == Null.make(facelets)
           | None => false
+          }
+        },
+        ~runs=60,
+      ),
+    120000,
+  )
+
+  // The V2 codec takes every size 2..15. A canonical read turns the cube to
+  // its reference, so the decoded facelets are the same cube, equal to the
+  // input where the scramble kept the reference (the fixed centers of an odd
+  // cube) and in the same token either way.
+  test(
+    "an Orbit64 V2 token decodes to the cube it encodes, for every size",
+    () =>
+      Fc.check(
+        scrambled,
+        ((n, moves, _)) => {
+          let entry =
+            Orbit64V2.entries->Array.find(e => e.n == n && e.model == Color && e.pose == Canonical)
+          let facelets = NotationOutput.toURFFacelets(scramble(n, moves))
+          switch entry {
+          | None => false
+          | Some(entry) =>
+            switch Orbit64V2Facelets.encodeFacelets(entry.id, facelets) {
+            | Ok(token) =>
+              String.length(token) == entry.length &&
+                switch Orbit64V2Facelets.decodeFacelets(token) {
+                | Ok(decoded) =>
+                  decoded.entry.id == entry.id &&
+                  Orbit64V2Facelets.encodeFacelets(entry.id, decoded.facelets) == Ok(token) &&
+                  (mod(n, 2) == 0 || decoded.facelets == facelets)
+                | Error(_) => false
+                }
+            | Error(_) => false
+            }
           }
         },
         ~runs=60,
@@ -240,7 +280,7 @@ describe("parity invariants", () => {
 // several arrangements that fit. That is where both the filter and the
 // list of tied arrangements get tested.
 let oddScramble =
-  Fc.constantFrom([3, 5, 7])->Fc.chain(n =>
+  Fc.constantFrom([3, 5, 7, 9, 11, 13, 15])->Fc.chain(n =>
     Fc.tuple2(Fc.constant(n), Fc.array(moveOf(n), {minLength: 0, maxLength: 4}))
   )
 
@@ -366,7 +406,7 @@ describe("middle edges of odd cubes", () => {
 // A wing's two stickers swapped: a 4x4+ capture whose wing pairs still
 // count up, but with one wing reading as its mirror-image twin.
 let flippedWing =
-  Fc.integer({min: 4, max: 7})
+  Fc.integer({min: 4, max: maxSize})
   ->Fc.chain(n =>
     Fc.tuple4(
       Fc.constant(n),
