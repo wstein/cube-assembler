@@ -1,6 +1,6 @@
 # CubeAssembler
 
-Scan a physical 2×2–7×7 puzzle cube from six photos and assemble its state in
+Scan a physical 2×2–15×15 puzzle cube from six photos and assemble its state in
 your browser.
 
 [Open the scanner](https://wstein.github.io/cube-assembler/) ·
@@ -19,7 +19,7 @@ with no model download or production server.
 
 ## Scan a cube in five steps
 
-1. **Choose a cube and colors.** Select a size from 2×2 to 7×7. Automatic
+1. **Choose a cube and colors.** Select a size from 2×2 to 15×15. Automatic
    colors compares the live face with built-in and saved palettes, or you can
    choose a palette yourself.
 2. **Capture six faces.** Show four sides while turning the cube, then its top
@@ -40,7 +40,7 @@ capture, since different faces can look identical on even cubes.
 ## What works
 
 - Camera capture or six uploaded photos, cropped or uncropped.
-- Cube sizes 2×2–7×7, with manual color correction when needed.
+- Cube sizes 2×2–15×15, with manual color correction when needed.
 - Physical-validity checks and an unfolded net plus 3D view.
 - WRG/URF facelets and Orbit64 compact state tokens.
 - Local, browser-only scanning; an optional development server saves fixtures.
