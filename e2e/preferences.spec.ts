@@ -29,7 +29,7 @@ test('ignores invalid size and missing color profile cookies', async ({
   await page.context().addCookies([
     {
       name: 'cube-assembler-cube-size',
-      value: '8',
+      value: '16',
       url: 'http://127.0.0.1:4174/',
     },
     {
@@ -46,6 +46,27 @@ test('ignores invalid size and missing color profile cookies', async ({
     'auto-colors',
   )
 })
+
+for (const size of [8, 15]) {
+  test(`restores a ${size}x${size} size cookie and opens camera capture`, async ({
+    page,
+  }) => {
+    await page.context().addCookies([
+      {
+        name: 'cube-assembler-cube-size',
+        value: String(size),
+        url: 'http://127.0.0.1:4174/',
+      },
+    ])
+    await page.goto('/')
+    await expect(page.getByRole('combobox', { name: 'Cube' })).toHaveValue(
+      `builtin-generic-${size}`,
+    )
+    await page.getByRole('button', { name: 'Capture faces' }).click()
+    await expect(page.locator('.capture-modal-content')).toBeVisible()
+    await expect(page.getByText(/review only/i)).toHaveCount(0)
+  })
+}
 
 test('restores the 3D view, sticker style, and auto-rotation after reload', async ({
   page,
