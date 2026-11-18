@@ -10,7 +10,9 @@ import { DEFAULT_SAMPLING } from '../src/client/vision/stickerColorGeometry'
 // failure (it.fails) until the pipeline handles it, and the test turns red
 // when it starts to pass, so the list cannot go stale.
 const SIZE = 300
-const SIZES = [2, 3, 4, 5, 7]
+const SIZES = [2, 3, 4, 5, 7, 8, 10]
+// At 300 px a 12x12 sticker is 25 px and a 15x15 sticker 20 px wide.
+const LARGE_SIZES = [12, 15]
 const SEEDS = [1, 2, 3]
 const LETTERS = 'WYORGB'
 
@@ -29,9 +31,9 @@ function grid(n: number, seed: number): string[][] {
 }
 
 // The stickers of every size and seed the detection reads wrongly.
-function misreads(preset: string) {
+function misreads(preset: string, sizes = SIZES) {
   const wrong: string[] = []
-  for (const n of SIZES)
+  for (const n of sizes)
     for (const seed of SEEDS) {
       const colors = grid(n, seed)
       const read = extractColorsFromImageData(
@@ -60,6 +62,19 @@ describe('synthetic presets against the face detection', () => {
       `reads every sticker of the ${preset} preset back as drawn`,
       () => {
         expect(misreads(preset)).toEqual([])
+      },
+      120_000,
+    )
+
+  // The same check on the largest sizes. The glare preset washes a few
+  // corner stickers out to white at 20 to 25 px per sticker (four misreads at
+  // 12x12 and 15x15); it stays a known failure until detection handles it.
+  const LARGE_MISREAD = new Set([...MISREAD, 'glare'])
+  for (const preset of PRESETS)
+    (LARGE_MISREAD.has(preset) ? it.fails : it)(
+      `reads every sticker of the ${preset} preset back as drawn on 12x12 and 15x15`,
+      () => {
+        expect(misreads(preset, LARGE_SIZES)).toEqual([])
       },
       120_000,
     )

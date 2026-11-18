@@ -4,6 +4,7 @@ import { extractColorsFromImageData } from '../src/client/vision/faceDetection'
 import { rgbToOKLCH } from '../src/core/color/ColorMath.gen'
 import { NEUTRAL_GAINS } from '../src/client/vision/colorMath'
 import { DEFAULT_SAMPLING } from '../src/client/vision/stickerColorGeometry'
+import { ALL_SIZES } from './cubeSizes'
 
 const SIZE = 480
 
@@ -123,7 +124,7 @@ describe('the synthetic face', () => {
     expect(pixels[pixels.length - 1]).toBe(255)
   })
 
-  for (const n of [2, 3, 4, 5, 6, 7])
+  for (const n of ALL_SIZES)
     it(`reads back as the same ${n}x${n} colors by the app's own detection`, () => {
       const colors = grid(n)
       expect(read(renderFace(colors, 'clean', 7, SIZE), n)).toEqual(colors)
