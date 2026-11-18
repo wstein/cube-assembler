@@ -15,12 +15,12 @@ For a 3×3, four conditions are necessary and sufficient:
 4. Corner and edge permutation parity agree.
 
 All cube sizes have eight corner cubies, so the corner color-triplet and
-orientation checks apply from 2×2 through 7×7. A 2×2 has no edges or centers;
+orientation checks apply on every size from 2×2 up. A 2×2 has no edges or centers;
 its complete model comes from corner checks alone.
 
 ## Larger cubes
 
-On 4×4–7×7, each edge has N−2 wing pieces. Every wing's two colors must be
+On cubes of 4×4 and larger, each edge has N−2 wing pieces. Every wing's two colors must be
 one of the 12 canonical neighboring color pairs, and each pair must occur
 exactly N−2 times. Wings are counted across depths; the validator does not
 yet check the distinct depth orbits or generalize full edge permutation parity

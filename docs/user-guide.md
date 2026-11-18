@@ -2,7 +2,8 @@
 
 [Open CubeAssembler](https://wstein.github.io/cube-assembler/). Scanning, review,
 assembly, and ZIP import/export run in the browser. Choose a cube size from 2×2
-through 7×7 before taking photos.
+through 15×15 before taking photos. Face detection has been tested on real photos
+of cubes up to 7×7; its quality on 8×8 and larger cubes has not been measured.
 
 ## Scan a cube
 
@@ -106,7 +107,7 @@ Turns snap into place like a magnetic cube: while you drag a layer or the whole 
 softly when capture **Sound** is on. Layer turns update the 2D net,
 facelet notation, and Orbit64 token. The move list records completed turns;
 **Undo** reverses the last one, and **Reset** returns to the captured state.
-**Scramble** uses more moves for larger cubes and turns inner layers on 4×4–7×7,
+**Scramble** uses more moves for larger cubes and turns inner layers on cubes of 4×4 and larger,
 while leaving the fixed middle layer alone on odd cubes.
 **Random State** mixes the cube at once into a random valid state, as speed
 cubers do for practice: the cube spins once and its stickers change at the
@@ -133,7 +134,7 @@ face images are read directly. In Guide grid mode, select **Cropped face** for
 an image that is already cropped but does not use a `face-*.jpg` filename.
 
 **One picture of a cube net** works too: a screenshot or export of the cross
-(U above F, L F R B in a row, D below) of a 2×2 to 7×7 cube, on a dark or
+(U above F, L F R B in a row, D below) of a cube up to 7×7 (larger nets are not read), on a dark or
 light background, with or without gaps, lines or face titles. The app finds the
 stickers and the size, cuts the picture into six face images and goes on as with
 six photos, so you see the order preview and the cube check as usual. Odd cubes

@@ -172,7 +172,7 @@ directly rather than adding duplicate individual JPEGs outside Git LFS. See its
 [provenance and verification boundary](orientation-recovery-7x7.md). New
 `capture.faceRecovery` metadata preserves exact manual photo assignments,
 rotations, and display pose; [the contract](../../docs/orientation-recovery.md)
-also describes imported 8×8 correction and validation limits.
+also describes imported capture correction and validation limits.
 
 ## Photo identity: patterned 4×4 capture
 
