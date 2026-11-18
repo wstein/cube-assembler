@@ -117,9 +117,12 @@ let balancedAssign = (
   // A path must beat the current one by more than rounding noise, so a
   // cycle of equal costs can never loop.
   let epsilon = 1e-12
+  // clusterDistance(a, b) is clusterOklabDistance of both conversions;
+  // converting each color once gives the same values.
+  let centroidLabs = centroids->Array.map(rgbToOklab)
   let dist = free->Array.map(pi => {
-    let point = points->Array.getUnsafe(pi)
-    centroids->Array.map(centroid => clusterDistance(point, centroid))
+    let lab = rgbToOklab(points->Array.getUnsafe(pi))
+    centroidLabs->Array.map(centroidLab => clusterOklabDistance(lab, centroidLab))
   })
   let owner = Array.make(~length=m, -1)
   let load = Array.make(~length=k, 0)
@@ -278,16 +281,22 @@ let splitMixedPairs = (points: array<rgb>, centroids: array<rgb>, iterations) =>
               : sum
           )
         let seeds = ref([members->Array.getUnsafe(0), members->Array.getUnsafe(1)])
+        // The distance is symmetric, so the first farthest ordered pair
+        // has p at or before q; Oklab is converted once per member.
+        let memberLabs = members->Array.map(rgbToOklab)
         let farthest = ref(-1.0)
-        members->Array.forEach(p =>
-          members->Array.forEach(q => {
-            let d = clusterDistance(p, q)
+        for pi in 0 to Array.length(members) - 1 {
+          for qi in pi to Array.length(members) - 1 {
+            let d = clusterOklabDistance(
+              memberLabs->Array.getUnsafe(pi),
+              memberLabs->Array.getUnsafe(qi),
+            )
             if d > farthest.contents {
               farthest := d
-              seeds := [p, q]
+              seeds := [members->Array.getUnsafe(pi), members->Array.getUnsafe(qi)]
             }
-          })
-        )
+          }
+        }
         let size = assignment.contents->Array.filter(ci => ci == x)->Array.length
         let split = ref(splitInTwo(members, seeds.contents, size))
         for _ in 1 to iterations {
