@@ -312,6 +312,32 @@ describe('balancedAssign against the Hungarian reference', () => {
   })
 })
 
+describe('balancedAssign ties', () => {
+  // Coarse color grids create many equal-cost optima. The minimum, the
+  // capacities and the result for a repeated call must hold; which of
+  // several equal-cost assignments is returned is not specified (the
+  // reference picks another one in about two thirds of these cases).
+  it('keeps the minimum on coarse grids with many equal costs', () => {
+    const rand = lcg(99)
+    for (let t = 0; t < 120; t++) {
+      const levels = [2, 3, 4, 8][t % 4]
+      const q = () => Math.floor(rand() * levels) * 60
+      const points = Array.from(
+        { length: 20 + Math.floor(rand() * 100) },
+        () => ({ r: q(), g: q(), b: q() }),
+      )
+      checkAgainstReference(points, PALETTE, NO_PINS)
+    }
+  })
+
+  it('returns the same assignment for the same input', () => {
+    const points = balancedPoints(4, 3, 40)
+    expect(balancedAssign(points, PALETTE, [])).toEqual(
+      balancedAssign(points, PALETTE, []),
+    )
+  })
+})
+
 describe('balancedAssign speed', () => {
   // The reference needs about O(M^3) for M = 6 n^2 slots: seconds at n=12.
   for (const n of [12, 15]) {
