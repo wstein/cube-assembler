@@ -246,17 +246,91 @@ describe('reading a net image', () => {
     expect(read.message).toMatch(/6 x 6 pixels/)
   })
 
-  it('does not call a noise picture too small', () => {
-    let seed = 7
-    const data = new Uint8ClampedArray(200 * 200 * 4)
-    for (let i = 0; i < data.length; i += 4) {
-      seed = (seed * 1103515245 + 12345) % 2147483648
-      const v = seed % 2 ? 255 : 0
-      data.set([v, v, v, 255], i)
+  for (const block of [1, 2, 3])
+    it(`does not call noise of ${block} pixel blocks too small`, () => {
+      let seed = 7 + block
+      const side = 240
+      const data = new Uint8ClampedArray(side * side * 4)
+      const bits: number[] = []
+      for (let k = 0; k < (side / block) ** 2; k++) {
+        seed = (seed * 1103515245 + 12345) % 2147483648
+        bits.push((seed >> 16) & 1)
+      }
+      for (let y = 0; y < side; y++)
+        for (let x = 0; x < side; x++) {
+          const v =
+            bits[
+              Math.floor(y / block) * Math.floor(side / block) +
+                Math.floor(x / block)
+            ] * 255
+          data.set([v, v, v, 255], (y * side + x) * 4)
+        }
+      const read = readNetImage(data, side, side)
+      if (read.TAG !== 'unreadable') throw new Error('read noise')
+      expect(read.message).toBe('No cube net found in the picture.')
+    })
+
+  // Bright rectangles of the given sizes on black, `across` per row.
+  function rectangles(
+    sizes: Array<[number, number]>,
+    across: number,
+    pitch: number,
+    extra: Array<[number, number, number, number]> = [],
+  ) {
+    const width = across * pitch + 70
+    const height = Math.ceil(sizes.length / across) * pitch + 70
+    const data = new Uint8ClampedArray(width * height * 4)
+    for (let i = 3; i < data.length; i += 4) data[i] = 255
+    const fill = (x0: number, y0: number, w: number, h: number) => {
+      for (let y = y0; y < y0 + h; y++)
+        for (let x = x0; x < x0 + w; x++)
+          data.set([200, 60, 60, 255], (y * width + x) * 4)
     }
-    const read = readNetImage(data, 200, 200)
-    if (read.TAG !== 'unreadable') throw new Error('read noise')
+    for (const [x, y, w, h] of extra) fill(x, y, w, h)
+    sizes.forEach(([w, h], i) =>
+      fill(8 + (i % across) * pitch, 60 + Math.floor(i / across) * pitch, w, h),
+    )
+    return { data, width, height }
+  }
+
+  it('says too small when the stickers differ a little in size', () => {
+    const cycle: Array<[number, number]> = [
+      [4, 4],
+      [5, 4],
+      [5, 5],
+    ]
+    const sizes = Array.from({ length: 54 }, (_, i) => cycle[i % 3])
+    const { data, width, height } = rectangles(sizes, 9, 8)
+    const read = readNetImage(data, width, height)
+    if (read.TAG !== 'unreadable') throw new Error('read tiny stickers')
+    expect(read.message).toMatch(/too small/i)
+  })
+
+  it('does not call scattered small shapes of unlike sizes too small', () => {
+    const cycle: Array<[number, number]> = [
+      [4, 4],
+      [5, 5],
+      [5, 6],
+    ]
+    const sizes = Array.from({ length: 24 }, (_, i) => cycle[i % 3])
+    const { data, width, height } = rectangles(sizes, 6, 8)
+    const read = readNetImage(data, width, height)
+    if (read.TAG !== 'unreadable') throw new Error('read scattered shapes')
     expect(read.message).toBe('No cube net found in the picture.')
+  })
+
+  it('says too small when a few readable icons sit on a picture of tiny stickers', () => {
+    const sizes: Array<[number, number]> = Array.from({ length: 1350 }, () => [
+      5, 5,
+    ])
+    const icons: Array<[number, number, number, number]> = Array.from(
+      { length: 20 },
+      (_, i) => [2 + i * 12, 2, 8, 8],
+    )
+    const { data, width, height } = rectangles(sizes, 45, 7, icons)
+    const read = readNetImage(data, width, height)
+    if (read.TAG !== 'unreadable') throw new Error('read tiny stickers')
+    expect(read.message).toMatch(/too small/i)
   })
 
   it('reads a net of full-size stickers among many specks', () => {
