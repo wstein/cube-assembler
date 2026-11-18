@@ -47,4 +47,49 @@ describe('published fixture metadata schema', () => {
       }),
     ).toBe(false)
   })
+
+  it('accepts every cube size from 2 to 15 with size-squared facelet blocks', () => {
+    const schema = JSON.parse(readFileSync(schemaFile, 'utf8'))
+    const validate = new Ajv2020().compile(schema)
+    const meta = JSON.parse(
+      readFileSync(
+        join(fixtureRoot, 'synthetic-sanity-check', 'meta.json'),
+        'utf8',
+      ),
+    )
+    const sized = (size: number, count = size * size) => {
+      const block = 'W'.repeat(count)
+      return {
+        ...meta,
+        gridSize: size,
+        colorsURFDLB: Array(6).fill(block).join(' '),
+        detectedURFDLB: Array(6).fill(block).join(' '),
+      }
+    }
+    for (let size = 2; size <= 15; size++) {
+      expect(validate(sized(size)), 'size ' + size).toBe(true)
+    }
+  })
+
+  it('rejects sizes and facelet blocks outside 2 to 15', () => {
+    const schema = JSON.parse(readFileSync(schemaFile, 'utf8'))
+    const validate = new Ajv2020().compile(schema)
+    const meta = JSON.parse(
+      readFileSync(
+        join(fixtureRoot, 'synthetic-sanity-check', 'meta.json'),
+        'utf8',
+      ),
+    )
+    const block = (count: number) => Array(6).fill('W'.repeat(count)).join(' ')
+    expect(validate({ ...meta, gridSize: 16 })).toBe(false)
+    expect(validate({ ...meta, gridSize: 1 })).toBe(false)
+    expect(validate({ ...meta, gridSize: 15.5 })).toBe(false)
+    expect(validate({ ...meta, gridSize: 15, colorsURFDLB: block(225) })).toBe(
+      true,
+    )
+    expect(validate({ ...meta, gridSize: 15, colorsURFDLB: block(226) })).toBe(
+      false,
+    )
+    expect(validate({ ...meta, colorsURFDLB: block(3) })).toBe(false)
+  })
 })
