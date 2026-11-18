@@ -77,12 +77,22 @@ let hungarianAssignment = (cost: array<array<float>>) => {
 // Assigns each point to one of `centroids`, each centroid taking as close
 // as possible to points / centroids of them - a valid NxN capture always
 // has exactly N^2 stickers of each color. Solved as a genuine minimum-cost
-// assignment: each centroid becomes `capacity` equal-cost slots, padded
-// with zero-cost dummy points when they don't divide evenly, so the
-// globally cheapest assignment wins. A greedy version once stranded a
-// point 0.49 from its assigned color while its own color, 0.04 away, had
-// filled up. `pinned[i]`, when set, is the cluster point i must take (see
-// clearStickerColors); the rest share the slots left over.
+// assignment under per-centroid capacities, so the globally cheapest
+// assignment wins. A greedy version once stranded a point 0.49 from its
+// assigned color while its own color, 0.04 away, had filled up. `pinned[i]`,
+// when set, is the cluster point i must take (see clearStickerColors); the
+// rest share the capacity left over.
+//
+// The assignment is a transportation problem with k sinks. Points enter
+// one by one in index order; each entry follows the cheapest augmenting
+// path over the k clusters, where moving from cluster a to b costs the
+// least increase from displacing one member of a to b. Every step keeps
+// the assignment optimal for the points entered so far, so the final one
+// is optimal: the same minimum as expanding each centroid into `capacity`
+// slots and solving the square matching with hungarianAssignment (O(n^6)
+// for an NxN cube), in O(m^2 k) with small constants. Equal costs resolve
+// by strict comparisons: the lowest cluster index and the lowest member
+// index win, so the result is deterministic.
 let balancedAssign = (
   points: array<rgb>,
   centroids: array<rgb>,
@@ -93,31 +103,117 @@ let balancedAssign = (
   let capacity = Math.ceil(Int.toFloat(n) /. Int.toFloat(k))->Float.toInt
   let result = Array.make(~length=n, 0)
   let free = []
-  let slots = Array.make(~length=k, capacity)
+  let room = Array.make(~length=k, capacity)
   points->Array.forEachWithIndex((_, pi) =>
     switch pinned[pi]->Option.flatMap(Nullable.toOption) {
-    | Some(pin) if pin >= 0 && pin < k && slots->Array.getUnsafe(pin) > 0 =>
+    | Some(pin) if pin >= 0 && pin < k && room->Array.getUnsafe(pin) > 0 =>
       result->Array.setUnsafe(pi, pin)
-      slots->Array.setUnsafe(pin, slots->Array.getUnsafe(pin) - 1)
+      room->Array.setUnsafe(pin, room->Array.getUnsafe(pin) - 1)
     | _ => free->Array.push(pi)
     }
   )
-  let slotCluster = slots->Array.flatMapWithIndex((count, ci) => Array.make(~length=count, ci))
-  let totalSlots = Array.length(slotCluster)
-  let cost = free->Array.map(pi => {
+  let m = Array.length(free)
+  let infinity = Float.Constants.positiveInfinity
+  // A path must beat the current one by more than rounding noise, so a
+  // cycle of equal costs can never loop.
+  let epsilon = 1e-12
+  let dist = free->Array.map(pi => {
     let point = points->Array.getUnsafe(pi)
-    let distances = centroids->Array.map(centroid => clusterDistance(point, centroid))
-    slotCluster->Array.map(ci => distances->Array.getUnsafe(ci))
+    centroids->Array.map(centroid => clusterDistance(point, centroid))
   })
-  // Dummy rows cost nothing anywhere, so they take whichever leftover slots
-  // are cheapest to leave empty.
-  for _ in Array.length(free) to totalSlots - 1 {
-    cost->Array.push(Array.make(~length=totalSlots, 0.0))
+  let owner = Array.make(~length=m, -1)
+  let load = Array.make(~length=k, 0)
+  // move[a * k + b]: the least extra cost of sending one member of a to b,
+  // and which member; recomputed for clusters whose membership changed.
+  let move = Array.make(~length=k * k, infinity)
+  let mover = Array.make(~length=k * k, -1)
+  let dirty = Array.make(~length=k, false)
+  let refresh = a => {
+    for b in 0 to k - 1 {
+      move->Array.setUnsafe(a * k + b, infinity)
+      mover->Array.setUnsafe(a * k + b, -1)
+    }
+    for q in 0 to m - 1 {
+      if owner->Array.getUnsafe(q) == a {
+        let row = dist->Array.getUnsafe(q)
+        let own = row->Array.getUnsafe(a)
+        for b in 0 to k - 1 {
+          if b != a {
+            let extra = row->Array.getUnsafe(b) -. own
+            if extra < move->Array.getUnsafe(a * k + b) {
+              move->Array.setUnsafe(a * k + b, extra)
+              mover->Array.setUnsafe(a * k + b, q)
+            }
+          }
+        }
+      }
+    }
+    dirty->Array.setUnsafe(a, false)
   }
-  let slotAssignment = hungarianAssignment(cost)
-  free->Array.forEachWithIndex((pi, j) =>
-    result->Array.setUnsafe(pi, slotCluster->Array.getUnsafe(slotAssignment->Array.getUnsafe(j)))
-  )
+  let best = Array.make(~length=k, 0.0)
+  let via = Array.make(~length=k, -1)
+  for i in 0 to m - 1 {
+    for a in 0 to k - 1 {
+      if dirty->Array.getUnsafe(a) {
+        refresh(a)
+      }
+    }
+    let row = dist->Array.getUnsafe(i)
+    for a in 0 to k - 1 {
+      best->Array.setUnsafe(a, row->Array.getUnsafe(a))
+      via->Array.setUnsafe(a, -1)
+    }
+    // Bellman-Ford over the k clusters (no negative cycles: the
+    // assignment so far is optimal).
+    let changed = ref(true)
+    let rounds = ref(0)
+    while changed.contents && rounds.contents < k {
+      changed := false
+      rounds := rounds.contents + 1
+      for a in 0 to k - 1 {
+        for b in 0 to k - 1 {
+          let cost = move->Array.getUnsafe(a * k + b)
+          if b != a && cost < infinity {
+            let through = best->Array.getUnsafe(a) +. cost
+            if through < best->Array.getUnsafe(b) -. epsilon {
+              best->Array.setUnsafe(b, through)
+              via->Array.setUnsafe(b, a)
+              changed := true
+            }
+          }
+        }
+      }
+    }
+    // The cheapest cluster that still has room ends the path.
+    let target = ref(-1)
+    for a in 0 to k - 1 {
+      if load->Array.getUnsafe(a) < room->Array.getUnsafe(a) {
+        if (
+          target.contents < 0 || best->Array.getUnsafe(a) < best->Array.getUnsafe(target.contents)
+        ) {
+          target := a
+        }
+      }
+    }
+    // With capacity for every point a target always exists; the fallback
+    // only keeps a malformed call from looping.
+    let stop = target.contents < 0 ? 0 : target.contents
+    load->Array.setUnsafe(stop, load->Array.getUnsafe(stop) + 1)
+    let cluster = ref(stop)
+    let hops = ref(0)
+    while via->Array.getUnsafe(cluster.contents) >= 0 && hops.contents < k {
+      let from = via->Array.getUnsafe(cluster.contents)
+      let q = mover->Array.getUnsafe(from * k + cluster.contents)
+      owner->Array.setUnsafe(q, cluster.contents)
+      dirty->Array.setUnsafe(from, true)
+      dirty->Array.setUnsafe(cluster.contents, true)
+      cluster := from
+      hops := hops.contents + 1
+    }
+    owner->Array.setUnsafe(i, cluster.contents)
+    dirty->Array.setUnsafe(cluster.contents, true)
+  }
+  free->Array.forEachWithIndex((pi, i) => result->Array.setUnsafe(pi, owner->Array.getUnsafe(i)))
   result
 }
 
