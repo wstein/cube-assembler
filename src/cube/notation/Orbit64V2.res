@@ -64,13 +64,13 @@ let parts = (n, model, pose) => {
   ]->Array.flat
 }
 
-let cornerPermRadix = (n, pose) => Orbit64.factorial(storedCorners(n, pose))
+let cornerPermRadix = (n, pose) => Orbit64Coords.factorial(storedCorners(n, pose))
 let cornerTwistRadix = (n, pose) => 3n ** BigInt.fromInt(storedCorners(n, pose) - 1)
-let midgePermRadix = Orbit64.factorial(12) / 2n
+let midgePermRadix = Orbit64Coords.factorial(12) / 2n
 let flipRadix = 2n ** 11n
-let wingRadix = Orbit64.factorial(24)
-let colorCenterRadix = Orbit64.factorial(24) / Orbit64.factorial(4) ** 6n
-let pictureCenterRadix = Orbit64.factorial(24) / 2n
+let wingRadix = Orbit64Coords.factorial(24)
+let colorCenterRadix = Orbit64Coords.factorial(24) / Orbit64Coords.factorial(4) ** 6n
+let pictureCenterRadix = Orbit64Coords.factorial(24) / 2n
 
 let radix = (n, model, pose, part) =>
   switch part {
@@ -259,7 +259,7 @@ let layoutFault = (n, model, pose, cube) => {
 
 // The parity W_k of wing orbit k, zero when the cube has no wing orbit at depth k.
 let wingParity = (n, wings, k) =>
-  k >= 1 && k <= wingOrbits(n) ? Orbit64.permParity(wings->get(k - 1)) : 0
+  k >= 1 && k <= wingOrbits(n) ? Orbit64Coords.permParity(wings->get(k - 1)) : 0
 
 // The parity the index-th (from 1) center orbit must have in the picture
 // model: Z[r,c] = C + W_r + W_d with d = min(c, n - 1 - c).
@@ -271,7 +271,7 @@ let requiredCenterParity = (n, cornerParity, wings, index) => {
 
 // The laws index into the arrays, so they are only checked once the layout is sound.
 let lawFault = (n, model, pose, cube) => {
-  let c = Orbit64.permParity(cube.cornerPieces)
+  let c = Orbit64Coords.permParity(cube.cornerPieces)
   firstFault([
     (mod(sum(cube.cornerTwists), 3) == 0, "corner twists must sum to 0 mod 3"),
     (!odd(n) || mod(sum(cube.midgeFlips), 2) == 0, "midge flips must sum to 0 mod 2"),
@@ -279,7 +279,10 @@ let lawFault = (n, model, pose, cube) => {
       !dropsCorner(n, pose) || (cube.cornerPieces->get(6) == 6 && cube.cornerTwists->get(6) == 0),
       "a canonical even cube has its DBL corner home with twist 0",
     ),
-    (!odd(n) || Orbit64.permParity(cube.midgePieces) == c, "midge parity must equal corner parity"),
+    (
+      !odd(n) || Orbit64Coords.permParity(cube.midgePieces) == c,
+      "midge parity must equal corner parity",
+    ),
     (
       !(odd(n) && model == Picture) || mod(sum(cube.rotations), 2) == c,
       "fixed-center rotation parity must equal corner parity",
@@ -287,7 +290,7 @@ let lawFault = (n, model, pose, cube) => {
     (
       model == Color ||
         cube.centers->Array.everyWithIndex((orbit, i) =>
-          Orbit64.permParity(orbit) == requiredCenterParity(n, c, cube.wings, i + 1)
+          Orbit64Coords.permParity(orbit) == requiredCenterParity(n, c, cube.wings, i + 1)
         ),
       "a center orbit parity breaks the picture relation",
     ),
@@ -320,17 +323,17 @@ let rotationDigit = rotations =>
 
 let digitOf = (n, model, pose, cube, part) =>
   switch part {
-  | CornerPerm => Orbit64.permRank(storedPieces(n, pose, cube))
+  | CornerPerm => Orbit64Coords.permRank(storedPieces(n, pose, cube))
   | CornerTwist =>
     let twists = cornerSlots(n, pose)->Array.map(slot => cube.cornerTwists->get(slot))
-    Orbit64.orientationRank(twists, Array.length(twists) - 1, 3)
-  | MidgePerm => Orbit64.permRankWithParity(cube.midgePieces)
-  | MidgeFlip => Orbit64.orientationRank(cube.midgeFlips, 11, 2)
-  | Wing(i) => Orbit64.permRank(cube.wings->get(i - 1))
+    Orbit64Coords.orientationRank(twists, Array.length(twists) - 1, 3)
+  | MidgePerm => Orbit64Coords.permRankWithParity(cube.midgePieces)
+  | MidgeFlip => Orbit64Coords.orientationRank(cube.midgeFlips, 11, 2)
+  | Wing(i) => Orbit64Coords.permRank(cube.wings->get(i - 1))
   | Center(i) =>
     model == Color
-      ? Orbit64.centerRank(cube.centers->get(i - 1))
-      : Orbit64.permRankWithParity(cube.centers->get(i - 1))
+      ? Orbit64Coords.centerRank(cube.centers->get(i - 1))
+      : Orbit64Coords.permRankWithParity(cube.centers->get(i - 1))
   | FixedRot => rotationDigit(cube.rotations)
   | FrameDigit => big(cube.frame)
   }
@@ -381,17 +384,17 @@ let unrankState = (n, model, pose, value) => {
     | i => digits->get(i)
     }
   let stored = storedCorners(n, pose)
-  let pieces = Orbit64.permUnrank(digit(CornerPerm), stored)
-  let twists = Orbit64.orientationUnrank(digit(CornerTwist), stored - 1, 3)
+  let pieces = Orbit64Coords.permUnrank(digit(CornerPerm), stored)
+  let twists = Orbit64Coords.orientationUnrank(digit(CornerTwist), stored - 1, 3)
   let cornerPieces = dropsCorner(n, pose) ? restoreDbl(pieces, 6, true) : pieces
   let cornerTwists = dropsCorner(n, pose) ? restoreDbl(twists, 0, false) : twists
-  let c = Orbit64.permParity(cornerPieces)
-  let wings = range(wingOrbits(n))->Array.map(i => Orbit64.permUnrank(digit(Wing(i + 1)), 24))
+  let c = Orbit64Coords.permParity(cornerPieces)
+  let wings = range(wingOrbits(n))->Array.map(i => Orbit64Coords.permUnrank(digit(Wing(i + 1)), 24))
   let centers =
     range(Array.length(centerOrbits(n)))->Array.map(i =>
       model == Color
-        ? Orbit64.centerUnrank(digit(Center(i + 1)))
-        : Orbit64.permUnrankWithParity(
+        ? Orbit64Coords.centerUnrank(digit(Center(i + 1)))
+        : Orbit64Coords.permUnrankWithParity(
             digit(Center(i + 1)),
             24,
             requiredCenterParity(n, c, wings, i + 1),
@@ -400,8 +403,8 @@ let unrankState = (n, model, pose, value) => {
   {
     cornerPieces,
     cornerTwists,
-    midgePieces: odd(n) ? Orbit64.permUnrankWithParity(digit(MidgePerm), 12, c) : [],
-    midgeFlips: odd(n) ? Orbit64.orientationUnrank(digit(MidgeFlip), 11, 2) : [],
+    midgePieces: odd(n) ? Orbit64Coords.permUnrankWithParity(digit(MidgePerm), 12, c) : [],
+    midgeFlips: odd(n) ? Orbit64Coords.orientationUnrank(digit(MidgeFlip), 11, 2) : [],
     wings,
     centers,
     rotations: odd(n) && model == Picture ? unrankRotations(digit(FixedRot), c) : [],
@@ -468,7 +471,7 @@ let encodeOrbit64V2State = (id, cube) =>
       )
     | Some(entry) =>
       rankState(entry.n, entry.model, entry.pose, snapshot(cube))->Result.map(rank =>
-        Orbit64.toBase64(entry.offset + rank, entry.length)
+        Orbit64Coords.toBase64(entry.offset + rank, entry.length)
       )
     }
   } catch {
@@ -491,7 +494,9 @@ let decodeOrbit64V2State = token =>
       let length = String.length(token)
       // Only a token of a registered length is converted to a number.
       let value =
-        registry->Array.some(entry => entry.length == length) ? Orbit64.fromBase64(token) : None
+        registry->Array.some(entry => entry.length == length)
+          ? Orbit64Coords.fromBase64(token)
+          : None
       switch value {
       | None => Error(notAV2Token)
       | Some(value) =>

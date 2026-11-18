@@ -95,8 +95,13 @@ browser flows. Reviewed capture photos and metadata live in `test/fixtures/`
 and use Git LFS. Start with the [fixture guide](../test/fixtures/README.md)
 before adding one. The Orbit64 browser codec is adapted from
 `flix-orbit64` under [Apache-2.0](../third_party/flix-orbit64.LICENSE), with
-cross-project vectors in `test/cube/notation/orbit64Vectors.json` and
-`test/cube/notation/orbit64LargeVectors.json`.
+reference vectors from that project in `test/cube/notation/orbit64Vectors.json`
+and `test/cube/notation/orbit64LargeVectors.json`. Only the V2 format exists in
+the app: [`Orbit64Token.res`](../src/cube/notation/Orbit64Token.res) writes the
+color framed token of the notation card for sizes 2-15 and reads color tokens
+in the typed-input field. V2 reads the V1 tokens of sizes 2, 3, 4, 6 and 7 as
+color framed tokens at offset 0; the 43-character V1 token of a 5x5 cube is not
+read.
 
 The Orbit64 V2 state codec for 2x2-15x15 cubes
 ([`Orbit64V2.res`](../src/cube/notation/Orbit64V2.res)) works on orbit
