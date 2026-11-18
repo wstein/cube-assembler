@@ -70,11 +70,13 @@ describe('third-party licenses page', () => {
   it('states both licenses of the capture-recovery Core and which archive carries which', () => {
     const html = page().replace(/\s+/g, ' ')
     expect(html).toContain('EUPL-1.2 OR AGPL-3.0-or-later')
-    expect(html).toMatch(
-      /0\.3\.0\) — <a href="eupl-1\.2\.LICENSE">EUPL-1\.2<\/a>; the archive was distributed under EUPL-1\.2 only/,
+    expect(html).toContain('vendored archive 0.4.0')
+    expect(html).not.toContain('vendored archive 0.3.0')
+    expect(html).toContain(
+      '<code>EUPL-1.2 OR AGPL-3.0-or-later</code> at your choice (<a href="eupl-1.2.LICENSE">EUPL-1.2</a>, <a href="agpl-3.0.LICENSE">AGPL-3.0-or-later</a>)',
     )
     expect(html).toContain(
-      'href="agpl-3.0.LICENSE">AGPL-3.0-or-later</a>); archives 0.1.0 and 0.3.0 stay EUPL-1.2',
+      'Archives 0.1.0 and 0.3.0 were distributed under EUPL-1.2 only',
     )
     expect(html).toContain('CUBE_ASSEMBLER_LICENSE.txt')
   })
