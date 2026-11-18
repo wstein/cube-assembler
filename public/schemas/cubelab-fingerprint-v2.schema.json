@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://wstein.github.io/cube-assembler/schemas/cubelab-fingerprint-v2.schema.json",
   "title": "CubeAssembler CubeLab moves block v2",
-  "description": "The JSON inside <script type=\"application/json\" id=\"cubelab-moves\"> on the 3D cube view for cubes larger than 7x7: the cube size and the move history exactly as the Moves line shows it, in layer-prefix/v2 (layer numbers 2 to 15, one or two digits). Fields may be added without a new spec version, so readers ignore unknown fields.",
+  "description": "The JSON inside <script type=\"application/json\" id=\"cubelab-moves\"> on the 3D cube view: the cube size (2 to 15; the app writes v2 from size 8) and the move history exactly as the Moves line shows it, in layer-prefix/v2 (layer numbers 2 to 15, one or two digits). Fields may be added without a new spec version, so readers ignore unknown fields.",
   "type": "object",
   "required": ["size", "moves", "format"],
   "properties": {
