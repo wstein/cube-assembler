@@ -4,7 +4,13 @@ import {
   toURFFacelets,
   toWRGFacelets,
 } from '../cube/notation/NotationOutput.gen'
-import { encodeOrbit64State } from '../cube/notation/orbit64'
+import { encodeOrbit64Token } from '../cube/notation/orbit64Token'
+
+// The Orbit64 V2 state token of a cube of any size 2..15, or null when the
+// facelets form no valid cube state.
+export function orbit64TokenOf(cube: CubeState): string | null {
+  return encodeOrbit64Token(toURFFacelets(cube))
+}
 
 type NotationFormat = 'wrg' | 'urf'
 type CopyStatus =
@@ -40,8 +46,8 @@ export function NotationCard({
       : toURFFacelets(cube)
     : ''
   const orbit64Token = useMemo(
-    () => (cube && size <= 7 ? encodeOrbit64State(toURFFacelets(cube)) : null),
-    [cube, size],
+    () => (cube ? orbit64TokenOf(cube) : null),
+    [cube],
   )
   const copyToClipboard = async (
     value: string,

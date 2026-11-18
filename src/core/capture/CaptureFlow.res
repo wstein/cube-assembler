@@ -129,12 +129,12 @@ type parsedCube =
 // text where it can be, else the selected one is used.
 let parseCubeInput = (input, selectedFormat: NotationOutput.notationFormat) => {
   let trimmed = String.trim(input)
-  let isToken = Orbit64.looksLikeOrbit64StateToken(trimmed)
+  let isToken = Orbit64Token.looksLikeToken(trimmed)
   let format: NotationOutput.notationFormat = isToken
     ? Urf
     : NotationOutput.detectNotationFormat(input)->Null.toOption->Option.getOr(selectedFormat)
   let cube = if isToken {
-    Orbit64.decodeOrbit64State(trimmed)
+    Orbit64Token.decodeState(trimmed)
     ->Null.toOption
     ->Option.flatMap(facelets => NotationOutput.fromURFFacelets(facelets)->Null.toOption)
   } else {
@@ -148,7 +148,7 @@ let parseCubeInput = (input, selectedFormat: NotationOutput.notationFormat) => {
   | None =>
     Unreadable({
       message: isToken
-        ? "Invalid Orbit64 state token. Only canonical 2×2–7×7 state tokens are supported."
+        ? "Invalid Orbit64 state token. Only Orbit64 V2 color state tokens of 2×2–15×15 cubes are supported."
         : format == Wrg
         ? "Invalid facelets. Must be 6 space-separated blocks of equal, perfect-square length (9 for 3×3, 25 for 5×5, ...) using colors W, O, G, R, B, Y, in U R F D L B order."
         : "Invalid facelets. Must be 6 space-separated blocks of equal, perfect-square length (9 for 3×3, 25 for 5×5, ...) using letters U, R, F, D, L, B (the face each sticker matches when solved), in U R F D L B order.",
