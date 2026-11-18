@@ -112,10 +112,10 @@ describe("notation round trips", () => {
         scrambled,
         ((n, moves, _)) => {
           let facelets = NotationOutput.toURFFacelets(scramble(n, moves))
-          switch Orbit64.encodeOrbit64State(facelets)->Null.toOption {
+          switch Orbit64Token.encodeState(facelets)->Null.toOption {
           | Some(token) =>
-            Orbit64.looksLikeOrbit64StateToken(token) &&
-            Orbit64.decodeOrbit64State(token) == Null.make(facelets)
+            Orbit64Token.looksLikeToken(token) &&
+            Orbit64Token.decodeState(token) == Null.make(facelets)
           | None => false
           }
         },
