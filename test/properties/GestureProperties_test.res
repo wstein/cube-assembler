@@ -218,12 +218,14 @@ describe("zoom", () => {
   test(
     "always stays within the size's range",
     () =>
-      Fc.check(Fc.tuple2(num(-100.0, 100.0), Fc.integer({min: 2, max: 7})), ((zoom, size)) => {
+      Fc.check(Fc.tuple2(num(-100.0, 100.0), Fc.integer({min: 2, max: 15})), ((zoom, size)) => {
         let s = Int.toFloat(size)
         let clamped = CubeGesture.clampZoom(zoom, s)
         clamped >= 2.0 +. s &&
         clamped <= 8.0 +. s *. 3.0 &&
-        CubeGesture.clampZoom(clamped, s) == clamped
+        CubeGesture.clampZoom(clamped, s) == clamped &&
+        (// A zoom inside the range is kept as it is.
+        zoom < 2.0 +. s || zoom > 8.0 +. s *. 3.0 || clamped == zoom)
       }),
     60000,
   )
