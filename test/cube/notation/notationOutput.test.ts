@@ -193,7 +193,8 @@ describe('fromURFFacelets', () => {
 
 // Orbit64.Net's published state-token/facelet reference vectors use the same
 // U R F D L B boundary. Keep this conversion compatible even though this
-// browser app does not run the Flix token codec itself.
+// app runs a ReScript port of the V2 codec (Orbit64V2Facelets.res), not the
+// Flix reference.
 describe('Orbit64 facelet interchange', () => {
   const referenceFacelets = [
     'LFLD BLRD BLBU RFRR UUDU DFFB',

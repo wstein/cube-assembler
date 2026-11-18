@@ -1,18 +1,23 @@
 import { describe, expect, it } from 'vitest'
-import { parseCubeInput } from '../src/client/capture/captureFlow'
-import { orbit64TokenOf } from '../src/client/notationCard'
-import { createSolvedCube } from '../src/cube/cubeAssembly'
-import type { CubeState, FaceKey } from '../src/cube/cubeAssembly'
-import { applyCubeLayerMove } from '../src/cube/cubeMoves'
-import { toURFFacelets } from '../src/cube/notation/NotationOutput.gen'
+import { parseCubeInput } from '../../../src/client/capture/captureFlow'
+import { orbit64TokenOf } from '../../../src/client/notationCard'
+import { createSolvedCube } from '../../../src/cube/cubeAssembly'
+import type { CubeState, FaceKey } from '../../../src/cube/cubeAssembly'
+import { applyCubeLayerMove } from '../../../src/cube/cubeMoves'
+import { toURFFacelets } from '../../../src/cube/notation/NotationOutput.gen'
 import {
   decodeOrbit64Token,
   encodeOrbit64Token,
   looksLikeOrbit64Token,
-} from '../src/cube/notation/orbit64Token'
-import { decodeOrbit64V2State } from '../src/cube/notation/orbit64V2'
-import examples from './cube/notation/orbit64Vectors.json'
-import largeExamples from './cube/notation/orbit64LargeVectors.json'
+} from '../../../src/cube/notation/orbit64Token'
+import {
+  decodeOrbit64V2State,
+  encodeOrbit64V2State,
+  orbit64V2Entries,
+  orbit64V2Solved,
+} from '../../../src/cube/notation/orbit64V2'
+import examples from './orbit64Vectors.json'
+import largeExamples from './orbit64LargeVectors.json'
 
 const sizes = Array.from({ length: 14 }, (_, i) => i + 2)
 const faces: FaceKey[] = ['U', 'R', 'F', 'D', 'L', 'B']
@@ -90,6 +95,19 @@ describe('Orbit64 token in the UI layer, sizes 2 to 15', () => {
       .map((f) => f.repeat(256))
       .join(' ')
     expect(encodeOrbit64Token(sixteen)).toBeNull()
+  })
+
+  it('refuses a picture-model token and trims a color token', () => {
+    const picture = orbit64V2Entries.find(
+      (e) => e.n === 3 && e.model === 'Picture' && e.pose === 'Framed',
+    )
+    if (!picture) throw new Error('no picture entry')
+    const made = encodeOrbit64V2State(picture.id, orbit64V2Solved(3, 'Picture'))
+    if (made.TAG === 'Error') throw new Error(made._0)
+    expect(looksLikeOrbit64Token(made._0)).toBe(true)
+    expect(decodeOrbit64Token(made._0)).toBeNull()
+    const solved = toURFFacelets(createSolvedCube(3))
+    expect(decodeOrbit64Token(' AAAAAAAAAAAA ')).toBe(solved)
   })
 
   it('tells tokens from facelets', () => {
