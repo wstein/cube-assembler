@@ -1,4 +1,7 @@
 @genType let format: string
+@genType let formatV2: string
+@genType let maxSizeV1: int
+@genType let formatFor: int => string
 
 @genType
 type payload = {
