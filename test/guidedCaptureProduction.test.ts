@@ -32,7 +32,7 @@ const recordV2Guide = (slot: string, mirrored: boolean, retake: boolean) => {
   )
 }
 const slots = ['U', 'R', 'F', 'D', 'L', 'B']
-for (const size of [3, 5, 7])
+for (const size of ODD_SIZES)
   for (const mirrored of [false, true]) {
     it(`routes all six physical ${size}×${size} shots through captureStep with mirror=${mirrored}`, () => {
       let initial = solvedCubeFaces(size, {

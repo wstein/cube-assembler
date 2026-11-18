@@ -8,6 +8,7 @@ import {
   estimateTilt,
   findGridAlignment,
 } from '../src/client/vision/gridAlignment'
+import { ALL_SIZES } from './cubeSizes'
 import { placed, scene } from './syntheticFace'
 
 describe('findGridAlignment', () => {
@@ -90,7 +91,7 @@ describe('findGridAlignment', () => {
     })
   }
 
-  for (const gridSize of [2, 3, 4, 5, 7]) {
+  for (const gridSize of ALL_SIZES) {
     it(`finds a ${gridSize}x${gridSize} face held off-center and smaller than the guide`, () => {
       const guideSize = 300
       const width = Math.round(guideSize * 1.4)

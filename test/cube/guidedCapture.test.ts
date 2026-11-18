@@ -474,7 +474,7 @@ describe('center-routed capture slots', () => {
 })
 
 describe('findRepeatedFaces', () => {
-  for (const n of [2, 3, 4, 7]) {
+  for (const n of ALL_SIZES) {
     it(`finds a ${n}x${n} face photographed twice, even turned and (from 3x3 up) with a misread`, () => {
       const capture = photograph(
         scramble(n, 40, rng(20 + n)),
