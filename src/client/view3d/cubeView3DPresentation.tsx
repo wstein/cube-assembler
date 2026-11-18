@@ -41,6 +41,8 @@ interface CubeView3DPresentationProps {
   onToggleStickerless: () => void
   isRotating: boolean
   onToggleAutoRotate: () => void
+  turnSound: boolean
+  onToggleTurnSound: () => void
   // Whether a drag turns a layer; off, a drag only orbits the view.
   allowLayerMoves?: boolean
   layerMoves: boolean
@@ -77,6 +79,8 @@ export function CubeView3DPresentation({
   onToggleStickerless,
   isRotating,
   onToggleAutoRotate,
+  turnSound,
+  onToggleTurnSound,
   allowLayerMoves = true,
   layerMoves,
   onToggleLayerMoves,
@@ -339,6 +343,30 @@ export function CubeView3DPresentation({
                   />
                 </svg>{' '}
                 Move layers
+              </button>
+              <button
+                type="button"
+                class={`cube-3d-btn ${turnSound ? 'cube-3d-btn-active' : ''}`}
+                aria-pressed={turnSound}
+                onClick={onToggleTurnSound}
+              >
+                <svg
+                  viewBox="0 0 16 16"
+                  width="14"
+                  height="14"
+                  aria-hidden="true"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.6"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <path d="M2 6h2l4-3v10l-4-3H2z" />
+                  <path
+                    d={turnSound ? 'M11 5a4 4 0 0 1 0 6' : 'm11 6 4 4m0-4-4 4'}
+                  />
+                </svg>{' '}
+                Sound
               </button>
             </div>
           </div>
