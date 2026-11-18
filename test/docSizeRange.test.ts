@@ -20,6 +20,9 @@ const RANGE_FILES = [
 // "2×2–7×7", "2x2 to 7x7", "2×2 through 7×7": a range that ends below the maximum.
 const RANGE_END = /\b2\s*[x×]\s*2\s*(?:–|-|to|through)\s*(\d+)\s*[x×]\s*\d+/gi
 
+// "a cube up to 7×7": an upper bound below the maximum.
+const UP_TO = /\bup to\s*(\d+)\s*[x×]\s*\d+/gi
+
 describe('documented cube size range', () => {
   it('uses the supported maximum', () => {
     expect(maxSize).toBe(15)
@@ -27,7 +30,10 @@ describe('documented cube size range', () => {
 
   for (const file of RANGE_FILES) {
     it(`${file} states no range that ends below ${maxSize}`, () => {
-      const ends = [...read(file).matchAll(RANGE_END)].map((m) => Number(m[1]))
+      const text = read(file)
+      const ends = [...text.matchAll(RANGE_END), ...text.matchAll(UP_TO)].map(
+        (m) => Number(m[1]),
+      )
       expect(ends.filter((end) => end !== maxSize)).toEqual([])
     })
   }
