@@ -9,5 +9,6 @@ export {
   mergeCubes,
   replaceCubes,
   sampledSquares,
+  toggleSizeFilter,
   unusedCubes,
 } from '../../core/profiles/CubeProfileReview.gen'

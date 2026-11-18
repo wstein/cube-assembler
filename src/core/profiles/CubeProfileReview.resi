@@ -22,3 +22,4 @@ let deleteCubes: (ProfileSettings.profileSettings, array<string>) => ProfileSett
 
 @genType type square = {x: float, y: float, w: float, h: float}
 @genType let sampledSquares: (int, float, float) => array<square>
+@genType let toggleSizeFilter: (array<int>, int) => array<int>

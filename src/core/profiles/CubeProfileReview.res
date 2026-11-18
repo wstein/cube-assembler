@@ -204,3 +204,9 @@ let sampledSquares = (size, core, outer) => {
   }
   squares
 }
+
+// The size filter after the chip for `size` is clicked: added or removed, ascending.
+let toggleSizeFilter = (sizes, size) =>
+  (
+    sizes->Array.includes(size) ? sizes->Array.filter(s => s != size) : [...sizes, size]
+  )->Array.toSorted((a, b) => Int.toFloat(a - b))
