@@ -102,6 +102,7 @@ for (const size of Array.from({ length: 14 }, (_, i) => i + 2))
       }
       const seed = physicalSeed(photos, size)
       expect(seed.validation.valid).toBe(true)
+      expect(seed.canonicalTransform).not.toBeNull()
       expect(seed.validation.faces).toEqual(standardOrientation(original).faces)
       const found = generateForProtocol(photos, size, physicalProtocol)
       expect(found.baselineStatus).toBe('checked')

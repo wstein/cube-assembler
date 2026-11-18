@@ -325,7 +325,7 @@ describe('renaming profiles', () => {
       expect(CUBE_SIZES).toEqual(SIZES)
     })
 
-    it.each(SIZES)('has a read-only Generic %ix%i cube', (size) => {
+    it.each(SIZES)('has a read-only Generic size %i cube', (size) => {
       const cube = builtinCube(size)
       expect(cube).toMatchObject({
         id: `builtin-generic-${size}`,
@@ -354,22 +354,25 @@ describe('renaming profiles', () => {
       )
     })
 
-    it.each(SIZES)('saves, selects and reloads a custom %ix%i cube', (size) => {
-      const custom = {
-        id: `custom-${size}`,
-        name: `My ${size}×${size}`,
-        size,
-        sampling: { stickerCore: 0.5 },
-      }
-      const saved = saveCube(EMPTY_SETTINGS, custom)
-      expect(activeCube(saved, size)).toEqual(custom)
-      const reloaded = parseProfileSettings(JSON.parse(JSON.stringify(saved)))
-      expect(reloaded.cubes).toEqual([custom])
-      expect(activeCube(reloaded, size).id).toBe(custom.id)
-      expect(
-        selectCube(EMPTY_SETTINGS, builtinCube(size).id).activeCubeBySize,
-      ).toEqual({ [size]: builtinCube(size).id })
-    })
+    it.each(SIZES)(
+      'saves, selects and reloads a custom size %i cube',
+      (size) => {
+        const custom = {
+          id: `custom-${size}`,
+          name: `My ${size}×${size}`,
+          size,
+          sampling: { stickerCore: 0.5 },
+        }
+        const saved = saveCube(EMPTY_SETTINGS, custom)
+        expect(activeCube(saved, size)).toEqual(custom)
+        const reloaded = parseProfileSettings(JSON.parse(JSON.stringify(saved)))
+        expect(reloaded.cubes).toEqual([custom])
+        expect(activeCube(reloaded, size).id).toBe(custom.id)
+        expect(
+          selectCube(EMPTY_SETTINGS, builtinCube(size).id).activeCubeBySize,
+        ).toEqual({ [size]: builtinCube(size).id })
+      },
+    )
 
     it.each([1, 16, 100])('rejects a custom cube of size %i', (size) => {
       const custom = {
