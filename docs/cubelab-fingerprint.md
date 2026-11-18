@@ -47,7 +47,8 @@ gets the same id. The JSON is validated by
 [`cubelab-fingerprint-v1.schema.json`](https://wstein.github.io/cube-assembler/schemas/cubelab-fingerprint-v1.schema.json)
 (size 2 to 7) or
 [`cubelab-fingerprint-v2.schema.json`](https://wstein.github.io/cube-assembler/schemas/cubelab-fingerprint-v2.schema.json)
-(size 2 to 15; the app writes it from size 8) (source: `public/schemas/`). The text inside the element escapes `<` as
+(size 2 to 15; the app writes it from size 8); the sources are in
+`public/schemas/`. The text inside the element escapes `<` as
 `<`; `JSON.parse` returns the original characters.
 
 ## Move notation `layer-prefix/v1`
