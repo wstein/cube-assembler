@@ -113,9 +113,29 @@ describe('preference cookies', () => {
     expect(readSelection(cookies, COLOR_PROFILE_COOKIE)).toBe('colors/custom 1')
   })
 
+  it.each(Array.from({ length: 14 }, (_, i) => i + 2))(
+    'reads the supported cube-size cookie %i',
+    (size) => {
+      expect(selectedCubeSize(`${CUBE_SIZE_COOKIE}=${size}`)).toBe(size)
+    },
+  )
+
   it('ignores malformed or unsupported cube-size cookies', () => {
     expect(selectedCubeSize('')).toBeNull()
-    expect(selectedCubeSize(`${CUBE_SIZE_COOKIE}=8`)).toBeNull()
+    for (const value of [
+      '0',
+      '1',
+      '16',
+      '17',
+      '100',
+      '8.0',
+      '+8',
+      ' 8',
+      '8x',
+      'NaN',
+      '1e1',
+    ])
+      expect(selectedCubeSize(`${CUBE_SIZE_COOKIE}=${value}`), value).toBeNull()
     expect(selectedCubeSize(`${CUBE_SIZE_COOKIE}=02`)).toBeNull()
     expect(selectedCubeSize(`${CUBE_SIZE_COOKIE}=%GG`)).toBeNull()
     expect(

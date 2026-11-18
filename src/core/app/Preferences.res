@@ -75,8 +75,13 @@ let selectionCookie = (name, value) => `${name}=${encodeURIComponent(value)}; ${
 
 let selectedCubeSize = cookies =>
   switch readSelectionOption(cookies, cubeSizeCookie) {
-  | Some(("2" | "3" | "4" | "5" | "6" | "7") as value) => Null.make(Float.parseFloat(value))
-  | _ => Null.null
+  | Some(value) =>
+    switch Int.fromString(value) {
+    | Some(size) if Int.toString(size) == value && CubeSizeRange.isSupportedSize(size) =>
+      Null.make(Int.toFloat(size))
+    | _ => Null.null
+    }
+  | None => Null.null
   }
 
 type cubeView =
