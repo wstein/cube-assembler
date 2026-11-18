@@ -2,10 +2,11 @@
 
 [Open CubeAssembler](https://wstein.github.io/cube-assembler/). Scanning, review,
 assembly, and ZIP import/export run in the browser. Choose a cube size from 2×2
-through 15×15 before taking photos. Face detection has been tested on real photos
-of 3×3, 4×4, 5×5 and 7×7 cubes. For 8×8 to 15×15 it has been measured only on
-synthetic images: colors are read correctly, but a tilted face on a large cube
-is detected less often, so hold the face upright.
+through 15×15 before taking photos. Face detection has been tested on real camera
+photos of 2×2, 3×3, 4×4, 5×5 and 7×7 cubes. Sizes 6 and 8 to 15 have only
+synthetic images, and only sizes 8, 9, 10, 12 and 15 were measured. Upright
+faces are mostly found and read correctly; from 9×9 on, a tilted face often
+loses the grid or shifts it, which gives wrong colors. Hold the face upright.
 
 ## Scan a cube
 
