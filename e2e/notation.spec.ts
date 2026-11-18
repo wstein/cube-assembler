@@ -62,3 +62,45 @@ test('typing colors does not change the saved notation format', async ({
     'cube-assembler-notation=wrg',
   )
 })
+
+// Token width of each size (Orbit64 V2 color framed).
+const tokenWidths: [number, number][] = [
+  [8, 122],
+  [9, 155],
+  [10, 195],
+  [11, 237],
+  [12, 285],
+  [13, 336],
+  [14, 393],
+  [15, 452],
+]
+
+for (const [size, width] of tokenWidths) {
+  test(`shows and reads an Orbit64 token of a ${size}x${size} cube`, async ({
+    page,
+  }) => {
+    const errors: Error[] = []
+    page.on('pageerror', (error) => errors.push(error))
+    await page.goto('/')
+    await page.getByRole('button', { name: 'Type colors' }).click()
+    const facelets = ['U', 'R', 'F', 'D', 'L', 'B']
+      .map((face) => face.repeat(size * size))
+      .join(' ')
+    const input = page.getByRole('textbox', { name: /facelets/i })
+    await input.fill(facelets)
+    await page.getByRole('button', { name: 'Apply Facelets' }).click()
+    const notation = page.getByRole('textbox', { name: 'Notation' })
+    await expect(notation).toHaveValue(facelets)
+    const token = page.locator('.orbit64-token-row code')
+    await expect(token).toHaveText(/^[A-Za-z0-9_-]+$/)
+    const value = await token.innerText()
+    expect(value).toHaveLength(width)
+
+    // Reading the token back gives the same facelets.
+    await page.getByRole('button', { name: 'Type colors' }).click()
+    await input.fill(value)
+    await page.getByRole('button', { name: 'Apply Facelets' }).click()
+    await expect(notation).toHaveValue(facelets)
+    expect(errors).toEqual([])
+  })
+}
