@@ -33,7 +33,8 @@ New metadata and the checked-in fixtures point `$schema` to the
 [published fixture metadata schema](https://wstein.github.io/cube-assembler/schemas/fixture-meta-v1.schema.json).
 Editors can use it to check required fields and photo references. The app also
 checks that each facelet block has exactly `gridSize²` stickers. Older fixture
-files without `$schema` remain importable.
+files without `$schema` remain importable. The schema accepts cube sizes 2
+to 15 (up to 225 sticker letters per facelet block); older files stay valid.
 
 The optional server listens on `127.0.0.1:7100` and accepts one multipart
 `POST /upload` with a `name` field and seven `file` parts (one `meta.json`
