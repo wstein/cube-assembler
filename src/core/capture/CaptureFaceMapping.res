@@ -111,8 +111,9 @@ let assignMapping = (mapping: mapping, slot, target) =>
 let validateMapping = (captured: Dict.t<grid>, mapping: mapping, size): validation => {
   let issues = []
   if !CubeSizeRange.isSupportedSize(size) {
+    let (lo, hi) = (CubeSizeRange.minCubeSize, CubeSizeRange.maxCubeSize)
     issues->Array.push(
-      `Manual face mapping supports sizes ${Int.toString(CubeSizeRange.minCubeSize)} through ${Int.toString(CubeSizeRange.maxCubeSize)}.`,
+      `Manual face mapping supports sizes ${Int.toString(lo)} through ${Int.toString(hi)}.`,
     )
   }
   if Array.length(mapping) != 6 {
