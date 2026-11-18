@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { createSolvedCube } from '../src/cube/cubeAssembly'
+import { ALL_SIZES } from './cubeSizes'
 import {
   applyCubeMove,
   applyCubeLayerMove,
@@ -352,7 +353,7 @@ describe('cubeView3D math and geometry', () => {
       return best
     }
 
-    for (const n of [3, 7])
+    for (const n of [3, 7, 8, 15])
       for (const stickerless of [true, false])
         it(`closes every junction of four cubies on a ${n}x${n} (${stickerless ? 'stickerless' : 'stickered'})`, () => {
           const mesh = buildCubeMesh(
@@ -697,8 +698,8 @@ describe('cubeView3D math and geometry', () => {
       expect(applyCubeLayerMove(turned, 5, 'R', 3, -1)).toEqual(solved)
     })
 
-    it('roundtrips every inner slice on 4x4 through 7x7 cubes', () => {
-      for (let size = 4; size <= 7; size++) {
+    it('roundtrips every inner slice on 4x4 through 15x15 cubes', () => {
+      for (const size of ALL_SIZES.filter((n) => n >= 4)) {
         const solved = createSolvedCube(size)
         for (let depth = 2; depth < size; depth++) {
           const turned = applyCubeLayerMove(solved, size, 'U', depth, 1)
@@ -721,9 +722,9 @@ describe('cubeView3D math and geometry', () => {
 
     it('scales scramble length and layer depths to the cube size', () => {
       const lengths = [11, 20, 40, 60, 80, 100]
-      for (let size = 2; size <= 7; size++) {
+      for (const size of ALL_SIZES) {
         const moves = generateScrambleMoves(size)
-        expect(moves).toHaveLength(lengths[size - 2])
+        if (size <= 7) expect(moves).toHaveLength(lengths[size - 2])
         expect(
           moves.every(
             (move) => move.depth >= 1 && move.depth <= Math.floor(size / 2),
@@ -736,6 +737,18 @@ describe('cubeView3D math and geometry', () => {
           expect(axis(moves[i].face)).not.toBe(axis(moves[i - 1].face))
         }
       }
+    })
+
+    // Known gap: the length table (CubeMoves.res scrambleLengths) ends at 7x7
+    // and every larger size falls back to 20 moves, fewer than a 3x3 gets. The
+    // test turns red once the table or a formula covers 8 to 15, so this
+    // marker cannot go stale. The target lengths are an owner decision.
+    it.fails('scrambles a size above 7 at least as long as the 7x7', () => {
+      for (const size of ALL_SIZES.filter((n) => n > 7))
+        expect(
+          generateScrambleMoves(size).length,
+          `${size}x${size}`,
+        ).toBeGreaterThanOrEqual(100)
     })
 
     it('builds mesh with animated turning layer rotated properly without crashing', () => {
@@ -850,5 +863,72 @@ describe('cubeView3D math and geometry', () => {
         mesh.colors.some((color) => Math.abs(color - 185 / 255) < 1e-5),
       ).toBe(true)
     })
+  })
+})
+
+describe('cubeView3D for every size from 2 to 15', () => {
+  const meshes = new Map<string, ReturnType<typeof buildCubeMesh>>()
+  const meshOf = (size: number, stickerless: boolean) => {
+    const key = `${size}/${stickerless}`
+    let mesh = meshes.get(key)
+    if (!mesh) {
+      mesh = buildCubeMesh(createSolvedCube(size), size, undefined, stickerless)
+      meshes.set(key, mesh)
+    }
+    return mesh
+  }
+
+  for (const size of ALL_SIZES)
+    for (const stickerless of [true, false])
+      it(`builds a closed index buffer for ${size}x${size} (${stickerless ? 'stickerless' : 'stickered'})`, () => {
+        const mesh = meshOf(size, stickerless)
+        expect(mesh.vertexCount).toBeGreaterThan(0)
+        expect(mesh.indexCount).toBeGreaterThan(0)
+        expect(mesh.indexCount % 3).toBe(0)
+        let highest = 0
+        for (const index of mesh.indices) highest = Math.max(highest, index)
+        expect(highest).toBeLessThan(mesh.vertexCount)
+        // 16-bit indices hold up to 65535 vertices; larger meshes (stickered
+        // 9x9 and up) need 32-bit indices, which the renderer draws as such.
+        expect(mesh.indices instanceof Uint32Array).toBe(
+          mesh.vertexCount > 65535,
+        )
+        if (mesh.vertexCount > 65535) expect(highest).toBeGreaterThan(65535)
+        // One position, color and occlusion value per vertex.
+        expect(mesh.positions.length).toBe(mesh.vertexCount * 3)
+        expect(mesh.occlusion.length).toBe(mesh.vertexCount)
+      })
+
+  it('adds geometry with every size', () => {
+    for (const size of ALL_SIZES.slice(1))
+      expect(meshOf(size, false).vertexCount).toBeGreaterThan(
+        meshOf(size - 1, false).vertexCount,
+      )
+  })
+
+  it('zooms out as the cube grows and stays finite', () => {
+    let previous = 0
+    for (const size of ALL_SIZES) {
+      const zoom = getDefaultZoom(size)
+      expect(Number.isFinite(zoom)).toBe(true)
+      expect(zoom).toBeGreaterThan(previous)
+      previous = zoom
+    }
+  })
+
+  it('turns exactly the chosen layer: one column of the top face takes the front color', () => {
+    for (const size of ALL_SIZES) {
+      const solved = createSolvedCube(size)
+      for (let depth = 1; depth < size; depth++) {
+        // A single R slice at `depth` moves the front stickers of that column
+        // up; the top face is white elsewhere.
+        const turned = applyCubeLayerMove(solved, size, 'R', depth, 1, 1)
+        const column = size - depth
+        for (let i = 0; i < size * size; i++)
+          expect(turned.u[i], `${size}x${size} depth ${depth} cell ${i}`).toBe(
+            i % size === column ? 'G' : 'W',
+          )
+      }
+    }
   })
 })
