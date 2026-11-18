@@ -167,6 +167,6 @@ Typing facelets never changes the format the notation panel shows: that is the
 **Colors (WRG)** / **Faces (URF)** switch on the panel (faces by default), also
 set on the settings page. Input made only of R and B letters fits both formats
 and is read in that saved format. The notation panel can also
-copy an [Orbit64.Net](https://github.com/wstein/flix-orbit64/blob/main/FORMAT.md#spaced-facelet-reference-vectors)
-compact state token (format V2) for 2×2–15×15. Paste facelets or a state token into **Type
+copy an [Orbit64](https://github.com/wstein/flix-orbit64/blob/main/FORMAT-V2.md)
+compact state token for 2×2–15×15. Paste facelets or a state token into **Type
 colors**; move and algorithm tokens are separate formats and are not accepted.
