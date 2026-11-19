@@ -212,7 +212,13 @@
   color: var(--color-text-secondary);
 }
 
-/* PuzlWerk viewer spike: its canvas fills the same backdrop box as the existing canvas. */
+/* PuzlWerk viewer: the stage host fills the backdrop box (the overlay hints sit beside it), its canvas fills the host. */
+.cube-3d-puzlwerk {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
 .cube-3d-puzlwerk canvas {
   width: 100%;
   height: 100%;

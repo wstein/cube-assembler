@@ -189,6 +189,7 @@ export function CubeDisplayCard({
                 palette: stickerColors,
               })}
               colorFrame={mainFrame}
+              main
             />
           ) : (
             <CubeView3D
