@@ -32,6 +32,7 @@ import { applyConstruction, mountMainPlay, type MainPlay } from './puzlwerkPlay'
 import { arrowOrientation, keyPreset } from './puzlwerkBars'
 import { PuzlwerkToolbar } from './puzlwerkToolbar'
 import { usePuzlwerkTurns } from './usePuzlwerkTurns'
+import { useTurnSound } from './turnSound'
 import { resetDisabled, undoDisabled } from './cubeToolbarSections'
 import type { CubeTurn } from './cubeView3DState'
 import {
@@ -133,6 +134,7 @@ export function PuzlwerkCubeView({
     playInputsRef.current = { palette, seamWide: hints.seamWide }
     turns.invalidate()
   }
+  const [turnSound, toggleTurnSound] = useTurnSound()
   const turnsRef = useRef(turns)
   turnsRef.current = turns
   // The display orientation the stage reported last, for the arrow keys.
@@ -397,6 +399,8 @@ export function PuzlwerkCubeView({
           onToggleAutoRotate={() => setAutoRotate((value) => !value)}
           layerMoves={layerMoves}
           onToggleLayerMoves={() => setLayerMoves((value) => !value)}
+          turnSound={turnSound}
+          onToggleTurnSound={toggleTurnSound}
           cube={{
             isScrambling: turns.scrambling,
             onToggleScramble: turns.toggleScramble,

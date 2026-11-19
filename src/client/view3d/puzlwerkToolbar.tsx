@@ -1,6 +1,6 @@
 // The controls under the stage of the main 3D view on the PuzlWerk viewer, with the classes and markup of
 // the existing toolbar: the FACES presets, the CUBE group (scramble, random state, undo, reset), the move
-// history and the Stickerless, Auto-rotate and Move layers toggles. The CUBE group and the history are the
+// history and the Stickerless, Auto-rotate, Move layers and Sound toggles. The CUBE group and the history are the
 // parts the existing view shares (cubeToolbarSections.tsx); their state is held by usePuzlwerkTurns.ts.
 import type { ViewPreset } from '@puzlwerk/viewer'
 import {
@@ -10,6 +10,7 @@ import {
 } from './cubeToolbarSections'
 import type { CubeTurn } from './cubeView3DState'
 import { autoRotateLabel, FACE_BUTTONS, stickerlessLabel } from './puzlwerkBars'
+import { TurnSoundButton } from './turnSound'
 
 export interface PuzlwerkToolbarProps {
   onPreset: (preset: ViewPreset) => void
@@ -19,6 +20,8 @@ export interface PuzlwerkToolbarProps {
   onToggleAutoRotate: () => void
   layerMoves: boolean
   onToggleLayerMoves: () => void
+  turnSound: boolean
+  onToggleTurnSound: () => void
   // The CUBE group, and the moves and size of the history under it.
   cube: CubeActionsSectionProps
   moves: CubeTurn[]
@@ -33,6 +36,8 @@ export function PuzlwerkToolbar({
   onToggleAutoRotate,
   layerMoves,
   onToggleLayerMoves,
+  turnSound,
+  onToggleTurnSound,
   cube,
   moves,
   size,
@@ -100,6 +105,7 @@ export function PuzlwerkToolbar({
           </svg>{' '}
           Move layers
         </button>
+        <TurnSoundButton on={turnSound} onToggle={onToggleTurnSound} />
       </div>
     </div>
   )
