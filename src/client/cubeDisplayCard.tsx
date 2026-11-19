@@ -17,10 +17,20 @@ import {
   type colorFrame as ColorFrame,
 } from '../core/view/AxisGizmo.gen'
 import { CubeNetView } from './cubeNetView'
+import {
+  mainViewerKind,
+  puzlwerkMainViewProps,
+} from './view3d/puzlwerkMainView'
 
-const MainCubeView = lazy(() =>
-  import('./view3d/cubeView3DChoice').then((module) => ({
-    default: module.MainCubeView,
+const CubeView3D = lazy(() =>
+  import('./view3d/cubeView3D').then((module) => ({
+    default: module.CubeView3D,
+  })),
+)
+// Only requested with `?viewer=puzlwerk`.
+const PuzlwerkCubeView = lazy(() =>
+  import('./view3d/puzlwerkCubeView').then((module) => ({
+    default: module.PuzlwerkCubeView,
   })),
 )
 
@@ -92,6 +102,10 @@ export function CubeDisplayCard({
   const shownVisible = useMemo(
     () => presentationCube(visibleCube, size, displayRecovery),
     [visibleCube, size, displayRecovery],
+  )
+  const mainFrame = presentationColorFrame(
+    initialFrame ?? initialColorFrame(sourceCube, size),
+    displayRecovery,
   )
   const captureInitial = recovery
     ? validateMapping(
@@ -166,27 +180,36 @@ export function CubeDisplayCard({
             </div>
           }
         >
-          <MainCubeView
-            cube={shownSource}
-            initialCube={shownVisible}
-            initialMoves={presentationMoves(initialMoves, displayRecovery)}
-            initialFrame={presentationColorFrame(
-              initialFrame ?? initialColorFrame(sourceCube, size),
-              displayRecovery,
-            )}
-            publicMoves={(moves) =>
-              presentationMoves(moves, displayRecovery, true)
-            }
-            onTurnStateChange={(value, moves, frame) =>
-              onTurnStateChange(
-                presentationCube(value, size, displayRecovery, true),
-                presentationMoves(moves, displayRecovery, true),
-                presentationColorFrame(frame, displayRecovery, true),
-              )
-            }
-            puzzleSize={size}
-            palette={stickerColors}
-          />
+          {mainViewerKind(window.location.search) === 'puzlwerk' ? (
+            <PuzlwerkCubeView
+              {...puzlwerkMainViewProps({
+                cube: shownSource,
+                initialCube: shownVisible,
+                puzzleSize: size,
+                palette: stickerColors,
+              })}
+              colorFrame={mainFrame}
+            />
+          ) : (
+            <CubeView3D
+              cube={shownSource}
+              initialCube={shownVisible}
+              initialMoves={presentationMoves(initialMoves, displayRecovery)}
+              initialFrame={mainFrame}
+              publicMoves={(moves) =>
+                presentationMoves(moves, displayRecovery, true)
+              }
+              onTurnStateChange={(value, moves, frame) =>
+                onTurnStateChange(
+                  presentationCube(value, size, displayRecovery, true),
+                  presentationMoves(moves, displayRecovery, true),
+                  presentationColorFrame(frame, displayRecovery, true),
+                )
+              }
+              puzzleSize={size}
+              palette={stickerColors}
+            />
+          )}
         </Suspense>
       ) : (
         <CubeNetView
