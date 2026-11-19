@@ -37,6 +37,10 @@ const WORDS = [
   'fourteen',
   'fifteen',
 ]
+// A line that states a true bound for something other than the cube size
+// range (for example a solver engine limit) carries this marker with a
+// reason: `<!-- size-range-ok: solver engines -->`. The test skips the line.
+const ALLOW = 'size-range-ok:'
 
 // Upper bounds below the maximum, in the forms the docs use:
 // "2×2–7×7", "2×2—7×7", "4x4 to 7x7", "5×5 through 7×7"
@@ -59,7 +63,11 @@ const WORD_RANGE = new RegExp(
 // "6×6 and 7×7" (a pair, not a list item after a comma)
 const PAIR = new RegExp(String.raw`(?<!,\s)\b${SIZE}\s+and\s+${SIZE}`, 'gi')
 
-const upperBounds = (text: string): number[] => {
+const upperBounds = (source: string): number[] => {
+  const text = source
+    .split('\n')
+    .filter((line) => !line.includes(ALLOW))
+    .join('\n')
   return [
     ...[...text.matchAll(RANGE_END)].map((m) => Number(m[2])),
     ...[...text.matchAll(UP_TO)].map((m) => Number(m[1])),
@@ -98,5 +106,13 @@ describe('upper bound detection', () => {
     expect(upperBounds('two to seven')).toEqual([7])
     expect(upperBounds('sizes Two through Seven')).toEqual([7])
     expect(upperBounds('from two to fifteen cubes')).toEqual([15])
+  })
+
+  it('skips a line that carries the allow marker', () => {
+    const marked =
+      'The solver engines cover 2..7 <!-- size-range-ok: solver -->'
+    expect(upperBounds(marked)).toEqual([])
+    expect(upperBounds(`${marked}\nup to 7×7`)).toEqual([7])
+    expect(upperBounds('The solver engines cover 2..7')).toEqual([7])
   })
 })
