@@ -100,6 +100,17 @@ test('a drag while layer moves are locked explains the lock', async ({
   const cy = bounds.y + bounds.height / 2
   await page.mouse.move(cx, cy)
   await page.mouse.down()
+  // A press that has not moved the start distance shows nothing yet; the drag then does.
+  await page.mouse.move(cx + 4, cy)
+  // Two frames later, a hint shown by that move would be in the DOM; a one-shot count, as `toHaveCount`
+  // would wait for the hint to expire.
+  await page.evaluate(
+    () =>
+      new Promise((resolve) =>
+        requestAnimationFrame(() => requestAnimationFrame(resolve)),
+      ),
+  )
+  expect(await status.count()).toBe(0)
   await page.mouse.move(cx + 60, cy, { steps: 6 })
   await expect(status).toBeVisible()
   await page.mouse.up()
