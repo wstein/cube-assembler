@@ -408,3 +408,81 @@ describe('balancedAssign tie rule', () => {
     expect(balancedAssign(points, [near, far], [])).toEqual([1, 0, 0])
   })
 })
+
+describe('learnStickerColors pair splitting', () => {
+  // A capture where half of each color's stickers are in shadow: Lloyd's
+  // iterations can leave two colors shared by two clusters, and
+  // splitMixedPairs re-splits each pair from its two farthest members. The
+  // seeds come from the Oklab values cached per member, so a wrong member
+  // index or a swapped seed order changes the learned colors. The expected
+  // colors are what the implementation before the Oklab cache (d4d4463)
+  // returns for the same samples.
+  function shadowedCapture(seed: number) {
+    const rand = lcg(seed)
+    const n = 3 + (seed % 3)
+    const dark = 0.35 + rand() * 0.4
+    const samples: Array<{ rgb: RGB; colorGuess: string }> = []
+    for (const name of NAMES)
+      for (let i = 0; i < n * n; i++) {
+        const factor = rand() < 0.5 ? 1 : dark
+        const base = STICKER_COLORS[name]
+        const q = (v: number) =>
+          Math.max(
+            0,
+            Math.min(255, Math.round(v * factor + (rand() - 0.5) * 30)),
+          )
+        samples.push({
+          rgb: { r: q(base.r), g: q(base.g), b: q(base.b) },
+          colorGuess: name,
+        })
+      }
+    return samples
+  }
+
+  const cases: Array<[number, Record<string, RGB>]> = [
+    [
+      12,
+      {
+        W: { r: 251, g: 251, b: 200 },
+        Y: { r: 170, g: 164, b: 76 },
+        B: { r: 2, g: 4, b: 193 },
+        G: { r: 27, g: 117, b: 3 },
+        O: { r: 255, g: 101, b: 4 },
+        R: { r: 140, g: 40, b: 2 },
+      },
+    ],
+    [
+      15,
+      {
+        O: { r: 152, g: 113, b: 72 },
+        W: { r: 250, g: 254, b: 185 },
+        B: { r: 2, g: 3, b: 194 },
+        R: { r: 150, g: 24, b: 3 },
+        G: { r: 3, g: 103, b: 5 },
+        Y: { r: 255, g: 157, b: 5 },
+      },
+    ],
+    [
+      18,
+      {
+        O: { r: 149, g: 111, b: 62 },
+        W: { r: 250, g: 254, b: 199 },
+        Y: { r: 205, g: 148, b: 3 },
+        R: { r: 150, g: 25, b: 3 },
+        B: { r: 4, g: 0, b: 179 },
+        G: { r: 4, g: 99, b: 2 },
+      },
+    ],
+  ]
+
+  for (const [seed, expected] of cases) {
+    it(`seed ${seed}: learned colors match the uncached implementation`, () => {
+      const learned = learnStickerColors(
+        shadowedCapture(seed),
+        STICKER_COLORS,
+        [],
+      )
+      expect(learned!.colors).toEqual(expected)
+    })
+  }
+})
