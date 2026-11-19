@@ -288,3 +288,33 @@ test('Reset and Random State during a scramble leave no move behind', async ({
   }
   expect(left).toEqual([])
 })
+
+// A new source of the same size ("Solved cube") while a scramble step plays: the step may end between the
+// render that brings the source and its effect. It must leave no move and no unsolved cube in the app.
+test('Solved cube during a scramble leaves the app cube solved', async ({
+  page,
+  context,
+}) => {
+  test.setTimeout(240_000)
+  await context.addCookies([
+    { name: 'cube-assembler-turn-ms', value: '200', url: base() },
+    { name: 'cube-assembler-view-help', value: '0', url: base() },
+  ])
+  await openMainView(page, 5)
+  const notation = page.getByRole('textbox', { name: 'Notation' })
+  const solved = await notation.inputValue()
+  const left: string[] = []
+  for (let i = 0; i < 14; i += 1) {
+    await button(page, 'Scramble').click()
+    await expect.poll(() => moveCount(page)).toBeGreaterThan(0)
+    await page.waitForTimeout(13 * (i % 12))
+    await page.getByRole('button', { name: 'Solved cube' }).click()
+    await page.waitForTimeout(800)
+    const text = (await history(page).innerText()).trim()
+    const now = await notation.inputValue()
+    if (text !== 'Moves: None' || now !== solved)
+      left.push(`${i}: ${text}, notation solved: ${now === solved}`)
+    if (await button(page, 'Stop').count()) await button(page, 'Stop').click()
+  }
+  expect(left).toEqual([])
+})

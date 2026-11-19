@@ -30,7 +30,11 @@ function controlledPlay() {
 
 const settle = () => new Promise<void>((resolve) => setTimeout(resolve, 0))
 
-function setup(size = 3, moves: CubeTurn[] = []) {
+function setup(
+  size = 3,
+  moves: CubeTurn[] = [],
+  renderOptions: { deferEffects?: boolean } = {},
+) {
   const source = createSolvedCube(size)
   const { play, calls } = controlledPlay()
   const onChange = vi.fn()
@@ -46,7 +50,9 @@ function setup(size = 3, moves: CubeTurn[] = []) {
   const hook = renderHook(
     (p: PuzlwerkTurnsOptions) => usePuzlwerkTurns(p),
     base,
+    renderOptions,
   )
+  hook.flushEffects()
   return { hook, calls, onChange, source, options, base, play }
 }
 
@@ -190,6 +196,50 @@ describe('a turn that ends after the shown cube changed is dropped', () => {
     hook.flush()
     expect(onChange).toHaveBeenCalledTimes(1)
     expect(hook.result.current.state.moves).toEqual([])
+  })
+})
+
+describe('between the render of a new source and its effect', () => {
+  // Preact runs effects after the paint: a step can end after the render that brought the new source.
+  it('drops a turn that ends there, for a source of the same size', async () => {
+    const { hook, calls, onChange, options } = setup(5, [], {
+      deferEffects: true,
+    })
+    hook.result.current.toggleScramble()
+    const next = createSolvedCube(5)
+    hook.rerender(options({ source: next }))
+    calls[0].end(true)
+    await settle()
+    hook.flushEffects()
+    hook.flush()
+    hook.flushEffects()
+    expect(hook.result.current.state.cube).toBe(next)
+    expect(hook.result.current.state.moves).toEqual([])
+    expect(onChange).not.toHaveBeenCalled()
+  })
+
+  it('keeps a turn that ends after a render with the same source', async () => {
+    const { hook, calls, onChange, options } = setup(5, [], {
+      deferEffects: true,
+    })
+    hook.result.current.toggleScramble()
+    hook.rerender(options())
+    calls[0].end(true)
+    await settle()
+    hook.flush()
+    expect(hook.result.current.state.moves).toHaveLength(1)
+    expect(onChange).toHaveBeenCalledTimes(1)
+  })
+
+  it('drops a turn when the view asks for it (another player is made for the cube)', async () => {
+    const { hook, calls, onChange } = setup(5)
+    hook.result.current.toggleScramble()
+    hook.result.current.invalidate()
+    calls[0].end(true)
+    await settle()
+    hook.flush()
+    expect(hook.result.current.state.moves).toEqual([])
+    expect(onChange).not.toHaveBeenCalled()
   })
 })
 

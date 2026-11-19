@@ -69,7 +69,12 @@ export function useEffect(
   }
 }
 
-export function renderHook<P, R>(hook: (props: P) => R, first: P) {
+// `deferEffects`: effects wait for `flushEffects()`, as in preact, where they run after the paint.
+export function renderHook<P, R>(
+  hook: (props: P) => R,
+  first: P,
+  options: { deferEffects?: boolean } = {},
+) {
   const ctx: Context = { slots: [], index: 0, dirty: false, pending: [] }
   const result = { current: undefined as unknown as R }
   const render = (props: P) => {
@@ -81,6 +86,9 @@ export function renderHook<P, R>(hook: (props: P) => R, first: P) {
     } finally {
       active = null
     }
+    if (!options.deferEffects) runEffects()
+  }
+  const runEffects = () => {
     const pending = ctx.pending
     ctx.pending = []
     for (const { slot, run } of pending) {
@@ -97,6 +105,8 @@ export function renderHook<P, R>(hook: (props: P) => R, first: P) {
       props = next
       render(props)
     },
+    // Runs the effects of the last render (with `deferEffects`).
+    flushEffects: runEffects,
     // Renders again while state changes are pending.
     flush() {
       for (let i = 0; i < 20 && ctx.dirty; i += 1) render(props)

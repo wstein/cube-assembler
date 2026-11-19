@@ -65,6 +65,14 @@ export function usePuzlwerkTurns({
   const sizeRef = useRef(size)
   if (sizeRef.current !== size) generationRef.current += 1
   sizeRef.current = size
+  // A new source counts from the render that brings it, not from its effect, which preact runs after the
+  // paint: a step ending in between would else be recorded on the new source. Compared by identity, so a
+  // repeated render of the same source changes nothing.
+  const renderedSourceRef = useRef(source)
+  if (renderedSourceRef.current !== source) {
+    renderedSourceRef.current = source
+    generationRef.current += 1
+  }
   const sourceRef = useRef(source)
   const onChangeRef = useRef(onTurnStateChange)
   onChangeRef.current = onTurnStateChange
@@ -184,6 +192,11 @@ export function usePuzlwerkTurns({
   return {
     state,
     stateRef,
+    // The view makes another player for the cube held (a new palette or seam setting): a turn the old one
+    // is playing is dropped, so the new player, made from the held state, shows what the app holds.
+    invalidate: () => {
+      generationRef.current += 1
+    },
     epoch,
     scrambling,
     isTurning: scrambling || playing || dragging,
