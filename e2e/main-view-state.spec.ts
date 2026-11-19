@@ -258,3 +258,33 @@ test('the CUBE group works while layer moves are locked', async ({
   await expect(button(page, 'Scramble')).toBeVisible({ timeout: 60_000 })
   await expect.poll(() => moveCount(page)).toBe(10)
 })
+
+// A turn of a scramble can end right after Reset or Random State, before the old player is gone; it must
+// leave no move on the new state. Alternating the two, with a growing delay, catches the old race often
+// (4 of 12 tries, tried again 12 times) without a fixed timing.
+test('Reset and Random State during a scramble leave no move behind', async ({
+  page,
+  context,
+}) => {
+  test.setTimeout(240_000)
+  await context.addCookies([
+    { name: 'cube-assembler-turn-ms', value: '200', url: base() },
+    { name: 'cube-assembler-view-help', value: '0', url: base() },
+  ])
+  await openMainView(page, 5)
+  const left: string[] = []
+  for (let i = 0; i < 12; i += 1) {
+    const action = i % 2 ? 'Random State' : 'Reset'
+    await button(page, 'Scramble').click()
+    await expect.poll(() => moveCount(page)).toBeGreaterThan(0)
+    await page.waitForTimeout(37 * (i % 5))
+    await button(page, action).click()
+    await page.waitForTimeout(800)
+    const text = (await history(page).innerText()).trim()
+    if (text !== 'Moves: None') left.push(`${i} ${action}: ${text}`)
+    if (await button(page, 'Stop').count()) await button(page, 'Stop').click()
+    if (await button(page, 'Reset').isEnabled())
+      await button(page, 'Reset').click()
+  }
+  expect(left).toEqual([])
+})
