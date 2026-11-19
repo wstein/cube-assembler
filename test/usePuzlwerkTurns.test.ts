@@ -264,6 +264,7 @@ describe('between the render of a new source and its effect', () => {
     expect(hook.result.current.state.cube).toBe(next)
     expect(hook.result.current.state.moves).toEqual([])
     expect(onChange).not.toHaveBeenCalled()
+    expect(playFinishedTurnClick).not.toHaveBeenCalled()
   })
 
   it('keeps a turn that ends after a render with the same source', async () => {
