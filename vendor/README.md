@@ -13,10 +13,10 @@ Production distribution requires the owner's separate license acceptance gate.
 
 # PuzlWerk viewer (spike)
 
-`puzlwerk-viewer-0.1.0-3979efb5.tgz` is the private `@puzlwerk/viewer` package packed from
-wstein/puzlwerk commit `3979efb5ea9443846f48ce3238229902b34361ba` (`npm pack --workspace @puzlwerk/viewer`
+`puzlwerk-viewer-0.1.0-a3dfe2f0.tgz` is the private `@puzlwerk/viewer` package packed from
+wstein/puzlwerk commit `a3dfe2f0449254aaf1b9a653cee9d2c5670ba577` (`npm pack --workspace @puzlwerk/viewer`
 after `npm run build`). SHA-256 of the archive:
-`6a18433a506e996c24206fc98da7778259129d71922e527a66f779635d7ac5cb`. `viewer.json` pins it and
+`035433edee53bef891a8f6f6907007981604165ff433903cfeace2f5c4eedacf`. `viewer.json` pins it and
 `npm run verify:viewer-vendor` checks the archive, the installed package, its `NOTICE` and the bridge. No
 registry publication, no gitlink.
 
