@@ -359,7 +359,11 @@ describe('balancedAssign speed', () => {
   // learnStickerColors runs balancedAssign about 40 times and searches
   // farthest pairs: the whole learning pass at 15x15 took over a minute
   // before the transportation solver.
-  it('learns the six colors of a 15x15 capture in under ten seconds', () => {
+  // The explicit timeout lies above the budget, so a slow run fails the
+  // elapsed-time assertion instead of the 5 s default test timeout.
+  it('learns the six colors of a 15x15 capture in under ten seconds', {
+    timeout: 30_000,
+  }, () => {
     const n = 15
     const samples = balancedPoints(n, 6, 25).map((rgb) => ({
       rgb,
