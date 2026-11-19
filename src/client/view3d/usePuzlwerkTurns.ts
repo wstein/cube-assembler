@@ -22,6 +22,7 @@ import {
 } from './puzlwerkMainState'
 import type { MainPlay } from './puzlwerkPlay'
 import { scrambleDuration } from './turnFeel'
+import { playFinishedTurnClick } from './turnSound'
 
 export interface PuzlwerkTurnsOptions {
   size: number
@@ -134,8 +135,11 @@ export function usePuzlwerkTurns({
   const undo = async () => {
     const turn = undoTurn(stateRef.current)
     if (!turn || inFlightRef.current > 0 || beginRef.current) return
-    if (await playTurn(turn, readTurnFeel(document.cookie).turnMs))
+    const durationMs = readTurnFeel(document.cookie).turnMs
+    if (await playTurn(turn, durationMs)) {
+      playFinishedTurnClick(durationMs)
       put(afterUndo(stateRef.current, sizeRef.current), true)
+    }
   }
 
   const reset = () => show(afterReset(sourceRef.current, sizeRef.current), true)
@@ -164,6 +168,7 @@ export function usePuzlwerkTurns({
       for (const turn of turns) {
         if (run.stopped) break
         if (!(await playTurn(turn, durationMs))) break
+        playFinishedTurnClick(durationMs)
         put(afterTurn(stateRef.current, sizeRef.current, turn), true)
       }
       if (runRef.current === run) {
@@ -184,7 +189,10 @@ export function usePuzlwerkTurns({
       setDragging(false)
       if (begin && event.outcome === 'committed') {
         const turn = committedTurn(sizeRef.current, begin, event.turns)
-        if (turn) put(afterTurn(stateRef.current, sizeRef.current, turn), true)
+        if (turn) {
+          playFinishedTurnClick(readTurnFeel(document.cookie).turnMs)
+          put(afterTurn(stateRef.current, sizeRef.current, turn), true)
+        }
       }
     }
   }

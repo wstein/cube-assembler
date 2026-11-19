@@ -16,6 +16,7 @@ import {
   wideBadgeAfter,
 } from './puzlwerkHints'
 import { useCubeHelpHint } from './useCubeHelpHint'
+import { playWideTurnCue } from './turnSound'
 
 export interface PuzlwerkHintsOptions {
   size: number
@@ -75,6 +76,8 @@ export function usePuzlwerkHints({ size, locked }: PuzlwerkHintsOptions) {
     onPlayEvent: (event: PlayEvent) => {
       const next = wideBadgeAfter(wideShown.current, event, latest.current.size)
       if (next === wideShown.current) return
+      // The cue sounds when a wide block is selected, as in the existing view.
+      if (next) playWideTurnCue()
       wideShown.current = next
       setWideBadge(next)
     },
