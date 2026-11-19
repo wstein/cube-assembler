@@ -377,3 +377,34 @@ describe('balancedAssign speed', () => {
     expect(elapsed).toBeLessThan(10_000)
   })
 })
+
+describe('balancedAssign tie rule', () => {
+  const gray = (v: number): RGB => ({ r: v, g: v, b: v })
+
+  // Equal costs resolve by strict comparisons, so the result does not
+  // depend on floating-point accident or slot order.
+  it('puts a point on the lowest cluster index when clusters tie', () => {
+    const same = gray(120)
+    expect(balancedAssign([gray(40)], [same, same], [])).toEqual([0])
+    // Capacity 1 each: the first point takes cluster 0, the second cluster 1.
+    expect(balancedAssign([gray(40), gray(40)], [same, same], [])).toEqual([
+      0, 1,
+    ])
+    expect(
+      balancedAssign([gray(40), gray(40), gray(40)], [same, same, same], []),
+    ).toEqual([0, 1, 2])
+  })
+
+  // Two identical points sit in a full cluster; a third point displaces one
+  // of them. The lowest member index moves.
+  it('displaces the lowest member index when members tie', () => {
+    const near = gray(100)
+    const far = gray(160)
+    const twin = gray(125)
+    // twin is closer to near than to far, so points 0 and 1 start in
+    // cluster 0 (capacity 2); point 2 sits on cluster 0, so one twin moves.
+    const points = [twin, twin, near]
+    expect(clusterDistance(twin, near) < clusterDistance(twin, far)).toBe(true)
+    expect(balancedAssign(points, [near, far], [])).toEqual([1, 0, 0])
+  })
+})
