@@ -31,6 +31,9 @@ import { usePuzlwerkHints } from './usePuzlwerkHints'
 import { applyConstruction, mountMainPlay, type MainPlay } from './puzlwerkPlay'
 import { arrowOrientation, keyPreset } from './puzlwerkBars'
 import { PuzlwerkToolbar } from './puzlwerkToolbar'
+import { usePuzlwerkTurns } from './usePuzlwerkTurns'
+import { resetDisabled, undoDisabled } from './cubeToolbarSections'
+import type { CubeTurn } from './cubeView3DState'
 import {
   AUTO_ROTATE_COOKIE,
   LAYER_MOVES_COOKIE,
@@ -48,6 +51,17 @@ export interface PuzlwerkCubeViewProps {
   highlightedFace?: FaceKey
   // Color frame of the cube; the axis gizmo shows the colors of its R, U and F faces.
   colorFrame?: ColorFrame
+  // Main view: the state shown at first (`cube` is what Reset returns to), the moves and color frame
+  // that go with it, the moves as the user reads them and the app's hook for every state change.
+  initialCube?: CubeState
+  initialMoves?: CubeTurn[]
+  initialFrame?: ColorFrame
+  publicMoves?: (moves: CubeTurn[]) => CubeTurn[]
+  onTurnStateChange?: (
+    cube: CubeState,
+    moves: CubeTurn[],
+    frame: ColorFrame,
+  ) => void
   // Main view: layers can be turned (unless locked) and the overlay hints show. The dialogs are view only.
   main?: boolean
 }
@@ -63,6 +77,11 @@ export function PuzlwerkCubeView({
   palette = DEFAULT_STICKER_HEX,
   highlightedFace,
   colorFrame,
+  initialCube,
+  initialMoves,
+  initialFrame,
+  publicMoves,
+  onTurnStateChange,
   main = false,
 }: PuzlwerkCubeViewProps) {
   const hostRef = useRef<HTMLDivElement | null>(null)
@@ -94,12 +113,27 @@ export function PuzlwerkCubeView({
   const layerMovesRef = useRef(layerMoves)
   layerMovesRef.current = layerMoves
   const playRef = useRef<MainPlay | null>(null)
+  // The cube, its moves and the CUBE group actions (main view); the viewer plays, the hook records.
+  const turns = usePuzlwerkTurns({
+    size: puzzleSize,
+    source: cube,
+    start: initialCube,
+    moves: initialMoves,
+    frame: initialFrame ?? colorFrame,
+    onTurnStateChange,
+    playRef,
+  })
+  const turnsRef = useRef(turns)
+  turnsRef.current = turns
   // The display orientation the stage reported last, for the arrow keys.
   const orientationRef = useRef<readonly [number, number, number, number]>(
     eulerPitchYaw(ISOMETRIC_PITCH, ISOMETRIC_YAW),
   )
   const onPlayEventRef = useRef(hints.onPlayEvent)
-  onPlayEventRef.current = hints.onPlayEvent
+  onPlayEventRef.current = (event) => {
+    hints.onPlayEvent(event)
+    if (main) turnsRef.current.onPlayEvent(event)
+  }
   // The dialogs keep one child for the stage; the main view makes one per shown state (puzlwerkPlay.ts).
   const sceneRef = useRef<{ stage: CubeStage; child?: StageChild } | null>(null)
   const [stage, setStage] = useState<{
@@ -108,7 +142,8 @@ export function PuzlwerkCubeView({
   } | null>(null)
   stageRef.current = stage?.stage ?? null
   const [problem, setProblem] = useState<string | null>(null)
-  const frame = frameHexes(colorFrame, palette)
+  // Main view: the gizmo follows the frame of the state held; the dialogs show the frame they are given.
+  const frame = frameHexes(main ? turns.state.frame : colorFrame, palette)
   const indicatorColors = (frame && indicatorColorsFromFrame(frame)) || null
   const colors = indicatorColors?.ok ? indicatorColors.value : DEFAULT_INDICATOR
   const colorsRef = useRef(colors)
@@ -207,9 +242,10 @@ export function PuzlwerkCubeView({
   // Main view: the layers play in the viewer (locked: view mode only).
   useEffect(() => {
     if (!stage || !main) return
+    // The state held is shown; a reset, a random state or a new source (`turns.epoch`) shows another.
     const play = mountMainPlay({
       stage: stage.stage,
-      cube,
+      cube: turns.stateRef.current.cube,
       size: puzzleSize,
       palette,
       layerMoves: layerMovesRef.current,
@@ -226,7 +262,7 @@ export function PuzlwerkCubeView({
       playRef.current = null
       play.dispose()
     }
-  }, [stage, main, cube, puzzleSize, palette, hints.seamWide])
+  }, [stage, main, turns.epoch, puzzleSize, palette, hints.seamWide])
 
   // The lock switches the stage between play and view mode; the state shown stays.
   useEffect(() => {
@@ -351,6 +387,17 @@ export function PuzlwerkCubeView({
           onToggleAutoRotate={() => setAutoRotate((value) => !value)}
           layerMoves={layerMoves}
           onToggleLayerMoves={() => setLayerMoves((value) => !value)}
+          cube={{
+            isScrambling: turns.scrambling,
+            onToggleScramble: turns.toggleScramble,
+            onRandomState: turns.randomState,
+            onUndo: () => void turns.undo(),
+            onReset: turns.reset,
+            undoDisabled: undoDisabled(turns.state.moves, turns.isTurning),
+            resetDisabled: resetDisabled(turns.isInitial, turns.state.moves),
+          }}
+          moves={publicMoves?.(turns.state.moves) ?? turns.state.moves}
+          size={puzzleSize}
         />
       )}
     </div>

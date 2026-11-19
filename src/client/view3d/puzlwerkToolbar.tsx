@@ -1,8 +1,14 @@
-// The controls under the stage of the main 3D view on the PuzlWerk viewer: the FACES presets and the
-// Stickerless, Auto-rotate and Move layers toggles, with the classes and markup of the existing toolbar.
-// The CUBE group (scramble, random state, undo, reset), the move history and the sound toggle need
-// state held in the app and are a later package.
+// The controls under the stage of the main 3D view on the PuzlWerk viewer, with the classes and markup of
+// the existing toolbar: the FACES presets, the CUBE group (scramble, random state, undo, reset), the move
+// history and the Stickerless, Auto-rotate and Move layers toggles. The CUBE group and the history are the
+// parts the existing view shares (cubeToolbarSections.tsx); their state is held by usePuzlwerkTurns.ts.
 import type { ViewPreset } from '@puzlwerk/viewer'
+import {
+  CubeActionsSection,
+  MoveHistory,
+  type CubeActionsSectionProps,
+} from './cubeToolbarSections'
+import type { CubeTurn } from './cubeView3DState'
 import { autoRotateLabel, FACE_BUTTONS, stickerlessLabel } from './puzlwerkBars'
 
 export interface PuzlwerkToolbarProps {
@@ -13,6 +19,10 @@ export interface PuzlwerkToolbarProps {
   onToggleAutoRotate: () => void
   layerMoves: boolean
   onToggleLayerMoves: () => void
+  // The CUBE group, and the moves and size of the history under it.
+  cube: CubeActionsSectionProps
+  moves: CubeTurn[]
+  size: number
 }
 
 export function PuzlwerkToolbar({
@@ -23,6 +33,9 @@ export function PuzlwerkToolbar({
   onToggleAutoRotate,
   layerMoves,
   onToggleLayerMoves,
+  cube,
+  moves,
+  size,
 }: PuzlwerkToolbarProps) {
   return (
     <div class="cube-3d-toolbar">
@@ -42,6 +55,8 @@ export function PuzlwerkToolbar({
           ))}
         </div>
       </div>
+      <CubeActionsSection {...cube} />
+      <MoveHistory moves={moves} size={size} />
       <div class="cube-3d-actions">
         <button
           type="button"
