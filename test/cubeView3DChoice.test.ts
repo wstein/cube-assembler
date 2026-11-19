@@ -15,6 +15,7 @@ describe('puzlwerkViewerRequested', () => {
       '?viewer=PuzlWerk',
       '?viewers=puzlwerk',
       '?puzlwerk',
+      '?other=puzlwerk',
     ])
       expect(puzlwerkViewerRequested(search), search).toBe(false)
   })
