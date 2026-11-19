@@ -33,18 +33,45 @@ for (const size of [2, 3, 7, 15]) {
       'svg[aria-label="Cube orientation axes X, Y and Z"]',
     )
     await expect(gizmo.locator('[data-axis]')).toHaveCount(3)
-    // The gizmo shows the colors of the frame's R, U and F faces (the app's palette), not the fallback.
+    // The gizmo shows the colors of the solved cube's R, U and F faces (X, Y, Z) in the app's palette.
     await expect(view).toHaveAttribute(
       'data-indicator',
-      /^#[0-9a-f]{6},#[0-9a-f]{6},#[0-9a-f]{6}$/,
-    )
-    await expect(view).not.toHaveAttribute(
-      'data-indicator',
-      '#d9493f,#f4f4f4,#4caf67',
+      '#cf2a3a,#f7f6f1,#1e9e57',
     )
     expect(problems).toEqual([])
   })
 }
+
+test('a state with other centers recolors the gizmo without rebuilding the stage', async ({
+  page,
+}) => {
+  await page.goto('/?viewer=puzlwerk')
+  await page
+    .getByRole('combobox', { name: 'Cube' })
+    .selectOption({ label: '3×3' })
+  await page.getByRole('button', { name: 'Type colors' }).click()
+  await page.getByRole('button', { name: 'Solved cube' }).click()
+  await page.getByRole('button', { name: '3D View' }).click()
+  const view = page.locator('.cube-card .cube-3d-puzlwerk')
+  await expect(view).toHaveAttribute(
+    'data-indicator',
+    '#cf2a3a,#f7f6f1,#1e9e57',
+  )
+  await view
+    .locator('canvas')
+    .evaluate((canvas) => canvas.setAttribute('data-same-stage', '1'))
+  // Solid faces whose colors sit on other faces: the centers, and so the frame, change.
+  const moved = ['R', 'F', 'U', 'L', 'B', 'D']
+    .map((face) => face.repeat(9))
+    .join(' ')
+  await page.getByRole('textbox', { name: /facelets/i }).fill(moved)
+  await page.getByRole('button', { name: 'Apply Facelets' }).click()
+  await expect(view).toHaveAttribute(
+    'data-indicator',
+    '#1e9e57,#cf2a3a,#f7f6f1',
+  )
+  await expect(view.locator('canvas[data-same-stage="1"]')).toHaveCount(1)
+})
 
 test('main view keeps the existing view without the flag and does not load the viewer', async ({
   page,

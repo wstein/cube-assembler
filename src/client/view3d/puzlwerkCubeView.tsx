@@ -122,11 +122,17 @@ export function PuzlwerkCubeView({
   // A new frame recolors the gizmo without rebuilding the stage.
   useEffect(() => {
     if (!stage) return
-    stage.stage.setOrientationIndicator({
+    const applied = stage.stage.setOrientationIndicator({
       physicalOrientation: [0, 0, 0, 1],
       solverFrame: [0, 0, 0, 1],
       colors: colorsRef.current,
     })
+    // Signal for tests: the X, Y and Z colors the stage was given.
+    const host = hostRef.current
+    if (host && applied.ok)
+      host.dataset.indicator = [colors.x, colors.y, colors.z]
+        .map((c) => `#${c.toString(16).padStart(6, '0')}`)
+        .join(',')
   }, [stage, colorKey])
 
   useEffect(() => {
@@ -178,9 +184,6 @@ export function PuzlwerkCubeView({
         ref={hostRef}
         class="cube-3d-canvas-wrap cube-3d-puzlwerk"
         hidden={problem !== null}
-        data-indicator={`#${[colors.x, colors.y, colors.z]
-          .map((c) => c.toString(16).padStart(6, '0'))
-          .join(',#')}`}
         role="region"
         aria-label="3D Rubik's cube view (PuzlWerk viewer)"
       />

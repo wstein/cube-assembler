@@ -21,6 +21,8 @@ describe('mainViewerKind', () => {
     expect(mainViewerKind('')).toBe('classic')
     expect(mainViewerKind('?viewer=classic')).toBe('classic')
     expect(mainViewerKind('?viewer=PuzlWerk')).toBe('classic')
+    expect(mainViewerKind('?other=puzlwerk')).toBe('classic')
+    expect(mainViewerKind('?puzlwerk')).toBe('classic')
     expect(mainViewerKind('?x=1&viewer=puzlwerk')).toBe('puzlwerk')
   })
 })
