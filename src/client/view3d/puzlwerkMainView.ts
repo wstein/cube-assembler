@@ -2,6 +2,7 @@
 // No viewer import here: this module loads with the default view, the viewer stays in its own chunk.
 import type { colorFrame as ColorFrame } from '../../core/view/AxisGizmo.gen'
 import type { CubeState } from '../../cube/cubeAssembly'
+import type { CubeTurn } from './cubeView3DState'
 
 export type MainViewerKind = 'classic' | 'puzlwerk'
 
@@ -11,15 +12,20 @@ export const mainViewerKind = (search: string): MainViewerKind =>
     : 'classic'
 
 export interface MainViewSource {
+  // The source state: what Reset returns to.
   cube: CubeState
+  // The state the app is in: shown at first, with the moves that led there.
   initialCube?: CubeState
+  initialMoves?: CubeTurn[]
   puzzleSize: number
   palette?: Record<string, string>
 }
 
-// The static view shows the state the app is in (`initialCube`, else `cube`); turns are not played yet.
+// The view starts at the state the app is in (`initialCube`, else `cube`) and resets to `cube`.
 export const puzlwerkMainViewProps = (source: MainViewSource) => ({
-  cube: source.initialCube ?? source.cube,
+  cube: source.cube,
+  initialCube: source.initialCube ?? source.cube,
+  initialMoves: source.initialMoves ?? [],
   puzzleSize: source.puzzleSize,
   palette: source.palette,
 })

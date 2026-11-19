@@ -37,20 +37,29 @@ describe('puzlwerkMainViewProps', () => {
     orange: '#ff8800',
     blue: '#0000ff',
   }
-  it('shows the visible state, not the source state', () => {
+  it('starts at the visible state and keeps the source state for Reset', () => {
     const source = cubeOf(2, names)
     const visible = cubeOf(2, [...names].reverse())
+    const moves = [{ face: 'R', depth: 1, turns: 1 }] as const
     const shown = puzlwerkMainViewProps({
       cube: source,
       initialCube: visible,
+      initialMoves: [...moves],
       puzzleSize: 2,
       palette: hex,
     })
-    expect(shown.cube).toBe(visible)
+    expect(shown.cube).toBe(source)
+    expect(shown.initialCube).toBe(visible)
+    expect(shown.initialMoves).toEqual(moves)
     expect(shown.puzzleSize).toBe(2)
-    expect(
-      puzlwerkMainViewProps({ cube: source, puzzleSize: 2, palette: hex }).cube,
-    ).toBe(source)
+    const bare = puzlwerkMainViewProps({
+      cube: source,
+      puzzleSize: 2,
+      palette: hex,
+    })
+    expect(bare.cube).toBe(source)
+    expect(bare.initialCube).toBe(source)
+    expect(bare.initialMoves).toEqual([])
   })
   it('carries the color frame as hex colors in U R F D L B order', () => {
     const frame = {

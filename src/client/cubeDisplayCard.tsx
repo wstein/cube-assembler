@@ -185,10 +185,22 @@ export function CubeDisplayCard({
               {...puzlwerkMainViewProps({
                 cube: shownSource,
                 initialCube: shownVisible,
+                initialMoves: presentationMoves(initialMoves, displayRecovery),
                 puzzleSize: size,
                 palette: stickerColors,
               })}
               colorFrame={mainFrame}
+              initialFrame={mainFrame}
+              publicMoves={(moves) =>
+                presentationMoves(moves, displayRecovery, true)
+              }
+              onTurnStateChange={(value, moves, frame) =>
+                onTurnStateChange(
+                  presentationCube(value, size, displayRecovery, true),
+                  presentationMoves(moves, displayRecovery, true),
+                  presentationColorFrame(frame, displayRecovery, true),
+                )
+              }
               main
             />
           ) : (
