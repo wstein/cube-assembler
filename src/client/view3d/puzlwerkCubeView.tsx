@@ -25,6 +25,10 @@ import {
 } from './cubeView3DState'
 import { eulerPitchYaw } from './puzlwerkOrientation'
 import { frameHexes } from './puzlwerkMainView'
+import { LOCKED_HINT_TEXT, turnSignal, WIDE_BADGE_TEXT } from './puzlwerkHints'
+import { usePuzlwerkHints } from './usePuzlwerkHints'
+import { mountMainPlay } from './puzlwerkPlay'
+import { layerMovesOn } from '../preferences'
 import type { colorFrame as ColorFrame } from '../../core/view/AxisGizmo.gen'
 
 export interface PuzlwerkCubeViewProps {
@@ -34,6 +38,8 @@ export interface PuzlwerkCubeViewProps {
   highlightedFace?: FaceKey
   // Color frame of the cube; the axis gizmo shows the colors of its R, U and F faces.
   colorFrame?: ColorFrame
+  // Main view: layers can be turned (unless locked) and the overlay hints show. The dialogs are view only.
+  main?: boolean
 }
 
 const DEFAULT_INDICATOR = { x: 0xd9493f, y: 0xf4f4f4, z: 0x4caf67 }
@@ -47,12 +53,19 @@ export function PuzlwerkCubeView({
   palette = DEFAULT_STICKER_HEX,
   highlightedFace,
   colorFrame,
+  main = false,
 }: PuzlwerkCubeViewProps) {
   const hostRef = useRef<HTMLDivElement | null>(null)
-  const sceneRef = useRef<{ stage: CubeStage; child: StageChild } | null>(null)
+  // Layer moves are locked until the setting is on: the viewer then stays in its view mode.
+  const layerMoves = main && layerMovesOn(document.cookie)
+  const hints = usePuzlwerkHints({ size: puzzleSize, locked: !layerMoves })
+  const onPlayEventRef = useRef(hints.onPlayEvent)
+  onPlayEventRef.current = hints.onPlayEvent
+  // The dialogs keep one child for the stage; the main view makes one per shown state (puzlwerkPlay.ts).
+  const sceneRef = useRef<{ stage: CubeStage; child?: StageChild } | null>(null)
   const [stage, setStage] = useState<{
     stage: CubeStage
-    child: StageChild
+    child?: StageChild
   } | null>(null)
   const [problem, setProblem] = useState<string | null>(null)
   const frame = frameHexes(colorFrame, palette)
@@ -77,6 +90,12 @@ export function PuzlwerkCubeView({
       }),
       initialOrientation: eulerPitchYaw(ISOMETRIC_PITCH, ISOMETRIC_YAW),
       casterEnvelope: { radius, clearance: 0.08 },
+      onPlayEvent: (event) => {
+        const signal = turnSignal(event)
+        if (hostRef.current && signal !== undefined)
+          hostRef.current.dataset.turn = signal
+        onPlayEventRef.current(event)
+      },
       viewPolicy: (view) => {
         const distance =
           presentationCameraRadius(view.aspect, radius, view.fovDegrees) *
@@ -103,13 +122,15 @@ export function PuzlwerkCubeView({
       setProblem(indicator.error.message)
       return
     }
-    const added = created.value.addCube({ position: [0, 0, 0] })
-    if (!added.ok) {
+    const added = main
+      ? undefined
+      : created.value.addCube({ position: [0, 0, 0] })
+    if (added && !added.ok) {
       created.value.dispose()
       setProblem(added.error.message)
       return
     }
-    const value = { stage: created.value, child: added.value }
+    const value = { stage: created.value, child: added?.value }
     sceneRef.current = value
     setStage(value)
     return () => {
@@ -117,7 +138,7 @@ export function PuzlwerkCubeView({
       setStage(null)
       created.value.dispose()
     }
-  }, [puzzleSize])
+  }, [puzzleSize, main])
 
   // A new frame recolors the gizmo without rebuilding the stage.
   useEffect(() => {
@@ -135,8 +156,27 @@ export function PuzlwerkCubeView({
         .join(',')
   }, [stage, colorKey])
 
+  // Main view: the layers play in the viewer (locked: view mode only).
   useEffect(() => {
-    if (!stage) return
+    if (!stage || !main) return
+    return mountMainPlay({
+      stage: stage.stage,
+      cube,
+      size: puzzleSize,
+      palette,
+      layerMoves,
+      onProblem: setProblem,
+      // Signal for tests: the interaction mode the stage is in.
+      onMode: (mode) => {
+        if (hostRef.current) hostRef.current.dataset.interaction = mode
+      },
+    })
+  }, [stage, main, cube, puzzleSize, palette, layerMoves])
+
+  // Dialogs: a state shown without play.
+  useEffect(() => {
+    if (!stage?.child || main) return
+    const child = stage.child
     let current = true
     const documents = cubeStateDocuments(puzzleSize, cube, palette)
     if (!documents.ok) {
@@ -150,7 +190,7 @@ export function PuzlwerkCubeView({
       return
     }
     setProblem(null)
-    void stage.child.setProjection(opened.value.projection).then((result) => {
+    void child.setProjection(opened.value.projection).then((result) => {
       if (!current) return
       if (!result.ok) {
         setProblem(result.error.code)
@@ -159,7 +199,7 @@ export function PuzlwerkCubeView({
       const ids = highlightedFace
         ? faceStickerIds(puzzleSize, faceName(highlightedFace))
         : undefined
-      const applied = stage.stage.setStickerHighlight(stage.child, ids)
+      const applied = stage.stage.setStickerHighlight(child, ids)
       // Signal for tests: the face of the outlined stickers (from their IDs) and their number.
       const host = hostRef.current
       if (host)
@@ -171,7 +211,7 @@ export function PuzlwerkCubeView({
     return () => {
       current = false
     }
-  }, [stage, cube, puzzleSize, palette, highlightedFace])
+  }, [stage, main, cube, puzzleSize, palette, highlightedFace])
 
   return (
     <div class="cube-3d-container">
@@ -181,12 +221,27 @@ export function PuzlwerkCubeView({
         </div>
       )}
       <div
-        ref={hostRef}
-        class="cube-3d-canvas-wrap cube-3d-puzlwerk"
+        class="cube-3d-canvas-wrap"
         hidden={problem !== null}
         role="region"
         aria-label="3D Rubik's cube view (PuzlWerk viewer)"
-      />
+        {...(main ? hints.handlers : {})}
+      >
+        <div ref={hostRef} class="cube-3d-puzlwerk" />
+        {main && hints.wideBadge && (
+          <div class="cube-3d-press-mode" role="status">
+            {WIDE_BADGE_TEXT}
+          </div>
+        )}
+        {main && hints.lockedHint && (
+          <div class="cube-3d-press-mode" role="status">
+            {LOCKED_HINT_TEXT}
+          </div>
+        )}
+        {main && hints.helpVisible && (
+          <div class="cube-3d-hint">{hints.helpText}</div>
+        )}
+      </div>
     </div>
   )
 }
