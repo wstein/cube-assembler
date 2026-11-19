@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from 'preact/hooks'
 import {
   createCubeStage,
   cubePresentationRadius,
+  indicatorColorsFromFrame,
   presentationCameraRadius,
   type CubeStage,
   type StageChild,
@@ -23,13 +24,19 @@ import {
   ISOMETRIC_YAW,
 } from './cubeView3DState'
 import { eulerPitchYaw } from './puzlwerkOrientation'
+import { frameHexes } from './puzlwerkMainView'
+import type { colorFrame as ColorFrame } from '../../core/view/AxisGizmo.gen'
 
 export interface PuzlwerkCubeViewProps {
   cube: CubeState
   puzzleSize: number
   palette?: Record<string, string>
   highlightedFace?: FaceKey
+  // Color frame of the cube; the axis gizmo shows the colors of its R, U and F faces.
+  colorFrame?: ColorFrame
 }
+
+const DEFAULT_INDICATOR = { x: 0xd9493f, y: 0xf4f4f4, z: 0x4caf67 }
 
 const faceName = (face: FaceKey) =>
   face.toLowerCase() as 'u' | 'r' | 'f' | 'd' | 'l' | 'b'
@@ -39,6 +46,7 @@ export function PuzlwerkCubeView({
   puzzleSize,
   palette = DEFAULT_STICKER_HEX,
   highlightedFace,
+  colorFrame,
 }: PuzlwerkCubeViewProps) {
   const hostRef = useRef<HTMLDivElement | null>(null)
   const sceneRef = useRef<{ stage: CubeStage; child: StageChild } | null>(null)
@@ -47,6 +55,12 @@ export function PuzlwerkCubeView({
     child: StageChild
   } | null>(null)
   const [problem, setProblem] = useState<string | null>(null)
+  const frame = frameHexes(colorFrame, palette)
+  const indicatorColors = (frame && indicatorColorsFromFrame(frame)) || null
+  const colors = indicatorColors?.ok ? indicatorColors.value : DEFAULT_INDICATOR
+  const colorsRef = useRef(colors)
+  colorsRef.current = colors
+  const colorKey = `${colors.x},${colors.y},${colors.z}`
 
   // One stage per cube size: the camera fit and the shadow envelope depend on the nominal edge.
   useEffect(() => {
@@ -82,7 +96,7 @@ export function PuzlwerkCubeView({
     const indicator = created.value.setOrientationIndicator({
       physicalOrientation: [0, 0, 0, 1],
       solverFrame: [0, 0, 0, 1],
-      colors: { x: 0xd9493f, y: 0xf4f4f4, z: 0x4caf67 },
+      colors: colorsRef.current,
     })
     if (!indicator.ok) {
       created.value.dispose()
@@ -104,6 +118,16 @@ export function PuzlwerkCubeView({
       created.value.dispose()
     }
   }, [puzzleSize])
+
+  // A new frame recolors the gizmo without rebuilding the stage.
+  useEffect(() => {
+    if (!stage) return
+    stage.stage.setOrientationIndicator({
+      physicalOrientation: [0, 0, 0, 1],
+      solverFrame: [0, 0, 0, 1],
+      colors: colorsRef.current,
+    })
+  }, [stage, colorKey])
 
   useEffect(() => {
     if (!stage) return
@@ -154,6 +178,9 @@ export function PuzlwerkCubeView({
         ref={hostRef}
         class="cube-3d-canvas-wrap cube-3d-puzlwerk"
         hidden={problem !== null}
+        data-indicator={`#${[colors.x, colors.y, colors.z]
+          .map((c) => c.toString(16).padStart(6, '0'))
+          .join(',#')}`}
         role="region"
         aria-label="3D Rubik's cube view (PuzlWerk viewer)"
       />
