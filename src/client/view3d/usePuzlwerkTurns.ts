@@ -59,7 +59,11 @@ export function usePuzlwerkTurns({
   // A turn of the app plays (undo, scramble step) or a drag turns a layer.
   const [playing, setPlaying] = useState(false)
   const [dragging, setDragging] = useState(false)
+  // Counts the changes after which a turn still playing no longer belongs to the cube held: another cube
+  // shown, a new size, unmount. A turn that ends in another generation is dropped, not recorded or reported.
+  const generationRef = useRef(0)
   const sizeRef = useRef(size)
+  if (sizeRef.current !== size) generationRef.current += 1
   sizeRef.current = size
   const sourceRef = useRef(source)
   const onChangeRef = useRef(onTurnStateChange)
@@ -83,6 +87,7 @@ export function usePuzlwerkTurns({
   }
   // Another cube is on show: the player is made for it again.
   const show = (next: MainTurnState, notify: boolean) => {
+    generationRef.current += 1
     stopScramble()
     beginRef.current = null
     setDragging(false)
@@ -95,15 +100,23 @@ export function usePuzlwerkTurns({
     sourceRef.current = source
     show(afterReset(source, sizeRef.current), false)
   }, [source])
-  useEffect(() => stopScramble, [])
+  useEffect(
+    () => () => {
+      generationRef.current += 1
+      stopScramble()
+    },
+    [],
+  )
 
   const playTurn = async (turn: CubeTurn, durationMs: number) => {
     const play = playRef.current
     if (!play) return false
+    const generation = generationRef.current
     inFlightRef.current += 1
     setPlaying(true)
     try {
-      return await play.turn(turn, durationMs)
+      const played = await play.turn(turn, durationMs)
+      return played && generation === generationRef.current
     } finally {
       inFlightRef.current -= 1
       if (inFlightRef.current === 0) setPlaying(false)
