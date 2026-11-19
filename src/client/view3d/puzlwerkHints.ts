@@ -62,3 +62,11 @@ export const lockedHintShouldShow = (input: {
   input.locked &&
   Math.hypot(input.dx, input.dy) >= input.startPx &&
   lockedHintDue(input.lastShownAt, input.now)
+
+// Test signal on the stage host: the last turn selection (`X:0,1`) or its end (`end`), nothing else.
+export const turnSignal = (event: PlayEvent): string | undefined => {
+  if (event.type === 'turn-begin')
+    return `${event.axis}:${event.layers.join(',')}`
+  if (event.type === 'turn-end') return 'end'
+  return undefined
+}
