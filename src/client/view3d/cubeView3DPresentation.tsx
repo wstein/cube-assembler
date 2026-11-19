@@ -1,18 +1,18 @@
 import type { ComponentChildren, RefObject } from 'preact'
 import type { PressLevel } from './cubeGesture'
-import {
-  facePreset,
-  formatCubeTurn,
-  type CubeTurn,
-  type ViewFace,
-} from './cubeView3DState'
+import { facePreset, type CubeTurn, type ViewFace } from './cubeView3DState'
 import {
   preferenceCookie,
   readPreference,
   VIEW_HELP_COOKIE,
   SEAM_WIDE_COOKIE,
 } from '../preferences'
-import { CUBELAB_MOVES_ID, cubeLabMovesJson } from '../cubeLabFingerprint'
+import {
+  CubeActionsSection,
+  MoveHistory,
+  resetDisabled,
+  undoDisabled,
+} from './cubeToolbarSections'
 import { useCubeHelpHint } from './useCubeHelpHint'
 
 interface CubeView3DPresentationProps {
@@ -237,68 +237,18 @@ export function CubeView3DPresentation({
               </div>
             </div>
 
-            <div class="cube-3d-section">
-              <span class="cube-3d-label">Cube:</span>
-              <div class="cube-3d-presets">
-                <button
-                  type="button"
-                  class={`cube-3d-btn ${isScrambling ? 'cube-3d-btn-active' : ''}`}
-                  disabled={!allowLayerMoves}
-                  onClick={toggleScramble}
-                  title={isScrambling ? 'Stop scramble' : 'Scramble cube'}
-                >
-                  {isScrambling ? 'Stop' : 'Scramble'}
-                </button>
-                <button
-                  type="button"
-                  class="cube-3d-btn"
-                  disabled={!allowLayerMoves}
-                  onClick={randomState}
-                  title="Mix the cube at once into a random valid state"
-                >
-                  Random State
-                </button>
-                <button
-                  type="button"
-                  class="cube-3d-btn"
-                  onClick={undoLastTurn}
-                  disabled={moves.length === 0 || isTurning}
-                  title="Undo the last completed layer turn"
-                >
-                  Undo
-                </button>
-                <button
-                  type="button"
-                  class="cube-3d-btn"
-                  onClick={resetCube}
-                  disabled={isInitialCube && moves.length === 0}
-                  title="Reset cube to initial assembled state"
-                >
-                  Reset
-                </button>
-              </div>
-            </div>
-
-            <div
-              class="cube-3d-move-history"
-              role="status"
-              aria-label="Move history"
-            >
-              Moves:{' '}
-              {publicMoves.length
-                ? publicMoves
-                    .map((move) => formatCubeTurn(move, puzzleSize))
-                    .join(' ')
-                : 'None'}
-            </div>
-            <script
-              type="application/json"
-              id={CUBELAB_MOVES_ID}
-              // Escaped JSON (no "<"), so it cannot end the element early.
-              dangerouslySetInnerHTML={{
-                __html: cubeLabMovesJson(publicMoves, puzzleSize),
-              }}
+            <CubeActionsSection
+              isScrambling={isScrambling}
+              onToggleScramble={toggleScramble}
+              onRandomState={randomState}
+              onUndo={undoLastTurn}
+              onReset={resetCube}
+              undoDisabled={undoDisabled(moves, isTurning)}
+              resetDisabled={resetDisabled(isInitialCube, moves)}
+              allowLayerMoves={allowLayerMoves}
             />
+
+            <MoveHistory moves={publicMoves} size={puzzleSize} />
 
             <div class="cube-3d-actions">
               <button
