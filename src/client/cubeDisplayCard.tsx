@@ -18,9 +18,9 @@ import {
 } from '../core/view/AxisGizmo.gen'
 import { CubeNetView } from './cubeNetView'
 
-const CubeView3D = lazy(() =>
-  import('./view3d/cubeView3D').then((module) => ({
-    default: module.CubeView3D,
+const MainCubeView = lazy(() =>
+  import('./view3d/cubeView3DChoice').then((module) => ({
+    default: module.MainCubeView,
   })),
 )
 
@@ -166,7 +166,7 @@ export function CubeDisplayCard({
             </div>
           }
         >
-          <CubeView3D
+          <MainCubeView
             cube={shownSource}
             initialCube={shownVisible}
             initialMoves={presentationMoves(initialMoves, displayRecovery)}
