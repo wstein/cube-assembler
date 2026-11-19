@@ -1,9 +1,9 @@
 {
   "package": "@puzlwerk/viewer",
   "version": "0.1.0",
-  "artifact": "puzlwerk-viewer-0.1.0-7e14cbd8.tgz",
-  "sha256": "cfa25d8305954f210515dc99c038a44e123e218ff7226d2b0a0e573965fd2788",
-  "sourceRevision": "7e14cbd8ba570bbafb02f2557e9c1b6e9ac09723",
+  "artifact": "puzlwerk-viewer-0.1.0-3979efb5.tgz",
+  "sha256": "6a18433a506e996c24206fc98da7778259129d71922e527a66f779635d7ac5cb",
+  "sourceRevision": "3979efb5ea9443846f48ce3238229902b34361ba",
   "sourceRepository": "https://github.com/wstein/puzlwerk",
   "license": "AGPL-3.0-or-later; compiled Core modules in dist/bridge/core are EUPL-1.2 OR AGPL-3.0-or-later, used here under the AGPL choice"
 }
