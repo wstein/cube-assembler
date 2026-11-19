@@ -217,7 +217,8 @@ test('Stop ends a scramble after the turn in progress', async ({
   await expect(button(page, 'Scramble')).toBeVisible()
   const stopped = await moveCount(page)
   expect(stopped).toBeLessThan(40)
-  await page.waitForTimeout(1500)
+  // A scramble that went on would add about a move every half second.
+  await page.waitForTimeout(3000)
   // At most the turn that was playing joined the list.
   expect(await moveCount(page)).toBeLessThanOrEqual(stopped + 1)
   await expect(button(page, 'Undo')).toBeEnabled()
