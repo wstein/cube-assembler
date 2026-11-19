@@ -10,9 +10,14 @@ import {
   type PuzlwerkTurnsOptions,
 } from '../src/client/view3d/usePuzlwerkTurns'
 import type { MainPlay } from '../src/client/view3d/puzlwerkPlay'
+import { playFinishedTurnClick } from '../src/client/view3d/turnSound'
 import { renderHook } from './support/hookHarness'
 
 vi.mock('preact/hooks', () => import('./support/hookHarness'))
+vi.mock('../src/client/view3d/turnSound', async (original) => ({
+  ...(await original<typeof import('../src/client/view3d/turnSound')>()),
+  playFinishedTurnClick: vi.fn(),
+}))
 
 // A player whose turns end when the test says so.
 function controlledPlay() {
@@ -58,6 +63,49 @@ function setup(
 
 beforeEach(() => {
   vi.stubGlobal('document', { cookie: '' })
+  vi.mocked(playFinishedTurnClick).mockClear()
+})
+
+describe('the click of a finished turn', () => {
+  it('sounds once for a finished scramble step and for an undo', async () => {
+    const { hook, calls } = setup(3, [{ face: 'R', depth: 1, turns: 1 }])
+    hook.result.current.toggleScramble()
+    calls[0].end(true)
+    await settle()
+    expect(playFinishedTurnClick).toHaveBeenCalledTimes(1)
+    // Stop: the step in progress still ends and clicks.
+    hook.result.current.toggleScramble()
+    hook.flush()
+    calls[1].end(true)
+    await settle()
+    expect(playFinishedTurnClick).toHaveBeenCalledTimes(2)
+    void hook.result.current.undo()
+    expect(calls).toHaveLength(3)
+    calls[2].end(true)
+    await settle()
+    expect(playFinishedTurnClick).toHaveBeenCalledTimes(3)
+  })
+
+  it('stays silent for a turn the player refused or that ends after Reset, Random State or unmount', async () => {
+    const refused = setup()
+    refused.hook.result.current.toggleScramble()
+    refused.calls[0].end(false)
+    await settle()
+    const reset = setup()
+    reset.hook.result.current.toggleScramble()
+    reset.hook.result.current.reset()
+    reset.calls[0].end(true)
+    const random = setup()
+    random.hook.result.current.toggleScramble()
+    random.hook.result.current.randomState()
+    random.calls[0].end(true)
+    const gone = setup()
+    gone.hook.result.current.toggleScramble()
+    gone.hook.unmount()
+    gone.calls[0].end(true)
+    await settle()
+    expect(playFinishedTurnClick).not.toHaveBeenCalled()
+  })
 })
 
 describe('turns the viewer finished', () => {
