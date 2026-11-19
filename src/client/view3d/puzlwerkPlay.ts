@@ -1,6 +1,6 @@
 // The main view's layers on the PuzlWerk viewer: one player and one stage child per shown state.
-// The player owns its child (`dispose` disposes the scene), so a new state gets a new child. Turns
-// are played in the viewer; holding them in app state is a later package.
+// The player owns its child (`dispose` disposes the scene), so a new state gets a new child. The viewer
+// plays the turns (gestures, `turn`); the app state that records them is puzlwerkMainState.ts.
 import {
   standardLayerWidths,
   type Construction,
@@ -8,8 +8,12 @@ import {
   type InteractionMode,
 } from '@puzlwerk/viewer'
 import { createPlayer } from '@puzlwerk/viewer/bridge'
-import { cubeStateDocuments } from '@puzlwerk/viewer/bridge/cube-state'
+import {
+  cubeStateDocuments,
+  cubeTurnToMove,
+} from '@puzlwerk/viewer/bridge/cube-state'
 import type { CubeState } from '../../cube/cubeAssembly'
+import type { CubeTurn } from './cubeView3DState'
 
 export interface MainPlayInput {
   stage: CubeStage
@@ -29,10 +33,17 @@ export interface MainPlayInput {
 export interface MainPlay {
   // Switches between play mode (layer moves on) and view mode (locked) without touching the state shown.
   setLayerMoves(on: boolean): void
+  // Plays one turn of the app (a scramble step or an undo) in `durationMs`. True once it is played on
+  // this player; false when the player is busy, gone or refuses the move, and nothing changed.
+  turn(turn: CubeTurn, durationMs: number): Promise<boolean>
   dispose(): void
 }
 
-const NOTHING: MainPlay = { setLayerMoves: () => {}, dispose: () => {} }
+const NOTHING: MainPlay = {
+  setLayerMoves: () => {},
+  turn: async () => false,
+  dispose: () => {},
+}
 
 // Shows the state and wires the play target.
 export function mountMainPlay(input: MainPlayInput): MainPlay {
@@ -97,6 +108,19 @@ export function mountMainPlay(input: MainPlayInput): MainPlay {
     setLayerMoves(on) {
       wanted = on
       if (current && ready) applyMode()
+    },
+    async turn(turn, durationMs) {
+      if (!current || !ready) return false
+      const move = cubeTurnToMove(size, turn)
+      if (!move.ok) return false
+      const played = await player.turn(
+        move.value.axis,
+        move.value.layers,
+        move.value.turns,
+        durationMs,
+      )
+      // A player disposed meanwhile (a reset, a new state) took no part in the state the app holds.
+      return played.ok && current
     },
     dispose() {
       current = false
