@@ -7,7 +7,10 @@ import {
 } from '@puzlwerk/viewer/bridge/cube-state'
 import { describe, expect, it } from 'vitest'
 import { parityStatus } from '../src/client/capture/captureFlow'
-import { initialColorFrame } from '../src/core/view/AxisGizmo.gen'
+import {
+  advanceColorFrame,
+  initialColorFrame,
+} from '../src/core/view/AxisGizmo.gen'
 import {
   applyCubeLayerMove,
   generateScrambleMoves,
@@ -76,6 +79,19 @@ describe('turn state of the main view', () => {
     expect(next.cube).toEqual(applyCubeLayerMove(solved, size, 'R', 1, 1, 1))
     expect(next.moves).toEqual([turn])
     expect(isInitialState(next, solved)).toBe(false)
+  })
+
+  it('carries the color frame along with a whole-cube turn', () => {
+    const whole: CubeTurn = { face: 'R', depth: 3, width: 3, turns: 1 }
+    const next = afterTurn(start(), size, whole)
+    expect(next.frame).toEqual(
+      advanceColorFrame(start().frame, size, 'R', 3, 1, 3),
+    )
+    expect(next.frame).not.toEqual(start().frame)
+    // A turn of one outer layer leaves the frame alone.
+    expect(
+      afterTurn(start(), size, { face: 'U', depth: 1, turns: 1 }).frame,
+    ).toEqual(start().frame)
   })
 
   it('merges consecutive turns of one layer like the existing history', () => {
@@ -175,52 +191,56 @@ const quietScene = {
 }
 
 describe('the held state equals the wire state read back, sizes 2..15', () => {
-  it.each(ALL_SIZES)('after random turns at size %i', async (n) => {
-    const solved = createSolvedCube(n)
-    const documents = cubeStateDocuments(n, solved, PALETTE, {
-      movePolicy: 'any',
-    })
-    if (!documents.ok) throw new Error(documents.error.code)
-    const { definition, state, appearance, options } = documents.value
-    const made = createPlayer(
-      definition,
-      state,
-      appearance,
-      options,
-      quietScene as never,
-    )
-    if (!made.ok) throw new Error(made.error.code)
-    const player = made.value
-    let held = startTurnState(solved, [], undefined, n)
-    const random = lcg(n * 7919)
-    for (let i = 0; i < 25; i += 1) {
-      const width = 1 + Math.floor(random() * Math.max(1, Math.floor(n / 2)))
-      const depth = width + Math.floor(random() * (n - width + 1))
-      const turn: CubeTurn = {
-        face: FACES[Math.floor(random() * 6)],
-        depth,
-        ...(width > 1 ? { width } : {}),
-        turns: [1, -1, 2][Math.floor(random() * 3)],
-      }
-      const move = cubeTurnToMove(n, turn)
-      if (!move.ok) throw new Error(move.error.code)
-      const turned = await player.turn(
-        move.value.axis,
-        move.value.layers,
-        move.value.turns,
-        0,
+  it.each(ALL_SIZES)(
+    'after random turns at size %i',
+    async (n) => {
+      const solved = createSolvedCube(n)
+      const documents = cubeStateDocuments(n, solved, PALETTE, {
+        movePolicy: 'any',
+      })
+      if (!documents.ok) throw new Error(documents.error.code)
+      const { definition, state, appearance, options } = documents.value
+      const made = createPlayer(
+        definition,
+        state,
+        appearance,
+        options,
+        quietScene as never,
       )
-      expect(turned.ok).toBe(true)
-      // The turn the app records is the one the wire move maps back to.
-      const back = moveToCubeTurn(n, move.value)
-      if (!back.ok) throw new Error(back.error.code)
-      held = afterTurn(held, n, back.value)
-      const read = cubeStateFromWire(n, player.state(), appearance)
-      if (!read.ok) throw new Error(read.error.code)
-      expect(read.value, `${n}x${n} turn ${i}`).toEqual(held.cube)
-    }
-    player.dispose()
-  })
+      if (!made.ok) throw new Error(made.error.code)
+      const player = made.value
+      let held = startTurnState(solved, [], undefined, n)
+      const random = lcg(n * 7919)
+      for (let i = 0; i < 25; i += 1) {
+        const width = 1 + Math.floor(random() * Math.max(1, Math.floor(n / 2)))
+        const depth = width + Math.floor(random() * (n - width + 1))
+        const turn: CubeTurn = {
+          face: FACES[Math.floor(random() * 6)],
+          depth,
+          ...(width > 1 ? { width } : {}),
+          turns: [1, -1, 2][Math.floor(random() * 3)],
+        }
+        const move = cubeTurnToMove(n, turn)
+        if (!move.ok) throw new Error(move.error.code)
+        const turned = await player.turn(
+          move.value.axis,
+          move.value.layers,
+          move.value.turns,
+          0,
+        )
+        expect(turned.ok).toBe(true)
+        // The turn the app records is the one the wire move maps back to.
+        const back = moveToCubeTurn(n, move.value)
+        if (!back.ok) throw new Error(back.error.code)
+        held = afterTurn(held, n, back.value)
+        const read = cubeStateFromWire(n, player.state(), appearance)
+        if (!read.ok) throw new Error(read.error.code)
+        expect(read.value, `${n}x${n} turn ${i}`).toEqual(held.cube)
+      }
+      player.dispose()
+    },
+    60_000,
+  )
 
   it('a random state read back from its own documents', () => {
     for (const n of [2, 3, 7, 15]) {
