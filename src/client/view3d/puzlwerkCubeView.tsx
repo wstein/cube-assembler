@@ -123,6 +123,16 @@ export function PuzlwerkCubeView({
     onTurnStateChange,
     playRef,
   })
+  // The play effect below makes another player when the palette or the seam setting changes; a turn the
+  // old one is playing then no longer counts.
+  const playInputsRef = useRef({ palette, seamWide: hints.seamWide })
+  if (
+    playInputsRef.current.palette !== palette ||
+    playInputsRef.current.seamWide !== hints.seamWide
+  ) {
+    playInputsRef.current = { palette, seamWide: hints.seamWide }
+    turns.invalidate()
+  }
   const turnsRef = useRef(turns)
   turnsRef.current = turns
   // The display orientation the stage reported last, for the arrow keys.

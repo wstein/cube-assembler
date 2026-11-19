@@ -13,13 +13,14 @@ const PALETTE = {
 const ok = { ok: true as const, value: undefined }
 
 // A stage and child that accept everything and record the transitions the player asks the scene for.
-function fakeStage() {
+function fakeStage(gate?: Promise<void>) {
   const transitions: { pieceIds: readonly string[]; axis: number[] }[] = []
   const child = {
     setProjection: async () => ok,
     dispose: () => {},
     transition: async (t: { pieceIds: readonly string[]; axis: number[] }) => {
       transitions.push(t)
+      await gate
       return ok
     },
     beginPreview: () => ({ ok: false, error: { code: 'Unavailable' } }),
@@ -65,6 +66,32 @@ describe('an app turn played on the main player', () => {
       expect(transitions[0].axis).toEqual([1, 0, 0])
     })
   }
+
+  it('is not counted when the player is disposed while the turn plays', async () => {
+    let release: () => void = () => {}
+    const gate = new Promise<void>((resolve) => {
+      release = resolve
+    })
+    const { stage, transitions } = fakeStage(gate)
+    const play = mountMainPlay({
+      stage: stage as never,
+      cube: createSolvedCube(3),
+      size: 3,
+      palette: PALETTE,
+      layerMoves: true,
+      seamWide: false,
+      onProblem: () => {},
+      onMode: () => {},
+      onShown: () => {},
+    })
+    await ready()
+    const playing = play.turn({ face: 'R', depth: 1, turns: 1 }, 0)
+    await ready()
+    expect(transitions).toHaveLength(1)
+    play.dispose()
+    release()
+    expect(await playing).toBe(false)
+  })
 
   it('is refused after dispose', async () => {
     const { stage } = fakeStage()
