@@ -5,6 +5,7 @@ import {
   isWideSelection,
   LOCKED_HINT_TEXT,
   lockedHintShouldShow,
+  turnSignal,
   WIDE_BADGE_TEXT,
   wideBadgeAfter,
 } from '../src/client/view3d/puzlwerkHints'
@@ -97,5 +98,15 @@ describe('locked hint', () => {
   it('does not repeat within the gap and returns after it', () => {
     expect(lockedHintShouldShow({ ...base, lastShownAt: 96_000 })).toBe(false)
     expect(lockedHintShouldShow({ ...base, lastShownAt: 95_000 })).toBe(true)
+  })
+})
+
+describe('turn signal', () => {
+  it('names the selection and the end, and nothing else', () => {
+    expect(turnSignal(begin([0, 1]))).toBe('X:0,1')
+    expect(turnSignal(begin([2]))).toBe('X:2')
+    expect(turnSignal(committed)).toBe('end')
+    expect(turnSignal(cancelled)).toBe('end')
+    expect(turnSignal({ type: 'hover', stickerId: 'a' })).toBeUndefined()
   })
 })
