@@ -9,6 +9,7 @@ import {
   presentationCameraRadius,
   type CubeStage,
   type StageChild,
+  type ViewPreset,
 } from '@puzlwerk/viewer'
 import { open } from '@puzlwerk/viewer/bridge'
 import {
@@ -27,8 +28,17 @@ import { eulerPitchYaw } from './puzlwerkOrientation'
 import { frameHexes } from './puzlwerkMainView'
 import { LOCKED_HINT_TEXT, turnSignal, WIDE_BADGE_TEXT } from './puzlwerkHints'
 import { usePuzlwerkHints } from './usePuzlwerkHints'
-import { mountMainPlay } from './puzlwerkPlay'
-import { layerMovesOn } from '../preferences'
+import { applyConstruction, mountMainPlay, type MainPlay } from './puzlwerkPlay'
+import { arrowOrientation, keyPreset } from './puzlwerkBars'
+import { PuzlwerkToolbar } from './puzlwerkToolbar'
+import {
+  AUTO_ROTATE_COOKIE,
+  LAYER_MOVES_COOKIE,
+  layerMovesOn,
+  preferenceCookie,
+  readPreference,
+  STICKERLESS_COOKIE,
+} from '../preferences'
 import type { colorFrame as ColorFrame } from '../../core/view/AxisGizmo.gen'
 
 export interface PuzlwerkCubeViewProps {
@@ -57,8 +67,37 @@ export function PuzlwerkCubeView({
 }: PuzlwerkCubeViewProps) {
   const hostRef = useRef<HTMLDivElement | null>(null)
   // Layer moves are locked until the setting is on: the viewer then stays in its view mode.
-  const layerMoves = main && layerMovesOn(document.cookie)
+  const [layerMoves, setLayerMoves] = useState(
+    () => main && layerMovesOn(document.cookie),
+  )
+  const [stickerless, setStickerless] = useState(() =>
+    readPreference(document.cookie, STICKERLESS_COOKIE, true),
+  )
+  const [autoRotate, setAutoRotate] = useState(() =>
+    readPreference(document.cookie, AUTO_ROTATE_COOKIE),
+  )
+  const stickerlessRef = useRef(stickerless)
+  // The stage applies the construction to the children it shows, so it is set once a state is shown and on each toggle.
+  const stageRef = useRef<CubeStage | null>(null)
+  const syncConstruction = () => {
+    const current = stageRef.current
+    if (!current) return
+    void applyConstruction(current, () =>
+      stickerlessRef.current ? 'stickerless' : 'stickered',
+    ).then((construction) => {
+      // Signal for tests: the construction the stage committed.
+      if (hostRef.current && stageRef.current === current)
+        hostRef.current.dataset.appearance = construction
+    })
+  }
   const hints = usePuzlwerkHints({ size: puzzleSize, locked: !layerMoves })
+  const layerMovesRef = useRef(layerMoves)
+  layerMovesRef.current = layerMoves
+  const playRef = useRef<MainPlay | null>(null)
+  // The display orientation the stage reported last, for the arrow keys.
+  const orientationRef = useRef<readonly [number, number, number, number]>(
+    eulerPitchYaw(ISOMETRIC_PITCH, ISOMETRIC_YAW),
+  )
   const onPlayEventRef = useRef(hints.onPlayEvent)
   onPlayEventRef.current = hints.onPlayEvent
   // The dialogs keep one child for the stage; the main view makes one per shown state (puzlwerkPlay.ts).
@@ -67,6 +106,7 @@ export function PuzlwerkCubeView({
     stage: CubeStage
     child?: StageChild
   } | null>(null)
+  stageRef.current = stage?.stage ?? null
   const [problem, setProblem] = useState<string | null>(null)
   const frame = frameHexes(colorFrame, palette)
   const indicatorColors = (frame && indicatorColorsFromFrame(frame)) || null
@@ -95,6 +135,14 @@ export function PuzlwerkCubeView({
         if (hostRef.current && signal !== undefined)
           hostRef.current.dataset.turn = signal
         onPlayEventRef.current(event)
+      },
+      onViewChanged: (view) => {
+        orientationRef.current = view.orientation
+        // Signal for tests: the display orientation the stage reports.
+        if (hostRef.current)
+          hostRef.current.dataset.orientation = view.orientation
+            .map((value) => value.toFixed(6))
+            .join(',')
       },
       viewPolicy: (view) => {
         const distance =
@@ -159,19 +207,51 @@ export function PuzlwerkCubeView({
   // Main view: the layers play in the viewer (locked: view mode only).
   useEffect(() => {
     if (!stage || !main) return
-    return mountMainPlay({
+    const play = mountMainPlay({
       stage: stage.stage,
       cube,
       size: puzzleSize,
       palette,
-      layerMoves,
+      layerMoves: layerMovesRef.current,
+      seamWide: hints.seamWide,
       onProblem: setProblem,
+      onShown: () => syncConstruction(),
       // Signal for tests: the interaction mode the stage is in.
       onMode: (mode) => {
         if (hostRef.current) hostRef.current.dataset.interaction = mode
       },
     })
-  }, [stage, main, cube, puzzleSize, palette, layerMoves])
+    playRef.current = play
+    return () => {
+      playRef.current = null
+      play.dispose()
+    }
+  }, [stage, main, cube, puzzleSize, palette, hints.seamWide])
+
+  // The lock switches the stage between play and view mode; the state shown stays.
+  useEffect(() => {
+    if (main) document.cookie = preferenceCookie(LAYER_MOVES_COOKIE, layerMoves)
+    playRef.current?.setLayerMoves(layerMoves)
+  }, [main, layerMoves])
+
+  useEffect(() => {
+    if (!main) return
+    document.cookie = preferenceCookie(STICKERLESS_COOKIE, stickerless)
+    stickerlessRef.current = stickerless
+    syncConstruction()
+  }, [stage, main, stickerless])
+
+  useEffect(() => {
+    if (!main) return
+    document.cookie = preferenceCookie(AUTO_ROTATE_COOKIE, autoRotate)
+    if (!stage) return
+    stage.stage.setAutoRotate(autoRotate)
+    // Signal for tests: whether the stage spins.
+    if (hostRef.current)
+      hostRef.current.dataset.autoRotate = String(
+        stage.stage.getAutoRotate().enabled,
+      )
+  }, [stage, main, autoRotate])
 
   // Dialogs: a state shown without play.
   useEffect(() => {
@@ -213,6 +293,24 @@ export function PuzlwerkCubeView({
     }
   }, [stage, main, cube, puzzleSize, palette, highlightedFace])
 
+  // A view change by button or key: the stage shows it and auto-rotate pauses, as the existing view.
+  const showPreset = (preset: ViewPreset) => {
+    stage?.stage.setViewPreset(preset)
+    stage?.stage.interact()
+  }
+  const handleKeyDown = (event: KeyboardEvent) => {
+    const preset = keyPreset(event.key)
+    if (preset) {
+      showPreset(preset)
+      return
+    }
+    const next = arrowOrientation(event.key, orientationRef.current)
+    if (!next) return
+    event.preventDefault()
+    stage?.stage.setDisplayOrientation(next)
+    stage?.stage.interact()
+  }
+
   return (
     <div class="cube-3d-container">
       {problem && (
@@ -225,7 +323,9 @@ export function PuzlwerkCubeView({
         hidden={problem !== null}
         role="region"
         aria-label="3D Rubik's cube view (PuzlWerk viewer)"
-        {...(main ? hints.handlers : {})}
+        {...(main
+          ? { ...hints.handlers, tabIndex: 0, onKeyDown: handleKeyDown }
+          : {})}
       >
         <div ref={hostRef} class="cube-3d-puzlwerk" />
         {main && hints.wideBadge && (
@@ -242,6 +342,17 @@ export function PuzlwerkCubeView({
           <div class="cube-3d-hint">{hints.helpText}</div>
         )}
       </div>
+      {main && (
+        <PuzlwerkToolbar
+          onPreset={showPreset}
+          stickerless={stickerless}
+          onToggleStickerless={() => setStickerless((value) => !value)}
+          autoRotate={autoRotate}
+          onToggleAutoRotate={() => setAutoRotate((value) => !value)}
+          layerMoves={layerMoves}
+          onToggleLayerMoves={() => setLayerMoves((value) => !value)}
+        />
+      )}
     </div>
   )
 }

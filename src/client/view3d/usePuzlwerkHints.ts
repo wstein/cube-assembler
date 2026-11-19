@@ -68,6 +68,7 @@ export function usePuzlwerkHints({ size, locked }: PuzlwerkHintsOptions) {
   return {
     helpVisible: help.visible,
     helpText: helpHintText(coarse, seamWide),
+    seamWide,
     wideBadge,
     lockedHint: lockedHint && locked,
     // Stage option `onPlayEvent`; stable, reads the latest size.
