@@ -21,13 +21,9 @@ import {
 import type { DragTurn } from './cubeDragInteraction'
 import type { buildCubeMesh } from './cubeMesh'
 import { generateScrambleMoves, type CubeTurn } from './cubeView3DState'
-import { readScrambleOptions, readTurnFeel, turnSoundOn } from '../preferences'
-import {
-  magneticDragAngle,
-  playTurnClick,
-  scrambleDuration,
-  turnClickGain,
-} from './turnFeel'
+import { readScrambleOptions, readTurnFeel } from '../preferences'
+import { magneticDragAngle, scrambleDuration } from './turnFeel'
+import { playFinishedTurnClick } from './turnSound'
 
 // The layers the mesh shows turned this frame, and whether the sticker
 // colors must be rebuilt too.
@@ -126,7 +122,7 @@ export function useCubeTurns({
       anim,
     )
     if (!turned) return
-    playTurnClick(turnClickGain(anim.duration, turnSoundOn(document.cookie)))
+    playFinishedTurnClick(anim.duration)
     currentCubeRef.current = turned.cube
     setCurrentCube(turned.cube)
     movesRef.current = turned.moves

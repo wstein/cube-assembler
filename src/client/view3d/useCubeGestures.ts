@@ -36,10 +36,9 @@ import {
   SEAM_WIDE_COOKIE,
   readVibrationMs,
   layerMovesOn,
-  turnSoundOn,
   vibrationOn,
 } from '../preferences'
-import { MODE_CUE_GAIN, playWideCue } from './turnFeel'
+import { playWideTurnCue } from './turnSound'
 import type { useCubeCamera } from './useCubeCamera'
 import type { useCubeTurns } from './useCubeTurns'
 
@@ -137,7 +136,7 @@ export function useCubeGestures({
   const announceWideTurn = () => {
     setPressMode('wide')
     const cookies = document.cookie
-    playWideCue(turnSoundOn(cookies) ? MODE_CUE_GAIN : 0)
+    playWideTurnCue()
     try {
       if (vibrationOn(cookies)) navigator.vibrate?.(readVibrationMs(cookies))
     } catch {

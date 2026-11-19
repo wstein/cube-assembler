@@ -4,12 +4,11 @@ import { lockedHintDue } from './cubeGesture'
 import {
   LAYER_MOVES_COOKIE,
   STICKERLESS_COOKIE,
-  TURN_SOUND_COOKIE,
   layerMovesOn,
   preferenceCookie,
   readPreference,
-  turnSoundOn,
 } from '../preferences'
+import { useTurnSound } from './turnSound'
 import type { FaceKey } from '../../cube/cubeAssembly'
 import type { CubeState } from '../../cube/cubeAssembly'
 import type { colorFrame as ColorFrame } from '../../core/view/AxisGizmo.gen'
@@ -129,12 +128,7 @@ export function CubeView3D({
   const [layerMoves, setLayerMoves] = useState<boolean>(() =>
     layerMovesOn(document.cookie),
   )
-  const [turnSound, setTurnSound] = useState(() => turnSoundOn(document.cookie))
-  const toggleTurnSound = () => {
-    const enabled = !turnSoundOn(document.cookie)
-    document.cookie = preferenceCookie(TURN_SOUND_COOKIE, enabled)
-    setTurnSound(enabled)
-  }
+  const [turnSound, toggleTurnSound] = useTurnSound()
   // Dragging a sticker while locked explains the lock, at most once per gap.
   const [lockedHint, setLockedHint] = useState(false)
   const lockedHintShownAtRef = useRef<number | null>(null)

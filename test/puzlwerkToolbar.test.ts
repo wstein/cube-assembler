@@ -16,6 +16,8 @@ const render = (over: Record<string, unknown> = {}) =>
       onToggleAutoRotate: noop,
       layerMoves: false,
       onToggleLayerMoves: noop,
+      turnSound: false,
+      onToggleTurnSound: noop,
       cube: {
         isScrambling: false,
         onToggleScramble: noop,
@@ -112,6 +114,7 @@ describe('main view toolbar groups', () => {
       'Stickerless',
       'Auto-rotate',
       'Move layers',
+      'Sound',
     ])
   })
 })
