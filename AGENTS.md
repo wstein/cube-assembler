@@ -65,7 +65,10 @@ migration. As of 2026-11-19, CubeAssembler consumes pinned PuzlWerk ReScript
 Core packages in bounded capture work ([#60](https://github.com/wstein/cube-assembler/pull/60),
 [#61](https://github.com/wstein/cube-assembler/pull/61)) and the TypeScript viewer
 in a default-off main-view path (`?viewer=puzlwerk`,
-[#78](https://github.com/wstein/cube-assembler/pull/78)–[#84](https://github.com/wstein/cube-assembler/pull/84)).
+[#78](https://github.com/wstein/cube-assembler/pull/78),
+[#81](https://github.com/wstein/cube-assembler/pull/81),
+[#83](https://github.com/wstein/cube-assembler/pull/83),
+[#84](https://github.com/wstein/cube-assembler/pull/84)).
 The old viewer remains the default; temporary comparison is not a mandate for a
 permanent dual-view architecture. These merges do not prove the five Counter M1
 acceptance criteria or authorize production M2 cutover or CubeLab M3. See
