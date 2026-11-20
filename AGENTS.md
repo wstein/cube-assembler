@@ -60,9 +60,15 @@ application knowledge. The CubeScene model in
 **not an accepted viewer API contract**, under
 [Cubistry #21](https://github.com/wstein/cubistry/issues/21).
 The viewer depends on the core; applications depend on the viewer, never the
-reverse. This is the target architecture, not a
-migration approval, and it does not mean a package is released or CubeAssembler
-already consumes it. See
+reverse. This is the target architecture, not approval for a complete M2
+migration. As of 2026-11-19, CubeAssembler consumes pinned PuzlWerk ReScript
+Core packages in bounded capture work ([#60](https://github.com/wstein/cube-assembler/pull/60),
+[#61](https://github.com/wstein/cube-assembler/pull/61)) and the TypeScript viewer
+in a default-off main-view path (`?viewer=puzlwerk`,
+[#78](https://github.com/wstein/cube-assembler/pull/78)–[#84](https://github.com/wstein/cube-assembler/pull/84)).
+The old viewer remains the default; temporary comparison is not a mandate for a
+permanent dual-view architecture. These merges do not prove the five Counter M1
+acceptance criteria or authorize production M2 cutover or CubeLab M3. See
 [Cubistry #21](https://github.com/wstein/cubistry/issues/21),
 [local tracking #29](https://github.com/wstein/cube-assembler/issues/29),
 [PuzlWerk #5](https://github.com/wstein/puzlwerk/issues/5) and
