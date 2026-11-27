@@ -88,7 +88,8 @@ describe('Orbit64 token in the UI layer, sizes 2 to 15', () => {
     expect(decodeOrbit64Token(v1Five)).toBeNull()
     const refused = parseCubeInput(v1Five, 'urf')
     expect(refused.ok).toBe(false)
-    if (!refused.ok) expect(refused.message).toContain('2×2–15×15')
+    if (!refused.ok)
+      expect(refused.message).toBe('Orbit64 V1 is no longer supported')
     expect(decodeOrbit64Token('A'.repeat(7))).toBeNull()
     expect(encodeOrbit64Token('UUUU RRRR FFFF DDDD LLLL')).toBeNull()
     const sixteen = ['U', 'R', 'F', 'D', 'L', 'B']
