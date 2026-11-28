@@ -1,16 +1,13 @@
 // The Orbit64 state token of the app: V2, color model, framed pose, for cubes
 // of size 2..15. A framed color token keeps the whole-cube orientation, so a
-// cube read from the facelets round-trips with its orientation. Tokens of the
-// V1 format of sizes 2, 3, 4, 6 and 7 are the same strings. Format:
+// cube read from the facelets round-trips with its orientation. Framed color
+// tokens of sizes 2, 3, 4, 6 and 7 match the strings of the earlier format.
+// Format:
 // FORMAT-V2.md of flix-orbit64 (Apache-2.0); the codec is in Orbit64V2.res and
 // Orbit64V2Facelets.res.
 
 let minSize = 2
 let maxSize = 15
-
-// The V1 token of a 5x5 cube had 43 characters; V2 does not read it. It is
-// still recognized as a token so the reader can say why it is refused.
-let legacyFiveWidth = 43
 
 let tokenPattern = RegExp.fromString("^[A-Za-z0-9_-]+$")
 
@@ -28,13 +25,12 @@ let framedColorId = n =>
   ->Array.find(entry => entry.n == n && entry.model == Color && entry.pose == Framed)
   ->Option.map(entry => entry.id)
 
-// True for a token of a registered V2 length, and for the V1 5x5 length.
+// True for a token of a registered V2 length.
 @genType
 let looksLikeToken = input => {
   let token = String.trim(input)
   tokenPattern->RegExp.test(token) &&
-    (String.length(token) == legacyFiveWidth ||
-      Orbit64V2.entries->Array.some(entry => entry.length == String.length(token)))
+    Orbit64V2.entries->Array.some(entry => entry.length == String.length(token))
 }
 
 // The token of a cube given as facelets (six blocks in U R F D L B order,

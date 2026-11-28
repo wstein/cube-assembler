@@ -99,9 +99,7 @@ reference vectors from that project in `test/cube/notation/orbit64Vectors.json`
 and `test/cube/notation/orbit64LargeVectors.json`. Only the V2 format exists in
 the app: [`Orbit64Token.res`](../src/cube/notation/Orbit64Token.res) writes the
 color framed token of the notation card for sizes 2-15 and reads color tokens
-in the typed-input field. V2 reads the V1 tokens of sizes 2, 3, 4, 6 and 7 as
-color framed tokens at offset 0; the 43-character V1 token of a 5x5 cube is not
-read.
+in the typed-input field. A string that is not a V2 color token is rejected.
 
 The Orbit64 V2 state codec for 2x2-15x15 cubes
 ([`Orbit64V2.res`](../src/cube/notation/Orbit64V2.res)) works on orbit

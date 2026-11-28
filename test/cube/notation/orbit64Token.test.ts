@@ -73,23 +73,21 @@ describe('Orbit64 token in the UI layer, sizes 2 to 15', () => {
     expect(parseCubeInput(token, 'urf')).toMatchObject({ ok: true, cube })
   })
 
-  it.each(
-    [...examples, ...largeExamples].filter(([token]) => token.length !== 43),
-  )('writes the published V1 token %s unchanged', (token, facelets) => {
-    expect(encodeOrbit64Token(facelets)).toBe(token)
-    expect(decodeOrbit64Token(token)).toBe(facelets)
-  })
+  it.each([...examples, ...largeExamples])(
+    'writes the published token %s unchanged',
+    (token, facelets) => {
+      expect(encodeOrbit64Token(facelets)).toBe(token)
+      expect(decodeOrbit64Token(token)).toBe(facelets)
+    },
+  )
 
   it('refuses a token that is no color cube of the range', () => {
-    const v1Five = ([...examples, ...largeExamples].find(
-      ([t]) => t.length === 43,
-    ) ?? [''])[0]
-    expect(v1Five).toHaveLength(43)
-    expect(decodeOrbit64Token(v1Five)).toBeNull()
-    const refused = parseCubeInput(v1Five, 'urf')
+    const notV2 = 'A'.repeat(43)
+    expect(looksLikeOrbit64Token(notV2)).toBe(false)
+    expect(decodeOrbit64Token(notV2)).toBeNull()
+    const refused = parseCubeInput(notV2, 'urf')
     expect(refused.ok).toBe(false)
-    if (!refused.ok)
-      expect(refused.message).toBe('Orbit64 V1 is no longer supported')
+    if (!refused.ok) expect(refused.message).not.toMatch(/V1/)
     expect(decodeOrbit64Token('A'.repeat(7))).toBeNull()
     expect(encodeOrbit64Token('UUUU RRRR FFFF DDDD LLLL')).toBeNull()
     const sixteen = ['U', 'R', 'F', 'D', 'L', 'B']

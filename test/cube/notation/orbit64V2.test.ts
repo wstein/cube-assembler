@@ -334,38 +334,39 @@ const v1Tokens: [number, string][] = [
   ...v1LargeExamples.map(([token]): [number, string] => [token.length, token]),
 ]
 
-describe('Orbit64 V2 reads V1 state tokens', () => {
+describe('Orbit64 V2 reads the published color framed tokens', () => {
   const sizeOfWidth: Record<number, number> = {
     5: 2,
     12: 3,
     27: 4,
+    42: 5,
     66: 6,
     90: 7,
   }
 
-  it('reads each V1 token as the color framed entry of its size', () => {
+  it('reads each published token as the color framed entry of its size', () => {
     const covered = new Set<number>()
     for (const [width, token] of v1Tokens) {
-      if (width === 43) continue
       const n = sizeOfWidth[width]
       const decoded = ok(decodeOrbit64V2State(token))
       expect(decoded.entry.n, token).toBe(n)
       expect(decoded.entry.model).toBe('Color')
       expect(decoded.entry.pose).toBe('Framed')
       expect(decoded.entry.length).toBe(width)
-      expect(decoded.entry.offset).toBe(0n)
+      if (n !== 5) expect(decoded.entry.offset).toBe(0n)
       expect(encodeOrbit64V2State(decoded.entry.id, decoded.cube)).toEqual({
         TAG: 'Ok',
         _0: token,
       })
       covered.add(n)
     }
-    expect([...covered].sort()).toEqual([2, 3, 4, 6, 7])
+    expect([...covered].sort()).toEqual([2, 3, 4, 5, 6, 7])
   })
 
-  it('has the V1 corner digit of the token as its corner state', () => {
+  it('has the corner digit of a shared-width token as its corner state', () => {
     for (const [width, token] of v1Tokens) {
-      if (width === 43) continue
+      // A 5×5 framed token is 42 characters and does not use that digit layout.
+      if (width === 42) continue
       const e = orbit64V2Entries.find(
         (o) => o.length === width && o.offset === 0n,
       )
@@ -378,12 +379,8 @@ describe('Orbit64 V2 reads V1 state tokens', () => {
     }
   })
 
-  it('rejects the 43-character V1 5x5x5 tokens', () => {
-    const tokens = v1Tokens.filter(([width]) => width === 43)
-    expect(tokens.length).toBeGreaterThan(0)
-    for (const [, token] of tokens) {
-      expect(decodeOrbit64V2State(token).TAG, token).toBe('Error')
-    }
+  it('rejects a length that is not a V2 entry', () => {
+    expect(v1Tokens.some(([width]) => width === 43)).toBe(false)
     expect(decodeOrbit64V2State('A'.repeat(43)).TAG).toBe('Error')
   })
 })
