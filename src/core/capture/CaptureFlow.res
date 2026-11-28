@@ -148,9 +148,7 @@ let parseCubeInput = (input, selectedFormat: NotationOutput.notationFormat) => {
   | None =>
     Unreadable({
       message: isToken
-        ? String.length(trimmed) == 43
-            ? "Orbit64 V1 is no longer supported"
-            : "Invalid Orbit64 state token. Only Orbit64 V2 color state tokens of 2×2–15×15 cubes are supported."
+        ? "Invalid Orbit64 state token. Only Orbit64 V2 color state tokens of 2×2–15×15 cubes are supported."
         : format == Wrg
         ? "Invalid facelets. Must be 6 space-separated blocks of equal, perfect-square length (9 for 3×3, 25 for 5×5, ...) using colors W, O, G, R, B, Y, in U R F D L B order."
         : "Invalid facelets. Must be 6 space-separated blocks of equal, perfect-square length (9 for 3×3, 25 for 5×5, ...) using letters U, R, F, D, L, B (the face each sticker matches when solved), in U R F D L B order.",
